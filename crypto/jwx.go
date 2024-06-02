@@ -418,7 +418,7 @@ func encryptionAlgorithm(key crypto.PublicKey) (jwa.KeyEncryptionAlgorithm, erro
 // Thumbprint generates a Nuts compatible thumbprint: Base58(SHA256(rfc7638-json))
 func Thumbprint(key jwk.Key) (string, error) {
 	if key == nil {
-		return "", errors.New("key is nil")
+		panic("Thumbprint(): key is nil")
 	}
 	pkHash, err := key.Thumbprint(crypto.SHA256)
 	if err != nil {

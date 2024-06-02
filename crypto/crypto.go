@@ -93,7 +93,6 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	log.Logger().Info("Setting up FileSystem backend for storage of private key material. " +
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
-	var err error
 	fsBackend, err := fs.NewFileSystemBackend(fsPath)
 	if err != nil {
 		return err
@@ -116,7 +115,6 @@ func (client *Crypto) setupStorageAPIBackend() error {
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
 		"This feature is experimental and may change in the future.")
-	var err error
 	vaultBackend, err := vault.NewVaultKVStorage(client.config.Vault)
 	if err != nil {
 		return err
@@ -128,7 +126,6 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 
 func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material. ")
-	var err error
 	azureBackend, err := azure.New(client.config.AzureKeyVault.URL, client.config.AzureKeyVault.Timeout, client.config.AzureKeyVault.UseHSM)
 	if err != nil {
 		return err
