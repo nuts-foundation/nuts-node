@@ -38,6 +38,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
@@ -65,8 +66,13 @@ func Test_keyvault_NewPrivateKey(t *testing.T) {
 		response := azkeys.CreateKeyResponse{
 			KeyBundle: keyBundle(),
 		}
+
+		capturedParams := azkeys.CreateKeyParameters{}
 		vaultClient.EXPECT().CreateKey(gomock.Any(), "did-web-example-com-0", gomock.Any(), gomock.Any()).
-			Return(response, nil)
+			DoAndReturn(func(_ context.Context, _ string, parameters azkeys.CreateKeyParameters, _ *azkeys.CreateKeyOptions) (azkeys.CreateKeyResponse, error) {
+				capturedParams = parameters
+				return response, nil
+			})
 
 		store := keyvault{client: vaultClient}
 		privateKey, kid, err := store.NewPrivateKey(context.Background(), func(key crypto.PublicKey) (string, error) {
@@ -75,6 +81,11 @@ func Test_keyvault_NewPrivateKey(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, privateKey)
 		assert.Equal(t, "did:web:example.com#0", kid)
+		assert.Equal(t, azkeys.KeyTypeEC, *capturedParams.Kty)
+		assert.Equal(t, azkeys.CurveNameP256, *capturedParams.Curve)
+		assert.True(t, *capturedParams.KeyAttributes.Enabled)
+		assert.False(t, *capturedParams.KeyAttributes.Exportable)
+		assert.Equal(t, "did:web:example.com#0", *capturedParams.Tags["originalKID"])
 	})
 	t.Run("already exists", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -282,11 +293,14 @@ func keyBundle() azkeys.KeyBundle {
 func TestIntegrationTest(t *testing.T) {
 	// Either set credential environment variables (e.g., AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET) or use az login
 	t.Skip()
+	os.Setenv("AZURE_TENANT_ID", "")
+	os.Setenv("AZURE_CLIENT_ID", "")
+	os.Setenv("AZURE_CLIENT_SECRET", "")
 
 	store, err := New("https://geheim-keyvault.vault.azure.net/", 10*time.Second, false)
 	assert.NoError(t, err)
 
-	const kid = "did:web:example.com#0"
+	var kid = "did:web:example.com#" + uuid.NewString()
 	ctx := context.Background()
 	_, _, err = store.NewPrivateKey(ctx, func(key crypto.PublicKey) (string, error) {
 		return kid, nil
@@ -314,6 +328,10 @@ func TestIntegrationTest(t *testing.T) {
 			assert.NoError(t, err)
 			assert.True(t, exists)
 		})
+	})
+	t.Run("ListPrivateKeys", func(t *testing.T) {
+		keys := store.ListPrivateKeys(ctx)
+		assert.Contains(t, keys, kid)
 	})
 	t.Run("GetPrivateKey", func(t *testing.T) {
 		t.Run("does not exist", func(t *testing.T) {

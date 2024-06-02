@@ -57,11 +57,11 @@ Microsoft Azure Key Vault
 =========================
 
 This storage backend uses Microsoft Azure's Key Vault. It authenticates to the Azure Key Vault at the configured URL using the default credential,
-typically an Azure Entra ID Managed Identity. If you wish to store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
+typically an Azure Managed Identity. Refer to the `Azure SDK for Go documentation <https://github.com/Azure/azure-sdk-for-go/wiki/Set-up-Your-Environment-for-Authentication>`_ for more information.
 
-The keys creates in this storage backend are marked as non-exportable.
-
-Note that Azure Key Vault storage can't be used for nodes that produce ``did:nuts`` DIDs.
+- Azure Key Vault storage can't be used for nodes that produce ``did:nuts`` DIDs or for data encryption.
+- To store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
+- Keys created through this storage backend are marked as non-exportable.
 
 HashiCorp Vault
 ===============

@@ -13,6 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	runtime "github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	azkeys "github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -83,6 +84,20 @@ func (m *MockkeyVaultClient) GetKey(ctx context.Context, name, version string, o
 func (mr *MockkeyVaultClientMockRecorder) GetKey(ctx, name, version, options any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKey", reflect.TypeOf((*MockkeyVaultClient)(nil).GetKey), ctx, name, version, options)
+}
+
+// NewListKeyPropertiesPager mocks base method.
+func (m *MockkeyVaultClient) NewListKeyPropertiesPager(options *azkeys.ListKeyPropertiesOptions) *runtime.Pager[azkeys.ListKeyPropertiesResponse] {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewListKeyPropertiesPager", options)
+	ret0, _ := ret[0].(*runtime.Pager[azkeys.ListKeyPropertiesResponse])
+	return ret0
+}
+
+// NewListKeyPropertiesPager indicates an expected call of NewListKeyPropertiesPager.
+func (mr *MockkeyVaultClientMockRecorder) NewListKeyPropertiesPager(options any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewListKeyPropertiesPager", reflect.TypeOf((*MockkeyVaultClient)(nil).NewListKeyPropertiesPager), options)
 }
 
 // Sign mocks base method.

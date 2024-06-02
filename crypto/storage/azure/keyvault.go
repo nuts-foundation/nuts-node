@@ -30,6 +30,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
@@ -67,6 +68,7 @@ func (a keyvault) Name() string {
 }
 
 func (a keyvault) CheckHealth() map[string]core.Health {
+
 	return nil
 }
 
@@ -99,6 +101,9 @@ func (a keyvault) NewPrivateKey(ctx context.Context, namingFunc func(crypto.Publ
 		KeyAttributes: &azkeys.KeyAttributes{
 			Enabled:    to.Ptr(true),
 			Exportable: to.Ptr(false),
+		},
+		Tags: map[string]*string{
+			"originalKID": to.Ptr(keyID),
 		},
 	}, nil)
 	if err != nil {
@@ -170,10 +175,22 @@ func (a keyvault) SavePrivateKey(ctx context.Context, kid string, key crypto.Pri
 }
 
 func (a keyvault) ListPrivateKeys(ctx context.Context) []string {
-	// Only used for:
-	// - migrating to a new storage backend, which is not implemented yet for Azure Key Vault
-	// - did:nuts DIDs ownership checking, which won't be supported by this Azure Key Vault integration
-	return nil
+	pager := a.client.NewListKeyPropertiesPager(nil)
+	result := make([]string, 0)
+	for pager.More() {
+		page, err := pager.NextPage(ctx)
+		if err != nil {
+			log.Logger().WithError(err).Error("unable to list keys from Azure Key Vault")
+			return nil
+		}
+		for _, keyProperties := range page.Value {
+			kid, ok := keyProperties.Tags["originalKID"]
+			if ok {
+				result = append(result, *kid)
+			}
+		}
+	}
+	return result
 }
 
 // parseKey parses an Azure Key Vault key into a crypto.PublicKey and selects the azkeys.SignatureAlgorithm.
@@ -190,31 +207,6 @@ func parseKey(key *azkeys.JSONWebKey) (crypto.PublicKey, azkeys.SignatureAlgorit
 	if !(*key.Kty == azkeys.KeyTypeEC || *key.Kty == azkeys.KeyTypeECHSM) || *key.Crv != azkeys.CurveNameP256 {
 		return nil, "", errors.New("only ES256 keys are supported")
 	}
-	// Code to support all types, supported by Azure Key Vault (kept here for future support):
-	//var signatureAlgorithm azkeys.SignatureAlgorithm
-	//switch *key.Kty {
-	//case azkeys.KeyTypeEC:
-	//	fallthrough
-	//case azkeys.KeyTypeECHSM:
-	//	switch *key.Crv {
-	//	case azkeys.CurveNameP256:
-	//		signatureAlgorithm = azkeys.SignatureAlgorithmES256
-	//	case azkeys.CurveNameP256K:
-	//		signatureAlgorithm = azkeys.SignatureAlgorithmES256K
-	//	case azkeys.CurveNameP384:
-	//		signatureAlgorithm = azkeys.SignatureAlgorithmES384
-	//	case azkeys.CurveNameP521:
-	//		signatureAlgorithm = azkeys.SignatureAlgorithmES512
-	//	default:
-	//		return nil, "", fmt.Errorf("unsupported EC curve: %s", *key.Crv)
-	//	}
-	//case azkeys.KeyTypeRSA:
-	//	fallthrough
-	//case azkeys.KeyTypeRSAHSM:
-	//	signatureAlgorithm = azkeys.SignatureAlgorithmPS256
-	//default:
-	//	return nil, "", fmt.Errorf("unsupported key type: %s", *key.Kty)
-	//}
 	return publicKey, azkeys.SignatureAlgorithmES256, nil
 }
 
@@ -254,21 +246,30 @@ func (a azureSigningKey) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts
 	}
 	// Azure Key Vault returns the signature in a []byte with r and s components concatenated.
 	// We need to convert it to an ASN.1-encoded signature. The first half of the signature is r, the second half is s.
-	// Inspired by ecdsa/ecdsa.go#encodeSignature()
-	builder := &cryptobyte.Builder{}
-	builder.AddASN1(asn1.SEQUENCE, func(child *cryptobyte.Builder) {
-		asn1Int(child, response.Result[:len(response.Result)/2])
-		asn1Int(child, response.Result[len(response.Result)/2:])
-	})
-	return builder.Bytes()
+	return encodeSignature(response.Result[:len(response.Result)/2], response.Result[len(response.Result)/2:])
 }
 
-func asn1Int(b *cryptobyte.Builder, bytes []byte) {
-	for bytes[0] == 0 {
+// encodeSignature was copied from ecdsa/ecdsa.go#encodeSignature()
+func encodeSignature(r, s []byte) ([]byte, error) {
+	var b cryptobyte.Builder
+	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		addASN1IntBytes(b, r)
+		addASN1IntBytes(b, s)
+	})
+	return b.Bytes()
+}
+
+// addASN1IntBytes was copied from ecdsa/ecdsa.go#addASN1IntBytes()
+func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
+	for len(bytes) > 0 && bytes[0] == 0 {
 		bytes = bytes[1:]
 	}
+	if len(bytes) == 0 {
+		b.SetError(errors.New("invalid integer"))
+		return
+	}
 	b.AddASN1(asn1.INTEGER, func(c *cryptobyte.Builder) {
-		if bytes[0]&0x80 != 0 {
+		if bytes[0]&0x80 != 0 { // note: this has to do with signed/unsigned requiring leading zero
 			c.AddUint8(0)
 		}
 		c.AddBytes(bytes)
