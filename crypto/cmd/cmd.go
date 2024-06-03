@@ -38,10 +38,8 @@ func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("crypto", pflag.ContinueOnError)
 
 	defs := cryptoEngine.DefaultCryptoConfig()
-	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, '%s' for file system (for development purposes), "+
-		"'%s' for HashiCorp Vault KV store, "+
-		"'%s' for Azure Key Vault.",
-		"'%s' for an external backend (deprecated).", fs.StorageType, vault.StorageType, azure.StorageType, external.StorageType))
+	flags.String("crypto.storage", defs.Storage, fmt.Sprintf("Storage to use, '%s' for file system (for development purposes), '%s' for HashiCorp Vault KV store, '%s' for Azure Key Vault, '%s' for an external backend (deprecated).",
+		fs.StorageType, vault.StorageType, azure.StorageType, external.StorageType))
 	flags.String("crypto.vault.token", defs.Vault.Token, "The Vault token. If set it overwrites the VAULT_TOKEN env var.")
 	flags.String("crypto.vault.address", defs.Vault.Address, "The Vault address. If set it overwrites the VAULT_ADDR env var.")
 	flags.Duration("crypto.vault.timeout", defs.Vault.Timeout, "Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).")
