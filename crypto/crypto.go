@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
 	"path"
 	"time"
 
@@ -44,15 +45,17 @@ const (
 
 // Config holds the values for the crypto engine
 type Config struct {
-	Storage  string          `koanf:"storage"`
-	Vault    vault.Config    `koanf:"vault"`
-	External external.Config `koanf:"external"`
+	Storage       string          `koanf:"storage"`
+	Vault         vault.Config    `koanf:"vault"`
+	AzureKeyVault azure.Config    `koanf:"azurekv"`
+	External      external.Config `koanf:"external"`
 }
 
 // DefaultCryptoConfig returns a Config with a fs backend storage
 func DefaultCryptoConfig() Config {
 	return Config{
-		Vault: vault.DefaultConfig(),
+		Vault:         vault.DefaultConfig(),
+		AzureKeyVault: azure.DefaultConfig(),
 		External: external.Config{
 			Timeout: 100 * time.Millisecond,
 		},
@@ -90,7 +93,6 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	log.Logger().Info("Setting up FileSystem backend for storage of private key material. " +
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
-	var err error
 	fsBackend, err := fs.NewFileSystemBackend(fsPath)
 	if err != nil {
 		return err
@@ -113,13 +115,22 @@ func (client *Crypto) setupStorageAPIBackend() error {
 func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
 		"This feature is experimental and may change in the future.")
-	var err error
 	vaultBackend, err := vault.NewVaultKVStorage(client.config.Vault)
 	if err != nil {
 		return err
 	}
 
 	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, spi.KidPattern)
+	return nil
+}
+
+func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
+	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material. ")
+	azureBackend, err := azure.New(client.config.AzureKeyVault.URL, client.config.AzureKeyVault.Timeout, client.config.AzureKeyVault.UseHSM)
+	if err != nil {
+		return err
+	}
+	client.storage = spi.NewValidatedKIDBackendWrapper(azureBackend, spi.KidPattern)
 	return nil
 }
 
@@ -135,6 +146,8 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 		return client.setupFSBackend(config)
 	case vault.StorageType:
 		return client.setupVaultBackend(config)
+	case azure.StorageType:
+		return client.setupAzureKeyVaultBackend(config)
 	case external.StorageType:
 		return client.setupStorageAPIBackend()
 	case "":
