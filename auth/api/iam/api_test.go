@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -806,8 +807,11 @@ func TestWrapper_Routes(t *testing.T) {
 		router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
+		authServices := auth.NewMockAuthenticationServices(ctrl)
+		authServices.EXPECT().PublicURL().Return(test.MustParseURL("https://example.com"))
 		(&Wrapper{
 			storageEngine: storage.NewTestStorageEngine(t),
+			auth:          authServices,
 		}).Routes(router)
 	})
 	t.Run("cache middleware URLs match registered paths", func(t *testing.T) {
@@ -824,8 +828,11 @@ func TestWrapper_Routes(t *testing.T) {
 			return nil
 		}).AnyTimes()
 		router.EXPECT().Use(gomock.Any()).AnyTimes()
+		authServices := auth.NewMockAuthenticationServices(ctrl)
+		authServices.EXPECT().PublicURL().Return(test.MustParseURL("https://example.com"))
 		(&Wrapper{
 			storageEngine: storage.NewTestStorageEngine(t),
+			auth:          authServices,
 		}).Routes(router)
 
 		// Check that all cache-control max-age paths are actual paths
