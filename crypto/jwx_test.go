@@ -426,6 +426,27 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
 		require.Error(t, err)
 	})
+	t.Run("not an exported key", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		// wrap private key to mimic a private key not being an ecdsa.PrivateKey instance,
+		// but one that lives in an external key vault.
+		wrappedPrivateKey := wrappedSigner{
+			target: privateKey,
+		}
+		ctrl := gomock.NewController(t)
+		storage := spi.NewMockStorage(ctrl)
+		storage.EXPECT().Name().Return("test")
+		storage.EXPECT().GetPrivateKey(gomock.Any(), kid).Return(wrappedPrivateKey, nil)
+
+		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+
+		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": kid}, privateKey.Public())
+
+		require.NoError(t, err)
+
+		_, _, err = (&Crypto{storage: storage}).DecryptJWE(audit.TestContext(), tokenString)
+		require.EqualError(t, err, "keys stored in 'test' do not support JWE decryption")
+	})
 	t.Run("writes audit log", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 

@@ -21,6 +21,7 @@ gen-mocks:
 	mockgen -destination=core/echo_mock.go -package=core -source=core/echo.go -imports echo=github.com/labstack/echo/v4
 	mockgen -destination=crypto/mock.go -package=crypto -source=crypto/interface.go
 	mockgen -destination=crypto/storage/spi/mock.go -package spi -source=crypto/storage/spi/interface.go
+	mockgen -destination=crypto/storage/azure/mock.go -package azure -source=crypto/storage/azure/interface.go
 	mockgen -destination=didman/mock.go -package=didman -source=didman/types.go
 	mockgen -destination=discovery/mock.go -package=discovery -source=discovery/interface.go
 	mockgen -destination=discovery/api/server/client/mock.go -package=client -source=discovery/api/server/client/interface.go

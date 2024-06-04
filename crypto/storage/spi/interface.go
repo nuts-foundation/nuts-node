@@ -112,7 +112,7 @@ func GenerateAndStore(ctx context.Context, store Storage, namingFunc func(crypto
 	}
 	exists, err := store.PrivateKeyExists(ctx, kid)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
 	}
 	if exists {
 		return nil, "", errors.New("key with the given ID already exists")
