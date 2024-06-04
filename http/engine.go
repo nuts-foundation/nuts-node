@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"net/http"
 	"os"
 	"strings"
@@ -68,6 +69,8 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
+	h.configureClient(serverConfig)
+
 	// Override default Echo HTTP error when bearer token is expected but not provided.
 	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
 	// "Unauthorized (401)" is a better fit.
@@ -96,6 +99,14 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{"/metrics", "/status", "/health"}, h.config.Log)
 	return h.applyAuthMiddleware(h.server, "/internal", h.config.Internal.Auth)
+}
+
+func (h *Engine) configureClient(serverConfig core.ServerConfig) {
+	client.StrictMode = serverConfig.Strictmode
+	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
+	if h.config.ResponseCacheSize > 0 {
+		client.DefaultCachingTransport = client.NewCachingTransport(http.DefaultTransport, h.config.ResponseCacheSize)
+	}
 }
 
 func (h *Engine) createEchoServer() (EchoServer, error) {

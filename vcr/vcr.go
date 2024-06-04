@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -219,12 +220,12 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		// meaning while the issuer allocated an HTTP connection the wallet will try to allocate one as well.
 		// This moved back to 1 http.Client when the credential is requested asynchronously.
 		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039 (also fix core.NewStrictHTTPClient)
-		c.issuerHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
-		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, c.config.OpenID4VCI.Timeout, tlsConfig)
+		c.issuerHttpClient = client.NewWithTLSConfig(c.config.OpenID4VCI.Timeout, tlsConfig)
+		c.walletHttpClient = client.NewWithTLSConfig(c.config.OpenID4VCI.Timeout, tlsConfig)
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 
-	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), core.NewStrictHTTPClient(config.Strictmode, config.HTTPClient.Timeout, tlsConfig))
+	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout))
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 

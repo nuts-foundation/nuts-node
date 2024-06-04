@@ -23,7 +23,7 @@ The following options apply to the server commands below:
       --crypto.azurekv.hsm                                Whether to store the key in a hardware security module (HSM). If true, the Azure Key Vault must be configured for HSM usage. Default: false
       --crypto.azurekv.timeout duration                   Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s). (default 10s)
       --crypto.azurekv.url string                         The URL of the Azure Key Vault.
-      --crypto.storage string                             Storage to use, ''%s' for an external backend (deprecated).' for file system (for development purposes), 'fs' for HashiCorp Vault KV store, 'vaultkv' for Azure Key Vault.%!(EXTRA string=azure-keyvault, string=external)
+      --crypto.storage string                             Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store, 'azure-keyvault' for Azure Key Vault, 'external' for an external backend (deprecated).
       --crypto.vault.address string                       The Vault address. If set it overwrites the VAULT_ADDR env var.
       --crypto.vault.pathprefix string                    The Vault path prefix. (default "kv")
       --crypto.vault.timeout duration                     Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
@@ -38,6 +38,7 @@ The following options apply to the server commands below:
       --events.nats.timeout int                           Timeout for NATS server operations (default 30)
       --goldenhammer.enabled                              Whether to enable automatically fixing DID documents with the required endpoints. (default true)
       --goldenhammer.interval duration                    The interval in which to check for DID documents to fix. (default 10m0s)
+      --http.cache.maxbytes int                           HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses. (default 10485760)
       --http.internal.address string                      Address and port the server will be listening to for internal-facing endpoints. (default "127.0.0.1:8081")
       --http.internal.auth.audience string                Expected audience for JWT tokens (default: hostname)
       --http.internal.auth.authorizedkeyspath string      Path to an authorized_keys file for trusted JWT signers

@@ -31,7 +31,6 @@ import (
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestHTTPClient(t *testing.T) {
@@ -88,17 +87,6 @@ func TestHTTPClient(t *testing.T) {
 		_, err = client.Do(req)
 
 		assert.EqualError(t, err, "failed to generate authorization token: error")
-	})
-}
-
-func TestStrictHTTPClient_Do(t *testing.T) {
-	t.Run("error on HTTP call when strictmode is enabled", func(t *testing.T) {
-		client := NewStrictHTTPClient(true, time.Second, nil)
-		httpRequest, _ := stdHttp.NewRequest("GET", "http://example.com", nil)
-
-		_, err := client.Do(httpRequest)
-
-		assert.Error(t, err)
 	})
 }
 

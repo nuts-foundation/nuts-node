@@ -30,6 +30,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
@@ -443,7 +444,7 @@ func TestVDR_Configure(t *testing.T) {
 	storageInstance := storage.NewTestStorageEngine(t)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
 		t.Run("not in database", func(t *testing.T) {
-			http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			client.DefaultCachingTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 				return &http.Response{
 					Header:     map[string][]string{"Content-Type": {"application/json"}},
 					StatusCode: http.StatusOK,

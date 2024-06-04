@@ -19,11 +19,11 @@
 package didweb
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"mime"
 	"net/http"
@@ -42,18 +42,9 @@ type Resolver struct {
 
 // NewResolver creates a new did:web Resolver with default TLS configuration.
 func NewResolver() *Resolver {
-	transport := http.DefaultTransport
-	if httpTransport, ok := transport.(*http.Transport); ok {
-		// Might not be http.Transport in testing
-		httpTransport = httpTransport.Clone()
-		httpTransport.TLSClientConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}
-		transport = httpTransport
-	}
 	return &Resolver{
 		HttpClient: &http.Client{
-			Transport: transport,
+			Transport: client.DefaultCachingTransport,
 			Timeout:   5 * time.Second,
 		},
 	}
