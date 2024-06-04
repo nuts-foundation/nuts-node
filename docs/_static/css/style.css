@@ -1,32 +1,37 @@
 .wy-nav-content {
-    max-width: 1000px !important;
+  max-width: 1000px !important;
 }
 
 ul.current {
-    margin-bottom: 2em;
+  margin-bottom: 2em;
 }
 
 #nuts-node-apis ul li {
-    list-style: disc;
-    margin-left: 24px;
+  list-style: disc;
+  margin-left: 24px;
 }
 
 #nuts-node-apis ul li p {
-    margin: 0px;
+  margin: 0px;
 }
 
 .wy-menu-vertical > p {
-    margin: 24px 0 24px;
+  margin: 24px 0 24px;
 }
 
 /* override table no-wrap */
-.wy-table-responsive table td, .wy-table-responsive table th {
-    white-space: normal;
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+  white-space: normal;
 }
 /* Fix for overflowing option tables.
  * Option tables 2nd column contains values like JSON which require different wrapping style.
  * This fix is needed for Chrome which has different word-brake behaviour than Firefox.
  */
 .options-table tbody tr td:nth-child(2) {
-    word-break: break-all;
+  word-break: break-all;
+}
+
+.green {
+  color: green;
 }
