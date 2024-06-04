@@ -49,7 +49,7 @@ The following components are supported:
 
 .. role:: green
 
-1. OpenID for Verifiable Credential Issuance :green:`✓`
+1. OpenID for Verifiable Credential Issuance :green:`✓` (wallet only)
 2. OpenID for Verifiable Presentations :green:`✓`
 3. SIOP V2 (Not relevant for organisation wallet agents)
 4. DIF Presentation Exchange :green:`✓`
