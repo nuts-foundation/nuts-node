@@ -261,10 +261,10 @@ func createInstance(t *testing.T) (SessionMiddleware, storage.SessionStore) {
 func TestMiddleware_createUserSessionCookie(t *testing.T) {
 	cookie := SessionMiddleware{
 		TimeOut: 30 * time.Minute,
-	}.createUserSessionCookie("sessionID", "/iam/did:web:example.com:iam:123")
+	}.createUserSessionCookie("sessionID", "example.com", "/iam/did:web:example.com:iam:123")
 	assert.Equal(t, "/iam/did:web:example.com:iam:123", cookie.Path)
 	assert.Equal(t, "__Secure-SID", cookie.Name)
-	assert.Empty(t, cookie.Domain)
+	assert.Equal(t, "example.com", cookie.Domain)
 	assert.Empty(t, cookie.Expires)
 	assert.Equal(t, 30*time.Minute, time.Duration(cookie.MaxAge)*time.Second)
 	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)

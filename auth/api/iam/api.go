@@ -171,6 +171,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			// error only happens on invalid did:web DID, which can't happen here
 			return baseURL.Path
 		},
+		CookieDomain: r.auth.PublicURL().Host,
 	}.Handle)
 }
 
