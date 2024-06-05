@@ -46,8 +46,11 @@ func New(keyVaultUrl string, timeout time.Duration, useHSM bool) (spi.Storage, e
 	if keyVaultUrl == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
-	cred, _ := azidentity.NewDefaultAzureCredential(nil)
-	client, err := azkeys.NewClient(keyVaultUrl, cred, nil)
+	credential, err := azidentity.NewManagedIdentityCredential(nil)
+	if err != nil {
+		return nil, err
+	}
+	client, err := azkeys.NewClient(keyVaultUrl, credential, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Azure Key Vault client: %w", err)
 	}
