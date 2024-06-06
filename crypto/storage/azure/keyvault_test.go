@@ -297,7 +297,7 @@ func TestIntegrationTest(t *testing.T) {
 	os.Setenv("AZURE_CLIENT_ID", "")
 	os.Setenv("AZURE_CLIENT_SECRET", "")
 
-	store, err := New("https://geheim-keyvault.vault.azure.net/", 10*time.Second, false)
+	store, err := New("https://geheim-keyvault.vault.azure.net/", 10*time.Second, false, DefaultChainCredentialType)
 	assert.NoError(t, err)
 
 	var kid = "did:web:example.com#" + uuid.NewString()

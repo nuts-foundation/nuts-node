@@ -40,13 +40,18 @@ import (
 	"time"
 )
 
+const (
+	DefaultChainCredentialType    string = "default"
+	ManagedIdentityCredentialType string = "managed_identity"
+)
+
 // New creates a new Azure Key Vault storage backend.
 // If useHSM is true, the key type will be azkeys.KeyTypeECHSM, otherwise azkeys.KeyTypeEC.
-func New(keyVaultUrl string, timeout time.Duration, useHSM bool) (spi.Storage, error) {
+func New(keyVaultUrl string, timeout time.Duration, useHSM bool, credentialType string) (spi.Storage, error) {
 	if keyVaultUrl == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
-	credential, err := azidentity.NewManagedIdentityCredential(nil)
+	credential, err := createCredential(credentialType)
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +60,17 @@ func New(keyVaultUrl string, timeout time.Duration, useHSM bool) (spi.Storage, e
 		return nil, fmt.Errorf("unable to create Azure Key Vault client: %w", err)
 	}
 	return &keyvault{client: client, timeOut: timeout, useHSM: useHSM}, nil
+}
+
+func createCredential(credentialType string) (azcore.TokenCredential, error) {
+	switch credentialType {
+	case DefaultChainCredentialType:
+		return azidentity.NewDefaultAzureCredential(nil)
+	case ManagedIdentityCredentialType:
+		return azidentity.NewManagedIdentityCredential(nil)
+	default:
+		return nil, fmt.Errorf("unsupported Azure Key Vault credential type: %s", credentialType)
+	}
 }
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
@@ -71,7 +87,6 @@ func (a keyvault) Name() string {
 }
 
 func (a keyvault) CheckHealth() map[string]core.Health {
-
 	return nil
 }
 
