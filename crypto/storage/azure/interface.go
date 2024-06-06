@@ -34,12 +34,12 @@ type Config struct {
 	// UseHSM specifies whether	to store the key in a hardware security module (HSM).
 	// If true, the Azure Key Vault must be configured for HSM usage.
 	UseHSM bool `koanf:"hsm"`
-	// Credential specifies the credential to use for authentication to the Azure Key Vault.
-	Credential CredentialConfig `koanf:"credential"`
+	// Auth specifies the credential to use for authentication to the Azure Key Vault.
+	Auth AuthConfig `koanf:"auth"`
 }
 
-// CredentialConfig contains the config options to configure the credential to use for authentication to the Azure Key Vault.
-type CredentialConfig struct {
+// AuthConfig contains the config options to configure the credential to use for authentication to the Azure Key Vault.
+type AuthConfig struct {
 	// Type specifies the type of credential to use for authentication to the Azure Key Vault.
 	Type string `koanf:"type"`
 }
@@ -49,7 +49,7 @@ func DefaultConfig() Config {
 	return Config{
 		Timeout: 10 * time.Second,
 		UseHSM:  false,
-		Credential: CredentialConfig{
+		Auth: AuthConfig{
 			Type: DefaultChainCredentialType,
 		},
 	}

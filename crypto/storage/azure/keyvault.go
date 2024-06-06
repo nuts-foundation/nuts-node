@@ -51,7 +51,7 @@ func New(config Config) (spi.Storage, error) {
 	if config.URL == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
-	credential, err := createCredential(config.Credential.Type)
+	credential, err := createCredential(config.Auth.Type)
 	if err != nil {
 		return nil, err
 	}

@@ -298,9 +298,9 @@ func TestIntegrationTest(t *testing.T) {
 	os.Setenv("AZURE_CLIENT_SECRET", "")
 
 	store, err := New(Config{
-		URL:        "https://geheim-keyvault.vault.azure.net/",
-		Timeout:    10 * time.Second,
-		Credential: CredentialConfig{Type: DefaultChainCredentialType},
+		URL:     "https://geheim-keyvault.vault.azure.net/",
+		Timeout: 10 * time.Second,
+		Auth:    AuthConfig{Type: DefaultChainCredentialType},
 	})
 	assert.NoError(t, err)
 

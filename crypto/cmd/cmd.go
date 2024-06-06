@@ -47,7 +47,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("crypto.azurekv.url", defs.AzureKeyVault.URL, "The URL of the Azure Key Vault.")
 	flags.Duration("crypto.azurekv.timeout", defs.AzureKeyVault.Timeout, "Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s).")
 	flags.Bool("crypto.azurekv.hsm", defs.AzureKeyVault.UseHSM, fmt.Sprintf("Whether to store the key in a hardware security module (HSM). If true, the Azure Key Vault must be configured for HSM usage. Default: %t", defs.AzureKeyVault.UseHSM))
-	flags.String("crypto.azurekv.credential.type", defs.AzureKeyVault.Credential.Type, fmt.Sprintf("Credential type to use when authenticating to the Azure Key Vault. Options: %s, %s (see https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/README.md for an explanation of the options).", azure.DefaultChainCredentialType, azure.ManagedIdentityCredentialType))
+	flags.String("crypto.azurekv.auth.type", defs.AzureKeyVault.Auth.Type, fmt.Sprintf("Credential type to use when authenticating to the Azure Key Vault. Options: %s, %s (see https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/README.md for an explanation of the options).", azure.DefaultChainCredentialType, azure.ManagedIdentityCredentialType))
 	flags.String("crypto.external.address", defs.External.Address, "Address of the external storage service.")
 	flags.Duration("crypto.external.timeout", defs.External.Timeout, "Time-out when invoking the external storage backend, in Golang time.Duration string format (e.g. 1s).")
 
