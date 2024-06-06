@@ -47,19 +47,19 @@ const (
 
 // New creates a new Azure Key Vault storage backend.
 // If useHSM is true, the key type will be azkeys.KeyTypeECHSM, otherwise azkeys.KeyTypeEC.
-func New(keyVaultUrl string, timeout time.Duration, useHSM bool, credentialType string) (spi.Storage, error) {
-	if keyVaultUrl == "" {
+func New(config Config) (spi.Storage, error) {
+	if config.URL == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
-	credential, err := createCredential(credentialType)
+	credential, err := createCredential(config.Credential.Type)
 	if err != nil {
 		return nil, err
 	}
-	client, err := azkeys.NewClient(keyVaultUrl, credential, nil)
+	client, err := azkeys.NewClient(config.URL, credential, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Azure Key Vault client: %w", err)
 	}
-	return &keyvault{client: client, timeOut: timeout, useHSM: useHSM}, nil
+	return &keyvault{client: client, timeOut: config.Timeout, useHSM: config.UseHSM}, nil
 }
 
 func createCredential(credentialType string) (azcore.TokenCredential, error) {
