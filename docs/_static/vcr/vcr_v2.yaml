@@ -595,7 +595,6 @@ components:
               items:
                 type: string
               example: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
-          default: ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]
         type:
           description: Type definition for the credential.
           oneOf:
