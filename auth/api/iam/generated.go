@@ -76,39 +76,8 @@ type DPoPValidateResponse struct {
 	Valid bool `json:"valid"`
 }
 
-// RedirectResponseWithID defines model for RedirectResponseWithID.
-type RedirectResponseWithID struct {
-	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
-	RedirectUri string `json:"redirect_uri"`
-
-	// SessionId The session ID that can be used to retrieve the access token by the calling application.
-	SessionId string `json:"session_id"`
-}
-
-// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters.
-type RequestObjectResponse = string
-
-// ServiceAccessTokenRequest Request for an access token for a service.
-type ServiceAccessTokenRequest struct {
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope string `json:"scope"`
-
-	// TokenType The type of access token that is prefered, default: DPoP
-	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
-	Verifier  string                              `json:"verifier"`
-}
-
-// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
-type ServiceAccessTokenRequestTokenType string
-
-// TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
-// Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
-type TokenIntrospectionRequest struct {
-	Token string `json:"token"`
-}
-
-// TokenIntrospectionResponse Token introspection response as described in RFC7662 section 2.2
-type TokenIntrospectionResponse struct {
+// ExtendedTokenIntrospectionResponse defines model for ExtendedTokenIntrospectionResponse.
+type ExtendedTokenIntrospectionResponse struct {
 	// Active True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
 	Active bool `json:"active"`
 
@@ -144,8 +113,39 @@ type TokenIntrospectionResponse struct {
 	Sub *string `json:"sub,omitempty"`
 
 	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
-	AdditionalProperties map[string]interface{}    `json:"-"`
+	Vps                  *[]interface{}         `json:"vps,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// RedirectResponseWithID defines model for RedirectResponseWithID.
+type RedirectResponseWithID struct {
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	RedirectUri string `json:"redirect_uri"`
+
+	// SessionId The session ID that can be used to retrieve the access token by the calling application.
+	SessionId string `json:"session_id"`
+}
+
+// RequestObjectResponse A JSON Web Token (JWT) whose JWT Claims Set holds the JSON-encoded OAuth 2.0 authorization request parameters.
+type RequestObjectResponse = string
+
+// ServiceAccessTokenRequest Request for an access token for a service.
+type ServiceAccessTokenRequest struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	Verifier  string                              `json:"verifier"`
+}
+
+// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+type ServiceAccessTokenRequestTokenType string
+
+// TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
+// Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
+type TokenIntrospectionRequest struct {
+	Token string `json:"token"`
 }
 
 // UserAccessTokenRequest Request for an access token for a user.
@@ -265,6 +265,9 @@ type HandleTokenRequestFormdataBody struct {
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// IntrospectAccessTokenExtendedFormdataRequestBody defines body for IntrospectAccessTokenExtended for application/x-www-form-urlencoded ContentType.
+type IntrospectAccessTokenExtendedFormdataRequestBody = TokenIntrospectionRequest
+
 // ValidateDPoPProofJSONRequestBody defines body for ValidateDPoPProof for application/json ContentType.
 type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
 
@@ -289,25 +292,25 @@ type HandleAuthorizeResponseFormdataRequestBody HandleAuthorizeResponseFormdataB
 // HandleTokenRequestFormdataRequestBody defines body for HandleTokenRequest for application/x-www-form-urlencoded ContentType.
 type HandleTokenRequestFormdataRequestBody HandleTokenRequestFormdataBody
 
-// Getter for additional properties for TokenIntrospectionResponse. Returns the specified
+// Getter for additional properties for ExtendedTokenIntrospectionResponse. Returns the specified
 // element and whether it was found
-func (a TokenIntrospectionResponse) Get(fieldName string) (value interface{}, found bool) {
+func (a ExtendedTokenIntrospectionResponse) Get(fieldName string) (value interface{}, found bool) {
 	if a.AdditionalProperties != nil {
 		value, found = a.AdditionalProperties[fieldName]
 	}
 	return
 }
 
-// Setter for additional properties for TokenIntrospectionResponse
-func (a *TokenIntrospectionResponse) Set(fieldName string, value interface{}) {
+// Setter for additional properties for ExtendedTokenIntrospectionResponse
+func (a *ExtendedTokenIntrospectionResponse) Set(fieldName string, value interface{}) {
 	if a.AdditionalProperties == nil {
 		a.AdditionalProperties = make(map[string]interface{})
 	}
 	a.AdditionalProperties[fieldName] = value
 }
 
-// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
-func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
+// Override default JSON handling for ExtendedTokenIntrospectionResponse to handle AdditionalProperties
+func (a *ExtendedTokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 	object := make(map[string]json.RawMessage)
 	err := json.Unmarshal(b, &object)
 	if err != nil {
@@ -424,8 +427,8 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
-func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
+// Override default JSON handling for ExtendedTokenIntrospectionResponse to handle AdditionalProperties
+func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
@@ -537,6 +540,11 @@ type ServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
+	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
+	// Presentation Submissions and Verifiable Presentations added.
+	// (POST /internal/auth/v2/accesstoken/introspect_extended)
+	IntrospectAccessTokenExtended(ctx echo.Context) error
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
@@ -555,7 +563,7 @@ type ServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, did string) error
-	// Used by resource owners to initiate the authorization code flow.
+	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
 	// The OAuth2 callback endpoint of the client.
@@ -576,7 +584,7 @@ type ServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx echo.Context, did string) error
-	// Used by to request access- or refresh tokens.
+	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
 	// Get the StatusList2021Credential for the given DID and page
@@ -655,6 +663,17 @@ func (w *ServerInterfaceWrapper) IntrospectAccessToken(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.IntrospectAccessToken(ctx)
+	return err
+}
+
+// IntrospectAccessTokenExtended converts echo context to params.
+func (w *ServerInterfaceWrapper) IntrospectAccessTokenExtended(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.IntrospectAccessTokenExtended(ctx)
 	return err
 }
 
@@ -994,6 +1013,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
@@ -1157,6 +1177,31 @@ type IntrospectAccessToken401Response struct {
 }
 
 func (response IntrospectAccessToken401Response) VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error {
+	w.WriteHeader(401)
+	return nil
+}
+
+type IntrospectAccessTokenExtendedRequestObject struct {
+	Body *IntrospectAccessTokenExtendedFormdataRequestBody
+}
+
+type IntrospectAccessTokenExtendedResponseObject interface {
+	VisitIntrospectAccessTokenExtendedResponse(w http.ResponseWriter) error
+}
+
+type IntrospectAccessTokenExtended200JSONResponse ExtendedTokenIntrospectionResponse
+
+func (response IntrospectAccessTokenExtended200JSONResponse) VisitIntrospectAccessTokenExtendedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IntrospectAccessTokenExtended401Response struct {
+}
+
+func (response IntrospectAccessTokenExtended401Response) VisitIntrospectAccessTokenExtendedResponse(w http.ResponseWriter) error {
 	w.WriteHeader(401)
 	return nil
 }
@@ -1746,6 +1791,11 @@ type StrictServerInterface interface {
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
+	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
+	// Presentation Submissions and Verifiable Presentations added.
+	// (POST /internal/auth/v2/accesstoken/introspect_extended)
+	IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error)
 	// Get the access token from the Nuts node that was requested through /request-user-access-token.
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
@@ -1764,7 +1814,7 @@ type StrictServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
-	// Used by resource owners to initiate the authorization code flow.
+	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
 	// The OAuth2 callback endpoint of the client.
@@ -1785,7 +1835,7 @@ type StrictServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
-	// Used by to request access- or refresh tokens.
+	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 	// Get the StatusList2021Credential for the given DID and page
@@ -1928,6 +1978,39 @@ func (sh *strictHandler) IntrospectAccessToken(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(IntrospectAccessTokenResponseObject); ok {
 		return validResponse.VisitIntrospectAccessTokenResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// IntrospectAccessTokenExtended operation middleware
+func (sh *strictHandler) IntrospectAccessTokenExtended(ctx echo.Context) error {
+	var request IntrospectAccessTokenExtendedRequestObject
+
+	if form, err := ctx.FormParams(); err == nil {
+		var body IntrospectAccessTokenExtendedFormdataRequestBody
+		if err := runtime.BindForm(&body, form, nil, nil); err != nil {
+			return err
+		}
+		request.Body = &body
+	} else {
+		return err
+	}
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.IntrospectAccessTokenExtended(ctx.Request().Context(), request.(IntrospectAccessTokenExtendedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IntrospectAccessTokenExtended")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(IntrospectAccessTokenExtendedResponseObject); ok {
+		return validResponse.VisitIntrospectAccessTokenExtendedResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

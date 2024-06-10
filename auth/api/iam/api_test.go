@@ -703,8 +703,21 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
+	okToken := AccessToken{
+		Expiration: time.Now().Add(time.Hour),
+		DPoP:       dpopToken,
+		PresentationSubmissions: map[string]pe.PresentationSubmission{
+			"test": {},
+		},
+		PresentationDefinitions: RequiredPresentationDefinitions{
+			pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"},
+		},
+		VPToken: []VerifiablePresentation{
+			{},
+		},
+	}
 	t.Run("ok", func(t *testing.T) {
-		token := AccessToken{Expiration: time.Now().Add(time.Second), DPoP: dpopToken}
+		token := okToken
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
@@ -713,6 +726,23 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
 		require.True(t, ok)
 		assert.True(t, tokenResponse.Active)
+		assert.Nil(t, tokenResponse.PresentationSubmissions)
+		assert.Nil(t, tokenResponse.PresentationDefinitions)
+		assert.Nil(t, tokenResponse.Vps)
+	})
+	t.Run("extended", func(t *testing.T) {
+		token := okToken
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
+
+		res, err := ctx.client.IntrospectAccessTokenExtended(context.Background(), IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessTokenExtended200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, tokenResponse.Active)
+		assert.NotNil(t, tokenResponse.PresentationSubmissions)
+		assert.NotNil(t, tokenResponse.PresentationDefinitions)
+		assert.NotNil(t, tokenResponse.Vps)
 	})
 	t.Run("with claims from InputDescriptorConstraintIdMap", func(t *testing.T) {
 		token := AccessToken{
@@ -772,7 +802,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
-		expectedResponse, err := json.Marshal(IntrospectAccessToken200JSONResponse{
+		expectedResponse, err := json.Marshal(IntrospectAccessTokenExtended200JSONResponse{
 			Active:                  true,
 			ClientId:                ptrTo("client"),
 			Cnf:                     &Cnf{Jkt: thumbprint},
@@ -788,7 +818,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: token.Token}})
+		res, err := ctx.client.IntrospectAccessTokenExtended(context.Background(), IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: token.Token}})
 
 		require.NoError(t, err)
 		tokenResponse, err := json.Marshal(res)

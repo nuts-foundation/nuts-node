@@ -88,6 +88,8 @@ var cacheControlNoCacheURLs = []string{
 	"/oauth2/:did/token",
 }
 
+type TokenIntrospectionResponse = ExtendedTokenIntrospectionResponse
+
 //go:embed assets
 var assetsFS embed.FS
 
@@ -325,19 +327,46 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
 func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	input := request.Body.Token
+	response, err := r.introspectAccessToken(input)
+	if err != nil {
+		return nil, err
+	} else if response == nil {
+		return IntrospectAccessToken200JSONResponse{}, nil
+	}
+	response.Vps = nil
+	response.PresentationDefinitions = nil
+	response.PresentationSubmissions = nil
+	return IntrospectAccessToken200JSONResponse(*response), nil
+}
+
+// IntrospectAccessTokenExtended allows the resource server (XIS/EHR) to introspect details of an access token issued by this node.
+// It returns the same information as IntrospectAccessToken, but with additional information.
+func (r Wrapper) IntrospectAccessTokenExtended(_ context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error) {
+	input := request.Body.Token
+	response, err := r.introspectAccessToken(input)
+	if err != nil {
+		return nil, err
+	} else if response == nil {
+		return IntrospectAccessTokenExtended200JSONResponse{}, nil
+	}
+	return IntrospectAccessTokenExtended200JSONResponse(*response), nil
+}
+
+func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectionResponse, error) {
 	// Validate token
-	if request.Body.Token == "" {
+	if input == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		log.Logger().Debug("IntrospectAccessToken: missing token")
-		return IntrospectAccessToken200JSONResponse{}, nil
+		return nil, nil
 	}
 
 	token := AccessToken{}
-	if err := r.accessTokenServerStore().Get(request.Body.Token, &token); err != nil {
+	if err := r.accessTokenServerStore().Get(input, &token); err != nil {
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		if errors.Is(err, storage.ErrNotFound) {
 			log.Logger().Debug("IntrospectAccessToken: token not found (unknown or expired)")
-			return IntrospectAccessToken200JSONResponse{}, nil
+			return nil, nil
 		}
 		log.Logger().WithError(err).Error("IntrospectAccessToken: failed to retrieve token")
 		return nil, err
@@ -347,7 +376,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		// Return 200 + 'Active = false' when token is invalid or malformed
 		// can happen between token expiration and pruning of database
 		log.Logger().Debug("IntrospectAccessToken: token is expired")
-		return IntrospectAccessToken200JSONResponse{}, nil
+		return nil, nil
 	}
 
 	// Optional:
@@ -364,7 +393,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 	// Create and return introspection response
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
-	response := IntrospectAccessToken200JSONResponse{
+	response := ExtendedTokenIntrospectionResponse{
 		Active:                  true,
 		Cnf:                     cnf,
 		Iat:                     &iat,
@@ -373,10 +402,14 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		Sub:                     &token.Issuer,
 		ClientId:                &token.ClientId,
 		Scope:                   &token.Scope,
-		Vps:                     &token.VPToken,
 		PresentationDefinitions: &token.PresentationDefinitions,
 		PresentationSubmissions: &token.PresentationSubmissions,
 	}
+	vps := make([]interface{}, 0, len(token.VPToken))
+	for _, vpToken := range token.VPToken {
+		vps = append(vps, vpToken)
+	}
+	response.Vps = &vps
 
 	if token.InputDescriptorConstraintIdMap != nil {
 		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
@@ -386,8 +419,7 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 		}
 		response.AdditionalProperties = token.InputDescriptorConstraintIdMap
 	}
-
-	return response, nil
+	return &response, nil
 }
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.

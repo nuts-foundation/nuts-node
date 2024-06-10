@@ -77,36 +77,8 @@ type DPoPValidateResponse struct {
 	Valid bool `json:"valid"`
 }
 
-// RedirectResponseWithID defines model for RedirectResponseWithID.
-type RedirectResponseWithID struct {
-	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
-	RedirectUri string `json:"redirect_uri"`
-
-	// SessionId The session ID that can be used to retrieve the access token by the calling application.
-	SessionId string `json:"session_id"`
-}
-
-// ServiceAccessTokenRequest Request for an access token for a service.
-type ServiceAccessTokenRequest struct {
-	// Scope The scope that will be the service for which this access token can be used.
-	Scope string `json:"scope"`
-
-	// TokenType The type of access token that is prefered, default: DPoP
-	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
-	Verifier  string                              `json:"verifier"`
-}
-
-// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
-type ServiceAccessTokenRequestTokenType string
-
-// TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
-// Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
-type TokenIntrospectionRequest struct {
-	Token string `json:"token"`
-}
-
-// TokenIntrospectionResponse Token introspection response as described in RFC7662 section 2.2
-type TokenIntrospectionResponse struct {
+// ExtendedTokenIntrospectionResponse defines model for ExtendedTokenIntrospectionResponse.
+type ExtendedTokenIntrospectionResponse struct {
 	// Active True if the token is active, false if the token is expired, malformed etc. Required per RFC7662
 	Active bool `json:"active"`
 
@@ -142,8 +114,36 @@ type TokenIntrospectionResponse struct {
 	Sub *string `json:"sub,omitempty"`
 
 	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
-	AdditionalProperties map[string]interface{}    `json:"-"`
+	Vps                  *[]interface{}         `json:"vps,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
+}
+
+// RedirectResponseWithID defines model for RedirectResponseWithID.
+type RedirectResponseWithID struct {
+	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
+	RedirectUri string `json:"redirect_uri"`
+
+	// SessionId The session ID that can be used to retrieve the access token by the calling application.
+	SessionId string `json:"session_id"`
+}
+
+// ServiceAccessTokenRequest Request for an access token for a service.
+type ServiceAccessTokenRequest struct {
+	// Scope The scope that will be the service for which this access token can be used.
+	Scope string `json:"scope"`
+
+	// TokenType The type of access token that is prefered, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	Verifier  string                              `json:"verifier"`
+}
+
+// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+type ServiceAccessTokenRequestTokenType string
+
+// TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
+// Alongside the defined properties, it can return values (additionalProperties) from the Verifiable Credentials that resulted from the Presentation Exchange.
+type TokenIntrospectionRequest struct {
+	Token string `json:"token"`
 }
 
 // UserAccessTokenRequest Request for an access token for a user.
@@ -199,6 +199,9 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
 type IntrospectAccessTokenFormdataRequestBody = TokenIntrospectionRequest
 
+// IntrospectAccessTokenExtendedFormdataRequestBody defines body for IntrospectAccessTokenExtended for application/x-www-form-urlencoded ContentType.
+type IntrospectAccessTokenExtendedFormdataRequestBody = TokenIntrospectionRequest
+
 // ValidateDPoPProofJSONRequestBody defines body for ValidateDPoPProof for application/json ContentType.
 type ValidateDPoPProofJSONRequestBody = DPoPValidateRequest
 
@@ -214,25 +217,25 @@ type RequestServiceAccessTokenJSONRequestBody = ServiceAccessTokenRequest
 // RequestUserAccessTokenJSONRequestBody defines body for RequestUserAccessToken for application/json ContentType.
 type RequestUserAccessTokenJSONRequestBody = UserAccessTokenRequest
 
-// Getter for additional properties for TokenIntrospectionResponse. Returns the specified
+// Getter for additional properties for ExtendedTokenIntrospectionResponse. Returns the specified
 // element and whether it was found
-func (a TokenIntrospectionResponse) Get(fieldName string) (value interface{}, found bool) {
+func (a ExtendedTokenIntrospectionResponse) Get(fieldName string) (value interface{}, found bool) {
 	if a.AdditionalProperties != nil {
 		value, found = a.AdditionalProperties[fieldName]
 	}
 	return
 }
 
-// Setter for additional properties for TokenIntrospectionResponse
-func (a *TokenIntrospectionResponse) Set(fieldName string, value interface{}) {
+// Setter for additional properties for ExtendedTokenIntrospectionResponse
+func (a *ExtendedTokenIntrospectionResponse) Set(fieldName string, value interface{}) {
 	if a.AdditionalProperties == nil {
 		a.AdditionalProperties = make(map[string]interface{})
 	}
 	a.AdditionalProperties[fieldName] = value
 }
 
-// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
-func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
+// Override default JSON handling for ExtendedTokenIntrospectionResponse to handle AdditionalProperties
+func (a *ExtendedTokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 	object := make(map[string]json.RawMessage)
 	err := json.Unmarshal(b, &object)
 	if err != nil {
@@ -349,8 +352,8 @@ func (a *TokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Override default JSON handling for TokenIntrospectionResponse to handle AdditionalProperties
-func (a TokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
+// Override default JSON handling for ExtendedTokenIntrospectionResponse to handle AdditionalProperties
+func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
@@ -523,6 +526,11 @@ type ClientInterface interface {
 
 	IntrospectAccessTokenWithFormdataBody(ctx context.Context, body IntrospectAccessTokenFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// IntrospectAccessTokenExtendedWithBody request with any body
+	IntrospectAccessTokenExtendedWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	IntrospectAccessTokenExtendedWithFormdataBody(ctx context.Context, body IntrospectAccessTokenExtendedFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RetrieveAccessToken request
 	RetrieveAccessToken(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -566,6 +574,30 @@ func (c *Client) IntrospectAccessTokenWithBody(ctx context.Context, contentType 
 
 func (c *Client) IntrospectAccessTokenWithFormdataBody(ctx context.Context, body IntrospectAccessTokenFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewIntrospectAccessTokenRequestWithFormdataBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) IntrospectAccessTokenExtendedWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIntrospectAccessTokenExtendedRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) IntrospectAccessTokenExtendedWithFormdataBody(ctx context.Context, body IntrospectAccessTokenExtendedFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIntrospectAccessTokenExtendedRequestWithFormdataBody(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -729,6 +761,46 @@ func NewIntrospectAccessTokenRequestWithBody(server string, contentType string, 
 	}
 
 	operationPath := fmt.Sprintf("/internal/auth/v2/accesstoken/introspect")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewIntrospectAccessTokenExtendedRequestWithFormdataBody calls the generic IntrospectAccessTokenExtended builder with application/x-www-form-urlencoded body
+func NewIntrospectAccessTokenExtendedRequestWithFormdataBody(server string, body IntrospectAccessTokenExtendedFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewIntrospectAccessTokenExtendedRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+}
+
+// NewIntrospectAccessTokenExtendedRequestWithBody generates requests for IntrospectAccessTokenExtended with any type of body
+func NewIntrospectAccessTokenExtendedRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/auth/v2/accesstoken/introspect_extended")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1046,6 +1118,11 @@ type ClientWithResponsesInterface interface {
 
 	IntrospectAccessTokenWithFormdataBodyWithResponse(ctx context.Context, body IntrospectAccessTokenFormdataRequestBody, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenResponse, error)
 
+	// IntrospectAccessTokenExtendedWithBodyWithResponse request with any body
+	IntrospectAccessTokenExtendedWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenExtendedResponse, error)
+
+	IntrospectAccessTokenExtendedWithFormdataBodyWithResponse(ctx context.Context, body IntrospectAccessTokenExtendedFormdataRequestBody, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenExtendedResponse, error)
+
 	// RetrieveAccessTokenWithResponse request
 	RetrieveAccessTokenWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*RetrieveAccessTokenResponse, error)
 
@@ -1091,6 +1168,28 @@ func (r IntrospectAccessTokenResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r IntrospectAccessTokenResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type IntrospectAccessTokenExtendedResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *ExtendedTokenIntrospectionResponse
+}
+
+// Status returns HTTPResponse.Status
+func (r IntrospectAccessTokenExtendedResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IntrospectAccessTokenExtendedResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1296,6 +1395,23 @@ func (c *ClientWithResponses) IntrospectAccessTokenWithFormdataBodyWithResponse(
 	return ParseIntrospectAccessTokenResponse(rsp)
 }
 
+// IntrospectAccessTokenExtendedWithBodyWithResponse request with arbitrary body returning *IntrospectAccessTokenExtendedResponse
+func (c *ClientWithResponses) IntrospectAccessTokenExtendedWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenExtendedResponse, error) {
+	rsp, err := c.IntrospectAccessTokenExtendedWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIntrospectAccessTokenExtendedResponse(rsp)
+}
+
+func (c *ClientWithResponses) IntrospectAccessTokenExtendedWithFormdataBodyWithResponse(ctx context.Context, body IntrospectAccessTokenExtendedFormdataRequestBody, reqEditors ...RequestEditorFn) (*IntrospectAccessTokenExtendedResponse, error) {
+	rsp, err := c.IntrospectAccessTokenExtendedWithFormdataBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIntrospectAccessTokenExtendedResponse(rsp)
+}
+
 // RetrieveAccessTokenWithResponse request returning *RetrieveAccessTokenResponse
 func (c *ClientWithResponses) RetrieveAccessTokenWithResponse(ctx context.Context, sessionID string, reqEditors ...RequestEditorFn) (*RetrieveAccessTokenResponse, error) {
 	rsp, err := c.RetrieveAccessToken(ctx, sessionID, reqEditors...)
@@ -1406,6 +1522,32 @@ func ParseIntrospectAccessTokenResponse(rsp *http.Response) (*IntrospectAccessTo
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TokenIntrospectionResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseIntrospectAccessTokenExtendedResponse parses an HTTP response from a IntrospectAccessTokenExtendedWithResponse call
+func ParseIntrospectAccessTokenExtendedResponse(rsp *http.Response) (*IntrospectAccessTokenExtendedResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IntrospectAccessTokenExtendedResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ExtendedTokenIntrospectionResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

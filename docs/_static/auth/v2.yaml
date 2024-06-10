@@ -144,6 +144,34 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
+  /internal/auth/v2/accesstoken/introspect_extended:
+    post:
+      operationId: introspectAccessTokenExtended
+      summary: |
+        Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
+        It returns the same information as the non-extended API call, but with the Presentation Definitions,
+        Presentation Submissions and Verifiable Presentations added.
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TokenIntrospectionRequest"
+      responses:
+        '200':
+          description: |
+            An Introspection response as described in RFC7662 section 2.2. The Irma, Dummy and Employee identity means all return 'username', 'initials',  'prefix', 'family_name' and 'assurance_level'.
+            'username' should be used as unique identifier for the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtendedTokenIntrospectionResponse"
+        '401':
+          description: |
+            This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
+            Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
   /internal/auth/v2/{did}/dpop:
     post:
       operationId: createDPoPProof
@@ -545,19 +573,22 @@ components:
         scope:
           type: string
           description: granted scopes
-        presentation_definitions:
-          $ref: '#/components/schemas/RequiredPresentationDefinitions'
-        presentation_submissions:
-          type: object
-          additionalProperties:
-            $ref: '#/components/schemas/PresentationSubmission'
-          description: |
-            Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
-        vps:
-          type: array
-          items:
-            $ref: '#/components/schemas/VerifiablePresentation'
-          description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+    ExtendedTokenIntrospectionResponse:
+      allOf:
+        - $ref: '#/components/schemas/TokenIntrospectionResponse'
+        - type: object
+          properties:
+            presentation_definitions:
+              $ref: '#/components/schemas/RequiredPresentationDefinitions'
+            presentation_submissions:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/PresentationSubmission'
+              description: |
+                Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
+            vps:
+              type: array
+              description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
     RequiredPresentationDefinitions:
       type: object
       additionalProperties:
