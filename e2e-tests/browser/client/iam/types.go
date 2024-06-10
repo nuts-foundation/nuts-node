@@ -63,3 +63,5 @@ type WalletOwnerType = pe.WalletOwnerType
 
 // RequiredPresentationDefinitions is an alias
 type RequiredPresentationDefinitions = pe.WalletOwnerMapping
+
+type TokenIntrospectionResponse = IntrospectAccessTokenExtendedResponse
