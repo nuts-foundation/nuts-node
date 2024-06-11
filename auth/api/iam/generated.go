@@ -555,7 +555,7 @@ type ServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, did string) error
-	// Used by resource owners to initiate the authorization code flow.
+	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
 	// The OAuth2 callback endpoint of the client.
@@ -576,7 +576,7 @@ type ServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx echo.Context, did string) error
-	// Used by to request access- or refresh tokens.
+	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx echo.Context, did string) error
 	// Get the StatusList2021Credential for the given DID and page
@@ -1764,7 +1764,7 @@ type StrictServerInterface interface {
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{did}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
-	// Used by resource owners to initiate the authorization code flow.
+	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
 	// The OAuth2 callback endpoint of the client.
@@ -1785,7 +1785,7 @@ type StrictServerInterface interface {
 	// Used by wallets to post the authorization response or error to.
 	// (POST /oauth2/{did}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
-	// Used by to request access- or refresh tokens.
+	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
 	// (POST /oauth2/{did}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 	// Get the StatusList2021Credential for the given DID and page
