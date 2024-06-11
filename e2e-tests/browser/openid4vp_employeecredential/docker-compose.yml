@@ -47,7 +47,7 @@ services:
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
   chrome-headless-shell:
-    image: chromedp/headless-shell:latest
+    image: chromedp/headless-shell:125.0.6422.142
     ports:
       - 9222:9222
     # Copied the entrypoint from the image's Dockerfile (https://github.com/chromedp/docker-headless-shell/blob/master/Dockerfile)

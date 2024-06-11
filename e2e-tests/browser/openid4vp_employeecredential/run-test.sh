@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source ../../util.sh
 
-#set -e # make script fail if any of the tests returns a non-zero exit code
+set -e # make script fail if any of the tests returns a non-zero exit code
 
 # Shut down existing containers
 docker compose stop
@@ -11,7 +11,5 @@ docker compose rm -f -v
 docker compose up --wait
 
 go test -v --tags=e2e_tests -count=1 .
-
-docker compose logs
 
 docker compose stop
