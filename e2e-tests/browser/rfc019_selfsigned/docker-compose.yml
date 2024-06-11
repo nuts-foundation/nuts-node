@@ -11,6 +11,6 @@ services:
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   chrome-headless-shell:
-    image: chromedp/headless-shell:latest
+    image: chromedp/headless-shell:125.0.6422.142
     ports:
       - 9222:9222
