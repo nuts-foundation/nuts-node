@@ -588,6 +588,7 @@ components:
         "@context":
           description: |
             The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+            It always adds the "https://www.w3.org/2018/credentials/v1" context if not present.
           oneOf:
             - type: string
               example: "https://nuts.nl/credentials/v1"
