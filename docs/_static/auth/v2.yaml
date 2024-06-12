@@ -574,10 +574,6 @@ components:
           type: string
           description: granted scopes
     ExtendedTokenIntrospectionResponse:
-      required:
-        - presentation_definitions
-        - presentation_submissions
-        - vps
       allOf:
         - $ref: '#/components/schemas/TokenIntrospectionResponse'
         - properties:
@@ -592,10 +588,7 @@ components:
             vps:
               type: array
               items:
-                oneOf:
-                  - type: string
-                  - type: object
-              description: The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
+                $ref: '#/components/schemas/VerifiablePresentation'
     RequiredPresentationDefinitions:
       type: object
       additionalProperties:

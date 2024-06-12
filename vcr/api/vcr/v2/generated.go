@@ -228,9 +228,7 @@ type VCVerificationResult struct {
 // VPVerificationRequest defines model for VPVerificationRequest.
 type VPVerificationRequest struct {
 	// ValidAt Date and time at which the VP should be valid. If not supplied, the current date/time is used.
-	ValidAt *string `json:"validAt,omitempty"`
-
-	// VerifiablePresentation Verifiable Presentation
+	ValidAt                *string                `json:"validAt,omitempty"`
 	VerifiablePresentation VerifiablePresentation `json:"verifiablePresentation"`
 
 	// VerifyCredentials Indicates whether the Verifiable Credentials within the VP must be verified, default true.

@@ -110,12 +110,10 @@ type CreateAccessTokenRequest struct {
 
 // CreateJwtGrantRequest Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
 type CreateJwtGrantRequest struct {
-	Authorizer  string                 `json:"authorizer"`
-	Credentials []VerifiableCredential `json:"credentials"`
-
-	// Identity Verifiable Presentation
-	Identity  *VerifiablePresentation `json:"identity,omitempty"`
-	Requester string                  `json:"requester"`
+	Authorizer  string                  `json:"authorizer"`
+	Credentials []VerifiableCredential  `json:"credentials"`
+	Identity    *VerifiablePresentation `json:"identity,omitempty"`
+	Requester   string                  `json:"requester"`
 
 	// Service The service for which this access token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
@@ -160,11 +158,9 @@ type RequestAccessTokenRequest struct {
 	Authorizer string `json:"authorizer"`
 
 	// Credentials Verifiable Credentials to be included in the access token. If no VCs are to be included in the access token, the array can be left empty.
-	Credentials []VerifiableCredential `json:"credentials"`
-
-	// Identity Verifiable Presentation
-	Identity  *VerifiablePresentation `json:"identity,omitempty"`
-	Requester string                  `json:"requester"`
+	Credentials []VerifiableCredential  `json:"credentials"`
+	Identity    *VerifiablePresentation `json:"identity,omitempty"`
+	Requester   string                  `json:"requester"`
 
 	// Service The service for which this access token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
@@ -202,15 +198,12 @@ type SignSessionResponseMeans string
 // SignSessionStatusResponse defines model for SignSessionStatusResponse.
 type SignSessionStatusResponse struct {
 	// Status Status indicates the status of the signing process. Values depend on the implementation of the signing means.
-	Status string `json:"status"`
-
-	// VerifiablePresentation Verifiable Presentation
+	Status                 string                  `json:"status"`
 	VerifiablePresentation *VerifiablePresentation `json:"verifiablePresentation,omitempty"`
 }
 
 // SignatureVerificationRequest defines model for SignatureVerificationRequest.
 type SignatureVerificationRequest struct {
-	// VerifiablePresentation Verifiable Presentation
 	VerifiablePresentation VerifiablePresentation `json:"VerifiablePresentation"`
 
 	// CheckTime Moment in time to check the validity of the signature. If omitted, the current time is used.

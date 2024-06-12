@@ -402,14 +402,10 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 		Sub:                     &token.Issuer,
 		ClientId:                &token.ClientId,
 		Scope:                   &token.Scope,
+		Vps:                     &token.VPToken,
 		PresentationDefinitions: &token.PresentationDefinitions,
 		PresentationSubmissions: &token.PresentationSubmissions,
 	}
-	vps := make([]interface{}, 0, len(token.VPToken))
-	for _, vpToken := range token.VPToken {
-		vps = append(vps, vpToken)
-	}
-	response.Vps = &vps
 
 	if token.InputDescriptorConstraintIdMap != nil {
 		for _, reserved := range []string{"iss", "sub", "exp", "iat", "active", "client_id", "scope"} {
