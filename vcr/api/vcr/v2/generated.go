@@ -191,9 +191,7 @@ type SearchVCRequest struct {
 // The absence of a the revocation property does not indicate a valid credential, use the /internal/vcr/v2/verifier/vc API for this.
 type SearchVCResult struct {
 	// Revocation Credential revocation record
-	Revocation *Revocation `json:"revocation,omitempty"`
-
-	// VerifiableCredential A credential according to the W3C and Nuts specs.
+	Revocation           *Revocation          `json:"revocation,omitempty"`
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
 }
 
@@ -211,7 +209,6 @@ type VCVerificationOptions struct {
 
 // VCVerificationRequest defines model for VCVerificationRequest.
 type VCVerificationRequest struct {
-	// VerifiableCredential A credential according to the W3C and Nuts specs.
 	VerifiableCredential VerifiableCredential   `json:"verifiableCredential"`
 	VerificationOptions  *VCVerificationOptions `json:"verificationOptions,omitempty"`
 }

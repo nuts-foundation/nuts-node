@@ -3,8 +3,15 @@ components:
   schemas:
 # VC
     VerifiableCredential:
+      oneOf:
+        - $ref: '#/components/schemas/JSONVerifiableCredential'
+        - $ref: '#/components/schemas/JWTCompactVerifiableCredential'
+    JWTCompactVerifiableCredential:
+      type: string
+      description: Verifiable Credential in JWT compact serialization format.
+    JSONVerifiableCredential:
       type: object
-      description: A credential according to the W3C and Nuts specs.
+      description: Verifiable Credential in JSON-LD format.
       required:
         - "@context"
         - type
@@ -75,49 +82,53 @@ components:
 # VP
     VerifiablePresentation:
       oneOf:
-        - type: string
-          description: Verifiable Presentation in JWT format
-        - type: object
-          description: Verifiable Presentation in JSON-LD format
-          title: Verifiable Presentation Model
-          required:
-            - "@context"
-            - type
-          properties:
-            "@context":
-              description: |
-                An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
-                terms and help to express specific identifiers in a compact manner.
-              uniqueItems: true
-              example: [
-                "https://www.w3.org/2018/credentials/v1"
-              ]
-            id:
-              type: string
-              description: URI that is used to unambiguously refer to an object, such as a person, product, or organization.
-              example: https://example.edu/credentials/1872,
-              format: uri
-            type:
-              description: A single string or array of strings. Values indicate the type of object. It should contain `VerifiablePresentation`. Each type must be defined in the @context.
-              example: "VerifiablePresentation"
-            verifiableCredential:
-              description: |
-                VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
-                cryptographically verifiable format.
-              example:
-                $ref: '#/components/schemas/VerifiableCredential'
-            holder:
-              type: string
-              description: "URI of the entity that is generating the presentation."
-              format: uri
-              example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
-            proof:
-              description: |
-                Cryptographic proofs that can be used to detect tampering and verify the authorship of a
-                credential or presentation. An embedded proof is a mechanism where the proof is included in
-                the data, such as a Linked Data Signature.
-              example:
-                $ref: "#/components/schemas/EmbeddedProof"
+        - $ref: '#/components/schemas/JSONVerifiablePresentation'
+        - $ref: '#/components/schemas/JWTCompactVerifiablePresentation'
+    JWTCompactVerifiablePresentation:
+      type: string
+      description: Verifiable Presentation in JWT compact serialization format.
+    JSONVerifiablePresentation:
+      type: object
+      description: Verifiable Presentation in JSON-LD format.
+      title: Verifiable Presentation Model
+      required:
+        - "@context"
+        - type
+      properties:
+        "@context":
+          description: |
+            An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
+            terms and help to express specific identifiers in a compact manner.
+          uniqueItems: true
+          example: [
+            "https://www.w3.org/2018/credentials/v1"
+          ]
+        id:
+          type: string
+          description: URI that is used to unambiguously refer to an object, such as a person, product, or organization.
+          example: https://example.edu/credentials/1872,
+          format: uri
+        type:
+          description: A single string or array of strings. Values indicate the type of object. It should contain `VerifiablePresentation`. Each type must be defined in the @context.
+          example: "VerifiablePresentation"
+        verifiableCredential:
+          description: |
+            VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
+            cryptographically verifiable format.
+          example:
+            $ref: '#/components/schemas/VerifiableCredential'
+        holder:
+          type: string
+          description: "URI of the entity that is generating the presentation."
+          format: uri
+          example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
+        proof:
+          description: |
+            Cryptographic proofs that can be used to detect tampering and verify the authorship of a
+            credential or presentation. An embedded proof is a mechanism where the proof is included in
+            the data, such as a Linked Data Signature.
+          example:
+            $ref: "#/components/schemas/EmbeddedProof"
 
     EmbeddedProof:
       title: Embedded Proof

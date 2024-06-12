@@ -111,6 +111,68 @@ type EmbeddedProof struct {
 	VerificationMethod string `json:"verificationMethod"`
 }
 
+// JSONVerifiableCredential Verifiable Credential in JSON-LD format.
+type JSONVerifiableCredential struct {
+	// Context List of URIs of JSON-LD contexts of the VC.
+	Context interface{} `json:"@context"`
+
+	// CredentialStatus Object enabling the discovery of information related to the status of a verifiable credential, such as whether it is suspended or revoked.
+	// Interpretation of the credentialStatus is defined by its 'type' property.
+	CredentialStatus *CredentialStatus `json:"credentialStatus,omitempty"`
+
+	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
+	CredentialSubject CredentialSubject `json:"credentialSubject"`
+
+	// ExpirationDate rfc3339 time string until when the credential is valid.
+	ExpirationDate *string `json:"expirationDate,omitempty"`
+
+	// Id Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with a UUID.
+	Id *string `json:"id,omitempty"`
+
+	// IssuanceDate rfc3339 time string when the credential was issued.
+	IssuanceDate string `json:"issuanceDate"`
+
+	// Issuer DID according to Nuts specification
+	Issuer DID `json:"issuer"`
+
+	// Proof one or multiple cryptographic proofs
+	Proof interface{} `json:"proof"`
+
+	// Type A single string or array of strings. The value(s) indicate the type of credential. It should contain `VerifiableCredential`. Each type should be defined in the @context.
+	Type []string `json:"type"`
+}
+
+// JSONVerifiablePresentation Verifiable Presentation in JSON-LD format.
+type JSONVerifiablePresentation struct {
+	// Context An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
+	// terms and help to express specific identifiers in a compact manner.
+	Context interface{} `json:"@context"`
+
+	// Holder URI of the entity that is generating the presentation.
+	Holder *string `json:"holder,omitempty"`
+
+	// Id URI that is used to unambiguously refer to an object, such as a person, product, or organization.
+	Id *string `json:"id,omitempty"`
+
+	// Proof Cryptographic proofs that can be used to detect tampering and verify the authorship of a
+	// credential or presentation. An embedded proof is a mechanism where the proof is included in
+	// the data, such as a Linked Data Signature.
+	Proof *interface{} `json:"proof,omitempty"`
+
+	// Type A single string or array of strings. Values indicate the type of object. It should contain `VerifiablePresentation`. Each type must be defined in the @context.
+	Type interface{} `json:"type"`
+
+	// VerifiableCredential VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
+	// cryptographically verifiable format.
+	VerifiableCredential *interface{} `json:"verifiableCredential,omitempty"`
+}
+
+// JWTCompactVerifiableCredential Verifiable Credential in JWT compact serialization format.
+type JWTCompactVerifiableCredential = string
+
+// JWTCompactVerifiablePresentation Verifiable Presentation in JWT compact serialization format.
+type JWTCompactVerifiablePresentation = string
+
 // Revocation Credential revocation record
 type Revocation struct {
 	// Date date is a rfc3339 formatted datetime.
@@ -141,68 +203,14 @@ type Service struct {
 	Type string `json:"type"`
 }
 
-// VerifiableCredential A credential according to the W3C and Nuts specs.
+// VerifiableCredential defines model for VerifiableCredential.
 type VerifiableCredential struct {
-	// Context List of URIs of JSON-LD contexts of the VC.
-	Context interface{} `json:"@context"`
-
-	// CredentialStatus Object enabling the discovery of information related to the status of a verifiable credential, such as whether it is suspended or revoked.
-	// Interpretation of the credentialStatus is defined by its 'type' property.
-	CredentialStatus *CredentialStatus `json:"credentialStatus,omitempty"`
-
-	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
-	CredentialSubject CredentialSubject `json:"credentialSubject"`
-
-	// ExpirationDate rfc3339 time string until when the credential is valid.
-	ExpirationDate *string `json:"expirationDate,omitempty"`
-
-	// Id Credential ID. An URI which uniquely identifies the credential e.g. the issuers DID concatenated with a UUID.
-	Id *string `json:"id,omitempty"`
-
-	// IssuanceDate rfc3339 time string when the credential was issued.
-	IssuanceDate string `json:"issuanceDate"`
-
-	// Issuer DID according to Nuts specification
-	Issuer DID `json:"issuer"`
-
-	// Proof one or multiple cryptographic proofs
-	Proof interface{} `json:"proof"`
-
-	// Type A single string or array of strings. The value(s) indicate the type of credential. It should contain `VerifiableCredential`. Each type should be defined in the @context.
-	Type []string `json:"type"`
+	union json.RawMessage
 }
 
 // VerifiablePresentation defines model for VerifiablePresentation.
 type VerifiablePresentation struct {
 	union json.RawMessage
-}
-
-// VerifiablePresentation0 Verifiable Presentation in JWT format
-type VerifiablePresentation0 = string
-
-// VerifiablePresentation1 Verifiable Presentation in JSON-LD format
-type VerifiablePresentation1 struct {
-	// Context An ordered set where the first item is a URI https://www.w3.org/2018/credentials/v1. It is used to define
-	// terms and help to express specific identifiers in a compact manner.
-	Context interface{} `json:"@context"`
-
-	// Holder URI of the entity that is generating the presentation.
-	Holder *string `json:"holder,omitempty"`
-
-	// Id URI that is used to unambiguously refer to an object, such as a person, product, or organization.
-	Id *string `json:"id,omitempty"`
-
-	// Proof Cryptographic proofs that can be used to detect tampering and verify the authorship of a
-	// credential or presentation. An embedded proof is a mechanism where the proof is included in
-	// the data, such as a Linked Data Signature.
-	Proof *interface{} `json:"proof,omitempty"`
-
-	// Type A single string or array of strings. Values indicate the type of object. It should contain `VerifiablePresentation`. Each type must be defined in the @context.
-	Type interface{} `json:"type"`
-
-	// VerifiableCredential VerifiableCredential is composed of a list containing one or more verifiable credentials, in a
-	// cryptographically verifiable format.
-	VerifiableCredential *interface{} `json:"verifiableCredential,omitempty"`
 }
 
 // VerificationMethod A public key in JWK form.
@@ -220,22 +228,22 @@ type VerificationMethod struct {
 	Type string `json:"type"`
 }
 
-// AsVerifiablePresentation0 returns the union data inside the VerifiablePresentation as a VerifiablePresentation0
-func (t VerifiablePresentation) AsVerifiablePresentation0() (VerifiablePresentation0, error) {
-	var body VerifiablePresentation0
+// AsJSONVerifiableCredential returns the union data inside the VerifiableCredential as a JSONVerifiableCredential
+func (t VerifiableCredential) AsJSONVerifiableCredential() (JSONVerifiableCredential, error) {
+	var body JSONVerifiableCredential
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromVerifiablePresentation0 overwrites any union data inside the VerifiablePresentation as the provided VerifiablePresentation0
-func (t *VerifiablePresentation) FromVerifiablePresentation0(v VerifiablePresentation0) error {
+// FromJSONVerifiableCredential overwrites any union data inside the VerifiableCredential as the provided JSONVerifiableCredential
+func (t *VerifiableCredential) FromJSONVerifiableCredential(v JSONVerifiableCredential) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeVerifiablePresentation0 performs a merge with any union data inside the VerifiablePresentation, using the provided VerifiablePresentation0
-func (t *VerifiablePresentation) MergeVerifiablePresentation0(v VerifiablePresentation0) error {
+// MergeJSONVerifiableCredential performs a merge with any union data inside the VerifiableCredential, using the provided JSONVerifiableCredential
+func (t *VerifiableCredential) MergeJSONVerifiableCredential(v JSONVerifiableCredential) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -246,22 +254,84 @@ func (t *VerifiablePresentation) MergeVerifiablePresentation0(v VerifiablePresen
 	return err
 }
 
-// AsVerifiablePresentation1 returns the union data inside the VerifiablePresentation as a VerifiablePresentation1
-func (t VerifiablePresentation) AsVerifiablePresentation1() (VerifiablePresentation1, error) {
-	var body VerifiablePresentation1
+// AsJWTCompactVerifiableCredential returns the union data inside the VerifiableCredential as a JWTCompactVerifiableCredential
+func (t VerifiableCredential) AsJWTCompactVerifiableCredential() (JWTCompactVerifiableCredential, error) {
+	var body JWTCompactVerifiableCredential
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromVerifiablePresentation1 overwrites any union data inside the VerifiablePresentation as the provided VerifiablePresentation1
-func (t *VerifiablePresentation) FromVerifiablePresentation1(v VerifiablePresentation1) error {
+// FromJWTCompactVerifiableCredential overwrites any union data inside the VerifiableCredential as the provided JWTCompactVerifiableCredential
+func (t *VerifiableCredential) FromJWTCompactVerifiableCredential(v JWTCompactVerifiableCredential) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeVerifiablePresentation1 performs a merge with any union data inside the VerifiablePresentation, using the provided VerifiablePresentation1
-func (t *VerifiablePresentation) MergeVerifiablePresentation1(v VerifiablePresentation1) error {
+// MergeJWTCompactVerifiableCredential performs a merge with any union data inside the VerifiableCredential, using the provided JWTCompactVerifiableCredential
+func (t *VerifiableCredential) MergeJWTCompactVerifiableCredential(v JWTCompactVerifiableCredential) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t VerifiableCredential) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *VerifiableCredential) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsJSONVerifiablePresentation returns the union data inside the VerifiablePresentation as a JSONVerifiablePresentation
+func (t VerifiablePresentation) AsJSONVerifiablePresentation() (JSONVerifiablePresentation, error) {
+	var body JSONVerifiablePresentation
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromJSONVerifiablePresentation overwrites any union data inside the VerifiablePresentation as the provided JSONVerifiablePresentation
+func (t *VerifiablePresentation) FromJSONVerifiablePresentation(v JSONVerifiablePresentation) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeJSONVerifiablePresentation performs a merge with any union data inside the VerifiablePresentation, using the provided JSONVerifiablePresentation
+func (t *VerifiablePresentation) MergeJSONVerifiablePresentation(v JSONVerifiablePresentation) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsJWTCompactVerifiablePresentation returns the union data inside the VerifiablePresentation as a JWTCompactVerifiablePresentation
+func (t VerifiablePresentation) AsJWTCompactVerifiablePresentation() (JWTCompactVerifiablePresentation, error) {
+	var body JWTCompactVerifiablePresentation
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromJWTCompactVerifiablePresentation overwrites any union data inside the VerifiablePresentation as the provided JWTCompactVerifiablePresentation
+func (t *VerifiablePresentation) FromJWTCompactVerifiablePresentation(v JWTCompactVerifiablePresentation) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeJWTCompactVerifiablePresentation performs a merge with any union data inside the VerifiablePresentation, using the provided JWTCompactVerifiablePresentation
+func (t *VerifiablePresentation) MergeJWTCompactVerifiablePresentation(v JWTCompactVerifiablePresentation) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err

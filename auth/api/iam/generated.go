@@ -535,7 +535,8 @@ type ServerInterface interface {
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx echo.Context, id string) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
+	// It returns fields derived from the credentials that were used during authentication.
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
@@ -1786,7 +1787,8 @@ type StrictServerInterface interface {
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
+	// It returns fields derived from the credentials that were used during authentication.
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
