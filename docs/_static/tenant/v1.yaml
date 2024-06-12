@@ -1,0 +1,113 @@
+openapi: "3.0.0"
+info:
+  title: Nuts Tenant API spec
+  description: API specification for managing tenants.
+  version: 1.0.0
+  license:
+    name: GPLv3
+servers:
+  - url: http://localhost:8081
+paths:
+  /internal/tenant/v1:
+    post:
+      summary: Creates a new tenant
+      description: |
+        Creates a new tenant, groups DIDs, Verifiable Credentials and DID Services and Verification Methods.
+        A new DID of the preferred DID method will be created for the tenant.
+
+        error returns:
+        * 500 - An error occurred while processing the request
+      operationId: "createTenant"
+      tags:
+        - Tenant
+      responses:
+        "200":
+          description: "New tenant has been created successfully. Returns the tenant details."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/tenant/v1/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Tenant ID.
+        required: true
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: "013c6fda-73e8-45ee-9220-48652dba854b"
+    get:
+      summary: "Returns the tenant details"
+      description: |
+        Returns the details for the given tenant ID.
+
+        error returns:
+          * 404 - Unknown tenant.
+          * 500 - An error occurred while processing the request
+      operationId: "getTenant"
+      tags:
+        - Tenant
+      responses:
+        "200":
+          description: Tenant has been found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        default:
+          $ref: '../common/error_response.yaml'
+components:
+  schemas:
+    Tenant:
+      type: object
+      description: Details of a tenant.
+      required:
+        - id
+        - identity
+        - services
+        - verification_methods
+      properties:
+        id:
+          type: string
+          description: ID by which applications managing the tenant can refer to it.
+          example: "013c6fda-73e8-45ee-9220-48652dba854b"
+        identity:
+          description: |
+            Identifiers of the tenant which it uses to prove its identity.
+            These are often, but not limited to, DIDs.
+          type: array
+          items:
+            type: string
+          example:
+            - "did:web:example.com"
+            - "did:jwk:123456787890"
+        services:
+          description: |
+            Services associated with the tenant, used for conveying information about endpoints and other services.
+            These will be included in the tenant's DID documents.
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+        verification_methods:
+          description: |
+            Verification methods associated with the tenant, used proving the tenant's identities, signing or encryption.
+            These will be included in the tenant's DID documents.
+          type: array
+          items:
+            $ref: '#/components/schemas/VerificationMethod'
+    VerificationMethod:
+      $ref: '../common/ssi_types.yaml#/components/schemas/VerificationMethod'
+    Service:
+      $ref: '../common/ssi_types.yaml#/components/schemas/Service'
+  securitySchemes:
+    jwtBearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - { }
+  - jwtBearerAuth: [ ]
