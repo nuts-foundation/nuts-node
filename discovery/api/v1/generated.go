@@ -27,10 +27,8 @@ type SearchResult struct {
 	Id string `json:"id"`
 
 	// SubjectId The ID of the Verifiable Credential subject (holder), typically a DID.
-	SubjectId string `json:"subject_id"`
-
-	// Vp Verifiable Presentation
-	Vp VerifiablePresentation `json:"vp"`
+	SubjectId string                 `json:"subject_id"`
+	Vp        VerifiablePresentation `json:"vp"`
 }
 
 // SearchPresentationsParams defines parameters for SearchPresentations.
@@ -360,10 +358,8 @@ type GetServiceActivationResponseObject interface {
 
 type GetServiceActivation200JSONResponse struct {
 	// Activated Whether the DID is activated on the Discovery Service.
-	Activated bool `json:"activated"`
-
-	// Vp Verifiable Presentation
-	Vp *VerifiablePresentation `json:"vp,omitempty"`
+	Activated bool                    `json:"activated"`
+	Vp        *VerifiablePresentation `json:"vp,omitempty"`
 }
 
 func (response GetServiceActivation200JSONResponse) VisitGetServiceActivationResponse(w http.ResponseWriter) error {

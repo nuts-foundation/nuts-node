@@ -65,7 +65,7 @@ gen-mocks:
 
 
 gen-api:
-	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/ssi_types.go
+	oapi-codegen --config codegen/configs/common_ssi_types.yaml docs/_static/common/ssi_types.yaml | gofmt > api/generated.go
 	oapi-codegen --config codegen/configs/crypto_v1.yaml -package v1 docs/_static/crypto/v1.yaml | gofmt > crypto/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vdr_v1.yaml docs/_static/vdr/v1.yaml | gofmt > vdr/api/v1/generated.go
 	oapi-codegen --config codegen/configs/vdr_v2.yaml docs/_static/vdr/v2.yaml | gofmt > vdr/api/v2/generated.go

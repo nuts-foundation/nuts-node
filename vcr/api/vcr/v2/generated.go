@@ -102,6 +102,7 @@ type CredentialIssuer struct {
 // IssueVCRequest A request for issuing a new Verifiable Credential.
 type IssueVCRequest struct {
 	// Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+	// It always adds the "https://www.w3.org/2018/credentials/v1" context if not present.
 	Context *IssueVCRequest_Context `json:"@context,omitempty"`
 
 	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
@@ -148,6 +149,7 @@ type IssueVCRequestContext0 = string
 type IssueVCRequestContext1 = []string
 
 // IssueVCRequest_Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+// It always adds the "https://www.w3.org/2018/credentials/v1" context if not present.
 type IssueVCRequest_Context struct {
 	union json.RawMessage
 }
@@ -189,9 +191,7 @@ type SearchVCRequest struct {
 // The absence of a the revocation property does not indicate a valid credential, use the /internal/vcr/v2/verifier/vc API for this.
 type SearchVCResult struct {
 	// Revocation Credential revocation record
-	Revocation *Revocation `json:"revocation,omitempty"`
-
-	// VerifiableCredential A credential according to the W3C and Nuts specs.
+	Revocation           *Revocation          `json:"revocation,omitempty"`
 	VerifiableCredential VerifiableCredential `json:"verifiableCredential"`
 }
 
@@ -209,7 +209,6 @@ type VCVerificationOptions struct {
 
 // VCVerificationRequest defines model for VCVerificationRequest.
 type VCVerificationRequest struct {
-	// VerifiableCredential A credential according to the W3C and Nuts specs.
 	VerifiableCredential VerifiableCredential   `json:"verifiableCredential"`
 	VerificationOptions  *VCVerificationOptions `json:"verificationOptions,omitempty"`
 }
@@ -226,9 +225,7 @@ type VCVerificationResult struct {
 // VPVerificationRequest defines model for VPVerificationRequest.
 type VPVerificationRequest struct {
 	// ValidAt Date and time at which the VP should be valid. If not supplied, the current date/time is used.
-	ValidAt *string `json:"validAt,omitempty"`
-
-	// VerifiablePresentation Verifiable Presentation
+	ValidAt                *string                `json:"validAt,omitempty"`
 	VerifiablePresentation VerifiablePresentation `json:"verifiablePresentation"`
 
 	// VerifyCredentials Indicates whether the Verifiable Credentials within the VP must be verified, default true.

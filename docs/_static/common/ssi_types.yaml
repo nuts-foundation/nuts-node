@@ -3,8 +3,15 @@ components:
   schemas:
 # VC
     VerifiableCredential:
+      oneOf:
+        - $ref: '#/components/schemas/JSONVerifiableCredential'
+        - $ref: '#/components/schemas/JWTCompactVerifiableCredential'
+    JWTCompactVerifiableCredential:
+      type: string
+      description: Verifiable Credential in JWT compact serialization format.
+    JSONVerifiableCredential:
       type: object
-      description: A credential according to the W3C and Nuts specs.
+      description: Verifiable Credential in JSON-LD format.
       required:
         - "@context"
         - type
@@ -74,8 +81,15 @@ components:
 
 # VP
     VerifiablePresentation:
+      oneOf:
+        - $ref: '#/components/schemas/JSONVerifiablePresentation'
+        - $ref: '#/components/schemas/JWTCompactVerifiablePresentation'
+    JWTCompactVerifiablePresentation:
+      type: string
+      description: Verifiable Presentation in JWT compact serialization format.
+    JSONVerifiablePresentation:
       type: object
-      description: Verifiable Presentation
+      description: Verifiable Presentation in JSON-LD format.
       title: Verifiable Presentation Model
       required:
         - "@context"
