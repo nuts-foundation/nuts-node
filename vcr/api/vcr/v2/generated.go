@@ -102,6 +102,7 @@ type CredentialIssuer struct {
 // IssueVCRequest A request for issuing a new Verifiable Credential.
 type IssueVCRequest struct {
 	// Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+	// It always adds the "https://www.w3.org/2018/credentials/v1" context if not present.
 	Context *IssueVCRequest_Context `json:"@context,omitempty"`
 
 	// CredentialSubject Subject of a Verifiable Credential identifying the holder and expressing claims.
@@ -148,6 +149,7 @@ type IssueVCRequestContext0 = string
 type IssueVCRequestContext1 = []string
 
 // IssueVCRequest_Context The resolvable context of the credentialSubject as URI. If omitted, the "https://nuts.nl/credentials/v1" context is used.
+// It always adds the "https://www.w3.org/2018/credentials/v1" context if not present.
 type IssueVCRequest_Context struct {
 	union json.RawMessage
 }

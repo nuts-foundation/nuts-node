@@ -113,8 +113,19 @@ type ExtendedTokenIntrospectionResponse struct {
 	Sub *string `json:"sub,omitempty"`
 
 	// Vps The Verifiable Presentations that were used to request the access token using the same encoding as used in the access token request.
-	Vps                  *[]interface{}         `json:"vps,omitempty"`
-	AdditionalProperties map[string]interface{} `json:"-"`
+	Vps                  *[]ExtendedTokenIntrospectionResponse_Vps_Item `json:"vps,omitempty"`
+	AdditionalProperties map[string]interface{}                         `json:"-"`
+}
+
+// ExtendedTokenIntrospectionResponseVps0 defines model for .
+type ExtendedTokenIntrospectionResponseVps0 = string
+
+// ExtendedTokenIntrospectionResponseVps1 defines model for .
+type ExtendedTokenIntrospectionResponseVps1 = map[string]interface{}
+
+// ExtendedTokenIntrospectionResponse_Vps_Item defines model for ExtendedTokenIntrospectionResponse.vps.Item.
+type ExtendedTokenIntrospectionResponse_Vps_Item struct {
+	union json.RawMessage
 }
 
 // RedirectResponseWithID defines model for RedirectResponseWithID.
@@ -521,6 +532,68 @@ func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		}
 	}
 	return json.Marshal(object)
+}
+
+// AsExtendedTokenIntrospectionResponseVps0 returns the union data inside the ExtendedTokenIntrospectionResponse_Vps_Item as a ExtendedTokenIntrospectionResponseVps0
+func (t ExtendedTokenIntrospectionResponse_Vps_Item) AsExtendedTokenIntrospectionResponseVps0() (ExtendedTokenIntrospectionResponseVps0, error) {
+	var body ExtendedTokenIntrospectionResponseVps0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExtendedTokenIntrospectionResponseVps0 overwrites any union data inside the ExtendedTokenIntrospectionResponse_Vps_Item as the provided ExtendedTokenIntrospectionResponseVps0
+func (t *ExtendedTokenIntrospectionResponse_Vps_Item) FromExtendedTokenIntrospectionResponseVps0(v ExtendedTokenIntrospectionResponseVps0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExtendedTokenIntrospectionResponseVps0 performs a merge with any union data inside the ExtendedTokenIntrospectionResponse_Vps_Item, using the provided ExtendedTokenIntrospectionResponseVps0
+func (t *ExtendedTokenIntrospectionResponse_Vps_Item) MergeExtendedTokenIntrospectionResponseVps0(v ExtendedTokenIntrospectionResponseVps0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsExtendedTokenIntrospectionResponseVps1 returns the union data inside the ExtendedTokenIntrospectionResponse_Vps_Item as a ExtendedTokenIntrospectionResponseVps1
+func (t ExtendedTokenIntrospectionResponse_Vps_Item) AsExtendedTokenIntrospectionResponseVps1() (ExtendedTokenIntrospectionResponseVps1, error) {
+	var body ExtendedTokenIntrospectionResponseVps1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromExtendedTokenIntrospectionResponseVps1 overwrites any union data inside the ExtendedTokenIntrospectionResponse_Vps_Item as the provided ExtendedTokenIntrospectionResponseVps1
+func (t *ExtendedTokenIntrospectionResponse_Vps_Item) FromExtendedTokenIntrospectionResponseVps1(v ExtendedTokenIntrospectionResponseVps1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeExtendedTokenIntrospectionResponseVps1 performs a merge with any union data inside the ExtendedTokenIntrospectionResponse_Vps_Item, using the provided ExtendedTokenIntrospectionResponseVps1
+func (t *ExtendedTokenIntrospectionResponse_Vps_Item) MergeExtendedTokenIntrospectionResponseVps1(v ExtendedTokenIntrospectionResponseVps1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ExtendedTokenIntrospectionResponse_Vps_Item) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ExtendedTokenIntrospectionResponse_Vps_Item) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
 }
 
 // ServerInterface represents all server handlers.
