@@ -138,10 +138,28 @@ func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) er
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
 }
 
+var templ = template.Must(template.ParseFS(webTemplates, "templates/*.templ"))
+
 func renderTemplate(name string, lang contract.Language, session types.Session, target io.Writer) error {
-	tmpl, err := template.ParseFS(webTemplates, fmt.Sprintf("templates/%s_%s.html", name, strings.ToLower(string(lang))))
+	templ, err := templ.Clone()
 	if err != nil {
 		return err
 	}
-	return tmpl.Execute(target, session)
+
+	layoutTempl := templ.Lookup("layout")
+	if layoutTempl == nil {
+		return fmt.Errorf("could not find layout template")
+	}
+	bodyName := fmt.Sprintf("%s_%s", name, strings.ToLower(string(lang)))
+	bodyTempl := templ.Lookup(bodyName)
+	if bodyTempl == nil {
+		return fmt.Errorf("could not find template %s", bodyName)
+	}
+
+	_, err = layoutTempl.AddParseTree("body", bodyTempl.Tree)
+	if err != nil {
+		return err
+	}
+
+	return layoutTempl.Execute(target, session)
 }
