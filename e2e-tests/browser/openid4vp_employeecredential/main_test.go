@@ -94,7 +94,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	require.NotEmpty(t, tokenInfo.Iat)
 	// Check the mapped input descriptor fields: for organization credential and employee credential
 	require.NotEmpty(t, tokenInfo.AdditionalProperties)
-	require.Equal(t, "requester Organization", tokenInfo.AdditionalProperties["organization_name"].(string))
+	require.Equal(t, fmt.Sprintf("%s Organization", didRequester.String()), tokenInfo.AdditionalProperties["organization_name"].(string))
 	require.Equal(t, "Testland", tokenInfo.AdditionalProperties["organization_city"].(string))
 	require.Equal(t, "jdoe@example.com", tokenInfo.AdditionalProperties["employee_identifier"].(string))
 	require.Equal(t, "John Doe", tokenInfo.AdditionalProperties["employee_name"].(string))
