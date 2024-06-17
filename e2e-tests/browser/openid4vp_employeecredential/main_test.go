@@ -59,8 +59,8 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		cancel()
 	}()
 
-	didVerifier, openid4vpClientA := setupNode(t, ctx, "verifier", nodeAClientConfig)
-	didRequester, openid4vpClientB := setupNode(t, ctx, "requester", nodeBClientConfig)
+	didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
+	didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
 	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
 	require.NoError(t, err)
 	// Request an access token with user from verifying organization
@@ -107,10 +107,10 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	}
 }
 
-func setupNode(t testing.TB, ctx context.Context, id string, config core.ClientConfig) (did.DID, OpenID4VP) {
-	didDoc, err := createDID(id, config)
+func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (did.DID, OpenID4VP) {
+	didDoc, err := createDID(config)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(didDoc, fmt.Sprintf("%s Organization", id), "Testland", config)
+	err = browser.IssueOrganizationCredential(didDoc, fmt.Sprintf("%s Organization", didDoc.ID.String()), "Testland", config)
 	require.NoError(t, err)
 
 	iamClientB, err := iamAPI.NewClient(config.GetAddress())
@@ -122,7 +122,7 @@ func setupNode(t testing.TB, ctx context.Context, id string, config core.ClientC
 	return didDoc.ID, openid4vp
 }
 
-func createDID(id string, config core.ClientConfig) (*did.Document, error) {
+func createDID(config core.ClientConfig) (*did.Document, error) {
 	didClient := didAPI.HTTPClient{ClientConfig: config}
-	return didClient.Create(didAPI.CreateDIDOptions{Tenant: &id})
+	return didClient.Create(didAPI.CreateDIDOptions{})
 }
