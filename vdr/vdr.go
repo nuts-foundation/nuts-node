@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/audit"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -279,6 +280,42 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 			Outcome: docCount,
 		},
 	}
+}
+
+func (r *Module) Migrate() error {
+	// Find all documents that are managed by this node
+	owned, err := r.ListOwned(context.Background())
+	if err != nil {
+		return err
+	}
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate")
+	// resolve the DID Document if the did starts with did:nuts
+	for _, did := range owned {
+		if did.Method == didnuts.MethodName {
+			doc, _, err := r.Resolve(did, nil)
+			if err != nil {
+				return fmt.Errorf("could not resolve owned DID document: %w", err)
+			}
+			if len(doc.Controller) > 0 {
+				doc.Controller = nil
+
+				if len(doc.VerificationMethod) == 0 {
+					log.Logger().Warnf("No verification method found in owned DID document (did=%s)", did.String())
+					continue
+				}
+
+				if len(doc.CapabilityInvocation) == 0 {
+					doc.CapabilityInvocation.Add(doc.VerificationMethod[0])
+				}
+
+				err = r.Update(auditContext, did, *doc)
+				if err != nil {
+					return fmt.Errorf("could not update owned DID document: %w", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // Create generates a new DID Document

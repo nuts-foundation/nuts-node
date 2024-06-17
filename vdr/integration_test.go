@@ -156,6 +156,40 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.EqualError(t, err, "update DID document: could not find any controllers for document")
 }
 
+// Test the full stack by testing creating and updating DID documents.
+func TestVDRMigration_Test(t *testing.T) {
+	ctx := setup(t)
+
+	// Start with a first and fresh document named DocumentA.
+	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	require.NoError(t, err)
+
+	// Create a new DID Document we name DocumentB
+	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	require.NoError(t, err)
+
+	// Update the controller of DocumentA with DocumentB
+	docA.Controller = []did.DID{docB.ID}
+	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
+	require.NoError(t, err, "unable to update documentA with a new controller")
+
+	// Resolve and check DocumentA
+	docA, _, err = ctx.didStore.Resolve(docA.ID, nil)
+	require.NoError(t, err, "unable to resolve updated documentA")
+	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
+		"expected updated documentA to have documentB as its controller")
+
+	// run migration
+	err = ctx.vdr.Migrate()
+	require.NoError(t, err, "migration failed")
+
+	docA, _, err = ctx.didStore.Resolve(docA.ID, nil)
+	require.NoError(t, err, "unable to resolve updated documentA")
+	assert.Nil(t, docA.Controller,
+		"expected updated documentA to have no controllers after migration")
+	assert.NotNil(t, docA.CapabilityInvocation, "expected documentA to have CapabilityInvocation")
+}
+
 func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
