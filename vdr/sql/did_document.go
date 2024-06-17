@@ -20,7 +20,6 @@ package sql
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
