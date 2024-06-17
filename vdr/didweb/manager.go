@@ -84,6 +84,7 @@ func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
 	if err != nil {
 		return err
 	}
+
 	var deleteErrors []error
 	for _, verificationMethod := range sqlDocument.VerificationMethods {
 		if err := m.keyStore.Delete(ctx, verificationMethod.ID); err != nil {

@@ -20,8 +20,9 @@ package sql
 
 import (
 	"errors"
-	"github.com/google/uuid"
+	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"

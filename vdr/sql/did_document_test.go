@@ -67,6 +67,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		assert.Len(t, doc.ID, 36) // uuid v4
 		assert.Equal(t, []byte("{}"), doc.VerificationMethods[0].Data)
 		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
+
 	})
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
