@@ -32,6 +32,9 @@ const (
 // CreateDIDOptions Options for the DID creation. If neither `did` nor `tenant` is given, a random UUID is used as tenant.
 // It's invalid to provide both `did` and `tenant` at the same time.
 type CreateDIDOptions struct {
+	// Root Can be used to create a root web:did.
+	//
+	// The DID created conforms to the node's configured URL (e.g., `did:web:example.com` for `https://example.com`).
 	Root *bool `json:"root,omitempty"`
 }
 
