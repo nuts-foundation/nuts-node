@@ -27,8 +27,8 @@ var _ schema.Tabler = (*DID)(nil)
 
 // DIDDocumentManager is the interface to change data for the did_document table
 type DIDDocumentManager interface {
-	// AddVersion adds a new version of a DID document, starts at 1
-	AddVersion(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error)
+	// CreateOrUpdate adds a new version of a DID document, starts at 1
+	CreateOrUpdate(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error)
 	// Latest returns the latest version of a DID document
 	Latest(did did.DID) (*DIDDocument, error)
 }
@@ -42,7 +42,7 @@ func NewDIDDocumentManager(tx *gorm.DB) *SqlDIDDocumentManager {
 	return &SqlDIDDocumentManager{tx: tx}
 }
 
-func (s *SqlDIDDocumentManager) AddVersion(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error) {
+func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error) {
 	latest := DIDDocument{}
 	err := s.tx.Preload("DID").Where("did = ?", did.ID).Order("version desc").First(&latest).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

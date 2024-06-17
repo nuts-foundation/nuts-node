@@ -132,7 +132,6 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 	tx := m.db.Begin()
 	defer tx.Rollback()
 
-	didStore := sql.NewDIDManager(tx)
 	documentStore := sql.NewDIDDocumentManager(tx)
 
 	_, err = documentStore.Latest(*newDID)
@@ -152,14 +151,14 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		return nil, nil, err
 	}
 
-	var dids []sql.DID
-	if dids, err = didStore.Add(newDID.String(), *newDID); err != nil {
-		return nil, nil, fmt.Errorf("store new DID: %w", err)
+	sqlDid := sql.DID{
+		ID:      newDID.String(),
+		Subject: newDID.String(),
 	}
 	var doc *sql.DIDDocument
-	if doc, err = documentStore.AddVersion(dids[0], []sql.SqlVerificationMethod{{
+	if doc, err = documentStore.CreateOrUpdate(sqlDid, []sql.SqlVerificationMethod{{
 		ID:            verificationMethod.ID.String(),
-		DIDDocumentID: dids[0].ID,
+		DIDDocumentID: sqlDid.ID,
 		Data:          vmAsJson,
 	}}, nil); err != nil {
 		return nil, nil, fmt.Errorf("store new DID document: %w", err)
@@ -268,7 +267,7 @@ func (m Manager) createService(tx *gorm.DB, subjectDID did.DID, service did.Serv
 		Data:          asJson,
 	}
 
-	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, append(current.Services, sqlService))
+	_, err = didDocumentManager.CreateOrUpdate(current.DID, current.VerificationMethods, append(current.Services, sqlService))
 
 	return &service, nil
 }
@@ -281,35 +280,20 @@ func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID 
 
 	tx := m.db.Begin()
 	defer tx.Rollback()
-	didDocumentManager := sql.NewDIDDocumentManager(tx)
 
-	current, err := didDocumentManager.Latest(subjectDID)
+	// first delete
+	err := m.deleteService(tx, subjectDID, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	// then add
+	added, err := m.createService(tx, subjectDID, service)
 	if err != nil {
 		return nil, err
 	}
 
-	asJson, err := json.Marshal(service)
-	if err != nil {
-		return nil, err
-	}
-	sqlService := sql.SqlService{
-		ID:   service.ID.String(),
-		Data: asJson,
-	}
-	services := current.Services
-	j := 0
-	for i, s := range services {
-		if s.ID != serviceID.String() {
-			services[j] = services[i]
-			j++
-		} else {
-			break
-		}
-	}
-	services = services[:j]
-	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, append(services, sqlService))
-
-	return &service, tx.Commit().Error
+	//commit and return
+	return added, tx.Commit().Error
 }
 
 func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID ssi.URI) error {
@@ -335,15 +319,14 @@ func (m Manager) deleteService(tx *gorm.DB, subjectDID did.DID, serviceID ssi.UR
 	services := current.Services
 	j := 0
 	for i, s := range services {
-		if s.ID != serviceID.String() {
-			services[j] = services[i]
-			j++
-		} else {
-			break
+		if s.ID == serviceID.String() {
+			continue
 		}
+		services[j] = services[i]
+		j++
 	}
 	services = services[:j]
-	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, services)
+	_, err = didDocumentManager.CreateOrUpdate(current.DID, current.VerificationMethods, services)
 
 	return err
 }

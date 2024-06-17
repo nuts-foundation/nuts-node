@@ -1,15 +1,17 @@
 package sql
 
 import (
-	"github.com/nuts-foundation/go-did/did"
-	"gorm.io/gorm"
 	"testing"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
-func TestSqlDIDDocumentManager_AddVersion(t *testing.T) {
+var sqlDidAlice = DID{ID: alice.String(), Subject: "alice"}
+
+func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	vm := SqlVerificationMethod{
 		ID:   "#1",
 		Data: []byte("{}"),
@@ -18,16 +20,14 @@ func TestSqlDIDDocumentManager_AddVersion(t *testing.T) {
 		ID:   "#2",
 		Data: []byte("{}"),
 	}
+	sqlDidBob := DID{ID: bob.String(), Subject: "bob"}
 	db := testDB(t)
 
 	t.Run("first version", func(t *testing.T) {
 		tx := transaction(t, db)
-		didManager := NewDIDManager(tx)
-		added, err := didManager.Add("alice", alice)
-		require.NoError(t, err)
 		docManager := NewDIDDocumentManager(tx)
 
-		doc, err := docManager.AddVersion(added[0], nil, nil)
+		doc, err := docManager.CreateOrUpdate(sqlDidAlice, nil, nil)
 		require.NoError(t, err)
 		require.NotNil(t, doc)
 
@@ -38,22 +38,9 @@ func TestSqlDIDDocumentManager_AddVersion(t *testing.T) {
 	})
 	t.Run("with method and services", func(t *testing.T) {
 		tx := transaction(t, db)
-		didManager := NewDIDManager(tx)
-		added, err := didManager.Add("bob", bob)
-		require.NoError(t, err)
 		docManager := NewDIDDocumentManager(tx)
-		vm := SqlVerificationMethod{
-			ID:            "#1",
-			DIDDocumentID: added[0].ID,
-			Data:          []byte("{}"),
-		}
-		service := SqlService{
-			ID:            "#2",
-			DIDDocumentID: added[0].ID,
-			Data:          []byte("{}"),
-		}
 
-		doc, err := docManager.AddVersion(added[0], []SqlVerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
 		require.NoError(t, err)
 
 		assert.Len(t, doc.VerificationMethods, 1)
@@ -62,17 +49,14 @@ func TestSqlDIDDocumentManager_AddVersion(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
 		docManager := NewDIDDocumentManager(tx)
-		didManager := NewDIDManager(tx)
-		added, err := didManager.Add("bob", bob)
-		require.NoError(t, err)
-		_, err = docManager.AddVersion(added[0], []SqlVerificationMethod{vm}, []SqlService{service})
+		_, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
 
-		doc, err := docManager.AddVersion(added[0], []SqlVerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
 
 		assert.Equal(t, "did:web:example.com:iam:bob#2", doc.ID)
 		require.Len(t, doc.VerificationMethods, 1)
@@ -85,11 +69,8 @@ func TestSqlDIDDocumentManager_AddVersion(t *testing.T) {
 func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 	db := testDB(t)
 	tx := transaction(t, db)
-	didManager := NewDIDManager(tx)
 	docManager := NewDIDDocumentManager(tx)
-	added, err := didManager.Add("alice", alice)
-	require.NoError(t, err)
-	doc, err := docManager.AddVersion(added[0], nil, nil)
+	doc, err := docManager.CreateOrUpdate(sqlDidAlice, nil, nil)
 	require.NoError(t, err)
 
 	t.Run("found", func(t *testing.T) {

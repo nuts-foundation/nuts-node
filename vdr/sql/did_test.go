@@ -30,7 +30,8 @@ func TestSqlDIDManager_Add(t *testing.T) {
 
 	added, err := manager.Add("alice", alice)
 	assert.NoError(t, err)
-	assert.Len(t, added, 1)
+	assert.NotNil(t, added)
+	assert.Equal(t, "alice", added.Subject)
 	assertLen(t, manager.tx, 1)
 }
 

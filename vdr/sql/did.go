@@ -40,7 +40,7 @@ var _ schema.Tabler = (*DID)(nil)
 
 // DIDManager is the interface to change data for the did table
 type DIDManager interface {
-	Add(subject string, dids ...did.DID) ([]DID, error)
+	Add(subject string, did did.DID) (*DID, error)
 	All() ([]DID, error)
 	Delete(did did.DID) error
 	DeleteAll(subject string) error
@@ -57,16 +57,13 @@ func NewDIDManager(tx *gorm.DB) *SqlDIDManager {
 	return &SqlDIDManager{tx: tx}
 }
 
-func (s SqlDIDManager) Add(subject string, dids ...did.DID) ([]DID, error) {
-	added := make([]DID, len(dids))
-	for i, did := range dids {
-		added[i] = DID{ID: did.String(), Subject: subject}
-		err := s.tx.Create(&added[i]).Error
-		if err != nil {
-			return nil, err
-		}
+func (s SqlDIDManager) Add(subject string, did did.DID) (*DID, error) {
+	added := DID{ID: did.String(), Subject: subject}
+	err := s.tx.Create(&added).Error
+	if err != nil {
+		return nil, err
 	}
-	return added, nil
+	return &added, nil
 }
 
 func (s SqlDIDManager) All() ([]DID, error) {

@@ -232,12 +232,10 @@ func TestManager_Services(t *testing.T) {
 	newManager := func(t *testing.T) *Manager {
 		db := testDB(t)
 		tx := db.Begin()
-		didManager := sql.NewDIDManager(tx)
 		didDocumentManager := sql.NewDIDDocumentManager(tx)
 		m := NewManager(rootDID, tenantPath, nil, db)
-		dids, err := didManager.Add("uuid", subjectDID)
-		require.NoError(t, err)
-		_, err = didDocumentManager.AddVersion(dids[0], nil, nil)
+		sqlDid := sql.DID{ID: subjectDID.String(), Subject: "uuid"}
+		_, err := didDocumentManager.CreateOrUpdate(sqlDid, nil, nil)
 		require.NoError(t, err)
 		tx.Commit()
 		return m
