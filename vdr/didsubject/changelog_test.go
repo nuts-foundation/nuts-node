@@ -16,19 +16,33 @@
  *
  */
 
-package sql
+package didsubject
 
-import "gorm.io/gorm/schema"
+import (
+	"testing"
 
-var _ schema.Tabler = (*SqlService)(nil)
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/stretchr/testify/assert"
+)
 
-// SqlService is the gorm representation of the did_service table
-type SqlService struct {
-	ID            string `gorm:"primaryKey"`
-	DIDDocumentID string `gorm:"column:did_document_id"`
-	Data          []byte
+func TestDIDEventLog_DID(t *testing.T) {
+	id := did.MustParseDID("did:example:123")
+	didEventLog := DIDChangeLog{
+		DIDDocumentVersion: DIDDocument{
+			DID: DID{ID: id.String()},
+		},
+	}
+
+	assert.Equal(t, id, didEventLog.DID())
 }
 
-func (v SqlService) TableName() string {
-	return "did_service"
+func TestDIDEventLog_Method(t *testing.T) {
+	id := did.MustParseDID("did:example:123")
+	didEventLog := DIDChangeLog{
+		DIDDocumentVersion: DIDDocument{
+			DID: DID{ID: id.String()},
+		},
+	}
+
+	assert.Equal(t, "example", didEventLog.Method())
 }

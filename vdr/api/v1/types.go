@@ -19,7 +19,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -67,13 +67,13 @@ type VerificationMethodRelationship struct {
 
 // ToFlags takes default key flags, and enabled/disables the flags which are set on the VerificationMethodRelationship,
 // and the result is returned.
-func (r VerificationMethodRelationship) ToFlags(defaults management.DIDKeyFlags) management.DIDKeyFlags {
+func (r VerificationMethodRelationship) ToFlags(defaults didsubject.DIDKeyFlags) didsubject.DIDKeyFlags {
 	result := defaults
-	result = withKeyFlag(result, management.AuthenticationUsage, r.Authentication)
-	result = withKeyFlag(result, management.AssertionMethodUsage, r.AssertionMethod)
-	result = withKeyFlag(result, management.CapabilityDelegationUsage, r.CapabilityDelegation)
-	result = withKeyFlag(result, management.CapabilityInvocationUsage, r.CapabilityInvocation)
-	result = withKeyFlag(result, management.KeyAgreementUsage, r.KeyAgreement)
+	result = withKeyFlag(result, didsubject.AuthenticationUsage, r.Authentication)
+	result = withKeyFlag(result, didsubject.AssertionMethodUsage, r.AssertionMethod)
+	result = withKeyFlag(result, didsubject.CapabilityDelegationUsage, r.CapabilityDelegation)
+	result = withKeyFlag(result, didsubject.CapabilityInvocationUsage, r.CapabilityInvocation)
+	result = withKeyFlag(result, didsubject.KeyAgreementUsage, r.KeyAgreement)
 	return result
 }
 
@@ -81,7 +81,7 @@ func (r VerificationMethodRelationship) ToFlags(defaults management.DIDKeyFlags)
 // - bool == nil: do nothing
 // - bool == true: enable flag
 // - bool == false: disable flag
-func withKeyFlag(current, flag management.DIDKeyFlags, value *bool) management.DIDKeyFlags {
+func withKeyFlag(current, flag didsubject.DIDKeyFlags, value *bool) didsubject.DIDKeyFlags {
 	switch {
 	case value == nil: // no setting
 		return current

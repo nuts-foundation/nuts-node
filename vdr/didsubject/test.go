@@ -16,7 +16,7 @@
  *
  */
 
-package sql
+package didsubject
 
 import (
 	"testing"

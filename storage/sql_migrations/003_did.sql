@@ -16,10 +16,23 @@ create table did_document_version
     -- id is v4 uuid
     id varchar(36) not null primary key,
     did varchar(370) not null,
+    created_at integer not null,
+    updated_at integer not null,
     version int not null,
+    raw $TEXT_TYPE not null,
     unique (did, version),
     foreign key (did) references did (id) on delete cascade
 );
+
+create table did_change_log
+(
+    did_document_version_id varchar(36) not null primary key,
+    transaction_id varchar(36) not null,
+    type varchar(32) not null,
+    foreign key (did_document_version_id) references did_document_version (id) on delete cascade
+);
+
+create index did_change_log_transaction_idx on did_change_log (transaction_id);
 
 -- this table is used to store the verification methods for locally managed DIDs
 create table did_verificationmethod
@@ -57,5 +70,6 @@ create table did_service
 -- +goose Down
 drop table did_verificationmethod;
 drop table did_service;
+drop table did_change_log;
 drop table did_document_version;
 drop table did;

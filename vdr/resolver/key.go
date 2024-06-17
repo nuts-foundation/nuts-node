@@ -118,6 +118,7 @@ func (r DIDKeyResolver) baseUrl(doc *did.Document) (baseUrl *string) {
 }
 
 func (r DIDKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error) {
+	// todo use sql DB to select key
 	doc, _, err := r.Resolver.Resolve(id, &ResolveMetadata{
 		ResolveTime: validAt,
 	})

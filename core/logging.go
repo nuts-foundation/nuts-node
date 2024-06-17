@@ -48,6 +48,8 @@ const (
 
 	// LogFieldDID is the log field key for the ID of a DID document from the VDR module.
 	LogFieldDID = "did"
+	// LogFieldDIDSubject is the log field key for the DID subject.
+	LogFieldDIDSubject = "didSubject"
 	// LogFieldServiceID is the log field key for the ID of a DID document service from the VDR module.
 	LogFieldServiceID = "serviceID"
 	// LogFieldServiceType is the log field key for the type of a DID document service from the VDR module.

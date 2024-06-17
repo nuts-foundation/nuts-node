@@ -19,124 +19,545 @@
 package didnuts
 
 import (
+	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/google/uuid"
+	"strings"
+	"testing"
+
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
+	"gorm.io/gorm"
 )
 
-func TestManager_Create(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	creator := management.NewMockDocCreator(ctrl)
-	owner := management.NewMockDocumentOwner(ctrl)
-	manager := NewManager(creator, owner)
-	creator.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, nil)
+// managerTestContext contains the controller and mocks needed for testing the Manager
+type managerTestContext struct {
+	ctrl         *gomock.Controller
+	mockDIDStore *didstore.MockStore
+	mockNetwork  *network.MockTransactions
+	mockResolver *resolver.MockDIDResolver
+	mockKeyStore *mockKeyStore
+	manager      *Manager
+	audit        context.Context
+}
 
-	_, _, err := manager.Create(nil, DefaultCreationOptions())
+func newManagerTestContext(t *testing.T) managerTestContext {
+	t.Helper()
+
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	db := storageEngine.GetSQLDatabase()
+
+	ctrl := gomock.NewController(t)
+	mockResolver := resolver.NewMockDIDResolver(ctrl)
+	mockDIDStore := didstore.NewMockStore(ctrl)
+	mockNetwork := network.NewMockTransactions(ctrl)
+	keyStore := &mockKeyStore{}
+	return managerTestContext{
+		ctrl:         ctrl,
+		mockDIDStore: mockDIDStore,
+		mockNetwork:  mockNetwork,
+		mockResolver: mockResolver,
+		mockKeyStore: keyStore,
+		manager:      NewManager(keyStore, mockNetwork, mockDIDStore, mockResolver, db),
+		audit:        audit.TestContext(),
+	}
+}
+
+func TestManager_Create(t *testing.T) {
+	ctx := newManagerTestContext(t)
+	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+		assert.Equal(t, DIDDocumentType, template.Type)
+		assert.True(t, template.AttachKey)
+		assert.Empty(t, template.AdditionalPrevs)
+		assert.Empty(t, template.Participants)
+		var didDocument did.Document
+		_ = json.Unmarshal(template.Payload, &didDocument)
+		assert.Len(t, didDocument.VerificationMethod, 1)
+		assert.Len(t, didDocument.CapabilityInvocation, 1)
+		assert.Len(t, didDocument.CapabilityDelegation, 1)
+		assert.Len(t, didDocument.AssertionMethod, 1)
+		assert.Len(t, didDocument.Authentication, 1)
+		assert.Len(t, didDocument.KeyAgreement, 1)
+		assert.Nil(t, didDocument.Service)
+		return nil, nil
+	})
+
+	_, _, err := ctx.manager.Create(nil, didsubject.DefaultCreationOptions())
 
 	assert.NoError(t, err)
 }
 
-func TestManager_IsOwner(t *testing.T) {
-	t.Run("not owned", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
-		owner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
+func TestManager_RemoveVerificationMethod(t *testing.T) {
+	id123, _ := did.ParseDID("did:nuts:123")
+	id123Method, _ := did.ParseDIDURL("did:nuts:123#method-1")
+	publicKey := nutsCrypto.NewTestKey("did:nuts:123").Public()
+	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
+	doc := &did.Document{ID: *id123}
+	doc.AddCapabilityInvocation(vm)
+	doc.AddCapabilityDelegation(vm)
+	doc.AddAssertionMethod(vm)
+	doc.AddAuthenticationMethod(vm)
+	doc.AddKeyAgreement(vm)
+	assert.Equal(t, vm, doc.CapabilityInvocation[0].VerificationMethod)
+	assert.Equal(t, vm, doc.VerificationMethod[0])
 
-		actual, err := manager.IsOwner(nil, did.MustParseDID("did:nuts:example.com"))
+	t.Run("ok", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+		doc1 := *doc
+		doc2 := *doc
+		ctx.mockResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{}, nil)
+		ctx.mockResolver.EXPECT().Resolve(*id123, nil).Return(&doc2, &resolver.DocumentMetadata{}, nil)
+		ctx.mockDIDStore.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc2, &resolver.DocumentMetadata{}, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+			var didDocument did.Document
+			_ = json.Unmarshal(template.Payload, &didDocument)
+			assert.Empty(t, didDocument.VerificationMethod)
+			return nil, nil
+		})
 
-		assert.NoError(t, err)
-		assert.False(t, actual)
+		err := ctx.manager.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
+		require.NoError(t, err)
 	})
-	t.Run("owned", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
-		owner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 
-		actual, err := manager.IsOwner(nil, did.MustParseDID("did:nuts:example.com"))
+	t.Run("ok - verificationMethod is not part of the document", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+		ctx.mockResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&did.Document{ID: *id123}, &resolver.DocumentMetadata{}, nil)
+
+		err := ctx.manager.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
 
 		assert.NoError(t, err)
-		assert.True(t, actual)
 	})
-	t.Run("does not check DIDs other than did:nuts", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
 
-		actual, err := manager.IsOwner(nil, did.MustParseDID("did:web:example.com"))
+	t.Run("error - document is deactivated", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+		doc1 := *doc
+		doc2 := *doc
+		ctx.mockResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{Deactivated: true}, nil)
+		ctx.mockDIDStore.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc2, &resolver.DocumentMetadata{Deactivated: true}, nil)
 
-		assert.NoError(t, err)
-		assert.False(t, actual)
-	})
-}
-
-func TestManager_ListOwned(t *testing.T) {
-	t.Run("no owned dids", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
-		owner.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
-
-		actual, err := manager.ListOwned(nil)
-
-		assert.NoError(t, err)
-		assert.Empty(t, actual)
-	})
-	expectedDID := did.MustParseDID("did:nuts:example.com")
-	t.Run("some owned dids", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
-		owner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{expectedDID}, nil)
-
-		actual, err := manager.ListOwned(nil)
-
-		assert.NoError(t, err)
-		assert.Len(t, actual, 1)
-	})
-	t.Run("filters DIDs other than did:nuts", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		creator := management.NewMockDocCreator(ctrl)
-		owner := management.NewMockDocumentOwner(ctrl)
-		manager := NewManager(creator, owner)
-		owner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{
-			expectedDID,
-			did.MustParseDID("did:web:example.com"),
-		}, nil)
-
-		actual, err := manager.ListOwned(nil)
-
-		assert.NoError(t, err)
-		assert.Len(t, actual, 1)
-		assert.Equal(t, expectedDID, actual[0])
+		err := ctx.manager.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
+		assert.True(t, errors.Is(err, resolver.ErrDeactivated))
+		assert.True(t, errors.Is(err, resolver.ErrDeactivated))
 	})
 }
 
-func TestManager_Resolve(t *testing.T) {
-	_, _, err := Manager{}.Resolve(did.DID{}, nil)
-	assert.EqualError(t, err, "Resolve() is not supported for did:nuts")
+func TestManager_CreateNewAuthenticationMethodForDID(t *testing.T) {
+	id123, _ := did.ParseDID("did:nuts:123")
+
+	kc := &mockKeyStore{}
+
+	t.Run("ok", func(t *testing.T) {
+		// Prepare a document with an authenticationMethod:
+		document := &did.Document{ID: *id123}
+		method, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc)
+		require.NoError(t, err)
+		document.AddCapabilityInvocation(method)
+
+		assert.NotNil(t, method)
+		assert.Len(t, document.CapabilityInvocation, 1)
+		assert.Equal(t, method.ID.String(), document.CapabilityInvocation[0].ID.String())
+		assert.Equal(t, kc.key.KID(), document.CapabilityInvocation[0].ID.String())
+	})
 }
 
-func TestManager_CreateService(t *testing.T) {
-	_, err := Manager{}.CreateService(nil, did.DID{}, did.Service{})
-	assert.EqualError(t, err, "CreateService() is not supported for did:nuts")
+func TestManipulator_AddKey(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
+
+	t.Run("ok - add a new key", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+
+		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+		ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.mockResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+			var didDocument did.Document
+			_ = json.Unmarshal(template.Payload, &didDocument)
+			assert.Len(t, didDocument.VerificationMethod, 1)
+			assert.Len(t, didDocument.CapabilityInvocation, 1)
+			return nil, nil
+		})
+
+		key, err := ctx.manager.AddVerificationMethod(ctx.audit, *id, didsubject.CapabilityInvocationUsage)
+		require.NoError(t, err)
+		assert.NotNil(t, key)
+		assert.Equal(t, key.Controller, *id,
+			"expected method to have DID as controller")
+	})
+
+	t.Run("error - didStore throws an error", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+
+		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
+		ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, resolver.ErrNotFound)
+
+		key, err := ctx.manager.AddVerificationMethod(ctx.audit, *id, 0)
+		assert.ErrorIs(t, err, resolver.ErrNotFound)
+		assert.Nil(t, key)
+	})
+
+	t.Run("error - did is deactivated", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+
+		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+		ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{Deactivated: true}, nil)
+
+		key, err := ctx.manager.AddVerificationMethod(nil, *id, 0)
+
+		assert.ErrorIs(t, err, resolver.ErrDeactivated)
+		assert.Nil(t, key)
+	})
 }
 
-func TestManager_DeleteService(t *testing.T) {
-	err := Manager{}.DeleteService(nil, did.DID{}, ssi.MustParseURI("https://example.com"))
-	assert.EqualError(t, err, "DeleteService() is not supported for did:nuts")
+func TestManager_GenerateDocument(t *testing.T) {
+	keyStore := nutsCrypto.NewMemoryCryptoInstance()
+	ctx := audit.TestContext()
+	db := testDB(t)
+	manager := NewManager(keyStore, nil, nil, nil, db)
+
+	t.Run("ok", func(t *testing.T) {
+		doc, err := manager.GenerateDocument(ctx, didsubject.AssertionKeyUsage())
+
+		require.NoError(t, err)
+		assert.NotNil(t, doc)
+		assert.True(t, strings.HasPrefix(doc.DID.ID, "did:nuts:"))
+		assert.Len(t, doc.VerificationMethods, 1)
+
+		// check if ID of the verification method and DID match the key fingerprint
+		// the DID is named via base58(sha256(pub key))
+		// the kid is the DID appended with the SHA256 of the pub key
+		var verificationMethod did.VerificationMethod
+		_ = json.Unmarshal(doc.VerificationMethods[0].Data, &verificationMethod)
+		asJWK, err := verificationMethod.JWK()
+		require.NoError(t, err)
+		nutsThumbprint, err := nutsCrypto.Thumbprint(asJWK)
+		require.NoError(t, err)
+		_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
+		assert.Equal(t, fmt.Sprintf("did:nuts:%s", nutsThumbprint), doc.DID.ID)
+		assert.Equal(t, fmt.Sprintf("did:nuts:%s#%s", nutsThumbprint, asJWK.KeyID()), verificationMethod.ID.String())
+
+		t.Run("additional verification method", func(t *testing.T) {
+			asDID := did.MustParseDID(doc.DID.ID)
+
+			verificationMethod, err := manager.GenerateVerificationMethod(ctx, asDID, didsubject.AssertionKeyUsage())
+
+			require.NoError(t, err)
+
+			asJWK, err := verificationMethod.JWK()
+			require.NoError(t, err)
+			_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
+			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWK.KeyID()), verificationMethod.ID.String())
+		})
+	})
 }
 
-func TestManager_UpdateService(t *testing.T) {
-	_, err := Manager{}.UpdateService(nil, did.DID{}, ssi.MustParseURI("https://example.com"), did.Service{})
-	assert.EqualError(t, err, "UpdateService() is not supported for did:nuts")
+func TestManager_Commit(t *testing.T) {
+	document, _, _ := newDidDoc()
+	data, _ := json.Marshal(document.VerificationMethod[0])
+	eventLog := didsubject.DIDChangeLog{
+		Type: didsubject.DIDChangeCreated,
+		DIDDocumentVersion: didsubject.DIDDocument{
+			ID: uuid.New().String(),
+			DID: didsubject.DID{
+				ID:      document.ID.String(),
+				Subject: "subject",
+			},
+			VerificationMethods: []didsubject.VerificationMethod{
+				{
+					ID:       document.VerificationMethod[0].ID.String(),
+					KeyTypes: didsubject.VerificationMethodKeyType(didsubject.AssertionKeyUsage()),
+					Data:     data,
+				},
+			},
+		},
+	}
+
+	t.Run("on created", func(t *testing.T) {
+		ctx := newTestContext(t)
+		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
+			var didDocument did.Document
+			_ = json.Unmarshal(template.Payload, &didDocument)
+			assert.Equal(t, "application/did+json", template.Type)
+			assert.True(t, template.AttachKey)
+			assert.Equal(t, eventLog.DIDDocumentVersion.DID.ID, didDocument.ID.String())
+			assert.Len(t, didDocument.VerificationMethod, 1)
+			return testTransaction{}, nil
+		})
+		require.NoError(t, ctx.db.Save(&eventLog).Error)
+
+		err := ctx.manager.Commit(ctx.ctx, eventLog)
+
+		assert.NoError(t, err)
+	})
+	t.Run("on deactivated", func(t *testing.T) {
+		ctx := newTestContext(t)
+		logCopy := eventLog
+		logCopy.Type = didsubject.DIDChangeDeactivated
+		didDocument, _ := eventLog.DIDDocumentVersion.ToDIDDocument()
+		metadata := resolver.DocumentMetadata{
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+		}
+		ctx.didResolver.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
+		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil)
+		ctx.keyStore.EXPECT().Resolve(gomock.Any(), document.VerificationMethod[0].ID.String()).Return(nutsCrypto.TestKey{}, nil)
+		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
+			assert.Len(t, template.AdditionalPrevs, 2) // previous and controller
+			assert.False(t, template.AttachKey)
+			return testTransaction{}, nil
+		})
+		require.NoError(t, ctx.db.Save(&logCopy).Error)
+
+		err := ctx.manager.Commit(ctx.ctx, logCopy)
+
+		assert.NoError(t, err)
+	})
+	t.Run("on update", func(t *testing.T) {
+		ctx := newTestContext(t)
+		logCopy := eventLog
+		logCopy.Type = didsubject.DIDChangeUpdated
+		didDocument, _ := eventLog.DIDDocumentVersion.ToDIDDocument()
+		metadata := resolver.DocumentMetadata{
+			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
+		}
+		ctx.didResolver.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
+		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
+		ctx.keyStore.EXPECT().Resolve(gomock.Any(), document.VerificationMethod[0].ID.String()).Return(nutsCrypto.TestKey{}, nil)
+		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
+			assert.Len(t, template.AdditionalPrevs, 2) // previous and controller
+			assert.False(t, template.AttachKey)
+			return testTransaction{}, nil
+		})
+		require.NoError(t, ctx.db.Save(&logCopy).Error)
+
+		err := ctx.manager.Commit(ctx.ctx, logCopy)
+
+		assert.NoError(t, err)
+	})
+}
+
+type testContext struct {
+	ctrl          *gomock.Controller
+	manager       *Manager
+	networkClient *network.MockTransactions
+	didStore      *didstore.MockStore
+	didResolver   *resolver.MockDIDResolver
+	db            *gorm.DB
+	ctx           context.Context
+	keyStore      *nutsCrypto.MockKeyStore
+}
+
+func newTestContext(t *testing.T) *testContext {
+	ctrl := gomock.NewController(t)
+	networkClient := network.NewMockTransactions(ctrl)
+	didStore := didstore.NewMockStore(ctrl)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
+	ctx := audit.TestContext()
+	db := testDB(t)
+	keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+	manager := NewManager(keyStore, networkClient, didStore, didResolver, db)
+
+	return &testContext{
+		ctrl:          ctrl,
+		manager:       manager,
+		networkClient: networkClient,
+		didStore:      didStore,
+		didResolver:   didResolver,
+		db:            db,
+		ctx:           ctx,
+		keyStore:      keyStore,
+	}
+}
+
+var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
+
+func TestDefaultCreationOptions(t *testing.T) {
+	ops := didsubject.DefaultCreationOptions()
+
+	keyFlags, err := parseOptions(ops)
+	assert.NoError(t, err)
+	assert.True(t, keyFlags.Is(didsubject.AssertionMethodUsage))
+	assert.True(t, keyFlags.Is(didsubject.AuthenticationUsage))
+	assert.True(t, keyFlags.Is(didsubject.CapabilityDelegationUsage))
+	assert.True(t, keyFlags.Is(didsubject.CapabilityInvocationUsage))
+	assert.True(t, keyFlags.Is(didsubject.KeyAgreementUsage))
+}
+
+func TestManager_Create2(t *testing.T) {
+	defaultOptions := didsubject.DefaultCreationOptions()
+
+	t.Run("ok", func(t *testing.T) {
+		t.Run("defaults", func(t *testing.T) {
+			ctx := newManagerTestContext(t)
+			var txTemplate network.Template
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
+				txTemplate = tx
+				return hash.EmptyHash(), nil
+			})
+
+			doc, key, err := ctx.manager.Create(nil, defaultOptions)
+			assert.NoError(t, err, "create should not return an error")
+			assert.NotNil(t, doc, "create should return a document")
+			assert.NotNil(t, key, "create should return a Key")
+			assert.Equal(t, did.MustParseDIDURL(ctx.mockKeyStore.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
+			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
+			assert.Equal(t, ctx.mockKeyStore.key.KID(), doc.VerificationMethod[0].ID.String(),
+				"verificationMethod should have the correct id")
+			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
+			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
+			assert.Len(t, doc.AssertionMethod, 1, "it should have 1 AssertionMethod")
+			assert.Equal(t, DIDDocumentType, txTemplate.Type)
+			payload, _ := json.Marshal(doc)
+			assert.Equal(t, payload, txTemplate.Payload)
+			assert.Equal(t, key, txTemplate.Key)
+			assert.Empty(t, txTemplate.AdditionalPrevs)
+		})
+
+		t.Run("unknown option", func(t *testing.T) {
+			_, _, err := (&Manager{}).Create(nil, didsubject.DefaultCreationOptions().With(""))
+			assert.EqualError(t, err, "unknown option: string")
+		})
+
+		t.Run("all keys", func(t *testing.T) {
+			ctx := newManagerTestContext(t)
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, nil)
+
+			keyFlags := didsubject.AssertionMethodUsage |
+				didsubject.AuthenticationUsage |
+				didsubject.CapabilityDelegationUsage |
+				didsubject.CapabilityInvocationUsage |
+				didsubject.KeyAgreementUsage
+			ops := didsubject.DefaultCreationOptions().With(KeyFlag(keyFlags))
+			doc, _, err := ctx.manager.Create(nil, ops)
+
+			require.NoError(t, err)
+
+			assert.Len(t, doc.AssertionMethod, 1)
+			assert.Len(t, doc.Authentication, 1)
+			assert.Len(t, doc.CapabilityDelegation, 1)
+			assert.Len(t, doc.CapabilityInvocation, 1)
+			assert.Len(t, doc.KeyAgreement, 1)
+		})
+	})
+
+	t.Run("error - failed to create key", func(t *testing.T) {
+		ctx := newManagerTestContext(t)
+		mock := nutsCrypto.NewMockKeyStore(ctx.ctrl)
+		ctx.manager.KeyStore = mock
+		mock.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+
+		_, _, err := ctx.manager.Create(nil, didsubject.DefaultCreationOptions())
+
+		assert.EqualError(t, err, "b00m!")
+	})
+}
+
+func TestManager_Deactivate(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
+	ctx := newManagerTestContext(t)
+	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
+	ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	ctx.mockResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	expectedDocument := CreateDocument()
+	expectedDocument.ID = *id
+	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+		var didDocument did.Document
+		_ = json.Unmarshal(template.Payload, &didDocument)
+		assert.Len(t, didDocument.VerificationMethod, 0)
+		assert.Len(t, didDocument.Controller, 0)
+		return nil, nil
+	})
+
+	err := ctx.manager.Deactivate(ctx.audit, *id)
+
+	require.NoError(t, err)
+}
+
+func Test_didKIDNamingFunc(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+
+		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
+		require.NoError(t, err)
+		assert.NotEmpty(t, keyID)
+		assert.Contains(t, keyID, "did:nuts")
+	})
+
+	t.Run("ok - predefined key", func(t *testing.T) {
+		pub, err := jwkToPublicKey(t, jwkString)
+		require.NoError(t, err)
+
+		keyID, err := didKIDNamingFunc(pub)
+		require.NoError(t, err)
+		assert.Equal(t, keyID, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", keyID)
+	})
+
+	t.Run("nok - wrong key type", func(t *testing.T) {
+		keyID, err := didKIDNamingFunc(unknownPublicKey{})
+		assert.EqualError(t, err, "could not generate kid: invalid key type 'didnuts.unknownPublicKey' for jwk.New")
+		assert.Empty(t, keyID)
+	})
+}
+
+func Test_didSubKIDNamingFunc(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		owningDID, _ := did.ParseDID("did:nuts:bladiebla")
+
+		keyID, err := didSubKIDNamingFunc(*owningDID)(privateKey.PublicKey)
+		require.NoError(t, err)
+		parsedKeyID, err := did.ParseDIDURL(keyID)
+		require.NoError(t, err)
+		// Make sure the idString part of the key ID is taken from the owning DID document
+		assert.Equal(t, parsedKeyID.ID, owningDID.ID)
+		assert.NotEmpty(t, parsedKeyID.Fragment)
+	})
+}
+
+type unknownPublicKey struct{}
+
+func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
+	t.Helper()
+	keySet, err := jwk.ParseString(jwkStr)
+	require.NoError(t, err)
+	key, _ := keySet.Key(0)
+	var rawKey crypto.PublicKey
+	if err = key.Raw(&rawKey); err != nil {
+		return nil, err
+	}
+	return rawKey, nil
+}
+
+func testDB(t *testing.T) *gorm.DB {
+	//logrus.SetLevel(logrus.TraceLevel)
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	db := storageEngine.GetSQLDatabase()
+	return db
 }

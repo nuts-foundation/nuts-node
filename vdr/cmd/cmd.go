@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"io"
 	"os"
 	"strings"
@@ -32,7 +33,6 @@ import (
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -76,13 +76,12 @@ func createCmd() *cobra.Command {
 		Controllers: new([]string),
 		SelfControl: new(bool),
 	}
-	// todo should become default
-	var useV2 bool
+	useV2 := true
 
 	result := &cobra.Command{
 		Use:   "create-did",
 		Short: "Registers a new DID",
-		Long:  "When using the V2 API, a did:web DID will be created. All the other options are ignored for did:web.",
+		Long:  "When using the V2 API, a DID will be created for all supported methods.",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
@@ -112,13 +111,13 @@ func createCmd() *cobra.Command {
 		}
 		return fmt.Sprintf(usage, !def, opposite)
 	}
-	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.Is(management.AssertionMethodUsage), setUsage(defs.Is(management.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
-	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.Is(management.AuthenticationUsage), setUsage(defs.Is(management.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.Is(management.CapabilityDelegationUsage), setUsage(defs.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.Is(management.CapabilityInvocationUsage), setUsage(defs.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
-	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.Is(management.KeyAgreementUsage), setUsage(defs.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.Is(didsubject.AssertionMethodUsage), setUsage(defs.Is(didsubject.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.Is(didsubject.AuthenticationUsage), setUsage(defs.Is(didsubject.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.Is(didsubject.CapabilityDelegationUsage), setUsage(defs.Is(didsubject.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.Is(didsubject.CapabilityInvocationUsage), setUsage(defs.Is(didsubject.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.Is(didsubject.KeyAgreementUsage), setUsage(defs.Is(didsubject.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, setUsage(true, "Pass '%t' to %s DID Document control."))
-	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a did:web DID.")
+	result.Flags().BoolVar(&useV2, "v2", true, "Pass 'false' to use the V1 API and create a did:nuts DID only.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")
 
 	return result

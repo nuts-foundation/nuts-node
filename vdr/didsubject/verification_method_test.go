@@ -16,12 +16,11 @@
  *
  */
 
-package sql
+package didsubject
 
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,12 +33,12 @@ func TestVerificationMethodKeyType(t *testing.T) {
 	}{
 		{
 			"all",
-			VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.KeyAgreementUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage),
+			VerificationMethodKeyType(31),
 			"Hw",
 		},
 		{
 			"half",
-			VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage),
+			VerificationMethodKeyType(AssertionMethodUsage | AuthenticationUsage),
 			"Aw",
 		},
 		{
@@ -69,4 +68,32 @@ func TestVerificationMethodKeyType(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestVerificationMethodKeyType_Scan(t *testing.T) {
+	tests := []struct {
+		name    string
+		keyType VerificationMethodKeyType
+		encoded any
+	}{
+		{
+			"string",
+			VerificationMethodKeyType(AssertionMethodUsage | AuthenticationUsage),
+			"Aw",
+		},
+		{
+			"uint8",
+			VerificationMethodKeyType(AssertionMethodUsage | AuthenticationUsage),
+			[]uint8("Aw"),
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var decoded VerificationMethodKeyType
+			err := decoded.Scan(test.encoded)
+
+			require.NoError(t, err)
+			assert.Equal(t, test.keyType, decoded)
+		})
+	}
 }

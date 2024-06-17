@@ -702,7 +702,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid DID: %s", err)
 	}
-	owned, err := r.vdr.IsOwner(ctx, *ownDID)
+	owned, err := r.vdr.DocumentOwner().IsOwner(ctx, *ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
 			return nil, fmt.Errorf("invalid issuer DID: %s", err)

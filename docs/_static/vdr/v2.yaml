@@ -31,20 +31,19 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     post:
-      summary: Creates a new Web DID
+      summary: Creates new DID Documents
       description: |
-        A new web DID and empty DID Document are created.
-        A single key pair is generated and added to the DID document. The key pair is used for all verificationMethods.
+        New DIDs and DID Documents are created.
+        Each method generates keys and identifiers according to their own specification.
 
         error returns:
         * 400 - Returned in case of malformed DID in the request body
-        * 409 - Returned in case the DID already exists
         * 500 - An error occurred while processing the request
       operationId: "createDID"
       tags:
         - DID
       requestBody:
-        description: Options for the DID creation.
+        description: Options for the DID creation. keys.assertionKey settings are ignored.
         required: false
         content:
           application/json:
@@ -56,10 +55,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DIDDocument'
+                $ref: '#/components/schemas/SubjectCreationResult'
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}:
+    # todo split in 2 paths
     parameters:
       - name: did
         in: path
@@ -92,14 +92,14 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     delete:
-      summary: Deletes a locally managed Document.
+      summary: Deactivate all DID Documents for a subject.
       description: |
 
         error returns:
           * 400 - the DID param was malformed
           * 404 - Corresponding DID document could not be found
           * 500 - An error occurred while processing the request
-      operationId: "deleteDID"
+      operationId: "deactivate"
       tags:
         - DID
       responses:
@@ -107,11 +107,11 @@ paths:
           description: DID document has been deactivated.
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/service:
+  /internal/vdr/v2/did/{subject}/service:
     parameters:
-      - name: did
+      - name: subject
         in: path
-        description: URL encoded DID.
+        description: DID subject.
         required: true
         content:
           plain/text:
@@ -119,9 +119,9 @@ paths:
               type: string
               example: "did:web:example.com:iam:123"
     post:
-      summary: Adds a service to the DID document.
+      summary: Adds a service to DID documents of a subject.
       description: |
-        It adds the given service to the DID Document. The ID will be generated when not given.
+        It adds the given service to the DID Documents of a subject. The ID is always generated.
 
         error returns:
         * 400 - Returned in case of malformed DID or service
@@ -143,11 +143,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Service'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
     get:
-      summary: "Filters services of a resolved DID document"
+      summary: "Find services of a DID subject"
       parameters:
         - name: type
           in: query
@@ -176,19 +178,19 @@ paths:
               - object
               - array
       description: |
-        Filters services within in a resolved DID document.
+        Find services for a DID subject. All DID documents of the subject have the same services.
         It returns the services that match specified filter parameters.
 
         error returns:
         * 400 - Returned in case of malformed DID.
         * 404 - DID document could not be found
         * 500 - An error occurred while processing the request
-      operationId: "filterServices"
+      operationId: "findServices"
       tags:
         - DID
       responses:
         "200":
-          description: DID document has been resolved, filtered services are returned.
+          description: filtered services are returned.
           content:
             application/json:
               schema:
@@ -231,11 +233,11 @@ paths:
                     ]
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/service/{serviceId}:
+  /internal/vdr/v2/did/{subject}/service/{serviceId}:
     parameters:
-      - name: did
+      - name: subject
         in: path
-        description: URL encoded DID.
+        description: DID Subject.
         required: true
         content:
           plain/text:
@@ -244,7 +246,9 @@ paths:
               example: "did:web:example.com:iam:123"
       - name: serviceId
         in: path
-        description: URL encoded ID identifying the service.
+        description: | 
+          URL encoded ID identifying the service. The fragment part is used to identify the service.
+          Since fragments are the same over all did methods, services will be altered in all DID documents of the subject.
         required: true
         example:
           - "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
@@ -258,7 +262,7 @@ paths:
         No cascading will happen for references to the service. 
 
         error returns:
-        * 404 - Corresponding DID document or verification method could not be found
+        * 404 - Corresponding DID document or service could not be found
         * 500 - An error occurred while processing the request
       tags:
         - DID
@@ -293,89 +297,108 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Service'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/verificationmethod:
+  /internal/vdr/v2/did/{subject}/verificationmethod:
     parameters:
-      - name: did
+      - name: subject
         in: path
-        description: URL encoded DID.
+        description: DID Subject.
         required: true
         content:
           plain/text:
             schema:
               type: string
-              example: "did:web:example.com:iam:123"
+              example: "tenant-123"
     post:
-      summary: Creates and adds a new verificationMethod to the DID document.
-      description: |
-        It creates a new private public keypair. The public key is wrapped in verificationMethod. This method is added to the DID Document.
-        The key pair is used for all verificationMethods.
-
+      summary: Creates and adds one or more verificationMethods to the DID document.
+      description: | 
+        Based on the keyCreationOptions, it will add an RSA key for encryption usage and an EC key for signing and authentication.
+        
         error returns:
         * 404 - Corresponding DID document could not be found
         * 500 - An error occurred while processing the request
       operationId: addVerificationMethod
       tags:
         - DID
+      requestBody:
+        description: options for key creation.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyCreationOptions'
       responses:
         "200":
-          description: "New verification method has been created and added successfully. Returns the verification method."
+          description: "One or more new verification methods have been created and added successfully. Returns the verification methods."
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/VerificationMethod'
+                type: array
+                items:
+                  $ref: '#/components/schemas/VerificationMethod'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vdr/v2/did/{did}/verificationmethod/{id}:
-    parameters:
-      - name: did
-        in: path
-        description: URL encoded DID.
-        required: true
-        content:
-          plain/text:
-            schema:
-              type: string
-              example: "did:web:example.com:iam:123"
-      - name: id
-        in: path
-        description: URL encoded ID identifying the verification method.
-        required: true
-        example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
-        schema:
-          type: string
-    delete:
-      summary: Delete a specific verification method
-      description: |
-        Removes the verification method from the DID Document.
-
-        error returns:
-        * 404 - Corresponding DID document or verification method could not be found
-        * 500 - An error occurred while processing the request
-      tags:
-        - DID
-      operationId: deleteVerificationMethod
-      responses:
-        "204":
-          description: Verification Method was successfully deleted
-        default:
-          $ref: '../common/error_response.yaml'
+#  /internal/vdr/v2/did/{did}/verificationmethod/{id}:
+#    parameters:
+#      - name: did
+#        in: path
+#        description: URL encoded DID.
+#        required: true
+#        content:
+#          plain/text:
+#            schema:
+#              type: string
+#              example: "did:web:example.com:iam:123"
+#      - name: id
+#        in: path
+#        description: URL encoded ID identifying the verification method.
+#        required: true
+#        example: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+#        schema:
+#          type: string
+#    delete:
+#      summary: Delete a specific verification method
+#      description: |
+#        Removes the verification method from the DID Document.
+#
+#        error returns:
+#        * 404 - Corresponding DID document or verification method could not be found
+#        * 500 - An error occurred while processing the request
+#      tags:
+#        - DID
+#      operationId: deleteVerificationMethod
+#      responses:
+#        "204":
+#          description: Verification Method was successfully deleted
+#        default:
+#          $ref: '../common/error_response.yaml'
 components:
   schemas:
+    KeyCreationOptions:
+      type: object
+      description: Options for the key creation.
+      properties:
+        assertionKey:
+          type: boolean
+          default: true
+          description: If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
+        encryptionKey:
+          type: boolean
+          default: false
+          description: If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
     CreateDIDOptions:
-        type: object
-        description: |
-          Options for the DID creation.
-        properties:
-          root:
-            type: boolean
-            default: false            
-            description: |
-              Can be used to create a root web:did.
-              
-              The DID created conforms to the node's configured URL (e.g., `did:web:example.com` for `https://example.com`).
+      type: object
+      description: Options for the DID creation.
+      properties:
+        subject:
+          type: string
+          description: controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
+        keys:
+          $ref: '#/components/schemas/KeyCreationOptions'
     DIDDocument:
       $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     DIDDocumentMetadata:
@@ -393,6 +416,20 @@ components:
           $ref: '#/components/schemas/DIDDocument'
         documentMetadata:
           $ref: '#/components/schemas/DIDDocumentMetadata'
+    SubjectCreationResult:
+      type: object
+      description: Result of a DID creation request. Contains the subject and any created DID Documents.
+      required:
+        - subject
+        - documents
+      properties:
+        subject:
+          type: string
+          description: The subject of the created DID Documents.
+        documents:
+          type: array
+          items:
+              $ref: '#/components/schemas/DIDDocument'
   securitySchemes:
     jwtBearerAuth:
       type: http

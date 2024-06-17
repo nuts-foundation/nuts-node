@@ -16,7 +16,7 @@
  *
  */
 
-package management
+package didsubject
 
 import (
 	"github.com/stretchr/testify/assert"

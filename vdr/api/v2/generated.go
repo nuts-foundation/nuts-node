@@ -22,19 +22,20 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// Defines values for FilterServicesParamsEndpointType.
+// Defines values for FindServicesParamsEndpointType.
 const (
-	Array  FilterServicesParamsEndpointType = "array"
-	Object FilterServicesParamsEndpointType = "object"
-	String FilterServicesParamsEndpointType = "string"
+	Array  FindServicesParamsEndpointType = "array"
+	Object FindServicesParamsEndpointType = "object"
+	String FindServicesParamsEndpointType = "string"
 )
 
 // CreateDIDOptions Options for the DID creation.
 type CreateDIDOptions struct {
-	// Root Can be used to create a root web:did.
-	//
-	// The DID created conforms to the node's configured URL (e.g., `did:web:example.com` for `https://example.com`).
-	Root *bool `json:"root,omitempty"`
+	// Keys Options for the key creation.
+	Keys *KeyCreationOptions `json:"keys,omitempty"`
+
+	// Subject controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
+	Subject *string `json:"subject,omitempty"`
 }
 
 // DIDResolutionResult defines model for DIDResolutionResult.
@@ -46,8 +47,25 @@ type DIDResolutionResult struct {
 	DocumentMetadata DIDDocumentMetadata `json:"documentMetadata"`
 }
 
-// FilterServicesParams defines parameters for FilterServices.
-type FilterServicesParams struct {
+// KeyCreationOptions Options for the key creation.
+type KeyCreationOptions struct {
+	// AssertionKey If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
+	AssertionKey *bool `json:"assertionKey,omitempty"`
+
+	// EncryptionKey If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
+	EncryptionKey *bool `json:"encryptionKey,omitempty"`
+}
+
+// SubjectCreationResult Result of a DID creation request. Contains the subject and any created DID Documents.
+type SubjectCreationResult struct {
+	Documents []DIDDocument `json:"documents"`
+
+	// Subject The subject of the created DID Documents.
+	Subject string `json:"subject"`
+}
+
+// FindServicesParams defines parameters for FindServices.
+type FindServicesParams struct {
 	// Type Type of the service to filter for. If specified, only services with the given service type are returned.
 	Type *string `form:"type,omitempty" json:"type,omitempty"`
 
@@ -59,11 +77,11 @@ type FilterServicesParams struct {
 	// - object: serviceEndpoint contains a JSON object (key-value map)
 	//
 	// If not specified, services are not filtered on their endpoint data type.
-	EndpointType *FilterServicesParamsEndpointType `form:"endpointType,omitempty" json:"endpointType,omitempty"`
+	EndpointType *FindServicesParamsEndpointType `form:"endpointType,omitempty" json:"endpointType,omitempty"`
 }
 
-// FilterServicesParamsEndpointType defines parameters for FilterServices.
-type FilterServicesParamsEndpointType string
+// FindServicesParamsEndpointType defines parameters for FindServices.
+type FindServicesParamsEndpointType string
 
 // CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
 type CreateDIDJSONRequestBody = CreateDIDOptions
@@ -73,6 +91,9 @@ type CreateServiceJSONRequestBody = Service
 
 // UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
 type UpdateServiceJSONRequestBody = Service
+
+// AddVerificationMethodJSONRequestBody defines body for AddVerificationMethod for application/json ContentType.
+type AddVerificationMethodJSONRequestBody = KeyCreationOptions
 
 // RequestEditorFn  is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -155,33 +176,32 @@ type ClientInterface interface {
 
 	CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteDID request
-	DeleteDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Deactivate request
+	Deactivate(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ResolveDID request
 	ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// FilterServices request
-	FilterServices(ctx context.Context, did string, params *FilterServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// FindServices request
+	FindServices(ctx context.Context, subject string, params *FindServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateServiceWithBody request with any body
-	CreateServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateServiceWithBody(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateService(ctx context.Context, did string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateService(ctx context.Context, subject string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteService request
-	DeleteService(ctx context.Context, did string, serviceId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteService(ctx context.Context, subject string, serviceId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateServiceWithBody request with any body
-	UpdateServiceWithBody(ctx context.Context, did string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateServiceWithBody(ctx context.Context, subject string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	UpdateService(ctx context.Context, did string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	UpdateService(ctx context.Context, subject string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddVerificationMethod request
-	AddVerificationMethod(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// AddVerificationMethodWithBody request with any body
+	AddVerificationMethodWithBody(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DeleteVerificationMethod request
-	DeleteVerificationMethod(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	AddVerificationMethod(ctx context.Context, subject string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -220,8 +240,8 @@ func (c *Client) CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, r
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteDIDRequest(c.Server, did)
+func (c *Client) Deactivate(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeactivateRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +264,8 @@ func (c *Client) ResolveDID(ctx context.Context, did string, reqEditors ...Reque
 	return c.Client.Do(req)
 }
 
-func (c *Client) FilterServices(ctx context.Context, did string, params *FilterServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFilterServicesRequest(c.Server, did, params)
+func (c *Client) FindServices(ctx context.Context, subject string, params *FindServicesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFindServicesRequest(c.Server, subject, params)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +276,8 @@ func (c *Client) FilterServices(ctx context.Context, did string, params *FilterS
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateServiceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateServiceRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) CreateServiceWithBody(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateServiceRequestWithBody(c.Server, subject, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -268,8 +288,8 @@ func (c *Client) CreateServiceWithBody(ctx context.Context, did string, contentT
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateService(ctx context.Context, did string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateServiceRequest(c.Server, did, body)
+func (c *Client) CreateService(ctx context.Context, subject string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateServiceRequest(c.Server, subject, body)
 	if err != nil {
 		return nil, err
 	}
@@ -280,8 +300,8 @@ func (c *Client) CreateService(ctx context.Context, did string, body CreateServi
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteService(ctx context.Context, did string, serviceId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteServiceRequest(c.Server, did, serviceId)
+func (c *Client) DeleteService(ctx context.Context, subject string, serviceId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteServiceRequest(c.Server, subject, serviceId)
 	if err != nil {
 		return nil, err
 	}
@@ -292,8 +312,8 @@ func (c *Client) DeleteService(ctx context.Context, did string, serviceId string
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateServiceWithBody(ctx context.Context, did string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateServiceRequestWithBody(c.Server, did, serviceId, contentType, body)
+func (c *Client) UpdateServiceWithBody(ctx context.Context, subject string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateServiceRequestWithBody(c.Server, subject, serviceId, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -304,8 +324,8 @@ func (c *Client) UpdateServiceWithBody(ctx context.Context, did string, serviceI
 	return c.Client.Do(req)
 }
 
-func (c *Client) UpdateService(ctx context.Context, did string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewUpdateServiceRequest(c.Server, did, serviceId, body)
+func (c *Client) UpdateService(ctx context.Context, subject string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateServiceRequest(c.Server, subject, serviceId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +336,8 @@ func (c *Client) UpdateService(ctx context.Context, did string, serviceId string
 	return c.Client.Do(req)
 }
 
-func (c *Client) AddVerificationMethod(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddVerificationMethodRequest(c.Server, did)
+func (c *Client) AddVerificationMethodWithBody(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddVerificationMethodRequestWithBody(c.Server, subject, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -328,8 +348,8 @@ func (c *Client) AddVerificationMethod(ctx context.Context, did string, reqEdito
 	return c.Client.Do(req)
 }
 
-func (c *Client) DeleteVerificationMethod(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteVerificationMethodRequest(c.Server, did, id)
+func (c *Client) AddVerificationMethod(ctx context.Context, subject string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddVerificationMethodRequest(c.Server, subject, body)
 	if err != nil {
 		return nil, err
 	}
@@ -407,8 +427,8 @@ func NewCreateDIDRequestWithBody(server string, contentType string, body io.Read
 	return req, nil
 }
 
-// NewDeleteDIDRequest generates requests for DeleteDID
-func NewDeleteDIDRequest(server string, did string) (*http.Request, error) {
+// NewDeactivateRequest generates requests for Deactivate
+func NewDeactivateRequest(server string, did string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -469,13 +489,13 @@ func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewFilterServicesRequest generates requests for FilterServices
-func NewFilterServicesRequest(server string, did string, params *FilterServicesParams) (*http.Request, error) {
+// NewFindServicesRequest generates requests for FindServices
+func NewFindServicesRequest(server string, subject string, params *FindServicesParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0 = subject
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -539,23 +559,23 @@ func NewFilterServicesRequest(server string, did string, params *FilterServicesP
 }
 
 // NewCreateServiceRequest calls the generic CreateService builder with application/json body
-func NewCreateServiceRequest(server string, did string, body CreateServiceJSONRequestBody) (*http.Request, error) {
+func NewCreateServiceRequest(server string, subject string, body CreateServiceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateServiceRequestWithBody(server, did, "application/json", bodyReader)
+	return NewCreateServiceRequestWithBody(server, subject, "application/json", bodyReader)
 }
 
 // NewCreateServiceRequestWithBody generates requests for CreateService with any type of body
-func NewCreateServiceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateServiceRequestWithBody(server string, subject string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0 = subject
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -583,12 +603,12 @@ func NewCreateServiceRequestWithBody(server string, did string, contentType stri
 }
 
 // NewDeleteServiceRequest generates requests for DeleteService
-func NewDeleteServiceRequest(server string, did string, serviceId string) (*http.Request, error) {
+func NewDeleteServiceRequest(server string, subject string, serviceId string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0 = subject
 
 	var pathParam1 string
 
@@ -621,23 +641,23 @@ func NewDeleteServiceRequest(server string, did string, serviceId string) (*http
 }
 
 // NewUpdateServiceRequest calls the generic UpdateService builder with application/json body
-func NewUpdateServiceRequest(server string, did string, serviceId string, body UpdateServiceJSONRequestBody) (*http.Request, error) {
+func NewUpdateServiceRequest(server string, subject string, serviceId string, body UpdateServiceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewUpdateServiceRequestWithBody(server, did, serviceId, "application/json", bodyReader)
+	return NewUpdateServiceRequestWithBody(server, subject, serviceId, "application/json", bodyReader)
 }
 
 // NewUpdateServiceRequestWithBody generates requests for UpdateService with any type of body
-func NewUpdateServiceRequestWithBody(server string, did string, serviceId string, contentType string, body io.Reader) (*http.Request, error) {
+func NewUpdateServiceRequestWithBody(server string, subject string, serviceId string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0 = subject
 
 	var pathParam1 string
 
@@ -671,13 +691,24 @@ func NewUpdateServiceRequestWithBody(server string, did string, serviceId string
 	return req, nil
 }
 
-// NewAddVerificationMethodRequest generates requests for AddVerificationMethod
-func NewAddVerificationMethodRequest(server string, did string) (*http.Request, error) {
+// NewAddVerificationMethodRequest calls the generic AddVerificationMethod builder with application/json body
+func NewAddVerificationMethodRequest(server string, subject string, body AddVerificationMethodJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddVerificationMethodRequestWithBody(server, subject, "application/json", bodyReader)
+}
+
+// NewAddVerificationMethodRequestWithBody generates requests for AddVerificationMethod with any type of body
+func NewAddVerificationMethodRequestWithBody(server string, subject string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0 = subject
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -694,48 +725,12 @@ func NewAddVerificationMethodRequest(server string, did string) (*http.Request, 
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", queryURL.String(), nil)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
 
-	return req, nil
-}
-
-// NewDeleteVerificationMethodRequest generates requests for DeleteVerificationMethod
-func NewDeleteVerificationMethodRequest(server string, did string, id string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0 = did
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vdr/v2/did/%s/verificationmethod/%s", pathParam0, pathParam1)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -791,33 +786,32 @@ type ClientWithResponsesInterface interface {
 
 	CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
 
-	// DeleteDIDWithResponse request
-	DeleteDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeleteDIDResponse, error)
+	// DeactivateWithResponse request
+	DeactivateWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeactivateResponse, error)
 
 	// ResolveDIDWithResponse request
 	ResolveDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*ResolveDIDResponse, error)
 
-	// FilterServicesWithResponse request
-	FilterServicesWithResponse(ctx context.Context, did string, params *FilterServicesParams, reqEditors ...RequestEditorFn) (*FilterServicesResponse, error)
+	// FindServicesWithResponse request
+	FindServicesWithResponse(ctx context.Context, subject string, params *FindServicesParams, reqEditors ...RequestEditorFn) (*FindServicesResponse, error)
 
 	// CreateServiceWithBodyWithResponse request with any body
-	CreateServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
+	CreateServiceWithBodyWithResponse(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
 
-	CreateServiceWithResponse(ctx context.Context, did string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
+	CreateServiceWithResponse(ctx context.Context, subject string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error)
 
 	// DeleteServiceWithResponse request
-	DeleteServiceWithResponse(ctx context.Context, did string, serviceId string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
+	DeleteServiceWithResponse(ctx context.Context, subject string, serviceId string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error)
 
 	// UpdateServiceWithBodyWithResponse request with any body
-	UpdateServiceWithBodyWithResponse(ctx context.Context, did string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
+	UpdateServiceWithBodyWithResponse(ctx context.Context, subject string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
 
-	UpdateServiceWithResponse(ctx context.Context, did string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
+	UpdateServiceWithResponse(ctx context.Context, subject string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error)
 
-	// AddVerificationMethodWithResponse request
-	AddVerificationMethodWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error)
+	// AddVerificationMethodWithBodyWithResponse request with any body
+	AddVerificationMethodWithBodyWithResponse(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error)
 
-	// DeleteVerificationMethodWithResponse request
-	DeleteVerificationMethodWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*DeleteVerificationMethodResponse, error)
+	AddVerificationMethodWithResponse(ctx context.Context, subject string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error)
 }
 
 type ListDIDsResponse struct {
@@ -855,7 +849,7 @@ func (r ListDIDsResponse) StatusCode() int {
 type CreateDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *DIDDocument
+	JSON200                       *SubjectCreationResult
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -884,7 +878,7 @@ func (r CreateDIDResponse) StatusCode() int {
 	return 0
 }
 
-type DeleteDIDResponse struct {
+type DeactivateResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	ApplicationproblemJSONDefault *struct {
@@ -900,7 +894,7 @@ type DeleteDIDResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r DeleteDIDResponse) Status() string {
+func (r DeactivateResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -908,7 +902,7 @@ func (r DeleteDIDResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r DeleteDIDResponse) StatusCode() int {
+func (r DeactivateResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -947,7 +941,7 @@ func (r ResolveDIDResponse) StatusCode() int {
 	return 0
 }
 
-type FilterServicesResponse struct {
+type FindServicesResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]Service
@@ -964,7 +958,7 @@ type FilterServicesResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r FilterServicesResponse) Status() string {
+func (r FindServicesResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -972,7 +966,7 @@ func (r FilterServicesResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r FilterServicesResponse) StatusCode() int {
+func (r FindServicesResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -982,7 +976,7 @@ func (r FilterServicesResponse) StatusCode() int {
 type CreateServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *Service
+	JSON200                       *[]Service
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1045,7 +1039,7 @@ func (r DeleteServiceResponse) StatusCode() int {
 type UpdateServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *Service
+	JSON200                       *[]Service
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1077,7 +1071,7 @@ func (r UpdateServiceResponse) StatusCode() int {
 type AddVerificationMethodResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	JSON200                       *VerificationMethod
+	JSON200                       *[]VerificationMethod
 	ApplicationproblemJSONDefault *struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -1100,37 +1094,6 @@ func (r AddVerificationMethodResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AddVerificationMethodResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type DeleteVerificationMethodResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r DeleteVerificationMethodResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r DeleteVerificationMethodResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1163,13 +1126,13 @@ func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context, body Cr
 	return ParseCreateDIDResponse(rsp)
 }
 
-// DeleteDIDWithResponse request returning *DeleteDIDResponse
-func (c *ClientWithResponses) DeleteDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeleteDIDResponse, error) {
-	rsp, err := c.DeleteDID(ctx, did, reqEditors...)
+// DeactivateWithResponse request returning *DeactivateResponse
+func (c *ClientWithResponses) DeactivateWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*DeactivateResponse, error) {
+	rsp, err := c.Deactivate(ctx, did, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeleteDIDResponse(rsp)
+	return ParseDeactivateResponse(rsp)
 }
 
 // ResolveDIDWithResponse request returning *ResolveDIDResponse
@@ -1181,26 +1144,26 @@ func (c *ClientWithResponses) ResolveDIDWithResponse(ctx context.Context, did st
 	return ParseResolveDIDResponse(rsp)
 }
 
-// FilterServicesWithResponse request returning *FilterServicesResponse
-func (c *ClientWithResponses) FilterServicesWithResponse(ctx context.Context, did string, params *FilterServicesParams, reqEditors ...RequestEditorFn) (*FilterServicesResponse, error) {
-	rsp, err := c.FilterServices(ctx, did, params, reqEditors...)
+// FindServicesWithResponse request returning *FindServicesResponse
+func (c *ClientWithResponses) FindServicesWithResponse(ctx context.Context, subject string, params *FindServicesParams, reqEditors ...RequestEditorFn) (*FindServicesResponse, error) {
+	rsp, err := c.FindServices(ctx, subject, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseFilterServicesResponse(rsp)
+	return ParseFindServicesResponse(rsp)
 }
 
 // CreateServiceWithBodyWithResponse request with arbitrary body returning *CreateServiceResponse
-func (c *ClientWithResponses) CreateServiceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
-	rsp, err := c.CreateServiceWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateServiceWithBodyWithResponse(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
+	rsp, err := c.CreateServiceWithBody(ctx, subject, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCreateServiceResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateServiceWithResponse(ctx context.Context, did string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
-	rsp, err := c.CreateService(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) CreateServiceWithResponse(ctx context.Context, subject string, body CreateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateServiceResponse, error) {
+	rsp, err := c.CreateService(ctx, subject, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1208,8 +1171,8 @@ func (c *ClientWithResponses) CreateServiceWithResponse(ctx context.Context, did
 }
 
 // DeleteServiceWithResponse request returning *DeleteServiceResponse
-func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, did string, serviceId string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error) {
-	rsp, err := c.DeleteService(ctx, did, serviceId, reqEditors...)
+func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, subject string, serviceId string, reqEditors ...RequestEditorFn) (*DeleteServiceResponse, error) {
+	rsp, err := c.DeleteService(ctx, subject, serviceId, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1217,38 +1180,37 @@ func (c *ClientWithResponses) DeleteServiceWithResponse(ctx context.Context, did
 }
 
 // UpdateServiceWithBodyWithResponse request with arbitrary body returning *UpdateServiceResponse
-func (c *ClientWithResponses) UpdateServiceWithBodyWithResponse(ctx context.Context, did string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
-	rsp, err := c.UpdateServiceWithBody(ctx, did, serviceId, contentType, body, reqEditors...)
+func (c *ClientWithResponses) UpdateServiceWithBodyWithResponse(ctx context.Context, subject string, serviceId string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
+	rsp, err := c.UpdateServiceWithBody(ctx, subject, serviceId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseUpdateServiceResponse(rsp)
 }
 
-func (c *ClientWithResponses) UpdateServiceWithResponse(ctx context.Context, did string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
-	rsp, err := c.UpdateService(ctx, did, serviceId, body, reqEditors...)
+func (c *ClientWithResponses) UpdateServiceWithResponse(ctx context.Context, subject string, serviceId string, body UpdateServiceJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateServiceResponse, error) {
+	rsp, err := c.UpdateService(ctx, subject, serviceId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseUpdateServiceResponse(rsp)
 }
 
-// AddVerificationMethodWithResponse request returning *AddVerificationMethodResponse
-func (c *ClientWithResponses) AddVerificationMethodWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error) {
-	rsp, err := c.AddVerificationMethod(ctx, did, reqEditors...)
+// AddVerificationMethodWithBodyWithResponse request with arbitrary body returning *AddVerificationMethodResponse
+func (c *ClientWithResponses) AddVerificationMethodWithBodyWithResponse(ctx context.Context, subject string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error) {
+	rsp, err := c.AddVerificationMethodWithBody(ctx, subject, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseAddVerificationMethodResponse(rsp)
 }
 
-// DeleteVerificationMethodWithResponse request returning *DeleteVerificationMethodResponse
-func (c *ClientWithResponses) DeleteVerificationMethodWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*DeleteVerificationMethodResponse, error) {
-	rsp, err := c.DeleteVerificationMethod(ctx, did, id, reqEditors...)
+func (c *ClientWithResponses) AddVerificationMethodWithResponse(ctx context.Context, subject string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error) {
+	rsp, err := c.AddVerificationMethod(ctx, subject, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseDeleteVerificationMethodResponse(rsp)
+	return ParseAddVerificationMethodResponse(rsp)
 }
 
 // ParseListDIDsResponse parses an HTTP response from a ListDIDsWithResponse call
@@ -1308,7 +1270,7 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DIDDocument
+		var dest SubjectCreationResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1335,15 +1297,15 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 	return response, nil
 }
 
-// ParseDeleteDIDResponse parses an HTTP response from a DeleteDIDWithResponse call
-func ParseDeleteDIDResponse(rsp *http.Response) (*DeleteDIDResponse, error) {
+// ParseDeactivateResponse parses an HTTP response from a DeactivateWithResponse call
+func ParseDeactivateResponse(rsp *http.Response) (*DeactivateResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &DeleteDIDResponse{
+	response := &DeactivateResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1412,15 +1374,15 @@ func ParseResolveDIDResponse(rsp *http.Response) (*ResolveDIDResponse, error) {
 	return response, nil
 }
 
-// ParseFilterServicesResponse parses an HTTP response from a FilterServicesWithResponse call
-func ParseFilterServicesResponse(rsp *http.Response) (*FilterServicesResponse, error) {
+// ParseFindServicesResponse parses an HTTP response from a FindServicesWithResponse call
+func ParseFindServicesResponse(rsp *http.Response) (*FindServicesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &FilterServicesResponse{
+	response := &FindServicesResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1469,7 +1431,7 @@ func ParseCreateServiceResponse(rsp *http.Response) (*CreateServiceResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Service
+		var dest []Service
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1546,7 +1508,7 @@ func ParseUpdateServiceResponse(rsp *http.Response) (*UpdateServiceResponse, err
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Service
+		var dest []Service
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1588,7 +1550,7 @@ func ParseAddVerificationMethodResponse(rsp *http.Response) (*AddVerificationMet
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest VerificationMethod
+		var dest []VerificationMethod
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1615,73 +1577,35 @@ func ParseAddVerificationMethodResponse(rsp *http.Response) (*AddVerificationMet
 	return response, nil
 }
 
-// ParseDeleteVerificationMethodResponse parses an HTTP response from a DeleteVerificationMethodWithResponse call
-func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificationMethodResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &DeleteVerificationMethodResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Lists all locally managed DIDs
 	// (GET /internal/vdr/v2/did)
 	ListDIDs(ctx echo.Context) error
-	// Creates a new Web DID
+	// Creates new DID Documents
 	// (POST /internal/vdr/v2/did)
 	CreateDID(ctx echo.Context) error
-	// Deletes a locally managed Document.
+	// Deactivate all DID Documents for a subject.
 	// (DELETE /internal/vdr/v2/did/{did})
-	DeleteDID(ctx echo.Context, did string) error
+	Deactivate(ctx echo.Context, did string) error
 	// Resolves a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx echo.Context, did string) error
-	// Filters services of a resolved DID document
-	// (GET /internal/vdr/v2/did/{did}/service)
-	FilterServices(ctx echo.Context, did string, params FilterServicesParams) error
-	// Adds a service to the DID document.
-	// (POST /internal/vdr/v2/did/{did}/service)
-	CreateService(ctx echo.Context, did string) error
+	// Find services of a DID subject
+	// (GET /internal/vdr/v2/did/{subject}/service)
+	FindServices(ctx echo.Context, subject string, params FindServicesParams) error
+	// Adds a service to DID documents of a subject.
+	// (POST /internal/vdr/v2/did/{subject}/service)
+	CreateService(ctx echo.Context, subject string) error
 	// Delete a specific service
-	// (DELETE /internal/vdr/v2/did/{did}/service/{serviceId})
-	DeleteService(ctx echo.Context, did string, serviceId string) error
+	// (DELETE /internal/vdr/v2/did/{subject}/service/{serviceId})
+	DeleteService(ctx echo.Context, subject string, serviceId string) error
 	// Updates a service in the DID document.
-	// (PUT /internal/vdr/v2/did/{did}/service/{serviceId})
-	UpdateService(ctx echo.Context, did string, serviceId string) error
-	// Creates and adds a new verificationMethod to the DID document.
-	// (POST /internal/vdr/v2/did/{did}/verificationmethod)
-	AddVerificationMethod(ctx echo.Context, did string) error
-	// Delete a specific verification method
-	// (DELETE /internal/vdr/v2/did/{did}/verificationmethod/{id})
-	DeleteVerificationMethod(ctx echo.Context, did string, id string) error
+	// (PUT /internal/vdr/v2/did/{subject}/service/{serviceId})
+	UpdateService(ctx echo.Context, subject string, serviceId string) error
+	// Creates and adds one or more verificationMethods to the DID document.
+	// (POST /internal/vdr/v2/did/{subject}/verificationmethod)
+	AddVerificationMethod(ctx echo.Context, subject string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -1711,8 +1635,8 @@ func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
 	return err
 }
 
-// DeleteDID converts echo context to params.
-func (w *ServerInterfaceWrapper) DeleteDID(ctx echo.Context) error {
+// Deactivate converts echo context to params.
+func (w *ServerInterfaceWrapper) Deactivate(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "did" -------------
 	var did string
@@ -1722,7 +1646,7 @@ func (w *ServerInterfaceWrapper) DeleteDID(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeleteDID(ctx, did)
+	err = w.Handler.Deactivate(ctx, did)
 	return err
 }
 
@@ -1741,18 +1665,18 @@ func (w *ServerInterfaceWrapper) ResolveDID(ctx echo.Context) error {
 	return err
 }
 
-// FilterServices converts echo context to params.
-func (w *ServerInterfaceWrapper) FilterServices(ctx echo.Context) error {
+// FindServices converts echo context to params.
+func (w *ServerInterfaceWrapper) FindServices(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Parameter object where we will unmarshal all parameters from the context
-	var params FilterServicesParams
+	var params FindServicesParams
 	// ------------- Optional query parameter "type" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "type", ctx.QueryParams(), &params.Type)
@@ -1768,32 +1692,32 @@ func (w *ServerInterfaceWrapper) FilterServices(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.FilterServices(ctx, did, params)
+	err = w.Handler.FindServices(ctx, subject, params)
 	return err
 }
 
 // CreateService converts echo context to params.
 func (w *ServerInterfaceWrapper) CreateService(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.CreateService(ctx, did)
+	err = w.Handler.CreateService(ctx, subject)
 	return err
 }
 
 // DeleteService converts echo context to params.
 func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
@@ -1806,17 +1730,17 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeleteService(ctx, did, serviceId)
+	err = w.Handler.DeleteService(ctx, subject, serviceId)
 	return err
 }
 
 // UpdateService converts echo context to params.
 func (w *ServerInterfaceWrapper) UpdateService(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
@@ -1829,45 +1753,22 @@ func (w *ServerInterfaceWrapper) UpdateService(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.UpdateService(ctx, did, serviceId)
+	err = w.Handler.UpdateService(ctx, subject, serviceId)
 	return err
 }
 
 // AddVerificationMethod converts echo context to params.
 func (w *ServerInterfaceWrapper) AddVerificationMethod(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.AddVerificationMethod(ctx, did)
-	return err
-}
-
-// DeleteVerificationMethod converts echo context to params.
-func (w *ServerInterfaceWrapper) DeleteVerificationMethod(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	did = ctx.Param("did")
-
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeleteVerificationMethod(ctx, did, id)
+	err = w.Handler.AddVerificationMethod(ctx, subject)
 	return err
 }
 
@@ -1901,14 +1802,13 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/internal/vdr/v2/did", wrapper.ListDIDs)
 	router.POST(baseURL+"/internal/vdr/v2/did", wrapper.CreateDID)
-	router.DELETE(baseURL+"/internal/vdr/v2/did/:did", wrapper.DeleteDID)
+	router.DELETE(baseURL+"/internal/vdr/v2/did/:did", wrapper.Deactivate)
 	router.GET(baseURL+"/internal/vdr/v2/did/:did", wrapper.ResolveDID)
-	router.GET(baseURL+"/internal/vdr/v2/did/:did/service", wrapper.FilterServices)
-	router.POST(baseURL+"/internal/vdr/v2/did/:did/service", wrapper.CreateService)
-	router.DELETE(baseURL+"/internal/vdr/v2/did/:did/service/:serviceId", wrapper.DeleteService)
-	router.PUT(baseURL+"/internal/vdr/v2/did/:did/service/:serviceId", wrapper.UpdateService)
-	router.POST(baseURL+"/internal/vdr/v2/did/:did/verificationmethod", wrapper.AddVerificationMethod)
-	router.DELETE(baseURL+"/internal/vdr/v2/did/:did/verificationmethod/:id", wrapper.DeleteVerificationMethod)
+	router.GET(baseURL+"/internal/vdr/v2/did/:subject/service", wrapper.FindServices)
+	router.POST(baseURL+"/internal/vdr/v2/did/:subject/service", wrapper.CreateService)
+	router.DELETE(baseURL+"/internal/vdr/v2/did/:subject/service/:serviceId", wrapper.DeleteService)
+	router.PUT(baseURL+"/internal/vdr/v2/did/:subject/service/:serviceId", wrapper.UpdateService)
+	router.POST(baseURL+"/internal/vdr/v2/did/:subject/verificationmethod", wrapper.AddVerificationMethod)
 
 }
 
@@ -1957,7 +1857,7 @@ type CreateDIDResponseObject interface {
 	VisitCreateDIDResponse(w http.ResponseWriter) error
 }
 
-type CreateDID200JSONResponse DIDDocument
+type CreateDID200JSONResponse SubjectCreationResult
 
 func (response CreateDID200JSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1987,23 +1887,23 @@ func (response CreateDIDdefaultApplicationProblemPlusJSONResponse) VisitCreateDI
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type DeleteDIDRequestObject struct {
+type DeactivateRequestObject struct {
 	Did string `json:"did"`
 }
 
-type DeleteDIDResponseObject interface {
-	VisitDeleteDIDResponse(w http.ResponseWriter) error
+type DeactivateResponseObject interface {
+	VisitDeactivateResponse(w http.ResponseWriter) error
 }
 
-type DeleteDID204Response struct {
+type Deactivate204Response struct {
 }
 
-func (response DeleteDID204Response) VisitDeleteDIDResponse(w http.ResponseWriter) error {
+func (response Deactivate204Response) VisitDeactivateResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
 }
 
-type DeleteDIDdefaultApplicationProblemPlusJSONResponse struct {
+type DeactivatedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -2017,7 +1917,7 @@ type DeleteDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response DeleteDIDdefaultApplicationProblemPlusJSONResponse) VisitDeleteDIDResponse(w http.ResponseWriter) error {
+func (response DeactivatedefaultApplicationProblemPlusJSONResponse) VisitDeactivateResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2062,25 +1962,25 @@ func (response ResolveDIDdefaultApplicationProblemPlusJSONResponse) VisitResolve
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type FilterServicesRequestObject struct {
-	Did    string `json:"did"`
-	Params FilterServicesParams
+type FindServicesRequestObject struct {
+	Subject string `json:"subject"`
+	Params  FindServicesParams
 }
 
-type FilterServicesResponseObject interface {
-	VisitFilterServicesResponse(w http.ResponseWriter) error
+type FindServicesResponseObject interface {
+	VisitFindServicesResponse(w http.ResponseWriter) error
 }
 
-type FilterServices200JSONResponse []Service
+type FindServices200JSONResponse []Service
 
-func (response FilterServices200JSONResponse) VisitFilterServicesResponse(w http.ResponseWriter) error {
+func (response FindServices200JSONResponse) VisitFindServicesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type FilterServicesdefaultApplicationProblemPlusJSONResponse struct {
+type FindServicesdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -2094,7 +1994,7 @@ type FilterServicesdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response FilterServicesdefaultApplicationProblemPlusJSONResponse) VisitFilterServicesResponse(w http.ResponseWriter) error {
+func (response FindServicesdefaultApplicationProblemPlusJSONResponse) VisitFindServicesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2102,15 +2002,15 @@ func (response FilterServicesdefaultApplicationProblemPlusJSONResponse) VisitFil
 }
 
 type CreateServiceRequestObject struct {
-	Did  string `json:"did"`
-	Body *CreateServiceJSONRequestBody
+	Subject string `json:"subject"`
+	Body    *CreateServiceJSONRequestBody
 }
 
 type CreateServiceResponseObject interface {
 	VisitCreateServiceResponse(w http.ResponseWriter) error
 }
 
-type CreateService200JSONResponse Service
+type CreateService200JSONResponse []Service
 
 func (response CreateService200JSONResponse) VisitCreateServiceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2141,7 +2041,7 @@ func (response CreateServicedefaultApplicationProblemPlusJSONResponse) VisitCrea
 }
 
 type DeleteServiceRequestObject struct {
-	Did       string `json:"did"`
+	Subject   string `json:"subject"`
 	ServiceId string `json:"serviceId"`
 }
 
@@ -2179,7 +2079,7 @@ func (response DeleteServicedefaultApplicationProblemPlusJSONResponse) VisitDele
 }
 
 type UpdateServiceRequestObject struct {
-	Did       string `json:"did"`
+	Subject   string `json:"subject"`
 	ServiceId string `json:"serviceId"`
 	Body      *UpdateServiceJSONRequestBody
 }
@@ -2188,7 +2088,7 @@ type UpdateServiceResponseObject interface {
 	VisitUpdateServiceResponse(w http.ResponseWriter) error
 }
 
-type UpdateService200JSONResponse Service
+type UpdateService200JSONResponse []Service
 
 func (response UpdateService200JSONResponse) VisitUpdateServiceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2219,14 +2119,15 @@ func (response UpdateServicedefaultApplicationProblemPlusJSONResponse) VisitUpda
 }
 
 type AddVerificationMethodRequestObject struct {
-	Did string `json:"did"`
+	Subject string `json:"subject"`
+	Body    *AddVerificationMethodJSONRequestBody
 }
 
 type AddVerificationMethodResponseObject interface {
 	VisitAddVerificationMethodResponse(w http.ResponseWriter) error
 }
 
-type AddVerificationMethod200JSONResponse VerificationMethod
+type AddVerificationMethod200JSONResponse []VerificationMethod
 
 func (response AddVerificationMethod200JSONResponse) VisitAddVerificationMethodResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -2256,76 +2157,35 @@ func (response AddVerificationMethoddefaultApplicationProblemPlusJSONResponse) V
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type DeleteVerificationMethodRequestObject struct {
-	Did string `json:"did"`
-	Id  string `json:"id"`
-}
-
-type DeleteVerificationMethodResponseObject interface {
-	VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error
-}
-
-type DeleteVerificationMethod204Response struct {
-}
-
-func (response DeleteVerificationMethod204Response) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
-}
-
-type DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Lists all locally managed DIDs
 	// (GET /internal/vdr/v2/did)
 	ListDIDs(ctx context.Context, request ListDIDsRequestObject) (ListDIDsResponseObject, error)
-	// Creates a new Web DID
+	// Creates new DID Documents
 	// (POST /internal/vdr/v2/did)
 	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
-	// Deletes a locally managed Document.
+	// Deactivate all DID Documents for a subject.
 	// (DELETE /internal/vdr/v2/did/{did})
-	DeleteDID(ctx context.Context, request DeleteDIDRequestObject) (DeleteDIDResponseObject, error)
+	Deactivate(ctx context.Context, request DeactivateRequestObject) (DeactivateResponseObject, error)
 	// Resolves a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error)
-	// Filters services of a resolved DID document
-	// (GET /internal/vdr/v2/did/{did}/service)
-	FilterServices(ctx context.Context, request FilterServicesRequestObject) (FilterServicesResponseObject, error)
-	// Adds a service to the DID document.
-	// (POST /internal/vdr/v2/did/{did}/service)
+	// Find services of a DID subject
+	// (GET /internal/vdr/v2/did/{subject}/service)
+	FindServices(ctx context.Context, request FindServicesRequestObject) (FindServicesResponseObject, error)
+	// Adds a service to DID documents of a subject.
+	// (POST /internal/vdr/v2/did/{subject}/service)
 	CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error)
 	// Delete a specific service
-	// (DELETE /internal/vdr/v2/did/{did}/service/{serviceId})
+	// (DELETE /internal/vdr/v2/did/{subject}/service/{serviceId})
 	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
 	// Updates a service in the DID document.
-	// (PUT /internal/vdr/v2/did/{did}/service/{serviceId})
+	// (PUT /internal/vdr/v2/did/{subject}/service/{serviceId})
 	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
-	// Creates and adds a new verificationMethod to the DID document.
-	// (POST /internal/vdr/v2/did/{did}/verificationmethod)
+	// Creates and adds one or more verificationMethods to the DID document.
+	// (POST /internal/vdr/v2/did/{subject}/verificationmethod)
 	AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error)
-	// Delete a specific verification method
-	// (DELETE /internal/vdr/v2/did/{did}/verificationmethod/{id})
-	DeleteVerificationMethod(ctx context.Context, request DeleteVerificationMethodRequestObject) (DeleteVerificationMethodResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -2392,25 +2252,25 @@ func (sh *strictHandler) CreateDID(ctx echo.Context) error {
 	return nil
 }
 
-// DeleteDID operation middleware
-func (sh *strictHandler) DeleteDID(ctx echo.Context, did string) error {
-	var request DeleteDIDRequestObject
+// Deactivate operation middleware
+func (sh *strictHandler) Deactivate(ctx echo.Context, did string) error {
+	var request DeactivateRequestObject
 
 	request.Did = did
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteDID(ctx.Request().Context(), request.(DeleteDIDRequestObject))
+		return sh.ssi.Deactivate(ctx.Request().Context(), request.(DeactivateRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteDID")
+		handler = middleware(handler, "Deactivate")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(DeleteDIDResponseObject); ok {
-		return validResponse.VisitDeleteDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(DeactivateResponseObject); ok {
+		return validResponse.VisitDeactivateResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -2442,26 +2302,26 @@ func (sh *strictHandler) ResolveDID(ctx echo.Context, did string) error {
 	return nil
 }
 
-// FilterServices operation middleware
-func (sh *strictHandler) FilterServices(ctx echo.Context, did string, params FilterServicesParams) error {
-	var request FilterServicesRequestObject
+// FindServices operation middleware
+func (sh *strictHandler) FindServices(ctx echo.Context, subject string, params FindServicesParams) error {
+	var request FindServicesRequestObject
 
-	request.Did = did
+	request.Subject = subject
 	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.FilterServices(ctx.Request().Context(), request.(FilterServicesRequestObject))
+		return sh.ssi.FindServices(ctx.Request().Context(), request.(FindServicesRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "FilterServices")
+		handler = middleware(handler, "FindServices")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(FilterServicesResponseObject); ok {
-		return validResponse.VisitFilterServicesResponse(ctx.Response())
+	} else if validResponse, ok := response.(FindServicesResponseObject); ok {
+		return validResponse.VisitFindServicesResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -2469,10 +2329,10 @@ func (sh *strictHandler) FilterServices(ctx echo.Context, did string, params Fil
 }
 
 // CreateService operation middleware
-func (sh *strictHandler) CreateService(ctx echo.Context, did string) error {
+func (sh *strictHandler) CreateService(ctx echo.Context, subject string) error {
 	var request CreateServiceRequestObject
 
-	request.Did = did
+	request.Subject = subject
 
 	var body CreateServiceJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -2500,10 +2360,10 @@ func (sh *strictHandler) CreateService(ctx echo.Context, did string) error {
 }
 
 // DeleteService operation middleware
-func (sh *strictHandler) DeleteService(ctx echo.Context, did string, serviceId string) error {
+func (sh *strictHandler) DeleteService(ctx echo.Context, subject string, serviceId string) error {
 	var request DeleteServiceRequestObject
 
-	request.Did = did
+	request.Subject = subject
 	request.ServiceId = serviceId
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
@@ -2526,10 +2386,10 @@ func (sh *strictHandler) DeleteService(ctx echo.Context, did string, serviceId s
 }
 
 // UpdateService operation middleware
-func (sh *strictHandler) UpdateService(ctx echo.Context, did string, serviceId string) error {
+func (sh *strictHandler) UpdateService(ctx echo.Context, subject string, serviceId string) error {
 	var request UpdateServiceRequestObject
 
-	request.Did = did
+	request.Subject = subject
 	request.ServiceId = serviceId
 
 	var body UpdateServiceJSONRequestBody
@@ -2558,10 +2418,16 @@ func (sh *strictHandler) UpdateService(ctx echo.Context, did string, serviceId s
 }
 
 // AddVerificationMethod operation middleware
-func (sh *strictHandler) AddVerificationMethod(ctx echo.Context, did string) error {
+func (sh *strictHandler) AddVerificationMethod(ctx echo.Context, subject string) error {
 	var request AddVerificationMethodRequestObject
 
-	request.Did = did
+	request.Subject = subject
+
+	var body AddVerificationMethodJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.AddVerificationMethod(ctx.Request().Context(), request.(AddVerificationMethodRequestObject))
@@ -2576,32 +2442,6 @@ func (sh *strictHandler) AddVerificationMethod(ctx echo.Context, did string) err
 		return err
 	} else if validResponse, ok := response.(AddVerificationMethodResponseObject); ok {
 		return validResponse.VisitAddVerificationMethodResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// DeleteVerificationMethod operation middleware
-func (sh *strictHandler) DeleteVerificationMethod(ctx echo.Context, did string, id string) error {
-	var request DeleteVerificationMethodRequestObject
-
-	request.Did = did
-	request.Id = id
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteVerificationMethod(ctx.Request().Context(), request.(DeleteVerificationMethodRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteVerificationMethod")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(DeleteVerificationMethodResponseObject); ok {
-		return validResponse.VisitDeleteVerificationMethodResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

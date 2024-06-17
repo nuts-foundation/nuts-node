@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -75,7 +76,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
@@ -86,7 +87,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - DID not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
@@ -97,7 +98,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("error - internal error 500", func(t *testing.T) {
 		//500
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
@@ -110,7 +111,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 func TestWrapper_RootOAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, rootWebDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, rootWebDID).Return(true, nil)
 
 		res, err := ctx.client.RootOAuthAuthorizationServerMetadata(nil, RootOAuthAuthorizationServerMetadataRequestObject{})
 
@@ -201,7 +202,7 @@ func TestWrapper_GetRootWebDID(t *testing.T) {
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
@@ -210,7 +211,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID)
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
@@ -219,7 +220,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	})
 	t.Run("error - internal error 500", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
 		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Did: webDID.String()})
 
@@ -237,7 +238,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
-		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
@@ -263,7 +264,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
-		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -275,7 +276,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("err - unknown wallet type", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
@@ -287,7 +288,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "unknown"}})
@@ -299,7 +300,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
-		test.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
+		test.documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
@@ -327,7 +328,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeParam:       "code_challenge",
 			oauth.CodeChallengeMethodParam: "S256",
 		}
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromHolder
@@ -387,7 +388,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ScopeParam:              "test",
 			oauth.StateParam:              "state",
 		}
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.jar.EXPECT().Parse(gomock.Any(), holderDID, gomock.Any()).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromVerifier
@@ -423,7 +424,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ResponseTypeParam: "unsupported",
 		}
 		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, gomock.Any()).Return(requestParams, nil)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
 			HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})
@@ -436,7 +437,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 func TestWrapper_HandleTokenRequest(t *testing.T) {
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
 			Did: webDID.String(),
@@ -470,7 +471,7 @@ func TestWrapper_Callback(t *testing.T) {
 
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
@@ -498,7 +499,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:holder/callback", holderDID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
@@ -533,7 +534,7 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/did:web:example.com:iam:holder/callback", holderDID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
@@ -549,7 +550,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("err - unknown did", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: holderDID.String(),
@@ -561,7 +562,7 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("err - did mismatch", func(t *testing.T) {
 		ctx := newTestClient(t)
 		putState(ctx, "state", session)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -577,7 +578,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("err - missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: holderDID.String(),
@@ -590,7 +591,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("err - error flow but missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: holderDID.String(),
@@ -605,7 +606,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("err - expired state/session", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: webDID.String(),
@@ -619,7 +620,7 @@ func TestWrapper_Callback(t *testing.T) {
 	})
 	t.Run("err - missing code", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		putState(ctx, "state", session)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
@@ -637,7 +638,7 @@ func TestWrapper_Callback(t *testing.T) {
 			ClientFlow: "",
 			OwnDID:     &holderDID,
 		})
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: holderDID.String(),
@@ -898,7 +899,7 @@ func TestWrapper_middleware(t *testing.T) {
 func TestWrapper_toOwnedDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
@@ -906,7 +907,7 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 	})
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID)
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
@@ -914,7 +915,7 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 	})
 	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(false, resolver.ErrNotFound)
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
@@ -922,7 +923,7 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 	})
 	t.Run("other resolver error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
 		_, err := ctx.client.toOwnedDID(nil, webDID.String())
 
@@ -940,7 +941,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
@@ -955,7 +956,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			Scope:               "first second",
 			TokenType:           &tokenTypeBearer,
 		}
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", false, nil).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
@@ -964,7 +965,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	})
 	t.Run("error - DID not owned", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -980,7 +981,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	})
 	t.Run("error - verifier error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
@@ -1009,7 +1010,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 
 		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
@@ -1037,7 +1038,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	})
 	t.Run("preauthorized_user", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(nil, walletDID).AnyTimes().Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).AnyTimes().Return(true, nil)
 		t.Run("error - missing preauthorized_user", func(t *testing.T) {
 			body := &RequestUserAccessTokenJSONRequestBody{
 				AuthorizationServer: "https://example.com",
@@ -1519,6 +1520,7 @@ type testCtx struct {
 	authnServices *auth.MockAuthenticationServices
 	ctrl          *gomock.Controller
 	client        *Wrapper
+	documentOwner *didsubject.MockDocumentOwner
 	iamClient     *iam.MockClient
 	jwtSigner     *cryptoNuts.MockJWTSigner
 	keyResolver   *resolver.MockKeyResolver
@@ -1546,6 +1548,7 @@ func newTestClient(t testing.TB) *testCtx {
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	iamClient := iam.NewMockClient(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
+	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)
@@ -1559,6 +1562,7 @@ func newTestClient(t testing.TB) *testCtx {
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
+	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
 
 	return &testCtx{
 		ctrl:          ctrl,
@@ -1569,6 +1573,7 @@ func newTestClient(t testing.TB) *testCtx {
 		vcVerifier:    vcVerifier,
 		resolver:      mockResolver,
 		vdr:           mockVDR,
+		documentOwner: mockDocumentOwner,
 		iamClient:     iamClient,
 		vcr:           mockVCR,
 		wallet:        mockWallet,

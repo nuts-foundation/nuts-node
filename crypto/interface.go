@@ -33,7 +33,7 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
-	// New generates a keypair and returns a Key. The context is used to pass audit information.
+	// New generates an EC keypair and returns a Key. The context is used to pass audit information.
 	// The KIDNamingFunc will provide the kid.
 	New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error)
 }

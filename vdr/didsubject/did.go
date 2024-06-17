@@ -16,7 +16,7 @@
  *
  */
 
-package sql
+package didsubject
 
 import (
 	"errors"
@@ -30,6 +30,7 @@ import (
 type DID struct {
 	ID      string `gorm:"primaryKey"`
 	Subject string `gorm:"column:subject"`
+	Aka     []DID  `gorm:"foreignKey:Subject;references:Subject"`
 }
 
 func (d DID) TableName() string {
@@ -76,7 +77,7 @@ func (s SqlDIDManager) Add(subject string, did did.DID) (*DID, error) {
 
 func (s SqlDIDManager) All() ([]DID, error) {
 	dids := make([]DID, 0)
-	err := s.tx.Find(&dids).Error
+	err := s.tx.Preload("Aka").Find(&dids).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return dids, nil
 	}
@@ -93,7 +94,7 @@ func (s SqlDIDManager) DeleteAll(subject string) error {
 
 func (d SqlDIDManager) Find(id did.DID) (*DID, error) {
 	var did DID
-	err := d.tx.First(&did, "id = ?", id.String()).Error
+	err := d.tx.Preload("Aka").First(&did, "id = ?", id.String()).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -105,6 +106,6 @@ func (d SqlDIDManager) Find(id did.DID) (*DID, error) {
 
 func (d SqlDIDManager) FindBySubject(subject string) ([]DID, error) {
 	dids := make([]DID, 0)
-	err := d.tx.Find(&dids, "subject = ?", subject).Error
+	err := d.tx.Preload("Aka").Find(&dids, "subject = ?", subject).Error
 	return dids, err
 }

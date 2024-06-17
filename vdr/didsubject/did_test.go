@@ -16,7 +16,7 @@
  *
  */
 
-package sql
+package didsubject
 
 import (
 	"testing"
@@ -92,6 +92,16 @@ func TestSqlDIDManager_Find(t *testing.T) {
 		did, err := manager.Find(bob)
 		require.NoError(t, err)
 		assert.Nil(t, did)
+	})
+	t.Run("loads aliases", func(t *testing.T) {
+		_, err := manager.Add("alice", bob)
+		require.NoError(t, err)
+
+		did, err := manager.Find(alice)
+		require.NoError(t, err)
+
+		require.Len(t, did.Aka, 2)
+
 	})
 }
 

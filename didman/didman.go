@@ -337,7 +337,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	err = d.vdr.Update(ctx, id, *doc)
+	err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).
@@ -564,7 +564,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
-	if err = d.vdr.Update(ctx, id, *doc); err != nil {
+	if err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil
@@ -591,7 +591,7 @@ func (d *didman) updateService(ctx context.Context, id did.DID, serviceType stri
 	if !serviceToBeUpdatedFound {
 		return nil, resolver.ErrServiceNotFound
 	}
-	if err = d.vdr.Update(ctx, id, *doc); err != nil {
+	if err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil

@@ -20,16 +20,23 @@ package vdr
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
+// Deprecated: Use the management.SubjectManager and management.DocumentManager interfaces instead.
 type VDR interface {
-	management.DocUpdater
-	management.DocumentManager
+	//management.SubjectManager
+	//management.DocumentManager
+
+	// NutsDocumentManager returns the nuts document manager.
+	NutsDocumentManager() didsubject.DocumentManager
+	// DocumentOwner returns the document owner.
+	DocumentOwner() didsubject.DocumentOwner
 
 	// ResolveManaged resolves a DID document that is managed by the local node.
+	// todo move to SubjectManager
 	ResolveManaged(id did.DID) (*did.Document, error)
 	// Resolver returns the resolver for getting the DID document for a DID.
 	Resolver() resolver.DIDResolver

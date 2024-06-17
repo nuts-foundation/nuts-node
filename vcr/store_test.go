@@ -53,7 +53,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok - not owned, do not store in wallet", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
@@ -66,7 +66,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok - owned, store in wallet", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, nil)
@@ -80,7 +80,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok - with validAt", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		err := ctx.vcr.StoreCredential(target, &now)
@@ -91,7 +91,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("ok - already exists", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
@@ -104,7 +104,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	t.Run("error - already exists, but differs", func(t *testing.T) {
 		ctx := newMockContext(t)
 		now := time.Now()
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 		ctx.didResolver.EXPECT().Resolve(gomock.Any(), &resolver.ResolveMetadata{ResolveTime: &now}).Return(documentWithPublicKey(t, pk), nil, nil)
 
 		_ = ctx.vcr.StoreCredential(target, &now)
@@ -137,7 +137,7 @@ func TestStore_writeCredential(t *testing.T) {
 
 	t.Run("ok - stored in JSON-LD collection", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 		vcBytes, _ := json.Marshal(target)
 		ref := sha1.Sum(vcBytes)
 

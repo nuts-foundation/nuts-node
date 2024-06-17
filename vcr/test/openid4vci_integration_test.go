@@ -22,11 +22,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -235,7 +236,7 @@ func testCredential() vc.VerifiableCredential {
 	issuanceDate := time.Now().Truncate(time.Second)
 	return vc.VerifiableCredential{
 		Context: []ssi.URI{
-			didnuts.JWS2020ContextV1URI(),
+			jsonld.JWS2020ContextV1URI(),
 			credentialTypes.NutsV1ContextURI,
 		},
 		Type: []ssi.URI{
@@ -248,7 +249,7 @@ func testCredential() vc.VerifiableCredential {
 func registerDID(t *testing.T, system *core.System) did.DID {
 	vdrService := system.FindEngineByName("vdr").(vdr.VDR)
 	ctx := audit.TestContext()
-	didDocument, _, err := vdrService.Create(ctx, didnuts.DefaultCreationOptions())
+	didDocument, _, err := vdrService.NutsDocumentManager().Create(ctx, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
 	return didDocument.ID
 

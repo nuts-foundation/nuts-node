@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
@@ -46,13 +47,13 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// mockKeyCreator creates a single new key
-type mockKeyCreator struct {
+// mockKeyStore creates a single new key
+type mockKeyStore struct {
 	key crypto.Key
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyCreator) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
+func (m *mockKeyStore) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
 	if m.key == nil {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		kid, _ := fn(privateKey.Public())
@@ -63,6 +64,56 @@ func (m *mockKeyCreator) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto
 		}
 	}
 	return m.key, nil
+}
+
+// todo make an interface for New and Delete
+func (m *mockKeyStore) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) Exists(ctx context.Context, kid string) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) Resolve(ctx context.Context, kid string) (crypto.Key, error) {
+	return m.key, nil
+}
+
+func (m *mockKeyStore) List(ctx context.Context) []string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *mockKeyStore) Delete(ctx context.Context, kid string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 type testTransaction struct {
@@ -389,7 +440,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -424,7 +475,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -688,8 +739,8 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	kc := &mockKeyCreator{}
-	docCreator := Creator{KeyStore: kc}
+	kc := &mockKeyStore{}
+	docCreator := Manager{KeyStore: kc}
 	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags())
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)

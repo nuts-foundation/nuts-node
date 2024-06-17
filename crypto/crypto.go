@@ -62,7 +62,7 @@ func DefaultCryptoConfig() Config {
 	}
 }
 
-var _ KeyStore = &Crypto{}
+var _ KeyStore = (*Crypto)(nil)
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
@@ -161,7 +161,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	}
 }
 
-// New generates a new key pair.
+// New generates a new EC key pair.
 // Stores the private key, returns the public basicKey.
 // It returns an error when a key with the resulting ID already exists.
 func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {

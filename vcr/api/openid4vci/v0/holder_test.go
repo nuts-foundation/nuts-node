@@ -27,7 +27,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	vdr2 "github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -41,11 +42,13 @@ func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := holder.NewMockOpenIDHandler(ctrl)
 		wallet.EXPECT().Metadata().Return(openid4vci.OAuth2ClientMetadata{CredentialOfferEndpoint: "endpoint"})
-		documentOwner := management.NewMockDocumentOwner(ctrl)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+		vdr := vdr2.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().GetOpenIDHolder(gomock.Any(), holderDID).Return(wallet, nil)
-		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
+		api := Wrapper{VCR: service, VDR: vdr}
 
 		response, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
 			Did: holderDID.String(),
@@ -57,9 +60,11 @@ func TestWrapper_GetOAuth2ClientMetadata(t *testing.T) {
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := management.NewMockDocumentOwner(ctrl)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
-		api := Wrapper{DocumentOwner: documentOwner}
+		vdr := vdr2.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+		api := Wrapper{VDR: vdr}
 
 		_, err := api.GetOAuth2ClientMetadata(context.Background(), GetOAuth2ClientMetadataRequestObject{
 			Did: holderDID.String(),
@@ -74,11 +79,13 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		wallet := holder.NewMockOpenIDHandler(ctrl)
 		wallet.EXPECT().HandleCredentialOffer(gomock.Any(), gomock.Any())
-		documentOwner := management.NewMockDocumentOwner(ctrl)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+		vdr := vdr2.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().GetOpenIDHolder(gomock.Any(), holderDID).Return(wallet, nil)
-		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
+		api := Wrapper{VCR: service, VDR: vdr}
 
 		credentialOffer := openid4vci.CredentialOffer{
 			CredentialIssuer: issuerDID.String(),
@@ -113,9 +120,11 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := management.NewMockDocumentOwner(ctrl)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
-		api := Wrapper{DocumentOwner: documentOwner}
+		vdr := vdr2.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+		api := Wrapper{VDR: vdr}
 
 		_, err := api.HandleCredentialOffer(context.Background(), HandleCredentialOfferRequestObject{
 			Did: holderDID.String(),

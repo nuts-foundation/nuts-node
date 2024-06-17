@@ -16,33 +16,31 @@
  *
  */
 
-package sql
+package didsubject
 
 import (
-	"errors"
-	"fmt"
-
 	"database/sql/driver"
 	"encoding/base64"
+	"errors"
 	"gorm.io/gorm/schema"
 )
 
-var _ schema.Tabler = (*SqlVerificationMethod)(nil)
+var _ schema.Tabler = (*VerificationMethod)(nil)
 
-// SqlVerificationMethod is the gorm representation of the did_verificationmethod table
-type SqlVerificationMethod struct {
+// VerificationMethod is the gorm representation of the did_verificationmethod table
+type VerificationMethod struct {
 	ID            string `gorm:"primaryKey"`
 	DIDDocumentID string `gorm:"column:did_document_id"`
 	KeyTypes      VerificationMethodKeyType
 	Data          []byte
 }
 
-func (v SqlVerificationMethod) TableName() string {
+func (v VerificationMethod) TableName() string {
 	return "did_verificationmethod"
 }
 
 // VerificationMethodKeyType is used to marshal and unmarshal the key type to the DB
-// The string representation in the DB is the base64 encoded bit mask
+// The string representation in the db is the base64 encoded bit mask
 type VerificationMethodKeyType uint8
 
 // Scan decodes string value to byte slice
@@ -54,10 +52,10 @@ func (kt *VerificationMethodKeyType) Scan(value interface{}) error {
 	switch v := value.(type) {
 	case string:
 		*kt, err = stringToUint(v)
-	case []uint8: // mysql driver returns []uint8 for string
+	case []uint8:
 		*kt, err = stringToUint(string(v))
 	default:
-		err = fmt.Errorf("db type not supported: %T", v)
+		err = errors.New("sql driver returned unsupported datatype for VerificationMethodKeyType")
 	}
 	return err
 }
