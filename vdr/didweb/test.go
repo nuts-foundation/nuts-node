@@ -20,7 +20,9 @@ package didweb
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 	"net/url"
 	"strings"
 	"testing"
@@ -33,4 +35,11 @@ func ServerURLToDIDWeb(t *testing.T, stringUrl string) did.DID {
 	testDID, err := URLToDID(*asURL)
 	require.NoError(t, err)
 	return *testDID
+}
+func testDB(t *testing.T) *gorm.DB {
+	//logrus.SetLevel(logrus.TraceLevel)
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	db := storageEngine.GetSQLDatabase()
+	return db
 }

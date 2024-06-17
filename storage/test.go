@@ -56,7 +56,7 @@ func NewTestStorageRedisEngineInDir(t testing.TB, dir string) (Engine, *miniredi
 
 func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
-	// Prevent dbmate and gorm from logging database creation and applied schema migrations.
+	// Prevent goose and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
 	result.sqlMigrationLogger = nilGooseLogger{}
 
@@ -127,7 +127,7 @@ func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 	for _, id := range dids {
 		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
-		require.NoError(t, db.Exec("INSERT INTO did ( did ) VALUES ( ? )", id.String()).Error)
+		require.NoError(t, db.Exec("INSERT INTO did ( subject, id ) VALUES ( ?, ? )", id.String(), id.String()).Error)
 	}
 }
 

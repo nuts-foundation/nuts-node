@@ -50,30 +50,15 @@ func TestWrapper_CreateDID(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
 	})
-	t.Run("with tenant", func(t *testing.T) {
+	t.Run("as Root", func(t *testing.T) {
 		ctx := newMockContext(t)
-		opts := didweb.DefaultCreationOptions().With(didweb.Tenant("1"))
+		opts := didweb.DefaultCreationOptions()
 		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
 
-		var tenant = "1"
+		root := false
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
 			Body: &CreateDIDJSONRequestBody{
-				Tenant: &tenant,
-			},
-		})
-
-		require.NoError(t, err)
-		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
-	})
-	t.Run("with DID", func(t *testing.T) {
-		ctx := newMockContext(t)
-		opts := didweb.DefaultCreationOptions().With(didweb.DID(id))
-		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
-
-		var newDID = id.String()
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
-			Body: &CreateDIDJSONRequestBody{
-				Did: &newDID,
+				Root: &root,
 			},
 		})
 

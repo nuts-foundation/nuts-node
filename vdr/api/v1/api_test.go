@@ -79,20 +79,6 @@ func TestWrapper_CreateDID(t *testing.T) {
 		assert.Equal(t, *id, response.(CreateDID200JSONResponse).ID)
 	})
 
-	t.Run("error - invalid controller DID", func(t *testing.T) {
-		ctx := newMockContext(t)
-		controllers := []string{"not_a_did"}
-		request := DIDCreateRequest{
-			Controllers: &controllers,
-		}
-
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
-
-		assert.ErrorIs(t, err, did.ErrInvalidDID)
-		assert.Equal(t, http.StatusBadRequest, ctx.client.ResolveStatusCode(err))
-		assert.Nil(t, response)
-	})
-
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}

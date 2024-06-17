@@ -21,6 +21,7 @@ package didweb
 import (
 	"context"
 	crypt "crypto"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -30,31 +31,19 @@ import (
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/vdr/sql"
 	"gorm.io/gorm"
-	"strings"
 )
 
 func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName)
 }
 
-type tenantOption struct {
-	id string
-}
+type rootDIDOption struct{}
 
-// Tenant is an option to set a tenant ID for the did:web document.
-// It will be used as last path part of the DID.
-func Tenant(id string) management.CreationOption {
-	return tenantOption{id: id}
-}
-
-type didOption struct {
-	value did.DID
-}
-
-// DID is an option to set the DID for the did:web document.
-func DID(did did.DID) management.CreationOption {
-	return didOption{value: did}
+// RootDID is an option to set the DID for the did:web document.
+func RootDID() management.CreationOption {
+	return rootDIDOption{}
 }
 
 var _ management.DocumentManager = (*Manager)(nil)
@@ -62,7 +51,8 @@ var _ management.DocumentManager = (*Manager)(nil)
 // NewManager creates a new Manager to create and update did:web DID documents.
 func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
 	return &Manager{
-		store:      &sqlStore{db: db},
+		db: db,
+		//store:      &sqlStore{db: db},
 		rootDID:    rootDID,
 		tenantPath: tenantPath,
 		keyStore:   keyStore,
@@ -71,23 +61,39 @@ func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db
 
 // Manager creates and updates did:web documents
 type Manager struct {
+	db         *gorm.DB
 	rootDID    did.DID
-	store      store
 	keyStore   crypto.KeyStore
 	tenantPath string
 }
 
 func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
-	verificationMethods, _, err := m.store.get(subjectDID)
+	tx := m.db.Begin()
+	defer tx.Rollback()
+
+	didStore := sql.NewDIDManager(tx)
+	documentStore := sql.NewDIDDocumentManager(tx)
+	sqlDocument, err := documentStore.Latest(subjectDID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return resolver.ErrNotFound
+		}
+		return err
+	}
+	if sqlDocument == nil {
+		return nil
+	}
+	err = didStore.Delete(subjectDID)
 	if err != nil {
 		return err
 	}
-	if err := m.store.delete(subjectDID); err != nil {
+	err = tx.Commit().Error
+	if err != nil {
 		return err
 	}
 	var deleteErrors []error
-	for _, verificationMethod := range verificationMethods {
-		if err := m.keyStore.Delete(ctx, verificationMethod.ID.String()); err != nil {
+	for _, verificationMethod := range sqlDocument.VerificationMethods {
+		if err := m.keyStore.Delete(ctx, verificationMethod.ID); err != nil {
 			deleteErrors = append(deleteErrors, fmt.Errorf("verification method '%s': %w", verificationMethod.ID, err))
 		}
 	}
@@ -107,64 +113,63 @@ func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ managemen
 
 // Create creates a new did:web document.
 func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
-	var newDID did.DID
+	var newDID *did.DID
+	var err error
 	for _, opt := range opts.All() {
-		if !newDID.Empty() {
-			return nil, nil, errors.New("multiple DID options provided")
-		}
-		switch option := opt.(type) {
-		case tenantOption:
-			newDID = m.rootDID
-			newDID.ID += ":" + m.tenantPath + ":" + option.id
-		case didOption:
-			newDID = option.value
+		switch opt.(type) {
+		case rootDIDOption:
+			newDID = &m.rootDID
 		default:
-			return nil, nil, fmt.Errorf("unknown option: %T", option)
+			return nil, nil, fmt.Errorf("unknown option: %T", opt)
 		}
 	}
-	if newDID.Empty() {
-		newDID = m.rootDID
-		newDID.ID += ":" + m.tenantPath + ":" + uuid.NewString()
+	if newDID == nil {
+		newDID, err = did.ParseDID(fmt.Sprintf("%s:iam:%s", m.rootDID.String(), uuid.NewString()))
 	}
-	parsedNewDID, err := did.ParseDID(newDID.String()) // make sure internal state is consistent (DecodedID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid new DID: %s: %w", newDID.String(), err)
+		return nil, nil, fmt.Errorf("parse new DID: %w", err)
 	}
-	return m.create(ctx, *parsedNewDID)
-}
+	tx := m.db.Begin()
+	defer tx.Rollback()
 
-func (m Manager) create(ctx context.Context, newDID did.DID) (*did.Document, crypto.Key, error) {
-	// in any case, the DID to created (with or without path) should be scoped to the configured URL (translated to DID)
-	if !strings.HasPrefix(newDID.String(), m.rootDID.String()) {
-		return nil, nil, fmt.Errorf("invalid DID, does not match configured base URL, translated to DID: %s", m.rootDID.String())
-	}
-	// if it contains an optional path, it must be in format did:web:<host>:iam:<tenant>
-	idParts := strings.Split(newDID.ID, ":")
-	if (len(idParts) > 2 && (idParts[1] != m.tenantPath || len(idParts) > 3)) ||
-		// it must not contain empty path parts
-		strings.HasSuffix(newDID.ID, ":") || strings.HasSuffix(newDID.ID, "::") {
-		return nil, nil, errors.New("invalid path in did:web DID, it must follow the pattern 'did:web:<host>:" + m.tenantPath + ":<tenant>'")
-	}
+	didStore := sql.NewDIDManager(tx)
+	documentStore := sql.NewDIDDocumentManager(tx)
 
-	// Check if it doesn't already exist. Otherwise, it fail later on (unique key constraint) but we might end up with an orphaned private key.
-	exists, err := m.IsOwner(ctx, newDID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if exists {
+	_, err = documentStore.Latest(*newDID)
+	if err == nil {
 		return nil, nil, management.ErrDIDAlreadyExists
 	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil, err
+	}
 
-	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, newDID)
+	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := m.store.create(newDID, *verificationMethod); err != nil {
-		return nil, nil, fmt.Errorf("store new DID: %w", err)
+	vmAsJson, err := json.Marshal(verificationMethod)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	document := buildDocument(newDID, []did.VerificationMethod{*verificationMethod}, nil)
-	return &document, verificationMethodKey, nil
+	var dids []sql.DID
+	if dids, err = didStore.Add(newDID.String(), *newDID); err != nil {
+		return nil, nil, fmt.Errorf("store new DID: %w", err)
+	}
+	var doc *sql.DIDDocument
+	if doc, err = documentStore.AddVersion(dids[0], []sql.SqlVerificationMethod{{
+		ID:            verificationMethod.ID.String(),
+		DIDDocumentID: dids[0].ID,
+		Data:          vmAsJson,
+	}}, nil); err != nil {
+		return nil, nil, fmt.Errorf("store new DID document: %w", err)
+	}
+
+	document, err := buildDocument(*newDID, *doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &document, verificationMethodKey, tx.Commit().Error
 }
 
 func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (crypto.Key, *did.VerificationMethod, error) {
@@ -187,27 +192,64 @@ func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID)
 
 // Resolve returns the did:web document for the given DID, if it is managed by this node.
 func (m Manager) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
-	vms, services, err := m.store.get(id)
+	didDocumentMananager := sql.NewDIDDocumentManager(m.db)
+
+	doc, err := didDocumentMananager.Latest(id)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, resolver.ErrNotFound
+		}
 		return nil, nil, err
 	}
-	document := buildDocument(id, vms, services)
-	return &document, &resolver.DocumentMetadata{}, nil
+	document, err := buildDocument(id, *doc)
+	return &document, &resolver.DocumentMetadata{}, err
 }
 
 func (m Manager) IsOwner(_ context.Context, id did.DID) (bool, error) {
-	_, _, err := m.store.get(id)
-	if errors.Is(err, resolver.ErrNotFound) {
-		return false, nil
-	}
-	return err == nil, err
+	didManager := sql.NewDIDManager(m.db)
+
+	did, err := didManager.Find(id)
+	return did != nil, err
 }
 
 func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
-	return m.store.list()
+	didManager := sql.NewDIDManager(m.db)
+	stored, err := didManager.All()
+	if err != nil {
+		return nil, err
+	}
+	dids := make([]did.DID, len(stored))
+	for i, d := range stored {
+		parsed, err := did.ParseDID(d.ID)
+		if err != nil {
+			return nil, err
+		}
+		dids[i] = *parsed
+	}
+
+	return dids, nil
 }
 
 func (m Manager) CreateService(_ context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	tx := m.db.Begin()
+	defer tx.Rollback()
+
+	added, err := m.createService(tx, subjectDID, service)
+	if err != nil {
+		return nil, err
+	}
+
+	return added, tx.Commit().Error
+}
+
+func (m Manager) createService(tx *gorm.DB, subjectDID did.DID, service did.Service) (*did.Service, error) {
+	didDocumentManager := sql.NewDIDDocumentManager(tx)
+
+	current, err := didDocumentManager.Latest(subjectDID)
+	if err != nil {
+		return nil, err
+	}
+
 	if service.ID.String() == "" {
 		// Generate random service ID
 		serviceID := did.DIDURL{
@@ -216,10 +258,18 @@ func (m Manager) CreateService(_ context.Context, subjectDID did.DID, service di
 		}
 		service.ID = serviceID.URI()
 	}
-	err := m.store.createService(subjectDID, service)
+	asJson, err := json.Marshal(service)
 	if err != nil {
 		return nil, err
 	}
+	sqlService := sql.SqlService{
+		ID:            service.ID.String(),
+		DIDDocumentID: current.DidID,
+		Data:          asJson,
+	}
+
+	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, append(current.Services, sqlService))
+
 	return &service, nil
 }
 
@@ -228,32 +278,105 @@ func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID 
 		// ID not set in new version of the service, use the provided serviceID
 		service.ID = serviceID
 	}
-	err := m.store.updateService(subjectDID, serviceID, service)
+
+	tx := m.db.Begin()
+	defer tx.Rollback()
+	didDocumentManager := sql.NewDIDDocumentManager(tx)
+
+	current, err := didDocumentManager.Latest(subjectDID)
 	if err != nil {
 		return nil, err
 	}
-	return &service, nil
+
+	asJson, err := json.Marshal(service)
+	if err != nil {
+		return nil, err
+	}
+	sqlService := sql.SqlService{
+		ID:   service.ID.String(),
+		Data: asJson,
+	}
+	services := current.Services
+	j := 0
+	for i, s := range services {
+		if s.ID != serviceID.String() {
+			services[j] = services[i]
+			j++
+		} else {
+			break
+		}
+	}
+	services = services[:j]
+	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, append(services, sqlService))
+
+	return &service, tx.Commit().Error
 }
 
 func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	return m.store.deleteService(subjectDID, serviceID)
+	tx := m.db.Begin()
+	defer tx.Rollback()
+
+	err := m.deleteService(tx, subjectDID, serviceID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
-func buildDocument(subject did.DID, verificationMethods []did.VerificationMethod, services []did.Service) did.Document {
+func (m Manager) deleteService(tx *gorm.DB, subjectDID did.DID, serviceID ssi.URI) error {
+	didDocumentManager := sql.NewDIDDocumentManager(tx)
+
+	current, err := didDocumentManager.Latest(subjectDID)
+	if err != nil {
+		return err
+	}
+
+	services := current.Services
+	j := 0
+	for i, s := range services {
+		if s.ID != serviceID.String() {
+			services[j] = services[i]
+			j++
+		} else {
+			break
+		}
+	}
+	services = services[:j]
+	_, err = didDocumentManager.AddVersion(current.DID, current.VerificationMethods, services)
+
+	return err
+}
+
+func buildDocument(newDID did.DID, doc sql.DIDDocument) (did.Document, error) {
 	document := did.Document{
 		Context: []interface{}{
 			ssi.MustParseURI(jsonld.Jws2020Context),
 			did.DIDContextV1URI(),
 		},
-		ID:      subject,
-		Service: services,
+		ID: newDID,
 	}
-	for _, verificationMethod := range verificationMethods {
+	for _, sqlVM := range doc.VerificationMethods {
+		verificationMethod := did.VerificationMethod{}
+		err := json.Unmarshal(sqlVM.Data, &verificationMethod)
+		if err != nil {
+			return document, err
+		}
+
 		document.AddAssertionMethod(&verificationMethod)
 		document.AddAuthenticationMethod(&verificationMethod)
 		document.AddKeyAgreement(&verificationMethod)
 		document.AddCapabilityDelegation(&verificationMethod)
 		document.AddCapabilityInvocation(&verificationMethod)
 	}
-	return document
+	for _, sqlService := range doc.Services {
+		service := did.Service{}
+		err := json.Unmarshal(sqlService.Data, &service)
+		if err != nil {
+			return document, err
+		}
+		document.Service = append(document.Service, service)
+	}
+
+	return document, nil
 }

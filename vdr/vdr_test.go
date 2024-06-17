@@ -297,9 +297,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
 			didDocOrg, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
-				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)).
-				With(didnuts.Controllers(didDocVendor.ID)).
-				With(didnuts.SelfControl(false)),
+				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)),
 			)
 			require.NoError(t, err)
 
@@ -466,10 +464,10 @@ func TestVDR_Configure(t *testing.T) {
 			instance := NewVDR(crypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
-			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.Tenant("root")))
+			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.RootDID()))
 			require.NoError(t, err)
 
-			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com:iam:root"), nil)
+			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
 
 			assert.NoError(t, err)
 			assert.NotNil(t, doc)

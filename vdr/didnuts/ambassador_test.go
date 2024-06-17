@@ -384,41 +384,6 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		})
 	})
 
-	t.Run("update ok - where the document is not the controller", func(t *testing.T) {
-		ctx := newMockContext(t)
-
-		controllerDoc, signingKey, _ := newDidDoc()
-		didDocument, _, _ := newDidDocWithOptions(false, controllerDoc.ID)
-
-		didDocPayload, _ := json.Marshal(didDocument)
-		payloadHash := hash.SHA256Sum(didDocPayload)
-
-		tx := newTX()
-		tx.signingKeyID = controllerDoc.CapabilityInvocation[0].ID.String()
-		tx.payloadHash = payloadHash
-
-		expectedDocument := did.Document{}
-		_ = json.Unmarshal(didDocPayload, &expectedDocument)
-
-		// This is the metadata of the current version of the document which will be returned by the resolver
-		currentMetadata := &resolver.DocumentMetadata{
-			Created: createdAt,
-			Updated: nil,
-			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
-		}
-
-		var pKey crypto2.PublicKey
-		_ = signingKey.Raw(&pKey)
-
-		ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&expectedDocument, currentMetadata, nil)
-		ctx.didResolver.EXPECT().Resolve(controllerDoc.ID, gomock.Any()).Return(&controllerDoc, currentMetadata, nil)
-		ctx.keyResolver.EXPECT().ResolvePublicKey(controllerDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
-		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
-
-		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
-		assert.NoError(t, err)
-	})
-
 	t.Run("update ok - update with a new capabilityInvocation key", func(t *testing.T) {
 		ctx := newMockContext(t)
 
@@ -722,10 +687,10 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 	}
 }
 
-func newDidDocWithOptions(selfControl bool, controllers ...did.DID) (did.Document, jwk.Key, error) {
+func newDidDoc() (did.Document, jwk.Key, error) {
 	kc := &mockKeyCreator{}
 	docCreator := Creator{KeyStore: kc}
-	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags(), selfControl, controllers)
+	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags())
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)
 	didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
@@ -742,10 +707,6 @@ func newDidDocWithOptions(selfControl bool, controllers ...did.DID) (did.Documen
 		},
 	}
 	return *didDocument, signingKey, nil
-}
-
-func newDidDoc() (did.Document, jwk.Key, error) {
-	return newDidDocWithOptions(true)
 }
 
 type mockContext struct {

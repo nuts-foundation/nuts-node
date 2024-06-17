@@ -116,24 +116,11 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 // CreateDID creates a new DID Document and returns it.
 func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := didnuts.DefaultCreationOptions()
-	if request.Body.Controllers != nil {
-		var controllers []did.DID
-		for _, c := range *request.Body.Controllers {
-			id, err := did.ParseDID(c)
-			if err != nil {
-				return nil, core.InvalidInputError("controller entry (%s) could not be parsed: %w", c, err)
-			}
-			controllers = append(controllers, *id)
-		}
-		options = options.With(didnuts.Controllers(controllers...))
-	}
+
 	defaultKeyFlags := didnuts.DefaultKeyFlags()
 	keyFlags := request.Body.VerificationMethodRelationship.ToFlags(defaultKeyFlags)
 	if keyFlags != defaultKeyFlags {
 		options = options.With(keyFlags)
-	}
-	if request.Body.SelfControl != nil {
-		options = options.With(didnuts.SelfControl(*request.Body.SelfControl))
 	}
 
 	doc, _, err := a.VDR.Create(ctx, options)

@@ -265,15 +265,6 @@ components:
           deprecated: true
     DIDCreateRequest:
       properties:
-        controllers:
-          description: |
-            List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
-            the newly generated DID will be added to the list of controllers.
-          type: array
-          items:
-            type: string
-            description: DID according to Nuts specification
-            example: did:nuts:EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
         assertionMethod:
           type: boolean
           description: indicates if the generated key pair can be used for assertions.
@@ -296,10 +287,6 @@ components:
         keyAgreement:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.
-          default: true
-        selfControl:
-          type: boolean
-          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
     VerificationMethodRelationship:
       properties:

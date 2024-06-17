@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -45,10 +44,8 @@ var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg
 func TestDefaultCreationOptions(t *testing.T) {
 	ops := DefaultCreationOptions()
 
-	selfControl, controllers, keyFlags, err := parseOptions(ops)
+	keyFlags, err := parseOptions(ops)
 	assert.NoError(t, err)
-	assert.True(t, selfControl)
-	assert.Empty(t, controllers)
 	assert.True(t, keyFlags.Is(management.AssertionMethodUsage))
 	assert.False(t, keyFlags.Is(management.AuthenticationUsage))
 	assert.False(t, keyFlags.Is(management.CapabilityDelegationUsage))
@@ -118,51 +115,6 @@ func TestCreator_Create(t *testing.T) {
 			assert.Len(t, doc.KeyAgreement, 1)
 		})
 
-		t.Run("extra controller", func(t *testing.T) {
-			c, _ := did.ParseDID("did:nuts:controller")
-			ops := DefaultCreationOptions().With(Controllers(*c))
-			controllerDoc := CreateDocument()
-			controllerDoc.ID = *c
-
-			ctrl := gomock.NewController(t)
-			networkClient := network.NewMockTransactions(ctrl)
-			var txTemplate network.Template
-			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
-				txTemplate = tx
-				return hash.EmptyHash(), nil
-			})
-			didResolver := resolver.NewMockDIDResolver(ctrl)
-			refs := []hash.SHA256Hash{hash.EmptyHash()}
-			didResolver.EXPECT().Resolve(*c, gomock.Any()).Return(&controllerDoc, &resolver.DocumentMetadata{SourceTransactions: refs}, nil)
-			kc := &mockKeyCreator{}
-			creator := Creator{KeyStore: kc, NetworkClient: networkClient, DIDResolver: didResolver}
-
-			doc, _, err := creator.Create(nil, ops)
-
-			require.NoError(t, err)
-
-			assert.Len(t, doc.Controller, 2)
-			assert.Equal(t, refs, txTemplate.AdditionalPrevs)
-		})
-
-		t.Run("error - unknown controllers", func(t *testing.T) {
-			c, _ := did.ParseDID("did:nuts:controller")
-			ops := DefaultCreationOptions().With(Controllers(*c))
-			controllerDoc := CreateDocument()
-			controllerDoc.ID = *c
-
-			ctrl := gomock.NewController(t)
-			networkClient := network.NewMockTransactions(ctrl)
-			didResolver := resolver.NewMockDIDResolver(ctrl)
-			didResolver.EXPECT().Resolve(*c, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
-			kc := &mockKeyCreator{}
-			creator := Creator{KeyStore: kc, NetworkClient: networkClient, DIDResolver: didResolver}
-
-			_, _, err := creator.Create(nil, ops)
-
-			assert.EqualError(t, err, "could not create DID document: could not resolve a controller: unable to find the DID document")
-		})
-
 		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
 			// https://github.com/nuts-foundation/nuts-node/pull/1954
 			t.Skip("Disabled while ephemeral keys are not used")
@@ -200,37 +152,13 @@ func TestCreator_Create(t *testing.T) {
 		})
 	})
 
-	t.Run("error - invalid combination", func(t *testing.T) {
-		// CapabilityInvocation is not enabled, required when SelfControl = true
-		ops := management.Create("").With(SelfControl(true))
-		kc := &mockKeyCreator{}
-		creator := Creator{KeyStore: kc}
-		_, _, err := creator.Create(nil, ops)
-
-		assert.Equal(t, ErrInvalidOptions, err)
-	})
-
-	t.Run("error - failed to create key for selfcontrol", func(t *testing.T) {
+	t.Run("error - failed to create key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
 		creator := Creator{KeyStore: mockKeyStore}
 		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
 		_, _, err := creator.Create(nil, DefaultCreationOptions())
-
-		assert.EqualError(t, err, "b00m!")
-	})
-
-	t.Run("error - failed to create key for other verification method", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		creator := Creator{KeyStore: mockKeyStore}
-		ops := DefaultCreationOptions().
-			With(KeyFlag(management.AssertionMethodUsage)).
-			With(SelfControl(false))
-		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
-
-		_, _, err := creator.Create(nil, ops)
 
 		assert.EqualError(t, err, "b00m!")
 	})
