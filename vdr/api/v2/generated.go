@@ -29,15 +29,11 @@ const (
 	String FilterServicesParamsEndpointType = "string"
 )
 
-// CreateDIDOptions Options for the DID creation. If neither `did` nor `tenant` is given, a random UUID is used as tenant.
-// It's invalid to provide both `did` and `tenant` at the same time.
+// CreateDIDOptions Options for the DID creation.
 type CreateDIDOptions struct {
-<<<<<<< HEAD
 	// Root Can be used to create a root web:did.
 	//
 	// The DID created conforms to the node's configured URL (e.g., `did:web:example.com` for `https://example.com`).
-=======
->>>>>>> b2ffe3b6 (- removed selfControl & controllers for did:nuts)
 	Root *bool `json:"root,omitempty"`
 }
 
