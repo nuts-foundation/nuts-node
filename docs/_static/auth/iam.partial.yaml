@@ -350,7 +350,7 @@ paths:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
   #  /iam/{did}/.well-known/oauth-authorization-server:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
-  /.well-known/oauth-authorization-server/iam/{id}:
+  /.well-known/oauth-authorization-server/oauth2/{did}:
     get:
       tags:
         - well-known
@@ -365,10 +365,10 @@ paths:
         * 500 - internal server error
       operationId: OAuthAuthorizationServerMetadata
       parameters:
-        - name: id
+        - name: did
           in: path
           required: true
-          description: ID of did:web DID that serves the metadata
+          description: DID for which to get the OAuth2 Authorization Server metadata
           schema:
             type: string
             example: did:web:example.com

@@ -77,7 +77,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 	accessTokenRequest := redirectSession.AccessTokenRequest
 
-	verifier, err := did.ParseDID(accessTokenRequest.Body.Verifier)
+	verifier, err := did.ParseDID(accessTokenRequest.Body.VerifierDid)
 	if err != nil {
 		return err
 	}
@@ -131,11 +131,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := createOAuth2BaseURL(redirectSession.OwnDID)
-	if err != nil {
-		return fmt.Errorf("failed to create callback URL: %w", err)
-	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
+	callbackURL := createOAuth2BaseURL(r.auth.PublicURL(), redirectSession.OwnDID).JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod

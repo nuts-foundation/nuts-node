@@ -169,9 +169,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		TimeOut: time.Hour,
 		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
 		CookiePath: func(tenantDID did.DID) string {
-			baseURL, _ := createOAuth2BaseURL(tenantDID)
-			// error only happens on invalid did:web DID, which can't happen here
-			return baseURL.Path
+			return createOAuth2BaseURL(r.auth.PublicURL(), tenantDID).Path
 		},
 	}.Handle)
 }
@@ -581,8 +579,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	didAsString := r.requestedDID(request.Id).String()
-	md, err := r.oauthAuthorizationServerMetadata(ctx, didAsString)
+	md, err := r.oauthAuthorizationServerMetadata(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +599,7 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	return authorizationServerMetadata(*ownDID)
+	return authorizationServerMetadata(r.auth.PublicURL(), *ownDID)
 }
 
 func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
@@ -633,17 +630,11 @@ func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	ownedDID, err := r.toOwnedDID(ctx, request.Did)
+	_, err := r.toOwnedDID(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-
-	identityURL, err := createOAuth2BaseURL(*ownedDID)
-	if err != nil {
-		return nil, err
-	}
-
-	return OAuthClientMetadata200JSONResponse(clientMetadata(*identityURL)), nil
+	return OAuthClientMetadata200JSONResponse(clientMetadata()), nil
 }
 func (r Wrapper) PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error) {
 	if len(request.Params.Scope) == 0 {
@@ -718,17 +709,21 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
+	if request.Body.VerifierAuthserverUrl == "" {
+		return nil, core.InvalidInputError("missing verifier_authserver_url")
+	}
+
 	// resolve verifier metadata
-	requestVerifier, err := did.ParseDID(request.Body.Verifier)
+	requestVerifier, err := did.ParseDID(request.Body.VerifierDid)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid verifier: %w", err)
+		return nil, core.InvalidInputError("invalid verifier_did: %w", err)
 	}
 
 	useDPoP := true
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.VerifierAuthserverUrl, request.Body.Scope, useDPoP)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -780,11 +775,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	// generate a link to the redirect endpoint
-	webURL, err := createOAuth2BaseURL(*requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	webURL = webURL.JoinPath("user")
+	webURL := createOAuth2BaseURL(r.auth.PublicURL(), *requestHolder).JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
 	redirectURL := nutsHttp.AddQueryParams(*webURL, map[string]string{
 		"token": token,
@@ -809,10 +800,7 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 }
 
 func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	oauthIssuer, err := didweb.DIDToURL(issuerDid)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
-	}
+	oauthIssuer := createOAuth2BaseURL(r.auth.PublicURL(), issuerDid)
 	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return nil, nil, err
@@ -939,12 +927,8 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, oauthRequestObjectKey...)
 }
 
-// createOAuth2BaseURL creates an OAuth2 base URL for an owned did:web DID
-// It creates a URL in the following format: https://<did:web host>/oauth2/<did>
-func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
-	didURL, err := didweb.DIDToURL(webDID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
-	}
-	return didURL.Parse("/oauth2/" + webDID.String())
+// createOAuth2BaseURL creates an OAuth2 base URL for an owned DID.
+// It creates a URL in the following format: https://<configured host>/oauth2/<did>
+func createOAuth2BaseURL(baseURL *url.URL, id did.DID) *url.URL {
+	return baseURL.JoinPath("oauth2", id.String())
 }

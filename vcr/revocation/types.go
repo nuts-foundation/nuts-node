@@ -108,10 +108,11 @@ type StatusList2021 struct {
 	VerifySignature VerifySignFn // injected by verifier
 	Sign            SignFn       // injected by issuer, context must contain an audit log
 	ResolveKey      ResolveKeyFn // injected by issuer
+	baseURL         *url.URL
 }
 
 // NewStatusList2021 returns a StatusList2021 without a Sign or VerifySignature method.
-func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer) *StatusList2021 {
+func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer, baseURL *url.URL) *StatusList2021 {
 	return &StatusList2021{client: client, db: db}
 }
 

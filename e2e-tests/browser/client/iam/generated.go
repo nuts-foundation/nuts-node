@@ -132,7 +132,13 @@ type ServiceAccessTokenRequest struct {
 
 	// TokenType The type of access token that is prefered, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
-	Verifier  string                              `json:"verifier"`
+
+	// VerifierAuthserverUrl The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	VerifierAuthserverUrl string `json:"verifier_authserver_url"`
+
+	// VerifierDid The DID of the verifier, the party that issues the access token.
+	VerifierDid string `json:"verifier_did"`
 }
 
 // ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
@@ -160,8 +166,12 @@ type UserAccessTokenRequest struct {
 	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
 	TokenType *UserAccessTokenRequestTokenType `json:"token_type,omitempty"`
 
-	// Verifier The DID of the verifier, the relying party for which this access token is requested.
-	Verifier string `json:"verifier"`
+	// VerifierAuthserverUrl The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	VerifierAuthserverUrl string `json:"verifier_authserver_url"`
+
+	// VerifierDid The DID of the verifier, the party that issues the access token.
+	VerifierDid string `json:"verifier_did"`
 }
 
 // UserAccessTokenRequestTokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP

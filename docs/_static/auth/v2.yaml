@@ -382,12 +382,20 @@ components:
       type: object
       description: Request for an access token for a service.
       required:
-        - verifier
+        - verifier_did
+        - verifier_authserver_url
         - scope
       properties:
-        verifier:
+        verifier_did:
           type: string
+          description: The DID of the verifier, the party that issues the access token.
           example: did:web:example.com
+        verifier_authserver_url:
+          description: |
+            The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+            used to locate the OAuth2 Authorization Server metadata.
+          type: string
+          example: https://example.com/oauth2
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.
@@ -404,12 +412,19 @@ components:
       required:
         - redirect_uri
         - scope
-        - verifier
+        - verifier_did
+        - verifier_authserver_url
       properties:
-        verifier:
+        verifier_did:
           type: string
-          description: The DID of the verifier, the relying party for which this access token is requested.
+          description: The DID of the verifier, the party that issues the access token.
           example: did:web:example.com
+        verifier_authserver_url:
+          description: |
+            The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+            used to locate the OAuth2 Authorization Server metadata.
+          type: string
+          example: https://example.com/oauth2
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.
