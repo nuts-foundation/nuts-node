@@ -305,7 +305,10 @@ func (r *Module) Migrate() error {
 				}
 
 				if len(doc.CapabilityInvocation) == 0 {
-					doc.CapabilityInvocation.Add(doc.VerificationMethod[0])
+					// add all keys as capabilityInvocation keys
+					for _, vm := range doc.VerificationMethod {
+						doc.CapabilityInvocation.Add(vm)
+					}
 				}
 
 				err = r.Update(auditContext, did, *doc)
