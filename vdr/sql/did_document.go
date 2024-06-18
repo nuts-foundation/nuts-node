@@ -20,7 +20,7 @@ package sql
 
 import (
 	"errors"
-	"fmt"
+	"github.com/google/uuid"
 
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"
@@ -72,7 +72,7 @@ func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []Sq
 		return nil, err
 	}
 	version := latest.Version + 1
-	id := fmt.Sprintf("%s#%d", did.ID, version)
+	id := uuid.New().String()
 	// update DIDDocumentID for all VMs and services
 	for i := range verificationMethods {
 		verificationMethods[i].DIDDocumentID = id

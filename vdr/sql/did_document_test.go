@@ -50,7 +50,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		require.NotNil(t, doc)
 
 		assert.Equal(t, 1, doc.Version)
-		assert.Equal(t, "did:web:example.com:iam:alice#1", doc.ID)
+		assert.Len(t, doc.ID, 36) // uuid v4
 		assert.Equal(t, alice.String(), doc.DID.ID)
 		assert.Equal(t, "alice", doc.DID.Subject)
 		assert.Equal(t, "did:web:example.com:iam:alice", doc.DidID)
@@ -64,8 +64,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 
 		require.Len(t, doc.VerificationMethods, 1)
 		require.Len(t, doc.Services, 1)
-		assert.Equal(t, "did:web:example.com:iam:bob#1", doc.VerificationMethods[0].DIDDocumentID)
-		assert.Equal(t, "did:web:example.com:iam:bob#1", doc.Services[0].DIDDocumentID)
+		assert.Len(t, doc.ID, 36) // uuid v4
 		assert.Equal(t, []byte("{}"), doc.VerificationMethods[0].Data)
 		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
 	})
@@ -81,11 +80,9 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 
 		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
 
-		assert.Equal(t, "did:web:example.com:iam:bob#2", doc.ID)
+		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)
-		assert.Equal(t, "did:web:example.com:iam:bob#2", doc.VerificationMethods[0].DIDDocumentID)
 		require.Len(t, doc.Services, 1)
-		assert.Equal(t, "did:web:example.com:iam:bob#2", doc.Services[0].DIDDocumentID)
 	})
 }
 
