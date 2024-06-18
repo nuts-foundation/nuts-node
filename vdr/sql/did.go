@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package sql
 
 import (
 	"errors"
+
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -40,14 +41,21 @@ var _ schema.Tabler = (*DID)(nil)
 
 // DIDManager is the interface to change data for the did table
 type DIDManager interface {
+	// Add adds a new DID to the database, this is also done via DIDDocumentManager.CreateOrUpdate
 	Add(subject string, did did.DID) (*DID, error)
+	// All returns all DIDs in the database
 	All() ([]DID, error)
+	// Delete removes a DID from the database
 	Delete(did did.DID) error
+	// DeleteAll removes all DIDs for a subject from the database
 	DeleteAll(subject string) error
+	// Find returns a DID by its ID
 	Find(id did.DID) (*DID, error)
+	// FindBySubject returns all DIDs for a subject
 	FindBySubject(subject string) ([]DID, error)
 }
 
+// SqlDIDManager is the implementation of the DIDManager interface
 type SqlDIDManager struct {
 	tx *gorm.DB
 }
