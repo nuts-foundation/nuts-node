@@ -53,6 +53,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		assert.Equal(t, "did:web:example.com:iam:alice#1", doc.ID)
 		assert.Equal(t, alice.String(), doc.DID.ID)
 		assert.Equal(t, "alice", doc.DID.Subject)
+		assert.Equal(t, "did:web:example.com:iam:alice", doc.DidID)
 	})
 	t.Run("with method and services", func(t *testing.T) {
 		tx := transaction(t, db)
@@ -61,8 +62,12 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
 		require.NoError(t, err)
 
-		assert.Len(t, doc.VerificationMethods, 1)
-		assert.Len(t, doc.Services, 1)
+		require.Len(t, doc.VerificationMethods, 1)
+		require.Len(t, doc.Services, 1)
+		assert.Equal(t, "did:web:example.com:iam:bob#1", doc.VerificationMethods[0].DIDDocumentID)
+		assert.Equal(t, "did:web:example.com:iam:bob#1", doc.Services[0].DIDDocumentID)
+		assert.Equal(t, []byte("{}"), doc.VerificationMethods[0].Data)
+		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
 	})
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
