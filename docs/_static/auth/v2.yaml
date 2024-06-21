@@ -392,12 +392,11 @@ components:
           type: string
           description: The scope that will be the service for which this access token can be used.
           example: eOverdracht-sender
-        tokenType:
+        token_type:
           type: string
-          description: "The type of access token that is prefered, default: DPoP"
-          enum:
-            - Bearer
-            - DPoP
+          description: "The type of access token that is preferred, default: DPoP"
+          default: DPoP
+          enum: [ Bearer, DPoP ]
     UserAccessTokenRequest:
       type: object
       description: Request for an access token for a user.
