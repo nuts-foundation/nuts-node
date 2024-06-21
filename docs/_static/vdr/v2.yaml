@@ -371,6 +371,7 @@ components:
         properties:
           root:
             type: boolean
+            default: false            
             description: |
               Can be used to create a root web:did.
               
