@@ -132,12 +132,12 @@ type ServiceAccessTokenRequest struct {
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
-	// TokenType The type of access token that is prefered, default: DPoP
-	TokenType *ServiceAccessTokenRequestTokenType `json:"tokenType,omitempty"`
+	// TokenType The type of access token that is preferred, default: DPoP
+	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
 	Verifier  string                              `json:"verifier"`
 }
 
-// ServiceAccessTokenRequestTokenType The type of access token that is prefered, default: DPoP
+// ServiceAccessTokenRequestTokenType The type of access token that is preferred, default: DPoP
 type ServiceAccessTokenRequestTokenType string
 
 // TokenIntrospectionRequest Token introspection request as described in RFC7662 section 2.1
