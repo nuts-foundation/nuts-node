@@ -367,8 +367,7 @@ components:
     CreateDIDOptions:
         type: object
         description: |
-          Options for the DID creation. If neither `did` nor `tenant` is given, a random UUID is used as tenant.
-          It's invalid to provide both `did` and `tenant` at the same time.
+          Options for the DID creation.
         properties:
           root:
             type: boolean
