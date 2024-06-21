@@ -16,7 +16,7 @@ Breaking changes
 - Container user has changed from root to ``18081``. (see :ref:`running-docker`)
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 - Docker image tags have been changed: previously version tags had were prefixed with ``v`` (e.g., ``v5.0.0``), this prefix has been dropped to better adhere to industry standards.
-- The VDR v1 ``createDID`` (POST /internal/vdr/v1/did) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
+- The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
 
 ============
 New Features
