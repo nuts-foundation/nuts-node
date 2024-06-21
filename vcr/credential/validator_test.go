@@ -384,13 +384,13 @@ func TestDefaultCredentialValidator(t *testing.T) {
 		assert.EqualError(t, err, "validation failed: 'ID' is required")
 	})
 
-	t.Run("failed - missing proof", func(t *testing.T) {
+	t.Run("failed - missing issuer", func(t *testing.T) {
 		v := test.ValidNutsOrganizationCredential(t)
-		v.Proof = nil
+		v.Issuer = ssi.MustParseURI("")
 
 		err := validator.Validate(v)
 
-		assert.EqualError(t, err, "validation failed: 'proof' is required for JSON-LD credentials")
+		assert.EqualError(t, err, "validation failed: 'issuer' is required")
 	})
 
 	t.Run("failed - missing default context", func(t *testing.T) {

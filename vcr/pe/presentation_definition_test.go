@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
+	"strings"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -509,6 +510,16 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 
 			assert.False(t, match)
 		})
+		t.Run("no proof in credential (self-attested)", func(t *testing.T) {
+			jwtCredNoProof := strings.Split(jwtCredential, ".")
+			credNoProof, err := vc.ParseVerifiableCredential(jwtCredNoProof[0] + "." + jwtCredNoProof[1] + ".")
+			require.NoError(t, err)
+			match := matchFormat(&PresentationDefinitionClaimFormatDesignations{
+				"jwt_vc": {"alg": {"ES521"}},
+			}, *credNoProof)
+
+			assert.True(t, match)
+		})
 		t.Run("missing proof_type", func(t *testing.T) {
 			asMap := map[string]map[string][]string{"jwt_vc": {}}
 			asFormat := PresentationDefinitionClaimFormatDesignations(asMap)
@@ -535,6 +546,14 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 			match := matchFormat(&asFormat, verifiableCredential)
 
 			assert.False(t, match)
+		})
+
+		t.Run("no proof in credential (self-attested)", func(t *testing.T) {
+			match := matchFormat(&PresentationDefinitionClaimFormatDesignations{
+				"ldp_vc": {"proof_type": {"JsonWebSignature2020"}},
+			}, credentialToJSONLD(vc.VerifiableCredential{}))
+
+			assert.True(t, match)
 		})
 
 		t.Run("missing proof_type", func(t *testing.T) {

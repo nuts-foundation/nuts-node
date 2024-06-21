@@ -53,16 +53,16 @@ func (d defaultCredentialValidator) Validate(credential vc.VerifiableCredential)
 		return fmt.Errorf("%w: default context is required", errValidation)
 	}
 
+	if credential.Issuer.String() == "" {
+		return fmt.Errorf("%w: 'issuer' is required", errValidation)
+	}
+
 	if credential.ID == nil {
 		return fmt.Errorf("%w: 'ID' is required", errValidation)
 	}
 
 	if credential.IssuanceDate.IsZero() {
 		return fmt.Errorf("%w: 'issuanceDate' is required", errValidation)
-	}
-
-	if credential.Format() == vc.JSONLDCredentialProofFormat && credential.Proof == nil {
-		return fmt.Errorf("%w: 'proof' is required for JSON-LD credentials", errValidation)
 	}
 
 	// CredentialStatus is not specific to the credential type and the syntax (not status) should be checked here.

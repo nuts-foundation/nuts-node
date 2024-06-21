@@ -298,6 +298,10 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 	switch credential.Format() {
 	case vc.JSONLDCredentialProofFormat:
 		if entry := asMap[vc.JSONLDCredentialProofFormat]; entry != nil {
+			if len(credential.Proof) == 0 {
+				// Verifiable Credential can be without proof, in case of self-attestation.
+				return true
+			}
 			if proofTypes := entry["proof_type"]; proofTypes != nil {
 				for _, proofType := range proofTypes {
 					if matchProofType(proofType, credential) {
@@ -312,6 +316,10 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get(jws.AlgorithmKey)
 		// Check that the signing algorithm is specified by the presentation definition
 		if entry := asMap[vc.JWTCredentialProofFormat]; entry != nil {
+			if len(credential.Proof) == 0 {
+				// Verifiable Credential can be without proof, in case of self-attestation.
+				return true
+			}
 			if supportedAlgorithms := entry[jws.AlgorithmKey]; supportedAlgorithms != nil {
 				for _, supportedAlgorithm := range supportedAlgorithms {
 					if signingAlgorithm == jwa.SignatureAlgorithm(supportedAlgorithm) {

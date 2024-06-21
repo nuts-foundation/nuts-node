@@ -57,12 +57,23 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	pke.JWK().Raw(pk)
 
 	t.Run("JSON-LD", func(t *testing.T) {
-		sv, mockKeyResolver := signatureVerifierTestSetup(t)
-		mockKeyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), resolver.NutsSigningKeyType).Return(pk, nil)
+		t.Run("ok", func(t *testing.T) {
+			sv, mockKeyResolver := signatureVerifierTestSetup(t)
+			mockKeyResolver.EXPECT().ResolveKeyByID(testKID, gomock.Any(), resolver.NutsSigningKeyType).Return(pk, nil)
 
-		err := sv.VerifySignature(testCredential(t), nil)
+			err := sv.VerifySignature(testCredential(t), nil)
 
-		assert.NoError(t, err)
+			assert.NoError(t, err)
+		})
+		t.Run("no proof", func(t *testing.T) {
+			sv, _ := signatureVerifierTestSetup(t)
+			credential := testCredential(t)
+			credential.Proof = nil
+
+			err := sv.VerifySignature(credential, nil)
+
+			assert.Error(t, err)
+		})
 	})
 	t.Run("JWT", func(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
@@ -140,6 +151,20 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			err := sv.VerifySignature(*cred, &validAt)
 
 			assert.NoError(t, err)
+		})
+		t.Run("no signature", func(t *testing.T) {
+			// Credential taken from Sphereon Wallet
+			const credentialJSON = `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTYzMDE3MDgsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiZmlyc3ROYW1lIjoiSGVsbG8iLCJsYXN0TmFtZSI6IlNwaGVyZW9uIiwiZW1haWwiOiJzcGhlcmVvbkBleGFtcGxlLmNvbSIsInR5cGUiOiJTcGhlcmVvbiBHdWVzdCIsImlkIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEifX0sIkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiZXhwaXJhdGlvbkRhdGUiOiIyMDIzLTEwLTAzVDAyOjU1OjA4LjEzM1oiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJmaXJzdE5hbWUiOiJIZWxsbyIsImxhc3ROYW1lIjoiU3BoZXJlb24iLCJlbWFpbCI6InNwaGVyZW9uQGV4YW1wbGUuY29tIiwidHlwZSI6IlNwaGVyZW9uIEd1ZXN0IiwiaWQiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOa3NpTENKMWMyVWlPaUp6YVdjaUxDSnJkSGtpT2lKRlF5SXNJbU55ZGlJNkluTmxZM0F5TlRack1TSXNJbmdpT2lKak1WZFljemRYTTIxNWMyVlZaazVDY1hONFpGQlhRa2xIYUV0a05GUjZNRXhTTFVacU9FWk5XV0V3SWl3aWVTSTZJbGR0YTBOWWRURjNlWHBhWjBkT04xVjRUbUZ3Y0hGdVQxRmhUMnRYTWtOblQxTnVUMjk1VFVsVWRXTWlmUSJ9LCJpc3N1ZXIiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOaUlzSW5WelpTSTZJbk5wWnlJc0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lWRWN5U0RKNE1tUlhXRTR6ZFVOeFduQnhSakY1YzBGUVVWWkVTa1ZPWDBndFEwMTBZbWRxWWkxT1p5SXNJbmtpT2lJNVRUaE9lR1F3VUU0eU1rMDViRkJFZUdSd1JIQnZWRXg2TVRWM1pubGFTbk0yV21oTFNWVktNek00SW4wIiwiaXNzdWFuY2VEYXRlIjoiMjAyMy0wOS0yOVQxMjozMTowOC4xMzNaIiwic3ViIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEiLCJuYmYiOjE2OTU5OTA2NjgsImlzcyI6ImRpZDpqd2s6ZXlKaGJHY2lPaUpGVXpJMU5pSXNJblZ6WlNJNkluTnBaeUlzSW10MGVTSTZJa1ZESWl3aVkzSjJJam9pVUMweU5UWWlMQ0o0SWpvaVZFY3lTREo0TW1SWFdFNHpkVU54V25CeFJqRjVjMEZRVVZaRVNrVk9YMGd0UTAxMFltZHFZaTFPWnlJc0lua2lPaUk1VFRoT2VHUXdVRTR5TWswNWJGQkVlR1J3UkhCdlZFeDZNVFYzWm5sYVNuTTJXbWhMU1ZWS016TTRJbjAifQ.`
+			cred, _ := vc.ParseVerifiableCredential(credentialJSON)
+
+			sv := signatureVerifier{
+				keyResolver: resolver.DIDKeyResolver{
+					Resolver: didjwk.NewResolver(),
+				},
+			}
+			err := sv.VerifySignature(*cred, nil)
+
+			assert.EqualError(t, err, "unable to validate JWT signature: could not verify message using any of the signatures or keys")
 		})
 	})
 

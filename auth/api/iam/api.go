@@ -718,6 +718,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
+	var credentials []VerifiableCredential
+	if request.Body.Credentials != nil {
+		credentials = *request.Body.Credentials
+	}
+
 	// resolve verifier metadata
 	requestVerifier, err := did.ParseDID(request.Body.Verifier)
 	if err != nil {
@@ -728,7 +733,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
