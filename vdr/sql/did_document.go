@@ -27,7 +27,7 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-// DIDDocument is the gorm representation of the DID table
+// DIDDocument is the gorm representation of the did_document_version table
 type DIDDocument struct {
 	ID                  string `gorm:"primaryKey"`
 	DidID               string `gorm:"column:did"`
@@ -38,7 +38,7 @@ type DIDDocument struct {
 }
 
 func (d DIDDocument) TableName() string {
-	return "did_document"
+	return "did_document_version"
 }
 
 var _ DIDDocumentManager = (*SqlDIDDocumentManager)(nil)

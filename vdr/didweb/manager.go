@@ -51,8 +51,7 @@ var _ management.DocumentManager = (*Manager)(nil)
 // NewManager creates a new Manager to create and update did:web DID documents.
 func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
 	return &Manager{
-		db: db,
-		//store:      &sqlStore{db: db},
+		db:         db,
 		rootDID:    rootDID,
 		tenantPath: tenantPath,
 		keyStore:   keyStore,
@@ -79,9 +78,6 @@ func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
 			return resolver.ErrNotFound
 		}
 		return err
-	}
-	if sqlDocument == nil {
-		return nil
 	}
 	err = didStore.Delete(subjectDID)
 	if err != nil {
@@ -129,46 +125,47 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse new DID: %w", err)
 	}
-	tx := m.db.Begin()
-	defer tx.Rollback()
+	var document did.Document
+	var verificationMethodKey crypto.Key
+	err = m.db.Transaction(func(tx *gorm.DB) error {
+		var verificationMethod *did.VerificationMethod
+		documentStore := sql.NewDIDDocumentManager(tx)
 
-	documentStore := sql.NewDIDDocumentManager(tx)
+		_, err = documentStore.Latest(*newDID)
+		if err == nil {
+			return management.ErrDIDAlreadyExists
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 
-	_, err = documentStore.Latest(*newDID)
-	if err == nil {
-		return nil, nil, management.ErrDIDAlreadyExists
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil, err
-	}
+		verificationMethodKey, verificationMethod, err = m.createVerificationMethod(ctx, *newDID)
+		if err != nil {
+			return err
+		}
+		vmAsJson, err := json.Marshal(verificationMethod)
+		if err != nil {
+			return err
+		}
 
-	verificationMethodKey, verificationMethod, err := m.createVerificationMethod(ctx, *newDID)
-	if err != nil {
-		return nil, nil, err
-	}
-	vmAsJson, err := json.Marshal(verificationMethod)
-	if err != nil {
-		return nil, nil, err
-	}
+		sqlDid := sql.DID{
+			ID:      newDID.String(),
+			Subject: newDID.String(), // todo pass through options
+		}
+		var doc *sql.DIDDocument
+		if doc, err = documentStore.CreateOrUpdate(sqlDid, []sql.SqlVerificationMethod{{
+			ID:            verificationMethod.ID.String(),
+			DIDDocumentID: sqlDid.ID,
+			Data:          vmAsJson,
+		}}, nil); err != nil {
+			return fmt.Errorf("store new DID document: %w", err)
+		}
 
-	sqlDid := sql.DID{
-		ID:      newDID.String(),
-		Subject: newDID.String(),
-	}
-	var doc *sql.DIDDocument
-	if doc, err = documentStore.CreateOrUpdate(sqlDid, []sql.SqlVerificationMethod{{
-		ID:            verificationMethod.ID.String(),
-		DIDDocumentID: sqlDid.ID,
-		Data:          vmAsJson,
-	}}, nil); err != nil {
-		return nil, nil, fmt.Errorf("store new DID document: %w", err)
-	}
+		document, err = buildDocument(*newDID, *doc)
+		return err
+	})
 
-	document, err := buildDocument(*newDID, *doc)
-	if err != nil {
-		return nil, nil, err
-	}
-	return &document, verificationMethodKey, tx.Commit().Error
+	return &document, verificationMethodKey, err
 }
 
 func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (crypto.Key, *did.VerificationMethod, error) {
@@ -230,15 +227,14 @@ func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
 }
 
 func (m Manager) CreateService(_ context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
-	tx := m.db.Begin()
-	defer tx.Rollback()
+	var err error
+	var added *did.Service
+	err = m.db.Transaction(func(tx *gorm.DB) error {
+		added, err = m.createService(tx, subjectDID, service)
+		return err
+	})
 
-	added, err := m.createService(tx, subjectDID, service)
-	if err != nil {
-		return nil, err
-	}
-
-	return added, tx.Commit().Error
+	return added, err
 }
 
 func (m Manager) createService(tx *gorm.DB, subjectDID did.DID, service did.Service) (*did.Service, error) {
@@ -277,35 +273,27 @@ func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID 
 		// ID not set in new version of the service, use the provided serviceID
 		service.ID = serviceID
 	}
-
-	tx := m.db.Begin()
-	defer tx.Rollback()
-
-	// first delete
-	err := m.deleteService(tx, subjectDID, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	// then add
-	added, err := m.createService(tx, subjectDID, service)
-	if err != nil {
-		return nil, err
-	}
+	var added *did.Service
+	var err error
+	err = m.db.Transaction(func(tx *gorm.DB) error {
+		// first delete
+		err := m.deleteService(tx, subjectDID, serviceID)
+		if err != nil {
+			return err
+		}
+		// then add
+		added, err = m.createService(tx, subjectDID, service)
+		return err
+	})
 
 	//commit and return
-	return added, tx.Commit().Error
+	return added, err
 }
 
 func (m Manager) DeleteService(_ context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	tx := m.db.Begin()
-	defer tx.Rollback()
-
-	err := m.deleteService(tx, subjectDID, serviceID)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit().Error
+	return m.db.Transaction(func(tx *gorm.DB) error {
+		return m.deleteService(tx, subjectDID, serviceID)
+	})
 }
 
 func (m Manager) deleteService(tx *gorm.DB, subjectDID did.DID, serviceID ssi.URI) error {

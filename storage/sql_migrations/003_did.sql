@@ -11,7 +11,7 @@ create table did
 
 create index did_subject_idx on did (subject);
 
-create table did_document
+create table did_document_version
 (
     -- id is v4 uuid
     id varchar(36) not null primary key,
@@ -31,7 +31,7 @@ create table did_verificationmethod
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null,
-    foreign key (did_document_id) references did_document (id) on delete cascade
+    foreign key (did_document_id) references did_document_version (id) on delete cascade
 );
 
 -- this table is used to store the services for locally managed DIDs
@@ -44,10 +44,11 @@ create table did_service
     -- data is a JSON object containing the service data, e.g. the serviceEndpoint.
     -- When producing the service, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null,
-    foreign key (did_document_id) references did_document (id) on delete cascade
+    foreign key (did_document_id) references did_document_version (id) on delete cascade
 );
 
 -- +goose Down
-drop table did;
 drop table did_verificationmethod;
 drop table did_service;
+drop table did_document_version;
+drop table did;
