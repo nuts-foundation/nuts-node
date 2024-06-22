@@ -316,7 +316,7 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get(jws.AlgorithmKey)
 		// Check that the signing algorithm is specified by the presentation definition
 		if entry := asMap[vc.JWTCredentialProofFormat]; entry != nil {
-			if len(credential.Proof) == 0 {
+			if len(message.Signatures()[0].Signature()) == 0 {
 				// Verifiable Credential can be without proof, in case of self-attestation.
 				return true
 			}
