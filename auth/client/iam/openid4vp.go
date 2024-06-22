@@ -246,27 +246,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		// This feature is used for presenting self-attested credentials which aren't signed (they're only protected by the VP's signature).
 		// To make the API easier to use, we can set a few required fields if it's a self-attested credential.
 		for i, credential := range credentials {
-			if len(credential.Proof) > 0 {
-				continue
-			}
-			if credential.ID == nil {
-				credential.ID, _ = ssi.ParseURI(uuid.NewString())
-			}
-			if credential.Issuer.String() == "" {
-				credential.Issuer = requester.URI()
-			}
-			if credential.IssuanceDate.IsZero() {
-				credential.IssuanceDate = time.Now()
-			}
-			var credentialSubject []map[string]interface{}
-			_ = credential.UnmarshalCredentialSubject(&credentialSubject)
-			if len(credentialSubject) == 1 {
-				if _, ok := credentialSubject[0]["id"]; !ok {
-					credentialSubject[0]["id"] = requester.String()
-					credential.CredentialSubject[0] = credentialSubject[0]
-				}
-			}
-			credentials[i] = credential
+			credentials[i] = autoCorrectSelfAttestedCredential(credential, requester)
 		}
 		// We have additional credentials to present, aside from those in the persistent wallet.
 		// Create a temporary in-memory wallet with the requester's persisted VCs and the
@@ -358,4 +338,31 @@ func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request h
 
 	token := dpop.New(request)
 	return c.jwtSigner.SignDPoP(ctx, *token, keyID.String())
+}
+
+// autoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
+// These are provided through the API, and for convenience we set the required fields, if not already set.
+// It only does this for unsigned credentials.
+func autoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
+	if len(credential.Proof) > 0 {
+		return credential
+	}
+	if credential.ID == nil {
+		credential.ID, _ = ssi.ParseURI(uuid.NewString())
+	}
+	if credential.Issuer.String() == "" {
+		credential.Issuer = requester.URI()
+	}
+	if credential.IssuanceDate.IsZero() {
+		credential.IssuanceDate = time.Now()
+	}
+	var credentialSubject []map[string]interface{}
+	_ = credential.UnmarshalCredentialSubject(&credentialSubject)
+	if len(credentialSubject) == 1 {
+		if _, ok := credentialSubject[0]["id"]; !ok {
+			credentialSubject[0]["id"] = requester.String()
+			credential.CredentialSubject[0] = credentialSubject[0]
+		}
+	}
+	return credential
 }
