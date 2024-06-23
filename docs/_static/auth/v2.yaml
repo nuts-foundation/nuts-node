@@ -382,12 +382,15 @@ components:
       type: object
       description: Request for an access token for a service.
       required:
-        - verifier
+        - auth_server_url
         - scope
       properties:
-        verifier:
+        auth_server_url:
           type: string
-          example: did:web:example.com
+          description: |
+            OAuth2 Authorization Server issuer as specified by RFC 8414. It is the base URL which will be used to
+            discover the OAuth2 Authorization Server metadata.
+          example: https://example.com/oauth2/issuer
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.
