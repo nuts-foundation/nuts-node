@@ -44,7 +44,9 @@ type OAuthSession struct {
 	Scope             string          `json:"scope,omitempty"`
 	SessionID         string          `json:"session_id,omitempty"`
 	TokenEndpoint     string          `json:"token_endpoint,omitempty"`
-	UseDPoP           bool            `json:"use_dpop,omitempty"`
+	// IssuerURL is the URL that identifies the OAuth2 Authorization Server according to RFC 8414 (Authorization Server Metadata).
+	IssuerURL string `json:"issuer_url,omitempty"`
+	UseDPoP   bool   `json:"use_dpop,omitempty"`
 	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
 }

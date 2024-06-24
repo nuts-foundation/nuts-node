@@ -535,9 +535,9 @@ type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx echo.Context) error
-	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
-	// (GET /.well-known/oauth-authorization-server/iam/{id})
-	OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error
+	// Get the OAuth2 Authorization Server metadata for the specified DID.
+	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	OAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx echo.Context, id string) error
@@ -627,18 +627,18 @@ func (w *ServerInterfaceWrapper) RootOAuthAuthorizationServerMetadata(ctx echo.C
 // OAuthAuthorizationServerMetadata converts echo context to params.
 func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
+	// ------------- Path parameter "did" -------------
+	var did string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
 	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, id)
+	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, did)
 	return err
 }
 
@@ -1015,7 +1015,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server", wrapper.RootOAuthAuthorizationServerMetadata)
-	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:id", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:did", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
@@ -1099,7 +1099,7 @@ func (response RootOAuthAuthorizationServerMetadatadefaultApplicationProblemPlus
 }
 
 type OAuthAuthorizationServerMetadataRequestObject struct {
-	Id string `json:"id"`
+	Did string `json:"did"`
 }
 
 type OAuthAuthorizationServerMetadataResponseObject interface {
@@ -1787,8 +1787,8 @@ type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error)
-	// Get the OAuth2 Authorization Server metadata for a did:web with a :iam:<id> path.
-	// (GET /.well-known/oauth-authorization-server/iam/{id})
+	// Get the OAuth2 Authorization Server metadata for the specified DID.
+	// (GET /.well-known/oauth-authorization-server/iam/{did})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
@@ -1908,10 +1908,10 @@ func (sh *strictHandler) RootOAuthAuthorizationServerMetadata(ctx echo.Context) 
 }
 
 // OAuthAuthorizationServerMetadata operation middleware
-func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, id string) error {
+func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, did string) error {
 	var request OAuthAuthorizationServerMetadataRequestObject
 
-	request.Id = id
+	request.Did = did
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.OAuthAuthorizationServerMetadata(ctx.Request().Context(), request.(OAuthAuthorizationServerMetadataRequestObject))

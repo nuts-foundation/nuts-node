@@ -132,12 +132,8 @@ func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint s
 
 func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
 	iamClient := c.httpClient
-	parsedURL, err := core.ParsePublicURL(oauthIssuer, c.strictMode)
-	if err != nil {
-		return nil, fmt.Errorf("invalid oauth issuer url: %w", err)
-	}
 	// the wallet/client acts as authorization server
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, parsedURL.String())
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, oauthIssuer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
@@ -217,9 +213,9 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	if err != nil {
 		return nil, err
 	}
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, oauthIssuer.String())
+	metadata, err := c.AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
+		return nil, err
 	}
 
 	// get the presentation definition from the verifier
@@ -298,12 +294,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 
 func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
 	iamClient := c.httpClient
-	parsedURL, err := core.ParsePublicURL(oauthIssuerURI, c.strictMode)
-	if err != nil {
-		return nil, fmt.Errorf("invalid oauth issuer url: %w", err)
-	}
-
-	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, parsedURL.String())
+	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, oauthIssuerURI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
 	}

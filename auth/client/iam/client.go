@@ -44,6 +44,13 @@ type HTTPClient struct {
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given oauth issuer.
 // oauthIssuer is the oauth.AuthorizationServerMetadata.Issuer from which the metadata endpoint is derived.
 func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
+	// Wacky: Nuts currently has a convention for how to derive the metadata URL from the did:web DID.
+	// This is to be changed very soon, with explicit registration of the OAuth2 issuer URL as service in the DID document.
+	// (https://github.com/nuts-foundation/nuts-node/issues/3197)
+	// Translate did:web to OAuth2 issuer URL:
+	//  - did:web:example.com becomes https://example.com/.well-known/oauth-authorization-server
+	//  - did:web:example.com:iam:123 becomes https://example.com/.well-known/oauth-authorization-server/did:web:example.com:iam:123
+
 	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err

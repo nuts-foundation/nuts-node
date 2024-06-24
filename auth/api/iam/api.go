@@ -77,7 +77,7 @@ var cacheControlMaxAgeURLs = []string{
 	"/.well-known/did.json",
 	"/iam/:id/did.json",
 	"/oauth2/:did/presentation_definition",
-	"/.well-known/oauth-authorization-server/iam/:id",
+	"/.well-known/oauth-authorization-server/iam/:did",
 	"/.well-known/oauth-authorization-server",
 	"/oauth2/:did/oauth-client",
 	"/statuslist/:did/:page",
@@ -581,8 +581,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	didAsString := r.requestedDID(request.Id).String()
-	md, err := r.oauthAuthorizationServerMetadata(ctx, didAsString)
+	md, err := r.oauthAuthorizationServerMetadata(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -814,7 +813,7 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 }
 
 func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	oauthIssuer, err := didweb.DIDToURL(issuerDid)
+	oauthIssuer, err := nutsOAuth2Issuer(issuerDid)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -845,6 +844,15 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 	return credentialIssuerMetadata, ASMetadata, nil
 }
 
+func nutsOAuth2Issuer(subject did.DID) (*url.URL, error) {
+	result, err := didweb.DIDToURL(subject)
+	if err != nil {
+		return nil, err
+	}
+	result.Path = "/iam/" + url.PathEscape(subject.String())
+	return result, nil
+}
+
 // createAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.
 // It can create both regular OAuth2 requests and OpenID4VP requests due to the requestObjectModifier.
 // This modifier is used by JAR.Create to generate a (JAR) request object that is added as 'request_uri' parameter.
@@ -852,9 +860,7 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
 	metadata := new(oauth.AuthorizationServerMetadata)
 	if server != nil {
-		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-		// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-		oauthIssuer, err := didweb.DIDToURL(*server)
+		oauthIssuer, err := nutsOAuth2Issuer(*server)
 		if err != nil {
 			return nil, err
 		}

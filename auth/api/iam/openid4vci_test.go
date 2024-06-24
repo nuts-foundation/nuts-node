@@ -226,6 +226,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		RedirectURI:              redirectUrl,
 		PKCEParams:               pkceParams,
 		TokenEndpoint:            tokenEndpoint,
+		IssuerURL:                issuerURL,
 		IssuerCredentialEndpoint: credEndpoint,
 	}
 	tokenResponse := oauth.NewTokenResponse(accessToken, "Bearer", 0, "").With("c_nonce", cNonce)

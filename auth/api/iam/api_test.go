@@ -66,7 +66,7 @@ import (
 var rootWebDID = did.MustParseDID("did:web:example.com")
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
-var verifierURL = "https://example.com/iam/verifier"
+var verifierURL = "https://example.com/iam/" + verifierDID.String()
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -85,7 +85,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
 		assert.Equal(t, 400, statusCodeFrom(err))
 		assert.EqualError(t, err, "DID document not managed by this node")
@@ -96,7 +96,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, webDID).Return(false, errors.New("unknown error"))
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Id: "123"})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
 
 		assert.Equal(t, 500, statusCodeFrom(err))
 		assert.EqualError(t, err, "DID resolution failed: unknown error")
@@ -1273,7 +1273,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	clientDID := did.MustParseDID("did:web:client.test:iam:123")
 	serverDID := did.MustParseDID("did:web:server.test:iam:123")
-	var serverURL = "https://server.test/iam/123"
+	var issuerURL = "https://server.test/iam/" + serverDID.String()
 	modifier := func(values map[string]string) {
 		values["custom"] = "value"
 	}
@@ -1285,7 +1285,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 		expectedRedirect := "https://server.test/authorize?client_id=did%3Aweb%3Aclient.test%3Aiam%3A123&request_uri=https://client.test/oauth2/&request_uri_method=custom"
 		var expectedJarReq jarRequest
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&serverMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerURL).Return(&serverMetadata, nil)
 		ctx.jar.EXPECT().Create(clientDID, &serverDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
 			expectedJarReq = createJarRequest(client, server, modifier)
 			expectedJarReq.RequestURIMethod = "custom"
@@ -1325,7 +1325,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - missing authorization endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&oauth.AuthorizationServerMetadata{}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerURL).Return(&oauth.AuthorizationServerMetadata{}, nil)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
@@ -1334,7 +1334,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerURL).Return(nil, assert.AnError)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
@@ -1342,7 +1342,7 @@ func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	})
 	t.Run("error - failed to get metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), serverURL).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerURL).Return(&oauth.AuthorizationServerMetadata{AuthorizationEndpoint: ":"}, nil)
 
 		_, err := ctx.client.createAuthorizationRequest(context.Background(), clientDID, &serverDID, modifier)
 
