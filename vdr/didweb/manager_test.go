@@ -73,7 +73,7 @@ func TestManager_Create(t *testing.T) {
 		assert.Len(t, document.Authentication, 1)
 		assert.Len(t, document.CapabilityInvocation, 1)
 		assert.Len(t, document.AssertionMethod, 1)
-		assert.Len(t, document.KeyAgreement, 1)
+		assert.Len(t, document.KeyAgreement, 0)
 	})
 	t.Run("with root DID option", func(t *testing.T) {
 		db := testDB(t)
