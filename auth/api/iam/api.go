@@ -232,7 +232,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleS2SAccessTokenRequest(ctx, *ownDID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+		return r.handleS2SAccessTokenRequest(ctx, *ownDID, httpRequest.URL, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -719,16 +720,15 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	// resolve verifier metadata
-	requestVerifier, err := did.ParseDID(request.Body.Verifier)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid verifier: %w", err)
+	if request.Body.Verifier == "" {
+		return nil, core.InvalidInputError("invalid verifier")
 	}
 
 	useDPoP := true
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, request.Body.Verifier, request.Body.Scope, useDPoP)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err

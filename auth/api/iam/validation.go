@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"net/url"
 )
 
 // validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
@@ -51,7 +52,7 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation, expected
 
 // validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
 // it returns an OAuth2 error if the audience is missing or does not match the issuer.
-func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, requestURL *url.URL) error {
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -65,8 +66,9 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 			audience = []string{*proof.Domain}
 		}
 	}
+	issuer := requestURL.String()
 	for _, aud := range audience {
-		if aud == issuer.String() {
+		if aud == issuer {
 			return nil
 		}
 	}
