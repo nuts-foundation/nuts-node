@@ -67,23 +67,20 @@ type Manager struct {
 }
 
 func (m Manager) Deactivate(ctx context.Context, subjectDID did.DID) error {
-	tx := m.db.Begin()
-	defer tx.Rollback()
-
-	didStore := sql.NewDIDManager(tx)
-	documentStore := sql.NewDIDDocumentManager(tx)
-	sqlDocument, err := documentStore.Latest(subjectDID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return resolver.ErrNotFound
+	var err error
+	var sqlDocument *sql.DIDDocument
+	err = m.db.Transaction(func(tx *gorm.DB) error {
+		didStore := sql.NewDIDManager(tx)
+		documentStore := sql.NewDIDDocumentManager(tx)
+		sqlDocument, err = documentStore.Latest(subjectDID)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return resolver.ErrNotFound
+			}
+			return err
 		}
-		return err
-	}
-	err = didStore.Delete(subjectDID)
-	if err != nil {
-		return err
-	}
-	err = tx.Commit().Error
+		return didStore.Delete(subjectDID)
+	})
 	if err != nil {
 		return err
 	}
