@@ -127,12 +127,15 @@ type RedirectResponseWithID struct {
 
 // ServiceAccessTokenRequest Request for an access token for a service.
 type ServiceAccessTokenRequest struct {
+	// AuthorizationServer OAuth2 Authorization Server issuer as specified by RFC 8414. It is the base URL which will be used to
+	// discover the OAuth2 Authorization Server metadata.
+	AuthorizationServer string `json:"authorization_server"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
-	Verifier  string                              `json:"verifier"`
 }
 
 // ServiceAccessTokenRequestTokenType The type of access token that is preferred, default: DPoP

@@ -382,10 +382,10 @@ components:
       type: object
       description: Request for an access token for a service.
       required:
-        - auth_server_url
+        - authorization_server
         - scope
       properties:
-        auth_server_url:
+        authorization_server:
           type: string
           description: |
             OAuth2 Authorization Server issuer as specified by RFC 8414. It is the base URL which will be used to

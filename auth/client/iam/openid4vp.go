@@ -38,7 +38,6 @@ import (
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -205,13 +204,9 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, issuer string, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	oauthIssuer, err := didweb.DIDToURL(verifier)
-	if err != nil {
-		return nil, err
-	}
-	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, oauthIssuer.String())
+	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, issuer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
@@ -230,7 +225,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	}
 
 	params := holder.BuildParams{
-		Audience: verifier.String(),
+		Audience: issuer,
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
