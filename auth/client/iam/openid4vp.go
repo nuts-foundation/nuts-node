@@ -23,7 +23,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/piprate/json-gold/ld"
 	"net/http"
 	"net/url"
 	"time"
@@ -45,24 +48,26 @@ import (
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
-	httpClient  HTTPClient
-	jwtSigner   nutsCrypto.JWTSigner
-	keyResolver resolver.KeyResolver
-	strictMode  bool
-	wallet      holder.Wallet
+	httpClient       HTTPClient
+	jwtSigner        nutsCrypto.JWTSigner
+	keyResolver      resolver.KeyResolver
+	strictMode       bool
+	wallet           holder.Wallet
+	ldDocumentLoader ld.DocumentLoader
 }
 
 // NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
 			httpClient: client.NewWithCache(httpClientTimeout),
 		},
-		keyResolver: keyResolver,
-		jwtSigner:   jwtSigner,
-		strictMode:  strictMode,
-		wallet:      wallet,
+		keyResolver:      keyResolver,
+		jwtSigner:        jwtSigner,
+		ldDocumentLoader: ldDocumentLoader,
+		strictMode:       strictMode,
+		wallet:           wallet,
 	}
 }
 
@@ -205,7 +210,8 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string,
+	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	oauthIssuer, err := didweb.DIDToURL(verifier)
 	if err != nil {
@@ -234,7 +240,23 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormatsSupported, params)
+
+	targetWallet := c.wallet
+	if len(credentials) > 0 {
+		// This feature is used for presenting self-attested credentials which aren't signed (they're only protected by the VP's signature).
+		// To make the API easier to use, we can set a few required fields if it's a self-attested credential.
+		for i, credential := range credentials {
+			credentials[i] = autoCorrectSelfAttestedCredential(credential, requester)
+		}
+		// We have additional credentials to present, aside from those in the persistent wallet.
+		// Create a temporary in-memory wallet with the requester's persisted VCs and the
+		targetWallet, err = c.walletWithExtraCredentials(ctx, requester, credentials)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	vp, submission, err := targetWallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormatsSupported, params)
 	if err != nil {
 		return nil, err
 	}
@@ -297,6 +319,16 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 	return rsp, nil
 }
 
+func (c *OpenID4VPClient) walletWithExtraCredentials(ctx context.Context, subject did.DID, credentials []vc.VerifiableCredential) (holder.Wallet, error) {
+	walletCredentials, err := c.wallet.List(ctx, subject)
+	if err != nil {
+		return nil, err
+	}
+	return holder.NewMemoryWallet(c.ldDocumentLoader, c.keyResolver, c.jwtSigner, map[did.DID][]vc.VerifiableCredential{
+		subject: append(walletCredentials, credentials...),
+	}), nil
+}
+
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
@@ -306,4 +338,31 @@ func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request h
 
 	token := dpop.New(request)
 	return c.jwtSigner.SignDPoP(ctx, *token, keyID.String())
+}
+
+// autoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
+// These are provided through the API, and for convenience we set the required fields, if not already set.
+// It only does this for unsigned credentials.
+func autoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
+	if len(credential.Proof) > 0 {
+		return credential
+	}
+	if credential.ID == nil {
+		credential.ID, _ = ssi.ParseURI(uuid.NewString())
+	}
+	if credential.Issuer.String() == "" {
+		credential.Issuer = requester.URI()
+	}
+	if credential.IssuanceDate.IsZero() {
+		credential.IssuanceDate = time.Now()
+	}
+	var credentialSubject []map[string]interface{}
+	_ = credential.UnmarshalCredentialSubject(&credentialSubject)
+	if len(credentialSubject) == 1 {
+		if _, ok := credentialSubject[0]["id"]; !ok {
+			credentialSubject[0]["id"] = requester.String()
+			credential.CredentialSubject[0] = credentialSubject[0]
+		}
+	}
+	return credential
 }

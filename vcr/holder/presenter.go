@@ -89,8 +89,10 @@ func (p presenter) buildSubmission(ctx context.Context, holderDID did.DID, crede
 	}
 
 	// todo: support multiple wallets
+	holder := holderDID.URI()
 	vp, err := p.buildPresentation(ctx, &holderDID, signInstructions[0].VerifiableCredentials, PresentationOptions{
 		Format: format,
+		Holder: &holder,
 		ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
 			Challenge: &params.Nonce,
@@ -144,6 +146,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 		"vp": vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
+			Holder:               options.Holder,
 			VerifiableCredential: credentials,
 		},
 	}
@@ -184,6 +187,7 @@ func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.D
 		ID:                   &idURI,
 		Context:              ldContext,
 		Type:                 types,
+		Holder:               options.Holder,
 		VerifiableCredential: credentials,
 	}
 

@@ -74,6 +74,8 @@ type PresentationOptions struct {
 	AdditionalContexts []ssi.URI
 	// AdditionalTypes contains the VerifiablePresentation types in addition to VerifiablePresentation
 	AdditionalTypes []ssi.URI
+	// Holder specifies the holder property.
+	Holder *ssi.URI
 	// ProofOptions contains the options for a specific proof.
 	ProofOptions proof.ProofOptions
 	// Format contains the requested format for the VerifiablePresentation. If not set, it defaults to JSON-LD.

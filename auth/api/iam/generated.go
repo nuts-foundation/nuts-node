@@ -129,6 +129,12 @@ type RequestObjectResponse = string
 
 // ServiceAccessTokenRequest Request for an access token for a service.
 type ServiceAccessTokenRequest struct {
+	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
+	// They must be in the form of a Verifiable Credential in JSON form.
+	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.
+	// A typical use case is to provide a self-attested credential to convey information about the user that initiated the request.
+	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 

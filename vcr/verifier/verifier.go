@@ -247,21 +247,34 @@ func (v verifier) VerifyVP(vp vc.VerifiablePresentation, verifyVCs bool, allowUn
 // doVerifyVP delegates VC verification to the supplied Verifier, to aid unit testing.
 func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
 	// custom requirement: credentials may only be presented by subject
-	if subjectDID, err := credential.PresenterIsCredentialSubject(presentation); err != nil {
+	subjectDID, err := credential.PresenterIsCredentialSubject(presentation)
+	if err != nil {
 		return nil, newVerificationError("presenter is credential subject: %w", err)
 	} else if subjectDID == nil && len(presentation.VerifiableCredential) > 0 {
 		return nil, newVerificationError("credential(s) must be presented by subject")
 	}
 
+	// we only support presenter = holder = credential subject.
+	// Check optional holder property (required for self-attesting VCs)
+	if presentation.Holder != nil && presentation.Holder.String() != subjectDID.String() {
+		return nil, newVerificationError("presentation holder must equal credential subject")
+	}
+
 	// check signature
-	err := v.signatureVerifier.VerifyVPSignature(presentation, validAt)
+	err = v.signatureVerifier.VerifyVPSignature(presentation, validAt)
 	if err != nil {
 		return nil, err
 	}
 
 	if verifyVCs {
 		for _, current := range presentation.VerifiableCredential {
-			err = vcVerifier.Verify(current, allowUntrustedVCs, true, validAt)
+			checkSignature := true
+			if presentation.Holder != nil && presentation.Holder.String() == current.Issuer.String() {
+				// self-attested VC: https://www.w3.org/TR/vc-data-model-2.0/#presentations-including-holder-claims
+				// These don't need a proof, since they're already protected by the VP's proof.
+				checkSignature = len(current.Proof) > 0
+			}
+			err = vcVerifier.Verify(current, allowUntrustedVCs, checkSignature, validAt)
 			if err != nil {
 				return nil, newVerificationError("invalid VC (id=%s): %w", current.ID, err)
 			}

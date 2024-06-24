@@ -294,7 +294,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
-
+		assert.Equal(t, walletDID.String(), vp.Holder.String(), "holder must be the DID of the signer")
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())

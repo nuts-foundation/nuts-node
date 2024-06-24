@@ -64,9 +64,30 @@ fi
 echo "---------------------------------------"
 echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
+REQUEST=$(
+cat << EOF
+{
+  "verifier": "${VENDOR_A_DID}",
+  "scope": "test",
+  "credentials": [
+      {
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://nuts.nl/credentials/v1"
+        ],
+        "type": ["VerifiableCredential", "EmployeeCredential"],
+        "credentialSubject": {
+          "name": "John Doe",
+          "roleName": "Janitor",
+          "identifier": "123456"
+        }
+      }
+    ]
+}
+EOF
+)
 # Request access token
-REQUEST="{\"verifier\":\"${VENDOR_A_DID}\",\"scope\":\"test\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type: application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
   echo "access token stored in ./node-B/accesstoken.txt"
@@ -82,7 +103,7 @@ echo "------------------------------------"
 echo "Create DPoP header..."
 echo "------------------------------------"
 REQUEST="{\"htm\":\"GET\",\"htu\":\"https://nodeA:443/resource\", \"token\":\"$ACCESS_TOKEN\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/dpop -H "Content-Type: application/json" -v)
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/dpop -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "dpop"; then
   echo $RESPONSE | sed -E 's/.*"dpop":"([^"]*).*/\1/' > ./node-B/dpop.txt
   echo "dpop token stored in ./node-B/dpop.txt"
@@ -94,10 +115,35 @@ fi
 
 DPOP=$(cat ./node-B/dpop.txt)
 
+# Introspect access token with a form post
+echo "------------------------------------"
+echo "Introspect access token..."
+echo "------------------------------------"
+RESPONSE=$(curl -X POST -s --data "token=$ACCESS_TOKEN" http://localhost:18081/internal/auth/v2/accesstoken/introspect)
+echo $RESPONSE
+# Check that it contains "active": true
+if echo $RESPONSE | grep -q "active.*true"; then
+  echo "access token is active"
+else
+  echo "FAILED: Access token is not active" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+# Check that it contains "employee_name":"John Doe"
+if echo $RESPONSE | grep -q "employee_name.*John Doe"; then
+  echo "employee_name claim is present"
+else
+  echo "FAILED: missing/invalid employee_name" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+
+
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP" -v)
+RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP")
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else

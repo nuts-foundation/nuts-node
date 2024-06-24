@@ -13,9 +13,9 @@
           ]
         }
       },
-      "id": "pd_any_care_organization",
-      "name": "Care organization",
-      "purpose": "Finding a care organization for authorizing access to medical metadata",
+      "id": "pd_any_care_organization_with_employee",
+      "name": "Care organization with employee",
+      "purpose": "Finding a care organization with logged in user for authorizing access to medical metadata",
       "input_descriptors": [
         {
           "id": "id_nuts_care_organization_cred",
@@ -41,6 +41,52 @@
               {
                 "path": [
                   "$.credentialSubject.organization.city"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_employee_credential_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "EmployeeCredential"
+                }
+              },
+              {
+                "id": "employee_identifier",
+                "path": [
+                  "$.credentialSubject.identifier",
+                  "$.credentialSubject[0].identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "employee_name",
+                "path": [
+                  "$.credentialSubject.name",
+                  "$.credentialSubject[0].name"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "employee_role",
+                "path": [
+                  "$.credentialSubject.roleName",
+                  "$.credentialSubject[0].roleName"
                 ],
                 "filter": {
                   "type": "string"

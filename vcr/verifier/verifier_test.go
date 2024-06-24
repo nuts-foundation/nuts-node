@@ -23,6 +23,7 @@ import (
 	crypt "crypto"
 	"encoding/json"
 	"errors"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
@@ -422,6 +423,50 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			vcs, err := ctx.verifier.VerifyVP(presentation, false, false, nil)
 
 			assert.NoError(t, err)
+			assert.Empty(t, vcs)
+		})
+		t.Run("self-asserted VCs", func(t *testing.T) {
+			// Test support for https://www.w3.org/TR/vc-data-model-2.0/#presentations-including-holder-claims
+			// Self-asserted VCs don't need to contain a proof, but the VC credentialSubject.id must equal the VC issuer,
+			// and the VC issuer must equal the VP holder.
+			selfAssertedCredential := vc.VerifiableCredential{
+				Issuer: subjectDID.URI(),
+				CredentialSubject: []interface{}{
+					map[string]interface{}{
+						"id": subjectDID.String(),
+					},
+				},
+			}
+			t.Run("ok - credential has no own proof", func(t *testing.T) {
+				vp, key := test.CreateJWTPresentation(t, subjectDID, func(token jwt.Token) {
+					vpRaw, _ := token.Get("vp")
+					castVP := vpRaw.(vc.VerifiablePresentation)
+					castVP.Holder, _ = ssi.ParseURI(subjectDID.String())
+					_ = token.Set("vp", castVP)
+				}, selfAssertedCredential)
+				ctx := newMockContext(t)
+				ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(key.Public(), nil)
+
+				mockVerifier := NewMockVerifier(ctx.ctrl)
+				mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, false, nil)
+
+				vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, nil)
+
+				assert.NoError(t, err)
+				assert.Len(t, vcs, 1)
+			})
+		})
+		t.Run("holder != subject", func(t *testing.T) {
+			presentationWithHolder := *presentation
+			presentationWithHolder.Holder, _ = ssi.ParseURI("other")
+
+			ctx := newMockContext(t)
+
+			mockVerifier := NewMockVerifier(ctx.ctrl)
+
+			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, presentationWithHolder, true, true, nil)
+
+			assert.EqualError(t, err, "verification error: presentation holder must equal credential subject")
 			assert.Empty(t, vcs)
 		})
 		t.Run("JWT expired", func(t *testing.T) {
