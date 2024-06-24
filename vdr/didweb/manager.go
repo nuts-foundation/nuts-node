@@ -153,6 +153,7 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		if doc, err = documentStore.CreateOrUpdate(sqlDid, []sql.SqlVerificationMethod{{
 			ID:            verificationMethod.ID.String(),
 			DIDDocumentID: sqlDid.ID,
+			KeyTypes:      sql.VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage), // todo pass via options
 			Data:          vmAsJson,
 		}}, nil); err != nil {
 			return fmt.Errorf("store new DID document: %w", err)

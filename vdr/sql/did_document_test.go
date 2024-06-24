@@ -19,6 +19,7 @@
 package sql
 
 import (
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -30,9 +31,11 @@ import (
 var sqlDidAlice = DID{ID: alice.String(), Subject: "alice"}
 
 func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
+	keyUsageFlag := VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage)
 	vm := SqlVerificationMethod{
-		ID:   "#1",
-		Data: []byte("{}"),
+		ID:       "#1",
+		Data:     []byte("{}"),
+		KeyTypes: keyUsageFlag,
 	}
 	service := SqlService{
 		ID:   "#2",
@@ -66,6 +69,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		require.Len(t, doc.Services, 1)
 		assert.Len(t, doc.ID, 36) // uuid v4
 		assert.Equal(t, []byte("{}"), doc.VerificationMethods[0].Data)
+		assert.Equal(t, keyUsageFlag, doc.VerificationMethods[0].KeyTypes)
 		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
 	})
 	t.Run("update", func(t *testing.T) {
