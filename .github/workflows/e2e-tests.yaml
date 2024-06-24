@@ -51,7 +51,7 @@ jobs:
         run: echo "SHA=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         if: ${{ github.actor != 'dependabot' }}
         with:
           context: .
@@ -63,7 +63,7 @@ jobs:
             GIT_AUTH_TOKEN=${{ secrets.PACKAGE_SECRET }}
 
       - name: Build and push dependabot
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         if: ${{ github.actor == 'dependabot' }}
         with:
           context: .
