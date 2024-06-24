@@ -332,11 +332,21 @@ func buildDocument(newDID did.DID, doc sql.DIDDocument) (did.Document, error) {
 			return document, err
 		}
 
-		document.AddAssertionMethod(&verificationMethod)
-		document.AddAuthenticationMethod(&verificationMethod)
-		document.AddKeyAgreement(&verificationMethod)
-		document.AddCapabilityDelegation(&verificationMethod)
-		document.AddCapabilityInvocation(&verificationMethod)
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.AssertionMethodUsage) != 0 {
+			document.AddAssertionMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.AuthenticationUsage) != 0 {
+			document.AddAuthenticationMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.KeyAgreementUsage) != 0 {
+			document.AddKeyAgreement(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.CapabilityDelegationUsage) != 0 {
+			document.AddCapabilityDelegation(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.CapabilityInvocationUsage) != 0 {
+			document.AddCapabilityInvocation(&verificationMethod)
+		}
 	}
 	for _, sqlService := range doc.Services {
 		service := did.Service{}
