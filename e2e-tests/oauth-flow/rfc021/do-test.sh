@@ -133,7 +133,7 @@ fi
 if echo $RESPONSE | grep -q "employee_name.*John Doe"; then
   echo "employee_name claim is present"
 else
-  echo "FAILED: kissing/invalid employee_name" 1>&2
+  echo "FAILED: missing/invalid employee_name" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
