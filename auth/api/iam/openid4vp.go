@@ -113,7 +113,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	oauthIssuer, err := didweb.DIDToURL(*walletDID)
 	if err != nil {
 		// can't fail since it's a valid did:web
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", err), redirectURL)
 	}
 	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
@@ -468,8 +468,9 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 
 	// check if the state param is present and if we have a client state for it
 	var oauthSession OAuthSession
+	var err error
 	if request.Body.State != nil {
-		if err := r.oauthClientStateStore().Get(*request.Body.State, &oauthSession); err == nil {
+		if err = r.oauthClientStateStore().Get(*request.Body.State, &oauthSession); err == nil {
 			// we use the redirectURI from the oauthSession to redirect the user back to its own error page
 			if oauthSession.redirectURI() != nil {
 				location := httpNuts.AddQueryParams(*oauthSession.redirectURI(), map[string]string{
@@ -484,13 +485,13 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 	}
 	// we don't have a client state, so we can't redirect to the holder redirectURI
 	// return an error page instead
-	return nil, oauthError(oauth.ErrorCode(code), description)
+	return nil, oauthError(oauth.ErrorCode(code), description, err)
 }
 
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
 	verifier, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id")
+		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id", err)
 	}
 
 	if request.Body.State == nil {
