@@ -123,11 +123,8 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}
 		case "post":
-			issuerURL, err := createOAuth2BaseURL(ownDID)
-			if err != nil {
-				return nil, err
-			}
-			md, err := authorizationServerMetadata(ownDID, issuerURL)
+			issuerURL := ownDID.URI().URL
+			md, err := authorizationServerMetadata(ownDID, &issuerURL)
 			if err != nil {
 				// DB error
 				return nil, err

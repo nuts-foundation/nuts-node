@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -110,8 +111,10 @@ func TestJar_Parse(t *testing.T) {
 	})
 	require.NoError(t, err)
 	token := string(bytes)
+	walletIssuerURL := test.MustParseURL(walletDID.String())
 	ctx := newJarTestCtx(t)
 	t.Run("request_uri_method", func(t *testing.T) {
+
 		t.Run("ok - get", func(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
@@ -141,11 +144,11 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - post", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(verifierDID, verifierURL)
+			md, _ := authorizationServerMetadata(walletDID, walletIssuerURL)
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
 
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), walletDID,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
 					oauth.RequestURIParam:       {"request_uri"},
@@ -190,10 +193,10 @@ func TestJar_Parse(t *testing.T) {
 			requireOAuthError(t, err, oauth.InvalidRequestURI, "failed to get Request Object")
 			assert.Nil(t, res)
 		})
-		t.Run("post", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(verifierDID, verifierURL)
+		t.Run("post (made by wallet)", func(t *testing.T) {
+			md, _ := authorizationServerMetadata(walletDID, walletIssuerURL)
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return("", errors.New("server error"))
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), walletDID,
 				map[string][]string{
 					oauth.RequestURIParam:       {"request_uri"},
 					oauth.RequestURIMethodParam: {"post"},
