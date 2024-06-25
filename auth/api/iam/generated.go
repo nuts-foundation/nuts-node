@@ -133,6 +133,11 @@ type ServiceAccessTokenRequest struct {
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.
 	// A typical use case is to provide a self-attested credential to convey information about the user that initiated the request.
+	//
+	// The following credential fields are automatically filled (when not present), and may be omitted:
+	// - issuer, credentialSubject.id (filled with the DID of the requester)
+	// - issuanceDate (filled with the current date/time)
+	// - id (filled with a UUID)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
 	// Scope The scope that will be the service for which this access token can be used.
@@ -536,7 +541,7 @@ type ServerInterface interface {
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx echo.Context) error
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
-	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
@@ -1015,7 +1020,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server", wrapper.RootOAuthAuthorizationServerMetadata)
-	router.GET(baseURL+"/.well-known/oauth-authorization-server/iam/:did", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/.well-known/oauth-authorization-server/oauth2/:did", wrapper.OAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
@@ -1788,7 +1793,7 @@ type StrictServerInterface interface {
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error)
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
-	// (GET /.well-known/oauth-authorization-server/iam/{did})
+	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)

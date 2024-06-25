@@ -346,11 +346,11 @@ paths:
   # TODO: What format to use? (codegenerator breaks on aliases)
   # See issue https://github.com/nuts-foundation/nuts-node/issues/2365
   # create aliases for the specced path
-  #  /iam/{did}/oauth-authorization-server:
-  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
-  #  /iam/{did}/.well-known/oauth-authorization-server:
-  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1iam~1{did}'
-  /.well-known/oauth-authorization-server/iam/{did}:
+  #  /oauth2/{did}/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
+  #  /oauth2/{did}/.well-known/oauth-authorization-server:
+  #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
+  /.well-known/oauth-authorization-server/oauth2/{did}:
     get:
       tags:
         - well-known

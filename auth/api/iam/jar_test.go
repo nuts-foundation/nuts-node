@@ -141,7 +141,7 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - post", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(verifierDID)
+			md, _ := authorizationServerMetadata(verifierDID, verifierURL)
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
 
@@ -191,7 +191,7 @@ func TestJar_Parse(t *testing.T) {
 			assert.Nil(t, res)
 		})
 		t.Run("post", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(verifierDID)
+			md, _ := authorizationServerMetadata(verifierDID, verifierURL)
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), verifierDID,
 				map[string][]string{

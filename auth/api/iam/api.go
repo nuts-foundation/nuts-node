@@ -77,7 +77,7 @@ var cacheControlMaxAgeURLs = []string{
 	"/.well-known/did.json",
 	"/iam/:id/did.json",
 	"/oauth2/:did/presentation_definition",
-	"/.well-known/oauth-authorization-server/iam/:did",
+	"/.well-known/oauth-authorization-server/oauth2/:did",
 	"/.well-known/oauth-authorization-server",
 	"/oauth2/:did/oauth-client",
 	"/statuslist/:did/:page",
@@ -589,7 +589,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 }
 
 func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
-	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedDID("").String())
+	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedWebDID("").String())
 	if err != nil {
 		return nil, err
 	}
@@ -601,11 +601,15 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	return authorizationServerMetadata(*ownDID)
+	issuerURL, err := createOAuth2BaseURL(*ownDID)
+	if err != nil {
+		return nil, err
+	}
+	return authorizationServerMetadata(*ownDID, issuerURL)
 }
 
 func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
-	ownDID := r.requestedDID(request.Id)
+	ownDID := r.requestedWebDID(request.Id)
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -618,7 +622,7 @@ func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDReque
 }
 
 func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
-	ownDID := r.requestedDID("")
+	ownDID := r.requestedWebDID("")
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -849,7 +853,7 @@ func nutsOAuth2Issuer(subject did.DID) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.Path = "/iam/" + url.PathEscape(subject.String())
+	result.Path = "/oauth2/" + url.PathEscape(subject.String())
 	return result, nil
 }
 
@@ -915,24 +919,17 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID,
 	return &redirectURL, nil
 }
 
-// requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
+// requestedWebDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
 // - did:web:example.com
 // - did:web:example:iam:1234
 // When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
-func (r Wrapper) requestedDID(userID string) did.DID {
-	identityURL := r.identityURL(userID)
+func (r Wrapper) requestedWebDID(userID string) did.DID {
+	identityURL := r.auth.PublicURL()
+	if userID != "" {
+		identityURL = identityURL.JoinPath("iam", userID)
+	}
 	result, _ := didweb.URLToDID(*identityURL)
 	return *result
-}
-
-// identityURL is like requestedDID() but returns the base URL for the DID.
-// It is used for resolving metadata and its did:web DID, using the configured Nuts node URL.
-func (r Wrapper) identityURL(userID string) *url.URL {
-	baseURL := r.auth.PublicURL()
-	if userID == "" {
-		return baseURL
-	}
-	return baseURL.JoinPath("iam", userID)
 }
 
 // accessTokenClientStore is used by the client to store pending access tokens and return them to the calling app.

@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -64,9 +65,10 @@ import (
 )
 
 var rootWebDID = did.MustParseDID("did:web:example.com")
+var rootURL = test.MustParseURL("https://example.com/oauth2/" + rootWebDID.String())
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
-var verifierURL = "https://example.com/iam/" + verifierDID.String()
+var verifierURL = test.MustParseURL("https://example.com/oauth2/" + verifierDID.String())
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -114,7 +116,7 @@ func TestWrapper_RootOAuthAuthorizationServerMetadata(t *testing.T) {
 		require.NoError(t, err)
 		assert.IsType(t, RootOAuthAuthorizationServerMetadata200JSONResponse{}, res)
 		actualIssuer := res.(RootOAuthAuthorizationServerMetadata200JSONResponse).Issuer
-		assert.Equal(t, "https://example.com", actualIssuer)
+		assert.Equal(t, rootURL.String(), actualIssuer)
 	})
 }
 
@@ -358,7 +360,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		require.IsType(t, HandleAuthorizeRequest302Response{}, res)
 		testAuthzReqRedirectURI(t, expectedURL, res.(HandleAuthorizeRequest302Response).Headers.Location)
 	})
-	t.Run("ok - response_type=vp_token ", func(t *testing.T) {
+	t.Run("ok - response_type=vp_token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		vmId := did.DIDURL{
 			DID:             verifierDID,
@@ -375,7 +377,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		requestParams := oauthParameters{
 			oauth.ClientIDParam:           verifierDID.String(),
 			oauth.ClientIDSchemeParam:     didClientIDScheme,
-			oauth.ClientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
+			oauth.ClientMetadataURIParam:  "https://example.com/.well-known/authorization-server/oauth2/verifier",
 			oauth.NonceParam:              "nonce",
 			oauth.PresentationDefUriParam: "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test",
 			oauth.ResponseURIParam:        "https://example.com/oauth2/did:web:example.com:iam:verifier/response",
@@ -398,7 +400,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		})
 		callCtx, _ := user.CreateTestSession(requestContext(nil), holderDID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
-		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
+		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/oauth2/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), holderDID, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
@@ -1273,7 +1275,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 func TestWrapper_CreateAuthorizationRequest(t *testing.T) {
 	clientDID := did.MustParseDID("did:web:client.test:iam:123")
 	serverDID := did.MustParseDID("did:web:server.test:iam:123")
-	var issuerURL = "https://server.test/iam/" + serverDID.String()
+	var issuerURL = "https://server.test/oauth2/" + serverDID.String()
 	modifier := func(values map[string]string) {
 		values["custom"] = "value"
 	}
