@@ -731,12 +731,16 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
+	oauthIssuer, err := nutsOAuth2Issuer(*requestVerifier)
+	if err != nil {
+		return nil, err
+	}
 
 	useDPoP := true
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, oauthIssuer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -846,15 +850,6 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 		}
 	}
 	return credentialIssuerMetadata, ASMetadata, nil
-}
-
-func nutsOAuth2Issuer(subject did.DID) (*url.URL, error) {
-	result, err := didweb.DIDToURL(subject)
-	if err != nil {
-		return nil, err
-	}
-	result.Path = "/oauth2/" + url.PathEscape(subject.String())
-	return result, nil
 }
 
 // createAuthorizationRequest creates an OAuth2.0 authorizationRequest redirect URL that redirects to the authorization server.

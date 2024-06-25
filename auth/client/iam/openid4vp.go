@@ -41,7 +41,6 @@ import (
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -206,13 +205,9 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, scopes string,
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, oauthIssuer *url.URL, scopes string,
 	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	oauthIssuer, err := didweb.DIDToURL(verifier)
-	if err != nil {
-		return nil, err
-	}
 	metadata, err := c.AuthorizationServerMetadata(ctx, oauthIssuer.String())
 	if err != nil {
 		return nil, err

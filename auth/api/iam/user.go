@@ -22,7 +22,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -202,4 +204,15 @@ func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Sessi
 		return nil, fmt.Errorf("issue EmployeeCredential: %w", err)
 	}
 	return employeeCredential, nil
+}
+
+// nutsOAuth2Issuer returns the URL of the OAuth2 issuer for the given DID.
+// It's temporary: soon to be released by the application explicitly specifying the OAuth2 issuer URL.
+func nutsOAuth2Issuer(subject did.DID) (*url.URL, error) {
+	result, err := didweb.DIDToURL(subject)
+	if err != nil {
+		return nil, err
+	}
+	result.Path = "/oauth2/" + url.PathEscape(subject.String())
+	return result, nil
 }
