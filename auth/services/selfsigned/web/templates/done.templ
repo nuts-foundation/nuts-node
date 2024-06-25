@@ -1,28 +1,35 @@
 {{ define "done_en" }}
 <main>
-    {{ if eq .Status "completed" }}
-    <p>The identification step is completed.</p>
-    {{ else if eq .Status "cancelled" }}
-    <p>The identification step is cancelled.</p>
-    {{ else if eq .Status "errored" }}
-    <p>The identification step is errored. Please contact your employer.</p>
-    {{ else if eq .Status "expired" }}
-    <p>The identification step took too long, please try again.</p>
-    {{ end }}
+  {{ if eq .Status "completed" }}
+  <p>The identification step is completed.</p>
+  {{ else if eq .Status "in-progress" }}
+  <p>The identification step is already started, go back, or start over.</p>
+  {{ else if eq .Status "cancelled" }}
+  <p>The identification step is cancelled.</p>
+  {{ else if eq .Status "errored" }}
+  <p>The identification step is errored. Please contact your employer.</p>
+  {{ else if eq .Status "expired" }}
+  <p>The identification step took too long, please try again.</p>
+  {{ end }}
 </main>
 {{ end }}
 {{ define "done_nl" }}
 <main>
-    {{ if eq .Status "completed" }}
-    <p>De identificatie is voltooid.</p>
-    {{ else if eq .Status "cancelled" }}
-    <p>De identificatie is afgebroken.</p>
-    {{ else if eq .Status "errored" }}
-    <p>
-        Er vond een error plaats tijdens het bevestigen van uw identiteit. Probeer het nogmaals of neem contact op met uw werkgever.
-    </p>
-    {{ else if eq .Status "expired" }}
-    <p>De identificatie duurde te lang, probeer het opnieuw.</p>
-    {{ end }}
+  {{ if eq .Status "completed" }}
+  <p>De identificatie is voltooid.</p>
+  {{ else if eq .Status "in-progress" }}
+  <p>De identificatie is al gestart, ga terug, of begin opnieuw.</p>
+  {{ else if eq .Status "cancelled" }}
+  <p>De identificatie is afgebroken.</p>
+  {{ else if eq .Status "errored" }}
+  <p>
+    Er vond een error plaats tijdens het bevestigen van uw identiteit. Probeer het nogmaals of neem contact op met uw
+    werkgever.
+  </p>
+  {{ else if eq .Status "expired" }}
+  <p>De identificatie duurde te lang, probeer het opnieuw.</p>
+  {{ end }}
 </main>
 {{ end }}
+
+

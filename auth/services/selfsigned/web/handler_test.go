@@ -35,7 +35,8 @@ import (
 func TestRenderTemplate(t *testing.T) {
 	roleName := "Administrator"
 	buf := new(bytes.Buffer)
-	err := renderTemplate("employee_identity", "nl", PageData{Session: types.Session{
+	templates := NewTemplates()
+	err := templates.Render("employee_identity", "nl", PageData{Session: types.Session{
 		ExpiresAt: time.Now(),
 		Contract:  "Hello, World!",
 		Secret:    "secret",
@@ -197,6 +198,7 @@ func TestHandler_RenderEmployeeIDDonePage(t *testing.T) {
 			Status:   types.SessionCompleted,
 			Contract: "invalid-contract-text",
 		}, true)
+		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
 		h := NewHandler(store)
 		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
@@ -243,6 +245,7 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 			Status:   types.SessionInProgress,
 			Contract: "invalid-contract-text",
 		}, true)
+		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
 		h := NewHandler(store)
 		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
@@ -271,6 +274,7 @@ func TestHandler_Routes(t *testing.T) {
 }
 
 func Test_renderTemplate(t *testing.T) {
+	templates := NewTemplates()
 	t.Run("ok - all values are rendered in the template", func(t *testing.T) {
 		roleName := "Nurse"
 		s := PageData{Session: types.Session{
@@ -286,7 +290,7 @@ func Test_renderTemplate(t *testing.T) {
 		buf := new(bytes.Buffer)
 
 		for _, lang := range []contract.Language{"en", "nl"} {
-			err := renderTemplate("employee_identity", lang, s, buf)
+			err := templates.Render("employee_identity", lang, s, buf)
 
 			assert.NoError(t, err)
 			assert.Contains(t, buf.String(), "contract string")
@@ -309,7 +313,7 @@ func Test_renderTemplate(t *testing.T) {
 		}}
 		for _, lang := range []contract.Language{"en", "nl"} {
 			buf := new(bytes.Buffer)
-			err := renderTemplate("employee_identity", lang, s, buf)
+			err := templates.Render("employee_identity", lang, s, buf)
 
 			assert.NoError(t, err)
 			assert.NotContains(t, buf.String(), "<td>Title</td>")
@@ -319,7 +323,7 @@ func Test_renderTemplate(t *testing.T) {
 
 	t.Run("err - unknown template", func(t *testing.T) {
 		buf := new(bytes.Buffer)
-		err := renderTemplate("employee_identity", "de", PageData{Session: types.Session{}}, buf)
+		err := templates.Render("employee_identity", "de", PageData{Session: types.Session{}}, buf)
 		assert.EqualError(t, err, "could not find template employee_identity_de")
 	})
 }

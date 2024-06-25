@@ -47,11 +47,12 @@ type PageData struct {
 }
 
 type Handler struct {
-	store types.SessionStore
+	store     types.SessionStore
+	templates *Templates
 }
 
 func NewHandler(store types.SessionStore) *Handler {
-	return &Handler{store}
+	return &Handler{store, NewTemplates()}
 }
 
 // Routes registers the Echo routes for the API.
@@ -65,6 +66,13 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID SessionID) err
 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
 	}
 
+	var templateToRender string
+	// the form for a created session should only be loaded once
+	if h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
+		templateToRender = "employee_identity"
+	} else {
+		templateToRender = "done"
+	}
 	// find the correct template language from the used contract template
 	userContract, err := contract.ParseContractString(session.Contract, contract.StandardContractTemplates)
 	if err != nil {
@@ -76,14 +84,8 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID SessionID) err
 		Session: session,
 	}
 
-	var templateToRender string
-	if h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
-		templateToRender = "employee_identity"
-	} else {
-		templateToRender = "done"
-	}
 	responseHTML := new(bytes.Buffer)
-	if err := renderTemplate(templateToRender, lang, pageData, responseHTML); err != nil {
+	if err := h.templates.Render(templateToRender, lang, pageData, responseHTML); err != nil {
 		return err
 	}
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
@@ -130,35 +132,19 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID SessionID) err
 	return ctx.Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, sessionID))
 }
 
-// func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID SessionID, params RenderEmployeeIDDonePageParams) error {
-// 	session, ok := h.store.Load(sessionID)
-// 	if !ok {
-// 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
-// 	}
-// 	// find the correct template language from the used contract template
-// 	userContract, err := contract.ParseContractString(session.Contract, contract.StandardContractTemplates)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	lang := userContract.Template.Language
-//
-// 	responseHTML := new(bytes.Buffer)
-// 	pageData := PageData{
-// 		DisableDarkMode: params.DisableDarkMode,
-// 		Session:         session,
-// 	}
-// 	err = renderTemplate("done", lang, pageData, responseHTML)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-// 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
-// }
+type Templates struct {
+	templates *template.Template
+}
 
-var templ = template.Must(template.ParseFS(webTemplates, "templates/*.templ"))
+func NewTemplates() *Templates {
+	return &Templates{
+		templates: template.Must(template.ParseFS(webTemplates, "templates/*.templ")),
+	}
+}
 
-func renderTemplate(name string, lang contract.Language, pageData PageData, target io.Writer) error {
-	templ, err := templ.Clone()
+// Render renders the template with the given name and language to the target writer.
+func (t Templates) Render(name string, lang contract.Language, pageData PageData, target io.Writer) error {
+	templ, err := t.templates.Clone()
 	if err != nil {
 		return err
 	}
