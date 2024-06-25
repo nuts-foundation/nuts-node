@@ -72,15 +72,8 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 
 func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
 	options := management.Create(didweb.MethodName)
-	if request.Body.Tenant != nil && *request.Body.Tenant != "" {
-		options = options.With(didweb.Tenant(*request.Body.Tenant))
-	}
-	if request.Body.Did != nil && *request.Body.Did != "" {
-		newDID, err := did.ParseDID(*request.Body.Did)
-		if err != nil {
-			return nil, err
-		}
-		options = options.With(didweb.DID(*newDID))
+	if request.Body.Root != nil && *request.Body.Root {
+		options = options.With(didweb.RootDID())
 	}
 
 	doc, _, err := w.VDR.Create(ctx, options)

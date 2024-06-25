@@ -31,7 +31,7 @@ create table status_list
     -- last_issued_index: the highest status_list_index issued for this page. Should not be incremented above the max statusListIndex.
     last_issued_index   integer         not null,
     -- Ties status list credentials to DID management.
-    constraint fk_issuer_did foreign key (issuer) references did (did) on delete cascade
+    constraint fk_issuer_did foreign key (issuer) references did (id) on delete cascade
 );
 
 -- status_list_entry: lists all status list entries for which the status bit is set to true. (revocation table)

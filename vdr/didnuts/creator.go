@@ -77,8 +77,7 @@ type Creator struct {
 // DefaultCreationOptions returns the default CreationOptions when creating DID Documents.
 func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName).
-		With(KeyFlag(DefaultKeyFlags())).
-		With(SelfControl(true))
+		With(KeyFlag(DefaultKeyFlags()))
 }
 
 // DefaultKeyFlags returns the default DIDKeyFlags when creating did:nuts DIDs.
@@ -91,23 +90,6 @@ type keyFlagCreationOption management.DIDKeyFlags
 // KeyFlag specifies for what purposes the generated key can be used
 func KeyFlag(flags management.DIDKeyFlags) management.CreationOption {
 	return keyFlagCreationOption(flags)
-}
-
-type selfControlCreationOption bool
-
-// SelfControl is a DID document creation option that indicates whether the generated DID Document can be altered with its own capabilityInvocation key.
-func SelfControl(value bool) management.CreationOption {
-	return selfControlCreationOption(value)
-}
-
-type controllersCreationOption struct {
-	controllers []did.DID
-}
-
-// Controllers is a DID document creation option that indicates which DIDs can control the generated DID Document.
-// If selfControl = true and controllers is not empty, the newly generated DID will be added to the list of controllers.
-func Controllers(controllers ...did.DID) management.CreationOption {
-	return controllersCreationOption{controllers: controllers}
 }
 
 // didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
@@ -164,35 +146,20 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 // The key is added to the verificationMethod list and referred to from the Authentication list
 // It also publishes the DID Document to the network.
 func (n Creator) Create(ctx context.Context, options management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	selfControl, controllers, keyFlags, err := parseOptions(options)
+	keyFlags, err := parseOptions(options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// for all controllers given in the options, we need to capture the metadata so the new transaction can reference to it
-	// holder for all metadata of the controllers
-	controllerMetadata := make([]resolver.DocumentMetadata, len(controllers))
-
-	// if any controllers have been added, check if they exist through the didResolver
-	if len(controllers) > 0 {
-		for _, controller := range controllers {
-			_, meta, err := n.DIDResolver.Resolve(controller, nil)
-			if err != nil {
-				return nil, nil, fmt.Errorf("could not create DID document: could not resolve a controller: %w", err)
-			}
-			controllerMetadata = append(controllerMetadata, *meta)
-		}
-	}
-
-	if selfControl && !keyFlags.Is(management.CapabilityInvocationUsage) {
+	if !keyFlags.Is(management.CapabilityInvocationUsage) {
 		return nil, nil, ErrInvalidOptions
 	}
 
-	doc, key, err := n.create(ctx, keyFlags, selfControl, controllers)
+	doc, key, err := n.create(ctx, keyFlags)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := n.publish(ctx, *doc, key, controllerMetadata); err != nil {
+	if err := n.publish(ctx, *doc, key); err != nil {
 		return nil, nil, err
 	}
 
@@ -200,23 +167,19 @@ func (n Creator) Create(ctx context.Context, options management.CreationOptions)
 	return doc, key, nil
 }
 
-func parseOptions(options management.CreationOptions) (selfControl bool, controllers []did.DID, keyFlags management.DIDKeyFlags, err error) {
+func parseOptions(options management.CreationOptions) (keyFlags management.DIDKeyFlags, err error) {
 	for _, opt := range options.All() {
 		switch o := opt.(type) {
 		case keyFlagCreationOption:
 			keyFlags = management.DIDKeyFlags(o)
-		case selfControlCreationOption:
-			selfControl = bool(o)
-		case controllersCreationOption:
-			controllers = o.controllers
 		default:
-			return false, nil, 0, fmt.Errorf("unknown option: %T", opt)
+			return 0, fmt.Errorf("unknown option: %T", opt)
 		}
 	}
 	return
 }
 
-func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags, selfControl bool, controllers []did.DID) (*did.Document, nutsCrypto.Key, error) {
+func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
@@ -238,40 +201,20 @@ func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags, selfC
 	didID, _ := resolver.GetDIDFromURL(key.KID())
 	doc := CreateDocument()
 	doc.ID = didID
-	doc.Controller = controllers
 
 	var verificationMethod *did.VerificationMethod
-	if selfControl {
-		// Add VerificationMethod using generated key
-		verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(controllers) > 0 {
-			// also set as controller
-			doc.Controller = append(doc.Controller, didID)
-		}
-	} else {
-		// Generate new key for other key capabilities, store the private key
-		capKey, err := n.KeyStore.New(ctx, didSubKIDNamingFunc(didID))
-		if err != nil {
-			return nil, nil, err
-		}
-		capKeyID, err := did.ParseDIDURL(capKey.KID())
-		if err != nil {
-			return nil, nil, err
-		}
-		verificationMethod, err = did.NewVerificationMethod(*capKeyID, ssi.JsonWebKey2020, did.DID{}, capKey.Public())
-		if err != nil {
-			return nil, nil, err
-		}
+
+	// Add VerificationMethod using generated key
+	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
+	if err != nil {
+		return nil, nil, err
 	}
 
 	applyKeyUsage(&doc, verificationMethod, flags)
 	return &doc, key, nil
 }
 
-func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key, controllerMetadata []resolver.DocumentMetadata) error {
+func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key) error {
 	payload, err := json.Marshal(doc)
 	if err != nil {
 		return err
@@ -279,9 +222,6 @@ func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.K
 
 	// extract the transaction refs from the controller metadata
 	refs := make([]hash.SHA256Hash, 0)
-	for _, meta := range controllerMetadata {
-		refs = append(refs, meta.SourceTransactions...)
-	}
 
 	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
 	_, err = n.NetworkClient.CreateTransaction(ctx, tx)

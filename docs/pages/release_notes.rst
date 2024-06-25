@@ -16,6 +16,7 @@ Breaking changes
 - Container user has changed from root to ``18081``. (see :ref:`running-docker`)
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 - Docker image tags have been changed: previously version tags had were prefixed with ``v`` (e.g., ``v5.0.0``), this prefix has been dropped to better adhere to industry standards.
+- The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
 
 ============
 New Features
@@ -35,7 +36,7 @@ The following new features have been added:
 - Added support for OpenID4VCI (OpenID for Verifiable Credential Issuance)
 - Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
 - Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
-- Added support for storage in SQL databases (PostgreSQL, MySQL, SQLite and Microsoft SQL Server, see :ref:`storage-configuration`) for ``did:web``-related features.
+- Added support for storage in SQL databases (PostgreSQL, MySQL, SQLite and Microsoft SQL Server, see :ref:`storage-configuration`) for various features.
 - Added a Docker developer image (see :ref:`running-docker`) which is useful for local development. It is built from the latest ``master`` build.
 - Added a VDR API operation to list locally managed DIDs.
 

@@ -16,20 +16,13 @@ Only when information is added to the key pair, the key pair becomes important.
 DIDs can gather claims through Verifiable Credentials. This allows a DID to actually represent something known in real life.
 For example: adding an organization name credential connects the key pair to the name of the organization. It connects the digital world to the real world.
 
-DID Documents
-*************
+Nuts DID Documents
+******************
 
 DIDs are backed by a *DID Document*. It defines the public keys, who can alter the document and any services related to the DID.
-DID documents are automatically propagated through the network when they are created.
+Nuts DID documents are automatically propagated through the network when they are created.
 When DID documents are created, the DID **always** represents the public key fingerprint of the associated key.
 A DID document is always created with a new key, the holder of the key can delegate the control to another DID.
-
-Controller
-==========
-
-The controller of the DID document is the only one that can change the contents. It can assign other controllers, change keys, change services and revoke the DID.
-When created, the DID document only has a single controller: the DID itself and the key related to it. It can choose to change add new controllers and remove existing ones.
-Changes to DID documents are only accepted when the network transaction is signed with a controller's **authentication** key.
 
 Verification Method
 ===================
