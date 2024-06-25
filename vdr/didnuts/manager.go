@@ -20,69 +20,43 @@ package didnuts
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/network"
+	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
 )
 
 // NewManager creates a new Manager instance.
-func NewManager(creator management.DocCreator, owner management.DocumentOwner) *Manager {
+func NewManager(cryptoClient crypto.KeyStore, networkClient network.Transactions,
+	didStore didnutsStore.Store, didResolver resolver.DIDResolver, DB *gorm.DB) *Manager {
 	return &Manager{
-		Creator:       creator,
-		DocumentOwner: owner,
+		NetworkClient:   networkClient,
+		DB:              DB,
+		Store:           didStore,
+		KeyStore:        cryptoClient,
+		Resolver:        didResolver,
+		ServiceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 	}
 }
 
 var _ management.DocumentManager = (*Manager)(nil)
 
 type Manager struct {
-	Creator       management.DocCreator
-	DocumentOwner management.DocumentOwner
-	Manipulator   management.DocManipulator
-}
-
-func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
-	return m.Manipulator.Deactivate(ctx, id)
-}
-
-func (m Manager) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
-	return m.Creator.Create(ctx, options)
-}
-
-func (m Manager) IsOwner(ctx context.Context, did did.DID) (bool, error) {
-	// did:nuts DocumentManager uses injected DocumentOwner to check ownership,
-	// which lists the private key storage to check if the DID is owned by this node.
-	// As did:web stores its private keys in the same way, this leads to duplicates.
-	// This manager should only work on did:nuts
-	if did.Method != MethodName {
-		return false, nil
-	}
-	return m.DocumentOwner.IsOwner(ctx, did)
-}
-
-func (m Manager) ListOwned(ctx context.Context) ([]did.DID, error) {
-	// did:nuts DocumentManager uses injected DocumentOwner to check ownership,
-	// which lists the private key storage to check if the DID is owned by this node.
-	// As did:web stores its private keys in the same way, this leads to duplicates.
-	// This manager should only work on did:nuts
-	all, err := m.DocumentOwner.ListOwned(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var result []did.DID
-	for _, curr := range all {
-		if curr.Method == MethodName {
-			result = append(result, curr)
-		}
-	}
-	return result, err
-}
-
-func (m Manager) Resolve(_ did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
-	return nil, nil, fmt.Errorf("Resolve() is not supported for did:%s", MethodName)
+	NetworkClient   network.Transactions
+	DB              *gorm.DB
+	Store           didnutsStore.Store
+	KeyStore        crypto.KeyStore
+	Resolver        resolver.DIDResolver
+	ServiceResolver resolver.ServiceResolver
 }
 
 func (m Manager) CreateService(_ context.Context, _ did.DID, _ did.Service) (*did.Service, error) {
@@ -95,4 +69,125 @@ func (m Manager) UpdateService(_ context.Context, _ did.DID, _ ssi.URI, _ did.Se
 
 func (m Manager) DeleteService(_ context.Context, _ did.DID, _ ssi.URI) error {
 	return fmt.Errorf("DeleteService() is not supported for did:%s", MethodName)
+}
+
+// AddVerificationMethod adds a new key as a VerificationMethod to the document.
+// The key is added to the VerficationMethod relationships specified by keyUsage.
+func (m Manager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage management.DIDKeyFlags) (*did.VerificationMethod, error) {
+	doc, meta, err := m.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return nil, err
+	}
+	if meta.Deactivated {
+		return nil, resolver.ErrDeactivated
+	}
+	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, m.KeyStore)
+	if err != nil {
+		return nil, err
+	}
+	method.Controller = doc.ID
+	doc.VerificationMethod.Add(method)
+	applyKeyUsage(doc, method, keyUsage)
+	if err = m.Update(ctx, id, *doc); err != nil {
+		return nil, err
+	}
+	return method, nil
+}
+
+// RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
+func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error {
+	doc, _, err := m.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return err
+	}
+	lenBefore := len(doc.VerificationMethod)
+	doc.RemoveVerificationMethod(keyID)
+	if lenBefore == len(doc.VerificationMethod) {
+		// do not update if nothing has changed
+		return nil
+	}
+
+	return m.Update(ctx, id, *doc)
+}
+
+// CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
+// with a freshly generated key for a given DID.
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator crypto.KeyCreator) (*did.VerificationMethod, error) {
+	key, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+	if err != nil {
+		return nil, err
+	}
+	keyID, err := did.ParseDIDURL(key.KID())
+	if err != nil {
+		return nil, err
+	}
+	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key.Public())
+	if err != nil {
+		return nil, err
+	}
+	return method, nil
+}
+
+// Update updates a DID Document based on the DID.
+// It only works on did:nuts, so is subject for removal in the future.
+func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) error {
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Debug("Updating DID Document")
+	resolverMetadata := &resolver.ResolveMetadata{
+		AllowDeactivated: true,
+	}
+
+	currentDIDDocument, currentMeta, err := m.Store.Resolve(id, resolverMetadata)
+	if err != nil {
+		return fmt.Errorf("update DID document: %w", err)
+	}
+	if currentMeta.Deactivated {
+		return fmt.Errorf("update DID document: %w", resolver.ErrDeactivated)
+	}
+
+	// #1530: add nuts and JWS context if not present
+	next = withJSONLDContext(next, did.DIDContextV1URI())
+	next = withJSONLDContext(next, NutsDIDContextV1URI())
+	next = withJSONLDContext(next, JWS2020ContextV1URI())
+
+	// Validate document. No more changes should be made to the document after this point.
+	if err = ManagedDocumentValidator(m.ServiceResolver).Validate(next); err != nil {
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	payload, err := json.Marshal(next)
+	if err != nil {
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	controller, key, err := m.resolveControllerWithKey(ctx, *currentDIDDocument)
+	if err != nil {
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	// for the metadata
+	_, controllerMeta, err := m.Resolver.Resolve(controller.ID, nil)
+	if err != nil {
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
+	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
+
+	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
+	_, err = m.NetworkClient.CreateTransaction(ctx, tx)
+	if err != nil {
+		log.Logger().WithError(err).Warn("Unable to update DID document")
+		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
+			err = resolver.ErrDIDNotManagedByThisNode
+		}
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	log.Logger().
+		WithField(core.LogFieldDID, id).
+		Info("DID Document updated")
+
+	return nil
 }

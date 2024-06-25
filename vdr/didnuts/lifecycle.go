@@ -62,24 +62,6 @@ func CreateDocument() did.Document {
 	}
 }
 
-// Creator implements the DocCreator interface and can create Nuts DID Documents.
-type Creator struct {
-	// KeyStore is used for getting a fresh key and use it to generate the Nuts DID
-	KeyStore nutsCrypto.KeyCreator
-
-	// NetworkClient is used for publishing the newly created DID Document
-	NetworkClient network.Transactions
-
-	// DIDResolver is used for resolving the controllers of the newly created DID Document
-	DIDResolver resolver.DIDResolver
-}
-
-// DefaultCreationOptions returns the default CreationOptions when creating DID Documents.
-func DefaultCreationOptions() management.CreationOptions {
-	return management.Create(MethodName).
-		With(KeyFlag(DefaultKeyFlags()))
-}
-
 // DefaultKeyFlags returns the default DIDKeyFlags when creating did:nuts DIDs.
 func DefaultKeyFlags() management.DIDKeyFlags {
 	return management.AssertionMethodUsage | management.CapabilityInvocationUsage | management.KeyAgreementUsage
@@ -145,7 +127,7 @@ var ErrInvalidOptions = errors.New("create request has invalid combination of op
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
 // It also publishes the DID Document to the network.
-func (n Creator) Create(ctx context.Context, options management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
+func (m Manager) Create(ctx context.Context, options management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	keyFlags, err := parseOptions(options)
 	if err != nil {
 		return nil, nil, err
@@ -155,11 +137,11 @@ func (n Creator) Create(ctx context.Context, options management.CreationOptions)
 		return nil, nil, ErrInvalidOptions
 	}
 
-	doc, key, err := n.create(ctx, keyFlags)
+	doc, key, err := m.create(ctx, keyFlags)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := n.publish(ctx, *doc, key); err != nil {
+	if err := m.publish(ctx, *doc, key); err != nil {
 		return nil, nil, err
 	}
 
@@ -167,7 +149,21 @@ func (n Creator) Create(ctx context.Context, options management.CreationOptions)
 	return doc, key, nil
 }
 
+// Deactivate updates the DID Document so it can no longer be updated
+// It removes key material, services and controllers.
+func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
+	_, _, err := m.Resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
+	if err != nil {
+		return err
+	}
+	// A deactivated DID resolves to an empty DID document.
+	emptyDoc := CreateDocument()
+	emptyDoc.ID = id
+	return m.Update(ctx, id, emptyDoc)
+}
+
 func parseOptions(options management.CreationOptions) (keyFlags management.DIDKeyFlags, err error) {
+	keyFlags = DefaultKeyFlags()
 	for _, opt := range options.All() {
 		switch o := opt.(type) {
 		case keyFlagCreationOption:
@@ -179,12 +175,12 @@ func parseOptions(options management.CreationOptions) (keyFlags management.DIDKe
 	return
 }
 
-func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
+func (m Manager) create(ctx context.Context, flags management.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := n.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err := m.KeyStore.New(ctx, didKIDNamingFunc)
 	// } else {
 	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
 	// }
@@ -214,7 +210,7 @@ func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags) (*did
 	return &doc, key, nil
 }
 
-func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key) error {
+func (m Manager) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key) error {
 	payload, err := json.Marshal(doc)
 	if err != nil {
 		return err
@@ -224,7 +220,7 @@ func (n Creator) publish(ctx context.Context, doc did.Document, key nutsCrypto.K
 	refs := make([]hash.SHA256Hash, 0)
 
 	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-	_, err = n.NetworkClient.CreateTransaction(ctx, tx)
+	_, err = m.NetworkClient.CreateTransaction(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("could not store DID document in network: %w", err)
 	}

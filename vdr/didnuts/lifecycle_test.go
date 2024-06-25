@@ -25,9 +25,12 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	crypto2 "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -35,14 +38,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
 func TestDefaultCreationOptions(t *testing.T) {
-	ops := DefaultCreationOptions()
+	ops := management.EmptyCreationOptions()
 
 	keyFlags, err := parseOptions(ops)
 	assert.NoError(t, err)
@@ -53,28 +54,25 @@ func TestDefaultCreationOptions(t *testing.T) {
 	assert.True(t, keyFlags.Is(management.KeyAgreementUsage))
 }
 
-func TestCreator_Create(t *testing.T) {
-	defaultOptions := DefaultCreationOptions()
+func TestManager_Create2(t *testing.T) {
+	defaultOptions := management.EmptyCreationOptions()
 
 	t.Run("ok", func(t *testing.T) {
 		t.Run("defaults", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			networkClient := network.NewMockTransactions(ctrl)
+			ctx := newManagerTestContext(t)
 			var txTemplate network.Template
-			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
 				txTemplate = tx
 				return hash.EmptyHash(), nil
 			})
-			kc := &mockKeyCreator{}
-			creator := Creator{KeyStore: kc, NetworkClient: networkClient}
 
-			doc, key, err := creator.Create(nil, defaultOptions)
+			doc, key, err := ctx.manager.Create(nil, defaultOptions)
 			assert.NoError(t, err, "create should not return an error")
 			assert.NotNil(t, doc, "create should return a document")
 			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, did.MustParseDIDURL(kc.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
+			assert.Equal(t, did.MustParseDIDURL(ctx.mockKeyStore.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
 			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
-			assert.Equal(t, kc.key.KID(), doc.VerificationMethod[0].ID.String(),
+			assert.Equal(t, ctx.mockKeyStore.key.KID(), doc.VerificationMethod[0].ID.String(),
 				"verificationMethod should have the correct id")
 			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
 			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
@@ -87,24 +85,21 @@ func TestCreator_Create(t *testing.T) {
 		})
 
 		t.Run("unknown option", func(t *testing.T) {
-			_, _, err := (&Creator{}).Create(nil, management.Create("").With(""))
+			_, _, err := (&Manager{}).Create(nil, management.EmptyCreationOptions().With(""))
 			assert.EqualError(t, err, "unknown option: string")
 		})
 
 		t.Run("all keys", func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			networkClient := network.NewMockTransactions(ctrl)
-			networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, nil)
-			kc := &mockKeyCreator{}
-			creator := Creator{KeyStore: kc, NetworkClient: networkClient}
+			ctx := newManagerTestContext(t)
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 			keyFlags := management.AssertionMethodUsage |
 				management.AuthenticationUsage |
 				management.CapabilityDelegationUsage |
 				management.CapabilityInvocationUsage |
 				management.KeyAgreementUsage
-			ops := DefaultCreationOptions().With(KeyFlag(keyFlags))
-			doc, _, err := creator.Create(nil, ops)
+			ops := management.EmptyCreationOptions().With(KeyFlag(keyFlags))
+			doc, _, err := ctx.manager.Create(nil, ops)
 
 			require.NoError(t, err)
 
@@ -114,54 +109,42 @@ func TestCreator_Create(t *testing.T) {
 			assert.Len(t, doc.CapabilityInvocation, 1)
 			assert.Len(t, doc.KeyAgreement, 1)
 		})
-
-		t.Run("using ephemeral key creates different keys for assertion and DID", func(t *testing.T) {
-			// https://github.com/nuts-foundation/nuts-node/pull/1954
-			t.Skip("Disabled while ephemeral keys are not used")
-			ctrl := gomock.NewController(t)
-			keyCreator := nutsCrypto.NewMockKeyCreator(ctrl)
-			creator := Creator{KeyStore: keyCreator}
-
-			keyCreator.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, fn nutsCrypto.KIDNamingFunc) (nutsCrypto.Key, error) {
-				key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				keyName, _ := fn(key.Public())
-				return nutsCrypto.TestKey{
-					PrivateKey: key,
-					Kid:        keyName,
-				}, nil
-			})
-
-			ops := DefaultCreationOptions().With(KeyFlag(management.AssertionMethodUsage))
-			doc, docCreationKey, err := creator.Create(nil, ops)
-
-			require.NoError(t, err)
-
-			assert.Len(t, doc.CapabilityInvocation, 0)
-			assert.Len(t, doc.VerificationMethod, 1)
-			assert.Len(t, doc.AssertionMethod, 1)
-
-			subKeyID := doc.VerificationMethod[0].ID
-			subKeyIDWithoutFragment := subKeyID
-			subKeyIDWithoutFragment.Fragment = ""
-
-			// Document has been created with an ephemeral key (one that won't be stored) but contains a verificationMethod
-			// for different purposes (in this case assertionMethod), which is stored. The latter (`subKeyID`) must have the same DID
-			// idString but a different fragment.
-			assert.NotEqual(t, docCreationKey.KID(), subKeyID)
-			assert.Equal(t, doc.ID.String(), subKeyIDWithoutFragment.String())
-		})
 	})
 
 	t.Run("error - failed to create key", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
-		creator := Creator{KeyStore: mockKeyStore}
-		mockKeyStore.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
+		ctx := newManagerTestContext(t)
+		mock := crypto2.NewMockKeyStore(ctx.ctrl)
+		ctx.manager.KeyStore = mock
+		mock.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
 
-		_, _, err := creator.Create(nil, DefaultCreationOptions())
+		_, _, err := ctx.manager.Create(nil, management.EmptyCreationOptions())
 
 		assert.EqualError(t, err, "b00m!")
 	})
+}
+
+func TestManager_Deactivate(t *testing.T) {
+	id, _ := did.ParseDID("did:nuts:123")
+	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
+	ctx := newManagerTestContext(t)
+	currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
+	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
+	ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	ctx.mockResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	expectedDocument := CreateDocument()
+	expectedDocument.ID = *id
+	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+		var didDocument did.Document
+		_ = json.Unmarshal(template.Payload, &didDocument)
+		assert.Len(t, didDocument.VerificationMethod, 0)
+		assert.Len(t, didDocument.Controller, 0)
+		return nil, nil
+	})
+
+	err := ctx.manager.Deactivate(ctx.audit, *id)
+
+	require.NoError(t, err)
 }
 
 func Test_didKIDNamingFunc(t *testing.T) {

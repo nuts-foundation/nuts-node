@@ -182,7 +182,7 @@ func (h *GoldenHammer) registerServiceBaseURLs() error {
 }
 
 func (h *GoldenHammer) listDocumentToFix() ([]did.Document, error) {
-	dids, err := h.vdrInstance.ListOwned(h.ctx)
+	dids, err := h.vdrInstance.DocumentOwner().ListOwned(h.ctx)
 	if err != nil {
 		return nil, err
 	}

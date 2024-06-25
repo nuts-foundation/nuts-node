@@ -69,7 +69,6 @@ import (
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrAPIv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -199,7 +198,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	vdrInstance := vdr.NewVDR(cryptoInstance, networkInstance, didStore, eventManager, storageInstance)
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
-	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance)
+	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance.DocumentOwner()) // todo initialization
 	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
@@ -210,16 +209,12 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocManipulator: &didnuts.Manipulator{
-		KeyCreator: cryptoInstance,
-		Updater:    vdrInstance,
-		Resolver:   vdrInstance.Resolver(),
-	}})
-	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
-		VCR:           credentialInstance,
-		DocumentOwner: vdrInstance,
+		VCR: credentialInstance,
+		VDR: vdrInstance,
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))

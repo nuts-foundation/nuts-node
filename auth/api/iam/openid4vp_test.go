@@ -393,7 +393,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -432,7 +432,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
 			ctx.jar.EXPECT().Create(verifierDID, nil, gomock.Any())
 
@@ -448,7 +448,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, assert.AnError)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
@@ -458,7 +458,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("expired session", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
@@ -471,7 +471,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			proof := `{"proof":{}}`
 			request.Body.VpToken = &proof
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -479,7 +479,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		})
 		t.Run("unknown verifier id", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(false, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(false, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
@@ -490,7 +490,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			invalidToken := "}"
 			request.Body.VpToken = &invalidToken
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -500,7 +500,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			ctx := newTestClient(t)
 			request := baseRequest()
 			request.Body.VpToken = nil
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -513,7 +513,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request.Body.PresentationSubmission = &submission
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -525,7 +525,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request.Body.PresentationSubmission = nil
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -538,7 +538,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 			request.Body.VpToken = &vpToken
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -551,7 +551,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			request := baseRequest()
 			vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 			request.Body.VpToken = &vpToken
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -566,7 +566,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			submission := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"2","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 			request.Body.PresentationSubmission = &submission
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
-			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+			ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 

@@ -32,7 +32,7 @@ var sqlDidAlice = DID{ID: alice.String(), Subject: "alice"}
 
 func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	keyUsageFlag := VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage)
-	vm := SqlVerificationMethod{
+	vm := VerificationMethod{
 		ID:       "#1",
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
@@ -62,7 +62,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		tx := transaction(t, db)
 		docManager := NewDIDDocumentManager(tx)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
 		require.NoError(t, err)
 
 		require.Len(t, doc.VerificationMethods, 1)
@@ -76,14 +76,14 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
 		docManager := NewDIDDocumentManager(tx)
-		_, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
+		_, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []SqlVerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
 
 		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)

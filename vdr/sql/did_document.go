@@ -19,10 +19,14 @@
 package sql
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -33,8 +37,8 @@ type DIDDocument struct {
 	DidID               string `gorm:"column:did"`
 	DID                 DID    `gorm:"foreignKey:DidID;references:ID"`
 	Version             int
-	VerificationMethods []SqlVerificationMethod `gorm:"foreignKey:DIDDocumentID;references:ID"`
-	Services            []SqlService            `gorm:"foreignKey:DIDDocumentID;references:ID"`
+	VerificationMethods []VerificationMethod `gorm:"foreignKey:DIDDocumentID;references:ID"`
+	Services            []SqlService         `gorm:"foreignKey:DIDDocumentID;references:ID"`
 }
 
 func (d DIDDocument) TableName() string {
@@ -50,7 +54,7 @@ type DIDDocumentManager interface {
 	// If the DID does not exist yet, it will be created
 	// It adds all verification methods and services to the DID document
 	// Not passing any verification methods will create an empty DID document, deactivation checking should be done by the caller
-	CreateOrUpdate(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error)
+	CreateOrUpdate(did DID, verificationMethods []VerificationMethod, services []SqlService) (*DIDDocument, error)
 	// Latest returns the latest version of a DID document
 	Latest(did did.DID) (*DIDDocument, error)
 }
@@ -65,7 +69,7 @@ func NewDIDDocumentManager(tx *gorm.DB) *SqlDIDDocumentManager {
 	return &SqlDIDDocumentManager{tx: tx}
 }
 
-func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []SqlVerificationMethod, services []SqlService) (*DIDDocument, error) {
+func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []VerificationMethod, services []SqlService) (*DIDDocument, error) {
 	latest := DIDDocument{}
 	err := s.tx.Preload("DID").Where("did = ?", did.ID).Order("version desc").First(&latest).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -81,6 +85,7 @@ func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []Sq
 		services[i].DIDDocumentID = id
 	}
 	doc := DIDDocument{ID: id, DID: did, Version: version, VerificationMethods: verificationMethods, Services: services}
+
 	err = s.tx.Create(&doc).Error
 	return &doc, err
 }
@@ -92,4 +97,48 @@ func (s *SqlDIDDocumentManager) Latest(did did.DID) (*DIDDocument, error) {
 		return nil, err
 	}
 	return &doc, err
+}
+
+func (sqlDoc DIDDocument) ToDIDDocument() (did.Document, error) {
+	id, _ := did.ParseDID(sqlDoc.DID.ID)
+	document := did.Document{
+		Context: []interface{}{
+			ssi.MustParseURI(jsonld.Jws2020Context),
+			did.DIDContextV1URI(),
+		},
+		ID: *id,
+	}
+	for _, sqlVM := range sqlDoc.VerificationMethods {
+		verificationMethod := did.VerificationMethod{}
+		err := json.Unmarshal(sqlVM.Data, &verificationMethod)
+		if err != nil {
+			return document, err
+		}
+
+		if sqlVM.KeyTypes&VerificationMethodKeyType(management.AssertionMethodUsage) != 0 {
+			document.AddAssertionMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&VerificationMethodKeyType(management.AuthenticationUsage) != 0 {
+			document.AddAuthenticationMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&VerificationMethodKeyType(management.KeyAgreementUsage) != 0 {
+			document.AddKeyAgreement(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&VerificationMethodKeyType(management.CapabilityDelegationUsage) != 0 {
+			document.AddCapabilityDelegation(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&VerificationMethodKeyType(management.CapabilityInvocationUsage) != 0 {
+			document.AddCapabilityInvocation(&verificationMethod)
+		}
+	}
+	for _, sqlService := range sqlDoc.Services {
+		service := did.Service{}
+		err := json.Unmarshal(sqlService.Data, &service)
+		if err != nil {
+			return document, err
+		}
+		document.Service = append(document.Service, service)
+	}
+
+	return document, nil
 }

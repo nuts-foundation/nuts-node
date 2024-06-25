@@ -25,13 +25,21 @@ import (
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
+// Deprecated: Use the management.SubjectManager and management.DocumentManager interfaces instead.
 type VDR interface {
-	management.DocUpdater
-	management.DocumentManager
+	//management.SubjectManager
+	//management.DocumentManager
+
+	// NutsDocumentManager returns the nuts document manager.
+	NutsDocumentManager() management.DocumentManager
+	// DocumentOwner returns the document owner.
+	DocumentOwner() management.DocumentOwner
 
 	// ResolveManaged resolves a DID document that is managed by the local node.
+	// todo move to SubjectManager
 	ResolveManaged(id did.DID) (*did.Document, error)
 	// Resolver returns the resolver for getting the DID document for a DID.
+	// todo move where?
 	Resolver() resolver.DIDResolver
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error)

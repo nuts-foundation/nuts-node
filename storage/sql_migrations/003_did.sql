@@ -21,6 +21,12 @@ create table did_document_version
     foreign key (did) references did (id) on delete cascade
 );
 
+create table did_event_log
+(
+    did_document_version_id varchar(36) not null primary key,
+    event_type varchar(32) not null
+);
+
 -- this table is used to store the verification methods for locally managed DIDs
 create table did_verificationmethod
 (
@@ -57,5 +63,6 @@ create table did_service
 -- +goose Down
 drop table did_verificationmethod;
 drop table did_service;
+drop table did_event_log;
 drop table did_document_version;
 drop table did;

@@ -28,7 +28,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/audit"
+	events2 "github.com/nuts-foundation/nuts-node/vdr/events"
+	"github.com/nuts-foundation/nuts-node/vdr/sql"
+	"gorm.io/gorm"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -54,29 +58,32 @@ const ModuleName = "VDR"
 var _ VDR = (*Module)(nil)
 var _ core.Named = (*Module)(nil)
 var _ core.Configurable = (*Module)(nil)
+var _ management.SubjectManager = (*Module)(nil)
 
 // Module implements VDR, which stands for the Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type Module struct {
-	store             didnutsStore.Store
-	network           network.Transactions
-	networkAmbassador didnuts.Ambassador
-	documentManagers  map[string]management.DocumentManager
-	didResolver       *resolver.DIDResolverRouter
-	serviceResolver   resolver.ServiceResolver
-	keyStore          crypto.KeyStore
-	storageInstance   storage.Engine
-	eventManager      events.Event
+	store               didnutsStore.Store
+	network             network.Transactions
+	networkAmbassador   didnuts.Ambassador
+	documentOwner       management.DocumentOwner
+	nutsDocumentManager management.DocumentManager
+	didResolver         resolver.DIDResolver
+	sqlDIDResolver      resolver.DIDResolver
+	serviceResolver     resolver.ServiceResolver
+	keyStore            crypto.KeyStore
+	storageInstance     storage.Engine
+	eventManager        events.Event
+
+	// new style DID management
+	db            *gorm.DB
+	eventManagers map[string]events2.MethodManager
 }
 
 // ResolveManaged resolves a DID document that is managed by the local node.
 func (r *Module) ResolveManaged(id did.DID) (*did.Document, error) {
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", id.Method)
-	}
-	document, _, err := manager.Resolve(id, nil)
+	document, _, err := r.sqlDIDResolver.Resolve(id, nil)
 	return document, err
 }
 
@@ -112,19 +119,22 @@ func (r *Module) Name() string {
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	r.db = r.storageInstance.GetSQLDatabase()
+	r.sqlDIDResolver = sql.Resolver{DB: r.db}
 
 	// Methods we can produce from the Nuts node
 	// did:nuts
-	r.documentManagers = map[string]management.DocumentManager{
-		didnuts.MethodName: didnuts.NewManager(
-			didnuts.Creator{
-				KeyStore:      r.keyStore,
-				NetworkClient: r.network,
-				DIDResolver:   r.store,
-			},
+	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, r.db)
+	r.nutsDocumentManager = nutsManager
+	r.documentOwner = &MultiDocumentOwner{
+		DocumentOwners: []management.DocumentOwner{
+			newCachingDocumentOwner(DBDocumentOwner{DB: r.db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
-		),
+		},
 	}
+	//r.documentOwner = newCachingDocumentOwner(DBDocumentOwner{DB: r.db}, r.didResolver)
+	//r.documentOwner = newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver)
+
 	// did:web
 	publicURL, err := config.ServerURL()
 	if err != nil {
@@ -134,21 +144,26 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	manager := didweb.NewManager(*rootDID, "iam", r.keyStore, r.storageInstance.GetSQLDatabase())
-	r.documentManagers[didweb.MethodName] = manager
+	webManager := didweb.NewManager(*rootDID, "iam", r.keyStore, r.db)
 	// did:web resolver should first look in own database, then resolve over the web
 	webResolver := resolver.ChainedDIDResolver{
 		Resolvers: []resolver.DIDResolver{
-			manager,
+			r.sqlDIDResolver,
 			didweb.NewResolver(),
 		},
 	}
 
+	// eventing
+	r.eventManagers = map[string]events2.MethodManager{
+		didnuts.MethodName: nutsManager,
+		didweb.MethodName:  webManager,
+	}
+
 	// Register DID methods we can resolve
-	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
-	r.didResolver.Register(didweb.MethodName, webResolver)
-	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
-	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()
@@ -170,6 +185,9 @@ func (r *Module) Start() error {
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 
+	// start loops for event managers
+	// todo
+
 	return err
 }
 
@@ -189,24 +207,12 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 	return conflictedDocs, conflictedMeta, err
 }
 
-func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return false, fmt.Errorf("unsupported method: %s", id.Method)
-	}
-	return manager.IsOwner(ctx, id)
+func (r *Module) NutsDocumentManager() management.DocumentManager {
+	return r.nutsDocumentManager
 }
 
-func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
-	results := make([]did.DID, 0)
-	for _, owner := range r.documentManagers {
-		owned, err := owner.ListOwned(ctx)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, owned...)
-	}
-	return results, nil
+func (r *Module) DocumentOwner() management.DocumentOwner {
+	return r.documentOwner
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
@@ -224,7 +230,7 @@ func (r *Module) newOwnConflictedDocIterator(totalCount, ownedCount *int) manage
 		}
 		for _, controller := range controllers {
 			// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
-			isOwned, err := r.IsOwner(context.TODO(), controller.ID)
+			isOwned, err := r.DocumentOwner().IsOwner(context.TODO(), controller.ID)
 			if err != nil {
 				log.Logger().
 					WithField(core.LogFieldDID, controller.ID).
@@ -284,7 +290,7 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 
 func (r *Module) Migrate() error {
 	// Find all documents that are managed by this node
-	owned, err := r.ListOwned(context.Background())
+	owned, err := r.DocumentOwner().ListOwned(context.Background())
 	if err != nil {
 		return err
 	}
@@ -311,7 +317,7 @@ func (r *Module) Migrate() error {
 					}
 				}
 
-				err = r.Update(auditContext, did, *doc)
+				err = r.nutsDocumentManager.Update(auditContext, did, *doc)
 				if err != nil {
 					return fmt.Errorf("could not update owned DID document: %w", err)
 				}
@@ -322,134 +328,381 @@ func (r *Module) Migrate() error {
 }
 
 // Create generates a new DID Document
-func (r *Module) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
-	log.Logger().Debug("Creating new DID Document.")
-	manager := r.documentManagers[options.Method()]
-	if manager == nil {
-		return nil, nil, fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, options.Method())
-	}
-	doc, key, err := manager.Create(ctx, options)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method(), err)
-	}
-	log.Logger().
-		WithField(core.LogFieldDID, doc.ID).
-		Info("New DID Document created")
-	return doc, key, nil
-}
+func (r *Module) Create(ctx context.Context, options management.CreationOptions) ([]did.Document, string, error) {
+	log.Logger().Debug("Creating new DID Documents.")
 
-func (r *Module) Deactivate(ctx context.Context, id did.DID) error {
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Debug("Deactivating DID Document")
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, id.Method)
-	}
-	err := manager.Deactivate(ctx, id)
-	if err != nil {
-		return fmt.Errorf("could not deactivate DID document: %w", err)
-	}
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Info("DID Document deactivated")
-	return nil
-}
+	// todo keyTypes
+	keyFlags := management.CapabilityInvocationUsage | management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage
 
-// Update updates a DID Document based on the DID.
-// It only works on did:nuts, so is subject for removal in the future.
-func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) error {
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Debug("Updating DID Document")
-	resolverMetadata := &resolver.ResolveMetadata{
-		AllowDeactivated: true,
-	}
+	// todo
+	subject := uuid.New().String()
 
-	// Since the update mechanism is "did:nuts"-specific, we can't accidentally update a non-"did:nuts" document,
-	// but check it defensively to avoid obscure errors later.
-	if id.Method != didnuts.MethodName {
-		return fmt.Errorf("can't update DID document of type: %s", id.Method)
-	}
-
-	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-	if resolver.IsDeactivated(*currentDIDDocument) {
-		return fmt.Errorf("update DID document: %w", resolver.ErrDeactivated)
-	}
-
-	// #1530: add nuts and JWS context if not present
-	next = withJSONLDContext(next, didnuts.NutsDIDContextV1URI())
-	next = withJSONLDContext(next, didnuts.JWS2020ContextV1URI())
-
-	// Validate document. No more changes should be made to the document after this point.
-	if err = didnuts.ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	payload, err := json.Marshal(next)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	// for the metadata
-	_, controllerMeta, err := r.didResolver.Resolve(controller.ID, nil)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
-	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
-
-	tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
-	_, err = r.network.CreateTransaction(ctx, tx)
-	if err != nil {
-		log.Logger().WithError(err).Warn("Unable to update DID document")
-		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-			err = resolver.ErrDIDNotManagedByThisNode
+	// call generate on all managers
+	docs := make(map[string]did.Document)
+	for method, manager := range r.eventManagers {
+		doc, err := manager.GenerateDocument(ctx, subject, keyFlags)
+		if err != nil {
+			return nil, "", fmt.Errorf("could not generate DID document (method %s): %w", method, err)
 		}
-		return fmt.Errorf("update DID document: %w", err)
+		docs[method] = *doc
+	}
+
+	// then store all docs in the sql db with matching events
+	sqlDocs := make([]sql.DIDDocument, 0)
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		for method, doc := range docs {
+			// Create sql.DID
+			sqlDID := sql.DID{
+				ID:      doc.ID.String(),
+				Subject: subject,
+			}
+
+			// Create verificationMethods
+			keyTypes := sql.VerificationMethodKeyType(management.CapabilityInvocationUsage | management.AssertionMethodUsage)
+			data, _ := json.Marshal(doc.VerificationMethod[0]) //todo
+			vms := []sql.VerificationMethod{
+				{
+					ID:       doc.VerificationMethod[0].ID.String(),
+					KeyTypes: keyTypes, // todo
+					Data:     data,
+				},
+			}
+
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, vms, nil)
+			if err != nil {
+				return events, err
+			}
+			// create and store event todo
+			sqlDocs = append(sqlDocs, *sqlDoc)
+			events[method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDoc.ID,
+				EventType:            events2.DIDEventCreated, // todo could also be update
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+		return events, nil
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("could not store DID documents: %w", err)
+	}
+
+	allDocs := make([]did.Document, 0)
+	for _, doc := range docs {
+		allDocs = append(allDocs, doc)
+	}
+	return allDocs, subject, nil
+}
+
+func (r *Module) Deactivate(ctx context.Context, subject string) error {
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Debug("Deactivating DID Documents")
+
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDManager := sql.NewDIDManager(tx)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return events, err
+		}
+		if len(dids) == 0 {
+			return nil, resolver.ErrNotFound
+		}
+		for _, sqlDID := range dids {
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, nil, nil)
+			if err != nil {
+				return events, err
+			}
+			id, _ := did.ParseDID(sqlDID.ID)
+			events[id.Method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDID.ID,
+				EventType:            events2.DIDEventDeactivated,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+		return events, nil
+	})
+	if err != nil {
+		return fmt.Errorf("could not deactivate DID documents: %w", err)
 	}
 
 	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Info("DID Document updated")
-
+		WithField(core.LogFieldDIDSubject, subject).
+		Info("DID Documents deactivated")
 	return nil
 }
 
 // CreateService creates a new service in the DID document identified by subjectDID.
-func (r *Module) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
+func (r *Module) CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error) {
+	services := make([]did.Service, 0)
+
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDManager := sql.NewDIDManager(tx)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return events, err
+		}
+		for _, sqlDID := range dids {
+			// find current document
+			id, _ := did.ParseDID(sqlDID.ID)
+			current, err := sqlDIDDocumentManager.Latest(*id)
+			if err != nil {
+				return events, err
+			}
+			// construct new service
+			// todo generate ID using hashing
+			if service.ID.String() == "" {
+				// Generate random service ID
+				serviceID := did.DIDURL{
+					DID:      *id,
+					Fragment: uuid.NewString(),
+				}
+				service.ID = serviceID.URI()
+			}
+			asJson, err := json.Marshal(service)
+			if err != nil {
+				return events, err
+			}
+			sqlService := sql.SqlService{
+				ID:            service.ID.String(),
+				DIDDocumentID: current.DidID,
+				Data:          asJson,
+			}
+
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, current.VerificationMethods, append(current.Services, sqlService))
+			if err != nil {
+				return events, err
+			}
+			events[id.Method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDID.ID,
+				EventType:            events2.DIDEventUpdated,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+			services = append(services, service)
+		}
+		return events, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not add service to DID Documents: %w", err)
 	}
-	return manager.CreateService(ctx, subjectDID, service)
+
+	return services, nil
 }
 
-// UpdateService updates a service in the DID document identified by subjectDID.
-func (r *Module) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
+func (r *Module) FindServices(_ context.Context, subject string, serviceType *string) ([]did.Service, error) {
+	sqlDIDManager := sql.NewDIDManager(r.db)
+	dids, err := sqlDIDManager.FindBySubject(subject)
+	if err != nil {
+		return nil, err
 	}
-	return manager.UpdateService(ctx, subjectDID, serviceID, service)
+	services := make([]did.Service, 0)
+	// for detecting duplicates
+	serviceMap := make(map[string]struct{})
+	for _, sqlDID := range dids {
+		id, _ := did.ParseDID(sqlDID.ID)
+		current, err := sql.NewDIDDocumentManager(r.db).Latest(*id)
+		if err != nil {
+			return nil, err
+		}
+		for _, service := range current.Services {
+			if _, ok := serviceMap[service.ID]; ok {
+				continue
+			}
+			serviceMap[service.ID] = struct{}{}
+			var s did.Service
+			err := json.Unmarshal(service.Data, &s)
+			if err != nil {
+				return nil, err
+			}
+			if serviceType != nil && s.Type == *serviceType {
+				services = append(services, s)
+			}
+		}
+	}
+	return services, nil
 }
 
 // DeleteService removes a service from the DID document identified by subjectDID.
-func (r *Module) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return fmt.Errorf("unsupported method: %s", subjectDID.Method)
+func (r *Module) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDManager := sql.NewDIDManager(tx)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		fragmentID := "#" + serviceID.Fragment
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return events, err
+		}
+		for _, sqlDID := range dids {
+			id, _ := did.ParseDID(sqlDID.ID)
+			current, err := sqlDIDDocumentManager.Latest(*id)
+			if err != nil {
+				return events, err
+			}
+
+			services := current.Services
+			j := 0
+			for i, s := range services {
+				if s.ID == fragmentID {
+					continue
+				}
+				services[j] = services[i]
+				j++
+			}
+			services = services[:j]
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(current.DID, current.VerificationMethods, services)
+			if err != nil {
+				return events, err
+			}
+			events[id.Method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDID.ID,
+				EventType:            events2.DIDEventUpdated,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+
+		return events, err
+	})
+
+	if err != nil {
+		return fmt.Errorf("could not delete service from DID Documents: %w", err)
 	}
-	return manager.DeleteService(ctx, subjectDID, serviceID)
+	return nil
+}
+
+func (r *Module) UpdateService(ctx context.Context, subject string, serviceID ssi.URI, service did.Service) ([]did.Service, error) {
+	newServices := make([]did.Service, 0)
+
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDManager := sql.NewDIDManager(tx)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		fragmentID := "#" + serviceID.Fragment
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return events, err
+		}
+		for _, sqlDID := range dids {
+			id, _ := did.ParseDID(sqlDID.ID)
+			current, err := sqlDIDDocumentManager.Latest(*id)
+			if err != nil {
+				return events, err
+			}
+
+			// remove old
+			services := current.Services
+			j := 0
+			for i, s := range services {
+				if s.ID == fragmentID {
+					continue
+				}
+				services[j] = services[i]
+				j++
+			}
+			services = services[:j]
+
+			// add new
+			// todo generate ID using hashing
+			if service.ID.String() == "" {
+				// Generate random service ID
+				serviceID := did.DIDURL{
+					DID:      *id,
+					Fragment: uuid.NewString(),
+				}
+				service.ID = serviceID.URI()
+			}
+			asJson, err := json.Marshal(service)
+			if err != nil {
+				return events, err
+			}
+			sqlService := sql.SqlService{
+				ID:            service.ID.String(),
+				DIDDocumentID: current.DidID,
+				Data:          asJson,
+			}
+			services = append(services, sqlService)
+			newServices = append(newServices, service)
+
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(current.DID, current.VerificationMethods, services)
+			if err != nil {
+				return events, err
+			}
+			events[id.Method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDID.ID,
+				EventType:            events2.DIDEventUpdated,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+
+		return events, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update service for DID Documents: %w", err)
+	}
+	return newServices, nil
+}
+
+func (r *Module) AddVerificationMethod(ctx context.Context, subject string, keyUsage management.DIDKeyFlags) ([]did.VerificationMethod, error) {
+	log.Logger().Debug("Creating new VerificationMethods.")
+
+	// todo keyTypes
+	keyTypes := sql.VerificationMethodKeyType(management.CapabilityInvocationUsage | management.AssertionMethodUsage)
+
+	// call generate on all managers
+	vms := make(map[string]did.VerificationMethod)
+
+	err := r.transactionEventHelper(ctx, func(tx *gorm.DB) (map[string]sql.DIDEventLog, error) {
+		events := make(map[string]sql.DIDEventLog)
+		sqlDIDManager := sql.NewDIDManager(tx)
+		sqlDIDDocumentManager := sql.NewDIDDocumentManager(tx)
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return events, err
+		}
+		for _, sqlDID := range dids {
+			id, _ := did.ParseDID(sqlDID.ID)
+			latest, err := sqlDIDDocumentManager.Latest(*id)
+			if err != nil {
+				return events, err
+			}
+			vm, err := r.eventManagers[id.Method].GenerateVerificationMethod(ctx, *id)
+			if err != nil {
+				return events, err
+			}
+			vms[id.Method] = *vm
+			data, _ := json.Marshal(*vm)
+			sqlMethod := sql.VerificationMethod{
+				ID:       vm.ID.String(),
+				KeyTypes: keyTypes,
+				Data:     data,
+			}
+			latest.VerificationMethods = append(latest.VerificationMethods, sqlMethod)
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, latest.VerificationMethods, latest.Services)
+			if err != nil {
+				return events, err
+			}
+			// create and store event
+			events[id.Method] = sql.DIDEventLog{
+				DIDDocumentVersionID: sqlDoc.ID,
+				EventType:            events2.DIDEventUpdated,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+		return events, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update DID documents: %w", err)
+	}
+	allMethods := make([]did.VerificationMethod, 0)
+	for _, vm := range vms {
+		allMethods = append(allMethods, vm)
+	}
+	return allMethods, nil
 }
 
 func (r *Module) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
@@ -491,4 +744,37 @@ func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 		document.Context = append(document.Context, ctx)
 	}
 	return document
+}
+
+// TransactionEventHelper is a helper function that starts a transaction, performs an operation, and emits an event.
+func (r *Module) transactionEventHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]sql.DIDEventLog, error)) error {
+	var events map[string]sql.DIDEventLog
+	var err error
+	err = r.db.Transaction(func(tx *gorm.DB) error {
+		// Perform the operation within the transaction.
+		events, err = operation(tx)
+		if err != nil {
+			return err
+		}
+
+		// Save all events
+		for _, e := range events {
+			err = tx.Save(&e).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// Call OnEvent for all managers on the created docs
+	for method, manager := range r.eventManagers {
+		manager.OnEvent(ctx, events[method])
+	}
+
+	return nil
 }
