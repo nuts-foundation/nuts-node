@@ -54,7 +54,7 @@ func (kt *VerificationMethodKeyType) Scan(value interface{}) error {
 	switch v := value.(type) {
 	case string:
 		*kt, err = stringToUint(v)
-	case []uint8:
+	case []uint8: // mysql driver returns []uint8 for string
 		*kt, err = stringToUint(string(v))
 	default:
 		err = fmt.Errorf("db type not supported: %T", v)
