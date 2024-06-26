@@ -94,7 +94,13 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 	db := testDB(t)
 	tx := transaction(t, db)
 	docManager := NewDIDDocumentManager(tx)
-	doc, err := docManager.CreateOrUpdate(sqlDidAlice, nil, nil)
+	keyUsageFlag := VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage)
+	vm := SqlVerificationMethod{
+		ID:       "#1",
+		Data:     []byte("{}"),
+		KeyTypes: keyUsageFlag,
+	}
+	doc, err := docManager.CreateOrUpdate(sqlDidAlice, []SqlVerificationMethod{vm}, nil)
 	require.NoError(t, err)
 
 	t.Run("found", func(t *testing.T) {
@@ -102,6 +108,8 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, doc.ID, latest.ID)
+		require.Len(t, latest.VerificationMethods, 1)
+		assert.Equal(t, keyUsageFlag, doc.VerificationMethods[0].KeyTypes)
 	})
 	t.Run("not found", func(t *testing.T) {
 

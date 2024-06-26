@@ -19,9 +19,11 @@
 package sql
 
 import (
+	"errors"
+	"fmt"
+
 	"database/sql/driver"
 	"encoding/base64"
-	"errors"
 	"gorm.io/gorm/schema"
 )
 
@@ -52,8 +54,10 @@ func (kt *VerificationMethodKeyType) Scan(value interface{}) error {
 	switch v := value.(type) {
 	case string:
 		*kt, err = stringToUint(v)
+	case []uint8:
+		*kt, err = stringToUint(string(v))
 	default:
-		err = errors.New("not supported")
+		err = fmt.Errorf("db type not supported: %T", v)
 	}
 	return err
 }
