@@ -153,6 +153,7 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		if doc, err = documentStore.CreateOrUpdate(sqlDid, []sql.SqlVerificationMethod{{
 			ID:            verificationMethod.ID.String(),
 			DIDDocumentID: sqlDid.ID,
+			KeyTypes:      sql.VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage), // todo pass via options
 			Data:          vmAsJson,
 		}}, nil); err != nil {
 			return fmt.Errorf("store new DID document: %w", err)
@@ -331,11 +332,21 @@ func buildDocument(newDID did.DID, doc sql.DIDDocument) (did.Document, error) {
 			return document, err
 		}
 
-		document.AddAssertionMethod(&verificationMethod)
-		document.AddAuthenticationMethod(&verificationMethod)
-		document.AddKeyAgreement(&verificationMethod)
-		document.AddCapabilityDelegation(&verificationMethod)
-		document.AddCapabilityInvocation(&verificationMethod)
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.AssertionMethodUsage) != 0 {
+			document.AddAssertionMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.AuthenticationUsage) != 0 {
+			document.AddAuthenticationMethod(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.KeyAgreementUsage) != 0 {
+			document.AddKeyAgreement(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.CapabilityDelegationUsage) != 0 {
+			document.AddCapabilityDelegation(&verificationMethod)
+		}
+		if sqlVM.KeyTypes&sql.VerificationMethodKeyType(management.CapabilityInvocationUsage) != 0 {
+			document.AddCapabilityInvocation(&verificationMethod)
+		}
 	}
 	for _, sqlService := range doc.Services {
 		service := did.Service{}
