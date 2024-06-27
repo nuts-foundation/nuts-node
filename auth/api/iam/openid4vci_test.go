@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"net/url"
 	"testing"
 	"time"
@@ -260,8 +261,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
 			Did: holderDID.String(),
 			Params: CallbackParams{
-				Code:  ptrTo(code),
-				State: ptrTo(state),
+				Code:  to.Ptr(code),
+				State: to.Ptr(state),
 			},
 		})
 

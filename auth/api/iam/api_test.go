@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
@@ -806,16 +807,16 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.NoError(t, ctx.client.accessTokenServerStore().Put(token.Token, token))
 		expectedResponse, err := json.Marshal(IntrospectAccessTokenExtended200JSONResponse{
 			Active:                  true,
-			ClientId:                ptrTo("client"),
+			ClientId:                to.Ptr("client"),
 			Cnf:                     &Cnf{Jkt: thumbprint},
-			Exp:                     ptrTo(int(tNow.Add(time.Minute).Unix())),
-			Iat:                     ptrTo(int(tNow.Unix())),
-			Iss:                     ptrTo("resource-owner"),
-			Scope:                   ptrTo("test"),
-			Sub:                     ptrTo("resource-owner"),
+			Exp:                     to.Ptr(int(tNow.Add(time.Minute).Unix())),
+			Iat:                     to.Ptr(int(tNow.Unix())),
+			Iss:                     to.Ptr("resource-owner"),
+			Scope:                   to.Ptr("test"),
+			Sub:                     to.Ptr("resource-owner"),
 			Vps:                     &[]VerifiablePresentation{presentation},
-			PresentationSubmissions: ptrTo(presentationSubmissions),
-			PresentationDefinitions: ptrTo(presentationDefinitions),
+			PresentationSubmissions: to.Ptr(presentationSubmissions),
+			PresentationDefinitions: to.Ptr(presentationDefinitions),
 			AdditionalProperties:    map[string]interface{}{"key": "value"},
 		})
 		require.NoError(t, err)
@@ -1459,11 +1460,6 @@ func (s *strictServerCallCapturer) handle(_ echo.Context, _ interface{}) (respon
 
 func putToken(ctx *testCtx, token string) {
 	_ = ctx.client.accessTokenClientStore().Put(token, TokenResponse{AccessToken: "token"})
-}
-
-// OG pointer function. Returns a pointer to any input.
-func ptrTo[T any](v T) *T {
-	return &v
 }
 
 func requireOAuthError(t *testing.T, err error, errorCode oauth.ErrorCode, errorDescription string) {
