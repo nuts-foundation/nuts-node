@@ -61,6 +61,8 @@ type SessionMiddleware struct {
 	Store storage.SessionStore
 	// CookiePath is a function that returns the path for the user session cookie.
 	CookiePath func(tenantDID did.DID) string
+	// CookieDomain is the domain for the user session cookie.
+	CookieDomain string
 }
 
 func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
@@ -93,7 +95,7 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 				return fmt.Errorf("create user session: %w", err)
 			}
 			// By scoping the cookie to a tenant (DID)-specific path, the user can have a session per tenant DID on the same domain.
-			echoCtx.SetCookie(u.createUserSessionCookie(sessionID, u.CookiePath(*tenantDID)))
+			echoCtx.SetCookie(u.createUserSessionCookie(sessionID, u.CookieDomain, u.CookiePath(*tenantDID)))
 		}
 		sessionData.Save = func() error {
 			return u.Store.Put(sessionID, sessionData)
@@ -155,13 +157,14 @@ func createUserSession(tenantDID did.DID, timeOut time.Duration) (*Session, erro
 	}, nil
 }
 
-func (u SessionMiddleware) createUserSessionCookie(sessionID string, path string) *http.Cookie {
+func (u SessionMiddleware) createUserSessionCookie(sessionID string, domain string, path string) *http.Cookie {
 	// Do not set Expires: then it isn't a session cookie anymore.
 	return &http.Cookie{
 		Name:     userSessionCookieName,
 		Value:    sessionID,
 		Path:     path,
 		MaxAge:   int(u.TimeOut.Seconds()),
+		Domain:   domain,
 		Secure:   true,                    // only transfer over HTTPS
 		HttpOnly: true,                    // do not let JavaScript interact with the cookie
 		SameSite: http.SameSiteStrictMode, // do not allow the cookie to be sent with cross-site requests
