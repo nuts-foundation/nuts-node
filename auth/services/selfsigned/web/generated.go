@@ -29,17 +29,8 @@ type EmployeeIDForm struct {
 // EmployeeIDFormChoice The choice of the user to either confirm or cancel the signing of the contract.
 type EmployeeIDFormChoice string
 
-// RenderEmployeeIDPageParams defines parameters for RenderEmployeeIDPage.
-type RenderEmployeeIDPageParams struct {
-	// Headless If true, the page will be rendered without the header and footer. This is useful for embedding the page in an iframe.
-	Headless *bool `form:"headless,omitempty" json:"headless,omitempty"`
-}
-
-// HandleEmployeeIDFormParams defines parameters for HandleEmployeeIDForm.
-type HandleEmployeeIDFormParams struct {
-	// Headless If true, the page will be rendered without the header and footer. This is useful for embedding the page in an iframe.
-	Headless *bool `form:"headless,omitempty" json:"headless,omitempty"`
-}
+// SessionID defines model for sessionID.
+type SessionID = string
 
 // HandleEmployeeIDFormFormdataRequestBody defines body for HandleEmployeeIDForm for application/x-www-form-urlencoded ContentType.
 type HandleEmployeeIDFormFormdataRequestBody = EmployeeIDForm
@@ -48,13 +39,10 @@ type HandleEmployeeIDFormFormdataRequestBody = EmployeeIDForm
 type ServerInterface interface {
 	// Render the employee ID page
 	// (GET /public/auth/v1/means/employeeid/{sessionID})
-	RenderEmployeeIDPage(ctx echo.Context, sessionID string, params RenderEmployeeIDPageParams) error
+	RenderEmployeeIDPage(ctx echo.Context, sessionID SessionID) error
 	// Handle the employee ID form.
 	// (POST /public/auth/v1/means/employeeid/{sessionID})
-	HandleEmployeeIDForm(ctx echo.Context, sessionID string, params HandleEmployeeIDFormParams) error
-	// Render the employee ID done page
-	// (GET /public/auth/v1/means/employeeid/{sessionID}/done)
-	RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) error
+	HandleEmployeeIDForm(ctx echo.Context, sessionID SessionID) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -66,24 +54,15 @@ type ServerInterfaceWrapper struct {
 func (w *ServerInterfaceWrapper) RenderEmployeeIDPage(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "sessionID" -------------
-	var sessionID string
+	var sessionID SessionID
 
 	err = runtime.BindStyledParameterWithOptions("simple", "sessionID", ctx.Param("sessionID"), &sessionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionID: %s", err))
 	}
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params RenderEmployeeIDPageParams
-	// ------------- Optional query parameter "headless" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "headless", ctx.QueryParams(), &params.Headless)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter headless: %s", err))
-	}
-
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RenderEmployeeIDPage(ctx, sessionID, params)
+	err = w.Handler.RenderEmployeeIDPage(ctx, sessionID)
 	return err
 }
 
@@ -91,32 +70,7 @@ func (w *ServerInterfaceWrapper) RenderEmployeeIDPage(ctx echo.Context) error {
 func (w *ServerInterfaceWrapper) HandleEmployeeIDForm(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "sessionID" -------------
-	var sessionID string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "sessionID", ctx.Param("sessionID"), &sessionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter sessionID: %s", err))
-	}
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params HandleEmployeeIDFormParams
-	// ------------- Optional query parameter "headless" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "headless", ctx.QueryParams(), &params.Headless)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter headless: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleEmployeeIDForm(ctx, sessionID, params)
-	return err
-}
-
-// RenderEmployeeIDDonePage converts echo context to params.
-func (w *ServerInterfaceWrapper) RenderEmployeeIDDonePage(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "sessionID" -------------
-	var sessionID string
+	var sessionID SessionID
 
 	err = runtime.BindStyledParameterWithOptions("simple", "sessionID", ctx.Param("sessionID"), &sessionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
@@ -124,7 +78,7 @@ func (w *ServerInterfaceWrapper) RenderEmployeeIDDonePage(ctx echo.Context) erro
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RenderEmployeeIDDonePage(ctx, sessionID)
+	err = w.Handler.HandleEmployeeIDForm(ctx, sessionID)
 	return err
 }
 
@@ -158,6 +112,5 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/public/auth/v1/means/employeeid/:sessionID", wrapper.RenderEmployeeIDPage)
 	router.POST(baseURL+"/public/auth/v1/means/employeeid/:sessionID", wrapper.HandleEmployeeIDForm)
-	router.GET(baseURL+"/public/auth/v1/means/employeeid/:sessionID/done", wrapper.RenderEmployeeIDDonePage)
 
 }

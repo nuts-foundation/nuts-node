@@ -8,42 +8,9 @@ info:
 servers:
   - url: http://localhost:1323
 paths:
-  /public/auth/v1/means/employeeid/{sessionID}/done:
-    parameters:
-      - name: sessionID
-        description: The session ID
-        in: path
-        required: true
-        schema:
-          type: string
-    get:
-      tags:
-        - EmployeeIdentity
-      operationId: renderEmployeeIDDonePage
-      summary: Render the employee ID done page
-      responses:
-        '200':
-          description: Returns the rendered employee ID done page.
-          content:
-            text/html:
-              schema:
-                type: string
-
   /public/auth/v1/means/employeeid/{sessionID}:
     parameters:
-      - name: sessionID
-        description: The session ID
-        in: path
-        required: true
-        schema:
-          type: string
-      - name: headless
-        description: If true, the page will be rendered without the header and footer. This is useful for embedding the page in an iframe.
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
+      - $ref: "#/components/parameters/sessionID"
     get:
       tags:
         - EmployeeIdentity
@@ -51,17 +18,17 @@ paths:
       summary: Render the employee ID page
       description: |
         Render the employee ID page
-        
+
         Errors returned:
         * 404 - session could not be found
       responses:
-        '200':
+        "200":
           description: Returns the rendered employee ID page containing the form, the challenge and set of buttons to either sign or cancel the session.
           content:
             text/html:
               schema:
                 type: string
-        '404':
+        "404":
           description: Session could not be found. The session may have expired or does not exist.
           content:
             text/html:
@@ -75,7 +42,7 @@ paths:
       description: |
         The employee will decide to either confirm its identity and sign the contract or cancel the session.
         This endpoint handles the form submission and returns the appropriate response.
-        
+
         Errors returned:
         * 404 - session could not be found
         * 400 - form could not be parsed
@@ -86,19 +53,19 @@ paths:
             schema:
               $ref: "#/components/schemas/EmployeeIDForm"
       responses:
-        '302':
+        "302":
           description: The form was successfully parsed and the challenge signed.
           content:
             text/html:
               schema:
                 type: string
-        '400':
+        "400":
           description: Form could not be parsed.
           content:
             text/html:
               schema:
                 type: string
-        '404':
+        "404":
           description: Session could not be found. The session may have expired or does not exist.
           content:
             text/html:
@@ -106,6 +73,14 @@ paths:
                 type: string
 
 components:
+  parameters:
+    sessionID:
+      name: sessionID
+      description: The session ID
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     EmployeeIDForm:
       type: object
