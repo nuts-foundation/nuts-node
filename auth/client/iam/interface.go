@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -34,7 +35,7 @@ type Client interface {
 	// The response will be unmarshalled into the given tokenResponseOut parameter.
 	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
-	// oauthIssuer is the address that identifies the Authorization Server. For a did:web it is its URL. (same as oauth.AuthorizationServerMetadata.Issuer)
+	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
 	AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error)
 	// ClientMetadata returns the metadata of the remote verifier.
 	ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error)
@@ -45,11 +46,13 @@ type Client interface {
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
-	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, scopes string, useDPoP bool,
+	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, oauthIssuer *url.URL, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error)
 
+	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
+	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
 	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
-
+	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.

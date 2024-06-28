@@ -38,7 +38,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		ClientIdSchemesSupported:                   []string{"did"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
-		Issuer:                                     didExample.String(),
+		Issuer:                                     "https://example.com/oauth2/" + didExample.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		RequireSignedRequestObject:                 true,
@@ -49,22 +49,21 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	t.Run("base", func(t *testing.T) {
-		md, err := authorizationServerMetadata(didExample)
+		md, err := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
 		assert.NoError(t, err)
 		assert.Equal(t, baseExpected, *md)
 	})
 	t.Run("did:web", func(t *testing.T) {
 		didWeb := did.MustParseDID("did:web:example.com:iam:123")
-		identity := test.MustParseURL("https://example.com/iam/123")
 		oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
 
 		webExpected := baseExpected
-		webExpected.Issuer = identity.String()
+		webExpected.Issuer = oauth2Base.String()
 		webExpected.AuthorizationEndpoint = oauth2Base.String() + "/authorize"
 		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
 		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
 
-		md, err := authorizationServerMetadata(didWeb)
+		md, err := authorizationServerMetadata(didWeb, oauth2Base)
 		assert.NoError(t, err)
 		assert.Equal(t, webExpected, *md)
 	})

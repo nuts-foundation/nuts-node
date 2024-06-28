@@ -43,7 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -110,7 +109,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if err != nil || walletDID.Method != "web" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
-	oauthIssuer, err := didweb.DIDToURL(*walletDID)
+	oauthIssuer, err := nutsOAuth2Issuer(*walletDID)
 	if err != nil {
 		// can't fail since it's a valid did:web
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", err), redirectURL)

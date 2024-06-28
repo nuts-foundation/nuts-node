@@ -11,6 +11,7 @@ package iam
 
 import (
 	context "context"
+	url "net/url"
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
@@ -179,18 +180,18 @@ func (mr *MockClientMockRecorder) RequestObjectByPost(ctx, requestURI, walletMet
 }
 
 // RequestRFC021AccessToken mocks base method.
-func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, scopes string, useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, requestHolder, verifier did.DID, oauthIssuer *url.URL, scopes string, useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, requestHolder, verifier, scopes, useDPoP, credentials)
+	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, requestHolder, verifier, oauthIssuer, scopes, useDPoP, credentials)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RequestRFC021AccessToken indicates an expected call of RequestRFC021AccessToken.
-func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, verifier, scopes, useDPoP, credentials any) *gomock.Call {
+func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, requestHolder, verifier, oauthIssuer, scopes, useDPoP, credentials any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, requestHolder, verifier, scopes, useDPoP, credentials)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, requestHolder, verifier, oauthIssuer, scopes, useDPoP, credentials)
 }
 
 // VerifiableCredentials mocks base method.

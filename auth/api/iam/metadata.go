@@ -26,20 +26,19 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 )
 
-func authorizationServerMetadata(ownedDID did.DID) (*oauth.AuthorizationServerMetadata, error) {
-	presentationDefinitionURISupported := true
+func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) (*oauth.AuthorizationServerMetadata, error) {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
-		Issuer:                                     ownedDID.String(), // todo: according to RFC8414 this should be a URL starting with https
+		Issuer:                                     issuerURL.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
+		PresentationDefinitionUriSupported:         to.Ptr(true),
 		RequireSignedRequestObject:                 true,
 		ResponseModesSupported:                     responseModesSupported,
 		ResponseTypesSupported:                     responseTypesSupported,
@@ -49,19 +48,9 @@ func authorizationServerMetadata(ownedDID did.DID) (*oauth.AuthorizationServerMe
 	}
 	if ownedDID.Method == "web" {
 		// add endpoints for did:web
-		identity, err := didweb.DIDToURL(ownedDID)
-		if err != nil {
-			return nil, err
-		}
-		oauth2BaseURL, err := createOAuth2BaseURL(ownedDID)
-		if err != nil {
-			// can't fail, already did DIDToURL above
-			return nil, err
-		}
-		metadata.Issuer = identity.String()
-		metadata.AuthorizationEndpoint = oauth2BaseURL.JoinPath("authorize").String()
-		metadata.PresentationDefinitionEndpoint = oauth2BaseURL.JoinPath("presentation_definition").String()
-		metadata.TokenEndpoint = oauth2BaseURL.JoinPath("token").String()
+		metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
+		metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
+		metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
 	}
 	return metadata, nil
 }

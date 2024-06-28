@@ -77,7 +77,7 @@ var cacheControlMaxAgeURLs = []string{
 	"/.well-known/did.json",
 	"/iam/:id/did.json",
 	"/oauth2/:did/presentation_definition",
-	"/.well-known/oauth-authorization-server/iam/:id",
+	"/.well-known/oauth-authorization-server/oauth2/:did",
 	"/.well-known/oauth-authorization-server",
 	"/oauth2/:did/oauth-client",
 	"/statuslist/:did/:page",
@@ -581,8 +581,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	didAsString := r.requestedDID(request.Id).String()
-	md, err := r.oauthAuthorizationServerMetadata(ctx, didAsString)
+	md, err := r.oauthAuthorizationServerMetadata(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
@@ -590,7 +589,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 }
 
 func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
-	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedDID("").String())
+	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedWebDID("").String())
 	if err != nil {
 		return nil, err
 	}
@@ -602,11 +601,15 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	return authorizationServerMetadata(*ownDID)
+	issuerURL, err := createOAuth2BaseURL(*ownDID)
+	if err != nil {
+		return nil, err
+	}
+	return authorizationServerMetadata(*ownDID, issuerURL)
 }
 
 func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
-	ownDID := r.requestedDID(request.Id)
+	ownDID := r.requestedWebDID(request.Id)
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -619,7 +622,7 @@ func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDReque
 }
 
 func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
-	ownDID := r.requestedDID("")
+	ownDID := r.requestedWebDID("")
 	document, err := r.vdr.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
@@ -728,12 +731,16 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
+	oauthIssuer, err := nutsOAuth2Issuer(*requestVerifier)
+	if err != nil {
+		return nil, err
+	}
 
 	useDPoP := true
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, oauthIssuer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -814,7 +821,7 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 }
 
 func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	oauthIssuer, err := didweb.DIDToURL(issuerDid)
+	oauthIssuer, err := nutsOAuth2Issuer(issuerDid)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
 	}
@@ -852,9 +859,7 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
 	metadata := new(oauth.AuthorizationServerMetadata)
 	if server != nil {
-		// we want to make a call according to §4.1.1 of RFC6749, https://www.rfc-editor.org/rfc/rfc6749.html#section-4.1.1
-		// The URL should be listed in the verifier metadata under the "authorization_endpoint" key
-		oauthIssuer, err := didweb.DIDToURL(*server)
+		oauthIssuer, err := nutsOAuth2Issuer(*server)
 		if err != nil {
 			return nil, err
 		}
@@ -909,24 +914,17 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID,
 	return &redirectURL, nil
 }
 
-// requestedDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
+// requestedWebDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
 // - did:web:example.com
 // - did:web:example:iam:1234
 // When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
-func (r Wrapper) requestedDID(userID string) did.DID {
-	identityURL := r.identityURL(userID)
+func (r Wrapper) requestedWebDID(userID string) did.DID {
+	identityURL := r.auth.PublicURL()
+	if userID != "" {
+		identityURL = identityURL.JoinPath("iam", userID)
+	}
 	result, _ := didweb.URLToDID(*identityURL)
 	return *result
-}
-
-// identityURL is like requestedDID() but returns the base URL for the DID.
-// It is used for resolving metadata and its did:web DID, using the configured Nuts node URL.
-func (r Wrapper) identityURL(userID string) *url.URL {
-	baseURL := r.auth.PublicURL()
-	if userID == "" {
-		return baseURL
-	}
-	return baseURL.JoinPath("iam", userID)
 }
 
 // accessTokenClientStore is used by the client to store pending access tokens and return them to the calling app.

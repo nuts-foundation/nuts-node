@@ -131,6 +131,11 @@ type ServiceAccessTokenRequest struct {
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.
 	// A typical use case is to provide a self-attested credential to convey information about the user that initiated the request.
+	//
+	// The following credential fields are automatically filled (when not present), and may be omitted:
+	// - issuer, credentialSubject.id (filled with the DID of the requester)
+	// - issuanceDate (filled with the current date/time)
+	// - id (filled with a UUID)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
 	// Scope The scope that will be the service for which this access token can be used.
