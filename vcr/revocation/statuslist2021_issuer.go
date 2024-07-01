@@ -23,8 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +33,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -127,7 +124,7 @@ func (cs *StatusList2021) isManaged(subjectID string) bool {
 }
 
 func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
-	statusListCredentialURL, err := toStatusListCredential(issuerDID, page)
+	statusListCredentialURL, err := cs.credentialURLFunc(issuerDID, page)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +313,7 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 			if credentialIssuer.LastIssuedIndex > maxBitstringIndex {
 				credentialIssuer.LastIssuedIndex = 0
 				credentialIssuer.Page++
-				credentialIssuer.SubjectID, err = toStatusListCredential(issuer, credentialIssuer.Page)
+				credentialIssuer.SubjectID, err = cs.credentialURLFunc(issuer, credentialIssuer.Page)
 				if err != nil {
 					return err
 				}
@@ -443,20 +440,4 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 		return tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(credRecord).Error
 	})
-}
-
-func toStatusListCredential(issuer did.DID, page int) (string, error) {
-	switch issuer.Method {
-	case "web":
-		issuerAsURL, err := didweb.DIDToURL(issuer)
-		if err != nil {
-			return "", err
-		}
-		result := new(url.URL)
-		result.Scheme = issuerAsURL.Scheme
-		result.Host = issuerAsURL.Host
-		result.Path = path.Join("statuslist", issuer.String(), strconv.Itoa(page))
-		return result.String(), nil // https://example.com/statuslist/<did>/page
-	}
-	return "", fmt.Errorf("status list: unsupported DID method: %s", issuer.Method)
 }

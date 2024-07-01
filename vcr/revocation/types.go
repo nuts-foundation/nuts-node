@@ -103,16 +103,19 @@ var _ StatusList2021Verifier = (*StatusList2021)(nil)
 // https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
 // VerifySignature and Sign methods are used to verify and sign StatusList2021Credentials
 type StatusList2021 struct {
-	client          core.HTTPRequestDoer
-	db              *gorm.DB
-	VerifySignature VerifySignFn // injected by verifier
-	Sign            SignFn       // injected by issuer, context must contain an audit log
-	ResolveKey      ResolveKeyFn // injected by issuer
+	client            core.HTTPRequestDoer
+	db                *gorm.DB
+	credentialURLFunc func(issuer did.DID, page int) (string, error)
+	VerifySignature   VerifySignFn // injected by verifier
+	Sign              SignFn       // injected by issuer, context must contain an audit log
+	ResolveKey        ResolveKeyFn // injected by issuer
 }
 
 // NewStatusList2021 returns a StatusList2021 without a Sign or VerifySignature method.
-func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer) *StatusList2021 {
-	return &StatusList2021{client: client, db: db}
+// credentialURLFunc is called by the StatusList2021 issuer to derive the URL at which verifiers will retrieve
+// StatusListCredentials at the current node.
+func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer, credentialURLFunc func(issuer did.DID, page int) (string, error)) *StatusList2021 {
+	return &StatusList2021{client: client, db: db, credentialURLFunc: credentialURLFunc}
 }
 
 // StatusList2021Entry is the "credentialStatus" property used by issuers to enable VerifiableCredential status information.
