@@ -51,7 +51,7 @@ func validatePresentationSigner(presentation vc.VerifiablePresentation, expected
 
 // validatePresentationAudience checks if the presentation audience (aud claim for JWTs, domain property for JSON-LD proofs) contains the issuer DID.
 // it returns an OAuth2 error if the audience is missing or does not match the issuer.
-func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, issuer did.DID) error {
+func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresentation, expected string) error {
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
@@ -66,14 +66,14 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 		}
 	}
 	for _, aud := range audience {
-		if aud == issuer.String() {
+		if aud == expected {
 			return nil
 		}
 	}
 	return oauth.OAuth2Error{
 		Code:          oauth.InvalidRequest,
 		Description:   "presentation audience/domain is missing or does not match",
-		InternalError: fmt.Errorf("expected: %s, got: %v", issuer, audience),
+		InternalError: fmt.Errorf("expected: %s, got: %v", expected, audience),
 	}
 }
 

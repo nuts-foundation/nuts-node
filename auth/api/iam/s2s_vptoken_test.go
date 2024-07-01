@@ -45,7 +45,7 @@ import (
 )
 
 func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
-	issuerDIDStr := "did:web:example.com:iam:123"
+	issuerDIDStr := "did:web:example.com:iam:issuer"
 	issuerDID := did.MustParseDID(issuerDIDStr)
 	const requestedScope = "example-scope"
 	// Create issuer DID document and keys
@@ -106,7 +106,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	verifiableCredential := test.ValidNutsOrganizationCredential(t)
 	subjectDID, _ := verifiableCredential.SubjectDID()
 	proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
-		proof.Domain = &issuerDIDStr
+		proof.Domain = &issuerURL
 	})
 	presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 	dpopHeader, _, _ := newSignedTestDPoP()
@@ -164,7 +164,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("JWT VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-			require.NoError(t, token.Set(jwt.AudienceKey, issuerDID.String()))
+			require.NoError(t, token.Set(jwt.AudienceKey, issuerURL))
 		}, verifiableCredential)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
@@ -214,7 +214,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
-				proof.Domain = &issuerDIDStr
+				proof.Domain = &issuerURL
 				proof.Nonce = nil
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
@@ -227,7 +227,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
-				proof.Domain = &issuerDIDStr
+				proof.Domain = &issuerURL
 				proof.Nonce = new(string)
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
@@ -240,7 +240,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Set(jwt.AudienceKey, issuerURL)
 				_ = token.Remove("nonce")
 			}, verifiableCredential)
 
@@ -252,7 +252,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Set(jwt.AudienceKey, issuerURL)
 				_ = token.Set("nonce", "")
 			}, verifiableCredential)
 
@@ -264,7 +264,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), issuerDID, requestedScope).Return(walletOwnerMapping, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				_ = token.Set(jwt.AudienceKey, issuerDID.String())
+				_ = token.Set(jwt.AudienceKey, issuerURL)
 				_ = token.Set("nonce", true)
 			}, verifiableCredential)
 
@@ -280,7 +280,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
-			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [] - presentation audience/domain is missing or does not match")
+			assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/did:web:example.com:iam:issuer, got: [] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
 		})
 		t.Run("not matching", func(t *testing.T) {
@@ -291,7 +291,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerDID, requestedScope, submissionJSON, presentation.Raw())
 
-			assert.EqualError(t, err, "invalid_request - expected: did:web:example.com:iam:123, got: [did:example:other] - presentation audience/domain is missing or does not match")
+			assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/did:web:example.com:iam:issuer, got: [did:example:other] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
 		})
 	})

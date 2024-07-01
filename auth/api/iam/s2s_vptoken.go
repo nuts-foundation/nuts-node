@@ -51,6 +51,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			Description: "assertion parameter is invalid: " + err.Error(),
 		}
 	}
+	issuerURL, _ := createOAuth2BaseURL(issuer)
 
 	submission, err := pe.ParsePresentationSubmission([]byte(submissionJSON))
 	if err != nil {
@@ -70,7 +71,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 		} else {
 			credentialSubjectID = *subjectDID
 		}
-		if err := r.validatePresentationAudience(presentation, issuer); err != nil {
+		if err := r.validatePresentationAudience(presentation, issuerURL.String()); err != nil {
 			return nil, err
 		}
 	}

@@ -35,10 +35,10 @@ type OpenID4VP struct {
 
 func (o OpenID4VP) RequesterUserAccessToken(requesterDID, verifierDID did.DID, user iam.UserDetails, scope string) (*iam.RedirectResponseWithID, error) {
 	httpResponse, err := o.iamClient.RequestUserAccessToken(o.ctx, requesterDID.String(), iam.RequestUserAccessTokenJSONRequestBody{
-		PreauthorizedUser: &user,
-		RedirectUri:       "https://nodeA", // doesn't really matter where we redirect to
-		Scope:             scope,
-		Verifier:          verifierDID.String(),
+		PreauthorizedUser:   &user,
+		RedirectUri:         "https://nodeA", // doesn't really matter where we redirect to
+		Scope:               scope,
+		AuthorizationServer: "https://nodeA/oauth2/" + verifierDID.String(),
 	})
 	if err != nil {
 		return nil, err

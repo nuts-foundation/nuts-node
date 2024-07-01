@@ -271,6 +271,9 @@ paths:
               properties:
                 issuer:
                   type: string
+                  description: |
+                    The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
+                    used to locate the OAuth2 Authorization Server metadata.
                   example: did:web:issuer.example.com
                 authorization_details:
                   type: array
@@ -382,12 +385,15 @@ components:
       type: object
       description: Request for an access token for a service.
       required:
-        - verifier
+        - authorization_server
         - scope
       properties:
-        verifier:
+        authorization_server:
+          description: |
+            The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+            used to locate the OAuth2 Authorization Server metadata.
           type: string
-          example: did:web:example.com
+          example: https://example.com/oauth2
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.
@@ -429,14 +435,16 @@ components:
       type: object
       description: Request for an access token for a user.
       required:
+        - authorization_server
         - redirect_uri
         - scope
-        - verifier
       properties:
-        verifier:
+        authorization_server:
+          description: |
+            The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+            used to locate the OAuth2 Authorization Server metadata.
           type: string
-          description: The DID of the verifier, the relying party for which this access token is requested.
-          example: did:web:example.com
+          example: https://example.com/oauth2
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.

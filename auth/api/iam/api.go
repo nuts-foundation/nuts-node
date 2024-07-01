@@ -726,21 +726,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		credentials = *request.Body.Credentials
 	}
 
-	// resolve verifier metadata
-	requestVerifier, err := did.ParseDID(request.Body.Verifier)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid verifier: %w", err)
-	}
-	oauthIssuer, err := nutsOAuth2Issuer(*requestVerifier)
-	if err != nil {
-		return nil, err
-	}
-
 	useDPoP := true
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, *requestVerifier, oauthIssuer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -820,12 +810,8 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
-func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	oauthIssuer, err := nutsOAuth2Issuer(issuerDid)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
-	}
-	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, oauthIssuer.String())
+func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
+	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuer)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -844,7 +830,7 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 	if ASMetadata == nil {
 		// authorization_servers is an optional field. When no authorization servers are listed, the oauth Issuer is the authorization server.
 		// also try issuer in case all others fail
-		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
+		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, issuer)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -856,19 +842,16 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 // It can create both regular OAuth2 requests and OpenID4VP requests due to the requestObjectModifier.
 // This modifier is used by JAR.Create to generate a (JAR) request object that is added as 'request_uri' parameter.
 // It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
-func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
+func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, authServerURL string, modifier requestObjectModifier) (*url.URL, error) {
 	metadata := new(oauth.AuthorizationServerMetadata)
-	if server != nil {
-		oauthIssuer, err := nutsOAuth2Issuer(*server)
-		if err != nil {
-			return nil, err
-		}
-		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
+	if authServerURL != "" {
+		var err error
+		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, authServerURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 		}
 		if len(metadata.AuthorizationEndpoint) == 0 {
-			return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", *server)
+			return nil, fmt.Errorf("no authorization endpoint found in metadata for %s", authServerURL)
 		}
 	} else {
 		// if the server is unknown/nil we are talking to a wallet.
@@ -885,7 +868,7 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar.Create(client, server, modifier)
+	requestObj := r.jar.Create(client, authServerURL, modifier)
 	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
