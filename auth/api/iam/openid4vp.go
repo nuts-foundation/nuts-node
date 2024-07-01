@@ -109,6 +109,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	if err != nil || walletDID.Method != "web" {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
 	}
+	// TODO: issue #3216 (client_id is assumed to be did:web DID)
 	oauthIssuer, err := nutsOAuth2Issuer(*walletDID)
 	if err != nil {
 		// can't fail since it's a valid did:web

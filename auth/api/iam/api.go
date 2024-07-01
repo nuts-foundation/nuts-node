@@ -820,12 +820,8 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
-func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	oauthIssuer, err := nutsOAuth2Issuer(issuerDid)
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid issuer: %w", err)
-	}
-	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, oauthIssuer.String())
+func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer *url.URL) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
+	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuer.String())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -844,7 +840,7 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 	if ASMetadata == nil {
 		// authorization_servers is an optional field. When no authorization servers are listed, the oauth Issuer is the authorization server.
 		// also try issuer in case all others fail
-		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
+		ASMetadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, issuer.String())
 		if err != nil {
 			return nil, nil, err
 		}

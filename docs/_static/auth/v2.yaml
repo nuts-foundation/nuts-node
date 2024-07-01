@@ -271,6 +271,9 @@ paths:
               properties:
                 issuer:
                   type: string
+                  description: |
+                    The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
+                    used to locate the OAuth2 Authorization Server metadata.
                   example: did:web:issuer.example.com
                 authorization_details:
                   type: array
