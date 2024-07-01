@@ -33,7 +33,7 @@ import (
 
 // newTestStatusList2021 returns a StatusList2021 that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
 func newTestStatusList2021(t testing.TB, dids ...did.DID) *StatusList2021 {
-	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
+	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil, "https://example.com")
 	cs.Sign = noopSign
 	cs.ResolveKey = noopResolveKey
 	cs.VerifySignature = noopSignVerify

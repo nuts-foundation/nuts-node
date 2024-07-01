@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"html/template"
@@ -34,7 +35,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"

@@ -225,7 +225,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 
-	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout))
+	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout), config.URL)
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 

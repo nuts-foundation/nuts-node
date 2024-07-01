@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -35,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -127,10 +125,7 @@ func (cs *StatusList2021) isManaged(subjectID string) bool {
 }
 
 func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
-	statusListCredentialURL, err := toStatusListCredential(issuerDID, page)
-	if err != nil {
-		return nil, err
-	}
+	statusListCredentialURL := cs.statusListURL(issuerDID, page)
 
 	// only return StatusList2021Credential if it already exists, and we are the issuer
 	if !cs.isManaged(statusListCredentialURL) {
@@ -316,10 +311,7 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 			if credentialIssuer.LastIssuedIndex > maxBitstringIndex {
 				credentialIssuer.LastIssuedIndex = 0
 				credentialIssuer.Page++
-				credentialIssuer.SubjectID, err = toStatusListCredential(issuer, credentialIssuer.Page)
-				if err != nil {
-					return err
-				}
+				credentialIssuer.SubjectID = cs.statusListURL(issuer, credentialIssuer.Page)
 				// add new credentialIssuerRecord
 				if err = tx.Create(credentialIssuer).Error; err != nil {
 					return err
@@ -445,18 +437,8 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 	})
 }
 
-func toStatusListCredential(issuer did.DID, page int) (string, error) {
-	switch issuer.Method {
-	case "web":
-		issuerAsURL, err := didweb.DIDToURL(issuer)
-		if err != nil {
-			return "", err
-		}
-		result := new(url.URL)
-		result.Scheme = issuerAsURL.Scheme
-		result.Host = issuerAsURL.Host
-		result.Path = path.Join("statuslist", issuer.String(), strconv.Itoa(page))
-		return result.String(), nil // https://example.com/statuslist/<did>/page
-	}
-	return "", fmt.Errorf("status list: unsupported DID method: %s", issuer.Method)
+func (cs *StatusList2021) statusListURL(issuer did.DID, page int) string {
+	// https://example.com/statuslist/<did>/page
+	result, _ := url.Parse(cs.baseURL)
+	return result.JoinPath("statuslist", issuer.String(), strconv.Itoa(page)).String()
 }
