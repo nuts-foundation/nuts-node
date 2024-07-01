@@ -731,9 +731,9 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, core.InvalidInputError("invalid verifier: %w", err)
 	}
-	oauthIssuer, err := nutsOAuth2Issuer(*requestVerifier)
+	oauthIssuer, err := url.Parse(request.Body.AuthorizationServer)
 	if err != nil {
-		return nil, err
+		return nil, core.InvalidInputError("invalid authorization_server: %w", err)
 	}
 
 	useDPoP := true
@@ -856,14 +856,11 @@ func (r Wrapper) openid4vciMetadata(ctx context.Context, issuerDid did.DID) (*oa
 // It can create both regular OAuth2 requests and OpenID4VP requests due to the requestObjectModifier.
 // This modifier is used by JAR.Create to generate a (JAR) request object that is added as 'request_uri' parameter.
 // It's able to create an unsigned request and a signed request (JAR) based on the OAuth Server Metadata.
-func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, modifier requestObjectModifier) (*url.URL, error) {
+func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID, server *did.DID, authServerURL string, modifier requestObjectModifier) (*url.URL, error) {
 	metadata := new(oauth.AuthorizationServerMetadata)
 	if server != nil {
-		oauthIssuer, err := nutsOAuth2Issuer(*server)
-		if err != nil {
-			return nil, err
-		}
-		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
+		var err error
+		metadata, err = r.auth.IAMClient().AuthorizationServerMetadata(ctx, authServerURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 		}

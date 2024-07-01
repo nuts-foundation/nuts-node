@@ -127,6 +127,10 @@ type RedirectResponseWithID struct {
 
 // ServiceAccessTokenRequest Request for an access token for a service.
 type ServiceAccessTokenRequest struct {
+	// AuthorizationServer The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	AuthorizationServer string `json:"authorization_server"`
+
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.
@@ -157,6 +161,10 @@ type TokenIntrospectionRequest struct {
 
 // UserAccessTokenRequest Request for an access token for a user.
 type UserAccessTokenRequest struct {
+	// AuthorizationServer The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	AuthorizationServer string `json:"authorization_server"`
+
 	// PreauthorizedUser Claims about the authorized user.
 	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
 

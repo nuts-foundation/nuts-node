@@ -64,9 +64,10 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		OwnDID: walletDID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
-				Scope:             "first second",
-				PreauthorizedUser: &userDetails,
-				Verifier:          verifierDID.String(),
+				Scope:               "first second",
+				PreauthorizedUser:   &userDetails,
+				Verifier:            verifierDID.String(),
+				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
 			},
 			Did: walletDID.String(),
 		},
@@ -246,7 +247,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no authorization_endpoint found for did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
@@ -263,7 +264,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no token_endpoint found for did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})

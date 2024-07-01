@@ -133,6 +133,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 
 	session := OAuthSession{
 		ClientID:          walletID,
+		IssuerURL:         oauthIssuer.String(),
 		Scope:             params.get(oauth.ScopeParam),
 		OwnDID:            &verifier,
 		ClientState:       params.get(oauth.StateParam),
@@ -209,13 +210,13 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.NonceParam] = nonce
 		values[oauth.StateParam] = state
 	}
-	var authServerURL *url.URL
+	var redirectURL *url.URL
 	if *walletOwnerType == pe.WalletOwnerUser {
 		// User wallet, make an openid4vp: request URL
-		authServerURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, nil, modifier)
+		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, nil, "", modifier)
 	} else {
 		walletDID, _ := did.ParseDID(session.ClientID)
-		authServerURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, walletDID, modifier)
+		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, walletDID, session.IssuerURL, modifier)
 	}
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -231,7 +232,7 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		return nil, oauth.OAuth2Error{Code: oauth.ServerError, InternalError: err, Description: "failed to store server state"}
 	}
 
-	return authServerURL, nil
+	return redirectURL, nil
 }
 
 // handleAuthorizeRequestFromVerifier handles an Authorization Request for a wallet from a verifier as specified by OpenID4VP: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html.
