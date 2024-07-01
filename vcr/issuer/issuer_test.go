@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
@@ -173,15 +174,6 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, statuses, 1)
 			assert.Equal(t, revocation.StatusList2021EntryType, statuses[0].Type)
-		})
-		t.Run("error - did:nuts", func(t *testing.T) {
-			sut := issuer{keyResolver: keyResolverMock, keyStore: keyStore, statusList: newTestStatusList2021(t, signingKey, did.MustParseDID(template.Issuer.String()))}
-
-			result, err := sut.buildAndSignVC(ctx, template, CredentialOptions{WithStatusListRevocation: true})
-
-			// only check fields relevant to credential status
-			assert.ErrorContains(t, err, "unsupported DID method: nuts")
-			assert.Nil(t, result)
 		})
 	})
 
@@ -987,22 +979,15 @@ func TestIssuer_StatusList(t *testing.T) {
 		assert.ErrorIs(t, err, vcr.ErrNotFound)
 		assert.Nil(t, result)
 	})
-	t.Run("error - did:nuts", func(t *testing.T) {
-		sut := issuer{statusList: newTestStatusList2021(t, signingKey)}
-		issuerNuts := did.MustParseDID("did:nuts:123")
-
-		result, err := sut.StatusList(ctx, issuerNuts, 1)
-
-		assert.ErrorContains(t, err, "unsupported DID method: nuts")
-		assert.Nil(t, result)
-	})
 }
 
 func newTestStatusList2021(t testing.TB, signingKey crypto.Key, dids ...did.DID) *revocation.StatusList2021 {
 	storageEngine := storage.NewTestStorageEngine(t)
 	db := storageEngine.GetSQLDatabase()
 	storage.AddDIDtoSQLDB(t, db, dids...)
-	cs := revocation.NewStatusList2021(db, nil)
+	cs := revocation.NewStatusList2021(db, nil, func(issuer did.DID, page int) (string, error) {
+		return "https://example.com/statuslist/" + issuer.String() + "/" + strconv.Itoa(page), nil
+	})
 	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
 		unsignedCredential.ID, _ = ssi.ParseURI("test-credential")
 		bs, err := json.Marshal(unsignedCredential)

@@ -35,6 +35,7 @@ import (
 	"io/fs"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -225,7 +226,16 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 
-	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout))
+	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout),
+		func(issuer did.DID, page int) (string, error) {
+			result, err := config.ServerURL()
+			if err != nil {
+				return "", err
+			}
+			// https://example.com/statuslist/<did>/page
+			return result.JoinPath("statuslist", issuer.String(), strconv.Itoa(page)).String(), nil
+		},
+	)
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 

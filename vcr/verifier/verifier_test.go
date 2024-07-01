@@ -152,7 +152,9 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
-		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client())
+		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), func(issuer did.DID, page int) (string, error) {
+			return "https://example.com", nil
+		})
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)

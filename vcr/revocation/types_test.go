@@ -21,6 +21,7 @@ package revocation
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
@@ -33,7 +34,9 @@ import (
 
 // newTestStatusList2021 returns a StatusList2021 that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
 func newTestStatusList2021(t testing.TB, dids ...did.DID) *StatusList2021 {
-	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil)
+	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil, func(issuer did.DID, page int) (string, error) {
+		return "https://example.com/statuslist/" + issuer.String() + "/" + strconv.Itoa(page), nil
+	})
 	cs.Sign = noopSign
 	cs.ResolveKey = noopResolveKey
 	cs.VerifySignature = noopSignVerify
