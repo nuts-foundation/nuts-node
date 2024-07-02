@@ -64,9 +64,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		OwnDID: walletDID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
-				Scope:             "first second",
-				PreauthorizedUser: &userDetails,
-				Verifier:          verifierDID.String(),
+				Scope:               "first second",
+				PreauthorizedUser:   &userDetails,
+				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
 			},
 			Did: walletDID.String(),
 		},
@@ -115,8 +115,8 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return &t, nil
 		})
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(webDID, &verifierDID, gomock.Any()).DoAndReturn(func(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
-			req := createJarRequest(client, server, modifier)
+		ctx.jar.EXPECT().Create(webDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims
 
 			// check the parameters
@@ -177,30 +177,6 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
-	t.Run("error - verifier did parse error", func(t *testing.T) {
-		ctx := newTestClient(t)
-		echoCtx := mock.NewMockContext(ctx.ctrl)
-		echoCtx.EXPECT().QueryParam("token").Return("token")
-		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
-		err := store.Put("token", RedirectSession{
-			OwnDID: walletDID,
-			AccessTokenRequest: RequestUserAccessTokenRequestObject{
-				Body: &RequestUserAccessTokenJSONRequestBody{
-					Scope:             "first second",
-					PreauthorizedUser: &userDetails,
-					Verifier:          "invalid",
-				},
-				Did: walletDID.String(),
-			},
-		})
-		require.NoError(t, err)
-
-		err = ctx.client.handleUserLanding(echoCtx)
-
-		assert.EqualError(t, err, "invalid DID")
-		// token has been burned
-		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
-	})
 	t.Run("error - authorization request error", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcIssuer.EXPECT().Issue(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, t vc.VerifiableCredential, _ issuer.CredentialOptions) (*vc.VerifiableCredential, error) {
@@ -246,7 +222,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no authorization_endpoint found for did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
@@ -263,7 +239,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no token_endpoint found for did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})

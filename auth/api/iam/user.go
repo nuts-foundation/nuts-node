@@ -77,11 +77,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return echoCtx.NoContent(http.StatusForbidden)
 	}
 	accessTokenRequest := redirectSession.AccessTokenRequest
-
-	verifier, err := did.ParseDID(accessTokenRequest.Body.Verifier)
-	if err != nil {
-		return err
-	}
+	authServerURL := accessTokenRequest.Body.AuthorizationServer
 
 	// Make sure there's a user session, loaded with EmployeeCredential
 	userSession, err := user.GetSession(echoCtx.Request().Context())
@@ -99,19 +95,15 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// get AS metadata
-	oauthIssuer, err := nutsOAuth2Issuer(*verifier)
-	if err != nil {
-		return err
-	}
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), oauthIssuer.String())
+	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(echoCtx.Request().Context(), authServerURL)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
 	if len(metadata.AuthorizationEndpoint) == 0 {
-		return fmt.Errorf("no authorization_endpoint found for %s", verifier.String())
+		return fmt.Errorf("no authorization_endpoint found for %s", authServerURL)
 	}
 	if len(metadata.TokenEndpoint) == 0 {
-		return fmt.Errorf("no token_endpoint found for %s", verifier.String())
+		return fmt.Errorf("no token_endpoint found for %s", authServerURL)
 	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
@@ -123,6 +115,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		RedirectURI:   accessTokenRequest.Body.RedirectUri,
 		SessionID:     redirectSession.SessionID,
 		UseDPoP:       useDPoP,
+		IssuerURL:     authServerURL,
 		TokenEndpoint: metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState
@@ -145,7 +138,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, authServerURL, modifier)
 	if err != nil {
 		return err
 	}

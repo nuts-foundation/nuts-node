@@ -129,6 +129,10 @@ type RequestObjectResponse = string
 
 // ServiceAccessTokenRequest Request for an access token for a service.
 type ServiceAccessTokenRequest struct {
+	// AuthorizationServer The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	AuthorizationServer string `json:"authorization_server"`
+
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.
@@ -145,7 +149,6 @@ type ServiceAccessTokenRequest struct {
 
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
-	Verifier  string                              `json:"verifier"`
 }
 
 // ServiceAccessTokenRequestTokenType The type of access token that is preferred, default: DPoP
@@ -159,6 +162,10 @@ type TokenIntrospectionRequest struct {
 
 // UserAccessTokenRequest Request for an access token for a user.
 type UserAccessTokenRequest struct {
+	// AuthorizationServer The OAuth Authorization Server's identifier as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	AuthorizationServer string `json:"authorization_server"`
+
 	// PreauthorizedUser Claims about the authorized user.
 	PreauthorizedUser *UserDetails `json:"preauthorized_user,omitempty"`
 
@@ -172,9 +179,6 @@ type UserAccessTokenRequest struct {
 
 	// TokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
 	TokenType *UserAccessTokenRequestTokenType `json:"token_type,omitempty"`
-
-	// Verifier The DID of the verifier, the relying party for which this access token is requested.
-	Verifier string `json:"verifier"`
 }
 
 // UserAccessTokenRequestTokenType The type of access token that is prefered. Supported values: [Bearer, DPoP], default: DPoP
@@ -201,7 +205,10 @@ type Cnf struct {
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
-	Issuer               string                   `json:"issuer"`
+
+	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
+	// used to locate the OAuth2 Authorization Server metadata.
+	Issuer string `json:"issuer"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
