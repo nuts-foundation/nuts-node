@@ -497,11 +497,6 @@ func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleA
 }
 
 func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
-	verifier, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
-	if err != nil {
-		return nil, oauthError(oauth.InvalidRequest, "unknown verifier id", err)
-	}
-
 	if request.Body.State == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing state")
 	}
@@ -519,6 +514,9 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	state := *request.Body.State
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
+	}
+	if request.Did != session.OwnDID.String() {
+		return nil, oauthError(oauth.InvalidRequest, "incorrect tenant", fmt.Errorf("expected: %s, was: %s", session.OwnDID, request.Did))
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
@@ -550,7 +548,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		} else {
 			credentialSubjectID = *subjectDID
 		}
-		if err := r.validatePresentationAudience(presentation, *verifier); err != nil {
+		if err := r.validatePresentationAudience(presentation, session.IssuerURL); err != nil {
 			return nil, withCallbackURI(err, callbackURI)
 		}
 	}
