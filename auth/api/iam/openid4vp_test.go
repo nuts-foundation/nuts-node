@@ -54,7 +54,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 			oauth.ResponseTypeParam:        "code",
 			oauth.ScopeParam:               "test",
 			oauth.StateParam:               "state",
-			jwt.AudienceKey:                []string{verifierDID.String()},
+			jwt.AudienceKey:                []string{verifierURL.String()},
 			jwt.IssuerKey:                  holderDID.String(),
 			oauth.NonceParam:               "nonce",
 			oauth.CodeChallengeParam:       "code_challenge",
@@ -96,7 +96,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, verifier = did:web:example.com:iam:verifier, audience = ")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/did:web:example.com:iam:verifier, was: ")
 	})
 	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -434,7 +434,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			putNonce(ctx, challenge)
 			ctx.vdr.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
-			ctx.jar.EXPECT().Create(verifierDID, nil, gomock.Any())
+			ctx.jar.EXPECT().Create(verifierDID, "", gomock.Any())
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 

@@ -77,10 +77,6 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return echoCtx.NoContent(http.StatusForbidden)
 	}
 	accessTokenRequest := redirectSession.AccessTokenRequest
-	verifier, err := did.ParseDID(accessTokenRequest.Body.Verifier)
-	if err != nil {
-		return err
-	}
 	authServerURL := accessTokenRequest.Body.AuthorizationServer
 
 	// Make sure there's a user session, loaded with EmployeeCredential
@@ -142,7 +138,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, verifier, authServerURL, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, authServerURL, modifier)
 	if err != nil {
 		return err
 	}

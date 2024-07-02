@@ -84,14 +84,18 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	redirectURL, err := url.Parse(redirectURI)
 	if err != nil {
 		// todo render error page instead of technical error (via errorWriter)
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid redirect_uri parameter"}
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: "invalid redirect_uri parameter", InternalError: err}
 	}
 	// now we have a valid redirectURL, so all future errors will redirect to this URL using the Oauth2ErrorWriter
+	authServerURL, err := createOAuth2BaseURL(verifier)
+	if err != nil {
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "failed to determine local authorization server", err), redirectURL)
+	}
 
 	// additional JAR checks
 	// check if the audience is the verifier
-	if params.get(jwt.AudienceKey) != verifier.String() {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, verifier = %s, audience = %s", verifier.String(), params.get(jwt.AudienceKey))), redirectURL)
+	if params.get(jwt.AudienceKey) != authServerURL.String() {
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, expected: %s, was: %s", authServerURL, params.get(jwt.AudienceKey))), redirectURL)
 	}
 	// we require PKCE (RFC7636) for authorization code flows
 	// check code_challenge and code_challenge_method
@@ -151,13 +155,13 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, oauth.OAuth2Error{Code: oauth.ServerError, InternalError: err, Description: "failed to store server state"}
 	}
 	// Initiate OpenID4VP flow
-	authServerURL, err := r.nextOpenID4VPFlow(ctx, state, session)
+	nextRedirectURL, err := r.nextOpenID4VPFlow(ctx, state, session)
 	if err != nil {
 		return nil, err
 	}
 	return HandleAuthorizeRequest302Response{
 		Headers: HandleAuthorizeRequest302ResponseHeaders{
-			Location: authServerURL.String(),
+			Location: nextRedirectURL.String(),
 		},
 	}, nil
 }
@@ -214,10 +218,13 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 	var redirectURL *url.URL
 	if *walletOwnerType == pe.WalletOwnerUser {
 		// User wallet, make an openid4vp: request URL
-		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, nil, "", modifier)
+		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, "", modifier)
 	} else {
 		walletDID, _ := did.ParseDID(session.ClientID)
-		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, walletDID, session.IssuerURL, modifier)
+		// TODO: Change client_id to URL instead of did:web DID
+		// See https://github.com/nuts-foundation/nuts-node/issues/3216
+		authServerURL, _ := nutsOAuth2Issuer(*walletDID)
+		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnDID, authServerURL.String(), modifier)
 	}
 	if err != nil {
 		return nil, oauth.OAuth2Error{
