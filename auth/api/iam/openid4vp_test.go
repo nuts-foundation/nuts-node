@@ -365,7 +365,6 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 	session := OAuthSession{
 		SessionID:         "token",
 		OwnDID:            &verifierDID,
-		IssuerURL:         verifierURL.String(),
 		ClientID:          holderDID.String(),
 		RedirectURI:       "https://example.com/iam/holder/cb",
 		Scope:             "test",
@@ -375,7 +374,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 	t.Run("submission", func(t *testing.T) {
 		challenge := "challenge"
 		// simple vp
-		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"` + verifierURL.String() + `","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
+		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 		// simple submission
 		submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 		// simple request

@@ -518,6 +518,10 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	if request.Did != session.OwnDID.String() {
 		return nil, oauthError(oauth.InvalidRequest, "incorrect tenant", fmt.Errorf("expected: %s, was: %s", session.OwnDID, request.Did))
 	}
+	verifierDID, _ := did.ParseDID(request.Did) // can't fail, since it was parsed before
+	if err != nil {
+		return nil, err
+	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
 	// Also asserts that nonce and state reference the same OAuthSession.
@@ -548,7 +552,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		} else {
 			credentialSubjectID = *subjectDID
 		}
-		if err := r.validatePresentationAudience(presentation, session.IssuerURL); err != nil {
+		if err := r.validatePresentationAudience(presentation, verifierDID.String()); err != nil {
 			return nil, withCallbackURI(err, callbackURI)
 		}
 	}
