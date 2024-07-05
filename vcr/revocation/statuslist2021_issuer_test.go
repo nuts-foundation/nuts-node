@@ -59,7 +59,7 @@ func TestStatusList2021_Entry(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 
 		t.Run("new issuer", func(t *testing.T) {
-			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
+			statusListCredential := s.statusListURL(aliceDID, 1)
 			// confirm empty DB
 			assert.ErrorIs(t, s.db.First(new(credentialIssuerRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
 			assert.ErrorIs(t, s.db.First(new(credentialRecord), "subject_id = ?", statusListCredential).Error, gorm.ErrRecordNotFound)
@@ -80,7 +80,7 @@ func TestStatusList2021_Entry(t *testing.T) {
 			assert.NoError(t, s.db.First(new(credentialRecord), "subject_id = ?", statusListCredential).Error)
 		})
 		t.Run("second entry", func(t *testing.T) {
-			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
+			statusListCredential := s.statusListURL(aliceDID, 1)
 
 			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
@@ -93,12 +93,12 @@ func TestStatusList2021_Entry(t *testing.T) {
 
 		})
 		t.Run("credential rollover", func(t *testing.T) {
-			statusListCredential, _ := toStatusListCredential(aliceDID, 1)
+			statusListCredential := s.statusListURL(aliceDID, 1)
 			// set last_issued_index to max value for a single credential so the next entry will be in page 2
 			s.db.Model(&credentialIssuerRecord{}).
 				Where("subject_id = ?", statusListCredential).
 				Update("last_issued_index", maxBitstringIndex)
-			statusListCredential, _ = toStatusListCredential(aliceDID, 2) // now expect page 2 to be used
+			statusListCredential = s.statusListURL(aliceDID, 2) // now expect page 2 to be used
 
 			entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
@@ -131,11 +131,6 @@ func TestStatusList2021_Entry(t *testing.T) {
 	t.Run("error - unsupported purpose", func(t *testing.T) {
 		entry, err = s.Entry(testCtx, aliceDID, statusPurposeSuspension)
 		assert.ErrorIs(t, err, errUnsupportedPurpose)
-		assert.Nil(t, entry)
-	})
-	t.Run("error - unsupported DID method", func(t *testing.T) {
-		entry, err = s.Entry(testCtx, did.MustParseDID("did:nuts:123"), StatusPurposeRevocation)
-		assert.EqualError(t, err, "status list: unsupported DID method: nuts")
 		assert.Nil(t, entry)
 	})
 	t.Run("no race conditions on UPDATE or CREATE", func(t *testing.T) {
@@ -315,8 +310,7 @@ func TestStatusList2021_Credential(t *testing.T) {
 	})
 	t.Run("ok - loadCredential failed", func(t *testing.T) {
 		// add bob as issuer for page 0
-		subjectID, err := toStatusListCredential(bobDID, 0)
-		require.NoError(t, err)
+		subjectID := s.statusListURL(bobDID, 0)
 		s.db.Create(&credentialIssuerRecord{
 			SubjectID: subjectID,
 			Issuer:    bobDID.String(),
@@ -367,10 +361,10 @@ func TestStatusList2021_Credential(t *testing.T) {
 }
 
 func TestStatusList2021_buildAndSignVC(t *testing.T) {
-	cs := &StatusList2021{Sign: noopSign}
+	cs := newTestStatusList2021(t, aliceDID)
+	cs.Sign = noopSign
 
-	subjectID, err := toStatusListCredential(aliceDID, 1)
-	require.NoError(t, err)
+	subjectID := cs.statusListURL(aliceDID, 1)
 	encodedList, err := compress(*newBitstring())
 	require.NoError(t, err)
 	expectedCS := StatusList2021CredentialSubject{
@@ -394,24 +388,6 @@ func TestStatusList2021_buildAndSignVC(t *testing.T) {
 	assert.Equal(t, aliceDID.String(), cred.Issuer.String())
 	assert.InDelta(t, time.Now().Unix(), cred.IssuanceDate.Unix(), 2)
 	assert.InDelta(t, time.Now().Add(statusListValidity).Unix(), cred.ExpirationDate.Unix(), 2)
-}
-
-func Test_toStatusListCredential(t *testing.T) {
-	t.Run("root did:web", func(t *testing.T) {
-		subjectID, err := toStatusListCredential(rootDID, 1)
-		require.NoError(t, err)
-		assert.Equal(t, "https://example.com/statuslist/did:web:example.com/1", subjectID)
-	})
-	t.Run("user did:web with port", func(t *testing.T) {
-		subjectID, err := toStatusListCredential(did.MustParseDID("did:web:example.com%3A8080:iam:alice"), 1)
-		require.NoError(t, err)
-		assert.Equal(t, "https://example.com:8080/statuslist/did:web:example.com%253A8080:iam:alice/1", subjectID)
-	})
-	t.Run("user did:web", func(t *testing.T) {
-		subjectID, err := toStatusListCredential(aliceDID, 1)
-		require.NoError(t, err)
-		assert.Equal(t, "https://example.com/statuslist/did:web:example.com:iam:alice/1", subjectID)
-	})
 }
 
 func toMap(t testing.TB, obj any) (result map[string]any) {

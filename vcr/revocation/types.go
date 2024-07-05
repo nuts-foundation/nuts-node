@@ -105,14 +105,16 @@ var _ StatusList2021Verifier = (*StatusList2021)(nil)
 type StatusList2021 struct {
 	client          core.HTTPRequestDoer
 	db              *gorm.DB
+	baseURL         string
 	VerifySignature VerifySignFn // injected by verifier
 	Sign            SignFn       // injected by issuer, context must contain an audit log
 	ResolveKey      ResolveKeyFn // injected by issuer
 }
 
 // NewStatusList2021 returns a StatusList2021 without a Sign or VerifySignature method.
-func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer) *StatusList2021 {
-	return &StatusList2021{client: client, db: db}
+// The URL in the credential will be constructed as follows using the given base URL: <baseURL>/statuslist/<did>/<page>
+func NewStatusList2021(db *gorm.DB, client core.HTTPRequestDoer, baseURL string) *StatusList2021 {
+	return &StatusList2021{client: client, db: db, baseURL: baseURL}
 }
 
 // StatusList2021Entry is the "credentialStatus" property used by issuers to enable VerifiableCredential status information.
