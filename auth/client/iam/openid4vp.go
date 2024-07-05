@@ -205,10 +205,10 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, verifier did.DID, oauthIssuer *url.URL, scopes string,
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, authServerURL string, scopes string,
 	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	metadata, err := c.AuthorizationServerMetadata(ctx, oauthIssuer.String())
+	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	}
 
 	params := holder.BuildParams{
-		Audience: verifier.String(),
+		Audience: authServerURL,
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}

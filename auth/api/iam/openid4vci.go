@@ -54,14 +54,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	}
 
 	// Parse the issuer
-	issuerDid, err := did.ParseDID(request.Body.Issuer)
-	if err != nil {
-		return nil, core.InvalidInputError("could not parse Issuer DID: %s: %w", request.Body.Issuer, err)
+	issuer := request.Body.Issuer
+	if issuer == "" {
+		return nil, core.InvalidInputError("issuer is empty")
 	}
 	// Fetch metadata containing the endpoints
-	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, *issuerDid)
+	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, request.Body.Issuer)
 	if err != nil {
-		return nil, core.Error(http.StatusFailedDependency, "cannot locate endpoints for %s: %w", issuerDid.String(), err)
+		return nil, core.Error(http.StatusFailedDependency, "cannot locate endpoints for %s: %w", issuer, err)
 	}
 	if len(credentialIssuerMetadata.CredentialEndpoint) == 0 {
 		return nil, errors.New("no credential_endpoint found")
@@ -91,7 +91,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		ClientFlow:  credentialRequestClientFlow,
 		OwnDID:      requestHolder,
-		OtherDID:    issuerDid,
 		RedirectURI: request.Body.RedirectUri,
 		PKCEParams:  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers

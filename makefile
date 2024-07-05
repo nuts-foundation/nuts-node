@@ -55,7 +55,6 @@ gen-mocks:
 	mockgen -destination=vcr/verifier/mock.go -package=verifier -source=vcr/verifier/interface.go
 	mockgen -destination=vdr/didnuts/ambassador_mock.go -package=didnuts -source=vdr/didnuts/ambassador.go
 	mockgen -destination=vdr/didnuts/didstore/mock.go -package=didstore -source=vdr/didnuts/didstore/interface.go
-	mockgen -destination=vdr/didweb/store_mock.go -package=didweb -source=vdr/didweb/store.go
 	mockgen -destination=vdr/mock.go -package=vdr -source=vdr/interface.go
 	mockgen -destination=vdr/resolver/did_mock.go -package=resolver -source=vdr/resolver/did.go
 	mockgen -destination=vdr/resolver/service_mock.go -package=resolver -source=vdr/resolver/service.go

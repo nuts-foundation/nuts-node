@@ -55,7 +55,7 @@ type JAR interface {
 	//  - iss
 	//  - aud (if server is not nil)
 	// the request_uri_method is determined by the presence of a server (get) or not (post)
-	Create(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest
+	Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest
 	// Sign the jarRequest, which is available on jarRequest.Token.
 	// Returns an error if the jarRequest already contains a signed JWT.
 	// TODO: check if signature type of client is supported by the AS/wallet.
@@ -65,20 +65,20 @@ type JAR interface {
 	Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error)
 }
 
-func (j jar) Create(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
-	return createJarRequest(client, server, modifier)
+func (j jar) Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+	return createJarRequest(client, authServerURL, modifier)
 }
 
-func createJarRequest(client did.DID, server *did.DID, modifier requestObjectModifier) jarRequest {
+func createJarRequest(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 	requestURIMethod := "post"
 	// default claims for JAR
 	params := map[string]string{
 		jwt.IssuerKey:       client.String(),
 		oauth.ClientIDParam: client.String(),
 	}
-	if server != nil {
+	if authServerURL != "" {
 		requestURIMethod = "get"
-		params[jwt.AudienceKey] = server.String()
+		params[jwt.AudienceKey] = authServerURL
 	}
 
 	// additional claims can be added by the caller

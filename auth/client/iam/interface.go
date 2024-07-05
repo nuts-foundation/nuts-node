@@ -20,8 +20,6 @@ package iam
 
 import (
 	"context"
-	"net/url"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -45,8 +43,8 @@ type Client interface {
 	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
-	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote Nuts node using Nuts RFC021.
-	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, verifier did.DID, oauthIssuer *url.URL, scopes string, useDPoP bool,
+	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
+	RequestRFC021AccessToken(ctx context.Context, requestHolder did.DID, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.

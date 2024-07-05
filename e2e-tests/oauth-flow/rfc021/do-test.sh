@@ -67,7 +67,7 @@ echo "---------------------------------------"
 REQUEST=$(
 cat << EOF
 {
-  "verifier": "${VENDOR_A_DID}",
+  "authorization_server": "https://nodeA/oauth2/${VENDOR_A_DID}",
   "scope": "test",
   "credentials": [
       {

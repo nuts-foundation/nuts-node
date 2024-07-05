@@ -44,25 +44,25 @@ func TestJar_Create(t *testing.T) {
 		modifier := func(claims map[string]string) {
 			claims["requestObjectModifier"] = "works"
 		}
-		req := jar{}.Create(verifierDID, &holderDID, modifier)
+		req := jar{}.Create(verifierDID, holderURL, modifier)
 		assert.Equal(t, "get", req.RequestURIMethod)
 		assert.Equal(t, verifierDID, req.Client)
 		assert.Len(t, req.Claims, 4)
-		assert.Equal(t, req.Claims[oauth.ClientIDParam], verifierDID.String())
-		assert.Equal(t, req.Claims[jwt.IssuerKey], verifierDID.String())
-		assert.Equal(t, req.Claims[jwt.AudienceKey], holderDID.String())
-		assert.Equal(t, req.Claims["requestObjectModifier"], "works")
+		assert.Equal(t, verifierDID.String(), req.Claims[oauth.ClientIDParam])
+		assert.Equal(t, verifierDID.String(), req.Claims[jwt.IssuerKey])
+		assert.Equal(t, holderURL, req.Claims[jwt.AudienceKey])
+		assert.Equal(t, "works", req.Claims["requestObjectModifier"])
 	})
 	t.Run("request_uri_method=post", func(t *testing.T) {
 		modifier := func(claims map[string]string) {
 			claims[jwt.IssuerKey] = holderDID.String()
 		}
-		req := jar{}.Create(verifierDID, nil, modifier)
+		req := jar{}.Create(verifierDID, "", modifier)
 		assert.Equal(t, "post", req.RequestURIMethod)
 		assert.Equal(t, verifierDID, req.Client)
 		assert.Len(t, req.Claims, 2)
-		assert.Equal(t, req.Claims[jwt.IssuerKey], holderDID.String())
-		assert.Equal(t, req.Claims[oauth.ClientIDParam], verifierDID.String())
+		assert.Equal(t, holderDID.String(), req.Claims[jwt.IssuerKey])
+		assert.Equal(t, verifierDID.String(), req.Claims[oauth.ClientIDParam])
 		assert.Empty(t, req.Claims[jwt.AudienceKey])
 	})
 }
