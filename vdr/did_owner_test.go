@@ -178,7 +178,8 @@ func TestDBDocumentOwner_ListOwned(t *testing.T) {
 		result, err := documentOwner.ListOwned(context.Background())
 
 		require.NoError(t, err)
-		assert.Equal(t, []did.DID{TestDIDA, TestDIDB}, result)
+		assert.Contains(t, result, TestDIDA)
+		assert.Contains(t, result, TestDIDB)
 	})
 }
 

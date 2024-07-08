@@ -28,9 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"strings"
-	"testing"
-
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -47,6 +44,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"gorm.io/gorm"
+	"strings"
+	"testing"
 )
 
 // managerTestContext contains the controller and mocks needed for testing the Manager
@@ -85,7 +84,8 @@ func newManagerTestContext(t *testing.T) managerTestContext {
 
 func TestManager_Create(t *testing.T) {
 	ctx := newManagerTestContext(t)
-	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+	ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
+	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
 		assert.Equal(t, DIDDocumentType, template.Type)
 		assert.True(t, template.AttachKey)
 		assert.Empty(t, template.AdditionalPrevs)
@@ -99,7 +99,7 @@ func TestManager_Create(t *testing.T) {
 		assert.Len(t, didDocument.Authentication, 1)
 		assert.Len(t, didDocument.KeyAgreement, 1)
 		assert.Nil(t, didDocument.Service)
-		return nil, nil
+		return testTransaction{}, nil
 	})
 
 	_, _, err := ctx.manager.Create(nil, didsubject.DefaultCreationOptions())
@@ -128,11 +128,12 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 		ctx.mockResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{}, nil)
 		ctx.mockResolver.EXPECT().Resolve(*id123, nil).Return(&doc2, &resolver.DocumentMetadata{}, nil)
 		ctx.mockDIDStore.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc2, &resolver.DocumentMetadata{}, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+		ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
 			var didDocument did.Document
 			_ = json.Unmarshal(template.Payload, &didDocument)
 			assert.Empty(t, didDocument.VerificationMethod)
-			return nil, nil
+			return testTransaction{}, nil
 		})
 
 		err := ctx.manager.RemoveVerificationMethod(ctx.audit, *id123, *id123Method)
@@ -190,13 +191,14 @@ func TestManipulator_AddKey(t *testing.T) {
 		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
 		ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
 		ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+		ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
 		ctx.mockResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
 			var didDocument did.Document
 			_ = json.Unmarshal(template.Payload, &didDocument)
 			assert.Len(t, didDocument.VerificationMethod, 1)
 			assert.Len(t, didDocument.CapabilityInvocation, 1)
-			return nil, nil
+			return testTransaction{}, nil
 		})
 
 		key, err := ctx.manager.AddVerificationMethod(ctx.audit, *id, didsubject.CapabilityInvocationUsage)
@@ -322,6 +324,7 @@ func TestManager_Commit(t *testing.T) {
 		}
 		ctx.didResolver.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
 		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil)
+		ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
 		ctx.keyStore.EXPECT().Resolve(gomock.Any(), document.VerificationMethod[0].ID.String()).Return(nutsCrypto.TestKey{}, nil)
 		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
 			assert.Len(t, template.AdditionalPrevs, 2) // previous and controller
@@ -412,9 +415,10 @@ func TestManager_Create2(t *testing.T) {
 		t.Run("defaults", func(t *testing.T) {
 			ctx := newManagerTestContext(t)
 			var txTemplate network.Template
-			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (hash.SHA256Hash, error) {
+			ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (dag.Transaction, error) {
 				txTemplate = tx
-				return hash.EmptyHash(), nil
+				return testTransaction{}, nil
 			})
 
 			doc, key, err := ctx.manager.Create(nil, defaultOptions)
@@ -442,7 +446,8 @@ func TestManager_Create2(t *testing.T) {
 
 		t.Run("all keys", func(t *testing.T) {
 			ctx := newManagerTestContext(t)
-			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(nil, nil)
+			ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
+			ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(testTransaction{}, nil)
 
 			keyFlags := didsubject.AssertionMethodUsage |
 				didsubject.AuthenticationUsage |
@@ -482,15 +487,16 @@ func TestManager_Deactivate(t *testing.T) {
 	currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
 	ctx.mockResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
 	ctx.mockDIDStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
+	ctx.mockDIDStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
 	ctx.mockResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
 	expectedDocument := CreateDocument()
 	expectedDocument.ID = *id
-	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Do(func(_ context.Context, template network.Template) (dag.Transaction, error) {
+	ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
 		var didDocument did.Document
 		_ = json.Unmarshal(template.Payload, &didDocument)
 		assert.Len(t, didDocument.VerificationMethod, 0)
 		assert.Len(t, didDocument.Controller, 0)
-		return nil, nil
+		return testTransaction{}, nil
 	})
 
 	err := ctx.manager.Deactivate(ctx.audit, *id)

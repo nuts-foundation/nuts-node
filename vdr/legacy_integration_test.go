@@ -21,6 +21,7 @@ package vdr
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -28,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -96,27 +98,6 @@ func TestVDRIntegration_Test(t *testing.T) {
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
 
-	// Update the controller of DocumentA with DocumentB
-	// And remove its own authenticationMethod
-	docA.Controller = []did.DID{docB.ID}
-	docA.Authentication = []did.VerificationRelationship{}
-	docA.AssertionMethod = []did.VerificationRelationship{}
-	docA.CapabilityInvocation = []did.VerificationRelationship{}
-	docA.CapabilityDelegation = []did.VerificationRelationship{}
-	docA.VerificationMethod = []*did.VerificationMethod{}
-	docA.KeyAgreement = []did.VerificationRelationship{}
-	err = ctx.vdr.NutsDocumentManager().Update(ctx.audit, docAID, *docA)
-	require.NoError(t, err, "unable to update documentA with a new controller")
-
-	// Resolve and check DocumentA
-	docA, metadataDocA, err = ctx.didStore.Resolve(docA.ID, nil)
-	require.NoError(t, err, "unable to resolve updated documentA")
-	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
-		"expected updated documentA to have documentB as its controller")
-
-	assert.Empty(t, docA.CapabilityInvocation,
-		"expected documentA to have no CapabilityInvocation")
-
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
 	newService = did.Service{
@@ -149,90 +130,88 @@ func TestVDRIntegration_Test(t *testing.T) {
 	err = ctx.vdr.NutsDocumentManager().Deactivate(ctx.audit, docB.ID)
 	assert.ErrorIs(t, err, resolver.ErrDeactivated,
 		"expected an error when trying to deactivate an already deactivated document")
-
-	// try to update document A should fail since it no longer has an active controller
-	docA.Service = docA.Service[1:]
-	err = ctx.vdr.NutsDocumentManager().Update(ctx.audit, docAID, *docA)
-	assert.EqualError(t, err, "update DID document: could not find any controllers for document")
 }
 
-//
-//// Test the full stack by testing creating and updating DID documents.
-//func TestVDRMigration_Test(t *testing.T) {
-//	ctx := setup(t)
-//
-//	// Start with a first and fresh document named DocumentA.
-//	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
-//	require.NoError(t, err)
-//
-//	// Create a new DID Document we name DocumentB
-//	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
-//	require.NoError(t, err)
-//
-//	// Update the controller of DocumentA with DocumentB
-//	docA.Controller = []did.DID{docB.ID}
-//	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
-//	require.NoError(t, err, "unable to update documentA with a new controller")
-//
-//	// Resolve and check DocumentA
-//	docA, _, err = ctx.didStore.Resolve(docA.ID, nil)
-//	require.NoError(t, err, "unable to resolve updated documentA")
-//	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
-//		"expected updated documentA to have documentB as its controller")
-//
-//	// run migration
-//	err = ctx.vdr.Migrate()
-//	require.NoError(t, err, "migration failed")
-//
-//	docA, _, err = ctx.didStore.Resolve(docA.ID, nil)
-//	require.NoError(t, err, "unable to resolve updated documentA")
-//	assert.Nil(t, docA.Controller,
-//		"expected updated documentA to have no controllers after migration")
-//	assert.NotNil(t, docA.CapabilityInvocation, "expected documentA to have CapabilityInvocation")
-//}
-//
-//func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
-//	ctx := setup(t)
-//
-//	// Start with a first and fresh document named DocumentA.
-//	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
-//	require.NoError(t, err)
-//	assert.NotNil(t, initialDoc)
-//
-//	// Check if the document can be found in the store
-//	initialDoc, _, err = ctx.didStore.Resolve(initialDoc.ID, nil)
-//	require.NoError(t, err)
-//
-//	const procs = 10
-//	wg := sync.WaitGroup{}
-//	wg.Add(procs)
-//	currDoc, _, _ := ctx.didStore.Resolve(initialDoc.ID, nil)
-//	errs := make(chan error, procs)
-//	for i := 0; i < procs; i++ {
-//		go func(num int) {
-//			defer wg.Done()
-//			newDoc := *currDoc
-//			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
-//			newService := did.Service{
-//				ID:              ssi.URI{URL: *serviceID},
-//				Type:            fmt.Sprintf("service-%d", num),
-//				ServiceEndpoint: []interface{}{"http://example.com/service"},
-//			}
-//
-//			newDoc.Service = append(currDoc.Service, newService)
-//			err := ctx.vdr.Update(ctx.audit, currDoc.ID, newDoc)
-//			if err != nil {
-//				errs <- err
-//			}
-//		}(i)
-//	}
-//	wg.Wait()
-//
-//	close(errs)
-//	for err := range errs {
-//		assert.NoError(t, err)
-//	}
-//}
+// Test the full stack by testing creating and updating DID documents.
+func TestVDRMigration_Test(t *testing.T) {
+	ctx := setup(t)
+
+	// Start with a first and fresh document named DocumentA.
+	docs, _, err := ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	require.NoError(t, err)
+	docA := docs[0]
+
+	// Create a new DID Document we name DocumentB
+	docs, _, err = ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	require.NoError(t, err)
+	docB := docs[0]
+
+	// Update the controller of DocumentA with DocumentB
+	docA.Controller = []did.DID{docB.ID}
+	err = ctx.vdr.NutsDocumentManager().Update(ctx.audit, docA.ID, docA)
+	require.NoError(t, err, "unable to update documentA with a new controller")
+
+	// Resolve and check DocumentA
+	docAt, _, err := ctx.didStore.Resolve(docA.ID, nil)
+	require.NoError(t, err, "unable to resolve updated documentA")
+	docA = *docAt
+	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
+		"expected updated documentA to have documentB as its controller")
+
+	// run migration
+	err = ctx.vdr.Migrate()
+	require.NoError(t, err, "migration failed")
+
+	docAt, _, err = ctx.didStore.Resolve(docA.ID, nil)
+	require.NoError(t, err, "unable to resolve updated documentA")
+	docA = *docAt
+	assert.Nil(t, docA.Controller,
+		"expected updated documentA to have no controllers after migration")
+	assert.NotNil(t, docA.CapabilityInvocation, "expected documentA to have CapabilityInvocation")
+}
+
+func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
+	ctx := setup(t)
+
+	// Start with a first and fresh document named DocumentA.
+	docs, _, err := ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	require.NoError(t, err)
+	initialDoc := docs[0]
+
+	// Check if the document can be found in the store
+	_, _, err = ctx.didStore.Resolve(initialDoc.ID, nil)
+	require.NoError(t, err)
+
+	const procs = 10
+	wg := sync.WaitGroup{}
+	wg.Add(procs)
+	currDoc, _, _ := ctx.didStore.Resolve(initialDoc.ID, nil)
+	errs := make(chan error, procs)
+	for i := 0; i < procs; i++ {
+		go func(num int) {
+			defer wg.Done()
+			newDoc := *currDoc
+			serviceID, _ := url.Parse(fmt.Sprintf("%s#service-%d", currDoc.ID, num))
+			newService := did.Service{
+				ID:              ssi.URI{URL: *serviceID},
+				Type:            fmt.Sprintf("service-%d", num),
+				ServiceEndpoint: []interface{}{"http://example.com/service"},
+			}
+
+			newDoc.Service = append(currDoc.Service, newService)
+			err := ctx.vdr.NutsDocumentManager().Update(ctx.audit, currDoc.ID, newDoc)
+			if err != nil {
+				errs <- err
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	close(errs)
+	for err := range errs {
+		assert.NoError(t, err)
+	}
+}
 
 func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)

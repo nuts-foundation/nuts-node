@@ -234,10 +234,22 @@ func (m Manager) publish(ctx context.Context, doc did.Document, key nutsCrypto.K
 	refs := make([]hash.SHA256Hash, 0)
 
 	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-	_, err = m.NetworkClient.CreateTransaction(ctx, tx)
+	dagTx, err := m.NetworkClient.CreateTransaction(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("could not store DID document in network: %w", err)
 	}
+
+	// add it to the store after the transaction is successful
+	if err = m.Store.Add(doc, didnutsStore.Transaction{
+		Clock:       dagTx.Clock(),
+		PayloadHash: dagTx.PayloadHash(),
+		Previous:    dagTx.Previous(),
+		Ref:         dagTx.Ref(),
+		SigningTime: dagTx.SigningTime(),
+	}); err != nil {
+		return fmt.Errorf("DID document created but could not add result to store: %w", err)
+	}
+
 	return nil
 }
 
@@ -364,12 +376,23 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
 	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
-	_, err = m.NetworkClient.CreateTransaction(ctx, tx)
+	dagTx, err := m.NetworkClient.CreateTransaction(ctx, tx)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
 		if errors.Is(err, nutsCrypto.ErrPrivateKeyNotFound) {
 			err = resolver.ErrDIDNotManagedByThisNode
 		}
+		return fmt.Errorf("update DID document: %w", err)
+	}
+
+	// add it to the store after the transaction is successful
+	if err = m.Store.Add(next, didnutsStore.Transaction{
+		Clock:       dagTx.Clock(),
+		PayloadHash: dagTx.PayloadHash(),
+		Previous:    dagTx.Previous(),
+		Ref:         dagTx.Ref(),
+		SigningTime: dagTx.SigningTime(),
+	}); err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
 

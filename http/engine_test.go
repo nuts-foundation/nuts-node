@@ -159,7 +159,7 @@ func TestEngine_Configure(t *testing.T) {
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Public.Address+unsecuredPath, nil)
 					response, err := http.DefaultClient.Do(request)
 
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.Equal(t, http.StatusOK, response.StatusCode)
 					assert.Empty(t, capturedUser)
 				})
@@ -169,7 +169,7 @@ func TestEngine_Configure(t *testing.T) {
 					request.Header.Set("Authorization", "Bearer "+token)
 					response, err := http.DefaultClient.Do(request)
 
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.Equal(t, http.StatusOK, response.StatusCode)
 					assert.Equal(t, "admin", capturedUser)
 				})
@@ -178,7 +178,7 @@ func TestEngine_Configure(t *testing.T) {
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 					response, err := http.DefaultClient.Do(request)
 
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
 					assert.Empty(t, capturedUser)
 				})
@@ -188,7 +188,7 @@ func TestEngine_Configure(t *testing.T) {
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
 
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
 					assert.Empty(t, capturedUser)
 				})
@@ -198,7 +198,7 @@ func TestEngine_Configure(t *testing.T) {
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+attackerToken)
 
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
 					assert.Empty(t, capturedUser)
 				})
