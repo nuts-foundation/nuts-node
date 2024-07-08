@@ -22,10 +22,10 @@ docker compose up --wait
 echo "------------------------------------"
 echo "Create and update 2 DID documents..."
 echo "------------------------------------"
-DIDDOC_1=$(docker compose exec node nuts vdr create-did)
+DIDDOC_1=$(docker compose exec node nuts vdr create-did --v2=false)
 DID_1=$(echo $DIDDOC_1 | jq -r .id)
 docker compose exec node nuts didman svc add "${DID_1}" testEndpoint "http://example.com"
-DIDDOC_2=$(docker compose exec node nuts vdr create-did)
+DIDDOC_2=$(docker compose exec node nuts vdr create-did --v2=false)
 DID_2=$(echo $DIDDOC_2 | jq -r .id)
 docker compose exec node nuts didman svc add "${DID_2}" testEndpoint "http://example.com"
 waitForTXCount "Node" "http://localhost:18081/status/diagnostics" 4 10

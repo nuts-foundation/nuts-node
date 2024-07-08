@@ -20,7 +20,7 @@ echo "------------------------------------"
 echo "Registering vendors..."
 echo "------------------------------------"
 # Register Vendor A
-VENDOR_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did)
+VENDOR_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did --v2=false)
 VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
 echo Vendor A DID: $VENDOR_A_DID
 # Add endpoint and service
@@ -34,7 +34,7 @@ DIDDOC_HASH=$(docker compose exec nodeA-backend nuts vdr resolve $VENDOR_A_DID -
 docker compose exec nodeA-backend nuts vdr update "${VENDOR_A_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
 
 # Register Vendor B
-VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did)
+VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did --v2=false)
 VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)
 echo Vendor B DID: $VENDOR_B_DID
 # Add assertionMethod
