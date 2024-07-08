@@ -23,7 +23,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"testing"
@@ -64,7 +63,7 @@ rYrfaOuqO34hTemBL1DkecuWBTPYT5HKiuKPn7LnDRupFXuCLF4tp+BR
 }
 
 func testDB(t *testing.T) *gorm.DB {
-	logrus.SetLevel(logrus.TraceLevel)
+	//logrus.SetLevel(logrus.TraceLevel)
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	db := storageEngine.GetSQLDatabase()
