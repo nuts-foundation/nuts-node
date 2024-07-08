@@ -933,7 +933,7 @@ func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
 
-	id := generateIDForService(testDIDA, did.Service{
+	id := vdr.GenerateIDForService(testDIDA, did.Service{
 		Type:            "type",
 		ServiceEndpoint: u.String(),
 	})

@@ -541,7 +541,7 @@ func (r *Module) CreateService(ctx context.Context, subject string, service did.
 
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *didsubject.DIDDocument) (*didsubject.DIDDocument, error) {
 		// use a generated ID where the fragment equals the hash of the service
-		service.ID = generateIDForService(id, service)
+		service.ID = GenerateIDForService(id, service)
 		services = append(services, service)
 		asJson, err := json.Marshal(service)
 		if err != nil {
@@ -633,7 +633,7 @@ func (r *Module) UpdateService(ctx context.Context, subject string, serviceID ss
 		current.Services = current.Services[:j]
 
 		// use a generated ID where the fragment equals the hash of the service
-		service.ID = generateIDForService(id, service)
+		service.ID = GenerateIDForService(id, service)
 		services = append(services, service)
 		asJson, err := json.Marshal(service)
 		if err != nil {
@@ -764,7 +764,7 @@ func (r *Module) applyToDIDDocuments(ctx context.Context, subject string, operat
 	})
 }
 
-func generateIDForService(id did.DID, service did.Service) ssi.URI {
+func GenerateIDForService(id did.DID, service did.Service) ssi.URI {
 	bytes, _ := json.Marshal(service)
 	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
 	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
