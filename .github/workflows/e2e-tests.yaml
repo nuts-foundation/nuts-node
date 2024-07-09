@@ -84,7 +84,7 @@ jobs:
         if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
-          name: nuts-node-ci
+          package: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.PACKAGE_SECRET }}
           tags: ${{ env.SHA }}
@@ -94,7 +94,7 @@ jobs:
         if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation
-          name: nuts-node-ci
+          package: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
           tags: ${{ env.SHA }}
