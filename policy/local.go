@@ -52,7 +52,7 @@ func (b *LocalPDP) Name() string {
 	return ModuleName
 }
 
-func (b *LocalPDP) Configure(config core.ServerConfig) error {
+func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 	// check if directory exists
 	if b.config.Directory != "" {
 		_, err := os.Stat(b.config.Directory)
@@ -64,6 +64,8 @@ func (b *LocalPDP) Configure(config core.ServerConfig) error {
 				return fmt.Errorf("failed to load policy from directory: %w", err)
 			}
 		}
+	}
+	if b.config.Directory != "" {
 		if err := b.loadFromDirectory(b.config.Directory); err != nil {
 			return fmt.Errorf("failed to load policy from directory: %w", err)
 		}
