@@ -294,6 +294,7 @@ func TestManager_Commit(t *testing.T) {
 					Data:     data,
 				},
 			},
+			Raw: "{}",
 		},
 	}
 
@@ -358,6 +359,52 @@ func TestManager_Commit(t *testing.T) {
 		err := ctx.manager.Commit(ctx.ctx, logCopy)
 
 		assert.NoError(t, err)
+	})
+}
+
+func TestManager_IsCommitted(t *testing.T) {
+	document, _, _ := newDidDoc()
+	documentData, _ := json.Marshal(document)
+	vmData, _ := json.Marshal(document.VerificationMethod[0])
+	eventLog := didsubject.DIDChangeLog{
+		Type: didsubject.DIDChangeCreated,
+		DIDDocumentVersion: didsubject.DIDDocument{
+			ID: uuid.New().String(),
+			DID: didsubject.DID{
+				ID:      document.ID.String(),
+				Subject: "subject",
+			},
+			VerificationMethods: []didsubject.VerificationMethod{
+				{
+					ID:       document.VerificationMethod[0].ID.String(),
+					KeyTypes: didsubject.VerificationMethodKeyType(didsubject.AssertionKeyUsage()),
+					Data:     vmData,
+				},
+			},
+			Raw: string(documentData),
+		},
+	}
+	changeHash := hash.SHA256Sum(documentData)
+
+	t.Run("false", func(t *testing.T) {
+		ctx := newTestContext(t)
+		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&document, &resolver.DocumentMetadata{Hash: hash.RandomHash()}, nil)
+		require.NoError(t, ctx.db.Save(&eventLog).Error)
+
+		ok, err := ctx.manager.IsCommitted(ctx.ctx, eventLog)
+
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+	t.Run("true", func(t *testing.T) {
+		ctx := newTestContext(t)
+		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&document, &resolver.DocumentMetadata{Hash: changeHash}, nil)
+		require.NoError(t, ctx.db.Save(&eventLog).Error)
+
+		ok, err := ctx.manager.IsCommitted(ctx.ctx, eventLog)
+
+		require.NoError(t, err)
+		assert.True(t, ok)
 	})
 }
 
