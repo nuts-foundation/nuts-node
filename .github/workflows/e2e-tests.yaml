@@ -80,21 +80,25 @@ jobs:
             ./run-tests.sh
 
       - name: package cleanup
-        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        uses: dataaxiom/ghcr-cleanup-action@v1
         if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
           name: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.PACKAGE_SECRET }}
-          tag: ${{ env.SHA }}
+          tags: ${{ env.SHA }}
+          keep-n-untagged: 3
+          keep-n-tagged: 3
 
       - name: package cleanup dependabot
-        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        uses: dataaxiom/ghcr-cleanup-action@v1
         if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation
           name: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ env.SHA }}
+          tags: ${{ env.SHA }}
+          keep-n-untagged: 3
+          keep-n-tagged: 3
