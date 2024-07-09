@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -42,23 +43,15 @@ const MethodName = "nuts"
 // NutsDIDContextV1 contains the Nuts specific JSON-LD context for a DID Document
 const NutsDIDContextV1 = "https://nuts.nl/did/v1"
 
-// JWS2020ContextV1 contains the JSON-LD context for JWS and JWK
-const JWS2020ContextV1 = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
-
 // NutsDIDContextV1URI returns NutsDIDContextV1 as a URI
 func NutsDIDContextV1URI() ssi.URI {
 	return ssi.MustParseURI(NutsDIDContextV1)
 }
 
-// JWS2020ContextV1URI returns JWS2020ContextV1 as a URI
-func JWS2020ContextV1URI() ssi.URI {
-	return ssi.MustParseURI(JWS2020ContextV1)
-}
-
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
 	return did.Document{
-		Context: []interface{}{NutsDIDContextV1URI(), JWS2020ContextV1URI(), did.DIDContextV1URI()},
+		Context: []interface{}{NutsDIDContextV1URI(), jsonld.JWS2020ContextV1URI(), did.DIDContextV1URI()},
 	}
 }
 
