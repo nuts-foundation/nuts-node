@@ -978,15 +978,16 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		require.EqualError(t, err, "invalid DID: invalid DID")
 	})
-	t.Run("error - verifier error", func(t *testing.T) {
+	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vdr.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(nil, core.Error(http.StatusPreconditionFailed, "no matching credentials"))
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "no matching credentials")
+		assert.Equal(t, err, holder.ErrNoCredentials)
+		assert.Equal(t, http.StatusPreconditionFailed, statusCodeFrom(err))
 	})
 }
 
