@@ -29,7 +29,7 @@ import (
 
 func TestStore_LoadFromFile(t *testing.T) {
 	t.Run("loads the mapping from the file", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromFile("test/definition_mapping.json")
 
@@ -39,7 +39,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromFile("test/doesntexist.json")
 
@@ -47,7 +47,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 
 	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromFile("test/invalid/invalid_definition_mapping.json")
 
@@ -57,7 +57,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 func TestStore_PresentationDefinitions(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		_, err := store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope2")
 
@@ -65,7 +65,7 @@ func TestStore_PresentationDefinitions(t *testing.T) {
 	})
 
 	t.Run("returns the presentation definition if the scope exists", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
@@ -76,15 +76,15 @@ func TestStore_PresentationDefinitions(t *testing.T) {
 	})
 }
 
-func Test_localPDP_loadFromDirectory(t *testing.T) {
+func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 	t.Run("no files", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromDirectory("test/no_files")
 		require.NoError(t, err)
 	})
 	t.Run("1 file", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromDirectory("test")
 		require.NoError(t, err)
@@ -93,7 +93,7 @@ func Test_localPDP_loadFromDirectory(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("2 files, 3 scopes", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromDirectory("test/2_files")
 		require.NoError(t, err)
@@ -106,7 +106,7 @@ func Test_localPDP_loadFromDirectory(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("2 files, duplicate scope", func(t *testing.T) {
-		store := localPDP{}
+		store := LocalPDP{}
 
 		err := store.loadFromDirectory("test/2_files_duplicate")
 

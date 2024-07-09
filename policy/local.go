@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/policy/api/v1/client"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
@@ -31,17 +31,54 @@ import (
 	"strings"
 )
 
-var _ PDPBackend = (*localPDP)(nil)
+var _ PDPBackend = (*LocalPDP)(nil)
 
-// localPDP is a backend for presentation definitions
+// New creates a new local policy backend
+func New() *LocalPDP {
+	return &LocalPDP{}
+}
+
+// LocalPDP is a backend for presentation definitions
 // It loads a file with the mapping from oauth scope to PEX Policy.
-// It allows access when the requester can present a submission according to the Presentation Definition. It does not do any additional authorization checks.
-type localPDP struct {
+// It allows access when the requester can present a submission according to the Presentation Definition.
+type LocalPDP struct {
+	backend PDPBackend
+	config  Config
 	// mapping holds the oauth scope to PEX Policy mapping
 	mapping map[string]validatingWalletOwnerMapping
 }
 
-func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
+func (b *LocalPDP) Name() string {
+	return ModuleName
+}
+
+func (b *LocalPDP) Configure(_ core.ServerConfig) error {
+	// check if directory exists
+	if b.config.Directory != "" {
+		_, err := os.Stat(b.config.Directory)
+		if err != nil {
+			if os.IsNotExist(err) && b.config.Directory == defaultConfig().Directory {
+				// assume this is the default config value and remove it
+				b.config.Directory = ""
+			} else {
+				return fmt.Errorf("failed to load policy from directory: %w", err)
+			}
+		}
+	}
+	if b.config.Directory != "" {
+		if err := b.loadFromDirectory(b.config.Directory); err != nil {
+			return fmt.Errorf("failed to load policy from directory: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (b *LocalPDP) Config() interface{} {
+	return &b.config
+}
+
+func (b *LocalPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
 	result := pe.WalletOwnerMapping{}
 	mapping, exists := b.mapping[scope]
 	if !exists {
@@ -53,12 +90,8 @@ func (b *localPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope s
 	return result, nil
 }
 
-func (b *localPDP) Authorized(_ context.Context, _ client.AuthorizedRequest) (bool, error) {
-	return true, nil
-}
-
 // loadFromDirectory traverses all .json files in the given directory and loads them
-func (s *localPDP) loadFromDirectory(directory string) error {
+func (b *LocalPDP) loadFromDirectory(directory string) error {
 	// open the directory
 	dir, err := os.Open(directory)
 	if err != nil {
@@ -80,7 +113,7 @@ func (s *localPDP) loadFromDirectory(directory string) error {
 		if !strings.HasSuffix(file.Name(), ".json") {
 			continue
 		}
-		err := s.loadFromFile(fmt.Sprintf("%s/%s", directory, file.Name()))
+		err := b.loadFromFile(fmt.Sprintf("%s/%s", directory, file.Name()))
 		if err != nil {
 			return err
 		}
@@ -89,7 +122,7 @@ func (s *localPDP) loadFromDirectory(directory string) error {
 }
 
 // LoadFromFile loads the mapping from the given file
-func (s *localPDP) loadFromFile(filename string) error {
+func (b *LocalPDP) loadFromFile(filename string) error {
 	// read the bytes from the file
 	reader, err := os.Open(filename)
 	if err != nil {
@@ -107,14 +140,14 @@ func (s *localPDP) loadFromFile(filename string) error {
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
 	}
-	if s.mapping == nil {
-		s.mapping = make(map[string]validatingWalletOwnerMapping)
+	if b.mapping == nil {
+		b.mapping = make(map[string]validatingWalletOwnerMapping)
 	}
 	for scope, defs := range result {
-		if _, exists := s.mapping[scope]; exists {
+		if _, exists := b.mapping[scope]; exists {
 			return fmt.Errorf("mapping for scope '%s' already exists (file=%s)", scope, filename)
 		}
-		s.mapping[scope] = defs
+		b.mapping[scope] = defs
 	}
 	return nil
 }
