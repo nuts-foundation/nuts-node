@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -235,7 +236,7 @@ func testCredential() vc.VerifiableCredential {
 	issuanceDate := time.Now().Truncate(time.Second)
 	return vc.VerifiableCredential{
 		Context: []ssi.URI{
-			didnuts.JWS2020ContextV1URI(),
+			jsonld.JWS2020ContextV1URI(),
 			credentialTypes.NutsV1ContextURI,
 		},
 		Type: []ssi.URI{

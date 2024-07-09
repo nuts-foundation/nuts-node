@@ -16,10 +16,10 @@ create table did_document_version
     -- id is v4 uuid
     id varchar(36) not null primary key,
     did varchar(370) not null,
-    created_at integer not null,
-    updated_at integer not null,
+    created_at integer, -- make not nil in future PR
+    updated_at integer, -- make not nil in future PR
     version int not null,
-    raw $TEXT_TYPE not null,
+    raw $TEXT_TYPE, -- make not nil in future PR
     unique (did, version),
     foreign key (did) references did (id) on delete cascade
 );

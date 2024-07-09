@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -382,7 +383,7 @@ func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) erro
 
 	// #1530: add nuts and JWS context if not present
 	next = withJSONLDContext(next, didnuts.NutsDIDContextV1URI())
-	next = withJSONLDContext(next, didnuts.JWS2020ContextV1URI())
+	next = withJSONLDContext(next, jsonld.JWS2020ContextV1URI())
 
 	// Validate document. No more changes should be made to the document after this point.
 	if err = didnuts.ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
