@@ -26,23 +26,45 @@ import (
 )
 
 func TestDIDEventLog_DID(t *testing.T) {
-	id := did.MustParseDID("did:example:123")
-	didEventLog := DIDChangeLog{
-		DIDDocumentVersion: DIDDocument{
-			DID: DID{ID: id.String()},
-		},
-	}
+	t.Run("ok", func(t *testing.T) {
+		id := did.MustParseDID("did:example:123")
+		didEventLog := DIDChangeLog{
+			DIDDocumentVersion: DIDDocument{
+				DID: DID{ID: id.String()},
+			},
+		}
 
-	assert.Equal(t, id, didEventLog.DID())
+		assert.Equal(t, id, didEventLog.DID())
+	})
+	t.Run("malformed DID", func(t *testing.T) {
+		didEventLog := DIDChangeLog{
+			DIDDocumentVersion: DIDDocument{
+				DID: DID{ID: "malformed"},
+			},
+		}
+
+		assert.Equal(t, did.DID{}, didEventLog.DID())
+	})
 }
 
 func TestDIDEventLog_Method(t *testing.T) {
-	id := did.MustParseDID("did:example:123")
-	didEventLog := DIDChangeLog{
-		DIDDocumentVersion: DIDDocument{
-			DID: DID{ID: id.String()},
-		},
-	}
+	t.Run("ok", func(t *testing.T) {
+		id := did.MustParseDID("did:example:123")
+		didEventLog := DIDChangeLog{
+			DIDDocumentVersion: DIDDocument{
+				DID: DID{ID: id.String()},
+			},
+		}
 
-	assert.Equal(t, "example", didEventLog.Method())
+		assert.Equal(t, "example", didEventLog.Method())
+	})
+	t.Run("malformed DID", func(t *testing.T) {
+		didEventLog := DIDChangeLog{
+			DIDDocumentVersion: DIDDocument{
+				DID: DID{ID: "malformed"},
+			},
+		}
+
+		assert.Equal(t, "_unknown", didEventLog.Method())
+	})
 }

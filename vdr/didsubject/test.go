@@ -19,6 +19,7 @@
 package didsubject
 
 import (
+	"github.com/sirupsen/logrus"
 	"testing"
 
 	"github.com/magiconair/properties/assert"
@@ -34,7 +35,7 @@ var (
 )
 
 func testDB(t *testing.T) *gorm.DB {
-	//logrus.SetLevel(logrus.TraceLevel)
+	logrus.SetLevel(logrus.TraceLevel)
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	db := storageEngine.GetSQLDatabase()

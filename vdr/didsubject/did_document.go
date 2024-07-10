@@ -36,7 +36,7 @@ type DIDDocument struct {
 	DidID     string `gorm:"column:did"`
 	DID       DID    `gorm:"foreignKey:DidID;references:ID"`
 	CreatedAt int64  `gorm:"autoCreateTime:false"`
-	// UpdatedAt is the (unix) timestamp when the document was updated
+	// UpdatedAt is the (unix) timestamp when the document was updated (and this version was thus created)
 	// Also used to purge DID document changes that haven't been committed within a certain time frame
 	UpdatedAt           int64 `gorm:"autoUpdateTime:false"`
 	Version             int

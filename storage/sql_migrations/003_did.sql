@@ -48,7 +48,7 @@ create table did_verificationmethod
     -- 0x04 - CapabilityDelegation
     -- 0x08 - CapabilityInvocation
     -- 0x10 - KeyAgreement
-    key_types varchar(2) not null,
+    key_types SMALLINT not null,
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null,

@@ -19,9 +19,6 @@
 package didsubject
 
 import (
-	"database/sql/driver"
-	"encoding/base64"
-	"errors"
 	"gorm.io/gorm/schema"
 )
 
@@ -40,52 +37,5 @@ func (v VerificationMethod) TableName() string {
 }
 
 // VerificationMethodKeyType is used to marshal and unmarshal the key type to the DB
-// The string representation in the db is the base64 encoded bit mask
-type VerificationMethodKeyType uint8
-
-// Scan decodes string value to byte slice
-func (kt *VerificationMethodKeyType) Scan(value interface{}) error {
-	var err error
-	if value == nil {
-		return nil
-	}
-	switch v := value.(type) {
-	case string:
-		*kt, err = stringToUint(v)
-	case []uint8: // mysql does this
-		*kt, err = stringToUint(string(v))
-	default:
-		err = errors.New("sql driver returned unsupported datatype for VerificationMethodKeyType")
-	}
-	return err
-}
-
-// Value returns base64 encoded value
-func (kt VerificationMethodKeyType) Value() (driver.Value, error) {
-	return uintToString(kt)
-}
-
-// stringToUint decodes a base64 encoded string to a uint
-func stringToUint(s string) (VerificationMethodKeyType, error) {
-	if s == "" {
-		return 0, nil
-	}
-	bytes, err := base64.RawStdEncoding.DecodeString(s)
-	if err != nil {
-		return 0, err
-	}
-	if len(bytes) > 1 {
-		return 0, errors.New("keyTypes is too long")
-	}
-	return VerificationMethodKeyType(bytes[0]), nil
-}
-
-// uintToString encodes a uint to a base64 encoded string
-func uintToString(u VerificationMethodKeyType) (string, error) {
-	if u == 0 {
-		return "", nil
-	}
-	// convert uint to bytes array
-	bytes := [1]byte{byte(u)}
-	return base64.RawStdEncoding.EncodeToString(bytes[:]), nil
-}
+// SQL databases use SMALLINT for this type
+type VerificationMethodKeyType uint16

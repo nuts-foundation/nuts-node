@@ -26,13 +26,13 @@ import (
 
 // MethodManager keeps DID method specific state in sync with the DID sql database.
 type MethodManager interface {
-	// GenerateDocument generates a new DID document for the given subject.
+	// NewDocument generates a new DID document for the given subject.
 	// This is done by the method manager since the DID might depend on method specific rules.
-	GenerateDocument(ctx context.Context, keyFlags DIDKeyFlags) (*DIDDocument, error)
-	// GenerateVerificationMethod generates a new VerificationMethod for the given subject.
+	NewDocument(ctx context.Context, keyFlags DIDKeyFlags) (*DIDDocument, error)
+	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
 	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
-	GenerateVerificationMethod(ctx context.Context, controller did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.
 	Commit(ctx context.Context, event DIDChangeLog) error

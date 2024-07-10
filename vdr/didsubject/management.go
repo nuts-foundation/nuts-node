@@ -36,8 +36,7 @@ var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 var ErrDIDAlreadyExists = errors.New("DID already exists")
 
 // DocumentManager is the interface that groups several higher level methods to create and update DID documents.
-// V1 API calls it directly, while V2 API calls it through the SubjectManager interface.
-// Each method must implement it.
+// Only used for V1 API calls.
 type DocumentManager interface {
 	// Create creates a new DID document and returns it.
 	// The ID in the provided DID document will be ignored and a new one will be generated.

@@ -30,7 +30,7 @@ const (
 )
 
 // DIDChangeLog represents a log of changes to a DID document
-// It is used as a 2-phase commit log to keep did:nuts and sql DB based did methods in sync.
+// It is used as a 2-phase commit log to keep did:nuts/did:web/others in sync.
 type DIDChangeLog struct {
 	DIDDocumentVersionID string `gorm:"primaryKey;column:did_document_version_id"`
 	Type                 string
@@ -46,12 +46,18 @@ var _ schema.Tabler = (*DIDChangeLog)(nil)
 
 // Method returns the DID method of the DID without the did: prefix
 func (d DIDChangeLog) Method() string {
-	id, _ := did.ParseDID(d.DIDDocumentVersion.DID.ID)
+	id, err := did.ParseDID(d.DIDDocumentVersion.DID.ID)
+	if err != nil {
+		return "_unknown" // illegal method
+	}
 	return id.Method
 }
 
 // DID returns the did.DID of the DID Document
 func (d DIDChangeLog) DID() did.DID {
-	id, _ := did.ParseDID(d.DIDDocumentVersion.DID.ID)
+	id, err := did.ParseDID(d.DIDDocumentVersion.DID.ID)
+	if err != nil {
+		return did.DID{}
+	}
 	return *id
 }
