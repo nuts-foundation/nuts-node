@@ -294,13 +294,16 @@ func (r *Module) Migrate() error {
 		if did.Method == didnuts.MethodName {
 			doc, _, err := r.Resolve(did, nil)
 			if err != nil {
-				return fmt.Errorf("could not resolve owned DID document: %w", err)
+				if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
+					log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+				}
+				continue
 			}
 			if len(doc.Controller) > 0 {
 				doc.Controller = nil
 
 				if len(doc.VerificationMethod) == 0 {
-					log.Logger().Warnf("No verification method found in owned DID document (did=%s)", did.String())
+					log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
 					continue
 				}
 
@@ -313,7 +316,9 @@ func (r *Module) Migrate() error {
 
 				err = r.Update(auditContext, did, *doc)
 				if err != nil {
-					return fmt.Errorf("could not update owned DID document: %w", err)
+					if !(errors.Is(err, resolver.ErrKeyNotFound)) {
+						log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+					}
 				}
 			}
 		}

@@ -169,7 +169,7 @@ func Test_didKIDNamingFunc(t *testing.T) {
 		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
 
-		keyID, err := didKIDNamingFunc(privateKey.PublicKey)
+		keyID, err := DIDKIDNamingFunc(privateKey.PublicKey)
 		require.NoError(t, err)
 		assert.NotEmpty(t, keyID)
 		assert.Contains(t, keyID, "did:nuts")
@@ -179,13 +179,13 @@ func Test_didKIDNamingFunc(t *testing.T) {
 		pub, err := jwkToPublicKey(t, jwkString)
 		require.NoError(t, err)
 
-		keyID, err := didKIDNamingFunc(pub)
+		keyID, err := DIDKIDNamingFunc(pub)
 		require.NoError(t, err)
 		assert.Equal(t, keyID, "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE", keyID)
 	})
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
-		keyID, err := didKIDNamingFunc(unknownPublicKey{})
+		keyID, err := DIDKIDNamingFunc(unknownPublicKey{})
 		assert.EqualError(t, err, "could not generate kid: invalid key type 'didnuts.unknownPublicKey' for jwk.New")
 		assert.Empty(t, keyID)
 	})
