@@ -21,7 +21,8 @@ create table did_document_version
     version int not null,
     raw $TEXT_TYPE, -- make not nil in future PR
     unique (did, version),
-    foreign key (did) references did (id) on delete cascade
+    foreign key (did) references did (id) on delete cascade,
+    unique (did, version)
 );
 
 -- this table is used for the poor-mans 2-phase commit
