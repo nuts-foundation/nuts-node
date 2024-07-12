@@ -22,8 +22,6 @@ type Config struct {
 	// Directory is the directory where the policy files are stored
 	// policy files include a scope to presentation definition mapping
 	Directory string `koanf:"directory"`
-	// Address is the address of the policy server
-	Address string `koanf:"address"`
 }
 
 func defaultConfig() Config {
