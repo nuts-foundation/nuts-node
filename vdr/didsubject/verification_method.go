@@ -38,4 +38,4 @@ func (v VerificationMethod) TableName() string {
 
 // VerificationMethodKeyType is used to marshal and unmarshal the key type to the DB
 // SQL databases use SMALLINT for this type
-type VerificationMethodKeyType uint16
+type VerificationMethodKeyType int16
