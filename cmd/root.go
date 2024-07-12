@@ -204,7 +204,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
-	policyInstance := policy.NewRouter(pkiInstance)
+	policyInstance := policy.New()
 
 	// Register HTTP routes
 	system.RegisterRoutes(&core.LandingPage{})

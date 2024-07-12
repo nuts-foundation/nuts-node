@@ -10,7 +10,7 @@ require (
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.9.5
-	github.com/dlclark/regexp2 v1.11.0
+	github.com/dlclark/regexp2 v1.11.1
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -38,7 +38,7 @@ require (
 	github.com/privacybydesign/irmago v0.15.2
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
-	github.com/redis/go-redis/v9 v9.5.3
+	github.com/redis/go-redis/v9 v9.5.4
 	github.com/santhosh-tekuri/jsonschema v1.2.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
@@ -192,7 +192,7 @@ require (
 	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
-	gorm.io/gorm v1.25.10
+	gorm.io/gorm v1.25.11
 	modernc.org/libc v1.49.3 // indirect
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect

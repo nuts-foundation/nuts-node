@@ -14,7 +14,6 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	client "github.com/nuts-foundation/nuts-node/policy/api/v1/client"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -40,21 +39,6 @@ func NewMockPDPBackend(ctrl *gomock.Controller) *MockPDPBackend {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPDPBackend) EXPECT() *MockPDPBackendMockRecorder {
 	return m.recorder
-}
-
-// Authorized mocks base method.
-func (m *MockPDPBackend) Authorized(ctx context.Context, requestInfo client.AuthorizedRequest) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Authorized", ctx, requestInfo)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Authorized indicates an expected call of Authorized.
-func (mr *MockPDPBackendMockRecorder) Authorized(ctx, requestInfo any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authorized", reflect.TypeOf((*MockPDPBackend)(nil).Authorized), ctx, requestInfo)
 }
 
 // PresentationDefinitions mocks base method.

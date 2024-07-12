@@ -29,6 +29,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -200,6 +201,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
+		holder.ErrNoCredentials:             http.StatusPreconditionFailed,
 	})
 }
 
