@@ -61,6 +61,7 @@ gen-mocks:
 	mockgen -destination=vdr/resolver/key_mock.go -package=resolver -source=vdr/resolver/key.go
 	mockgen -destination=vdr/management/management_mock.go -package=management -source=vdr/management/management.go
 	mockgen -destination=vdr/management/finder_mock.go -package=management -source=vdr/management/finder.go
+	mockgen -destination=vdr/didsubject/management_mock.go -package=didsubject -source=vdr/didsubject/management.go
 
 
 gen-api:

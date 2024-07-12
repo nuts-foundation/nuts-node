@@ -21,7 +21,6 @@ package sql
 import (
 	"errors"
 	"github.com/google/uuid"
-
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -80,7 +79,13 @@ func (s *SqlDIDDocumentManager) CreateOrUpdate(did DID, verificationMethods []Sq
 	for i := range services {
 		services[i].DIDDocumentID = id
 	}
-	doc := DIDDocument{ID: id, DID: did, Version: version, VerificationMethods: verificationMethods, Services: services}
+	doc := DIDDocument{
+		ID:                  id,
+		DID:                 did,
+		Version:             version,
+		VerificationMethods: verificationMethods,
+		Services:            services,
+	}
 	err = s.tx.Create(&doc).Error
 	return &doc, err
 }
