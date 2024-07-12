@@ -60,7 +60,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	dpopToken.GenerateProof(accesstoken)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
 			assert.Equal(t, dpopToken.String(), token.String())
@@ -83,7 +83,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("invalid method", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		requestBody.Htm = "\\"
 		defer (func() { requestBody.Htm = "GET" })()
 
@@ -111,7 +111,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("did not owned", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -119,7 +119,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("proof error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.vdr.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
 

@@ -30,7 +30,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -290,7 +291,7 @@ func Test_Module_Get(t *testing.T) {
 
 type mockContext struct {
 	ctrl          *gomock.Controller
-	documentOwner *management.MockDocumentOwner
+	documentOwner *didsubject.MockDocumentOwner
 	verifier      *verifier.MockVerifier
 }
 
@@ -300,8 +301,10 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	mockVerifier := verifier.NewMockVerifier(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	documentOwner := management.NewMockDocumentOwner(ctrl)
-	m := New(storageInstance, mockVCR, documentOwner)
+	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
+	mockVDR := vdr.NewMockVDR(ctrl)
+	mockVDR.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+	m := New(storageInstance, mockVCR, mockVDR)
 	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)

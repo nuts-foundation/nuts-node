@@ -39,7 +39,6 @@ var ErrDIDAlreadyExists = errors.New("DID already exists")
 // DocumentManager is the interface that groups several higher level methods to create and update DID documents.
 type DocumentManager interface {
 	DocCreator
-	DocumentOwner
 	resolver.DIDResolver
 
 	// Deactivate deactivates a DID document, making it unusable for future interactions.

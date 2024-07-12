@@ -20,17 +20,81 @@ package vdr
 
 import (
 	"context"
-	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
 	"strings"
 	"sync"
 )
 
-var _ management.DocumentOwner = (*cachingDocumentOwner)(nil)
-var _ management.DocumentOwner = (*privateKeyDocumentOwner)(nil)
+var _ didsubject.DocumentOwner = (*cachingDocumentOwner)(nil)
+var _ didsubject.DocumentOwner = (*privateKeyDocumentOwner)(nil)
+
+type DBDocumentOwner struct {
+	DB *gorm.DB
+}
+
+func (D DBDocumentOwner) IsOwner(ctx context.Context, d did.DID) (bool, error) {
+	sqlDIDManager := didsubject.NewDIDManager(D.DB)
+	found, err := sqlDIDManager.Find(d)
+	if err != nil {
+		return false, err
+	}
+	return found != nil, nil
+}
+
+func (D DBDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+	sqlDIDManager := didsubject.NewDIDManager(D.DB)
+	all, err := sqlDIDManager.All()
+	if err != nil {
+		return nil, err
+	}
+	var dids []did.DID
+	for _, d := range all {
+		parsed, _ := did.ParseDID(d.ID)
+		dids = append(dids, *parsed)
+	}
+	return dids, nil
+}
+
+// MultiDocumentOwner check ownage via multiple DocumentOwners.
+// This is to overcome VDR v1 API which can only manipulate did:nuts
+// VDR V1 API does not change the SQL DB state so it has to check private keys.
+type MultiDocumentOwner struct {
+	DocumentOwners []didsubject.DocumentOwner
+}
+
+func (m *MultiDocumentOwner) IsOwner(ctx context.Context, d did.DID) (bool, error) {
+	for _, do := range m.DocumentOwners {
+		owned, err := do.IsOwner(ctx, d)
+		if owned || err != nil {
+			return owned, err
+		}
+	}
+	return false, nil
+}
+
+func (m *MultiDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+	combined := make(map[string]did.DID)
+	for _, do := range m.DocumentOwners {
+		dids, err := do.ListOwned(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range dids {
+			combined[d.String()] = d
+		}
+	}
+	// convert map to slice
+	var result []did.DID
+	for _, d := range combined {
+		result = append(result, d)
+	}
+	return result, nil
+}
 
 // cachingDocumentOwner is a types.DocumentOwner that caches the result, minimizing expensive lookups.
 // It assumes:
@@ -71,15 +135,6 @@ func (t *cachingDocumentOwner) IsOwner(ctx context.Context, id did.DID) (bool, e
 	_, isATenant := t.ownedDIDs.Load(isAsString)
 	if isATenant {
 		return true, nil
-	}
-
-	// First perform a cheap DID existence check (subsequent checks are more expensive),
-	// without caching it as negative match (would allow unbound number of negative matches).
-	_, _, err := t.didResolver.Resolve(id, nil)
-	if resolver.IsFunctionalResolveError(err) {
-		return false, nil
-	} else if err != nil {
-		return false, fmt.Errorf("unable to check ownership of DID: %w", err)
 	}
 
 	result, err := t.underlying.IsOwner(ctx, id)

@@ -424,20 +424,6 @@ func TestWithJSONLDContext(t *testing.T) {
 	})
 }
 
-func TestVDR_IsOwner(t *testing.T) {
-	id := did.MustParseDID("did:nuts:123")
-	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
-		testCtx := newVDRTestCtx(t)
-		ctx := context.Background()
-		testCtx.mockDocumentManager.EXPECT().IsOwner(ctx, id).Return(true, nil)
-
-		result, err := testCtx.vdr.IsOwner(ctx, id)
-
-		assert.NoError(t, err)
-		assert.True(t, result)
-	})
-}
-
 func TestVDR_Configure(t *testing.T) {
 	storageInstance := storage.NewTestStorageEngine(t)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
@@ -507,19 +493,6 @@ func TestVDR_Configure(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, doc)
 		assert.NotNil(t, md)
-	})
-}
-
-func TestModule_ListOwned(t *testing.T) {
-	t.Run("empty slice when no DIDs", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		test.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
-
-		docs, err := test.vdr.ListOwned(context.Background())
-
-		require.NoError(t, err)
-		assert.Empty(t, docs)
-		assert.NotNil(t, docs)
 	})
 }
 

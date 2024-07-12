@@ -20,10 +20,9 @@ package vdr
 
 import (
 	"context"
-	"errors"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,8 +35,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	t.Run("owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		resolver := resolver.NewMockDIDResolver(ctrl)
-		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
-		underlying := management.NewMockDocumentOwner(ctrl)
+		underlying := didsubject.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -52,8 +50,7 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 	t.Run("not owned, cached", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		resolver := resolver.NewMockDIDResolver(ctrl)
-		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, nil)
-		underlying := management.NewMockDocumentOwner(ctrl)
+		underlying := didsubject.NewMockDocumentOwner(ctrl)
 		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 
 		documentOwner := newCachingDocumentOwner(underlying, resolver)
@@ -65,45 +62,20 @@ func Test_cachingDocumentOwner_IsOwner(t *testing.T) {
 		assert.False(t, result)
 		assert.NoError(t, err)
 	})
-	t.Run("DID does not exist", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		underlying := management.NewMockDocumentOwner(ctrl)
-		didResolver := resolver.NewMockDIDResolver(ctrl)
-		didResolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, resolver.ErrNotFound)
-
-		documentOwner := newCachingDocumentOwner(underlying, didResolver)
-
-		result, err := documentOwner.IsOwner(context.Background(), id)
-
-		require.NoError(t, err)
-		assert.False(t, result)
-	})
 
 	t.Run("DID is deactivated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		underlying := management.NewMockDocumentOwner(ctrl)
+		underlying := didsubject.NewMockDocumentOwner(ctrl)
 		didResolver := resolver.NewMockDIDResolver(ctrl)
-		didResolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
+		underlying.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+		didResolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated).AnyTimes()
 
 		documentOwner := newCachingDocumentOwner(underlying, didResolver)
 
 		result, err := documentOwner.IsOwner(context.Background(), id)
 
 		require.NoError(t, err)
-		assert.False(t, result)
-	})
-	t.Run("error - DID resolve fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		underlying := management.NewMockDocumentOwner(ctrl)
-		resolver := resolver.NewMockDIDResolver(ctrl)
-		resolver.EXPECT().Resolve(id, gomock.Any()).Return(nil, nil, errors.New("b00m"))
-
-		documentOwner := newCachingDocumentOwner(underlying, resolver)
-
-		result, err := documentOwner.IsOwner(context.Background(), id)
-
-		require.Error(t, err)
-		assert.False(t, result)
+		assert.True(t, result)
 	})
 }
 
@@ -160,4 +132,65 @@ func Test_privateKeyDocumentOwner_ListOwned(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, expected, result)
+}
+
+func TestDBDocumentOwner_IsOwner(t *testing.T) {
+	// using the MultiDocumentOwner
+	db := testDB(t)
+	sqlDIDManager := didsubject.NewDIDManager(db)
+	_, err := sqlDIDManager.Add("subject", TestDIDA)
+	require.NoError(t, err)
+	documentOwner := MultiDocumentOwner{DocumentOwners: []didsubject.DocumentOwner{
+		DBDocumentOwner{DB: db},
+		testDocumentOwner{theDID: TestDIDB},
+	}}
+
+	t.Run("owned", func(t *testing.T) {
+		result, err := documentOwner.IsOwner(context.Background(), TestDIDA)
+
+		assert.NoError(t, err)
+		assert.True(t, result)
+
+		result, err = documentOwner.IsOwner(context.Background(), TestDIDB)
+
+		assert.NoError(t, err)
+		assert.True(t, result)
+	})
+	t.Run("not owned", func(t *testing.T) {
+		result, err := documentOwner.IsOwner(context.Background(), did.MustParseDID("did:example:456"))
+
+		assert.NoError(t, err)
+		assert.False(t, result)
+	})
+}
+
+func TestDBDocumentOwner_ListOwned(t *testing.T) {
+	db := testDB(t)
+	sqlDIDManager := didsubject.NewDIDManager(db)
+	_, err := sqlDIDManager.Add("subject", TestDIDA)
+	require.NoError(t, err)
+	documentOwner := MultiDocumentOwner{DocumentOwners: []didsubject.DocumentOwner{
+		DBDocumentOwner{DB: db},
+		testDocumentOwner{theDID: TestDIDB},
+	}}
+
+	t.Run("list owned", func(t *testing.T) {
+		result, err := documentOwner.ListOwned(context.Background())
+
+		require.NoError(t, err)
+		assert.Contains(t, result, TestDIDA)
+		assert.Contains(t, result, TestDIDB)
+	})
+}
+
+type testDocumentOwner struct {
+	theDID did.DID
+}
+
+func (a testDocumentOwner) IsOwner(_ context.Context, d did.DID) (bool, error) {
+	return a.theDID.Equals(d), nil
+}
+
+func (a testDocumentOwner) ListOwned(_ context.Context) ([]did.DID, error) {
+	return []did.DID{a.theDID}, nil
 }
