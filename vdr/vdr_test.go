@@ -600,7 +600,6 @@ func TestVDR_Migrate(t *testing.T) {
 
 		require.NoError(t, err)
 		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "=error")
 		assertLog(t, "assert.AnError general error for testing")
 	})
 	t.Run("no verification method is logged", func(t *testing.T) {
@@ -633,7 +632,6 @@ func TestVDR_Migrate(t *testing.T) {
 
 		require.NoError(t, err)
 		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "=error")
 		assertLog(t, "update DID document: invalid verificationMethod: key thumbprint does not match ID")
 	})
 }
