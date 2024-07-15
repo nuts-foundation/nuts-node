@@ -23,7 +23,6 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -44,31 +43,32 @@ var didDoc = did.Document{
 func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Create(gomock.Any(), didweb.DefaultCreationOptions()).Return(&didDoc, nil, nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return([]did.Document{didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &CreateDIDJSONRequestBody{}})
 
 		require.NoError(t, err)
-		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
+		assert.Len(t, response.(CreateDID200JSONResponse).Documents, 1)
+		assert.Equal(t, "subject", response.(CreateDID200JSONResponse).Subject)
 	})
-	t.Run("as Root", func(t *testing.T) {
+	t.Run("with Subject", func(t *testing.T) {
 		ctx := newMockContext(t)
-		opts := didweb.DefaultCreationOptions()
-		ctx.vdr.EXPECT().Create(gomock.Any(), opts).Return(&didDoc, nil, nil)
+		subject := "subject"
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject})).Return([]did.Document{didDoc}, "subject", nil)
 
-		root := false
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
 			Body: &CreateDIDJSONRequestBody{
-				Root: &root,
+				Subject: &subject,
 			},
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, id, response.(CreateDID200JSONResponse).ID)
+		assert.Len(t, response.(CreateDID200JSONResponse).Documents, 1)
+		assert.Equal(t, "subject", response.(CreateDID200JSONResponse).Subject)
 	})
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, "", assert.AnError)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
 			Body: &CreateDIDJSONRequestBody{},
@@ -86,23 +86,23 @@ func TestWrapper_CreateService(t *testing.T) {
 	}
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().CreateService(gomock.Any(), id, gomock.Any()).Return(&service, nil)
+		ctx.subjectManager.EXPECT().CreateService(gomock.Any(), "subject", gomock.Any()).Return([]Service{service}, nil)
 
 		response, err := ctx.client.CreateService(nil, CreateServiceRequestObject{
-			Did:  id.String(),
+			Id:   "subject",
 			Body: &service,
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, service, Service(response.(CreateService200JSONResponse)))
+		require.Len(t, response.(CreateService200JSONResponse), 1)
 	})
 
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().CreateService(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().CreateService(gomock.Any(), "subject", gomock.Any()).Return(nil, assert.AnError)
 
 		response, err := ctx.client.CreateService(nil, CreateServiceRequestObject{
-			Did:  id.String(),
+			Id:   "subject",
 			Body: &service,
 		})
 
@@ -115,10 +115,10 @@ func TestWrapper_DeleteService(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		serviceID := ssi.MustParseURI("api")
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().DeleteService(gomock.Any(), id, serviceID).Return(nil)
+		ctx.subjectManager.EXPECT().DeleteService(gomock.Any(), "subject", serviceID).Return(nil)
 
 		response, err := ctx.client.DeleteService(nil, DeleteServiceRequestObject{
-			Did:       id.String(),
+			Id:        "subject",
 			ServiceId: serviceID.String(),
 		})
 
@@ -128,10 +128,10 @@ func TestWrapper_DeleteService(t *testing.T) {
 
 	t.Run("error - delete fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().DeleteService(gomock.Any(), gomock.Any(), gomock.Any()).Return(assert.AnError)
+		ctx.subjectManager.EXPECT().DeleteService(gomock.Any(), "subject", gomock.Any()).Return(assert.AnError)
 
 		response, err := ctx.client.DeleteService(nil, DeleteServiceRequestObject{
-			Did:       id.String(),
+			Id:        "subject",
 			ServiceId: "1",
 		})
 
@@ -149,23 +149,23 @@ func TestWrapper_UpdateService(t *testing.T) {
 	updatedService.ID = ssi.MustParseURI("1")
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().UpdateService(gomock.Any(), id, updatedService.ID, service).Return(&updatedService, nil)
+		ctx.subjectManager.EXPECT().UpdateService(gomock.Any(), "subject", updatedService.ID, service).Return([]Service{updatedService}, nil)
 
 		response, err := ctx.client.UpdateService(nil, UpdateServiceRequestObject{
-			Did:       id.String(),
+			Id:        "subject",
 			ServiceId: "1",
 			Body:      &service,
 		})
 
 		require.NoError(t, err)
-		assert.Equal(t, updatedService.ID, response.(UpdateService200JSONResponse).ID)
+		require.Len(t, response.(UpdateService200JSONResponse), 1)
 	})
 	t.Run("error - update fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().UpdateService(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().UpdateService(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, assert.AnError)
 
 		response, err := ctx.client.UpdateService(nil, UpdateServiceRequestObject{
-			Did:       id.String(),
+			Id:        "subject",
 			ServiceId: "1",
 			Body:      &service,
 		})
@@ -230,7 +230,7 @@ func TestWrapper_ResolveDID(t *testing.T) {
 	})
 }
 
-func TestWrapper_FilterServices(t *testing.T) {
+func TestWrapper_FindServices(t *testing.T) {
 	stringService := did.Service{
 		Type:            "string-api",
 		ServiceEndpoint: "https://example.com",
@@ -263,118 +263,109 @@ func TestWrapper_FilterServices(t *testing.T) {
 
 	t.Run("no filter returns all services", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(document, nil, nil)
+		ctx.subjectManager.EXPECT().FindServices(nil, "subject", nil).Return(document.Service, nil)
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, FilterServices200JSONResponse{}, response)
-		require.Len(t, response.(FilterServices200JSONResponse), 4)
-		assert.Contains(t, response.(FilterServices200JSONResponse), stringService)
-		assert.Contains(t, response.(FilterServices200JSONResponse), objectService)
-		assert.Contains(t, response.(FilterServices200JSONResponse), stringArrayService)
-		assert.Contains(t, response.(FilterServices200JSONResponse), objectArrayService)
+		require.IsType(t, FindServices200JSONResponse{}, response)
+		require.Len(t, response.(FindServices200JSONResponse), 4)
+		assert.Contains(t, response.(FindServices200JSONResponse), stringService)
+		assert.Contains(t, response.(FindServices200JSONResponse), objectService)
+		assert.Contains(t, response.(FindServices200JSONResponse), stringArrayService)
+		assert.Contains(t, response.(FindServices200JSONResponse), objectArrayService)
 	})
 	t.Run("filter type=api", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(document, nil, nil)
 		var serviceType = "string-api"
+		ctx.subjectManager.EXPECT().FindServices(gomock.Any(), "subject", &serviceType).Return(document.Service, nil)
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
-			Params: FilterServicesParams{
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
+			Params: FindServicesParams{
 				Type: &serviceType,
 			},
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, FilterServices200JSONResponse{}, response)
-		require.Len(t, response.(FilterServices200JSONResponse), 1)
-		assert.Contains(t, response.(FilterServices200JSONResponse), stringService)
+		require.IsType(t, FindServices200JSONResponse{}, response)
+		require.Len(t, response.(FindServices200JSONResponse), 4)
 	})
 	t.Run("filter endpointType=string", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(document, nil, nil)
-		var endpointType FilterServicesParamsEndpointType = "string"
+		ctx.subjectManager.EXPECT().FindServices(gomock.Any(), "subject", nil).Return(document.Service, nil)
+		var endpointType FindServicesParamsEndpointType = "string"
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
-			Params: FilterServicesParams{
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
+			Params: FindServicesParams{
 				EndpointType: &endpointType,
 			},
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, FilterServices200JSONResponse{}, response)
-		require.Len(t, response.(FilterServices200JSONResponse), 1)
-		assert.Equal(t, stringService, response.(FilterServices200JSONResponse)[0])
+		require.IsType(t, FindServices200JSONResponse{}, response)
+		require.Len(t, response.(FindServices200JSONResponse), 1)
+		assert.Equal(t, stringService, response.(FindServices200JSONResponse)[0])
 	})
 	t.Run("filter endpointType=object", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(document, nil, nil)
-		var endpointType FilterServicesParamsEndpointType = "object"
+		ctx.subjectManager.EXPECT().FindServices(gomock.Any(), "subject", nil).Return(document.Service, nil)
+		var endpointType FindServicesParamsEndpointType = "object"
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
-			Params: FilterServicesParams{
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
+			Params: FindServicesParams{
 				EndpointType: &endpointType,
 			},
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, FilterServices200JSONResponse{}, response)
-		require.Len(t, response.(FilterServices200JSONResponse), 1)
-		assert.Equal(t, objectService, response.(FilterServices200JSONResponse)[0])
+		require.IsType(t, FindServices200JSONResponse{}, response)
+		require.Len(t, response.(FindServices200JSONResponse), 1)
+		assert.Equal(t, objectService, response.(FindServices200JSONResponse)[0])
 	})
 	t.Run("filter endpointType=array", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(document, nil, nil)
-		var endpointType FilterServicesParamsEndpointType = "array"
+		ctx.subjectManager.EXPECT().FindServices(gomock.Any(), "subject", nil).Return(document.Service, nil)
+		var endpointType FindServicesParamsEndpointType = "array"
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
-			Params: FilterServicesParams{
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
+			Params: FindServicesParams{
 				EndpointType: &endpointType,
 			},
 		})
 
 		require.NoError(t, err)
-		require.IsType(t, FilterServices200JSONResponse{}, response)
-		require.Len(t, response.(FilterServices200JSONResponse), 2)
-		assert.Contains(t, response.(FilterServices200JSONResponse), stringArrayService)
-		assert.Contains(t, response.(FilterServices200JSONResponse), objectArrayService)
+		require.IsType(t, FindServices200JSONResponse{}, response)
+		require.Len(t, response.(FindServices200JSONResponse), 2)
+		assert.Contains(t, response.(FindServices200JSONResponse), stringArrayService)
+		assert.Contains(t, response.(FindServices200JSONResponse), objectArrayService)
 	})
-	t.Run("resolver error", func(t *testing.T) {
+	t.Run("error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(nil, nil, assert.AnError)
+		ctx.subjectManager.EXPECT().FindServices(gomock.Any(), "subject", nil).Return(nil, assert.AnError)
 
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: id.String(),
+		response, err := ctx.client.FindServices(nil, FindServicesRequestObject{
+			Id: "subject",
 		})
 
 		assert.ErrorIs(t, err, assert.AnError)
 		assert.Nil(t, response)
 	})
-	t.Run("invalid DID", func(t *testing.T) {
-		ctx := newMockContext(t)
-		response, err := ctx.client.FilterServices(nil, FilterServicesRequestObject{
-			Did: "invalid",
-		})
-
-		assert.ErrorIs(t, err, did.ErrInvalidDID)
-		assert.Nil(t, response)
-	})
 }
 
 type mockContext struct {
-	ctrl          *gomock.Controller
-	vdr           *vdr.MockVDR
-	didResolver   *resolver.MockDIDResolver
-	documentOwner *didsubject.MockDocumentOwner
-	client        *Wrapper
-	requestCtx    context.Context
+	ctrl           *gomock.Controller
+	vdr            *vdr.MockVDR
+	subjectManager *didsubject.MockSubjectManager
+	didResolver    *resolver.MockDIDResolver
+	documentOwner  *didsubject.MockDocumentOwner
+	client         *Wrapper
+	requestCtx     context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -382,18 +373,20 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
+	subjectManager := didsubject.NewMockSubjectManager(ctrl)
 	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
-	client := &Wrapper{VDR: vdr}
+	client := &Wrapper{VDR: vdr, SubjectManager: subjectManager}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
-		ctrl:          ctrl,
-		vdr:           vdr,
-		didResolver:   didResolver,
-		documentOwner: documentOwner,
-		client:        client,
-		requestCtx:    requestCtx,
+		ctrl:           ctrl,
+		vdr:            vdr,
+		subjectManager: subjectManager,
+		didResolver:    didResolver,
+		documentOwner:  documentOwner,
+		client:         client,
+		requestCtx:     requestCtx,
 	}
 }
