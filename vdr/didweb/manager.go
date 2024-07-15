@@ -199,31 +199,6 @@ func (m Manager) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Document
 	return &document, &resolver.DocumentMetadata{}, err
 }
 
-func (m Manager) IsOwner(_ context.Context, id did.DID) (bool, error) {
-	didManager := sql.NewDIDManager(m.db)
-
-	did, err := didManager.Find(id)
-	return did != nil, err
-}
-
-func (m Manager) ListOwned(_ context.Context) ([]did.DID, error) {
-	didManager := sql.NewDIDManager(m.db)
-	stored, err := didManager.All()
-	if err != nil {
-		return nil, err
-	}
-	dids := make([]did.DID, len(stored))
-	for i, d := range stored {
-		parsed, err := did.ParseDID(d.ID)
-		if err != nil {
-			return nil, err
-		}
-		dids[i] = *parsed
-	}
-
-	return dids, nil
-}
-
 func (m Manager) CreateService(_ context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
 	var err error
 	var added *did.Service
@@ -263,7 +238,7 @@ func (m Manager) createService(tx *gorm.DB, subjectDID did.DID, service did.Serv
 
 	_, err = didDocumentManager.CreateOrUpdate(current.DID, current.VerificationMethods, append(current.Services, sqlService))
 
-	return &service, nil
+	return &service, err
 }
 
 func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
@@ -272,8 +247,7 @@ func (m Manager) UpdateService(_ context.Context, subjectDID did.DID, serviceID 
 		service.ID = serviceID
 	}
 	var added *did.Service
-	var err error
-	err = m.db.Transaction(func(tx *gorm.DB) error {
+	err := m.db.Transaction(func(tx *gorm.DB) error {
 		// first delete
 		err := m.deleteService(tx, subjectDID, serviceID)
 		if err != nil {

@@ -29,7 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/http"
 )
 
@@ -84,8 +84,8 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper wraps the OpenID4VCI API
 type Wrapper struct {
-	VCR           vcr.VCR
-	DocumentOwner management.DocumentOwner
+	VCR vcr.VCR
+	VDR vdr.VDR
 }
 
 // Routes registers the API routes
@@ -124,7 +124,7 @@ func (w Wrapper) validateDIDIsOwned(ctx context.Context, subjectDID string) (did
 			StatusCode: http.StatusNotFound,
 		}
 	}
-	isOwner, err := w.DocumentOwner.IsOwner(ctx, *parsedDID)
+	isOwner, err := w.VDR.DocumentOwner().IsOwner(ctx, *parsedDID)
 	if err != nil {
 		return did.DID{}, openid4vci.Error{
 			Err:        err,

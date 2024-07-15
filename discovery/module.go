@@ -32,7 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"net/url"
 	"os"
 	"path"
@@ -67,11 +67,11 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR, documentOwner management.DocumentOwner) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, vdrInstance vdr.VDR) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
-		documentOwner:   documentOwner,
+		vdrInstance:     vdrInstance,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -88,7 +88,7 @@ type Module struct {
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
-	documentOwner       management.DocumentOwner
+	vdrInstance         vdr.VDR
 	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -336,7 +336,7 @@ func forwardedHost(ctx context.Context) string {
 // See interface.go for more information.
 func (m *Module) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
 	log.Logger().Debugf("Activating service for DID (did=%s, service=%s)", subjectDID, serviceID)
-	isOwner, err := m.documentOwner.IsOwner(ctx, subjectDID)
+	isOwner, err := m.vdrInstance.DocumentOwner().IsOwner(ctx, subjectDID)
 	if err != nil {
 		return err
 	}

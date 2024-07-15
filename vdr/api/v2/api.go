@@ -113,7 +113,7 @@ func (w *Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject)
 }
 
 func (w *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
-	list, err := w.VDR.ListOwned(ctx)
+	list, err := w.VDR.DocumentOwner().ListOwned(ctx)
 	if err != nil {
 		return nil, err
 	}

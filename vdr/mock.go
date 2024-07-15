@@ -16,6 +16,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
+	didsubject "github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	management "github.com/nuts-foundation/nuts-node/vdr/management"
 	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
@@ -119,34 +120,18 @@ func (mr *MockVDRMockRecorder) DeleteService(ctx, subjectDID, serviceID any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockVDR)(nil).DeleteService), ctx, subjectDID, serviceID)
 }
 
-// IsOwner mocks base method.
-func (m *MockVDR) IsOwner(arg0 context.Context, arg1 did.DID) (bool, error) {
+// DocumentOwner mocks base method.
+func (m *MockVDR) DocumentOwner() didsubject.DocumentOwner {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsOwner", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "DocumentOwner")
+	ret0, _ := ret[0].(didsubject.DocumentOwner)
+	return ret0
 }
 
-// IsOwner indicates an expected call of IsOwner.
-func (mr *MockVDRMockRecorder) IsOwner(arg0, arg1 any) *gomock.Call {
+// DocumentOwner indicates an expected call of DocumentOwner.
+func (mr *MockVDRMockRecorder) DocumentOwner() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockVDR)(nil).IsOwner), arg0, arg1)
-}
-
-// ListOwned mocks base method.
-func (m *MockVDR) ListOwned(ctx context.Context) ([]did.DID, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListOwned", ctx)
-	ret0, _ := ret[0].([]did.DID)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListOwned indicates an expected call of ListOwned.
-func (mr *MockVDRMockRecorder) ListOwned(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockVDR)(nil).ListOwned), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentOwner", reflect.TypeOf((*MockVDR)(nil).DocumentOwner))
 }
 
 // Resolve mocks base method.

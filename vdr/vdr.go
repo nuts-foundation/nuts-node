@@ -28,14 +28,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
@@ -43,10 +43,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
 )
 
 // ModuleName is the name of the engine
@@ -63,12 +65,16 @@ type Module struct {
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
+	documentOwner     didsubject.DocumentOwner
 	documentManagers  map[string]management.DocumentManager
 	didResolver       *resolver.DIDResolverRouter
 	serviceResolver   resolver.ServiceResolver
 	keyStore          crypto.KeyStore
 	storageInstance   storage.Engine
 	eventManager      events.Event
+
+	// new style DID management
+	db *gorm.DB
 }
 
 // ResolveManaged resolves a DID document that is managed by the local node.
@@ -113,6 +119,7 @@ func (r *Module) Name() string {
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	r.db = r.storageInstance.GetSQLDatabase()
 
 	// Methods we can produce from the Nuts node
 	// did:nuts
@@ -126,6 +133,14 @@ func (r *Module) Configure(config core.ServerConfig) error {
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		),
 	}
+	r.documentOwner = &MultiDocumentOwner{
+		DocumentOwners: []didsubject.DocumentOwner{
+			newCachingDocumentOwner(DBDocumentOwner{DB: r.db}, r.didResolver),
+			// if the DB doesn't know, we check the private keys (legacy)
+			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
+		},
+	}
+
 	// did:web
 	publicURL, err := config.ServerURL()
 	if err != nil {
@@ -190,24 +205,8 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 	return conflictedDocs, conflictedMeta, err
 }
 
-func (r *Module) IsOwner(ctx context.Context, id did.DID) (bool, error) {
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return false, fmt.Errorf("unsupported method: %s", id.Method)
-	}
-	return manager.IsOwner(ctx, id)
-}
-
-func (r *Module) ListOwned(ctx context.Context) ([]did.DID, error) {
-	results := make([]did.DID, 0)
-	for _, owner := range r.documentManagers {
-		owned, err := owner.ListOwned(ctx)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, owned...)
-	}
-	return results, nil
+func (r *Module) DocumentOwner() didsubject.DocumentOwner {
+	return r.documentOwner
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
@@ -225,7 +224,7 @@ func (r *Module) newOwnConflictedDocIterator(totalCount, ownedCount *int) manage
 		}
 		for _, controller := range controllers {
 			// TODO: Fix context.TODO() when we have a context in the Diagnostics() method
-			isOwned, err := r.IsOwner(context.TODO(), controller.ID)
+			isOwned, err := r.DocumentOwner().IsOwner(context.TODO(), controller.ID)
 			if err != nil {
 				log.Logger().
 					WithField(core.LogFieldDID, controller.ID).
@@ -285,7 +284,7 @@ func (r *Module) Diagnostics() []core.DiagnosticResult {
 
 func (r *Module) Migrate() error {
 	// Find all documents that are managed by this node
-	owned, err := r.ListOwned(context.Background())
+	owned, err := r.DocumentOwner().ListOwned(context.Background())
 	if err != nil {
 		return err
 	}
