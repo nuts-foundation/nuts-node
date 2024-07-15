@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 )
@@ -48,9 +47,9 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
-		management.ErrInvalidService:        http.StatusBadRequest,
-		management.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
-		management.ErrDIDAlreadyExists:      http.StatusConflict,
+		didsubject.ErrInvalidService:        http.StatusBadRequest,
+		didsubject.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
+		didsubject.ErrDIDAlreadyExists:      http.StatusConflict,
 	})
 }
 
@@ -106,7 +105,7 @@ func (w *Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject)
 	if err != nil {
 		return nil, err
 	}
-	didDocument, metadata, err := w.VDR.Resolve(*targetDID, nil)
+	didDocument, metadata, err := w.VDR.Resolver().Resolve(*targetDID, nil)
 	if err != nil {
 		return nil, err
 	}

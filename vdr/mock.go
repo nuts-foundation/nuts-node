@@ -10,14 +10,10 @@
 package vdr
 
 import (
-	context "context"
 	reflect "reflect"
 
-	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	didsubject "github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	management "github.com/nuts-foundation/nuts-node/vdr/management"
 	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -61,65 +57,6 @@ func (mr *MockVDRMockRecorder) ConflictedDocuments() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConflictedDocuments", reflect.TypeOf((*MockVDR)(nil).ConflictedDocuments))
 }
 
-// Create mocks base method.
-func (m *MockVDR) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, options)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(crypto.Key)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockVDRMockRecorder) Create(ctx, options any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockVDR)(nil).Create), ctx, options)
-}
-
-// CreateService mocks base method.
-func (m *MockVDR) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateService", ctx, subjectDID, service)
-	ret0, _ := ret[0].(*did.Service)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateService indicates an expected call of CreateService.
-func (mr *MockVDRMockRecorder) CreateService(ctx, subjectDID, service any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateService", reflect.TypeOf((*MockVDR)(nil).CreateService), ctx, subjectDID, service)
-}
-
-// Deactivate mocks base method.
-func (m *MockVDR) Deactivate(ctx context.Context, id did.DID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Deactivate indicates an expected call of Deactivate.
-func (mr *MockVDRMockRecorder) Deactivate(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockVDR)(nil).Deactivate), ctx, id)
-}
-
-// DeleteService mocks base method.
-func (m *MockVDR) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteService", ctx, subjectDID, serviceID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteService indicates an expected call of DeleteService.
-func (mr *MockVDRMockRecorder) DeleteService(ctx, subjectDID, serviceID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockVDR)(nil).DeleteService), ctx, subjectDID, serviceID)
-}
-
 // DocumentOwner mocks base method.
 func (m *MockVDR) DocumentOwner() didsubject.DocumentOwner {
 	m.ctrl.T.Helper()
@@ -134,20 +71,18 @@ func (mr *MockVDRMockRecorder) DocumentOwner() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentOwner", reflect.TypeOf((*MockVDR)(nil).DocumentOwner))
 }
 
-// Resolve mocks base method.
-func (m *MockVDR) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
+// NutsDocumentManager mocks base method.
+func (m *MockVDR) NutsDocumentManager() didsubject.DocumentManager {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Resolve", id, metadata)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(*resolver.DocumentMetadata)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret := m.ctrl.Call(m, "NutsDocumentManager")
+	ret0, _ := ret[0].(didsubject.DocumentManager)
+	return ret0
 }
 
-// Resolve indicates an expected call of Resolve.
-func (mr *MockVDRMockRecorder) Resolve(id, metadata any) *gomock.Call {
+// NutsDocumentManager indicates an expected call of NutsDocumentManager.
+func (mr *MockVDRMockRecorder) NutsDocumentManager() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolve", reflect.TypeOf((*MockVDR)(nil).Resolve), id, metadata)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NutsDocumentManager", reflect.TypeOf((*MockVDR)(nil).NutsDocumentManager))
 }
 
 // ResolveManaged mocks base method.
@@ -177,33 +112,4 @@ func (m *MockVDR) Resolver() resolver.DIDResolver {
 func (mr *MockVDRMockRecorder) Resolver() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolver", reflect.TypeOf((*MockVDR)(nil).Resolver))
-}
-
-// Update mocks base method.
-func (m *MockVDR) Update(ctx context.Context, id did.DID, next did.Document) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, id, next)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Update indicates an expected call of Update.
-func (mr *MockVDRMockRecorder) Update(ctx, id, next any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockVDR)(nil).Update), ctx, id, next)
-}
-
-// UpdateService mocks base method.
-func (m *MockVDR) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateService", ctx, subjectDID, serviceID, service)
-	ret0, _ := ret[0].(*did.Service)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateService indicates an expected call of UpdateService.
-func (mr *MockVDRMockRecorder) UpdateService(ctx, subjectDID, serviceID, service any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockVDR)(nil).UpdateService), ctx, subjectDID, serviceID, service)
 }

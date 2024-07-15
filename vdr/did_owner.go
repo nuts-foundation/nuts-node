@@ -23,7 +23,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"strings"
@@ -110,7 +109,7 @@ func (m *MultiDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
 // Before calling the more expensive, underlying types.DocumentOwner, it checks whether the DID actually exists.
 // The ListOwned call is not cached.
 type cachingDocumentOwner struct {
-	underlying   management.DocumentOwner
+	underlying   didsubject.DocumentOwner
 	ownedDIDs    *sync.Map
 	notOwnedDIDs *sync.Map
 	didResolver  resolver.DIDResolver
@@ -120,7 +119,7 @@ func (t *cachingDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error)
 	return t.underlying.ListOwned(ctx)
 }
 
-func newCachingDocumentOwner(underlying management.DocumentOwner, didResolver resolver.DIDResolver) *cachingDocumentOwner {
+func newCachingDocumentOwner(underlying didsubject.DocumentOwner, didResolver resolver.DIDResolver) *cachingDocumentOwner {
 	return &cachingDocumentOwner{
 		didResolver:  didResolver,
 		underlying:   underlying,

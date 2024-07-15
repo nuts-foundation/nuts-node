@@ -21,15 +21,13 @@ package vdr
 import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
-	management.DocUpdater
-	management.DocumentManager
-
+	// NutsDocumentManager returns the nuts document manager.
+	NutsDocumentManager() didsubject.DocumentManager
 	// DocumentOwner returns the document owner.
 	DocumentOwner() didsubject.DocumentOwner
 
