@@ -37,7 +37,7 @@ type DBDocumentOwner struct {
 	DB *gorm.DB
 }
 
-func (D DBDocumentOwner) IsOwner(ctx context.Context, d did.DID) (bool, error) {
+func (D DBDocumentOwner) IsOwner(_ context.Context, d did.DID) (bool, error) {
 	sqlDIDManager := didsubject.NewDIDManager(D.DB)
 	found, err := sqlDIDManager.Find(d)
 	if err != nil {
@@ -46,16 +46,19 @@ func (D DBDocumentOwner) IsOwner(ctx context.Context, d did.DID) (bool, error) {
 	return found != nil, nil
 }
 
-func (D DBDocumentOwner) ListOwned(ctx context.Context) ([]did.DID, error) {
+func (D DBDocumentOwner) ListOwned(_ context.Context) ([]did.DID, error) {
 	sqlDIDManager := didsubject.NewDIDManager(D.DB)
 	all, err := sqlDIDManager.All()
 	if err != nil {
 		return nil, err
 	}
-	var dids []did.DID
-	for _, d := range all {
-		parsed, _ := did.ParseDID(d.ID)
-		dids = append(dids, *parsed)
+	dids := make([]did.DID, len(all))
+	for i, d := range all {
+		parsed, err := did.ParseDID(d.ID)
+		if err != nil {
+			return nil, err // if somebody messed with the DB
+		}
+		dids[i] = *parsed
 	}
 	return dids, nil
 }
@@ -70,8 +73,11 @@ type MultiDocumentOwner struct {
 func (m *MultiDocumentOwner) IsOwner(ctx context.Context, d did.DID) (bool, error) {
 	for _, do := range m.DocumentOwners {
 		owned, err := do.IsOwner(ctx, d)
-		if owned || err != nil {
-			return owned, err
+		if err != nil {
+			return false, err
+		}
+		if owned {
+			return owned, nil
 		}
 	}
 	return false, nil

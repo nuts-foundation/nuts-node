@@ -261,7 +261,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(core.TestServerConfig())
-			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 			didDocument := did.Document{ID: TestDIDA}
 
 			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
