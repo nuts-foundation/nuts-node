@@ -562,8 +562,8 @@ github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c h1:Q2Naw
 github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c/go.mod h1:n0NQI71qGVVShnPDjYdCoNStEW0zZoVWbeSQ+esXuhs=
 github.com/nuts-foundation/go-did v0.5.1 h1:akc4OzNGHdnliJFoxnnSmUI7j1yKz/BHNi6sXiWX30A=
 github.com/nuts-foundation/go-did v0.5.1/go.mod h1:Aw1pIRyB9naQ8z/dc4rrPhn+nHx5LUcGysBGlezL528=
-github.com/nuts-foundation/go-leia/v4 v4.0.1 h1:+Sbk3Bew1QnRUqRXSOwomMw3nIZgncmTX425J7U5Q34=
-github.com/nuts-foundation/go-leia/v4 v4.0.1/go.mod h1:eaZuWIolpU61TMvTMcen85+SOEOnHiALdg5SxqLXzz8=
+github.com/nuts-foundation/go-leia/v4 v4.0.3 h1:xNZznXWvcIwonXIDmpDDvF7KmP9BOK0MFt9ir3RD2gI=
+github.com/nuts-foundation/go-leia/v4 v4.0.3/go.mod h1:tYveGED8tSbQYhZNv2DVTc51c2zEWmSF+MG96PAtalY=
 github.com/nuts-foundation/go-stoabs v1.9.0 h1:zK+ugfolaJYyBvGwsRuavLVdycXk4Yw/1gI+tz17lWQ=
 github.com/nuts-foundation/go-stoabs v1.9.0/go.mod h1:htbUqSZiaihqAvJfHwtAbQusGaJtIeWpm1pmKjBYXlM=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
@@ -732,8 +732,8 @@ github.com/templexxx/xor v0.0.0-20191217153810-f85b25db303b/go.mod h1:5XA7W9S6mn
 github.com/templexxx/xorsimd v0.4.1/go.mod h1:W+ffZz8jJMH2SXwuKu9WhygqBMbFnp14G2fqEr8qaNo=
 github.com/templexxx/xorsimd v0.4.2 h1:ocZZ+Nvu65LGHmCLZ7OoCtg8Fx8jnHKK37SjvngUoVI=
 github.com/templexxx/xorsimd v0.4.2/go.mod h1:HgwaPoDREdi6OnULpSfxhzaiiSUY4Fi3JPn1wpt28NI=
-github.com/tidwall/gjson v1.14.4 h1:uo0p8EbA09J7RQaflQ1aBRffTR7xedD2bcIVSYxLnkM=
-github.com/tidwall/gjson v1.14.4/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
+github.com/tidwall/gjson v1.17.0 h1:/Jocvlh98kcTfpN2+JzGQWQcqrPQwDrVEMApx/M5ZwM=
+github.com/tidwall/gjson v1.17.0/go.mod h1:/wbyibRr2FHMks5tjHJ5F8dMZh3AcwJEMf5vlfC0lxk=
 github.com/tidwall/match v1.1.1 h1:+Ho715JplO36QYgwN9PGYNhgZvoUSc9X2c80KVTi+GA=
 github.com/tidwall/match v1.1.1/go.mod h1:eRSPERbgtNPcGhD8UCthc6PmLEQXEWd3PRB5JTxsfmM=
 github.com/tidwall/pretty v1.2.0/go.mod h1:ITEVvHYasfjBbM0u2Pg8T2nJnzm8xPwvNhhsoaGGjNU=

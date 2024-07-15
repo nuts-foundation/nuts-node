@@ -23,7 +23,7 @@ require (
 	github.com/nats-io/nats.go v1.35.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
-	github.com/nuts-foundation/go-leia/v4 v4.0.1
+	github.com/nuts-foundation/go-leia/v4 v4.0.3
 	github.com/nuts-foundation/go-stoabs v1.9.0
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
 	github.com/privacybydesign/irmago v0.15.2
@@ -180,7 +180,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.6.8 // indirect
 	github.com/templexxx/cpu v0.1.0 // indirect
 	github.com/templexxx/xorsimd v0.4.2 // indirect
-	github.com/tidwall/gjson v1.14.4 // indirect
+	github.com/tidwall/gjson v1.17.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/timshannon/bolthold v0.0.0-20231129192944-dca5178aa629 // indirect
