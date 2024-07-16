@@ -46,7 +46,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
@@ -702,47 +701,6 @@ func (r *Module) AddVerificationMethod(ctx context.Context, subject string, keyU
 		return nil, fmt.Errorf("could not update DID documents: %w", err)
 	}
 	return verificationMethods, nil
-}
-
-func (r *Module) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
-	if err != nil {
-		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
-	}
-	if len(controllers) == 0 {
-		return did.Document{}, nil, fmt.Errorf("could not find any controllers for document")
-	}
-
-	var key crypto.Key
-	for _, c := range controllers {
-		for _, cik := range c.CapabilityInvocation {
-			key, err = r.keyStore.Resolve(ctx, cik.ID.String())
-			if err == nil {
-				return c, key, nil
-			}
-		}
-	}
-
-	if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-		return did.Document{}, nil, resolver.ErrDIDNotManagedByThisNode
-	}
-
-	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
-}
-
-func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
-	contextPresent := false
-
-	for _, c := range document.Context {
-		if util.LDContextToString(c) == ctx.String() {
-			contextPresent = true
-		}
-	}
-
-	if !contextPresent {
-		document.Context = append(document.Context, ctx)
-	}
-	return document
 }
 
 // transactionHelper is a helper function that starts a transaction, performs an operation, and emits an event.

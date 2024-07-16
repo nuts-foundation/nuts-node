@@ -98,7 +98,7 @@ func TestEngine_Command(t *testing.T) {
 		})
 		t.Run("ok - v2", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				assert.Equal(t, "/internal/vdr/v2/did", request.URL.Path)
+				assert.Equal(t, "/internal/vdr/v2/subject", request.URL.Path)
 				writer.WriteHeader(http.StatusOK)
 				bytes, _ := json.Marshal(exampleDIDDocument)
 				_, _ = writer.Write(bytes)

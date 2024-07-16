@@ -106,25 +106,6 @@ func (m *mockKeyStore) Delete(ctx context.Context, kid string) error {
 	panic("not implemented")
 }
 
-// mockKeyCreator creates a single new key
-type mockKeyCreator struct {
-	key crypto.Key
-}
-
-// New creates a new valid key with the correct KID
-func (m *mockKeyCreator) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
-	if m.key == nil {
-		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		kid, _ := fn(privateKey.Public())
-
-		m.key = &crypto.TestKey{
-			PrivateKey: privateKey,
-			Kid:        kid,
-		}
-	}
-	return m.key, nil
-}
-
 type testTransaction struct {
 	clock        uint32
 	signingKey   jwk.Key
@@ -449,7 +430,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -484,7 +465,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey, _ := newDidDoc()
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyCreator{})
+		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -748,8 +729,8 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 }
 
 func newDidDoc() (did.Document, jwk.Key, error) {
-	kc := &mockKeyCreator{}
-	docCreator := Creator{KeyStore: kc}
+	kc := &mockKeyStore{}
+	docCreator := Manager{keyStore: kc}
 	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags())
 	signingKey, _ := jwk.FromRaw(key.Public())
 	thumbStr, _ := crypto.Thumbprint(signingKey)

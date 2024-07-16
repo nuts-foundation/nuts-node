@@ -69,7 +69,6 @@ import (
 	vdrAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	vdrAPIv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	vdrCmd "github.com/nuts-foundation/nuts-node/vdr/cmd"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -210,15 +209,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&core.LandingPage{})
 	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
-	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, DocManipulator: &didnuts.Manipulator{
-		KeyCreator: cryptoInstance,
-		Updater:    vdrInstance,
-		Resolver:   vdrInstance.Resolver(),
-	}})
-	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance})
+	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
-		VCR:           credentialInstance,
+		VCR: credentialInstance,
 		VDR: vdrInstance,
 	})
 	system.RegisterRoutes(statusEngine.(core.Routable))

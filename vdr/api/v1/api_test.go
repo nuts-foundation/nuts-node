@@ -22,6 +22,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"testing"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,7 +48,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.vdr.EXPECT().Create(gomock.Any(), didnuts.DefaultCreationOptions()).Return(didDoc, nil, nil)
+		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -71,7 +71,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			SelfControl: new(bool),
 			Controllers: &controllers,
 		}
-		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
+		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -82,7 +82,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.vdr.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("b00m!"))
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -240,7 +240,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(nil)
+		ctx.nutsDocumentManager.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(nil)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
@@ -260,7 +260,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrNotFound)
+		ctx.nutsDocumentManager.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrNotFound)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
@@ -271,7 +271,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - other", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(errors.New("b00m!"))
+		ctx.nutsDocumentManager.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(errors.New("b00m!"))
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
@@ -281,7 +281,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - document deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDeactivated)
+		ctx.nutsDocumentManager.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDeactivated)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
@@ -292,7 +292,7 @@ func TestWrapper_UpdateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDIDNotManagedByThisNode)
+		ctx.nutsDocumentManager.EXPECT().Update(gomock.Any(), *id, gomock.Any()).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		response, err := ctx.client.UpdateDID(nil, UpdateDIDRequestObject{Did: id.String(), Body: &request})
 
@@ -306,7 +306,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
+		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -325,7 +325,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
+		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -335,7 +335,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
+		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -345,7 +345,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
+		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -362,7 +362,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultKeyFlags()).Return(newMethod, nil)
+		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultKeyFlags()).Return(newMethod, nil)
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -372,8 +372,8 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		expectedKeyUsage := didnuts.DefaultKeyFlags() | management.AuthenticationUsage | management.CapabilityDelegationUsage
-		ctx.docUpdater.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
+		expectedKeyUsage := didnuts.DefaultKeyFlags() | didsubject.AuthenticationUsage | didsubject.CapabilityDelegationUsage
+		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{
 			Authentication:       &trueBool,
@@ -398,7 +398,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
+		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -413,7 +413,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(nil)
+		ctx.nutsDocumentManager.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(nil)
 
 		response, err := ctx.client.DeleteVerificationMethod(ctx.requestCtx, DeleteVerificationMethodRequestObject{Did: did123.String(), Kid: did123Method.String()})
 
@@ -441,7 +441,7 @@ func TestWrapper_DeleteVerificationMethod(t *testing.T) {
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.docUpdater.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(errors.New("something went wrong"))
+		ctx.nutsDocumentManager.EXPECT().RemoveVerificationMethod(ctx.requestCtx, *did123, *did123Method).Return(errors.New("something went wrong"))
 
 		response, err := ctx.client.DeleteVerificationMethod(ctx.requestCtx, DeleteVerificationMethodRequestObject{Did: did123.String(), Kid: did123Method.String()})
 
@@ -455,12 +455,12 @@ func Test_ErrorStatusCodes(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl        *gomock.Controller
-	vdr         *vdr.MockVDR
-	didResolver *resolver.MockDIDResolver
-	docUpdater  *management.MockDocManipulator
-	client      *Wrapper
-	requestCtx  context.Context
+	ctrl                *gomock.Controller
+	vdr                 *vdr.MockVDR
+	didResolver         *resolver.MockDIDResolver
+	nutsDocumentManager *didsubject.MockDocumentManager
+	client              *Wrapper
+	requestCtx          context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -469,16 +469,17 @@ func newMockContext(t *testing.T) mockContext {
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
-	docManipulator := management.NewMockDocManipulator(ctrl)
-	client := &Wrapper{VDR: vdr, DocManipulator: docManipulator}
+	nutsDocumentManager := didsubject.NewMockDocumentManager(ctrl)
+	vdr.EXPECT().NutsDocumentManager().Return(nutsDocumentManager).AnyTimes()
+	client := &Wrapper{VDR: vdr}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
-		ctrl:        ctrl,
-		vdr:         vdr,
-		didResolver: didResolver,
-		client:      client,
-		docUpdater:  docManipulator,
-		requestCtx:  requestCtx,
+		ctrl:                ctrl,
+		vdr:                 vdr,
+		didResolver:         didResolver,
+		client:              client,
+		nutsDocumentManager: nutsDocumentManager,
+		requestCtx:          requestCtx,
 	}
 }

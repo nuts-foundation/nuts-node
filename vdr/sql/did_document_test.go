@@ -19,7 +19,7 @@
 package sql
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -31,7 +31,7 @@ import (
 var sqlDidAlice = DID{ID: alice.String(), Subject: "alice"}
 
 func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
-	keyUsageFlag := VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage)
+	keyUsageFlag := VerificationMethodKeyType(didsubject.AssertionMethodUsage | didsubject.AuthenticationUsage | didsubject.CapabilityDelegationUsage | didsubject.CapabilityInvocationUsage)
 	vm := SqlVerificationMethod{
 		ID:       "#1",
 		Data:     []byte("{}"),
@@ -94,7 +94,7 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 	db := testDB(t)
 	tx := transaction(t, db)
 	docManager := NewDIDDocumentManager(tx)
-	keyUsageFlag := VerificationMethodKeyType(management.AssertionMethodUsage | management.AuthenticationUsage | management.CapabilityDelegationUsage | management.CapabilityInvocationUsage)
+	keyUsageFlag := VerificationMethodKeyType(didsubject.AssertionMethodUsage | didsubject.AuthenticationUsage | didsubject.CapabilityDelegationUsage | didsubject.CapabilityInvocationUsage)
 	vm := SqlVerificationMethod{
 		ID:       "#1",
 		Data:     []byte("{}"),

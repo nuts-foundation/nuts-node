@@ -204,7 +204,7 @@ func TestWrapper_ResolveDID(t *testing.T) {
 		didDoc := &did.Document{
 			ID: id,
 		}
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(didDoc, &resolver.DocumentMetadata{}, nil)
+		ctx.didResolver.EXPECT().Resolve(id, nil).Return(didDoc, &resolver.DocumentMetadata{}, nil)
 
 		response, err := ctx.client.ResolveDID(nil, ResolveDIDRequestObject{Did: id.String()})
 
@@ -221,7 +221,7 @@ func TestWrapper_ResolveDID(t *testing.T) {
 	t.Run("resolver error", func(t *testing.T) {
 		ctx := newMockContext(t)
 		id := did.MustParseDID("did:web:example.com:iam:1")
-		ctx.vdr.EXPECT().Resolve(id, nil).Return(nil, nil, assert.AnError)
+		ctx.didResolver.EXPECT().Resolve(id, nil).Return(nil, nil, assert.AnError)
 
 		response, err := ctx.client.ResolveDID(nil, ResolveDIDRequestObject{Did: id.String()})
 

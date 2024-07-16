@@ -41,8 +41,15 @@ var testDID = did.MustParseDID("did:nuts:test")
 var testServiceA = did.Service{ID: ssi.MustParseURI("did:nuts:service:a"), ServiceEndpoint: []interface{}{"http://a"}}
 var testServiceB = did.Service{ID: ssi.MustParseURI("did:nuts:service:b"), ServiceEndpoint: []interface{}{"http://b"}}
 
+// NewTestStore creates a new store for testing
+// It also creates a new storage engine for testing
 func NewTestStore(t *testing.T) *store {
-	s := New(storage.NewTestStorageEngine(t).GetProvider(moduleName)).(*store)
+	return TestStore(t, storage.NewTestStorageEngine(t))
+}
+
+// TestStore creates a new store for testing using the provided storage engine
+func TestStore(t *testing.T, storageEngine storage.Engine) *store {
+	s := New(storageEngine.GetProvider(moduleName)).(*store)
 	err := s.Configure(core.ServerConfig{})
 	require.NoError(t, err)
 	return s
