@@ -32,6 +32,7 @@ import (
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -487,10 +488,16 @@ func TestModule_Create(t *testing.T) {
 		documents, _, err := m.Create(audit.TestContext(), didsubject.DefaultCreationOptions())
 		require.NoError(t, err)
 		require.Len(t, documents, 2)
-		document := documents[0]
-		assert.True(t, strings.HasPrefix(document.ID.String(), "did:web:example.com:iam:"))
+		IDs := make([]string, 2)
+		for i, document := range documents {
+			IDs[i] = document.ID.String()
+		}
+		slices.Sort(IDs)
+		assert.True(t, strings.HasPrefix(IDs[0], "did:web:example.com:iam:"))
+		assert.True(t, strings.HasPrefix(IDs[1], "did:web:example.com:iam_also"))
 
 		// test alsoKnownAs requirements
+		document := documents[0]
 		assert.Len(t, document.AlsoKnownAs, 1)
 	})
 	t.Run("with unknown option", func(t *testing.T) {
