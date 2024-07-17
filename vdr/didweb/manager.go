@@ -54,17 +54,6 @@ type Manager struct {
 	tenantPath string
 }
 
-// Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.
-// This is a poor-mans 2-phase commit.
-func (m Manager) Commit(_ context.Context, _ didsubject.DIDChangeLog) error {
-	return nil
-}
-
-// IsCommitted always returns true for did:web. did:web gets its state from the primary DB.
-func (m Manager) IsCommitted(_ context.Context, _ didsubject.DIDChangeLog) (bool, error) {
-	return true, nil
-}
-
 func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
 	newDID, _ := did.ParseDID(fmt.Sprintf("%s:%s:%s", m.rootDID.String(), m.tenantPath, uuid.New()))
 	var sqlVerificationMethods []didsubject.VerificationMethod
@@ -126,4 +115,15 @@ func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, 
 		return nil, err
 	}
 	return verificationMethod, nil
+}
+
+// Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.
+// This is a poor-mans 2-phase commit.
+func (m Manager) Commit(_ context.Context, _ didsubject.DIDChangeLog) error {
+	return nil
+}
+
+// IsCommitted always returns true for did:web. did:web gets its state from the primary DB.
+func (m Manager) IsCommitted(_ context.Context, _ didsubject.DIDChangeLog) (bool, error) {
+	return true, nil
 }

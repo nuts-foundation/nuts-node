@@ -404,6 +404,53 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
+func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
+	// First, generate a new keyPair with the correct kid
+	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
+	// Relevant issue:
+	// https://github.com/nuts-foundation/nuts-node/issues/1947
+	key, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	keyID, err := did.ParseDIDURL(key.KID())
+	if err != nil {
+		return nil, err
+	}
+
+	didID, _ := resolver.GetDIDFromURL(key.KID())
+	var verificationMethod *did.VerificationMethod
+	// Add VerificationMethod using generated key
+	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, didID, key.Public())
+	if err != nil {
+		return nil, err
+	}
+	vmAsJson, _ := json.Marshal(verificationMethod)
+	now := time.Now().Unix()
+	sqlDoc := didsubject.DIDDocument{
+		DID: didsubject.DID{
+			ID: didID.String(),
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+		VerificationMethods: []didsubject.VerificationMethod{
+			{
+				ID:       verificationMethod.ID.String(),
+				KeyTypes: didsubject.VerificationMethodKeyType(keyFlags),
+				Data:     vmAsJson,
+			},
+		},
+	}
+
+	return &sqlDoc, nil
+}
+
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
+	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
+}
+
 func (m Manager) Commit(ctx context.Context, change didsubject.DIDChangeLog) error {
 	var err error
 	switch change.Type {
@@ -521,11 +568,6 @@ func (c cryptoKey) Public() crypto.PublicKey {
 	return pk
 }
 
-// Loop requires no implementation for the DIDWeb method manager.
-func (m Manager) Loop(_ context.Context) {
-
-}
-
 func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	contextPresent := false
 
@@ -561,51 +603,4 @@ func (m Manager) resolveControllerWithKey(ctx context.Context, doc did.Document)
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
-}
-
-func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
-	// First, generate a new keyPair with the correct kid
-	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
-	// Relevant issue:
-	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	keyID, err := did.ParseDIDURL(key.KID())
-	if err != nil {
-		return nil, err
-	}
-
-	didID, _ := resolver.GetDIDFromURL(key.KID())
-	var verificationMethod *did.VerificationMethod
-	// Add VerificationMethod using generated key
-	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, didID, key.Public())
-	if err != nil {
-		return nil, err
-	}
-	vmAsJson, _ := json.Marshal(verificationMethod)
-	now := time.Now().Unix()
-	sqlDoc := didsubject.DIDDocument{
-		DID: didsubject.DID{
-			ID: didID.String(),
-		},
-		CreatedAt: now,
-		UpdatedAt: now,
-		VerificationMethods: []didsubject.VerificationMethod{
-			{
-				ID:       verificationMethod.ID.String(),
-				KeyTypes: didsubject.VerificationMethodKeyType(keyFlags),
-				Data:     vmAsJson,
-			},
-		},
-	}
-
-	return &sqlDoc, nil
-}
-
-func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
-	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
-	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
 }
