@@ -20,6 +20,7 @@ package vdr
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -28,6 +29,9 @@ import (
 type VDR interface {
 	management.DocUpdater
 	management.DocumentManager
+
+	// DocumentOwner returns the document owner.
+	DocumentOwner() didsubject.DocumentOwner
 
 	// ResolveManaged resolves a DID document that is managed by the local node.
 	ResolveManaged(id did.DID) (*did.Document, error)

@@ -130,7 +130,7 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 			StatusCode: http.StatusNotFound,
 		}
 	}
-	isOwner, err := c.vdrInstance.IsOwner(ctx, id)
+	isOwner, err := c.vdrInstance.DocumentOwner().IsOwner(ctx, id)
 	if err != nil {
 		return "", err
 	}
@@ -574,5 +574,5 @@ func (c *vcr) canWalletHoldCredential(cred vc.VerifiableCredential) (bool, error
 	if subjectDID == nil {
 		return false, nil
 	}
-	return c.vdrInstance.IsOwner(context.Background(), *subjectDID)
+	return c.vdrInstance.DocumentOwner().IsOwner(context.Background(), *subjectDID)
 }

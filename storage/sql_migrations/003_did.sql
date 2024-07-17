@@ -16,10 +16,25 @@ create table did_document_version
     -- id is v4 uuid
     id varchar(36) not null primary key,
     did varchar(370) not null,
+    created_at integer, -- make not nil in future PR
+    updated_at integer, -- make not nil in future PR
     version int not null,
+    raw $TEXT_TYPE, -- make not nil in future PR
     unique (did, version),
-    foreign key (did) references did (id) on delete cascade
+    foreign key (did) references did (id) on delete cascade,
+    unique (did, version)
 );
+
+-- this table is used for the poor-mans 2-phase commit
+create table did_change_log
+(
+    did_document_version_id varchar(36) not null primary key,
+    transaction_id varchar(36) not null,
+    type varchar(32) not null,
+    foreign key (did_document_version_id) references did_document_version (id) on delete cascade
+);
+
+create index did_change_log_transaction_idx on did_change_log (transaction_id);
 
 -- this table is used to store the verification methods for locally managed DIDs
 create table did_verificationmethod
@@ -34,7 +49,7 @@ create table did_verificationmethod
     -- 0x04 - CapabilityDelegation
     -- 0x08 - CapabilityInvocation
     -- 0x10 - KeyAgreement
-    key_types varchar(2) not null,
+    key_types SMALLINT not null,
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null,
@@ -57,5 +72,6 @@ create table did_service
 -- +goose Down
 drop table did_verificationmethod;
 drop table did_service;
+drop table did_change_log;
 drop table did_document_version;
 drop table did;

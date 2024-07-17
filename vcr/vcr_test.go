@@ -83,29 +83,24 @@ func TestVCR_Configure(t *testing.T) {
 		require.NoError(t, err)
 	})
 	t.Run("strictmode passed to client APIs", func(t *testing.T) {
-		// load test VC
+		ctx := newMockContext(t)
 		client.StrictMode = true
 		testVC := test.ValidNutsOrganizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 		testDirectory := io.TestDirectory(t)
-		ctrl := gomock.NewController(t)
-		pkiProvider := pki.NewMockProvider(ctrl)
-		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		localWalletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
-		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
-		vdrInstance := vdr.NewMockVDR(ctrl)
-		vdrInstance.EXPECT().Resolver().AnyTimes()
-		vdrInstance.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
-		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
-		instance.config.OpenID4VCI.Enabled = true
 
-		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		localWalletResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
+		localWalletResolver.EXPECT().Resolve(issuerDID).Return("https://example.com", nil).AnyTimes()
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil).AnyTimes()
+		ctx.vcr.config.OpenID4VCI.Enabled = true
+
+		err := ctx.vcr.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = testDirectory
 		}))
 		require.NoError(t, err)
-		instance.localWalletResolver = localWalletResolver
+		ctx.vcr.localWalletResolver = localWalletResolver
 		// test simulates an offer call which will not be executed since the target wallet does not have an HTTPS endpoint
-		issuer, err := instance.GetOpenIDIssuer(context.Background(), issuerDID)
+		issuer, err := ctx.vcr.GetOpenIDIssuer(context.Background(), issuerDID)
 		require.NoError(t, err)
 		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
@@ -301,31 +296,25 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 	identifier := "https://example.com/" + id.String()
 	ctx := context.Background()
 	t.Run("found DID, owned", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		vdrInstance := vdr.NewMockVDR(ctrl)
-		vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
-		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+		ctx := newMockContext(t)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
-		instance := NewTestVCRInstance(t)
-		instance.vdrInstance = vdrInstance
-		instance.localWalletResolver = identifierResolver
+		ctx.vcr.localWalletResolver = identifierResolver
 
-		actual, err := instance.GetOpenIDIssuer(ctx, id)
+		actual, err := ctx.vcr.GetOpenIDIssuer(context.Background(), id)
 
 		require.NoError(t, err)
 		assert.NotNil(t, actual)
 	})
 	t.Run("found DID, not owned", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		vdrInstance := vdr.NewMockVDR(ctrl)
-		vdrInstance.EXPECT().IsOwner(ctx, id).Return(false, nil)
-		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+		ctx := newMockContext(t)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), id).Return(false, nil)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
-		instance := NewTestVCRInstance(t)
-		instance.vdrInstance = vdrInstance
-		instance.localWalletResolver = identifierResolver
+		ctx.vcr.localWalletResolver = identifierResolver
 
-		actual, err := instance.GetOpenIDIssuer(ctx, id)
+		actual, err := ctx.vcr.GetOpenIDIssuer(context.Background(), id)
 
 		require.Error(t, err)
 		assert.Nil(t, actual)
@@ -347,18 +336,14 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 func Test_vcr_GetOIDCWallet(t *testing.T) {
 	id := did.MustParseDID("did:nuts:123456789abcdefghi")
 	identifier := "https://example.com/" + id.String()
-	ctx := context.Background()
 
-	ctrl := gomock.NewController(t)
-	vdrInstance := vdr.NewMockVDR(ctrl)
-	vdrInstance.EXPECT().IsOwner(ctx, id).Return(true, nil)
-	identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+	ctx := newMockContext(t)
+	ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+	identifierResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
 	identifierResolver.EXPECT().Resolve(id).Return(identifier, nil)
-	instance := NewTestVCRInstance(t)
-	instance.vdrInstance = vdrInstance
-	instance.localWalletResolver = identifierResolver
+	ctx.vcr.localWalletResolver = identifierResolver
 
-	actual, err := instance.GetOpenIDHolder(ctx, id)
+	actual, err := ctx.vcr.GetOpenIDHolder(context.Background(), id)
 
 	require.NoError(t, err)
 	assert.NotNil(t, actual)

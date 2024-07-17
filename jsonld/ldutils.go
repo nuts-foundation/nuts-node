@@ -157,6 +157,11 @@ const W3cStatusList2021Context = "https://w3id.org/vc/status-list/2021/v1"
 // Jws2020Context contains the JsonWebToken2020 Proof type context
 const Jws2020Context = "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
 
+// JWS2020ContextV1URI returns JWS2020ContextV1 as a URI
+func JWS2020ContextV1URI() ssi.URI {
+	return ssi.MustParseURI(Jws2020Context)
+}
+
 // DefaultContextConfig returns the default list of allowed external resources and a mapping to embedded contexts
 func DefaultContextConfig() ContextsConfig {
 	return ContextsConfig{

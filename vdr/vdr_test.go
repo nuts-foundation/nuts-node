@@ -265,7 +265,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			_ = vdr.Configure(core.TestServerConfig())
-			//vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
 			didDocument := did.Document{ID: TestDIDA}
 
 			didDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: keyID})
@@ -425,20 +424,6 @@ func TestWithJSONLDContext(t *testing.T) {
 		patched := withJSONLDContext(expected, didnuts.NutsDIDContextV1URI())
 
 		assert.EqualValues(t, expected.Context, patched.Context)
-	})
-}
-
-func TestVDR_IsOwner(t *testing.T) {
-	id := did.MustParseDID("did:nuts:123")
-	t.Run("delegates the call to the underlying DocumentOwner", func(t *testing.T) {
-		testCtx := newVDRTestCtx(t)
-		ctx := context.Background()
-		testCtx.mockDocumentManager.EXPECT().IsOwner(ctx, id).Return(true, nil)
-
-		result, err := testCtx.vdr.IsOwner(ctx, id)
-
-		assert.NoError(t, err)
-		assert.True(t, result)
 	})
 }
 

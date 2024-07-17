@@ -102,36 +102,6 @@ func (mr *MockDocumentManagerMockRecorder) DeleteService(ctx, subjectDID, servic
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockDocumentManager)(nil).DeleteService), ctx, subjectDID, serviceID)
 }
 
-// IsOwner mocks base method.
-func (m *MockDocumentManager) IsOwner(arg0 context.Context, arg1 did.DID) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsOwner", arg0, arg1)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IsOwner indicates an expected call of IsOwner.
-func (mr *MockDocumentManagerMockRecorder) IsOwner(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsOwner", reflect.TypeOf((*MockDocumentManager)(nil).IsOwner), arg0, arg1)
-}
-
-// ListOwned mocks base method.
-func (m *MockDocumentManager) ListOwned(ctx context.Context) ([]did.DID, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListOwned", ctx)
-	ret0, _ := ret[0].([]did.DID)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListOwned indicates an expected call of ListOwned.
-func (mr *MockDocumentManagerMockRecorder) ListOwned(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOwned", reflect.TypeOf((*MockDocumentManager)(nil).ListOwned), ctx)
-}
-
 // Resolve mocks base method.
 func (m *MockDocumentManager) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	m.ctrl.T.Helper()

@@ -22,6 +22,7 @@ package v2
 import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"testing"
 
@@ -177,7 +178,7 @@ func TestWrapper_UpdateService(t *testing.T) {
 func TestWrapper_ListDIDs(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
+		ctx.documentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
 
 		response, err := ctx.client.ListDIDs(context.Background(), ListDIDsRequestObject{})
 
@@ -187,7 +188,7 @@ func TestWrapper_ListDIDs(t *testing.T) {
 
 	t.Run("error - list fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().ListOwned(gomock.Any()).Return(nil, assert.AnError)
+		ctx.documentOwner.EXPECT().ListOwned(gomock.Any()).Return(nil, assert.AnError)
 
 		response, err := ctx.client.ListDIDs(context.Background(), ListDIDsRequestObject{})
 
@@ -368,11 +369,12 @@ func TestWrapper_FilterServices(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl        *gomock.Controller
-	vdr         *vdr.MockVDR
-	didResolver *resolver.MockDIDResolver
-	client      *Wrapper
-	requestCtx  context.Context
+	ctrl          *gomock.Controller
+	vdr           *vdr.MockVDR
+	didResolver   *resolver.MockDIDResolver
+	documentOwner *didsubject.MockDocumentOwner
+	client        *Wrapper
+	requestCtx    context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -380,15 +382,18 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
+	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
+	vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
 	client := &Wrapper{VDR: vdr}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
-		ctrl:        ctrl,
-		vdr:         vdr,
-		didResolver: didResolver,
-		client:      client,
-		requestCtx:  requestCtx,
+		ctrl:          ctrl,
+		vdr:           vdr,
+		didResolver:   didResolver,
+		documentOwner: documentOwner,
+		client:        client,
+		requestCtx:    requestCtx,
 	}
 }

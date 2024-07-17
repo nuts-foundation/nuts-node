@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -158,11 +159,12 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 }
 
 type mockContext struct {
-	ctrl        *gomock.Controller
-	vcr         *vcr
-	didResolver *resolver.MockDIDResolver
-	crypto      *crypto.Crypto
-	vdr         *vdr.MockVDR
+	ctrl          *gomock.Controller
+	vcr           *vcr
+	didResolver   *resolver.MockDIDResolver
+	documentOwner *didsubject.MockDocumentOwner
+	crypto        *crypto.Crypto
+	vdr           *vdr.MockVDR
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -174,8 +176,10 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
 	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
 	didResolver := resolver.NewMockDIDResolver(ctrl)
+	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().Return(didResolver).AnyTimes()
+	vdrInstance.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(t)
@@ -197,10 +201,11 @@ func newMockContext(t *testing.T) mockContext {
 		}
 	})
 	return mockContext{
-		ctrl:        ctrl,
-		crypto:      cryptoInstance,
-		vcr:         vcr,
-		vdr:         vdrInstance,
-		didResolver: didResolver,
+		ctrl:          ctrl,
+		crypto:        cryptoInstance,
+		documentOwner: documentOwner,
+		vcr:           vcr,
+		vdr:           vdrInstance,
+		didResolver:   didResolver,
 	}
 }
