@@ -30,6 +30,7 @@ The following options apply to the server commands below:
       --crypto.vault.timeout duration                     Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s). (default 5s)
       --crypto.vault.token string                         The Vault token. If set it overwrites the VAULT_TOKEN env var.
       --datadir string                                    Directory where the node stores its files. (default "./data")
+      --didmethods strings                                Comma-separated list of DID methods (without did: prefix). (default [web,nuts])
       --discovery.client.refresh_interval duration        Interval at which the client synchronizes with the Discovery Server; refreshing Verifiable Presentations of local DIDs and loading changes, updating the local copy. It only will actually refresh registrations of local DIDs that about to expire (less than 1/4th of their lifetime left). Specified as Golang duration (e.g. 1m, 1h30m). (default 10m0s)
       --discovery.definitions.directory string            Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. If the directory contains JSON files that can't be parsed as service definition, the node will fail to start. (default "./config/discovery")
       --discovery.server.ids strings                      IDs of the Discovery Service for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.
@@ -62,8 +63,7 @@ The following options apply to the server commands below:
       --network.v2.gossipinterval int                     Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes. (default 5000)
       --pki.maxupdatefailhours int                        Maximum number of hours that a denylist update can fail (default 4)
       --pki.softfail                                      Do not reject certificates if their revocation status cannot be established when softfail is true (default true)
-      --policy.address string                             The address of a remote policy server. Mutual exclusive with policy.directory.
-      --policy.directory string                           Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. Mutual exclusive with policy.address. (default "./config/policy")
+      --policy.directory string                           Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping. (default "./config/policy")
       --storage.bbolt.backup.directory string             Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration            Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
       --storage.redis.address string                      Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
