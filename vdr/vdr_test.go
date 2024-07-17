@@ -65,6 +65,7 @@ type vdrTestCtx struct {
 	mockAmbassador      *didnuts.MockAmbassador
 	ctx                 context.Context
 	mockDocumentManager *management.MockDocumentManager
+	mockDocumentOwner   *management.MockDocumentOwner
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -75,6 +76,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 	mockDocumentManager := management.NewMockDocumentManager(ctrl)
+	mockDocumentOwner := management.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
 	vdr := Module{
 		store:             mockStore,
@@ -83,8 +85,9 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		documentManagers: map[string]management.DocumentManager{
 			didnuts.MethodName: mockDocumentManager,
 		},
-		didResolver: resolverRouter,
-		keyStore:    mockKeyStore,
+		documentOwner: mockDocumentOwner,
+		didResolver:   resolverRouter,
+		keyStore:      mockKeyStore,
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
@@ -95,6 +98,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockNetwork:         mockNetwork,
 		mockKeyStore:        mockKeyStore,
 		mockDocumentManager: mockDocumentManager,
+		mockDocumentOwner:   mockDocumentOwner,
 		ctx:                 audit.TestContext(),
 	}
 }
@@ -518,7 +522,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("ignores self-controlled documents", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{ID: TestDIDA}, nil, nil)
 
 		err := ctx.vdr.Migrate()
@@ -538,7 +542,7 @@ func TestVDR_Migrate(t *testing.T) {
 		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
 		documentA.AddAssertionMethod(vm)
 		require.NoError(t, err)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockKeyStore.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(key, nil)
@@ -553,7 +557,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("deactivated is ignored", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
 
 		err := ctx.vdr.Migrate()
@@ -565,7 +569,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("no active controller is ignored", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, nil, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&did.Document{ID: TestDIDB}, nil, nil)
 
@@ -578,7 +582,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("error is logged", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, assert.AnError)
 
 		err := ctx.vdr.Migrate()
@@ -590,7 +594,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("no verification method is logged", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{Controller: []did.DID{TestDIDB}}, nil, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil)
 
@@ -609,7 +613,7 @@ func TestVDR_Migrate(t *testing.T) {
 		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
 		documentA.AddAssertionMethod(vm)
 		require.NoError(t, err)
-		ctx.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
 
@@ -618,19 +622,6 @@ func TestVDR_Migrate(t *testing.T) {
 		require.NoError(t, err)
 		assertLog(t, "Could not update owned DID document, continuing with next document")
 		assertLog(t, "update DID document: invalid verificationMethod: key thumbprint does not match ID")
-	})
-}
-
-func TestModule_ListOwned(t *testing.T) {
-	t.Run("empty slice when no DIDs", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		test.mockDocumentManager.EXPECT().ListOwned(gomock.Any()).Return(nil, nil)
-
-		docs, err := test.vdr.ListOwned(context.Background())
-
-		require.NoError(t, err)
-		assert.Empty(t, docs)
-		assert.NotNil(t, docs)
 	})
 }
 
