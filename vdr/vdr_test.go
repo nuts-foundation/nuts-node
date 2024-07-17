@@ -26,12 +26,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -767,6 +769,17 @@ func TestModule_rollback(t *testing.T) {
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 0)
 	})
+}
+
+func TestGenerateIDForService(t *testing.T) {
+	u, _ := url.Parse("https://api.example.com/v1")
+	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", TestDIDA.String()))
+
+	id := GenerateIDForService(TestDIDA, did.Service{
+		Type:            "type",
+		ServiceEndpoint: u.String(),
+	})
+	assert.Equal(t, expectedID, id)
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)
