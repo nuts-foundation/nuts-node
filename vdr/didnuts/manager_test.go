@@ -123,7 +123,7 @@ func TestManager_UpdateService(t *testing.T) {
 	assert.EqualError(t, err, "UpdateService() is not supported for did:nuts")
 }
 
-func TestManager_GenerateDocument(t *testing.T) {
+func TestManager_NewDocument(t *testing.T) {
 	keyStore := nutsCrypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()
 	db := testDB(t)

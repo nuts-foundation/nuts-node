@@ -318,7 +318,7 @@ func TestManager_Deactivate(t *testing.T) {
 	})
 }
 
-func TestManager_GenerateDocument(t *testing.T) {
+func TestManager_NewDocument(t *testing.T) {
 	rootDID := did.MustParseDID("did:example:123")
 	keyStore := nutsCrypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()

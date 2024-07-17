@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	"errors"
 	"fmt"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
@@ -46,38 +45,38 @@ func NewManager(DB *gorm.DB, cryptoClient nutsCrypto.KeyStore, networkClient net
 	// deprecated
 	creator management.DocCreator, owner management.DocumentOwner) *Manager {
 	return &Manager{
-		DB:            DB,
-		KeyStore:      cryptoClient,
-		NetworkClient: networkClient,
-		Resolver:      didResolver,
+		db:            DB,
+		keyStore:      cryptoClient,
+		networkClient: networkClient,
+		resolver:      didResolver,
 		Store:         didStore,
 		// deprecated
-		Creator:       creator,
-		DocumentOwner: owner,
+		creator:       creator,
+		documentOwner: owner,
 	}
 }
 
 var _ management.DocumentManager = (*Manager)(nil)
 
 type Manager struct {
-	DB            *gorm.DB
-	KeyStore      nutsCrypto.KeyStore
-	NetworkClient network.Transactions
-	Resolver      resolver.DIDResolver
+	db            *gorm.DB
+	keyStore      nutsCrypto.KeyStore
+	networkClient network.Transactions
+	resolver      resolver.DIDResolver
 	Store         didnutsStore.Store
 
 	// deprecated
-	Creator       management.DocCreator
-	DocumentOwner management.DocumentOwner
-	Manipulator   management.DocManipulator
+	creator       management.DocCreator
+	documentOwner management.DocumentOwner
+	manipulator   management.DocManipulator
 }
 
 func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
-	return m.Manipulator.Deactivate(ctx, id)
+	return m.manipulator.Deactivate(ctx, id)
 }
 
 func (m Manager) Create(ctx context.Context, options management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	return m.Creator.Create(ctx, options)
+	return m.creator.Create(ctx, options)
 }
 
 func (m Manager) Resolve(_ did.DID, _ *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
@@ -101,7 +100,7 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := m.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err := m.keyStore.New(ctx, didKIDNamingFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +137,9 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, _ didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
-	// did:nuts uses EC keys for everything so it doesn't use the DIDKeyFlags
-	return CreateNewVerificationMethodForDID(ctx, controller, m.KeyStore)
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
+	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
 }
 
 func (m Manager) Commit(ctx context.Context, change didsubject.DIDChangeLog) error {
@@ -169,7 +168,7 @@ func (m Manager) IsCommitted(_ context.Context, change didsubject.DIDChangeLog) 
 }
 
 func (m Manager) onCreate(ctx context.Context, event didsubject.DIDChangeLog) error {
-	return m.DB.Transaction(func(tx *gorm.DB) error {
+	return m.db.Transaction(func(tx *gorm.DB) error {
 		didDocument, err := event.DIDDocumentVersion.ToDIDDocument()
 		if err != nil {
 			return err
@@ -184,7 +183,7 @@ func (m Manager) onCreate(ctx context.Context, event didsubject.DIDChangeLog) er
 		refs := make([]hash.SHA256Hash, 0)
 		key := cryptoKey{vm: *didDocument.VerificationMethod[0]}
 		networkTx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-		_, err = m.NetworkClient.CreateTransaction(ctx, networkTx)
+		_, err = m.networkClient.CreateTransaction(ctx, networkTx)
 		if err != nil {
 			return fmt.Errorf("could not publish DID document on the network: %w", err)
 		}
@@ -198,7 +197,7 @@ func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) er
 		AllowDeactivated: true,
 	}
 
-	currentDIDDocument, currentMeta, err := m.Resolver.Resolve(id, resolverMetadata)
+	currentDIDDocument, currentMeta, err := m.resolver.Resolve(id, resolverMetadata)
 	if err != nil {
 		return err
 	}
@@ -214,7 +213,7 @@ func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) er
 	}
 
 	// Validate document. No more changes should be made to the document after this point.
-	serviceResolver := resolver.DIDServiceResolver{Resolver: m.Resolver}
+	serviceResolver := resolver.DIDServiceResolver{Resolver: m.resolver}
 	if err = ManagedDocumentValidator(serviceResolver).Validate(next); err != nil {
 		return err
 	}
@@ -230,7 +229,7 @@ func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) er
 	}
 
 	// for the metadata
-	_, controllerMeta, err := m.Resolver.Resolve(controller.ID, nil)
+	_, controllerMeta, err := m.resolver.Resolve(controller.ID, nil)
 	if err != nil {
 		return err
 	}
@@ -239,7 +238,7 @@ func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) er
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
 	networkTransaction := network.TransactionTemplate(DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
-	_, err = m.NetworkClient.CreateTransaction(ctx, networkTransaction)
+	_, err = m.networkClient.CreateTransaction(ctx, networkTransaction)
 	return err
 }
 
@@ -256,7 +255,7 @@ func (c cryptoKey) KID() string {
 }
 
 func (c cryptoKey) Public() crypto.PublicKey {
-	pk, _ := c.vm.PublicKey() // todo
+	pk, _ := c.vm.PublicKey()
 	return pk
 }
 
@@ -272,15 +271,11 @@ func (m Manager) resolveControllerWithKey(ctx context.Context, doc did.Document)
 	var key nutsCrypto.Key
 	for _, c := range controllers {
 		for _, cik := range c.CapabilityInvocation {
-			key, err = m.KeyStore.Resolve(ctx, cik.ID.String())
+			key, err = m.keyStore.Resolve(ctx, cik.ID.String())
 			if err == nil {
 				return c, key, nil
 			}
 		}
-	}
-
-	if errors.Is(err, nutsCrypto.ErrPrivateKeyNotFound) {
-		// log
 	}
 
 	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
