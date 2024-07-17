@@ -379,8 +379,7 @@ func TestVDR_Migrate(t *testing.T) {
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockKeyStore.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(testTransaction{}, nil)
+		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(nil)
 
 		err = ctx.vdr.Migrate()
 
@@ -440,22 +439,16 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("update error is logged", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		keyStore := nutsCrypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
-		// TestMethodDIDA is invalid because of thumbprint
-		vm, _ := did.NewVerificationMethod(TestMethodDIDA, ssi.JsonWebKey2020, TestDIDA, key.Public())
-		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
-		documentA.AddAssertionMethod(vm)
-		require.NoError(t, err)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(assert.AnError)
 
-		err = ctx.vdr.Migrate()
+		err := ctx.vdr.Migrate()
 
 		require.NoError(t, err)
 		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "update DID document: invalid verificationMethod: key thumbprint does not match ID")
+		assertLog(t, "assert.AnError general error for testing")
 	})
 }
 

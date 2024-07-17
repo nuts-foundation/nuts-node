@@ -57,7 +57,7 @@ type testContext struct {
 	didResolver   *resolver.MockDIDResolver
 	db            *gorm.DB
 	ctx           context.Context
-	keyStore      *nutsCrypto.MockKeyStore
+	keyStore      *mockKeyStore
 }
 
 func newTestContext(t *testing.T) *testContext {
@@ -67,7 +67,7 @@ func newTestContext(t *testing.T) *testContext {
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	ctx := audit.TestContext()
 	db := testDB(t)
-	keyStore := nutsCrypto.NewMockKeyStore(ctrl)
+	keyStore := &mockKeyStore{}
 	manager := NewManager(keyStore, networkClient, didStore, didResolver, db)
 
 	return &testContext{
@@ -541,7 +541,6 @@ func TestManager_Commit(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
 		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil)
 		ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
-		ctx.keyStore.EXPECT().Resolve(gomock.Any(), document.VerificationMethod[0].ID.String()).Return(nutsCrypto.TestKey{}, nil)
 		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
 			assert.Len(t, template.AdditionalPrevs, 2) // previous and controller
 			assert.False(t, template.AttachKey)
@@ -563,7 +562,6 @@ func TestManager_Commit(t *testing.T) {
 		}
 		ctx.didResolver.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
 		ctx.didStore.EXPECT().Resolve(eventLog.DID(), gomock.Any()).Return(&didDocument, &metadata, nil).AnyTimes()
-		ctx.keyStore.EXPECT().Resolve(gomock.Any(), document.VerificationMethod[0].ID.String()).Return(nutsCrypto.TestKey{}, nil)
 		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, template network.Template) (dag.Transaction, error) {
 			assert.Len(t, template.AdditionalPrevs, 2) // previous and controller
 			assert.False(t, template.AttachKey)
