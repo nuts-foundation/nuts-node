@@ -14,7 +14,6 @@ Nuts documentation
     pages/integrating/vc.rst
     pages/integrating/supported-protocols-formats.rst
     pages/release_notes.rst
-    pages/roadmap.rst
 
 .. toctree::
     :maxdepth: 1
