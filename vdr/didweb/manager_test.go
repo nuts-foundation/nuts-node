@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/nuts-foundation/nuts-node/vdr/sql"
@@ -314,5 +315,23 @@ func TestManager_Deactivate(t *testing.T) {
 		err = m.Deactivate(ctx, document.ID)
 
 		require.EqualError(t, err, "did:web DID deleted, but could not remove one or more private keys\nverification method '"+document.VerificationMethod[0].ID.String()+"': private key not found")
+	})
+}
+
+func TestManager_NewDocument(t *testing.T) {
+	rootDID := did.MustParseDID("did:example:123")
+	keyStore := nutsCrypto.NewMemoryCryptoInstance()
+	ctx := audit.TestContext()
+	db := testDB(t)
+	manager := NewManager(rootDID, "iam", keyStore, db)
+
+	t.Run("random id", func(t *testing.T) {
+		doc, err := manager.NewDocument(ctx, didsubject.AssertionKeyUsage())
+
+		require.NoError(t, err)
+		assert.NotNil(t, doc)
+		assert.True(t, strings.HasPrefix(doc.DID.ID, "did:example:123:iam:"))
+		require.Len(t, doc.VerificationMethods, 1)
+		assert.True(t, strings.HasPrefix(doc.VerificationMethods[0].ID, "did:example:123:iam:"))
 	})
 }

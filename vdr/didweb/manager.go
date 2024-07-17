@@ -20,20 +20,25 @@ package didweb
 
 import (
 	"context"
-	crypt "crypto"
+	"crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/nuts-foundation/nuts-node/vdr/sql"
 	"gorm.io/gorm"
 )
+
+var _ didsubject.MethodManager = (*Manager)(nil)
 
 func DefaultCreationOptions() management.CreationOptions {
 	return management.Create(MethodName)
@@ -49,7 +54,7 @@ func RootDID() management.CreationOption {
 var _ management.DocumentManager = (*Manager)(nil)
 
 // NewManager creates a new Manager to create and update did:web DID documents.
-func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db *gorm.DB) *Manager {
+func NewManager(rootDID did.DID, tenantPath string, keyStore nutsCrypto.KeyStore, db *gorm.DB) *Manager {
 	return &Manager{
 		db:         db,
 		rootDID:    rootDID,
@@ -62,7 +67,7 @@ func NewManager(rootDID did.DID, tenantPath string, keyStore crypto.KeyStore, db
 type Manager struct {
 	db         *gorm.DB
 	rootDID    did.DID
-	keyStore   crypto.KeyStore
+	keyStore   nutsCrypto.KeyStore
 	tenantPath string
 }
 
@@ -105,7 +110,7 @@ func (m Manager) AddVerificationMethod(_ context.Context, _ did.DID, _ managemen
 }
 
 // Create creates a new did:web document.
-func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, crypto.Key, error) {
+func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
 	var newDID *did.DID
 	var err error
 	for _, opt := range opts.All() {
@@ -123,7 +128,7 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 		return nil, nil, fmt.Errorf("parse new DID: %w", err)
 	}
 	var document did.Document
-	var verificationMethodKey crypto.Key
+	var verificationMethodKey nutsCrypto.Key
 	err = m.db.Transaction(func(tx *gorm.DB) error {
 		var verificationMethod *did.VerificationMethod
 		documentStore := sql.NewDIDDocumentManager(tx)
@@ -166,12 +171,12 @@ func (m Manager) Create(ctx context.Context, opts management.CreationOptions) (*
 	return &document, verificationMethodKey, err
 }
 
-func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (crypto.Key, *did.VerificationMethod, error) {
+func (m Manager) createVerificationMethod(ctx context.Context, ownerDID did.DID) (nutsCrypto.Key, *did.VerificationMethod, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      ownerDID,
-		Fragment: "0", // TODO: Which fragment should we use? Thumbprint, UUID, index, etc...
+		Fragment: uuid.New().String(),
 	}
-	verificationMethodKey, err := m.keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
+	verificationMethodKey, err := m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
 		return verificationMethodID.String(), nil
 	})
 	if err != nil {
@@ -332,4 +337,75 @@ func buildDocument(newDID did.DID, doc sql.DIDDocument) (did.Document, error) {
 	}
 
 	return document, nil
+}
+
+func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
+	newDID, _ := did.ParseDID(fmt.Sprintf("%s:%s:%s", m.rootDID.String(), m.tenantPath, uuid.New()))
+	var sqlVerificationMethods []didsubject.VerificationMethod
+
+	keyTypes := []didsubject.DIDKeyFlags{didsubject.AssertionKeyUsage(), didsubject.EncryptionKeyUsage()}
+	for _, keyType := range keyTypes {
+		if keyType.Is(keyFlags) {
+			verificationMethod, err := m.NewVerificationMethod(ctx, *newDID, keyType)
+			if err != nil {
+				return nil, err
+			}
+			asJson, _ := json.Marshal(verificationMethod)
+			sqlVerificationMethods = append(sqlVerificationMethods, didsubject.VerificationMethod{
+				ID:       verificationMethod.ID.String(),
+				KeyTypes: didsubject.VerificationMethodKeyType(keyType),
+				Data:     asJson,
+			})
+		}
+	}
+
+	// Create sql.DIDDocument
+	now := time.Now().Unix()
+	sqlDoc := didsubject.DIDDocument{
+		DID: didsubject.DID{
+			ID: newDID.String(),
+		},
+		CreatedAt:           now,
+		UpdatedAt:           now,
+		Version:             0,
+		VerificationMethods: sqlVerificationMethods,
+	}
+
+	return &sqlDoc, nil
+}
+
+func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+	var err error
+	var verificationMethodKey nutsCrypto.Key
+	verificationMethodID := did.DIDURL{
+		DID:      controller,
+		Fragment: uuid.New().String(),
+	}
+	if keyUsage.Is(didsubject.KeyAgreementUsage) {
+		return nil, errors.New("key agreement not supported for did:web")
+		// todo requires update to nutsCrypto module
+		//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
+		//	return verificationMethodID.String(), nil
+		//})
+	} else {
+		verificationMethodKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+			return verificationMethodID.String(), nil
+		})
+	}
+	if err != nil {
+		return nil, err
+	}
+	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, verificationMethodKey.Public())
+	if err != nil {
+		return nil, err
+	}
+	return verificationMethod, nil
+}
+
+func (m Manager) Commit(_ context.Context, _ didsubject.DIDChangeLog) error {
+	return nil
+}
+
+func (m Manager) IsCommitted(_ context.Context, _ didsubject.DIDChangeLog) (bool, error) {
+	return true, nil
 }
