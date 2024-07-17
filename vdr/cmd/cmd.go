@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	"io"
 	"os"
 	"strings"
@@ -41,6 +42,10 @@ import (
 // FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
+
+	defs := vdr.DefaultConfig()
+
+	flagSet.StringSlice("didmethods", defs.DIDMethods, "Comma-separated list of DID methods (without did: prefix).")
 	return flagSet
 }
 
