@@ -23,16 +23,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -41,6 +42,10 @@ import (
 // FlagSet contains flags relevant for the VDR instance
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
+
+	defs := vdr.DefaultConfig()
+
+	flagSet.StringSlice("didmethods", defs.DIDMethods, "Comma-separated list of DID methods (without did: prefix).")
 	return flagSet
 }
 

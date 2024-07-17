@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
+	"slices"
 	"sync"
 	"time"
 
@@ -66,6 +67,7 @@ var _ didsubject.SubjectManager = (*Module)(nil)
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type Module struct {
+	config              Config
 	store               didnutsStore.Store
 	network             network.Transactions
 	networkAmbassador   didnuts.Ambassador
@@ -104,11 +106,16 @@ func (r *Module) Resolver() resolver.DIDResolver {
 	return r.didResolver
 }
 
+func (r *Module) SupportedMethods() []string {
+	return r.config.DIDMethods
+}
+
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
 	didResolver := &resolver.DIDResolverRouter{}
 	m := &Module{
+		config:          DefaultConfig(),
 		network:         networkClient,
 		eventManager:    eventManager,
 		didResolver:     didResolver,
@@ -126,8 +133,26 @@ func (r *Module) Name() string {
 	return ModuleName
 }
 
+func (r *Module) Config() interface{} {
+	return &r.config
+}
+
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
+	// at least one method should be configured
+	if len(r.config.DIDMethods) == 0 {
+		return errors.New("no DID methods configured")
+	}
+	// check if all configured methods are supported
+	for _, method := range r.config.DIDMethods {
+		switch method {
+		case didnuts.MethodName, didweb.MethodName:
+			continue
+		default:
+			return fmt.Errorf("unsupported DID method: %s", method)
+		}
+	}
+
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 	r.db = r.storageInstance.GetSQLDatabase()
 	r.sqlDIDResolver = didsubject.Resolver{DB: r.db}
@@ -136,11 +161,15 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// did:nuts
 	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, r.db)
 	r.nutsDocumentManager = nutsManager
+	r.methodManagers = map[string]didsubject.MethodManager{}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{
 			newCachingDocumentOwner(DBDocumentOwner{DB: r.db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		},
+	}
+	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
+		r.methodManagers[didnuts.MethodName] = nutsManager
 	}
 
 	// did:web
@@ -153,18 +182,16 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		return err
 	}
 	webManager := didweb.NewManager(*rootDID, "iam", r.keyStore, r.db)
+	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
+		r.methodManagers[didweb.MethodName] = webManager
+	}
+
 	// did:web resolver should first look in own database, then resolve over the web
 	webResolver := resolver.ChainedDIDResolver{
 		Resolvers: []resolver.DIDResolver{
 			r.sqlDIDResolver,
 			didweb.NewResolver(),
 		},
-	}
-
-	// methods
-	r.methodManagers = map[string]didsubject.MethodManager{
-		didnuts.MethodName: nutsManager,
-		didweb.MethodName:  webManager,
 	}
 
 	// Register DID methods we can resolve

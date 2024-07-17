@@ -87,7 +87,6 @@ jobs:
           package: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.PACKAGE_SECRET }}
-          tags: ${{ env.SHA }}
           keep-n-tagged: 3
 
       - name: package cleanup dependabot
@@ -98,5 +97,4 @@ jobs:
           package: nuts-node-ci
           # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
-          tags: ${{ env.SHA }}
           keep-n-tagged: 3
