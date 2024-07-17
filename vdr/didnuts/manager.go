@@ -100,7 +100,7 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := m.keyStore.New(ctx, didKIDNamingFunc)
+	key, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
 	if err != nil {
 		return nil, err
 	}
