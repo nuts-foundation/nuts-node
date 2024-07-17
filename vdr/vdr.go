@@ -123,15 +123,17 @@ func (r *Module) Configure(config core.ServerConfig) error {
 
 	// Methods we can produce from the Nuts node
 	// did:nuts
+	nutsManager := didnuts.NewManager(r.db, r.keyStore, r.network, r.store, r.didResolver,
+		// deprecated
+		didnuts.Creator{
+			KeyStore:      r.keyStore,
+			NetworkClient: r.network,
+			DIDResolver:   r.store,
+		},
+		// deprecated
+		newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver))
 	r.documentManagers = map[string]management.DocumentManager{
-		didnuts.MethodName: didnuts.NewManager(
-			didnuts.Creator{
-				KeyStore:      r.keyStore,
-				NetworkClient: r.network,
-				DIDResolver:   r.store,
-			},
-			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
-		),
+		didnuts.MethodName: nutsManager,
 	}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{

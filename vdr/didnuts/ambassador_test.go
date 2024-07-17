@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
@@ -45,6 +46,65 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+// mockKeyStore creates a single new key
+type mockKeyStore struct {
+	key crypto.Key
+}
+
+// New creates a new valid key with the correct KID
+func (m *mockKeyStore) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
+	if m.key == nil {
+		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		kid, _ := fn(privateKey.Public())
+
+		m.key = &crypto.TestKey{
+			PrivateKey: privateKey,
+			Kid:        kid,
+		}
+	}
+	return m.key, nil
+}
+
+func (m *mockKeyStore) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) EncryptJWE(ctx context.Context, payload []byte, headers map[string]interface{}, publicKey interface{}) (string, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) Exists(ctx context.Context, kid string) (bool, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) Resolve(ctx context.Context, kid string) (crypto.Key, error) {
+	return m.key, nil
+}
+
+func (m *mockKeyStore) List(ctx context.Context) []string {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+	panic("not implemented")
+}
+
+func (m *mockKeyStore) Delete(ctx context.Context, kid string) error {
+	panic("not implemented")
+}
 
 // mockKeyCreator creates a single new key
 type mockKeyCreator struct {
@@ -106,7 +166,7 @@ func (s testTransaction) PayloadType() string {
 	return s.payloadType
 }
 func (s testTransaction) SigningAlgorithm() string {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (s testTransaction) Previous() []hash.SHA256Hash {
@@ -114,11 +174,11 @@ func (s testTransaction) Previous() []hash.SHA256Hash {
 }
 
 func (s testTransaction) Version() dag.Version {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (s testTransaction) MarshalJSON() ([]byte, error) {
-	panic("implement me")
+	panic("not implemented")
 }
 
 func (s testTransaction) Data() []byte {
