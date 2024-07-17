@@ -85,8 +85,8 @@ func KeyFlag(flags management.DIDKeyFlags) management.CreationOption {
 	return keyFlagCreationOption(flags)
 }
 
-// didKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
-func didKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
+// DIDKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
+func DIDKIDNamingFunc(pKey crypto.PublicKey) (string, error) {
 	return getKIDName(pKey, nutsCrypto.Thumbprint)
 }
 
@@ -177,9 +177,9 @@ func (n Creator) create(ctx context.Context, flags management.DIDKeyFlags) (*did
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
 	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := n.KeyStore.New(ctx, didKIDNamingFunc)
+	key, err := n.KeyStore.New(ctx, DIDKIDNamingFunc)
 	// } else {
-	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
+	// 	key, err = nutsCrypto.NewEphemeralKey(DIDKIDNamingFunc)
 	// }
 	if err != nil {
 		return nil, nil, err

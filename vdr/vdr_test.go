@@ -31,16 +31,20 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/sirupsen/logrus"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -61,6 +65,7 @@ type vdrTestCtx struct {
 	mockAmbassador      *didnuts.MockAmbassador
 	ctx                 context.Context
 	mockDocumentManager *management.MockDocumentManager
+	mockDocumentOwner   *management.MockDocumentOwner
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -71,6 +76,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockNetwork := network.NewMockTransactions(ctrl)
 	mockKeyStore := crypto.NewMockKeyStore(ctrl)
 	mockDocumentManager := management.NewMockDocumentManager(ctrl)
+	mockDocumentOwner := management.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
 	vdr := Module{
 		store:             mockStore,
@@ -79,8 +85,9 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		documentManagers: map[string]management.DocumentManager{
 			didnuts.MethodName: mockDocumentManager,
 		},
-		didResolver: resolverRouter,
-		keyStore:    mockKeyStore,
+		documentOwner: mockDocumentOwner,
+		didResolver:   resolverRouter,
+		keyStore:      mockKeyStore,
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
@@ -91,6 +98,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockNetwork:         mockNetwork,
 		mockKeyStore:        mockKeyStore,
 		mockDocumentManager: mockDocumentManager,
+		mockDocumentOwner:   mockDocumentOwner,
 		ctx:                 audit.TestContext(),
 	}
 }
@@ -495,6 +503,128 @@ func TestVDR_Configure(t *testing.T) {
 	})
 }
 
+func TestVDR_Migrate(t *testing.T) {
+	logrus.StandardLogger().Level = logrus.WarnLevel
+	hook := &logTest.Hook{}
+	logrus.StandardLogger().AddHook(hook)
+	documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
+	documentA.AddAssertionMethod(&did.VerificationMethod{ID: TestMethodDIDA})
+	documentB := did.Document{ID: TestDIDB}
+	documentB.AddCapabilityInvocation(&did.VerificationMethod{ID: *TestMethodDIDB})
+	assertLog := func(t *testing.T, expected string) {
+		t.Helper()
+		require.NotNil(t, hook.LastEntry())
+		msg, err := hook.LastEntry().String()
+		require.NoError(t, err)
+		assert.Contains(t, msg, expected)
+	}
+
+	t.Run("ignores self-controlled documents", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{ID: TestDIDA}, nil, nil)
+
+		err := ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		// empty logs means all ok.
+		assert.Nil(t, hook.LastEntry())
+	})
+	t.Run("makes documents self-controlled", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		keyStore := crypto.NewMemoryCryptoInstance()
+		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
+		methodID := did.MustParseDIDURL(key.KID())
+		methodID.ID = TestDIDA.ID
+		vm, _ := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, TestDIDA, key.Public())
+		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
+		documentA.AddAssertionMethod(vm)
+		require.NoError(t, err)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
+		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+		ctx.mockKeyStore.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(key, nil)
+		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(testTransaction{}, nil)
+
+		err = ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		// empty logs means all ok.
+		assert.Nil(t, hook.LastEntry())
+	})
+	t.Run("deactivated is ignored", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
+
+		err := ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		// empty logs means all ok.
+		assert.Nil(t, hook.LastEntry())
+	})
+	t.Run("no active controller is ignored", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, nil, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&did.Document{ID: TestDIDB}, nil, nil)
+
+		err := ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		// empty logs means all ok.
+		assert.Nil(t, hook.LastEntry())
+	})
+	t.Run("error is logged", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, assert.AnError)
+
+		err := ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		assertLog(t, "Could not update owned DID document, continuing with next document")
+		assertLog(t, "assert.AnError general error for testing")
+	})
+	t.Run("no verification method is logged", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{Controller: []did.DID{TestDIDB}}, nil, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil)
+
+		err := ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		assertLog(t, "No verification method found in owned DID document")
+	})
+	t.Run("update error is logged", func(t *testing.T) {
+		t.Cleanup(func() { hook.Reset() })
+		ctx := newVDRTestCtx(t)
+		keyStore := crypto.NewMemoryCryptoInstance()
+		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
+		// TestMethodDIDA is invalid because of thumbprint
+		vm, _ := did.NewVerificationMethod(TestMethodDIDA, ssi.JsonWebKey2020, TestDIDA, key.Public())
+		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
+		documentA.AddAssertionMethod(vm)
+		require.NoError(t, err)
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
+		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+
+		err = ctx.vdr.Migrate()
+
+		require.NoError(t, err)
+		assertLog(t, "Could not update owned DID document, continuing with next document")
+		assertLog(t, "update DID document: invalid verificationMethod: key thumbprint does not match ID")
+	})
+}
+
 func TestModule_Create(t *testing.T) {
 	t.Run("unsupported DID method", func(t *testing.T) {
 		test := newVDRTestCtx(t)
@@ -536,4 +666,68 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
+}
+
+type testTransaction struct {
+	clock        uint32
+	signingKey   jwk.Key
+	signingKeyID string
+	signingTime  time.Time
+	ref          hash.SHA256Hash
+	payloadHash  hash.SHA256Hash
+	payloadType  string
+	prevs        []hash.SHA256Hash
+	pal          [][]byte
+	data         []byte
+}
+
+func (s testTransaction) SigningKey() jwk.Key {
+	return s.signingKey
+}
+
+func (s testTransaction) SigningKeyID() string {
+	return s.signingKeyID
+}
+
+func (s testTransaction) SigningTime() time.Time {
+	return s.signingTime
+}
+
+func (s testTransaction) Ref() hash.SHA256Hash {
+	return s.ref
+}
+
+func (s testTransaction) PAL() [][]byte {
+	return s.pal
+}
+
+func (s testTransaction) PayloadHash() hash.SHA256Hash {
+	return s.payloadHash
+}
+
+func (s testTransaction) PayloadType() string {
+	return s.payloadType
+}
+func (s testTransaction) SigningAlgorithm() string {
+	panic("implement me")
+}
+
+func (s testTransaction) Previous() []hash.SHA256Hash {
+	return s.prevs
+}
+
+func (s testTransaction) Version() dag.Version {
+	panic("implement me")
+}
+
+func (s testTransaction) MarshalJSON() ([]byte, error) {
+	panic("implement me")
+}
+
+func (s testTransaction) Data() []byte {
+	return s.data
+}
+
+func (s testTransaction) Clock() uint32 {
+	return s.clock
 }
