@@ -109,6 +109,7 @@ func (r *Module) SupportedMethods() []string {
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
 	m := &Module{
+		didResolver:     &resolver.DIDResolverRouter{},
 		network:         networkClient,
 		eventManager:    eventManager,
 		store:           didStore,
@@ -148,10 +149,8 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	db := r.storageInstance.GetSQLDatabase()
 	methodManagers := map[string]didsubject.MethodManager{}
 
-	didResolver := &resolver.DIDResolverRouter{}
-	didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
-	didResolver.Register(didkey.MethodName, didkey.NewResolver())
-	r.didResolver = didResolver
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 
@@ -168,7 +167,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	}
 	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
 		methodManagers[didnuts.MethodName] = nutsManager
-		didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
+		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	}
 
 	// did:web
@@ -190,7 +189,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	}
 	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
 		methodManagers[didweb.MethodName] = webManager
-		didResolver.Register(didweb.MethodName, webResolver)
+		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
 	r.Manager = didsubject.Manager{DB: db, MethodManagers: methodManagers}
