@@ -365,7 +365,7 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 		return err
 	}
 
-	// Call OnEvent for all managers on the created docs
+	// Call commit for all managers on the created docs
 	var errManager error
 	for method, manager := range r.MethodManagers {
 		errManager = manager.Commit(ctx, changes[method])
@@ -383,6 +383,15 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&DIDDocument{}).Error; err != nil {
 					return err
 				}
+			}
+		} else {
+			// delete all changes
+			for _, change := range changes {
+				if err := tx.Where("transaction_id = ?", change.TransactionID).Delete(&DIDChangeLog{}).Error; err != nil {
+					return err
+				}
+				// once is enough
+				break
 			}
 		}
 		return nil
@@ -461,7 +470,8 @@ func (r *Manager) Rollback(ctx context.Context) {
 		changes := make([]DIDChangeLog, 0)
 		groupedChanges := make(map[string][]DIDChangeLog)
 		// find all DIDChangeLog inner join with DIDDocumentVersion where document.updated_at < now - 1 minute
-		err := tx.Preload("DIDDocumentVersion").Preload("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("DIDDocumentVersion.updated_at < ?", updatedAt)).Find(&changes).Error
+		// note: any changes to this query needs to manually be tested in all supported DBs
+		err := tx.Preload("DIDDocumentVersion").Preload("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("updated_at < ?", updatedAt)).Find(&changes).Error
 		if err != nil {
 			return err
 		}

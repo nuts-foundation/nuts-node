@@ -49,6 +49,14 @@ func TestManager_Create(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, documents, 1)
+
+		t.Run("check for empty did_change_log", func(t *testing.T) {
+			didChangeLog := make([]DIDChangeLog, 0)
+
+			require.NoError(t, db.Find(&didChangeLog).Error)
+
+			assert.Len(t, didChangeLog, 0)
+		})
 	})
 	t.Run("multiple methods", func(t *testing.T) {
 		db := testDB(t)
