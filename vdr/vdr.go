@@ -115,7 +115,6 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
 	didResolver := &resolver.DIDResolverRouter{}
 	m := &Module{
-		config:          DefaultConfig(),
 		network:         networkClient,
 		eventManager:    eventManager,
 		didResolver:     didResolver,

@@ -45,7 +45,7 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultConfig()
 
-	flagSet.StringSlice("didmethods", defs.DIDMethods, "Comma-separated list of DID methods (without did: prefix).")
+	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix).")
 	return flagSet
 }
 
@@ -92,18 +92,18 @@ func createCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			var (
-				doc *did.Document
-				err error
+				oneOrMoreDoc interface{}
+				err          error
 			)
 			if useV2 {
-				doc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
+				oneOrMoreDoc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
 			} else {
-				doc, err = httpClient(clientConfig).Create(createRequest)
+				oneOrMoreDoc, err = httpClient(clientConfig).Create(createRequest)
 			}
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
-			bytes, _ := json.MarshalIndent(doc, "", "  ")
+			bytes, _ := json.MarshalIndent(oneOrMoreDoc, "", "  ")
 			cmd.Println(string(bytes))
 			return nil
 		},

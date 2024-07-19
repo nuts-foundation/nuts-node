@@ -21,9 +21,6 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -46,7 +43,7 @@ func (hb HTTPClient) client() ClientInterface {
 
 // Create calls the server and creates a new DID Document
 // It does not parse a custom id but depends on the server to generate one
-func (hb HTTPClient) Create(options CreateDIDOptions) (*did.Document, error) {
+func (hb HTTPClient) Create(options CreateDIDOptions) ([]did.Document, error) {
 	ctx := context.Background()
 
 	if response, err := hb.client().CreateDID(ctx, options); err != nil {
@@ -54,18 +51,10 @@ func (hb HTTPClient) Create(options CreateDIDOptions) (*did.Document, error) {
 	} else if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return nil, err
 	} else {
-		return readDIDDocument(response.Body)
+		createDIDResponse, err := ParseCreateDIDResponse(response)
+		if err != nil {
+			return nil, err
+		}
+		return createDIDResponse.JSON200.Documents, nil
 	}
-}
-
-func readDIDDocument(reader io.Reader) (*did.Document, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read DID Document response: %w", err)
-	}
-	document := did.Document{}
-	if err = json.Unmarshal(data, &document); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal DID Document response: %w, %s", err, string(data))
-	}
-	return &document, nil
 }

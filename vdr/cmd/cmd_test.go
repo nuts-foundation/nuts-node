@@ -24,6 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	v2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -99,8 +100,9 @@ func TestEngine_Command(t *testing.T) {
 		t.Run("ok - v2", func(t *testing.T) {
 			cmd := newCmdWithServer(t, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				assert.Equal(t, "/internal/vdr/v2/subject", request.URL.Path)
+				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
-				bytes, _ := json.Marshal(exampleDIDDocument)
+				bytes, _ := json.Marshal(v2.CreateDID200JSONResponse{Documents: []did.Document{exampleDIDDocument}})
 				_, _ = writer.Write(bytes)
 			}))
 			cmd.SetArgs([]string{"create-did", "--v2"})
@@ -108,8 +110,8 @@ func TestEngine_Command(t *testing.T) {
 
 			err := cmd.Execute()
 			require.NoError(t, err)
-			document := did.Document{}
-			err = json.Unmarshal(buf.Bytes(), &document)
+			documents := make([]did.Document, 0)
+			err = json.Unmarshal(buf.Bytes(), &documents)
 			assert.Empty(t, errBuf.Bytes())
 			assert.NoError(t, err)
 		})
