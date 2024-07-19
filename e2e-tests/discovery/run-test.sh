@@ -21,7 +21,7 @@ echo "------------------------------------"
 echo "Registering care organization..."
 echo "------------------------------------"
 DIDDOC=$(docker compose exec nodeB-backend nuts vdr create-did --v2)
-DID=$(echo $DIDDOC | jq -r .id)
+DID=$(echo $DIDDOC | jq -r .[0].id)
 echo DID: $DID
 
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${DID}\", \"credentialSubject\": {\"id\":\"${DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": false}"
