@@ -27,11 +27,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -42,6 +37,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -55,6 +51,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -71,7 +70,7 @@ type networkTestContext struct {
 	keyStorage        spi.Storage
 	keyResolver       *resolver.MockKeyResolver
 	protocol          *transport.MockProtocol
-	docFinder         *management.MockDocFinder
+	docFinder         *resolver.MockDocFinder
 	eventPublisher    *events.MockEvent
 	pkiValidator      *pki.MockValidator
 }
@@ -1118,7 +1117,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 
 				// Use actual test instance because the unit test's createNetwork mocks too much for us
 				network := NewTestNetworkInstance(t)
-				docFinder := management.NewMockDocFinder(ctrl)
+				docFinder := resolver.NewMockDocFinder(ctrl)
 				network.didDocumentFinder = docFinder
 				network.config.EnableDiscovery = true
 
@@ -1143,7 +1142,7 @@ func Test_connectToKnownNodes(t *testing.T) {
 
 		// Use actual test instance because the unit test's createNetwork mocks too much for us
 		network := NewTestNetworkInstance(t)
-		docFinder := management.NewMockDocFinder(ctrl)
+		docFinder := resolver.NewMockDocFinder(ctrl)
 		network.didDocumentFinder = docFinder
 		network.config.EnableDiscovery = true
 		connectionManager := transport.NewMockConnectionManager(ctrl)
@@ -1356,7 +1355,7 @@ func createNetwork(t *testing.T, ctrl *gomock.Controller, cfgFn ...func(config *
 	keyStorage := crypto.NewMemoryStorage()
 	keyStore := crypto.NewTestCryptoInstance(keyStorage)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
-	docFinder := management.NewMockDocFinder(ctrl)
+	docFinder := resolver.NewMockDocFinder(ctrl)
 	didStore := didstore.NewMockStore(ctrl)
 	eventPublisher := events.NewMockEvent(ctrl)
 	storageEngine := storage.NewTestStorageEngine(t)

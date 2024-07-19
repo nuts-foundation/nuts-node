@@ -1,0 +1,505 @@
+/*
+ * Copyright (C) 2024 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package didsubject
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
+	"github.com/mr-tron/base58"
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"gorm.io/gorm"
+	"time"
+)
+
+type Manager struct {
+	DB             *gorm.DB
+	MethodManagers map[string]MethodManager
+}
+
+func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	dids, err := sqlDIDManager.FindBySubject(subject)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]did.DID, len(dids))
+	for i, sqlDID := range dids {
+		id, err := did.ParseDID(sqlDID.ID)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = *id
+	}
+	return result, nil
+}
+
+// Create generates new DID Documents
+func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error) {
+	log.Logger().Debug("Creating new DID Documents.")
+
+	// defaults
+	keyFlags := AssertionKeyUsage()
+	subject := uuid.New().String()
+
+	// apply options
+	for _, option := range options.All() {
+		switch opt := option.(type) {
+		case SubjectCreationOption:
+			subject = opt.Subject
+		case EncryptionKeyCreationOption:
+			keyFlags = keyFlags | EncryptionKeyUsage()
+		default:
+			return nil, "", fmt.Errorf("unknown option: %T", option)
+		}
+	}
+
+	sqlDocs := make(map[string]DIDDocument)
+	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
+		// check existence
+		sqlDIDManager := NewDIDManager(tx)
+		exists, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return nil, err
+		}
+		if len(exists) > 0 {
+			return nil, ErrDIDAlreadyExists
+		}
+
+		// call generate on all managers
+		for method, manager := range r.MethodManagers {
+			sqlDoc, err := manager.NewDocument(ctx, keyFlags)
+			if err != nil {
+				return nil, fmt.Errorf("could not generate DID document (method %s): %w", method, err)
+			}
+			sqlDocs[method] = *sqlDoc
+		}
+
+		alsoKnownAs := make([]DID, 0)
+		for _, sqlDoc := range sqlDocs {
+			alsoKnownAs = append(alsoKnownAs, sqlDoc.DID)
+		}
+
+		// then store all docs in the sql db with matching events
+		changes := make(map[string]DIDChangeLog)
+		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
+		transactionId := uuid.New().String()
+		for method, sqlDoc := range sqlDocs {
+			// overwrite sql.DID from returned document because we have the subject and alsoKnownAs here
+			sqlDID := DID{
+				ID:      sqlDoc.DID.ID,
+				Subject: subject,
+				Aka:     alsoKnownAs,
+			}
+			createdDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, sqlDoc.VerificationMethods, nil)
+			if err != nil {
+				return nil, err
+			}
+			sqlDocs[method] = *createdDoc
+			changes[method] = DIDChangeLog{
+				DIDDocumentVersionID: createdDoc.ID,
+				Type:                 DIDChangeCreated,
+				TransactionID:        transactionId,
+				DIDDocumentVersion:   *createdDoc,
+			}
+		}
+		return changes, nil
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("could not store DID documents: %w", err)
+	}
+
+	docs := make([]did.Document, 0)
+	for _, sqlDoc := range sqlDocs {
+		doc, err := sqlDoc.ToDIDDocument()
+		if err != nil {
+			return nil, subject, err
+		}
+		docs = append(docs, doc)
+	}
+	return docs, subject, nil
+}
+
+func (r *Manager) Deactivate(ctx context.Context, subject string) error {
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Debug("Deactivating DID Documents")
+
+	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
+		changes := make(map[string]DIDChangeLog)
+		sqlDIDManager := NewDIDManager(tx)
+		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return changes, err
+		}
+		if len(dids) == 0 {
+			return nil, resolver.ErrNotFound
+		}
+		transactionID := uuid.New().String()
+		for _, sqlDID := range dids {
+			sqlDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, nil, nil)
+			if err != nil {
+				return changes, err
+			}
+			id, _ := did.ParseDID(sqlDID.ID)
+			changes[id.Method] = DIDChangeLog{
+				DIDDocumentVersionID: sqlDoc.ID,
+				Type:                 DIDChangeDeactivated,
+				TransactionID:        transactionID,
+				DIDDocumentVersion:   *sqlDoc,
+			}
+		}
+		return changes, nil
+	})
+	if err != nil {
+		return fmt.Errorf("could not deactivate DID documents: %w", err)
+	}
+
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Info("DID Documents deactivated")
+	return nil
+}
+
+// CreateService creates a new service in the DID document identified by subjectDID.
+func (r *Manager) CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error) {
+	services := make([]did.Service, 0)
+
+	serviceIDFragment := NewIDForService(service)
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+		// use a generated ID where the fragment equals the hash of the service
+		service.ID = id.URI()
+		service.ID.Fragment = serviceIDFragment
+		// return values
+		services = append(services, service)
+		// check if service already exists
+		for _, s := range current.Services {
+			sID, _ := ssi.ParseURI(s.ID)
+			if sID.Fragment == serviceIDFragment {
+				return nil, nil
+			}
+		}
+		asJson, err := json.Marshal(service)
+		if err != nil {
+			return nil, err
+		}
+		sqlService := SqlService{
+			ID:            service.ID.String(),
+			DIDDocumentID: current.DidID,
+			Data:          asJson,
+		}
+		current.Services = append(current.Services, sqlService)
+
+		return current, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not add service to DID Documents: %w", err)
+	}
+
+	return services, nil
+}
+
+func (r *Manager) FindServices(_ context.Context, subject string, serviceType *string) ([]did.Service, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	dids, err := sqlDIDManager.FindBySubject(subject)
+	if err != nil {
+		return nil, err
+	}
+	services := make([]did.Service, 0)
+	// for detecting duplicates
+	serviceMap := make(map[string]struct{})
+	for _, sqlDID := range dids {
+		id, _ := did.ParseDID(sqlDID.ID)
+		current, err := NewDIDDocumentManager(r.DB).Latest(*id, nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, service := range current.Services {
+			if _, ok := serviceMap[service.ID]; ok {
+				continue
+			}
+			serviceMap[service.ID] = struct{}{}
+			var s did.Service
+			err := json.Unmarshal(service.Data, &s)
+			if err != nil {
+				return nil, err
+			}
+			if serviceType != nil && s.Type == *serviceType {
+				services = append(services, s)
+			}
+		}
+	}
+	return services, nil
+}
+
+// DeleteService removes a service from the DID document identified by subjectDID.
+func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+		j := 0
+		for i, s := range current.Services {
+			sID, _ := ssi.ParseURI(s.ID)
+			if sID.Fragment == serviceID.Fragment {
+				continue
+			}
+			current.Services[j] = current.Services[i]
+			j++
+		}
+		current.Services = current.Services[:j]
+		return current, nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("could not delete service from DID Documents: %w", err)
+	}
+	return nil
+}
+
+func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID ssi.URI, service did.Service) ([]did.Service, error) {
+	services := make([]did.Service, 0)
+
+	// use a generated ID where the fragment equals the hash of the service
+	serviceIDFragment := NewIDForService(service)
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+		j := 0
+		for i, s := range current.Services {
+			sID, _ := ssi.ParseURI(s.ID)
+			if sID.Fragment == serviceID.Fragment {
+				continue
+			}
+			current.Services[j] = current.Services[i]
+			j++
+		}
+		current.Services = current.Services[:j]
+
+		service.ID = id.URI()
+		service.ID.Fragment = serviceIDFragment
+		services = append(services, service)
+		asJson, err := json.Marshal(service)
+		if err != nil {
+			return nil, err
+		}
+		sqlService := SqlService{
+			ID:            service.ID.String(),
+			DIDDocumentID: current.DidID,
+			Data:          asJson,
+		}
+		current.Services = append(current.Services, sqlService)
+		return current, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not update service for DID Documents: %w", err)
+	}
+	return services, nil
+}
+
+func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, keyUsage DIDKeyFlags) ([]did.VerificationMethod, error) {
+	log.Logger().Debug("Creating new VerificationMethods.")
+
+	verificationMethods := make([]did.VerificationMethod, 0)
+
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(ctx, id, keyUsage)
+		if err != nil {
+			return nil, err
+		}
+		verificationMethods = append(verificationMethods, *vm)
+		data, _ := json.Marshal(*vm)
+		sqlMethod := VerificationMethod{
+			ID:       vm.ID.String(),
+			KeyTypes: VerificationMethodKeyType(keyUsage),
+			Data:     data,
+		}
+		current.VerificationMethods = append(current.VerificationMethods, sqlMethod)
+		return current, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("could not update DID documents: %w", err)
+	}
+	return verificationMethods, nil
+}
+
+// transactionHelper is a helper function that starts a transaction, performs an operation, and emits an event.
+func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]DIDChangeLog, error)) error {
+	var changes map[string]DIDChangeLog
+	if err := r.DB.Transaction(func(tx *gorm.DB) error {
+		var operationErr error
+		// Perform the operation within the transaction.
+		changes, operationErr = operation(tx)
+		if operationErr != nil {
+			return operationErr
+		}
+
+		// Save all events
+		for _, e := range changes {
+			operationErr = tx.Save(&e).Error
+			if operationErr != nil {
+				return operationErr
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	// Call OnEvent for all managers on the created docs
+	var errManager error
+	for method, manager := range r.MethodManagers {
+		errManager = manager.Commit(ctx, changes[method])
+		if errManager != nil {
+			break
+		}
+	}
+
+	// in case of a DB failure, rollback/cleanup will be performed by the rollback loop.
+	err := r.DB.Transaction(func(tx *gorm.DB) error {
+		if errManager != nil {
+			// Delete the DID Document versions
+			for _, change := range changes {
+				// will also remove changelog via cascade
+				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&DIDDocument{}).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	// give priority to the DB error (critical)
+	if err != nil {
+		return err
+	}
+	// then functional error
+	return errManager
+}
+
+// applyToDIDDocuments is a helper function that applies an operation to all DID documents of a subject (1 per did method).
+// It uses transactionHelper to perform the operation in a transaction.
+// if the operation returns nil then no changes are made.
+func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error)) error {
+	return r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
+		eventLog := make(map[string]DIDChangeLog)
+		sqlDIDManager := NewDIDManager(tx)
+		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
+		dids, err := sqlDIDManager.FindBySubject(subject)
+		if err != nil {
+			return nil, err
+		}
+		transactionID := uuid.New().String()
+		for _, sqlDID := range dids {
+			id, err := did.ParseDID(sqlDID.ID)
+			if err != nil {
+				return nil, err
+			}
+			current, err := sqlDIDDocumentManager.Latest(*id, nil)
+			if err != nil {
+				return nil, err
+			}
+			next, err := operation(tx, *id, current)
+			if err != nil {
+				return nil, err
+			}
+			if next != nil {
+				next, err = sqlDIDDocumentManager.CreateOrUpdate(current.DID, next.VerificationMethods, next.Services)
+				if err != nil {
+					return nil, err
+				}
+				eventLog[id.Method] = DIDChangeLog{
+					DIDDocumentVersionID: next.ID,
+					Type:                 DIDChangeUpdated,
+					TransactionID:        transactionID,
+					DIDDocumentVersion:   *next,
+				}
+			}
+		}
+		return eventLog, nil
+	})
+}
+
+// NewIDForService generates a unique ID for a service based on the service data.
+// This is compatible with all DID methods.
+func NewIDForService(service did.Service) string {
+	bytes, _ := json.Marshal(service)
+	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
+	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
+	var raw map[string]interface{}
+	_ = json.Unmarshal(bytes, &raw)
+	bytes, _ = json.Marshal(raw)
+	shaBytes := sha256.Sum256(bytes)
+	return base58.EncodeAlphabet(shaBytes[:], base58.BTCAlphabet)
+}
+
+// Rollback queries the did_change_log table for all changes that are older than 1 minute.
+// Any entry that's still there is considered not committed and will be rolled back.
+// All DID Document versions that are part of the same transaction_id will be deleted.
+// This works because did:web is always committed and did:nuts might not be. So the DB state actually only depends on the result of the did:nuts network operation result.
+func (r *Manager) Rollback(ctx context.Context) {
+	updatedAt := time.Now().Add(-time.Minute).Unix()
+	err := r.DB.Transaction(func(tx *gorm.DB) error {
+		changes := make([]DIDChangeLog, 0)
+		groupedChanges := make(map[string][]DIDChangeLog)
+		// find all DIDChangeLog inner join with DIDDocumentVersion where document.updated_at < now - 1 minute
+		err := tx.Preload("DIDDocumentVersion").Preload("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("DIDDocumentVersion.updated_at < ?", updatedAt)).Find(&changes).Error
+		if err != nil {
+			return err
+		}
+		// group on transaction_id
+		for _, change := range changes {
+			groupedChanges[change.TransactionID] = append(groupedChanges[change.TransactionID], change)
+		}
+		// check per transaction_id if all are committed
+		for transactionID, versionChanges := range groupedChanges {
+			committed := true
+			for _, change := range versionChanges {
+				committed, err = r.MethodManagers[change.Method()].IsCommitted(ctx, change)
+				if err != nil {
+					return err
+				}
+				if !committed {
+					break
+				}
+			}
+			// if one failed, delete all document versions for this transaction_id
+			if !committed {
+				for _, change := range versionChanges {
+					err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&DIDDocument{}).Error
+					if err != nil {
+						return err
+					}
+				}
+			}
+			// delete all changes, also done via cascading in case of !committed, but less code this way
+			err = tx.Where("transaction_id = ?", transactionID).Delete(&DIDChangeLog{}).Error
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Logger().WithError(err).Error("failed to rollback DID documents")
+	}
+}

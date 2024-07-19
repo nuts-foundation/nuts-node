@@ -66,7 +66,7 @@ paths:
     post:
       summary: Creates new DID Documents for a subject.
       description: |
-        New DIDs and DID Documents are created.
+        New DIDs and DID Documents are created. It'll only create new DID Documents for enabled DID methods.
         Each method generates keys and identifiers according to their own specification.
 
         error returns:
@@ -143,7 +143,7 @@ paths:
     parameters:
       - name: id
         in: path
-        description: DID subject.
+        description: URL encoded subject.
         required: true
         content:
           plain/text:
@@ -154,10 +154,11 @@ paths:
       summary: Adds a service to DID documents of a subject.
       description: |
         It adds the given service to the DID Documents of a subject. The ID is always generated.
+        Duplicate services are ignored.
 
         error returns:
         * 400 - Returned in case of malformed DID or service
-        * 404 - Corresponding DID document could not be found
+        * 404 - If the subject has no DIDs
         * 500 - An error occurred while processing the request
       operationId: createService
       tags:
@@ -171,7 +172,7 @@ paths:
               $ref: '#/components/schemas/Service'
       responses:
         "200":
-          description: "New service has been added successfully. Returns the service."
+          description: "New service has been added successfully. Returns a service per DID Document."
           content:
             application/json:
               schema:
@@ -269,7 +270,7 @@ paths:
     parameters:
       - name: id
         in: path
-        description:  DID Subject.
+        description: URL encoded Subject.
         required: true
         content:
           plain/text:
@@ -280,11 +281,13 @@ paths:
         in: path
         description: URL encoded ID identifying the service.
         required: true
+        content:
+          plain/text:
+            schema:
+              type: string
         example:
           - "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
           - "#3106f751-59e3-440f-b57b-39a96a2da6c6"
-        schema:
-          type: string
     delete:
       summary: Delete a specific service
       description: |
@@ -336,7 +339,7 @@ paths:
     parameters:
       - name: id
         in: path
-        description: DID Subject.
+        description: URL encoded subject.
         required: true
         content:
           plain/text:
@@ -411,14 +414,15 @@ components:
     KeyCreationOptions:
       type: object
       description: Options for the key creation.
+      required:
+        - assertionKey
+        - encryptionKey
       properties:
         assertionKey:
           type: boolean
-          default: true
           description: If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
         encryptionKey:
           type: boolean
-          default: false
           description: If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
     CreateDIDOptions:
       type: object

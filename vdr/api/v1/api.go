@@ -52,7 +52,6 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrDeactivated:             http.StatusConflict,
 		resolver.ErrNoActiveController:      http.StatusConflict,
 		resolver.ErrDuplicateService:        http.StatusBadRequest,
-		didnuts.ErrInvalidOptions:           http.StatusBadRequest,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 	})
 }

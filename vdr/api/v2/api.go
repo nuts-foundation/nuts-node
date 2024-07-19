@@ -75,7 +75,7 @@ func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 		options = options.With(didsubject.SubjectCreationOption{Subject: *request.Body.Subject})
 	}
 	if request.Body.Keys != nil {
-		if request.Body.Keys.EncryptionKey != nil && *request.Body.Keys.EncryptionKey {
+		if request.Body.Keys.EncryptionKey {
 			options = options.With(didsubject.EncryptionKeyCreationOption{})
 		}
 	}
@@ -209,10 +209,10 @@ func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceReques
 func (w *Wrapper) AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
 	subject := request.Id
 	keyUsage := didsubject.AssertionKeyUsage()
-	if request.Body.EncryptionKey != nil && *request.Body.EncryptionKey {
+	if request.Body.EncryptionKey {
 		keyUsage ^= didsubject.EncryptionKeyUsage()
 	}
-	if request.Body.AssertionKey != nil && !*request.Body.AssertionKey {
+	if request.Body.AssertionKey {
 		keyUsage ^= didsubject.AssertionKeyUsage()
 	}
 	if keyUsage == 0 {

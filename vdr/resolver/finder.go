@@ -16,11 +16,10 @@
  *
  */
 
-package management
+package resolver
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 	"time"
 )
@@ -33,11 +32,11 @@ type DocFinder interface {
 // Predicate is an interface for abstracting search options on DID documents
 type Predicate interface {
 	// Match returns true if the given DID Document passes the predicate condition
-	Match(did.Document, resolver.DocumentMetadata) bool
+	Match(did.Document, DocumentMetadata) bool
 }
 
 // DocIterator is the function type for iterating over the all current DID Documents in the store
-type DocIterator func(doc did.Document, metadata resolver.DocumentMetadata) error
+type DocIterator func(doc did.Document, metadata DocumentMetadata) error
 
 // ByServiceType returns a predicate that matches on service type
 // it only matches on DID Documents with a concrete endpoint (not starting with "did")
@@ -49,7 +48,7 @@ type servicePredicate struct {
 	serviceType string
 }
 
-func (s servicePredicate) Match(document did.Document, _ resolver.DocumentMetadata) bool {
+func (s servicePredicate) Match(document did.Document, _ DocumentMetadata) bool {
 	for _, service := range document.Service {
 		if service.Type == s.serviceType {
 			var nutsCommStr string
@@ -70,7 +69,7 @@ type validAtPredicate struct {
 	validAt time.Time
 }
 
-func (v validAtPredicate) Match(_ did.Document, metadata resolver.DocumentMetadata) bool {
+func (v validAtPredicate) Match(_ did.Document, metadata DocumentMetadata) bool {
 	if v.validAt.Before(metadata.Created) {
 		return false
 	}
@@ -93,6 +92,6 @@ type deactivatedPredicate struct {
 	deactivated bool
 }
 
-func (d deactivatedPredicate) Match(_ did.Document, metadata resolver.DocumentMetadata) bool {
+func (d deactivatedPredicate) Match(_ did.Document, metadata DocumentMetadata) bool {
 	return d.deactivated == metadata.Deactivated
 }

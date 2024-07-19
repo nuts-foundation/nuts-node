@@ -26,25 +26,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/sirupsen/logrus"
-	logTest "github.com/sirupsen/logrus/hooks/test"
-	"io"
-	"net/http"
-	"net/url"
-	"slices"
-	"strings"
-	"testing"
-	"time"
-
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -52,12 +38,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/sirupsen/logrus"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"gorm.io/gorm"
+	"io"
+	"net/http"
+	"strings"
+	"testing"
 )
 
 // testCtx contains the controller and mocks needed fot testing the Manipulator
@@ -88,7 +78,10 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	vdr.nutsDocumentManager = mockDocumentManager
 	vdr.documentOwner = mockDocumentOwner
 	vdr.didResolver = resolverRouter
-	vdr.db = testDB(t)
+	vdr.Manager = didsubject.Manager{
+		DB:             testDB(t),
+		MethodManagers: make(map[string]didsubject.MethodManager),
+	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
@@ -210,9 +203,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions().
-				With(didnuts.KeyFlag(didsubject.AssertionMethodUsage|didsubject.KeyAgreementUsage)),
-			)
+			didDocOrg, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			client := nutsCrypto.NewMemoryCryptoInstance()
@@ -452,416 +443,8 @@ func TestVDR_Migrate(t *testing.T) {
 	})
 }
 
-func TestModule_Create(t *testing.T) {
-	testKeyStore := nutsCrypto.NewMemoryCryptoInstance()
-	rootdid := did.MustParseDID("did:web:example.com")
-
-	t.Run("assert build DID document", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		}}
-
-		documents, _, err := m.Create(audit.TestContext(), didsubject.DefaultCreationOptions())
-
-		require.NoError(t, err)
-		require.Len(t, documents, 1)
-		document := documents[0]
-		assert.Len(t, document.VerificationMethod, 1)
-		assert.Len(t, document.Authentication, 1)
-		assert.Len(t, document.CapabilityInvocation, 1)
-		assert.Len(t, document.AssertionMethod, 1)
-		assert.Len(t, document.KeyAgreement, 0)
-	})
-	t.Run("without options", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-			"test":            didweb.NewManager(rootdid, "iam_also", testKeyStore, db), // because we want to test multiple methods
-		}}
-
-		documents, _, err := m.Create(audit.TestContext(), didsubject.DefaultCreationOptions())
-		require.NoError(t, err)
-		require.Len(t, documents, 2)
-		IDs := make([]string, 2)
-		for i, document := range documents {
-			IDs[i] = document.ID.String()
-		}
-		slices.Sort(IDs)
-		assert.True(t, strings.HasPrefix(IDs[0], "did:web:example.com:iam:"))
-		assert.True(t, strings.HasPrefix(IDs[1], "did:web:example.com:iam_also"))
-
-		// test alsoKnownAs requirements
-		document := documents[0]
-		assert.Len(t, document.AlsoKnownAs, 1)
-	})
-	t.Run("with unknown option", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		}}
-
-		_, _, err := m.Create(audit.TestContext(), didsubject.DefaultCreationOptions().With(""))
-
-		require.EqualError(t, err, "unknown option: string")
-	})
-	t.Run("already exists", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		}}
-		opts := didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: "subject"})
-		_, _, err := m.Create(audit.TestContext(), opts)
-		require.NoError(t, err)
-
-		_, _, err = m.Create(audit.TestContext(), opts)
-
-		require.ErrorIs(t, err, didsubject.ErrDIDAlreadyExists)
-	})
-}
-
-func TestVDR_Services(t *testing.T) {
-	testKeyStore := nutsCrypto.NewMemoryCryptoInstance()
-	rootdid := did.MustParseDID("did:web:example.com")
-	db := testDB(t)
-	m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-		didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-	}}
-	subject := "subject"
-	opts := didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject})
-	documents, _, err := m.Create(audit.TestContext(), opts)
-
-	require.NoError(t, err)
-	require.Len(t, documents, 1)
-	document := documents[0]
-
-	t.Run("create", func(t *testing.T) {
-		service := did.Service{Type: "test", ServiceEndpoint: "https://example.com"}
-
-		services, err := m.CreateService(audit.TestContext(), subject, service)
-
-		require.NoError(t, err)
-		require.Len(t, services, 1)
-		serviceID := services[0].ID
-		assert.True(t, strings.HasPrefix(serviceID.String(), document.ID.String()))
-		assert.Equal(t, "4zQgDc15kLf9pXbAUSeus7ERTC8UBeqDrBSys1S89why", serviceID.Fragment)
-		t.Run("update", func(t *testing.T) {
-			services, err := m.FindServices(audit.TestContext(), subject, to.Ptr("test"))
-			require.Len(t, services, 1)
-
-			services, err = m.UpdateService(audit.TestContext(), subject, serviceID, service)
-
-			require.NoError(t, err)
-			require.Len(t, services, 1)
-			assert.NotEqual(t, "", services[0].ID.String())
-			services, err = m.FindServices(audit.TestContext(), subject, to.Ptr("test"))
-			require.Len(t, services, 1)
-		})
-		t.Run("delete", func(t *testing.T) {
-			services, err := m.FindServices(audit.TestContext(), subject, to.Ptr("test"))
-			require.Len(t, services, 1)
-
-			err = m.DeleteService(audit.TestContext(), subject, services[0].ID)
-
-			require.NoError(t, err)
-			services, err = m.FindServices(audit.TestContext(), subject, to.Ptr("test"))
-			require.Len(t, services, 0)
-		})
-	})
-}
-
-func TestVDR_AddVerificationMethod(t *testing.T) {
-	testKeyStore := nutsCrypto.NewMemoryCryptoInstance()
-	rootdid := did.MustParseDID("did:web:example.com")
-	db := testDB(t)
-	m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-		didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		"test":            didweb.NewManager(rootdid, "iam_also", testKeyStore, db), // because we want to test multiple methods
-	}}
-	subject := "subject"
-	opts := didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject})
-	documents, _, err := m.Create(audit.TestContext(), opts)
-
-	require.NoError(t, err)
-	require.Len(t, documents, 2)
-	document := documents[0]
-
-	t.Run("ok", func(t *testing.T) {
-		vms, err := m.AddVerificationMethod(audit.TestContext(), subject, didsubject.AssertionKeyUsage())
-
-		require.NoError(t, err)
-		require.Len(t, vms, 2)
-		t.Run("update keeps alsoKnownAs", func(t *testing.T) {
-			sqlDocumentManager := didsubject.NewDIDDocumentManager(db)
-
-			latest, err := sqlDocumentManager.Latest(did.MustParseDID(document.ID.String()), nil)
-			require.NoError(t, err)
-			didDocument, err := latest.ToDIDDocument()
-
-			require.NoError(t, err)
-			assert.Len(t, didDocument.AlsoKnownAs, 1)
-		})
-	})
-}
-
-func TestVDR_Deactivate(t *testing.T) {
-	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
-	ctx := audit.TestContext()
-	rootdid := did.MustParseDID("did:web:example.com")
-	testKeyStore := nutsCrypto.NewMemoryCryptoInstance()
-
-	t.Run("not found", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		}}
-
-		err := m.Deactivate(ctx, "subject")
-		require.ErrorIs(t, err, resolver.ErrNotFound)
-	})
-	t.Run("ok", func(t *testing.T) {
-		db := testDB(t)
-		m := Module{db: db, didResolver: didsubject.Resolver{DB: db}, methodManagers: map[string]didsubject.MethodManager{
-			didweb.MethodName: didweb.NewManager(rootdid, "iam", testKeyStore, db),
-		}}
-		documents, subject, err := m.Create(ctx, didsubject.DefaultCreationOptions())
-		require.NoError(t, err)
-		require.Len(t, documents, 1)
-		document := documents[0]
-
-		// Sanity check for assertion after deactivation, check that we can find the private key
-		exists, err := testKeyStore.Exists(ctx, documents[0].VerificationMethod[0].ID.String())
-		require.NoError(t, err)
-		require.True(t, exists)
-
-		err = m.Deactivate(ctx, subject)
-		require.NoError(t, err)
-
-		_, _, err = m.Resolve(document.ID, nil)
-
-		assert.Equal(t, err, resolver.ErrDeactivated)
-	})
-}
-
-func TestModule_rollback(t *testing.T) {
-	didId := didsubject.DID{
-		ID:      "did:example:123",
-		Subject: "subject",
-	}
-	didDocument := didsubject.DIDDocument{
-		ID:        "1",
-		DidID:     "did:example:123",
-		UpdatedAt: time.Now().Add(-time.Hour).Unix(),
-	}
-	didChangeLog := didsubject.DIDChangeLog{
-		DIDDocumentVersionID: "1",
-		Type:                 "created",
-		TransactionID:        "2",
-	}
-	saveExamples := func(t *testing.T, db *gorm.DB) {
-		require.NoError(t, db.Save(&didId).Error)
-		require.NoError(t, db.Save(&didDocument).Error)
-		require.NoError(t, db.Save(&didChangeLog).Error)
-	}
-
-	t.Run("uncommited results in rollback", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.vdr.methodManagers = map[string]didsubject.MethodManager{
-			"example": testMethod{},
-		}
-		db := ctx.vdr.db
-		saveExamples(t, db)
-
-		ctx.vdr.rollback(ctx.ctx)
-
-		// check removal of DIDChangeLog
-		didChangeLog := make([]didsubject.DIDChangeLog, 0)
-		require.NoError(t, db.Find(&didChangeLog).Error)
-		assert.Len(t, didChangeLog, 0)
-
-		// check removal of  DIDDocument
-		didDocuments := make([]didsubject.DIDDocument, 0)
-		require.NoError(t, db.Find(&didDocuments).Error)
-		assert.Len(t, didDocuments, 0)
-	})
-	t.Run("IsCommitted returns error", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.vdr.methodManagers = map[string]didsubject.MethodManager{
-			"example": testMethod{error: assert.AnError},
-		}
-		db := ctx.vdr.db
-		saveExamples(t, db)
-
-		ctx.vdr.rollback(ctx.ctx)
-
-		// check existence of DIDChangeLog
-		didChangeLog := make([]didsubject.DIDChangeLog, 0)
-		require.NoError(t, db.Find(&didChangeLog).Error)
-		assert.Len(t, didChangeLog, 1)
-
-		// check existence of DIDDocument
-		didDocuments := make([]didsubject.DIDDocument, 0)
-		require.NoError(t, db.Find(&didDocuments).Error)
-		assert.Len(t, didDocuments, 1)
-	})
-	t.Run("commited by method removes changelog", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.vdr.methodManagers = map[string]didsubject.MethodManager{
-			"example": testMethod{committed: true},
-		}
-		db := ctx.vdr.db
-		saveExamples(t, db)
-
-		ctx.vdr.rollback(ctx.ctx)
-
-		// check removal of DIDChangeLog
-		didChangeLog := make([]didsubject.DIDChangeLog, 0)
-		require.NoError(t, db.Find(&didChangeLog).Error)
-		assert.Len(t, didChangeLog, 0)
-
-		// check existence of DIDDocument
-		didDocuments := make([]didsubject.DIDDocument, 0)
-		require.NoError(t, db.Find(&didDocuments).Error)
-		assert.Len(t, didDocuments, 1)
-	})
-	t.Run("rollback removes all from transaction", func(t *testing.T) {
-		ctx := newVDRTestCtx(t)
-		ctx.vdr.methodManagers = map[string]didsubject.MethodManager{
-			"example": testMethod{},
-		}
-		db := ctx.vdr.db
-		saveExamples(t, db)
-		didId2 := didsubject.DID{
-			ID:      "did:example:321",
-			Subject: "subject",
-		}
-		didDocument2 := didsubject.DIDDocument{
-			ID:        "2",
-			DidID:     "did:example:321",
-			UpdatedAt: time.Now().Add(-time.Hour).Unix(),
-		}
-		didChangeLog2 := didsubject.DIDChangeLog{
-			DIDDocumentVersionID: "2",
-			Type:                 "created",
-			TransactionID:        "2",
-		}
-		require.NoError(t, db.Save(&didId2).Error)
-		require.NoError(t, db.Save(&didDocument2).Error)
-		require.NoError(t, db.Save(&didChangeLog2).Error)
-
-		ctx.vdr.rollback(ctx.ctx)
-
-		// check removal of DIDChangeLog
-		didChangeLog := make([]didsubject.DIDChangeLog, 0)
-		require.NoError(t, db.Find(&didChangeLog).Error)
-		assert.Len(t, didChangeLog, 0)
-
-		// check removal of  DIDDocument
-		didDocuments := make([]didsubject.DIDDocument, 0)
-		require.NoError(t, db.Find(&didDocuments).Error)
-		assert.Len(t, didDocuments, 0)
-	})
-}
-
-func TestGenerateIDForService(t *testing.T) {
-	u, _ := url.Parse("https://api.example.com/v1")
-	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", TestDIDA.String()))
-
-	id := GenerateIDForService(TestDIDA, did.Service{
-		Type:            "type",
-		ServiceEndpoint: u.String(),
-	})
-	assert.Equal(t, expectedID, id)
-}
-
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
-}
-
-type testTransaction struct {
-	clock        uint32
-	signingKey   jwk.Key
-	signingKeyID string
-	signingTime  time.Time
-	ref          hash.SHA256Hash
-	payloadHash  hash.SHA256Hash
-	payloadType  string
-	prevs        []hash.SHA256Hash
-	pal          [][]byte
-	data         []byte
-}
-
-func (s testTransaction) SigningKey() jwk.Key {
-	return s.signingKey
-}
-
-func (s testTransaction) SigningKeyID() string {
-	return s.signingKeyID
-}
-
-func (s testTransaction) SigningTime() time.Time {
-	return s.signingTime
-}
-
-func (s testTransaction) Ref() hash.SHA256Hash {
-	return s.ref
-}
-
-func (s testTransaction) PAL() [][]byte {
-	return s.pal
-}
-
-func (s testTransaction) PayloadHash() hash.SHA256Hash {
-	return s.payloadHash
-}
-
-func (s testTransaction) PayloadType() string {
-	return s.payloadType
-}
-func (s testTransaction) SigningAlgorithm() string {
-	panic("implement me")
-}
-
-func (s testTransaction) Previous() []hash.SHA256Hash {
-	return s.prevs
-}
-
-func (s testTransaction) Version() dag.Version {
-	panic("implement me")
-}
-
-func (s testTransaction) MarshalJSON() ([]byte, error) {
-	panic("implement me")
-}
-
-func (s testTransaction) Data() []byte {
-	return s.data
-}
-
-func (s testTransaction) Clock() uint32 {
-	return s.clock
-}
-
-type testMethod struct {
-	committed bool
-	error     error
-}
-
-func (t testMethod) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
-	return &didsubject.DIDDocument{}, nil
-}
-
-func (t testMethod) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
-	return nil, nil
-}
-
-func (t testMethod) Commit(ctx context.Context, event didsubject.DIDChangeLog) error {
-	return nil
-}
-
-func (t testMethod) IsCommitted(ctx context.Context, event didsubject.DIDChangeLog) (bool, error) {
-	return t.committed, t.error
 }

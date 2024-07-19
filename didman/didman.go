@@ -557,7 +557,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
-	service.ID = vdr.GenerateIDForService(id, *service)
+	service.ID = vdr.NewIDForService(id, *service)
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
@@ -576,7 +576,7 @@ func (d *didman) updateService(ctx context.Context, id did.DID, serviceType stri
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
-	service.ID = vdr.GenerateIDForService(id, *service)
+	service.ID = vdr.NewIDForService(id, *service)
 
 	serviceToBeUpdatedFound := false
 	for i, s := range doc.Service {

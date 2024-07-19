@@ -286,18 +286,6 @@ func TestManager_GenerateDocument(t *testing.T) {
 
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
 
-func TestDefaultCreationOptions(t *testing.T) {
-	ops := didsubject.DefaultCreationOptions()
-
-	keyFlags, err := parseOptions(ops)
-	assert.NoError(t, err)
-	assert.True(t, keyFlags.Is(didsubject.AssertionMethodUsage))
-	assert.True(t, keyFlags.Is(didsubject.AuthenticationUsage))
-	assert.True(t, keyFlags.Is(didsubject.CapabilityDelegationUsage))
-	assert.True(t, keyFlags.Is(didsubject.CapabilityInvocationUsage))
-	assert.True(t, keyFlags.Is(didsubject.KeyAgreementUsage))
-}
-
 func TestManager_Create2(t *testing.T) {
 	defaultOptions := didsubject.DefaultCreationOptions()
 
@@ -327,28 +315,6 @@ func TestManager_Create2(t *testing.T) {
 			assert.Equal(t, payload, txTemplate.Payload)
 			assert.Equal(t, key, txTemplate.Key)
 			assert.Empty(t, txTemplate.AdditionalPrevs)
-		})
-
-		t.Run("unknown option", func(t *testing.T) {
-			_, _, err := (&Manager{}).Create(nil, didsubject.DefaultCreationOptions().With(""))
-			assert.EqualError(t, err, "unknown option: string")
-		})
-
-		t.Run("all keys", func(t *testing.T) {
-			ctx := newTestContext(t)
-			ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
-			ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(testTransaction{}, nil)
-
-			keyFlags := didsubject.AssertionMethodUsage |
-				didsubject.AuthenticationUsage |
-				didsubject.CapabilityDelegationUsage |
-				didsubject.CapabilityInvocationUsage |
-				didsubject.KeyAgreementUsage
-			ops := didsubject.DefaultCreationOptions().With(KeyFlag(keyFlags))
-			doc, _, err := ctx.manager.Create(nil, ops)
-
-			require.NoError(t, err)
-
 			assert.Len(t, doc.AssertionMethod, 1)
 			assert.Len(t, doc.Authentication, 1)
 			assert.Len(t, doc.CapabilityDelegation, 1)

@@ -79,14 +79,7 @@ func CreateDocument() did.Document {
 
 // DefaultKeyFlags returns the default DIDKeyFlags when creating did:nuts DIDs.
 func DefaultKeyFlags() didsubject.DIDKeyFlags {
-	return didsubject.AssertionMethodUsage | didsubject.CapabilityInvocationUsage | didsubject.KeyAgreementUsage | didsubject.AuthenticationUsage | didsubject.CapabilityDelegationUsage
-}
-
-type keyFlagCreationOption didsubject.DIDKeyFlags
-
-// KeyFlag specifies for what purposes the generated key can be used
-func KeyFlag(flags didsubject.DIDKeyFlags) didsubject.CreationOption {
-	return keyFlagCreationOption(flags)
+	return didsubject.AssertionKeyUsage() | didsubject.EncryptionKeyUsage()
 }
 
 // DIDKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
@@ -136,23 +129,11 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	return kid.String(), nil
 }
 
-// ErrInvalidOptions is returned when the given options have an invalid combination
-var ErrInvalidOptions = errors.New("create request has invalid combination of options: SelfControl = true and CapabilityInvocation = false")
-
 // Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
 // The key is added to the verificationMethod list and referred to from the Authentication list
 // It also publishes the DID Document to the network.
-func (m Manager) Create(ctx context.Context, options didsubject.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	keyFlags, err := parseOptions(options)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if !keyFlags.Is(didsubject.CapabilityInvocationUsage) {
-		return nil, nil, ErrInvalidOptions
-	}
-
-	doc, key, err := m.create(ctx, keyFlags)
+func (m Manager) Create(ctx context.Context, _ didsubject.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
+	doc, key, err := m.create(ctx, DefaultKeyFlags())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,19 +152,6 @@ func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
 	emptyDoc := CreateDocument()
 	emptyDoc.ID = id
 	return m.Update(ctx, id, emptyDoc)
-}
-
-func parseOptions(options didsubject.CreationOptions) (keyFlags didsubject.DIDKeyFlags, err error) {
-	keyFlags = DefaultKeyFlags()
-	for _, opt := range options.All() {
-		switch o := opt.(type) {
-		case keyFlagCreationOption:
-			keyFlags = didsubject.DIDKeyFlags(o)
-		default:
-			return 0, fmt.Errorf("unknown option: %T", opt)
-		}
-	}
-	return
 }
 
 func (m Manager) create(ctx context.Context, flags didsubject.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {

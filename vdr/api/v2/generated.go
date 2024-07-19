@@ -50,10 +50,10 @@ type DIDResolutionResult struct {
 // KeyCreationOptions Options for the key creation.
 type KeyCreationOptions struct {
 	// AssertionKey If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
-	AssertionKey *bool `json:"assertionKey,omitempty"`
+	AssertionKey bool `json:"assertionKey"`
 
 	// EncryptionKey If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
-	EncryptionKey *bool `json:"encryptionKey,omitempty"`
+	EncryptionKey bool `json:"encryptionKey"`
 }
 
 // SubjectCreationResult Result of a DID creation request. Contains the subject and any created DID Documents.
@@ -658,10 +658,7 @@ func NewDeleteServiceRequest(server string, id string, serviceId string) (*http.
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "serviceId", runtime.ParamLocationPath, serviceId)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = serviceId
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -707,10 +704,7 @@ func NewUpdateServiceRequestWithBody(server string, id string, serviceId string,
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "serviceId", runtime.ParamLocationPath, serviceId)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = serviceId
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1872,10 +1866,7 @@ func (w *ServerInterfaceWrapper) DeleteService(ctx echo.Context) error {
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "serviceId", ctx.Param("serviceId"), &serviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceId: %s", err))
-	}
+	serviceId = ctx.Param("serviceId")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1895,10 +1886,7 @@ func (w *ServerInterfaceWrapper) UpdateService(ctx echo.Context) error {
 	// ------------- Path parameter "serviceId" -------------
 	var serviceId string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "serviceId", ctx.Param("serviceId"), &serviceId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceId: %s", err))
-	}
+	serviceId = ctx.Param("serviceId")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 

@@ -30,10 +30,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -47,6 +43,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/transport/v2"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"go.etcd.io/bbolt"
 )
 
@@ -86,7 +84,7 @@ type Network struct {
 	peerID            transport.PeerID
 	nodeDID           did.DID
 	didStore          didstore.Store
-	didDocumentFinder management.DocFinder
+	didDocumentFinder resolver.DocFinder
 	serviceResolver   resolver.ServiceResolver
 	eventPublisher    events.Event
 	storeProvider     storage.Provider
@@ -902,7 +900,7 @@ func (n *Network) isPayloadPresent(ctx context.Context, txRef hash.SHA256Hash) (
 }
 
 func (n *Network) findVendorDIDs() ([]did.Document, error) {
-	result, err := n.didDocumentFinder.Find(management.IsActive(), management.ValidAt(time.Now()), management.ByServiceType(transport.NutsCommServiceType))
+	result, err := n.didDocumentFinder.Find(resolver.IsActive(), resolver.ValidAt(time.Now()), resolver.ByServiceType(transport.NutsCommServiceType))
 	if err != nil {
 		return nil, err
 	}

@@ -59,8 +59,6 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusConflict
 	case errors.Is(err, didman.ErrServiceInUse):
 		return http.StatusConflict
-	case errors.Is(err, didnuts.ErrInvalidOptions):
-		return http.StatusBadRequest
 	case errors.Is(err, resolver.ErrServiceNotFound):
 		return http.StatusNotFound
 	case errors.As(err, new(didnuts.InvalidServiceError)):
