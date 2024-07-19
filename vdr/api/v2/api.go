@@ -209,14 +209,16 @@ func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceReques
 func (w *Wrapper) AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
 	subject := request.Id
 	keyUsage := didsubject.AssertionKeyUsage()
-	if request.Body.EncryptionKey {
-		keyUsage ^= didsubject.EncryptionKeyUsage()
-	}
-	if request.Body.AssertionKey {
-		keyUsage ^= didsubject.AssertionKeyUsage()
-	}
-	if keyUsage == 0 {
-		return nil, core.InvalidInputError("at least one key must be created")
+	if request.Body != nil {
+		if request.Body.EncryptionKey {
+			keyUsage ^= didsubject.EncryptionKeyUsage()
+		}
+		if !request.Body.AssertionKey {
+			keyUsage ^= didsubject.AssertionKeyUsage()
+		}
+		if keyUsage == 0 {
+			return nil, core.InvalidInputError("at least one key must be created")
+		}
 	}
 
 	vms, err := w.SubjectManager.AddVerificationMethod(ctx, subject, keyUsage)

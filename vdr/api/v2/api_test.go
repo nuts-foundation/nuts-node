@@ -22,7 +22,9 @@ package v2
 import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"net/http"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -76,6 +78,25 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_Deactivate(t *testing.T) {
+	t.Run("ok - defaults", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().Deactivate(gomock.Any(), "subject").Return(nil)
+
+		_, err := ctx.client.Deactivate(nil, DeactivateRequestObject{Id: "subject"})
+
+		require.NoError(t, err)
+	})
+	t.Run("error", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().Deactivate(gomock.Any(), "subject").Return(assert.AnError)
+
+		_, err := ctx.client.Deactivate(nil, DeactivateRequestObject{Id: "subject"})
+
+		assert.Error(t, err)
 	})
 }
 
@@ -191,6 +212,28 @@ func TestWrapper_ListDIDs(t *testing.T) {
 		ctx.documentOwner.EXPECT().ListOwned(gomock.Any()).Return(nil, assert.AnError)
 
 		response, err := ctx.client.ListDIDs(context.Background(), ListDIDsRequestObject{})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_SubjectDIDs(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), "subject").Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
+
+		response, err := ctx.client.SubjectDIDs(context.Background(), SubjectDIDsRequestObject{Id: "subject"})
+
+		require.NoError(t, err)
+		assert.Len(t, response.(SubjectDIDs200JSONResponse), 1)
+	})
+
+	t.Run("error - list fails", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), "subject").Return(nil, assert.AnError)
+
+		response, err := ctx.client.SubjectDIDs(context.Background(), SubjectDIDsRequestObject{Id: "subject"})
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
@@ -355,6 +398,49 @@ func TestWrapper_FindServices(t *testing.T) {
 
 		assert.ErrorIs(t, err, assert.AnError)
 		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_AddVerificationMethod(t *testing.T) {
+	vm := did.VerificationMethod{ID: did.MustParseDIDURL("did:example:1#key-1")}
+	t.Run("ok - defaults", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", didsubject.AssertionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
+
+		response, err := ctx.client.AddVerificationMethod(nil, AddVerificationMethodRequestObject{
+			Id: "subject",
+		})
+
+		require.NoError(t, err)
+		require.Len(t, response.(AddVerificationMethod200JSONResponse), 1)
+	})
+	t.Run("with encryption key", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", didsubject.AssertionKeyUsage()^didsubject.EncryptionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
+
+		_, err := ctx.client.AddVerificationMethod(nil, AddVerificationMethodRequestObject{
+			Id: "subject",
+			Body: &KeyCreationOptions{
+				AssertionKey:  true,
+				EncryptionKey: true,
+			},
+		})
+
+		require.NoError(t, err)
+	})
+	t.Run("error on no keys", func(t *testing.T) {
+		ctx := newMockContext(t)
+
+		_, err := ctx.client.AddVerificationMethod(nil, AddVerificationMethodRequestObject{
+			Id: "subject",
+			Body: &KeyCreationOptions{
+				AssertionKey:  false,
+				EncryptionKey: false,
+			},
+		})
+
+		require.Error(t, err)
+		assert.Equal(t, http.StatusBadRequest, err.(core.HTTPStatusCodeError).StatusCode())
 	})
 }
 
