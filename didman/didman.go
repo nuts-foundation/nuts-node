@@ -21,8 +21,11 @@ package didman
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
@@ -557,7 +560,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
-	service.ID = vdr.NewIDForService(id, *service)
+	service.ID = generateIDForService(id, *service)
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
@@ -576,7 +579,7 @@ func (d *didman) updateService(ctx context.Context, id did.DID, serviceType stri
 		Type:            serviceType,
 		ServiceEndpoint: serviceEndpoint,
 	}
-	service.ID = vdr.NewIDForService(id, *service)
+	service.ID = generateIDForService(id, *service)
 
 	serviceToBeUpdatedFound := false
 	for i, s := range doc.Service {
@@ -618,4 +621,17 @@ func referencedService(doc *did.Document, serviceRef string) bool {
 		}
 	}
 	return false
+}
+
+func generateIDForService(id did.DID, service did.Service) ssi.URI {
+	bytes, _ := json.Marshal(service)
+	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
+	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
+	var raw map[string]interface{}
+	_ = json.Unmarshal(bytes, &raw)
+	bytes, _ = json.Marshal(raw)
+	shaBytes := sha256.Sum256(bytes)
+	d := id.URI()
+	d.Fragment = base58.EncodeAlphabet(shaBytes[:], base58.BTCAlphabet)
+	return d
 }

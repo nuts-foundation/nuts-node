@@ -959,6 +959,17 @@ func TestReferencedService(t *testing.T) {
 	})
 }
 
+func TestGenerateIDForService(t *testing.T) {
+	u, _ := url.Parse("https://api.example.com/v1")
+	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
+
+	id := generateIDForService(testDIDA, did.Service{
+		Type:            "type",
+		ServiceEndpoint: u.String(),
+	})
+	assert.Equal(t, expectedID, id)
+}
+
 type mockContext struct {
 	ctrl                *gomock.Controller
 	vdr                 *vdr.MockVDR
