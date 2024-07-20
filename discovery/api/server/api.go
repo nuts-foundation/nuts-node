@@ -43,6 +43,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
 	case errors.Is(err, discovery.ErrInvalidPresentation):
 		return http.StatusBadRequest
+	case errors.Is(err, discovery.ErrServiceNotFound):
+		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}
