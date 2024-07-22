@@ -27,15 +27,26 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"net/http"
 	"net/url"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
+var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 type requestQueryContextKey struct{}
 
 type Wrapper struct {
 	Client discovery.Client
+}
+
+func (w *Wrapper) ResolveStatusCode(err error) int {
+	switch {
+	case errors.Is(err, discovery.ErrServiceNotFound):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func (w *Wrapper) Routes(router core.EchoRouter) {

@@ -107,6 +107,7 @@ func TestWrapper_ResolveStatusCode(t *testing.T) {
 	expected := map[error]int{
 		discovery.ErrInvalidPresentation: http.StatusBadRequest,
 		errors.New("foo"):                http.StatusInternalServerError,
+		discovery.ErrServiceNotFound:     http.StatusNotFound,
 	}
 	wrapper := Wrapper{}
 	for err, expectedCode := range expected {
