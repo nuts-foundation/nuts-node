@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"net/http"
 	"net/url"
 	"testing"
 )
@@ -196,6 +197,19 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+}
+
+func TestWrapper_ResolveStatusCode(t *testing.T) {
+	expected := map[error]int{
+		errors.New("foo"):            http.StatusInternalServerError,
+		discovery.ErrServiceNotFound: http.StatusNotFound,
+	}
+	wrapper := Wrapper{}
+	for err, expectedCode := range expected {
+		t.Run(err.Error(), func(t *testing.T) {
+			assert.Equal(t, expectedCode, wrapper.ResolveStatusCode(err))
+		})
+	}
 }
 
 type mockContext struct {
