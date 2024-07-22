@@ -141,6 +141,23 @@ func TestWrapper_GetTenantWebDID(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetTenantWebDID200JSONResponse)))
 	})
+	t.Run("non-root base URL", func(t *testing.T) {
+		nonRootWebDID := did.MustParseDID("did:web:example.com:identities:tenant1:iam:123")
+		expectedWebDIDDoc := did.Document{
+			ID: nonRootWebDID,
+		}
+		data, _ := json.Marshal(expectedWebDIDDoc)
+		_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+		baseURL, _ := url.Parse("https://example.com/identities/tenant1")
+		test := newTestClientWithBaseURL(t, baseURL)
+		test.vdr.EXPECT().ResolveManaged(nonRootWebDID).Return(&expectedWebDIDDoc, nil)
+
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetTenantWebDID200JSONResponse)))
+	})
 	t.Run("unknown DID", func(t *testing.T) {
 		test := newTestClient(t)
 		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
@@ -1537,8 +1554,11 @@ type testCtx struct {
 }
 
 func newTestClient(t testing.TB) *testCtx {
-	publicURL, err := url.Parse("https://example.com")
-	require.NoError(t, err)
+	publicURL, _ := url.Parse("https://example.com")
+	return newTestClientWithBaseURL(t, publicURL)
+}
+
+func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
