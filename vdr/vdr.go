@@ -133,7 +133,7 @@ func (r *Module) Config() interface{} {
 func (r *Module) Configure(config core.ServerConfig) error {
 	// at least one method should be configured
 	if len(r.config.DIDMethods) == 0 {
-		r.config.DIDMethods = DefaultConfig().DIDMethods
+		return errors.New("at least one DID method should be configured")
 	}
 	// check if all configured methods are supported
 	for _, method := range r.config.DIDMethods {

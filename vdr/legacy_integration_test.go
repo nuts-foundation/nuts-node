@@ -288,6 +288,7 @@ func setup(t *testing.T) testContext {
 		pkiValidator,
 	)
 	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
+	vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))

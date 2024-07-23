@@ -168,6 +168,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID.Fragment = "1"
 			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			didDocument := did.Document{ID: TestDIDA}
 
