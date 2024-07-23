@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
@@ -78,7 +77,7 @@ func (b *LocalPDP) Config() interface{} {
 	return &b.config
 }
 
-func (b *LocalPDP) PresentationDefinitions(_ context.Context, _ did.DID, scope string) (pe.WalletOwnerMapping, error) {
+func (b *LocalPDP) PresentationDefinitions(_ context.Context, scope string) (pe.WalletOwnerMapping, error) {
 	result := pe.WalletOwnerMapping{}
 	mapping, exists := b.mapping[scope]
 	if !exists {

@@ -126,7 +126,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 			AuthorizationEndpoint:    "http://example.com",
 			ClientIdSchemesSupported: []string{"did"},
 		}, nil)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{}, policy.ErrNotFound)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{}, policy.ErrNotFound)
 		params := defaultParams()
 		params[oauth.ScopeParam] = "unknown"
 
@@ -153,7 +153,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("failed to generate authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderURL).Return(&oauth.AuthorizationServerMetadata{
 			ClientIdSchemesSupported: []string{didClientIDScheme},

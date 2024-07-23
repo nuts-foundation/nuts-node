@@ -21,7 +21,6 @@ package policy
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -35,5 +34,5 @@ var ErrNotFound = errors.New("not found")
 type PDPBackend interface {
 	// PresentationDefinitions returns the PresentationDefinitions (mapped to a WalletOwnerType) for the given scope
 	// scopes are space delimited. It's up to the backend to decide how to handle this
-	PresentationDefinitions(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error)
+	PresentationDefinitions(ctx context.Context, scope string) (pe.WalletOwnerMapping, error)
 }

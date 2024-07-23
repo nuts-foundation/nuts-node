@@ -131,7 +131,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	// Determine which PEX Presentation Definitions we want to see fulfilled during authorization through OpenID4VP.
 	// Each Presentation Definition triggers 1 OpenID4VP flow.
 	// TODO: Support multiple scopes?
-	presentationDefinitions, err := r.presentationDefinitionForScope(ctx, verifier, params.get(oauth.ScopeParam))
+	presentationDefinitions, err := r.presentationDefinitionForScope(ctx, params.get(oauth.ScopeParam))
 	if err != nil {
 		return nil, withCallbackURI(err, redirectURL)
 	}

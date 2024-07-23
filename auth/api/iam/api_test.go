@@ -247,15 +247,13 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	})
 }
 func TestWrapper_PresentationDefinition(t *testing.T) {
-	webDID := did.MustParseDID("did:web:example.com:iam:123")
 	ctx := audit.TestContext()
 	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}
 	userWalletType := pe.WalletOwnerUser
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
-		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
@@ -280,8 +278,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerUser: pe.PresentationDefinition{Id: "test"}}
 
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
-		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -293,8 +290,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("err - unknown wallet type", func(t *testing.T) {
 		test := newTestClient(t)
-		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -305,25 +301,13 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
-		test.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), webDID, "unknown").Return(nil, policy.ErrNotFound)
+		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "unknown"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
 		assert.Equal(t, "invalid_scope - not found", err.Error())
-	})
-
-	t.Run("error - unknown DID", func(t *testing.T) {
-		test := newTestClient(t)
-		test.documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
-
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Did: webDID.String(), Params: PresentationDefinitionParams{Scope: "example-scope"}})
-
-		require.Error(t, err)
-		assert.Nil(t, response)
-		assert.Equal(t, "invalid_request - DID document not managed by this node", err.Error())
 	})
 }
 
@@ -356,7 +340,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 			RequireSignedRequestObject: true,
 		}
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), verifierDID, "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil).Times(2)
 		ctx.jar.EXPECT().Create(verifierDID, holderURL, gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
