@@ -109,20 +109,6 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestWrapper_RootOAuthAuthorizationServerMetadata(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, rootWebDID).Return(true, nil)
-
-		res, err := ctx.client.RootOAuthAuthorizationServerMetadata(nil, RootOAuthAuthorizationServerMetadataRequestObject{})
-
-		require.NoError(t, err)
-		assert.IsType(t, RootOAuthAuthorizationServerMetadata200JSONResponse{}, res)
-		actualIssuer := res.(RootOAuthAuthorizationServerMetadata200JSONResponse).Issuer
-		assert.Equal(t, rootURL.String(), actualIssuer)
-	})
-}
-
 func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)

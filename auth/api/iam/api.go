@@ -77,7 +77,6 @@ const oid4vciSessionValidity = 15 * time.Minute
 var cacheControlMaxAgeURLs = []string{
 	"/oauth2/:did/presentation_definition",
 	"/.well-known/oauth-authorization-server/oauth2/:did",
-	"/.well-known/oauth-authorization-server",
 	"/oauth2/:did/oauth-client",
 	"/statuslist/:did/:page",
 }
@@ -586,15 +585,6 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 		return nil, err
 	}
 	return OAuthAuthorizationServerMetadata200JSONResponse(*md), nil
-}
-
-func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
-	rootDID, _ := didweb.URLToDID(*r.auth.PublicURL())
-	md, err := r.oauthAuthorizationServerMetadata(ctx, rootDID.String())
-	if err != nil {
-		return nil, err
-	}
-	return RootOAuthAuthorizationServerMetadata200JSONResponse(*md), nil
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsString string) (*oauth.AuthorizationServerMetadata, error) {
