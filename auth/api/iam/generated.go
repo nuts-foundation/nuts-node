@@ -563,14 +563,14 @@ type ServerInterface interface {
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx echo.Context, did string) error
 	// Start the Oid4VCI authorization flow.
-	// (POST /internal/auth/v2/{did}/request-credential)
-	RequestOpenid4VCICredentialIssuance(ctx echo.Context, did string) error
+	// (POST /internal/auth/v2/{subject}/request-credential)
+	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subject string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{did}/request-service-access-token)
-	RequestServiceAccessToken(ctx echo.Context, did string) error
+	// (POST /internal/auth/v2/{subject}/request-service-access-token)
+	RequestServiceAccessToken(ctx echo.Context, subject string) error
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
-	// (POST /internal/auth/v2/{did}/request-user-access-token)
-	RequestUserAccessToken(ctx echo.Context, did string) error
+	// (POST /internal/auth/v2/{subject}/request-user-access-token)
+	RequestUserAccessToken(ctx echo.Context, subject string) error
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, did string, params HandleAuthorizeRequestParams) error
@@ -692,45 +692,45 @@ func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
 // RequestOpenid4VCICredentialIssuance converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestOpenid4VCICredentialIssuance(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestOpenid4VCICredentialIssuance(ctx, did)
+	err = w.Handler.RequestOpenid4VCICredentialIssuance(ctx, subject)
 	return err
 }
 
 // RequestServiceAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestServiceAccessToken(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestServiceAccessToken(ctx, did)
+	err = w.Handler.RequestServiceAccessToken(ctx, subject)
 	return err
 }
 
 // RequestUserAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subject" -------------
+	var subject string
 
-	did = ctx.Param("did")
+	subject = ctx.Param("subject")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestUserAccessToken(ctx, did)
+	err = w.Handler.RequestUserAccessToken(ctx, subject)
 	return err
 }
 
@@ -982,9 +982,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
-	router.POST(baseURL+"/internal/auth/v2/:did/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
-	router.POST(baseURL+"/internal/auth/v2/:did/request-service-access-token", wrapper.RequestServiceAccessToken)
-	router.POST(baseURL+"/internal/auth/v2/:did/request-user-access-token", wrapper.RequestUserAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:subject/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
+	router.POST(baseURL+"/internal/auth/v2/:subject/request-service-access-token", wrapper.RequestServiceAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:subject/request-user-access-token", wrapper.RequestUserAccessToken)
 	router.GET(baseURL+"/oauth2/:did/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/oauth2/:did/callback", wrapper.Callback)
 	router.GET(baseURL+"/oauth2/:did/oauth-client", wrapper.OAuthClientMetadata)
@@ -1188,8 +1188,8 @@ func (response CreateDPoPProof401Response) VisitCreateDPoPProofResponse(w http.R
 }
 
 type RequestOpenid4VCICredentialIssuanceRequestObject struct {
-	Did  string `json:"did"`
-	Body *RequestOpenid4VCICredentialIssuanceJSONRequestBody
+	Subject string `json:"subject"`
+	Body    *RequestOpenid4VCICredentialIssuanceJSONRequestBody
 }
 
 type RequestOpenid4VCICredentialIssuanceResponseObject interface {
@@ -1227,8 +1227,8 @@ func (response RequestOpenid4VCICredentialIssuancedefaultApplicationProblemPlusJ
 }
 
 type RequestServiceAccessTokenRequestObject struct {
-	Did  string `json:"did"`
-	Body *RequestServiceAccessTokenJSONRequestBody
+	Subject string `json:"subject"`
+	Body    *RequestServiceAccessTokenJSONRequestBody
 }
 
 type RequestServiceAccessTokenResponseObject interface {
@@ -1266,8 +1266,8 @@ func (response RequestServiceAccessTokendefaultApplicationProblemPlusJSONRespons
 }
 
 type RequestUserAccessTokenRequestObject struct {
-	Did  string `json:"did"`
-	Body *RequestUserAccessTokenJSONRequestBody
+	Subject string `json:"subject"`
+	Body    *RequestUserAccessTokenJSONRequestBody
 }
 
 type RequestUserAccessTokenResponseObject interface {
@@ -1677,13 +1677,13 @@ type StrictServerInterface interface {
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// Start the Oid4VCI authorization flow.
-	// (POST /internal/auth/v2/{did}/request-credential)
+	// (POST /internal/auth/v2/{subject}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{did}/request-service-access-token)
+	// (POST /internal/auth/v2/{subject}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
-	// (POST /internal/auth/v2/{did}/request-user-access-token)
+	// (POST /internal/auth/v2/{subject}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{did}/authorize)
@@ -1903,10 +1903,10 @@ func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, did string) error {
 }
 
 // RequestOpenid4VCICredentialIssuance operation middleware
-func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, did string) error {
+func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, subject string) error {
 	var request RequestOpenid4VCICredentialIssuanceRequestObject
 
-	request.Did = did
+	request.Subject = subject
 
 	var body RequestOpenid4VCICredentialIssuanceJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -1934,10 +1934,10 @@ func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, d
 }
 
 // RequestServiceAccessToken operation middleware
-func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, did string) error {
+func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subject string) error {
 	var request RequestServiceAccessTokenRequestObject
 
-	request.Did = did
+	request.Subject = subject
 
 	var body RequestServiceAccessTokenJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -1965,10 +1965,10 @@ func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, did string)
 }
 
 // RequestUserAccessToken operation middleware
-func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, did string) error {
+func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, subject string) error {
 	var request RequestUserAccessTokenRequestObject
 
-	request.Did = did
+	request.Subject = subject
 
 	var body RequestUserAccessTokenJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {

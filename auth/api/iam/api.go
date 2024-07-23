@@ -676,7 +676,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -699,7 +699,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -891,4 +891,39 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	}
 	result = result.JoinPath(basePath, "oauth2", webDID.String())
 	return result, err
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
+	_, err := r.selectDID(ctx, subjectID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
+	dids, err := r.vdr.List(ctx, subjectID)
+	if err != nil {
+		return false, err
+	}
+	for _, d := range dids {
+		if d.Equals(subjectDID) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, error) {
+	// TODO: List() should return the DIDs in preferred order?
+	dids, err := r.vdr.List(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	if len(dids) == 0 {
+		return nil, core.NotFoundError("subject not found")
+	}
+	return &dids[0], nil
 }
