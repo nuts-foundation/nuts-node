@@ -22,7 +22,7 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 		Data:     []byte(vmData),
 		KeyTypes: keyUsageFlag,
 	}
-	service := SqlService{
+	service := Service{
 		ID:   "#2",
 		Data: []byte(serviceData),
 	}
@@ -31,7 +31,7 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 		DID:                 DID{ID: alice.String(), Aka: []DID{{ID: bob.String()}}},
 		Version:             1,
 		VerificationMethods: []VerificationMethod{vm},
-		Services:            []SqlService{service},
+		Services:            []Service{service},
 	}
 
 	didDoc, err := document.ToDIDDocument()

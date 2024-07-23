@@ -28,6 +28,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
@@ -61,7 +62,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	log.Logger().Debug("Creating new DID Documents.")
 
 	// defaults
-	keyFlags := AssertionKeyUsage()
+	keyFlags := orm.AssertionKeyUsage()
 	subject := uuid.New().String()
 
 	// apply options
@@ -70,14 +71,14 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		case SubjectCreationOption:
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
-			keyFlags = keyFlags | EncryptionKeyUsage()
+			keyFlags = keyFlags | orm.EncryptionKeyUsage()
 		default:
 			return nil, "", fmt.Errorf("unknown option: %T", option)
 		}
 	}
 
-	sqlDocs := make(map[string]DIDDocument)
-	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
+	sqlDocs := make(map[string]orm.DIDDocument)
+	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
 		sqlDIDManager := NewDIDManager(tx)
 		exists, err := sqlDIDManager.FindBySubject(subject)
@@ -97,18 +98,18 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 			sqlDocs[method] = *sqlDoc
 		}
 
-		alsoKnownAs := make([]DID, 0)
+		alsoKnownAs := make([]orm.DID, 0)
 		for _, sqlDoc := range sqlDocs {
 			alsoKnownAs = append(alsoKnownAs, sqlDoc.DID)
 		}
 
 		// then store all docs in the sql db with matching events
-		changes := make(map[string]DIDChangeLog)
+		changes := make(map[string]orm.DIDChangeLog)
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
 		transactionId := uuid.New().String()
 		for method, sqlDoc := range sqlDocs {
 			// overwrite sql.DID from returned document because we have the subject and alsoKnownAs here
-			sqlDID := DID{
+			sqlDID := orm.DID{
 				ID:      sqlDoc.DID.ID,
 				Subject: subject,
 				Aka:     alsoKnownAs,
@@ -118,9 +119,9 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 				return nil, err
 			}
 			sqlDocs[method] = *createdDoc
-			changes[method] = DIDChangeLog{
+			changes[method] = orm.DIDChangeLog{
 				DIDDocumentVersionID: createdDoc.ID,
-				Type:                 DIDChangeCreated,
+				Type:                 orm.DIDChangeCreated,
 				TransactionID:        transactionId,
 				DIDDocumentVersion:   *createdDoc,
 			}
@@ -147,8 +148,8 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 		WithField(core.LogFieldDIDSubject, subject).
 		Debug("Deactivating DID Documents")
 
-	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
-		changes := make(map[string]DIDChangeLog)
+	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
+		changes := make(map[string]orm.DIDChangeLog)
 		sqlDIDManager := NewDIDManager(tx)
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
 		dids, err := sqlDIDManager.FindBySubject(subject)
@@ -165,9 +166,9 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 				return changes, err
 			}
 			id, _ := did.ParseDID(sqlDID.ID)
-			changes[id.Method] = DIDChangeLog{
+			changes[id.Method] = orm.DIDChangeLog{
 				DIDDocumentVersionID: sqlDoc.ID,
-				Type:                 DIDChangeDeactivated,
+				Type:                 orm.DIDChangeDeactivated,
 				TransactionID:        transactionID,
 				DIDDocumentVersion:   *sqlDoc,
 			}
@@ -189,7 +190,7 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 	services := make([]did.Service, 0)
 
 	serviceIDFragment := NewIDForService(service)
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
 		// use a generated ID where the fragment equals the hash of the service
 		service.ID = id.URI()
 		service.ID.Fragment = serviceIDFragment
@@ -206,7 +207,7 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 		if err != nil {
 			return nil, err
 		}
-		sqlService := SqlService{
+		sqlService := orm.Service{
 			ID:            service.ID.String(),
 			DIDDocumentID: current.DidID,
 			Data:          asJson,
@@ -257,7 +258,7 @@ func (r *Manager) FindServices(_ context.Context, subject string, serviceType *s
 
 // DeleteService removes a service from the DID document identified by subjectDID.
 func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
 		j := 0
 		for i, s := range current.Services {
 			sID, _ := ssi.ParseURI(s.ID)
@@ -282,7 +283,7 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 
 	// use a generated ID where the fragment equals the hash of the service
 	serviceIDFragment := NewIDForService(service)
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
 		j := 0
 		for i, s := range current.Services {
 			sID, _ := ssi.ParseURI(s.ID)
@@ -301,7 +302,7 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 		if err != nil {
 			return nil, err
 		}
-		sqlService := SqlService{
+		sqlService := orm.Service{
 			ID:            service.ID.String(),
 			DIDDocumentID: current.DidID,
 			Data:          asJson,
@@ -315,21 +316,21 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 	return services, nil
 }
 
-func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, keyUsage DIDKeyFlags) ([]did.VerificationMethod, error) {
+func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error) {
 	log.Logger().Debug("Creating new VerificationMethods.")
 
 	verificationMethods := make([]did.VerificationMethod, 0)
 
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
 		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(ctx, id, keyUsage)
 		if err != nil {
 			return nil, err
 		}
 		verificationMethods = append(verificationMethods, *vm)
 		data, _ := json.Marshal(*vm)
-		sqlMethod := VerificationMethod{
+		sqlMethod := orm.VerificationMethod{
 			ID:       vm.ID.String(),
-			KeyTypes: VerificationMethodKeyType(keyUsage),
+			KeyTypes: orm.VerificationMethodKeyType(keyUsage),
 			Data:     data,
 		}
 		current.VerificationMethods = append(current.VerificationMethods, sqlMethod)
@@ -343,8 +344,8 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 }
 
 // transactionHelper is a helper function that starts a transaction, performs an operation, and emits an event.
-func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]DIDChangeLog, error)) error {
-	var changes map[string]DIDChangeLog
+func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error)) error {
+	var changes map[string]orm.DIDChangeLog
 	if err := r.DB.Transaction(func(tx *gorm.DB) error {
 		var operationErr error
 		// Perform the operation within the transaction.
@@ -380,14 +381,14 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 			// Delete the DID Document versions
 			for _, change := range changes {
 				// will also remove changelog via cascade
-				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&DIDDocument{}).Error; err != nil {
+				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DIDDocument{}).Error; err != nil {
 					return err
 				}
 			}
 		} else {
 			// delete all changes
 			for _, change := range changes {
-				if err := tx.Where("transaction_id = ?", change.TransactionID).Delete(&DIDChangeLog{}).Error; err != nil {
+				if err := tx.Where("transaction_id = ?", change.TransactionID).Delete(&orm.DIDChangeLog{}).Error; err != nil {
 					return err
 				}
 				// once is enough
@@ -407,9 +408,9 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 // applyToDIDDocuments is a helper function that applies an operation to all DID documents of a subject (1 per did method).
 // It uses transactionHelper to perform the operation in a transaction.
 // if the operation returns nil then no changes are made.
-func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *DIDDocument) (*DIDDocument, error)) error {
-	return r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]DIDChangeLog, error) {
-		eventLog := make(map[string]DIDChangeLog)
+func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error)) error {
+	return r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
+		eventLog := make(map[string]orm.DIDChangeLog)
 		sqlDIDManager := NewDIDManager(tx)
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
 		dids, err := sqlDIDManager.FindBySubject(subject)
@@ -435,9 +436,9 @@ func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, opera
 				if err != nil {
 					return nil, err
 				}
-				eventLog[id.Method] = DIDChangeLog{
+				eventLog[id.Method] = orm.DIDChangeLog{
 					DIDDocumentVersionID: next.ID,
-					Type:                 DIDChangeUpdated,
+					Type:                 orm.DIDChangeUpdated,
 					TransactionID:        transactionID,
 					DIDDocumentVersion:   *next,
 				}
@@ -467,8 +468,8 @@ func NewIDForService(service did.Service) string {
 func (r *Manager) Rollback(ctx context.Context) {
 	updatedAt := time.Now().Add(-time.Minute).Unix()
 	err := r.DB.Transaction(func(tx *gorm.DB) error {
-		changes := make([]DIDChangeLog, 0)
-		groupedChanges := make(map[string][]DIDChangeLog)
+		changes := make([]orm.DIDChangeLog, 0)
+		groupedChanges := make(map[string][]orm.DIDChangeLog)
 		// find all DIDChangeLog inner join with DIDDocumentVersion where document.updated_at < now - 1 minute
 		// note: any changes to this query needs to manually be tested in all supported DBs
 		err := tx.Preload("DIDDocumentVersion").Preload("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("updated_at < ?", updatedAt)).Find(&changes).Error
@@ -494,14 +495,14 @@ func (r *Manager) Rollback(ctx context.Context) {
 			// if one failed, delete all document versions for this transaction_id
 			if !committed {
 				for _, change := range versionChanges {
-					err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&DIDDocument{}).Error
+					err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DIDDocument{}).Error
 					if err != nil {
 						return err
 					}
 				}
 			}
 			// delete all changes, also done via cascading in case of !committed, but less code this way
-			err = tx.Where("transaction_id = ?", transactionID).Delete(&DIDChangeLog{}).Error
+			err = tx.Where("transaction_id = ?", transactionID).Delete(&orm.DIDChangeLog{}).Error
 			if err != nil {
 				return err
 			}

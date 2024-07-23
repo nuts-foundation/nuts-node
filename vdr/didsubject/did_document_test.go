@@ -21,8 +21,8 @@ package didsubject
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -37,7 +37,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
 	}
-	service := orm.SqlService{
+	service := orm.Service{
 		ID:   "#2",
 		Data: []byte("{}"),
 	}
@@ -62,7 +62,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		tx := transaction(t, db)
 		docManager := NewDIDDocumentManager(tx)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 		require.NoError(t, err)
 
 		require.Len(t, doc.VerificationMethods, 1)
@@ -76,14 +76,14 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
 		docManager := NewDIDDocumentManager(tx)
-		_, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
+		_, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 
 		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)

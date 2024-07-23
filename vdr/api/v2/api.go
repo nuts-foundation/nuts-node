@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -208,13 +209,13 @@ func (w *Wrapper) UpdateService(ctx context.Context, request UpdateServiceReques
 
 func (w *Wrapper) AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error) {
 	subject := request.Id
-	keyUsage := didsubject.AssertionKeyUsage()
+	keyUsage := orm.AssertionKeyUsage()
 	if request.Body != nil {
 		if request.Body.EncryptionKey {
-			keyUsage ^= didsubject.EncryptionKeyUsage()
+			keyUsage ^= orm.EncryptionKeyUsage()
 		}
 		if !request.Body.AssertionKey {
-			keyUsage ^= didsubject.AssertionKeyUsage()
+			keyUsage ^= orm.AssertionKeyUsage()
 		}
 		if keyUsage == 0 {
 			return nil, core.InvalidInputError("at least one key must be created")

@@ -23,6 +23,7 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"testing"
@@ -405,7 +406,7 @@ func TestWrapper_AddVerificationMethod(t *testing.T) {
 	vm := did.VerificationMethod{ID: did.MustParseDIDURL("did:example:1#key-1")}
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", didsubject.AssertionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", orm.AssertionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
 
 		response, err := ctx.client.AddVerificationMethod(nil, AddVerificationMethodRequestObject{
 			Id: "subject",
@@ -416,7 +417,7 @@ func TestWrapper_AddVerificationMethod(t *testing.T) {
 	})
 	t.Run("with encryption key", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", didsubject.AssertionKeyUsage()^didsubject.EncryptionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), "subject", orm.AssertionKeyUsage()^orm.EncryptionKeyUsage()).Return([]did.VerificationMethod{vm}, nil)
 
 		_, err := ctx.client.AddVerificationMethod(nil, AddVerificationMethodRequestObject{
 			Id: "subject",

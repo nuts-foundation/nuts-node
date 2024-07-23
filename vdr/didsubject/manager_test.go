@@ -21,6 +21,7 @@ package didsubject
 import (
 	"context"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"net/url"
 	"strings"
 	"testing"
@@ -51,7 +52,7 @@ func TestManager_Create(t *testing.T) {
 		require.Len(t, documents, 1)
 
 		t.Run("check for empty did_change_log", func(t *testing.T) {
-			didChangeLog := make([]DIDChangeLog, 0)
+			didChangeLog := make([]orm.DIDChangeLog, 0)
 
 			require.NoError(t, db.Find(&didChangeLog).Error)
 
@@ -183,7 +184,7 @@ func TestManager_AddVerificationMethod(t *testing.T) {
 	document := documents[0]
 
 	t.Run("ok", func(t *testing.T) {
-		vms, err := m.AddVerificationMethod(audit.TestContext(), subject, AssertionKeyUsage())
+		vms, err := m.AddVerificationMethod(audit.TestContext(), subject, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		require.Len(t, vms, 2)
@@ -242,16 +243,16 @@ func TestManager_Deactivate(t *testing.T) {
 }
 
 func TestManager_rollback(t *testing.T) {
-	didId := DID{
+	didId := orm.DID{
 		ID:      "did:example:123",
 		Subject: "subject",
 	}
-	didDocument := DIDDocument{
+	didDocument := orm.DIDDocument{
 		ID:        "1",
 		DidID:     "did:example:123",
 		UpdatedAt: time.Now().Add(-time.Hour).Unix(),
 	}
-	didChangeLog := DIDChangeLog{
+	didChangeLog := orm.DIDChangeLog{
 		DIDDocumentVersionID: "1",
 		Type:                 "created",
 		TransactionID:        "2",
@@ -273,12 +274,12 @@ func TestManager_rollback(t *testing.T) {
 		manager.Rollback(context.Background())
 
 		// check removal of DIDChangeLog
-		didChangeLog := make([]DIDChangeLog, 0)
+		didChangeLog := make([]orm.DIDChangeLog, 0)
 		require.NoError(t, db.Find(&didChangeLog).Error)
 		assert.Len(t, didChangeLog, 0)
 
 		// check removal of  DIDDocument
-		didDocuments := make([]DIDDocument, 0)
+		didDocuments := make([]orm.DIDDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 0)
 	})
@@ -292,12 +293,12 @@ func TestManager_rollback(t *testing.T) {
 		manager.Rollback(context.Background())
 
 		// check existence of DIDChangeLog
-		didChangeLog := make([]DIDChangeLog, 0)
+		didChangeLog := make([]orm.DIDChangeLog, 0)
 		require.NoError(t, db.Find(&didChangeLog).Error)
 		assert.Len(t, didChangeLog, 1)
 
 		// check existence of DIDDocument
-		didDocuments := make([]DIDDocument, 0)
+		didDocuments := make([]orm.DIDDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 1)
 	})
@@ -311,12 +312,12 @@ func TestManager_rollback(t *testing.T) {
 		manager.Rollback(context.Background())
 
 		// check removal of DIDChangeLog
-		didChangeLog := make([]DIDChangeLog, 0)
+		didChangeLog := make([]orm.DIDChangeLog, 0)
 		require.NoError(t, db.Find(&didChangeLog).Error)
 		assert.Len(t, didChangeLog, 0)
 
 		// check existence of DIDDocument
-		didDocuments := make([]DIDDocument, 0)
+		didDocuments := make([]orm.DIDDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 1)
 	})
@@ -326,16 +327,16 @@ func TestManager_rollback(t *testing.T) {
 			"example": testMethod{},
 		}}
 		saveExamples(t, db)
-		didId2 := DID{
+		didId2 := orm.DID{
 			ID:      "did:example:321",
 			Subject: "subject",
 		}
-		didDocument2 := DIDDocument{
+		didDocument2 := orm.DIDDocument{
 			ID:        "2",
 			DidID:     "did:example:321",
 			UpdatedAt: time.Now().Add(-time.Hour).Unix(),
 		}
-		didChangeLog2 := DIDChangeLog{
+		didChangeLog2 := orm.DIDChangeLog{
 			DIDDocumentVersionID: "2",
 			Type:                 "created",
 			TransactionID:        "2",
@@ -347,12 +348,12 @@ func TestManager_rollback(t *testing.T) {
 		manager.Rollback(context.Background())
 
 		// check removal of DIDChangeLog
-		didChangeLog := make([]DIDChangeLog, 0)
+		didChangeLog := make([]orm.DIDChangeLog, 0)
 		require.NoError(t, db.Find(&didChangeLog).Error)
 		assert.Len(t, didChangeLog, 0)
 
 		// check removal of  DIDDocument
-		didDocuments := make([]DIDDocument, 0)
+		didDocuments := make([]orm.DIDDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 0)
 	})
@@ -374,21 +375,21 @@ type testMethod struct {
 	error     error
 }
 
-func (t testMethod) NewDocument(_ context.Context, _ DIDKeyFlags) (*DIDDocument, error) {
+func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
 	id := fmt.Sprintf("did:example:%s", uuid.New().String())
-	return &DIDDocument{DID: DID{ID: id}}, t.error
+	return &orm.DIDDocument{DID: orm.DID{ID: id}}, t.error
 }
 
-func (t testMethod) NewVerificationMethod(_ context.Context, controller did.DID, _ DIDKeyFlags) (*did.VerificationMethod, error) {
+func (t testMethod) NewVerificationMethod(_ context.Context, controller did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	return &did.VerificationMethod{
 		ID: did.MustParseDIDURL(fmt.Sprintf("%s#%s", controller.String(), uuid.New().String())),
 	}, t.error
 }
 
-func (t testMethod) Commit(_ context.Context, _ DIDChangeLog) error {
+func (t testMethod) Commit(_ context.Context, _ orm.DIDChangeLog) error {
 	return t.error
 }
 
-func (t testMethod) IsCommitted(_ context.Context, _ DIDChangeLog) (bool, error) {
+func (t testMethod) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, error) {
 	return t.committed, t.error
 }

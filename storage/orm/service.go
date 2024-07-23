@@ -20,15 +20,15 @@ package orm
 
 import "gorm.io/gorm/schema"
 
-var _ schema.Tabler = (*SqlService)(nil)
+var _ schema.Tabler = (*Service)(nil)
 
-// SqlService is the gorm representation of the did_service table
-type SqlService struct {
+// Service is the gorm representation of the did_service table
+type Service struct {
 	ID            string `gorm:"primaryKey"`
 	DIDDocumentID string `gorm:"column:did_document_id"`
 	Data          []byte
 }
 
-func (v SqlService) TableName() string {
+func (v Service) TableName() string {
 	return "did_service"
 }

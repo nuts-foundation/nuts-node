@@ -37,7 +37,7 @@ type DIDDocumentManager interface {
 	// If the DID does not exist yet, it will be created
 	// It adds all verification methods, services, alsoKnownAs to the DID document
 	// Not passing any verification methods will create an empty DID document, deactivation checking should be done by the caller
-	CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.SqlService) (*orm.DIDDocument, error)
+	CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DIDDocument, error)
 	// Latest returns the latest version of a DID document
 	// if notAfter is given, it will return the latest version before that time
 	Latest(did did.DID, notAfter *time.Time) (*orm.DIDDocument, error)
@@ -53,7 +53,7 @@ func NewDIDDocumentManager(tx *gorm.DB) *SqlDIDDocumentManager {
 	return &SqlDIDDocumentManager{tx: tx}
 }
 
-func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.SqlService) (*orm.DIDDocument, error) {
+func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DIDDocument, error) {
 	latest := orm.DIDDocument{}
 	err := s.tx.Preload("DID").Where("did = ?", did.ID).Order("version desc").First(&latest).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {

@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"

@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -282,7 +283,7 @@ func TestVDR_Configure(t *testing.T) {
 			require.NoError(t, err)
 			db := storageInstance.GetSQLDatabase()
 			sqlDIDDocumentManager := didsubject.NewDIDDocumentManager(db)
-			sqlDID := didsubject.DID{
+			sqlDID := orm.DID{
 				ID:      "did:web:example.com",
 				Subject: "subject",
 			}

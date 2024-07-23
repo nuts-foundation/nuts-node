@@ -210,7 +210,7 @@ func TestManipulator_AddKey(t *testing.T) {
 			return testTransaction{}, nil
 		})
 
-		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, didsubject.CapabilityInvocationUsage)
+		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, orm.CapabilityInvocationUsage)
 		require.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, key.Controller, *id,
@@ -250,7 +250,7 @@ func TestManager_GenerateDocument(t *testing.T) {
 	manager := NewManager(keyStore, nil, nil, nil, db)
 
 	t.Run("ok", func(t *testing.T) {
-		doc, err := manager.NewDocument(ctx, didsubject.AssertionKeyUsage())
+		doc, err := manager.NewDocument(ctx, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
@@ -273,7 +273,7 @@ func TestManager_GenerateDocument(t *testing.T) {
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
 
-			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, didsubject.AssertionKeyUsage())
+			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
 
 			require.NoError(t, err)
 
