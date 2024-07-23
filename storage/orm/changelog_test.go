@@ -16,7 +16,7 @@
  *
  */
 
-package didsubject
+package orm
 
 import (
 	"testing"

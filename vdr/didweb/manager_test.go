@@ -25,7 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +38,7 @@ func TestManager_NewDocument(t *testing.T) {
 	manager := NewManager(rootDID, "iam", keyStore, db)
 
 	t.Run("random id", func(t *testing.T) {
-		doc, err := manager.NewDocument(ctx, didsubject.AssertionKeyUsage())
+		doc, err := manager.NewDocument(ctx, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		assert.NotNil(t, doc)

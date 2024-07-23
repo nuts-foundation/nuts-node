@@ -16,8 +16,91 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	crypto "github.com/nuts-foundation/nuts-node/crypto"
+	orm "github.com/nuts-foundation/nuts-node/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockMethodManager is a mock of MethodManager interface.
+type MockMethodManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockMethodManagerMockRecorder
+}
+
+// MockMethodManagerMockRecorder is the mock recorder for MockMethodManager.
+type MockMethodManagerMockRecorder struct {
+	mock *MockMethodManager
+}
+
+// NewMockMethodManager creates a new mock instance.
+func NewMockMethodManager(ctrl *gomock.Controller) *MockMethodManager {
+	mock := &MockMethodManager{ctrl: ctrl}
+	mock.recorder = &MockMethodManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMethodManager) EXPECT() *MockMethodManagerMockRecorder {
+	return m.recorder
+}
+
+// Commit mocks base method.
+func (m *MockMethodManager) Commit(ctx context.Context, event orm.DIDChangeLog) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Commit", ctx, event)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Commit indicates an expected call of Commit.
+func (mr *MockMethodManagerMockRecorder) Commit(ctx, event any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Commit", reflect.TypeOf((*MockMethodManager)(nil).Commit), ctx, event)
+}
+
+// IsCommitted mocks base method.
+func (m *MockMethodManager) IsCommitted(ctx context.Context, event orm.DIDChangeLog) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsCommitted", ctx, event)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsCommitted indicates an expected call of IsCommitted.
+func (mr *MockMethodManagerMockRecorder) IsCommitted(ctx, event any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsCommitted", reflect.TypeOf((*MockMethodManager)(nil).IsCommitted), ctx, event)
+}
+
+// NewDocument mocks base method.
+func (m *MockMethodManager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewDocument", ctx, keyFlags)
+	ret0, _ := ret[0].(*orm.DIDDocument)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewDocument indicates an expected call of NewDocument.
+func (mr *MockMethodManagerMockRecorder) NewDocument(ctx, keyFlags any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewDocument", reflect.TypeOf((*MockMethodManager)(nil).NewDocument), ctx, keyFlags)
+}
+
+// NewVerificationMethod mocks base method.
+func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyUsage)
+	ret0, _ := ret[0].(*did.VerificationMethod)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewVerificationMethod indicates an expected call of NewVerificationMethod.
+func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, keyUsage any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerificationMethod", reflect.TypeOf((*MockMethodManager)(nil).NewVerificationMethod), ctx, controller, keyUsage)
+}
 
 // MockDocumentManager is a mock of DocumentManager interface.
 type MockDocumentManager struct {
@@ -43,7 +126,7 @@ func (m *MockDocumentManager) EXPECT() *MockDocumentManagerMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockDocumentManager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockDocumentManager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage)
 	ret0, _ := ret[0].(*did.VerificationMethod)
@@ -139,7 +222,7 @@ func (m *MockSubjectManager) EXPECT() *MockSubjectManagerMockRecorder {
 }
 
 // AddVerificationMethod mocks base method.
-func (m *MockSubjectManager) AddVerificationMethod(ctx context.Context, subject string, keyUsage DIDKeyFlags) ([]did.VerificationMethod, error) {
+func (m *MockSubjectManager) AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, subject, keyUsage)
 	ret0, _ := ret[0].([]did.VerificationMethod)

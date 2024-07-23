@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -34,8 +35,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -78,8 +79,8 @@ func CreateDocument() did.Document {
 }
 
 // DefaultKeyFlags returns the default DIDKeyFlags when creating did:nuts DIDs.
-func DefaultKeyFlags() didsubject.DIDKeyFlags {
-	return didsubject.AssertionKeyUsage() | didsubject.EncryptionKeyUsage()
+func DefaultKeyFlags() orm.DIDKeyFlags {
+	return orm.AssertionKeyUsage() | orm.EncryptionKeyUsage()
 }
 
 // DIDKIDNamingFunc is a function used to name a key used in newly generated DID Documents.
@@ -154,7 +155,7 @@ func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
 	return m.Update(ctx, id, emptyDoc)
 }
 
-func (m Manager) create(ctx context.Context, flags didsubject.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
+func (m Manager) create(ctx context.Context, flags orm.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
@@ -219,27 +220,27 @@ func (m Manager) publish(ctx context.Context, doc did.Document, key nutsCrypto.K
 }
 
 // applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
-func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage didsubject.DIDKeyFlags) {
-	if intendedKeyUsage.Is(didsubject.CapabilityDelegationUsage) {
+func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage orm.DIDKeyFlags) {
+	if intendedKeyUsage.Is(orm.CapabilityDelegationUsage) {
 		document.AddCapabilityDelegation(keyToAdd)
 	}
-	if intendedKeyUsage.Is(didsubject.CapabilityInvocationUsage) {
+	if intendedKeyUsage.Is(orm.CapabilityInvocationUsage) {
 		document.AddCapabilityInvocation(keyToAdd)
 	}
-	if intendedKeyUsage.Is(didsubject.AuthenticationUsage) {
+	if intendedKeyUsage.Is(orm.AuthenticationUsage) {
 		document.AddAuthenticationMethod(keyToAdd)
 	}
-	if intendedKeyUsage.Is(didsubject.AssertionMethodUsage) {
+	if intendedKeyUsage.Is(orm.AssertionMethodUsage) {
 		document.AddAssertionMethod(keyToAdd)
 	}
-	if intendedKeyUsage.Is(didsubject.KeyAgreementUsage) {
+	if intendedKeyUsage.Is(orm.KeyAgreementUsage) {
 		document.AddKeyAgreement(keyToAdd)
 	}
 }
 
 // AddVerificationMethod adds a new key as a VerificationMethod to the document.
 // The key is added to the VerficationMethod relationships specified by keyUsage.
-func (m Manager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m Manager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	doc, meta, err := m.resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
 		return nil, err
@@ -372,7 +373,7 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
-func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
+func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
@@ -396,16 +397,16 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	}
 	vmAsJson, _ := json.Marshal(verificationMethod)
 	now := time.Now().Unix()
-	sqlDoc := didsubject.DIDDocument{
-		DID: didsubject.DID{
+	sqlDoc := orm.DIDDocument{
+		DID: orm.DID{
 			ID: didID.String(),
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
-		VerificationMethods: []didsubject.VerificationMethod{
+		VerificationMethods: []orm.VerificationMethod{
 			{
 				ID:       verificationMethod.ID.String(),
-				KeyTypes: didsubject.VerificationMethodKeyType(keyFlags),
+				KeyTypes: orm.VerificationMethodKeyType(keyFlags),
 				Data:     vmAsJson,
 			},
 		},
@@ -414,19 +415,19 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
 	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
 }
 
-func (m Manager) Commit(ctx context.Context, change didsubject.DIDChangeLog) error {
+func (m Manager) Commit(ctx context.Context, change orm.DIDChangeLog) error {
 	var err error
 	switch change.Type {
-	case didsubject.DIDChangeCreated:
+	case orm.DIDChangeCreated:
 		err = m.onCreate(ctx, change)
-	case didsubject.DIDChangeDeactivated:
+	case orm.DIDChangeDeactivated:
 		err = m.onDeactivate(ctx, change)
-	case didsubject.DIDChangeUpdated:
+	case orm.DIDChangeUpdated:
 		err = m.onUpdate(ctx, change)
 	default:
 		err = fmt.Errorf("unknown event type: %s", change.Type)
@@ -434,7 +435,7 @@ func (m Manager) Commit(ctx context.Context, change didsubject.DIDChangeLog) err
 	return err
 }
 
-func (m Manager) IsCommitted(_ context.Context, change didsubject.DIDChangeLog) (bool, error) {
+func (m Manager) IsCommitted(_ context.Context, change orm.DIDChangeLog) (bool, error) {
 	// get the latest from the didStore
 	_, meta, err := m.store.Resolve(change.DID(), &resolver.ResolveMetadata{AllowDeactivated: true})
 	if err != nil {
@@ -444,7 +445,7 @@ func (m Manager) IsCommitted(_ context.Context, change didsubject.DIDChangeLog) 
 	return meta.Hash.Equals(changeHash), nil
 }
 
-func (m Manager) onCreate(ctx context.Context, event didsubject.DIDChangeLog) error {
+func (m Manager) onCreate(ctx context.Context, event orm.DIDChangeLog) error {
 	return m.db.Transaction(func(tx *gorm.DB) error {
 		didDocument, err := event.DIDDocumentVersion.ToDIDDocument()
 		if err != nil {
@@ -468,7 +469,7 @@ func (m Manager) onCreate(ctx context.Context, event didsubject.DIDChangeLog) er
 	})
 }
 
-func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) error {
+func (m Manager) onUpdate(ctx context.Context, event orm.DIDChangeLog) error {
 	id := event.DID()
 	resolverMetadata := &resolver.ResolveMetadata{
 		AllowDeactivated: true,
@@ -519,7 +520,7 @@ func (m Manager) onUpdate(ctx context.Context, event didsubject.DIDChangeLog) er
 	return err
 }
 
-func (m Manager) onDeactivate(ctx context.Context, event didsubject.DIDChangeLog) error {
+func (m Manager) onDeactivate(ctx context.Context, event orm.DIDChangeLog) error {
 	return m.Deactivate(ctx, event.DID())
 }
 

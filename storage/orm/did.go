@@ -16,19 +16,21 @@
  *
  */
 
-package didsubject
+package orm
 
-import "gorm.io/gorm/schema"
+import (
+	"gorm.io/gorm/schema"
+)
 
-var _ schema.Tabler = (*SqlService)(nil)
-
-// SqlService is the gorm representation of the did_service table
-type SqlService struct {
-	ID            string `gorm:"primaryKey"`
-	DIDDocumentID string `gorm:"column:did_document_id"`
-	Data          []byte
+// DID is the gorm representation of the DID table
+type DID struct {
+	ID      string `gorm:"primaryKey"`
+	Subject string `gorm:"column:subject"`
+	Aka     []DID  `gorm:"foreignKey:Subject;references:Subject"`
 }
 
-func (v SqlService) TableName() string {
-	return "did_service"
+func (d DID) TableName() string {
+	return "did"
 }
+
+var _ schema.Tabler = (*DID)(nil)

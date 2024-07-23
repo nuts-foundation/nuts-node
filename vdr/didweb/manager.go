@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"time"
 
 	"github.com/google/uuid"
@@ -54,11 +55,11 @@ type Manager struct {
 	tenantPath string
 }
 
-func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlags) (*didsubject.DIDDocument, error) {
+func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
 	newDID, _ := did.ParseDID(fmt.Sprintf("%s:%s:%s", m.rootDID.String(), m.tenantPath, uuid.New()))
-	var sqlVerificationMethods []didsubject.VerificationMethod
+	var sqlVerificationMethods []orm.VerificationMethod
 
-	keyTypes := []didsubject.DIDKeyFlags{didsubject.AssertionKeyUsage(), didsubject.EncryptionKeyUsage()}
+	keyTypes := []orm.DIDKeyFlags{orm.AssertionKeyUsage(), orm.EncryptionKeyUsage()}
 	for _, keyType := range keyTypes {
 		if keyType.Is(keyFlags) {
 			verificationMethod, err := m.NewVerificationMethod(ctx, *newDID, keyType)
@@ -66,9 +67,9 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 				return nil, err
 			}
 			asJson, _ := json.Marshal(verificationMethod)
-			sqlVerificationMethods = append(sqlVerificationMethods, didsubject.VerificationMethod{
+			sqlVerificationMethods = append(sqlVerificationMethods, orm.VerificationMethod{
 				ID:       verificationMethod.ID.String(),
-				KeyTypes: didsubject.VerificationMethodKeyType(keyType),
+				KeyTypes: orm.VerificationMethodKeyType(keyType),
 				Data:     asJson,
 			})
 		}
@@ -76,8 +77,8 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 
 	// Create sql.DIDDocument
 	now := time.Now().Unix()
-	sqlDoc := didsubject.DIDDocument{
-		DID: didsubject.DID{
+	sqlDoc := orm.DIDDocument{
+		DID: orm.DID{
 			ID: newDID.String(),
 		},
 		CreatedAt:           now,
@@ -89,14 +90,14 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags didsubject.DIDKeyFlag
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage didsubject.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	var err error
 	var verificationMethodKey nutsCrypto.Key
 	verificationMethodID := did.DIDURL{
 		DID:      controller,
 		Fragment: uuid.New().String(),
 	}
-	if keyUsage.Is(didsubject.KeyAgreementUsage) {
+	if keyUsage.Is(orm.KeyAgreementUsage) {
 		return nil, errors.New("key agreement not supported for did:web")
 		// todo requires update to nutsCrypto module
 		//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
@@ -119,11 +120,11 @@ func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, 
 
 // Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.
 // This is a poor-mans 2-phase commit.
-func (m Manager) Commit(_ context.Context, _ didsubject.DIDChangeLog) error {
+func (m Manager) Commit(_ context.Context, _ orm.DIDChangeLog) error {
 	return nil
 }
 
 // IsCommitted always returns true for did:web. did:web gets its state from the primary DB.
-func (m Manager) IsCommitted(_ context.Context, _ didsubject.DIDChangeLog) (bool, error) {
+func (m Manager) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, error) {
 	return true, nil
 }

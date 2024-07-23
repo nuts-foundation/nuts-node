@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -209,7 +210,7 @@ func TestManipulator_AddKey(t *testing.T) {
 			return testTransaction{}, nil
 		})
 
-		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, didsubject.CapabilityInvocationUsage)
+		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, orm.CapabilityInvocationUsage)
 		require.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, key.Controller, *id,
@@ -249,7 +250,7 @@ func TestManager_GenerateDocument(t *testing.T) {
 	manager := NewManager(keyStore, nil, nil, nil, db)
 
 	t.Run("ok", func(t *testing.T) {
-		doc, err := manager.NewDocument(ctx, didsubject.AssertionKeyUsage())
+		doc, err := manager.NewDocument(ctx, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
@@ -272,7 +273,7 @@ func TestManager_GenerateDocument(t *testing.T) {
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
 
-			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, didsubject.AssertionKeyUsage())
+			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
 
 			require.NoError(t, err)
 
@@ -422,7 +423,7 @@ func TestManager_NewDocument(t *testing.T) {
 	manager := NewManager(keyStore, nil, nil, nil, db)
 
 	t.Run("ok", func(t *testing.T) {
-		doc, err := manager.NewDocument(ctx, didsubject.AssertionKeyUsage())
+		doc, err := manager.NewDocument(ctx, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
@@ -445,7 +446,7 @@ func TestManager_NewDocument(t *testing.T) {
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
 
-			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, didsubject.AssertionKeyUsage())
+			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
 
 			require.NoError(t, err)
 
@@ -460,18 +461,18 @@ func TestManager_NewDocument(t *testing.T) {
 func TestManager_Commit(t *testing.T) {
 	document, _, _ := newDidDoc()
 	data, _ := json.Marshal(document.VerificationMethod[0])
-	eventLog := didsubject.DIDChangeLog{
-		Type: didsubject.DIDChangeCreated,
-		DIDDocumentVersion: didsubject.DIDDocument{
+	eventLog := orm.DIDChangeLog{
+		Type: orm.DIDChangeCreated,
+		DIDDocumentVersion: orm.DIDDocument{
 			ID: uuid.New().String(),
-			DID: didsubject.DID{
+			DID: orm.DID{
 				ID:      document.ID.String(),
 				Subject: "subject",
 			},
-			VerificationMethods: []didsubject.VerificationMethod{
+			VerificationMethods: []orm.VerificationMethod{
 				{
 					ID:       document.VerificationMethod[0].ID.String(),
-					KeyTypes: didsubject.VerificationMethodKeyType(didsubject.AssertionKeyUsage()),
+					KeyTypes: orm.VerificationMethodKeyType(orm.AssertionKeyUsage()),
 					Data:     data,
 				},
 			},
@@ -499,7 +500,7 @@ func TestManager_Commit(t *testing.T) {
 		t.Skip("todo re-enable after DocumentManager change")
 		ctx := newTestContext(t)
 		logCopy := eventLog
-		logCopy.Type = didsubject.DIDChangeDeactivated
+		logCopy.Type = orm.DIDChangeDeactivated
 		didDocument, _ := eventLog.DIDDocumentVersion.ToDIDDocument()
 		metadata := resolver.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
@@ -521,7 +522,7 @@ func TestManager_Commit(t *testing.T) {
 	t.Run("on update", func(t *testing.T) {
 		ctx := newTestContext(t)
 		logCopy := eventLog
-		logCopy.Type = didsubject.DIDChangeUpdated
+		logCopy.Type = orm.DIDChangeUpdated
 		didDocument, _ := eventLog.DIDDocumentVersion.ToDIDDocument()
 		metadata := resolver.DocumentMetadata{
 			SourceTransactions: []hash.SHA256Hash{hash.EmptyHash()},
@@ -545,18 +546,18 @@ func TestManager_IsCommitted(t *testing.T) {
 	document, _, _ := newDidDoc()
 	documentData, _ := json.Marshal(document)
 	vmData, _ := json.Marshal(document.VerificationMethod[0])
-	eventLog := didsubject.DIDChangeLog{
-		Type: didsubject.DIDChangeCreated,
-		DIDDocumentVersion: didsubject.DIDDocument{
+	eventLog := orm.DIDChangeLog{
+		Type: orm.DIDChangeCreated,
+		DIDDocumentVersion: orm.DIDDocument{
 			ID: uuid.New().String(),
-			DID: didsubject.DID{
+			DID: orm.DID{
 				ID:      document.ID.String(),
 				Subject: "subject",
 			},
-			VerificationMethods: []didsubject.VerificationMethod{
+			VerificationMethods: []orm.VerificationMethod{
 				{
 					ID:       document.VerificationMethod[0].ID.String(),
-					KeyTypes: didsubject.VerificationMethodKeyType(didsubject.AssertionKeyUsage()),
+					KeyTypes: orm.VerificationMethodKeyType(orm.AssertionKeyUsage()),
 					Data:     vmData,
 				},
 			},

@@ -22,6 +22,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"testing"
@@ -372,7 +373,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		expectedKeyUsage := didnuts.DefaultKeyFlags() | didsubject.AuthenticationUsage | didsubject.CapabilityDelegationUsage
+		expectedKeyUsage := didnuts.DefaultKeyFlags() | orm.AuthenticationUsage | orm.CapabilityDelegationUsage
 		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{
