@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +16,19 @@
  *
  */
 
-package didsubject
+package orm
 
-import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"testing"
-)
+import "gorm.io/gorm/schema"
 
-func TestCreationOptions_With(t *testing.T) {
-	// make sure With() returns a mutated copy
-	o := defaultDIDCreationOptions{}
-	result := o.With("test")
-	require.NotNil(t, result)
-	assert.Contains(t, result.All(), "test")
-	assert.NotContains(t, o.All(), "test")
+var _ schema.Tabler = (*SqlService)(nil)
+
+// SqlService is the gorm representation of the did_service table
+type SqlService struct {
+	ID            string `gorm:"primaryKey"`
+	DIDDocumentID string `gorm:"column:did_document_id"`
+	Data          []byte
+}
+
+func (v SqlService) TableName() string {
+	return "did_service"
 }

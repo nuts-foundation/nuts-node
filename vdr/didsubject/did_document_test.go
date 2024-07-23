@@ -21,26 +21,27 @@ package didsubject
 import (
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
-var sqlDidAlice = DID{ID: alice.String(), Subject: "alice"}
+var sqlDidAlice = orm.DID{ID: alice.String(), Subject: "alice"}
 
 func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
-	keyUsageFlag := VerificationMethodKeyType(31)
-	vm := VerificationMethod{
+	keyUsageFlag := orm.VerificationMethodKeyType(31)
+	vm := orm.VerificationMethod{
 		ID:       "#1",
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
 	}
-	service := SqlService{
+	service := orm.SqlService{
 		ID:   "#2",
 		Data: []byte("{}"),
 	}
-	sqlDidBob := DID{ID: bob.String(), Subject: "bob"}
+	sqlDidBob := orm.DID{ID: bob.String(), Subject: "bob"}
 	db := testDB(t)
 
 	t.Run("first version", func(t *testing.T) {
@@ -61,7 +62,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		tx := transaction(t, db)
 		docManager := NewDIDDocumentManager(tx)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
 		require.NoError(t, err)
 
 		require.Len(t, doc.VerificationMethods, 1)
@@ -75,14 +76,14 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
 		docManager := NewDIDDocumentManager(tx)
-		_, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
+		_, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []VerificationMethod{vm}, []SqlService{service})
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.SqlService{service})
 
 		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)
@@ -94,13 +95,13 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 	db := testDB(t)
 	tx := transaction(t, db)
 	docManager := NewDIDDocumentManager(tx)
-	keyUsageFlag := VerificationMethodKeyType(AssertionMethodUsage | AuthenticationUsage | CapabilityDelegationUsage | CapabilityInvocationUsage)
-	vm := VerificationMethod{
+	keyUsageFlag := orm.VerificationMethodKeyType(orm.AssertionMethodUsage | orm.AuthenticationUsage | orm.CapabilityDelegationUsage | orm.CapabilityInvocationUsage)
+	vm := orm.VerificationMethod{
 		ID:       "#1",
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
 	}
-	doc, err := docManager.CreateOrUpdate(sqlDidAlice, []VerificationMethod{vm}, nil)
+	doc, err := docManager.CreateOrUpdate(sqlDidAlice, []orm.VerificationMethod{vm}, nil)
 	require.NoError(t, err)
 
 	t.Run("found", func(t *testing.T) {
@@ -118,7 +119,7 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		assert.Nil(t, latest)
 	})
 	t.Run("contains alsoKnownAs", func(t *testing.T) {
-		sqlDidBob := DID{ID: bob.String(), Subject: "bob", Aka: []DID{sqlDidAlice}}
+		sqlDidBob := orm.DID{ID: bob.String(), Subject: "bob", Aka: []orm.DID{sqlDidAlice}}
 		_, err := docManager.CreateOrUpdate(sqlDidBob, nil, nil)
 		require.NoError(t, err)
 
@@ -133,37 +134,4 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, didDoc.AlsoKnownAs, 1)
 	})
-}
-
-func TestDIDDocument_ToDIDDocument(t *testing.T) {
-	vmData := `{"id":"#1"}`
-	serviceData := `{"id":"#2"}`
-	keyUsageFlag := VerificationMethodKeyType(31)
-	vm := VerificationMethod{
-		ID:       "#1",
-		Data:     []byte(vmData),
-		KeyTypes: keyUsageFlag,
-	}
-	service := SqlService{
-		ID:   "#2",
-		Data: []byte(serviceData),
-	}
-	document := DIDDocument{
-		ID:                  "id",
-		DID:                 DID{ID: alice.String(), Aka: []DID{{ID: bob.String()}}},
-		Version:             1,
-		VerificationMethods: []VerificationMethod{vm},
-		Services:            []SqlService{service},
-	}
-
-	didDoc, err := document.ToDIDDocument()
-	require.NoError(t, err)
-
-	assert.Len(t, didDoc.Context, 2)
-	assert.Equal(t, alice, didDoc.ID)
-	require.Len(t, didDoc.VerificationMethod, 1)
-	require.Len(t, didDoc.Service, 1)
-	assert.Equal(t, "#1", didDoc.VerificationMethod[0].ID.String())
-	assert.Equal(t, "#2", didDoc.Service[0].ID.String())
-	assert.Len(t, didDoc.AlsoKnownAs, 1)
 }

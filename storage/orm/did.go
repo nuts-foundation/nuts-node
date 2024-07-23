@@ -16,26 +16,21 @@
  *
  */
 
-package didsubject
+package orm
 
 import (
 	"gorm.io/gorm/schema"
 )
 
-var _ schema.Tabler = (*VerificationMethod)(nil)
-
-// VerificationMethod is the gorm representation of the did_verificationmethod table
-type VerificationMethod struct {
-	ID            string `gorm:"primaryKey"`
-	DIDDocumentID string `gorm:"column:did_document_id"`
-	KeyTypes      VerificationMethodKeyType
-	Data          []byte
+// DID is the gorm representation of the DID table
+type DID struct {
+	ID      string `gorm:"primaryKey"`
+	Subject string `gorm:"column:subject"`
+	Aka     []DID  `gorm:"foreignKey:Subject;references:Subject"`
 }
 
-func (v VerificationMethod) TableName() string {
-	return "did_verificationmethod"
+func (d DID) TableName() string {
+	return "did"
 }
 
-// VerificationMethodKeyType is used to marshal and unmarshal the key type to the DB
-// SQL databases use SMALLINT for this type
-type VerificationMethodKeyType int16
+var _ schema.Tabler = (*DID)(nil)

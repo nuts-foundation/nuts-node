@@ -20,40 +20,28 @@ package didsubject
 
 import (
 	"errors"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"
-	"gorm.io/gorm/schema"
 )
 
-// DID is the gorm representation of the DID table
-type DID struct {
-	ID      string `gorm:"primaryKey"`
-	Subject string `gorm:"column:subject"`
-	Aka     []DID  `gorm:"foreignKey:Subject;references:Subject"`
-}
-
-func (d DID) TableName() string {
-	return "did"
-}
-
 var _ DIDManager = (*SqlDIDManager)(nil)
-var _ schema.Tabler = (*DID)(nil)
 
 // DIDManager is the interface to change data for the did table
 type DIDManager interface {
 	// Add adds a new DID to the database, this is also done via DIDDocumentManager.CreateOrUpdate
-	Add(subject string, did did.DID) (*DID, error)
+	Add(subject string, did did.DID) (*orm.DID, error)
 	// All returns all DIDs in the database
-	All() ([]DID, error)
+	All() ([]orm.DID, error)
 	// Delete removes a DID from the database
 	Delete(did did.DID) error
 	// DeleteAll removes all DIDs for a subject from the database
 	DeleteAll(subject string) error
 	// Find returns a DID by its ID
-	Find(id did.DID) (*DID, error)
+	Find(id did.DID) (*orm.DID, error)
 	// FindBySubject returns all DIDs for a subject
-	FindBySubject(subject string) ([]DID, error)
+	FindBySubject(subject string) ([]orm.DID, error)
 }
 
 // SqlDIDManager is the implementation of the DIDManager interface
@@ -66,26 +54,26 @@ func NewDIDManager(tx *gorm.DB) *SqlDIDManager {
 	return &SqlDIDManager{tx: tx}
 }
 
-func (s SqlDIDManager) Add(subject string, did did.DID) (*DID, error) {
-	added := DID{ID: did.String(), Subject: subject}
+func (s SqlDIDManager) Add(subject string, did did.DID) (*orm.DID, error) {
+	added := orm.DID{ID: did.String(), Subject: subject}
 	return &added, s.tx.Create(&added).Error
 }
 
-func (s SqlDIDManager) All() ([]DID, error) {
-	dids := make([]DID, 0)
+func (s SqlDIDManager) All() ([]orm.DID, error) {
+	dids := make([]orm.DID, 0)
 	return dids, s.tx.Preload("Aka").Find(&dids).Error
 }
 
 func (s SqlDIDManager) Delete(did did.DID) error {
-	return s.tx.Where("id = ?", did.String()).Delete(&DID{}).Error
+	return s.tx.Where("id = ?", did.String()).Delete(&orm.DID{}).Error
 }
 
 func (s SqlDIDManager) DeleteAll(subject string) error {
-	return s.tx.Where("subject = ?", subject).Delete(&DID{}).Error
+	return s.tx.Where("subject = ?", subject).Delete(&orm.DID{}).Error
 }
 
-func (d SqlDIDManager) Find(id did.DID) (*DID, error) {
-	var did DID
+func (d SqlDIDManager) Find(id did.DID) (*orm.DID, error) {
+	var did orm.DID
 	err := d.tx.Preload("Aka").First(&did, "id = ?", id.String()).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -96,8 +84,8 @@ func (d SqlDIDManager) Find(id did.DID) (*DID, error) {
 	return &did, nil
 }
 
-func (d SqlDIDManager) FindBySubject(subject string) ([]DID, error) {
-	dids := make([]DID, 0)
+func (d SqlDIDManager) FindBySubject(subject string) ([]orm.DID, error) {
+	dids := make([]orm.DID, 0)
 	err := d.tx.Preload("Aka").Find(&dids, "subject = ?", subject).Error
 	return dids, err
 }

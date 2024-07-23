@@ -24,6 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 )
 
 // ErrInvalidService is returned when a service is invalid, e.g. invalid field values, duplicate ID, not found, etc.
@@ -34,6 +35,24 @@ var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 
 // ErrDIDAlreadyExists is returned when a DID already exists.
 var ErrDIDAlreadyExists = errors.New("DID already exists")
+
+// MethodManager keeps DID method specific state in sync with the DID sql database.
+type MethodManager interface {
+	// NewDocument generates a new DID document for the given subject.
+	// This is done by the method manager since the DID might depend on method specific rules.
+	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error)
+	// NewVerificationMethod generates a new VerificationMethod for the given subject.
+	// This is done by the method manager since the VM ID might depend on method specific rules.
+	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error)
+	// Commit is called after changes are made to the primary db.
+	// On success, the caller will remove/update the DID changelog.
+	Commit(ctx context.Context, event orm.DIDChangeLog) error
+	// IsCommitted checks if the event is already committed for the specific method.
+	// A mismatch can occur if the method commits before the db is updated (db failure).
+	// If a change is not committed, a rollback of the primary db will occur (delete of that version)
+	IsCommitted(ctx context.Context, event orm.DIDChangeLog) (bool, error)
+}
 
 // DocumentManager is the interface that groups several higher level methods to create and update DID documents.
 // Only used for V1 API calls.
@@ -72,7 +91,7 @@ type DocumentManager interface {
 	// It returns an ErrNotFound when the DID document could not be found.
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage DIDKeyFlags) (*did.VerificationMethod, error)
+	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error)
 }
 
 // SubjectManager abstracts DID Document management away from the API caller.
@@ -110,7 +129,7 @@ type SubjectManager interface {
 	// For each DID method a new key will be generated.
 	// It returns an ErrNotFound when the subject could not be found.
 	// It returns an ErrDeactivated when the subject has the deactivated state.
-	AddVerificationMethod(ctx context.Context, subject string, keyUsage DIDKeyFlags) ([]did.VerificationMethod, error)
+	AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error)
 }
 
 // SubjectCreationOption links all create DIDs to the DID Subject
@@ -153,35 +172,6 @@ func (d defaultDIDCreationOptions) With(opt CreationOption) CreationOptions {
 }
 
 type CreationOption interface {
-}
-
-// DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
-type DIDKeyFlags uint
-
-// Is returns whether the specified DIDKeyFlags is enabled.
-func (k DIDKeyFlags) Is(other DIDKeyFlags) bool {
-	return k&other > 0
-}
-
-const (
-	// AssertionMethodUsage indicates if the generated key pair can be used for assertions.
-	AssertionMethodUsage DIDKeyFlags = 1 << iota
-	// AuthenticationUsage indicates if the generated key pair can be used for authentication.
-	AuthenticationUsage
-	// CapabilityDelegationUsage indicates if the generated key pair can be used for altering DID Documents.
-	CapabilityDelegationUsage
-	// CapabilityInvocationUsage indicates if the generated key pair can be used for capability invocations.
-	CapabilityInvocationUsage
-	// KeyAgreementUsage indicates if the generated key pair can be used for Key agreements.
-	KeyAgreementUsage
-)
-
-func AssertionKeyUsage() DIDKeyFlags {
-	return CapabilityInvocationUsage | AssertionMethodUsage | AuthenticationUsage | CapabilityDelegationUsage
-}
-
-func EncryptionKeyUsage() DIDKeyFlags {
-	return KeyAgreementUsage
 }
 
 // DocumentOwner is the interface for checking DID document ownership (presence of private keys).

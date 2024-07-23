@@ -16,7 +16,7 @@
  *
  */
 
-package didsubject
+package orm
 
 import (
 	"github.com/nuts-foundation/go-did/did"

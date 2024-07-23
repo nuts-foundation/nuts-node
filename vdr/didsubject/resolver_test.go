@@ -18,6 +18,7 @@
 package didsubject
 
 import (
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"testing"
 	"time"
 
@@ -29,7 +30,7 @@ import (
 
 func TestResolver_Resolve(t *testing.T) {
 	exampleDID := did.MustParseDID("did:example:123")
-	verificationMethod := VerificationMethod{
+	verificationMethod := orm.VerificationMethod{
 		ID:       "did:example:123#1",
 		KeyTypes: 31,
 		Data:     []byte("{}"),
@@ -39,7 +40,7 @@ func TestResolver_Resolve(t *testing.T) {
 		db := testDB(t)
 		sqlDIDDocumentManager := NewDIDDocumentManager(db)
 		dbResolver := Resolver{DB: db}
-		_, err := sqlDIDDocumentManager.CreateOrUpdate(DID{ID: exampleDID.String()}, []VerificationMethod{verificationMethod}, nil)
+		_, err := sqlDIDDocumentManager.CreateOrUpdate(orm.DID{ID: exampleDID.String()}, []orm.VerificationMethod{verificationMethod}, nil)
 		require.NoError(t, err)
 
 		doc, meta, err := dbResolver.Resolve(exampleDID, nil)
@@ -54,7 +55,7 @@ func TestResolver_Resolve(t *testing.T) {
 		before := time.Now().Add(-time.Hour)
 		sqlDIDDocumentManager := NewDIDDocumentManager(db)
 		dbResolver := Resolver{DB: db}
-		_, err := sqlDIDDocumentManager.CreateOrUpdate(DID{ID: exampleDID.String()}, []VerificationMethod{verificationMethod}, nil)
+		_, err := sqlDIDDocumentManager.CreateOrUpdate(orm.DID{ID: exampleDID.String()}, []orm.VerificationMethod{verificationMethod}, nil)
 		require.NoError(t, err)
 
 		_, _, err = dbResolver.Resolve(exampleDID, &resolver.ResolveMetadata{ResolveTime: &before})
@@ -73,7 +74,7 @@ func TestResolver_Resolve(t *testing.T) {
 		db := testDB(t)
 		sqlDIDDocumentManager := NewDIDDocumentManager(db)
 		dbResolver := Resolver{DB: db}
-		_, err := sqlDIDDocumentManager.CreateOrUpdate(DID{ID: exampleDID.String()}, nil, nil)
+		_, err := sqlDIDDocumentManager.CreateOrUpdate(orm.DID{ID: exampleDID.String()}, nil, nil)
 		require.NoError(t, err)
 
 		doc, meta, err := dbResolver.Resolve(exampleDID, &resolver.ResolveMetadata{AllowDeactivated: true})
@@ -87,7 +88,7 @@ func TestResolver_Resolve(t *testing.T) {
 		db := testDB(t)
 		dbResolver := Resolver{DB: db}
 		sqlDIDDocumentManager := NewDIDDocumentManager(db)
-		_, err := sqlDIDDocumentManager.CreateOrUpdate(DID{ID: exampleDID.String()}, nil, nil)
+		_, err := sqlDIDDocumentManager.CreateOrUpdate(orm.DID{ID: exampleDID.String()}, nil, nil)
 		require.NoError(t, err)
 
 		_, _, err = dbResolver.Resolve(exampleDID, nil)
