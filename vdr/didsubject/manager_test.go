@@ -21,15 +21,15 @@ package didsubject
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/nuts-foundation/nuts-node/vdr/sql"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -130,7 +130,7 @@ func TestManager_Services(t *testing.T) {
 		t.Run("duplicate", func(t *testing.T) {
 			services, err := m.FindServices(audit.TestContext(), subject, to.Ptr("test"))
 			require.Len(t, services, 1)
-			doc, err := sql.NewDIDDocumentManager(db).Latest(document.ID)
+			doc, err := NewDIDDocumentManager(db).Latest(document.ID, nil)
 			require.NoError(t, err)
 			version := doc.Version
 
@@ -138,7 +138,7 @@ func TestManager_Services(t *testing.T) {
 
 			require.NoError(t, err)
 			// check for no change
-			doc, err = sql.NewDIDDocumentManager(db).Latest(document.ID)
+			doc, err = NewDIDDocumentManager(db).Latest(document.ID, nil)
 			require.NoError(t, err)
 			assert.Equal(t, version, doc.Version)
 		})
