@@ -25,7 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"time"
@@ -41,8 +41,7 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
-	VDR            vdr.VDR
-	DocManipulator management.DocManipulator
+	VDR vdr.VDR
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -53,7 +52,6 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrDeactivated:             http.StatusConflict,
 		resolver.ErrNoActiveController:      http.StatusConflict,
 		resolver.ErrDuplicateService:        http.StatusBadRequest,
-		didnuts.ErrInvalidOptions:           http.StatusBadRequest,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 	})
 }
@@ -71,7 +69,7 @@ func (a *Wrapper) DeleteVerificationMethod(ctx context.Context, request DeleteVe
 		return nil, core.InvalidInputError("given kid could not be parsed: %w", err)
 	}
 
-	err = a.DocManipulator.RemoveVerificationMethod(ctx, *id, *kid)
+	err = a.VDR.NutsDocumentManager().RemoveVerificationMethod(ctx, *id, *kid)
 	if err != nil {
 		return nil, fmt.Errorf("could not remove verification method from document: %w", err)
 	}
@@ -90,7 +88,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		opts = &VerificationMethodRelationship{}
 	}
 
-	vm, err := a.DocManipulator.AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultKeyFlags()))
+	vm, err := a.VDR.NutsDocumentManager().AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultKeyFlags()))
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +113,7 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // CreateDID creates a new DID Document and returns it.
 func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	options := didnuts.DefaultCreationOptions()
+	options := didsubject.DefaultCreationOptions()
 
 	defaultKeyFlags := didnuts.DefaultKeyFlags()
 	keyFlags := request.Body.VerificationMethodRelationship.ToFlags(defaultKeyFlags)
@@ -123,7 +121,7 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 		options = options.With(keyFlags)
 	}
 
-	doc, _, err := a.VDR.Create(ctx, options)
+	doc, _, err := a.VDR.NutsDocumentManager().Create(ctx, options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return nil, err
@@ -200,7 +198,7 @@ func (a *Wrapper) UpdateDID(ctx context.Context, request UpdateDIDRequestObject)
 		return nil, err
 	}
 
-	err = a.VDR.Update(ctx, *d, request.Body.Document)
+	err = a.VDR.NutsDocumentManager().Update(ctx, *d, request.Body.Document)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +212,7 @@ func (a *Wrapper) DeactivateDID(ctx context.Context, request DeactivateDIDReques
 	if err != nil {
 		return nil, err
 	}
-	err = a.VDR.Deactivate(ctx, *id)
+	err = a.VDR.NutsDocumentManager().Deactivate(ctx, *id)
 	if err != nil {
 		return nil, err
 	}

@@ -19,3 +19,6 @@ network:
   bootstrapnodes: nodeA-backend:5555
   v2:
     gossipinterval: 400
+vdr:
+  didmethods:
+    - nuts

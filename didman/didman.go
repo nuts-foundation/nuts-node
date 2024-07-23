@@ -25,12 +25,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"sync"
 
-	"github.com/mr-tron/base58"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -337,7 +337,7 @@ func (d *didman) deleteService(ctx context.Context, serviceID ssi.URI) error {
 	}
 	doc.Service = doc.Service[:j]
 
-	err = d.vdr.Update(ctx, id, *doc)
+	err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc)
 	if err == nil {
 		log.Logger().
 			WithField(core.LogFieldServiceID, serviceID.String()).
@@ -564,7 +564,7 @@ func (d *didman) addService(ctx context.Context, id did.DID, serviceType string,
 
 	// Add on DID Document and update
 	doc.Service = append(doc.Service, *service)
-	if err = d.vdr.Update(ctx, id, *doc); err != nil {
+	if err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil
@@ -591,23 +591,10 @@ func (d *didman) updateService(ctx context.Context, id did.DID, serviceType stri
 	if !serviceToBeUpdatedFound {
 		return nil, resolver.ErrServiceNotFound
 	}
-	if err = d.vdr.Update(ctx, id, *doc); err != nil {
+	if err = d.vdr.NutsDocumentManager().Update(ctx, id, *doc); err != nil {
 		return nil, err
 	}
 	return service, nil
-}
-
-func generateIDForService(id did.DID, service did.Service) ssi.URI {
-	bytes, _ := json.Marshal(service)
-	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
-	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
-	var raw map[string]interface{}
-	_ = json.Unmarshal(bytes, &raw)
-	bytes, _ = json.Marshal(raw)
-	shaBytes := sha256.Sum256(bytes)
-	d := id.URI()
-	d.Fragment = base58.EncodeAlphabet(shaBytes[:], base58.BTCAlphabet)
-	return d
 }
 
 // referencedService checks if serviceRef occurs in doc's services.
@@ -634,4 +621,17 @@ func referencedService(doc *did.Document, serviceRef string) bool {
 		}
 	}
 	return false
+}
+
+func generateIDForService(id did.DID, service did.Service) ssi.URI {
+	bytes, _ := json.Marshal(service)
+	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
+	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
+	var raw map[string]interface{}
+	_ = json.Unmarshal(bytes, &raw)
+	bytes, _ = json.Marshal(raw)
+	shaBytes := sha256.Sum256(bytes)
+	d := id.URI()
+	d.Fragment = base58.EncodeAlphabet(shaBytes[:], base58.BTCAlphabet)
+	return d
 }

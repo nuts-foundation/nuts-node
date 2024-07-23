@@ -25,31 +25,27 @@ package vdr
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
+	"time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"gorm.io/gorm"
 )
 
 // ModuleName is the name of the engine
@@ -58,6 +54,7 @@ const ModuleName = "VDR"
 var _ VDR = (*Module)(nil)
 var _ core.Named = (*Module)(nil)
 var _ core.Configurable = (*Module)(nil)
+var _ didsubject.SubjectManager = (*Module)(nil)
 
 // Module implements VDR, which stands for the Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
@@ -68,24 +65,29 @@ type Module struct {
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
 	documentOwner     didsubject.DocumentOwner
-	documentManagers  map[string]management.DocumentManager
-	didResolver       *resolver.DIDResolverRouter
-	serviceResolver   resolver.ServiceResolver
-	keyStore          crypto.KeyStore
-	storageInstance   storage.Engine
-	eventManager      events.Event
+	// nutsDocumentManager is used to manage did:nuts DID Documents
+	// Deprecated: used by v1 api
+	nutsDocumentManager didsubject.DocumentManager
+	// didResolver is used to resolve all/other DID Documents
+	didResolver resolver.DIDResolver
+	// ownedDIDResolver is used to resolve DID Documents managed by this node
+	ownedDIDResolver resolver.DIDResolver
+	keyStore         crypto.KeyStore
+	storageInstance  storage.Engine
+	eventManager     events.Event
 
 	// new style DID management
-	db *gorm.DB
+	didsubject.Manager
+
+	// Start/Shutdown
+	ctx      context.Context
+	cancel   context.CancelFunc
+	routines *sync.WaitGroup
 }
 
 // ResolveManaged resolves a DID document that is managed by the local node.
 func (r *Module) ResolveManaged(id did.DID) (*did.Document, error) {
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", id.Method)
-	}
-	document, _, err := manager.Resolve(id, nil)
+	document, _, err := r.ownedDIDResolver.Resolve(id, nil)
 	return document, err
 }
 
@@ -106,18 +108,17 @@ func (r *Module) SupportedMethods() []string {
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
-	didResolver := &resolver.DIDResolverRouter{}
-	module := Module{
-		config:          DefaultConfig(),
+	m := &Module{
+		didResolver:     &resolver.DIDResolverRouter{},
 		network:         networkClient,
 		eventManager:    eventManager,
-		didResolver:     didResolver,
 		store:           didStore,
-		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
 		keyStore:        cryptoClient,
 		storageInstance: storageInstance,
 	}
-	return &module
+	m.ctx, m.cancel = context.WithCancel(context.Background())
+	m.routines = new(sync.WaitGroup)
+	return m
 }
 
 func (r *Module) Name() string {
@@ -132,7 +133,7 @@ func (r *Module) Config() interface{} {
 func (r *Module) Configure(config core.ServerConfig) error {
 	// at least one method should be configured
 	if len(r.config.DIDMethods) == 0 {
-		return errors.New("no DID methods configured")
+		return errors.New("at least one DID method should be configured")
 	}
 	// check if all configured methods are supported
 	for _, method := range r.config.DIDMethods {
@@ -145,29 +146,28 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	}
 
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
-	r.db = r.storageInstance.GetSQLDatabase()
+	db := r.storageInstance.GetSQLDatabase()
+	methodManagers := map[string]didsubject.MethodManager{}
+
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
+	// Register DID resolver and DID methods we can resolve
+	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 
 	// Methods we can produce from the Nuts node
 	// did:nuts
-	nutsManager := didnuts.NewManager(r.db, r.keyStore, r.network, r.store, r.didResolver,
-		// deprecated
-		didnuts.Creator{
-			KeyStore:      r.keyStore,
-			NetworkClient: r.network,
-			DIDResolver:   r.store,
-		},
-		// deprecated
-		newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver))
-	r.documentManagers = map[string]management.DocumentManager{}
+	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
+	r.nutsDocumentManager = nutsManager
+	methodManagers = map[string]didsubject.MethodManager{}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{
-			newCachingDocumentOwner(DBDocumentOwner{DB: r.db}, r.didResolver),
-			// if the DB doesn't know, we check the private keys (legacy)
+			newCachingDocumentOwner(DBDocumentOwner{DB: db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		},
 	}
 	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
-		r.documentManagers[didnuts.MethodName] = nutsManager
+		methodManagers[didnuts.MethodName] = nutsManager
+		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	}
 
 	// did:web
@@ -179,23 +179,20 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	manager := didweb.NewManager(*rootDID, "iam", r.keyStore, r.storageInstance.GetSQLDatabase())
-	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
-		r.documentManagers[didweb.MethodName] = manager
-	}
-	// did:web resolver should first look in own database, then resolve over the web
+	webManager := didweb.NewManager(*rootDID, "iam", r.keyStore, db)
 	webResolver := resolver.ChainedDIDResolver{
 		Resolvers: []resolver.DIDResolver{
-			manager,
+			// did:web resolver should first look in own database, then resolve over the web
+			r.ownedDIDResolver,
 			didweb.NewResolver(),
 		},
 	}
+	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
+		methodManagers[didweb.MethodName] = webManager
+		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
+	}
 
-	// Register DID methods we can resolve
-	r.didResolver.Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
-	r.didResolver.Register(didweb.MethodName, webResolver)
-	r.didResolver.Register(didjwk.MethodName, didjwk.NewResolver())
-	r.didResolver.Register(didkey.MethodName, didkey.NewResolver())
+	r.Manager = didsubject.Manager{DB: db, MethodManagers: methodManagers}
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()
@@ -217,10 +214,39 @@ func (r *Module) Start() error {
 		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 
+	// start DID Document rollback loop
+	r.routines.Add(1)
+	go func() {
+		defer r.routines.Done()
+		r.rollbackLoop()
+	}()
+
 	return err
 }
 
+// rollbackLoop checks every minute if there are any DID documents that need to be rolled back.
+// uses rollback() to do the actual work.
+func (r *Module) rollbackLoop() {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
+	// run once at startup
+	r.Rollback(r.ctx)
+	for {
+		select {
+		// stop at shutdown
+		case <-r.ctx.Done():
+			return
+		case <-ticker.C:
+			// run every minute
+			r.Rollback(r.ctx)
+		}
+	}
+}
+
 func (r *Module) Shutdown() error {
+	r.cancel()
+	r.routines.Wait()
 	return nil
 }
 
@@ -236,13 +262,17 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 	return conflictedDocs, conflictedMeta, err
 }
 
+func (r *Module) NutsDocumentManager() didsubject.DocumentManager {
+	return r.nutsDocumentManager
+}
+
 func (r *Module) DocumentOwner() didsubject.DocumentOwner {
 	return r.documentOwner
 }
 
 // newOwnConflictedDocIterator accepts two counters and returns a new DocIterator that counts the total number of
 // conflicted documents, both total and owned by this node.
-func (r *Module) newOwnConflictedDocIterator(totalCount, ownedCount *int) management.DocIterator {
+func (r *Module) newOwnConflictedDocIterator(totalCount, ownedCount *int) resolver.DocIterator {
 	return func(doc did.Document, metadata resolver.DocumentMetadata) error {
 		*totalCount++
 		controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
@@ -345,7 +375,7 @@ func (r *Module) Migrate() error {
 					}
 				}
 
-				err = r.Update(auditContext, did, *doc)
+				err = r.nutsDocumentManager.Update(auditContext, did, *doc)
 				if err != nil {
 					if !(errors.Is(err, resolver.ErrKeyNotFound)) {
 						log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
@@ -355,176 +385,4 @@ func (r *Module) Migrate() error {
 		}
 	}
 	return nil
-}
-
-// Create generates a new DID Document
-func (r *Module) Create(ctx context.Context, options management.CreationOptions) (*did.Document, crypto.Key, error) {
-	log.Logger().Debug("Creating new DID Document.")
-	manager := r.documentManagers[options.Method()]
-	if manager == nil {
-		return nil, nil, fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, options.Method())
-	}
-	doc, key, err := manager.Create(ctx, options)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not create DID document (method %s): %w", options.Method(), err)
-	}
-	log.Logger().
-		WithField(core.LogFieldDID, doc.ID).
-		Info("New DID Document created")
-	return doc, key, nil
-}
-
-func (r *Module) Deactivate(ctx context.Context, id did.DID) error {
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Debug("Deactivating DID Document")
-	manager := r.documentManagers[id.Method]
-	if manager == nil {
-		return fmt.Errorf("%w: %s", management.ErrUnsupportedDIDMethod, id.Method)
-	}
-	err := manager.Deactivate(ctx, id)
-	if err != nil {
-		return fmt.Errorf("could not deactivate DID document: %w", err)
-	}
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Info("DID Document deactivated")
-	return nil
-}
-
-// Update updates a DID Document based on the DID.
-// It only works on did:nuts, so is subject for removal in the future.
-func (r *Module) Update(ctx context.Context, id did.DID, next did.Document) error {
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Debug("Updating DID Document")
-	resolverMetadata := &resolver.ResolveMetadata{
-		AllowDeactivated: true,
-	}
-
-	// Since the update mechanism is "did:nuts"-specific, we can't accidentally update a non-"did:nuts" document,
-	// but check it defensively to avoid obscure errors later.
-	if id.Method != didnuts.MethodName {
-		return fmt.Errorf("can't update DID document of type: %s", id.Method)
-	}
-
-	currentDIDDocument, currentMeta, err := r.store.Resolve(id, resolverMetadata)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-	if resolver.IsDeactivated(*currentDIDDocument) {
-		return fmt.Errorf("update DID document: %w", resolver.ErrDeactivated)
-	}
-
-	// #1530: add nuts and JWS context if not present
-	next = withJSONLDContext(next, didnuts.NutsDIDContextV1URI())
-	next = withJSONLDContext(next, jsonld.JWS2020ContextV1URI())
-
-	// Validate document. No more changes should be made to the document after this point.
-	if err = didnuts.ManagedDocumentValidator(r.serviceResolver).Validate(next); err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	payload, err := json.Marshal(next)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	controller, key, err := r.resolveControllerWithKey(ctx, *currentDIDDocument)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	// for the metadata
-	_, controllerMeta, err := r.didResolver.Resolve(controller.ID, nil)
-	if err != nil {
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
-	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
-
-	tx := network.TransactionTemplate(didnuts.DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
-	_, err = r.network.CreateTransaction(ctx, tx)
-	if err != nil {
-		log.Logger().WithError(err).Warn("Unable to update DID document")
-		if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-			err = resolver.ErrDIDNotManagedByThisNode
-		}
-		return fmt.Errorf("update DID document: %w", err)
-	}
-
-	log.Logger().
-		WithField(core.LogFieldDID, id).
-		Info("DID Document updated")
-
-	return nil
-}
-
-// CreateService creates a new service in the DID document identified by subjectDID.
-func (r *Module) CreateService(ctx context.Context, subjectDID did.DID, service did.Service) (*did.Service, error) {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
-	}
-	return manager.CreateService(ctx, subjectDID, service)
-}
-
-// UpdateService updates a service in the DID document identified by subjectDID.
-func (r *Module) UpdateService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI, service did.Service) (*did.Service, error) {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return nil, fmt.Errorf("unsupported method: %s", subjectDID.Method)
-	}
-	return manager.UpdateService(ctx, subjectDID, serviceID, service)
-}
-
-// DeleteService removes a service from the DID document identified by subjectDID.
-func (r *Module) DeleteService(ctx context.Context, subjectDID did.DID, serviceID ssi.URI) error {
-	manager := r.documentManagers[subjectDID.Method]
-	if manager == nil {
-		return fmt.Errorf("unsupported method: %s", subjectDID.Method)
-	}
-	return manager.DeleteService(ctx, subjectDID, serviceID)
-}
-
-func (r *Module) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, crypto.Key, error) {
-	controllers, err := didnuts.ResolveControllers(r.store, doc, nil)
-	if err != nil {
-		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
-	}
-	if len(controllers) == 0 {
-		return did.Document{}, nil, fmt.Errorf("could not find any controllers for document")
-	}
-
-	var key crypto.Key
-	for _, c := range controllers {
-		for _, cik := range c.CapabilityInvocation {
-			key, err = r.keyStore.Resolve(ctx, cik.ID.String())
-			if err == nil {
-				return c, key, nil
-			}
-		}
-	}
-
-	if errors.Is(err, crypto.ErrPrivateKeyNotFound) {
-		return did.Document{}, nil, resolver.ErrDIDNotManagedByThisNode
-	}
-
-	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
-}
-
-func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
-	contextPresent := false
-
-	for _, c := range document.Context {
-		if util.LDContextToString(c) == ctx.String() {
-			contextPresent = true
-		}
-	}
-
-	if !contextPresent {
-		document.Context = append(document.Context, ctx)
-	}
-	return document
 }

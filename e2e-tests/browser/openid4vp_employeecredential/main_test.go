@@ -124,5 +124,12 @@ func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (did
 
 func createDID(config core.ClientConfig) (*did.Document, error) {
 	didClient := didAPI.HTTPClient{ClientConfig: config}
-	return didClient.Create(didAPI.CreateDIDOptions{})
+	docs, err := didClient.Create(didAPI.CreateDIDOptions{})
+	if err != nil {
+		return nil, err
+	}
+	if len(docs) == 0 {
+		return nil, nil
+	}
+	return &docs[0], nil
 }

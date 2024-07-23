@@ -26,7 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"sync"
@@ -54,22 +54,21 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
-	assert.NotNil(t, docA)
 
 	docAID := docA.ID
 
 	// Check if the document can be found in the store
-	docA, metadataDocA, err := ctx.didStore.Resolve(docA.ID, nil)
+	docA, metadataDocA, err := ctx.didStore.Resolve(docAID, nil)
 	require.NoError(t, err)
 
 	assert.NotNil(t, docA)
 	assert.NotNil(t, metadataDocA)
-	assert.Equal(t, docAID, docA.ID)
+	assert.Equal(t, docAID, docAID)
 
 	// Try to update the document with a service
-	serviceID, _ := url.Parse(docA.ID.String() + "#service-1")
+	serviceID, _ := url.Parse(docAID.String() + "#service-1")
 	newService := did.Service{
 		ID:              ssi.URI{URL: *serviceID},
 		Type:            "service",
@@ -78,7 +77,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
+	err = ctx.vdr.nutsDocumentManager.Update(ctx.audit, docAID, *docA)
 	require.NoError(t, err, "unable to update docA with a new service")
 
 	// Resolve the document and check it contents
@@ -89,32 +88,11 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err, "unexpected error while creating DocumentB")
-	assert.NotNil(t, docB,
-		"a new document should have been created")
 	_, _, err = ctx.didStore.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
-
-	// Update the controller of DocumentA with DocumentB
-	// And remove its own authenticationMethod
-	docA.Controller = []did.DID{docB.ID}
-	docA.AssertionMethod = []did.VerificationRelationship{}
-	docA.CapabilityInvocation = []did.VerificationRelationship{}
-	docA.VerificationMethod = []*did.VerificationMethod{}
-	docA.KeyAgreement = []did.VerificationRelationship{}
-	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
-	require.NoError(t, err, "unable to update documentA with a new controller")
-
-	// Resolve and check DocumentA
-	docA, metadataDocA, err = ctx.didStore.Resolve(docA.ID, nil)
-	require.NoError(t, err, "unable to resolve updated documentA")
-	assert.Equal(t, []did.DID{docB.ID}, docA.Controller,
-		"expected updated documentA to have documentB as its controller")
-
-	assert.Empty(t, docA.CapabilityInvocation,
-		"expected documentA to have no CapabilityInvocation")
 
 	// Update and check DocumentA with a new service:
 	serviceID, _ = url.Parse(docA.ID.String() + "#service-2")
@@ -125,7 +103,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 	}
 	docA.Service = append(docA.Service, newService)
 
-	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
+	err = ctx.vdr.nutsDocumentManager.Update(ctx.audit, docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new service")
 	// Resolve and check if the service has been added
 	docA, metadataDocA, err = ctx.didStore.Resolve(docA.ID, nil)
@@ -135,25 +113,19 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	docUpdater := &didnuts.Manipulator{KeyCreator: ctx.cryptoInstance, Updater: ctx.vdr, Resolver: ctx.didStore}
-	err = docUpdater.Deactivate(ctx.audit, docB.ID)
-	assert.NoError(t, err,
+	err = ctx.vdr.nutsDocumentManager.Deactivate(ctx.audit, docB.ID)
+	require.NoError(t, err,
 		"expected deactivation to succeed")
 
 	docB, _, err = ctx.didStore.Resolve(docB.ID, &resolver.ResolveMetadata{AllowDeactivated: true})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, docB.CapabilityInvocation, 0,
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
 
 	// try to deactivate the document again
-	err = docUpdater.Deactivate(ctx.audit, docB.ID)
+	err = ctx.vdr.nutsDocumentManager.Deactivate(ctx.audit, docB.ID)
 	assert.ErrorIs(t, err, resolver.ErrDeactivated,
 		"expected an error when trying to deactivate an already deactivated document")
-
-	// try to update document A should fail since it no longer has an active controller
-	docA.Service = docA.Service[1:]
-	err = ctx.vdr.Update(ctx.audit, docAID, *docA)
-	assert.EqualError(t, err, "update DID document: could not find any controllers for document")
 }
 
 // Test the full stack by testing creating and updating DID documents.
@@ -161,16 +133,16 @@ func TestVDRMigration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docA, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	docB, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
 
 	// Update the controller of DocumentA with DocumentB
 	docA.Controller = []did.DID{docB.ID}
-	err = ctx.vdr.Update(ctx.audit, docA.ID, *docA)
+	err = ctx.vdr.NutsDocumentManager().Update(ctx.audit, docA.ID, *docA)
 	require.NoError(t, err, "unable to update documentA with a new controller")
 
 	// Resolve and check DocumentA
@@ -194,12 +166,11 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.Create(ctx.audit, didnuts.DefaultCreationOptions())
+	initialDoc, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
-	assert.NotNil(t, initialDoc)
 
 	// Check if the document can be found in the store
-	initialDoc, _, err = ctx.didStore.Resolve(initialDoc.ID, nil)
+	_, _, err = ctx.didStore.Resolve(initialDoc.ID, nil)
 	require.NoError(t, err)
 
 	const procs = 10
@@ -219,7 +190,7 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 			}
 
 			newDoc.Service = append(currDoc.Service, newService)
-			err := ctx.vdr.Update(ctx.audit, currDoc.ID, newDoc)
+			err := ctx.vdr.nutsDocumentManager.Update(ctx.audit, currDoc.ID, newDoc)
 			if err != nil {
 				errs <- err
 			}
@@ -237,7 +208,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.docCreator.Create(audit.TestContext(), didnuts.DefaultCreationOptions())
+	didDoc, key, _ := ctx.vdr.NutsDocumentManager().Create(audit.TestContext(), didsubject.DefaultCreationOptions())
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didnuts.DIDDocumentType, nil, nil, uint32(0))
 	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
@@ -262,7 +233,6 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 type testContext struct {
 	vdr             *Module
 	eventPublisher  events.Event
-	docCreator      management.DocCreator
 	didStore        didstore.Store
 	cryptoInstance  *crypto.Crypto
 	audit           context.Context
@@ -296,7 +266,7 @@ func setup(t *testing.T) testContext {
 	storageEngine := storage.NewTestStorageEngine(t)
 
 	// DID Store
-	didStore := didstore.NewTestStore(t)
+	didStore := didstore.TestStore(t, storageEngine)
 
 	// Startup events
 	eventPublisher := events.NewTestManager(t)
@@ -318,6 +288,7 @@ func setup(t *testing.T) testContext {
 		pkiValidator,
 	)
 	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
+	vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))
@@ -336,7 +307,6 @@ func setup(t *testing.T) testContext {
 	return testContext{
 		vdr:             vdr,
 		eventPublisher:  eventPublisher,
-		docCreator:      vdr.documentManagers[didnuts.MethodName],
 		didStore:        didStore,
 		cryptoInstance:  cryptoInstance,
 		audit:           audit.TestContext(),

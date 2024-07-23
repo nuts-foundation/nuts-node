@@ -13,3 +13,6 @@ auth:
     autoupdateschemas: false
 policy:
   directory: /opt/nuts/policies
+vdr:
+  didmethods:
+    - web

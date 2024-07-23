@@ -27,7 +27,6 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -178,7 +177,7 @@ func (tl *store) Resolve(id did.DID, resolveMetadata *resolver.ResolveMetadata) 
 	return
 }
 
-func (tl *store) Iterate(fn management.DocIterator) error {
+func (tl *store) Iterate(fn resolver.DocIterator) error {
 	return tl.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		latestReader := tx.GetShelfReader(latestShelf)
 
@@ -247,7 +246,7 @@ func (tl *store) removeCachedConflict(document did.Document) {
 	delete(tl.conflictedDocuments, document.ID.String())
 }
 
-func (tl *store) Conflicted(fn management.DocIterator) error {
+func (tl *store) Conflicted(fn resolver.DocIterator) error {
 	for _, conflicted := range tl.conflictedDocuments {
 		if err := fn(conflicted.didDocument, conflicted.metadata.asVDRMetadata()); err != nil {
 			return err

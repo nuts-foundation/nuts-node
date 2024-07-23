@@ -16,11 +16,10 @@
  *
  */
 
-package management
+package resolver
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -30,25 +29,25 @@ func TestIsActive(t *testing.T) {
 	p := IsActive()
 
 	t.Run("active", func(t *testing.T) {
-		assert.True(t, p.Match(did.Document{}, resolver.DocumentMetadata{Deactivated: false}))
+		assert.True(t, p.Match(did.Document{}, DocumentMetadata{Deactivated: false}))
 	})
 
 	t.Run("deactivated", func(t *testing.T) {
-		assert.False(t, p.Match(did.Document{}, resolver.DocumentMetadata{Deactivated: true}))
+		assert.False(t, p.Match(did.Document{}, DocumentMetadata{Deactivated: true}))
 	})
 }
 
 func TestValidAt(t *testing.T) {
 	now := time.Now()
 	later := now.AddDate(0, 0, 1)
-	meta := resolver.DocumentMetadata{
+	meta := DocumentMetadata{
 		Created: now.AddDate(0, 0, -1),
 		Updated: &later,
 	}
 
 	t.Run("ok - latest", func(t *testing.T) {
 		p := ValidAt(now)
-		assert.True(t, p.Match(did.Document{}, resolver.DocumentMetadata{Created: now.AddDate(0, 0, -1), Updated: nil}))
+		assert.True(t, p.Match(did.Document{}, DocumentMetadata{Created: now.AddDate(0, 0, -1), Updated: nil}))
 	})
 
 	t.Run("ok - updated", func(t *testing.T) {
@@ -79,7 +78,7 @@ func TestByServiceType(t *testing.T) {
 			},
 		}}
 
-		assert.True(t, p.Match(doc, resolver.DocumentMetadata{}))
+		assert.True(t, p.Match(doc, DocumentMetadata{}))
 	})
 
 	t.Run("ignore", func(t *testing.T) {
@@ -90,6 +89,6 @@ func TestByServiceType(t *testing.T) {
 			},
 		}}
 
-		assert.False(t, p.Match(docIgnore, resolver.DocumentMetadata{}))
+		assert.False(t, p.Match(docIgnore, DocumentMetadata{}))
 	})
 }

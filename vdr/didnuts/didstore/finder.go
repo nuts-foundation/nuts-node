@@ -19,7 +19,6 @@ package didstore
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -28,7 +27,7 @@ type Finder struct {
 	Store Store
 }
 
-func (f Finder) Find(predicate ...management.Predicate) ([]did.Document, error) {
+func (f Finder) Find(predicate ...resolver.Predicate) ([]did.Document, error) {
 	matches := make([]did.Document, 0)
 
 	err := f.Store.Iterate(func(doc did.Document, metadata resolver.DocumentMetadata) error {

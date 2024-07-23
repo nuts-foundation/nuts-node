@@ -11,3 +11,6 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
+vdr:
+  didmethods:
+    - web

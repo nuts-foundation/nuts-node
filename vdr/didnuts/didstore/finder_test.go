@@ -19,13 +19,12 @@ package didstore
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -35,11 +34,11 @@ func TestFinder_Find(t *testing.T) {
 		didStore := NewMockStore(ctrl)
 		finder := Finder{Store: didStore}
 		didStore.EXPECT().Iterate(gomock.Any()).Do(func(arg interface{}) {
-			f := arg.(management.DocIterator)
+			f := arg.(resolver.DocIterator)
 			f(did.Document{}, resolver.DocumentMetadata{})
 		})
 
-		docs, err := finder.Find(management.IsActive())
+		docs, err := finder.Find(resolver.IsActive())
 
 		require.NoError(t, err)
 		assert.Len(t, docs, 1)
@@ -51,7 +50,7 @@ func TestFinder_Find(t *testing.T) {
 		finder := Finder{Store: didStore}
 		didStore.EXPECT().Iterate(gomock.Any()).Return(errors.New("b00m!"))
 
-		_, err := finder.Find(management.IsActive())
+		_, err := finder.Find(resolver.IsActive())
 
 		assert.Error(t, err)
 	})

@@ -20,7 +20,6 @@ package didstore
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -29,14 +28,14 @@ type Store interface {
 	// Add a DID Document to the store. The store will place it on the timeline and reprocess other versions if needed
 	Add(didDocument did.Document, transaction Transaction) error
 	// Conflicted iterates over all conflicted documents
-	Conflicted(fn management.DocIterator) error
+	Conflicted(fn resolver.DocIterator) error
 	// ConflictedCount returns the number of conflicted DID Documents
 	ConflictedCount() (uint, error)
 	// DocumentCount returns the number of DID Documents
 	DocumentCount() (uint, error)
 	// Iterate loops over all the latest versions of the stored DID Documents and applies fn.
 	// Calling any of the Store's functions from the given fn might cause a deadlock.
-	Iterate(fn management.DocIterator) error
+	Iterate(fn resolver.DocIterator) error
 	// Resolve returns the DID Document for the provided DID.
 	// If metadata is not provided the latest version is returned.
 	// If metadata is provided then the result is filtered or scoped on that metadata.

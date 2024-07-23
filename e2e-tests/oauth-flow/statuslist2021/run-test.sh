@@ -18,13 +18,13 @@ echo "Registering vendors..."
 echo "------------------------------------"
 
 # Register Party A
-PARTY_A_DIDDOC=$(curl -s -X POST http://localhost:18081/internal/vdr/v2/did)
-PARTY_A_DID=$(echo $PARTY_A_DIDDOC | jq -r .id)
+PARTY_A_DIDDOC=$(curl -s -X POST http://localhost:18081/internal/vdr/v2/subject)
+PARTY_A_DID=$(echo $PARTY_A_DIDDOC | jq -r .documents[0].id)
 echo "  Vendor A DID: $PARTY_A_DID"
 
 # Register Vendor B
-PARTY_B_DIDDOC=$(curl -s -X POST http://localhost:28081/internal/vdr/v2/did)
-PARTY_B_DID=$(echo $PARTY_B_DIDDOC | jq -r .id)
+PARTY_B_DIDDOC=$(curl -s -X POST http://localhost:28081/internal/vdr/v2/subject)
+PARTY_B_DID=$(echo $PARTY_B_DIDDOC | jq -r .documents[0].id)
 echo "  Vendor B DID: $PARTY_B_DID"
 
 echo "---------------------------------------"

@@ -33,6 +33,9 @@ echo $VENDOR_A_DIDDOC > ./node-A/data/updated-did.json
 DIDDOC_HASH=$(docker compose exec nodeA-backend nuts vdr resolve $VENDOR_A_DID --metadata | jq -r .hash)
 docker compose exec nodeA-backend nuts vdr update "${VENDOR_A_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
 
+# Wait for NodeB to contain 2 transactions
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10
+
 # Register Vendor B
 VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did)
 VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)

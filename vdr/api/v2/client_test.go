@@ -34,12 +34,16 @@ import (
 )
 
 func TestHTTPClient_Create(t *testing.T) {
-	didDoc := did.Document{
-		ID: vdr.TestDIDA,
+	didDocs := SubjectCreationResult{
+		Documents: []did.Document{
+			{
+				ID: vdr.TestDIDA,
+			},
+		},
 	}
 
 	t.Run("ok", func(t *testing.T) {
-		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDoc})
+		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDocs})
 		c := getClient(s.URL)
 		doc, err := c.Create(CreateDIDOptions{})
 		require.NoError(t, err)

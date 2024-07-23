@@ -13,7 +13,6 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	management "github.com/nuts-foundation/nuts-node/vdr/management"
 	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -56,7 +55,7 @@ func (mr *MockStoreMockRecorder) Add(didDocument, transaction any) *gomock.Call 
 }
 
 // Conflicted mocks base method.
-func (m *MockStore) Conflicted(fn management.DocIterator) error {
+func (m *MockStore) Conflicted(fn resolver.DocIterator) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Conflicted", fn)
 	ret0, _ := ret[0].(error)
@@ -100,7 +99,7 @@ func (mr *MockStoreMockRecorder) DocumentCount() *gomock.Call {
 }
 
 // Iterate mocks base method.
-func (m *MockStore) Iterate(fn management.DocIterator) error {
+func (m *MockStore) Iterate(fn resolver.DocIterator) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Iterate", fn)
 	ret0, _ := ret[0].(error)

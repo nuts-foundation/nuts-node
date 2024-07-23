@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/url"
@@ -73,7 +74,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		doc := &did.Document{}
 		var newDoc did.Document
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc did.Document) error {
 				newDoc = doc
 				return nil
@@ -97,7 +98,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		doc := &did.Document{}
 		returnError := errors.New("b00m!")
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).Return(returnError)
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).Return(returnError)
 
 		_, err := ctx.instance.AddEndpoint(ctx.audit, testDIDA, "type", *u)
 
@@ -108,7 +109,7 @@ func TestDidman_AddEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		doc := &did.Document{}
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(doc, meta, nil).Times(2)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				return didnuts.ManagedDocumentValidator(nil).Validate(doc)
 			}) //.Times(2)
@@ -146,7 +147,7 @@ func TestDidman_UpdateEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		var updatedDocument did.Document
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(document, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc did.Document) error {
 				updatedDocument = doc
 				return nil
@@ -170,7 +171,7 @@ func TestDidman_UpdateEndpoint(t *testing.T) {
 		ctx := newMockContext(t)
 		returnError := errors.New("b00m!")
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).Return(document, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).Return(returnError)
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).Return(returnError)
 
 		_, err := ctx.instance.UpdateEndpoint(ctx.audit, testDIDA, serviceType, *endpoint)
 
@@ -251,7 +252,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 		var newDoc did.Document
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
 		ctx.didResolver.EXPECT().Resolve(testDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				newDoc = doc
 				return didnuts.ManagedDocumentValidator(resolver.DIDServiceResolver{Resolver: ctx.didResolver}).Validate(newDoc)
@@ -267,7 +268,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	t.Run("ok - nested reference", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didResolver.EXPECT().Resolve(testDIDB, nil).MinTimes(1).Return(&docB, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDB, gomock.Any())
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDB, gomock.Any())
 
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDB, "helloworld", map[string]ssi.URI{"foobar": universeNestedServiceQuery})
 
@@ -276,7 +277,7 @@ func TestDidman_AddCompoundService(t *testing.T) {
 	t.Run("ok - endpoint is an absolute URL", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&docA, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any())
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any())
 
 		s := ssi.MustParseURI("http://nuts.nl")
 		_, err := ctx.instance.AddCompoundService(ctx.audit, testDIDA, "hellonuts", map[string]ssi.URI{"foobar": s})
@@ -321,7 +322,7 @@ func TestDidman_UpdateCompoundService(t *testing.T) {
 		var updatedDocument did.Document
 		ctx := newMockContext(t)
 		ctx.didResolver.EXPECT().Resolve(testDIDA, nil).MinTimes(1).Return(&document, meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, testDIDA, gomock.Any()).DoAndReturn(
 			func(_ interface{}, _ interface{}, doc did.Document) error {
 				updatedDocument = doc
 				return nil
@@ -352,7 +353,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx := newMockContext(t)
 		var newDoc did.Document
 		ctx.didResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc interface{}) error {
 				newDoc = doc.(did.Document)
 				return nil
@@ -391,7 +392,7 @@ func TestDidman_DeleteService(t *testing.T) {
 		ctx := newMockContext(t)
 		returnError := errors.New("b00m!")
 		ctx.didResolver.EXPECT().Resolve(*id, nil).Return(doc(didDocStr), meta, nil)
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).Return(returnError)
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).Return(returnError)
 
 		err := ctx.instance.DeleteService(ctx.audit, uri)
 
@@ -425,7 +426,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(*id, nil).Return(&didDoc, meta, nil)
 
 		var actualDocument did.Document
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).
 			DoAndReturn(func(_ context.Context, _ did.DID, doc did.Document) error {
 				actualDocument = doc
 				// trigger validation to check if the added contact information isn't wrong
@@ -459,7 +460,7 @@ func TestDidman_UpdateContactInformation(t *testing.T) {
 		})
 		ctx.didResolver.EXPECT().Resolve(*id, nil).Return(didDoc, meta, nil)
 		var actualDocument did.Document
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).
 			Do(func(_ context.Context, _ did.DID, doc did.Document) {
 				actualDocument = doc
 			})
@@ -555,7 +556,7 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 		// local copy to prevent actually deleting the service from the test document
 		didDoc := &did.Document{ID: *id, Service: endpoints}
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				assert.Len(t, doc.Service, 0)
 				return nil
@@ -568,7 +569,7 @@ func TestDidman_DeleteEndpointsByType(t *testing.T) {
 
 	t.Run("ok - it keeps other services", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.vdr.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
+		ctx.nutsDocumentManager.EXPECT().Update(ctx.audit, *id, gomock.Any()).DoAndReturn(
 			func(_ context.Context, _ interface{}, doc did.Document) error {
 				assert.Len(t, doc.Service, 1)
 				return nil
@@ -928,17 +929,6 @@ func TestKeyedMutex_Lock(t *testing.T) {
 	})
 }
 
-func TestGenerateIDForService(t *testing.T) {
-	u, _ := url.Parse("https://api.example.com/v1")
-	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
-
-	id := generateIDForService(testDIDA, did.Service{
-		Type:            "type",
-		ServiceEndpoint: u.String(),
-	})
-	assert.Equal(t, expectedID, id)
-}
-
 func TestReferencedService(t *testing.T) {
 	trueDID := did.MustParseDID("did:nuts:123")
 	falseDID := did.MustParseDID("did:nuts:abc")
@@ -969,29 +959,44 @@ func TestReferencedService(t *testing.T) {
 	})
 }
 
+func TestGenerateIDForService(t *testing.T) {
+	u, _ := url.Parse("https://api.example.com/v1")
+	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
+
+	id := generateIDForService(testDIDA, did.Service{
+		Type:            "type",
+		ServiceEndpoint: u.String(),
+	})
+	assert.Equal(t, expectedID, id)
+}
+
 type mockContext struct {
-	ctrl        *gomock.Controller
-	vdr         *vdr.MockVDR
-	vcr         *vcr.MockFinder
-	didResolver *resolver.MockDIDResolver
-	instance    Didman
-	audit       context.Context
+	ctrl                *gomock.Controller
+	vdr                 *vdr.MockVDR
+	vcr                 *vcr.MockFinder
+	didResolver         *resolver.MockDIDResolver
+	nutsDocumentManager *didsubject.MockDocumentManager
+	instance            Didman
+	audit               context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	didResolver := resolver.NewMockDIDResolver(ctrl)
+	nutsDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockVDR.EXPECT().Resolver().Return(didResolver).AnyTimes()
+	mockVDR.EXPECT().NutsDocumentManager().Return(nutsDocumentManager).AnyTimes()
 	mockVCR := vcr.NewMockFinder(ctrl)
 	instance := NewDidmanInstance(mockVDR, mockVCR, jsonld.NewTestJSONLDManager(t)).(*didman)
 
 	return mockContext{
-		ctrl:        ctrl,
-		didResolver: didResolver,
-		vdr:         mockVDR,
-		vcr:         mockVCR,
-		instance:    instance,
-		audit:       audit.TestContext(),
+		ctrl:                ctrl,
+		didResolver:         didResolver,
+		nutsDocumentManager: nutsDocumentManager,
+		vdr:                 mockVDR,
+		vcr:                 mockVCR,
+		instance:            instance,
+		audit:               audit.TestContext(),
 	}
 }

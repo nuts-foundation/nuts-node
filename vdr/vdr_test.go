@@ -28,31 +28,26 @@ import (
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 // testCtx contains the controller and mocks needed fot testing the Manipulator
@@ -61,11 +56,11 @@ type vdrTestCtx struct {
 	vdr                 Module
 	mockStore           *didstore.MockStore
 	mockNetwork         *network.MockTransactions
-	mockKeyStore        *crypto.MockKeyStore
+	mockKeyStore        *nutsCrypto.MockKeyStore
 	mockAmbassador      *didnuts.MockAmbassador
 	ctx                 context.Context
-	mockDocumentManager *management.MockDocumentManager
-	mockDocumentOwner   *management.MockDocumentOwner
+	mockDocumentManager *didsubject.MockDocumentManager
+	mockDocumentOwner   *didsubject.MockDocumentOwner
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -74,25 +69,23 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockAmbassador := didnuts.NewMockAmbassador(ctrl)
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
-	mockKeyStore := crypto.NewMockKeyStore(ctrl)
-	mockDocumentManager := management.NewMockDocumentManager(ctrl)
-	mockDocumentOwner := management.NewMockDocumentOwner(ctrl)
+	mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
+	mockDocumentManager := didsubject.NewMockDocumentManager(ctrl)
+	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
-	vdr := Module{
-		store:             mockStore,
-		network:           mockNetwork,
-		networkAmbassador: mockAmbassador,
-		documentManagers: map[string]management.DocumentManager{
-			didnuts.MethodName: mockDocumentManager,
-		},
-		documentOwner: mockDocumentOwner,
-		didResolver:   resolverRouter,
-		keyStore:      mockKeyStore,
+	vdr := NewVDR(mockKeyStore, mockNetwork, mockStore, nil, nil)
+	vdr.networkAmbassador = mockAmbassador
+	vdr.nutsDocumentManager = mockDocumentManager
+	vdr.documentOwner = mockDocumentOwner
+	vdr.didResolver = resolverRouter
+	vdr.Manager = didsubject.Manager{
+		DB:             testDB(t),
+		MethodManagers: make(map[string]didsubject.MethodManager),
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
-		vdr:                 vdr,
+		vdr:                 *vdr,
 		mockAmbassador:      mockAmbassador,
 		mockStore:           mockStore,
 		mockNetwork:         mockNetwork,
@@ -101,99 +94,6 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockDocumentOwner:   mockDocumentOwner,
 		ctx:                 audit.TestContext(),
 	}
-}
-
-func TestVDR_Update(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
-	currentHash := hash.SHA256Sum([]byte("currentHash"))
-
-	t.Run("ok", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-
-		nextDIDDocument := didnuts.CreateDocument()
-		nextDIDDocument.ID = *id
-		expectedResolverMetadata := &resolver.ResolveMetadata{
-			AllowDeactivated: true,
-		}
-		resolvedMetadata := resolver.DocumentMetadata{
-			SourceTransactions: []hash.SHA256Hash{currentHash},
-		}
-		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		test.mockStore.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-		test.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any())
-
-		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-
-		assert.NoError(t, err)
-	})
-
-	t.Run("error - validation failed", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		currentDIDDocument := didnuts.CreateDocument()
-		currentDIDDocument.ID = *id
-		currentDIDDocument.Controller = []did.DID{currentDIDDocument.ID}
-
-		nextDIDDocument := did.Document{}
-		expectedResolverMetadata := &resolver.ResolveMetadata{
-			AllowDeactivated: true,
-		}
-		resolvedMetadata := resolver.DocumentMetadata{}
-		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&currentDIDDocument, &resolvedMetadata, nil)
-		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-		assert.EqualError(t, err, "update DID document: DID Document validation failed: invalid context")
-	})
-
-	t.Run("error - can only update did:nuts methods", func(t *testing.T) {
-		err := (&Module{}).Update(context.Background(), did.MustParseDID("did:web:example.com"), did.Document{})
-		assert.EqualError(t, err, "can't update DID document of type: web")
-	})
-
-	t.Run("error - no controller for document", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		document := didnuts.CreateDocument()
-		document.ID = *id
-
-		expectedResolverMetadata := &resolver.ResolveMetadata{
-			AllowDeactivated: true,
-		}
-		resolvedMetadata := resolver.DocumentMetadata{}
-		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(&document, &resolvedMetadata, nil)
-		err := test.vdr.Update(test.ctx, *id, document)
-		assert.EqualError(t, err, "update DID document: the DID document has been deactivated")
-	})
-	t.Run("error - could not resolve current document", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		nextDIDDocument := did.Document{}
-		expectedResolverMetadata := &resolver.ResolveMetadata{
-			AllowDeactivated: true,
-		}
-		test.mockStore.EXPECT().Resolve(*id, expectedResolverMetadata).Return(nil, nil, resolver.ErrNotFound)
-		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-		assert.EqualError(t, err, "update DID document: unable to find the DID document")
-	})
-
-	t.Run("error - document not managed by this node", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		nextDIDDocument := didnuts.CreateDocument()
-		nextDIDDocument.ID = *id
-		currentDIDDocument := nextDIDDocument
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockStore.EXPECT().Resolve(*id, gomock.Any()).Times(1).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound)
-
-		err := test.vdr.Update(test.ctx, *id, nextDIDDocument)
-
-		assert.Error(t, err)
-		assert.EqualError(t, err, "update DID document: DID document not managed by this node")
-		assert.ErrorIs(t, err, resolver.ErrDIDNotManagedByThisNode)
-		assert.True(t, errors.Is(err, resolver.ErrDIDNotManagedByThisNode),
-			"expected ErrDIDNotManagedByThisNode error when the document is not managed by this node")
-	})
 }
 
 func TestNewVDR(t *testing.T) {
@@ -263,11 +163,12 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 owned conflict", func(t *testing.T) {
-			client := crypto.NewMemoryCryptoInstance()
+			client := nutsCrypto.NewMemoryCryptoInstance()
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyID.String()))
+			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			didDocument := did.Document{ID: TestDIDA}
 
@@ -284,7 +185,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 owned conflict in controlled document", func(t *testing.T) {
 			// vendor
 			test := newVDRTestCtx(t)
-			keyVendor := crypto.NewTestKey("did:nuts:vendor#keyVendor-1")
+			keyVendor := nutsCrypto.NewTestKey("did:nuts:vendor#keyVendor-1")
 
 			didDocVendor := &did.Document{ID: did.MustParseDID("did:nuts:vendor")}
 			vendorVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyVendor.KID()), ssi.JsonWebKey2020, didDocVendor.ID, keyVendor.Public())
@@ -292,28 +193,28 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocVendor.AddCapabilityInvocation(vendorVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocVendor, keyVendor, nil)
 			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
-			didDocVendor, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions())
+			didDocVendor, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions())
 			require.NoError(t, err)
 
 			// organization
-			keyOrg := crypto.NewTestKey("did:nuts:org#keyOrg-1")
+			keyOrg := nutsCrypto.NewTestKey("did:nuts:org#keyOrg-1")
 			didDocOrg := &did.Document{ID: did.MustParseDID("did:nuts:org")}
 			didDocOrg.Controller = []did.DID{didDocVendor.ID}
 			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyOrg.KID()), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg.Public())
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, _, err = test.vdr.Create(test.ctx, didnuts.DefaultCreationOptions().
-				With(didnuts.KeyFlag(management.AssertionMethodUsage|management.KeyAgreementUsage)),
-			)
+			didDocOrg, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions())
 			require.NoError(t, err)
 
-			client := crypto.NewMemoryCryptoInstance()
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyVendor.KID()))
-			_, _ = client.New(audit.TestContext(), crypto.StringNamingFunc(keyOrg.KID()))
+			client := nutsCrypto.NewMemoryCryptoInstance()
+			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyVendor.KID()))
+			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyOrg.KID()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			tmpResolver := vdr.didResolver
+			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(*core.NewServerConfig())
-			vdr.didResolver.Register(didnuts.MethodName, didnuts.Resolver{Store: vdr.store})
+			vdr.didResolver = tmpResolver
 
 			_ = vdr.store.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))
 			_ = vdr.store.Add(*didDocOrg, didstore.TestTransaction(*didDocOrg))
@@ -351,86 +252,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 }
 
-func TestVDR_resolveControllerKey(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:123")
-	controllerId, _ := did.ParseDID("did:nuts:1234")
-	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
-
-	t.Run("ok - single doc", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{}}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil)
-
-		controller, key, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
-
-		require.NoError(t, err)
-		assert.Equal(t, keyID.String(), key.KID())
-		assert.Equal(t, *id, controller.ID)
-	})
-
-	t.Run("ok - key from 2nd controller", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		controller := did.Document{ID: *controllerId, Controller: []did.DID{}}
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
-		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
-		gomock.InOrder(
-			test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound),
-			test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(crypto.NewTestKey(keyID.String()), nil),
-		)
-
-		_, key, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
-
-		require.NoError(t, err)
-		assert.Equal(t, keyID.String(), key.KID())
-		assert.Equal(t, *controllerId, controller.ID)
-	})
-
-	t.Run("error - resolving key", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{}}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, errors.New("b00m!"))
-
-		_, _, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
-
-		assert.EqualError(t, err, "could not find capabilityInvocation key for updating the DID document: b00m!")
-	})
-
-	t.Run("error - no keys from any controller", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		controller := did.Document{ID: *controllerId, Controller: []did.DID{}}
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*controllerId, *controllerId}}
-		controller.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		test.mockStore.EXPECT().Resolve(*controllerId, gomock.Any()).Return(&controller, nil, nil).Times(2)
-		test.mockKeyStore.EXPECT().Resolve(test.ctx, keyID.String()).Return(nil, crypto.ErrPrivateKeyNotFound).Times(2)
-
-		_, _, err := test.vdr.resolveControllerWithKey(test.ctx, currentDIDDocument)
-
-		assert.Equal(t, resolver.ErrDIDNotManagedByThisNode, err)
-	})
-}
-
-func TestWithJSONLDContext(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:123")
-	expected := did.Document{ID: *id, Context: []interface{}{didnuts.NutsDIDContextV1URI()}}
-
-	t.Run("added if not present", func(t *testing.T) {
-		document := did.Document{ID: *id}
-
-		patched := withJSONLDContext(document, didnuts.NutsDIDContextV1URI())
-
-		assert.EqualValues(t, expected.Context, patched.Context)
-	})
-
-	t.Run("no changes if existing", func(t *testing.T) {
-		patched := withJSONLDContext(expected, didnuts.NutsDIDContextV1URI())
-
-		assert.EqualValues(t, expected.Context, patched.Context)
-	})
-}
-
 func TestVDR_Configure(t *testing.T) {
 	storageInstance := storage.NewTestStorageEngine(t)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
@@ -444,6 +265,7 @@ func TestVDR_Configure(t *testing.T) {
 			})
 
 			instance := NewVDR(nil, nil, nil, nil, storageInstance)
+			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
 			require.NoError(t, err)
 
@@ -454,13 +276,20 @@ func TestVDR_Configure(t *testing.T) {
 			assert.NotNil(t, md)
 		})
 		t.Run("resolves local DID from database", func(t *testing.T) {
-			instance := NewVDR(crypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
+			instance := NewVDR(nutsCrypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
+			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
-			_, _, err = instance.Create(audit.TestContext(), management.Create("web").With(didweb.RootDID()))
+			db := storageInstance.GetSQLDatabase()
+			sqlDIDDocumentManager := didsubject.NewDIDDocumentManager(db)
+			sqlDID := didsubject.DID{
+				ID:      "did:web:example.com",
+				Subject: "subject",
+			}
+			_, err = sqlDIDDocumentManager.CreateOrUpdate(sqlDID, nil, nil)
 			require.NoError(t, err)
 
-			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
+			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), &resolver.ResolveMetadata{AllowDeactivated: true})
 
 			assert.NoError(t, err)
 			assert.NotNil(t, doc)
@@ -478,6 +307,7 @@ func TestVDR_Configure(t *testing.T) {
 		require.NoError(t, err)
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
@@ -492,6 +322,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
@@ -534,7 +365,7 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("makes documents self-controlled", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		keyStore := crypto.NewMemoryCryptoInstance()
+		keyStore := nutsCrypto.NewMemoryCryptoInstance()
 		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
 		methodID := did.MustParseDIDURL(key.KID())
 		methodID.ID = TestDIDA.ID
@@ -545,8 +376,7 @@ func TestVDR_Migrate(t *testing.T) {
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockKeyStore.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(key, nil)
-		ctx.mockNetwork.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).Return(testTransaction{}, nil)
+		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(nil)
 
 		err = ctx.vdr.Migrate()
 
@@ -606,59 +436,16 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("update error is logged", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		keyStore := crypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
-		// TestMethodDIDA is invalid because of thumbprint
-		vm, _ := did.NewVerificationMethod(TestMethodDIDA, ssi.JsonWebKey2020, TestDIDA, key.Public())
-		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
-		documentA.AddAssertionMethod(vm)
-		require.NoError(t, err)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(assert.AnError)
 
-		err = ctx.vdr.Migrate()
+		err := ctx.vdr.Migrate()
 
 		require.NoError(t, err)
 		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "update DID document: invalid verificationMethod: key thumbprint does not match ID")
-	})
-}
-
-func TestModule_Create(t *testing.T) {
-	t.Run("unsupported DID method", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-
-		_, _, err := test.vdr.Create(context.Background(), management.Create("example"))
-
-		assert.EqualError(t, err, "unsupported DID method: example")
-	})
-	t.Run("manager returns error", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-		test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("test"))
-
-		_, _, err := test.vdr.Create(context.Background(), management.Create(didnuts.MethodName))
-
-		assert.EqualError(t, err, "could not create DID document (method nuts): test")
-	})
-}
-
-func TestModule_Deactivate(t *testing.T) {
-	t.Run("unsupported DID method", func(t *testing.T) {
-		test := newVDRTestCtx(t)
-
-		err := test.vdr.Deactivate(context.Background(), did.MustParseDID("did:example:123"))
-
-		assert.EqualError(t, err, "unsupported DID method: example")
-	})
-	t.Run("manager returns error", func(t *testing.T) {
-		id := did.MustParseDID("did:nuts:123")
-		test := newVDRTestCtx(t)
-		test.mockDocumentManager.EXPECT().Deactivate(gomock.Any(), id).Return(assert.AnError)
-
-		err := test.vdr.Deactivate(context.Background(), id)
-
-		assert.EqualError(t, err, "could not deactivate DID document: "+assert.AnError.Error())
+		assertLog(t, "assert.AnError general error for testing")
 	})
 }
 
@@ -666,68 +453,4 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
-}
-
-type testTransaction struct {
-	clock        uint32
-	signingKey   jwk.Key
-	signingKeyID string
-	signingTime  time.Time
-	ref          hash.SHA256Hash
-	payloadHash  hash.SHA256Hash
-	payloadType  string
-	prevs        []hash.SHA256Hash
-	pal          [][]byte
-	data         []byte
-}
-
-func (s testTransaction) SigningKey() jwk.Key {
-	return s.signingKey
-}
-
-func (s testTransaction) SigningKeyID() string {
-	return s.signingKeyID
-}
-
-func (s testTransaction) SigningTime() time.Time {
-	return s.signingTime
-}
-
-func (s testTransaction) Ref() hash.SHA256Hash {
-	return s.ref
-}
-
-func (s testTransaction) PAL() [][]byte {
-	return s.pal
-}
-
-func (s testTransaction) PayloadHash() hash.SHA256Hash {
-	return s.payloadHash
-}
-
-func (s testTransaction) PayloadType() string {
-	return s.payloadType
-}
-func (s testTransaction) SigningAlgorithm() string {
-	panic("implement me")
-}
-
-func (s testTransaction) Previous() []hash.SHA256Hash {
-	return s.prevs
-}
-
-func (s testTransaction) Version() dag.Version {
-	panic("implement me")
-}
-
-func (s testTransaction) MarshalJSON() ([]byte, error) {
-	panic("implement me")
-}
-
-func (s testTransaction) Data() []byte {
-	return s.data
-}
-
-func (s testTransaction) Clock() uint32 {
-	return s.clock
 }

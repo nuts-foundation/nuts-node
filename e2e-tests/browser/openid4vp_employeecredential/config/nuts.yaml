@@ -10,3 +10,6 @@ auth:
     - dummy
 policy:
   directory: /opt/nuts/policy
+vdr:
+  didmethods:
+      - web

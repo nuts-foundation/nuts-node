@@ -33,12 +33,12 @@ echo "Registering vendors..."
 echo "------------------------------------"
 # Register Vendor A
 VENDOR_A_DIDDOC=$($db_dc exec nodeA-backend nuts vdr create-did --v2)
-VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
+VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .[0].id)
 echo Vendor A DID: $VENDOR_A_DID
 
 # Register Vendor B
 VENDOR_B_DIDDOC=$($db_dc exec nodeB-backend nuts vdr create-did --v2)
-VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)
+VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .[0].id)
 echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B

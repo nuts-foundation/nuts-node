@@ -23,17 +23,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/management"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -45,7 +45,7 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultConfig()
 
-	flagSet.StringSlice("didmethods", defs.DIDMethods, "Comma-separated list of DID methods (without did: prefix).")
+	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix).")
 	return flagSet
 }
 
@@ -92,18 +92,18 @@ func createCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			var (
-				doc *did.Document
-				err error
+				oneOrMoreDoc interface{}
+				err          error
 			)
 			if useV2 {
-				doc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
+				oneOrMoreDoc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
 			} else {
-				doc, err = httpClient(clientConfig).Create(createRequest)
+				oneOrMoreDoc, err = httpClient(clientConfig).Create(createRequest)
 			}
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
-			bytes, _ := json.MarshalIndent(doc, "", "  ")
+			bytes, _ := json.MarshalIndent(oneOrMoreDoc, "", "  ")
 			cmd.Println(string(bytes))
 			return nil
 		},
@@ -117,11 +117,11 @@ func createCmd() *cobra.Command {
 		}
 		return fmt.Sprintf(usage, !def, opposite)
 	}
-	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.Is(management.AssertionMethodUsage), setUsage(defs.Is(management.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
-	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.Is(management.AuthenticationUsage), setUsage(defs.Is(management.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.Is(management.CapabilityDelegationUsage), setUsage(defs.Is(management.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
-	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.Is(management.CapabilityInvocationUsage), setUsage(defs.Is(management.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
-	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.Is(management.KeyAgreementUsage), setUsage(defs.Is(management.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
+	result.Flags().BoolVar(createRequest.AssertionMethod, "assertionMethod", defs.Is(didsubject.AssertionMethodUsage), setUsage(defs.Is(didsubject.AssertionMethodUsage), "Pass '%t' to %s assertionMethod capabilities."))
+	result.Flags().BoolVar(createRequest.Authentication, "authentication", defs.Is(didsubject.AuthenticationUsage), setUsage(defs.Is(didsubject.AuthenticationUsage), "Pass '%t' to %s authentication capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityDelegation, "capabilityDelegation", defs.Is(didsubject.CapabilityDelegationUsage), setUsage(defs.Is(didsubject.CapabilityDelegationUsage), "Pass '%t' to %s capabilityDelegation capabilities."))
+	result.Flags().BoolVar(createRequest.CapabilityInvocation, "capabilityInvocation", defs.Is(didsubject.CapabilityInvocationUsage), setUsage(defs.Is(didsubject.CapabilityInvocationUsage), "Pass '%t' to %s capabilityInvocation capabilities."))
+	result.Flags().BoolVar(createRequest.KeyAgreement, "keyAgreement", defs.Is(didsubject.KeyAgreementUsage), setUsage(defs.Is(didsubject.KeyAgreementUsage), "Pass '%t' to %s keyAgreement capabilities."))
 	result.Flags().BoolVar(createRequest.SelfControl, "selfControl", true, setUsage(true, "Pass '%t' to %s DID Document control."))
 	result.Flags().BoolVar(&useV2, "v2", false, "Pass 'true' to use the V2 API and create a did:web DID.")
 	result.Flags().StringSliceVar(createRequest.Controllers, "controllers", []string{}, "Comma-separated list of DIDs that can control the generated DID Document.")

@@ -227,6 +227,21 @@ func (mr *MockSubjectManagerMockRecorder) FindServices(ctx, subject, serviceType
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindServices", reflect.TypeOf((*MockSubjectManager)(nil).FindServices), ctx, subject, serviceType)
 }
 
+// List mocks base method.
+func (m *MockSubjectManager) List(ctx context.Context, subject string) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "List", ctx, subject)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// List indicates an expected call of List.
+func (mr *MockSubjectManagerMockRecorder) List(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSubjectManager)(nil).List), ctx, subject)
+}
+
 // UpdateService mocks base method.
 func (m *MockSubjectManager) UpdateService(ctx context.Context, subject string, serviceID ssi.URI, service did.Service) ([]did.Service, error) {
 	m.ctrl.T.Helper()
