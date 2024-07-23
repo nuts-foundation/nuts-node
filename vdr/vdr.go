@@ -27,6 +27,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"sync"
 	"time"
@@ -61,6 +62,7 @@ var _ didsubject.SubjectManager = (*Module)(nil)
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type Module struct {
 	config            Config
+	publicURL         *url.URL
 	store             didnutsStore.Store
 	network           network.Transactions
 	networkAmbassador didnuts.Ambassador
@@ -83,6 +85,10 @@ type Module struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	routines *sync.WaitGroup
+}
+
+func (r *Module) PublicURL() *url.URL {
+	return r.publicURL
 }
 
 // ResolveManaged resolves a DID document that is managed by the local node.
@@ -131,6 +137,10 @@ func (r *Module) Config() interface{} {
 
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
+	var err error
+	if r.publicURL, err = config.ServerURL(); err != nil {
+		return err
+	}
 	// at least one method should be configured
 	if len(r.config.DIDMethods) == 0 {
 		return errors.New("at least one DID method should be configured")

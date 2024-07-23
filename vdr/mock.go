@@ -10,6 +10,7 @@
 package vdr
 
 import (
+	url "net/url"
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
@@ -83,6 +84,20 @@ func (m *MockVDR) NutsDocumentManager() didsubject.DocumentManager {
 func (mr *MockVDRMockRecorder) NutsDocumentManager() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NutsDocumentManager", reflect.TypeOf((*MockVDR)(nil).NutsDocumentManager))
+}
+
+// PublicURL mocks base method.
+func (m *MockVDR) PublicURL() *url.URL {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PublicURL")
+	ret0, _ := ret[0].(*url.URL)
+	return ret0
+}
+
+// PublicURL indicates an expected call of PublicURL.
+func (mr *MockVDRMockRecorder) PublicURL() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublicURL", reflect.TypeOf((*MockVDR)(nil).PublicURL))
 }
 
 // ResolveManaged mocks base method.

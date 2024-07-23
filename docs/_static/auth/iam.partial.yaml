@@ -1,47 +1,5 @@
 # Note: no code is directly generated from this file, it is merged into v2.yaml and then code is generated from the merged file.
 paths:
-  /iam/{id}/did.json:
-    parameters:
-      - name: id
-        in: path
-        description: ID of DID.
-        required: true
-        example: EwVMYK2ugaMvRHUbGFBhuyF423JuNQbtpes35eHhkQic
-        schema:
-          type: string
-    get:
-      summary: Returns the did:web DID for the specified tenant.
-      description: |
-        Returns the did:web DID for the specified tenant, if it is owned by this node.
-      operationId: "getTenantWebDID"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: DID has been found and returned.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DIDDocument'
-        "404":
-          description: DID does not exist.
-  /.well-known/did.json:
-    get:
-      summary: Returns the root did:web DID of this domain.
-      description: |
-        Returns the root did:web DID of this domain, if it is owned by this node.
-      operationId: "getRootWebDID"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: DID has been found and returned.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DIDDocument'
-        "404":
-          description: DID does not exist.
   /oauth2/{did}/token:
     post:
       summary: Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
@@ -476,8 +434,6 @@ paths:
           $ref: '../common/error_response.yaml'
 components:
   schemas:
-    DIDDocument:
-      $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     RedirectResponse:
       type: object
       required:

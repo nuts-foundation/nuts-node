@@ -21,20 +21,31 @@ package v2
 
 import (
 	"context"
+	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
+	"time"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)
 var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
+
+// cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
+var cacheControlMaxAgeURLs = []string{
+	"/.well-known/did.json",
+	"/iam/:id/did.json",
+}
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
@@ -68,6 +79,33 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, vdr.ModuleName, operationID)
 		},
 	}))
+	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs...).Handle)
+}
+
+func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
+	ownDID := r.requestedWebDID(request.Id)
+	document, err := r.VDR.ResolveManaged(ownDID)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return GetTenantWebDID404Response{}, nil
+		}
+		log.Logger().WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
+		return nil, errors.New("unable to resolve DID")
+	}
+	return GetTenantWebDID200JSONResponse(*document), nil
+}
+
+func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
+	ownDID := r.requestedWebDID("")
+	document, err := r.VDR.ResolveManaged(ownDID)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return GetRootWebDID404Response{}, nil
+		}
+		log.Logger().WithError(err).Errorf("Could not resolve root did:web: %s", ownDID.String())
+		return nil, errors.New("unable to resolve DID")
+	}
+	return GetRootWebDID200JSONResponse(*document), nil
 }
 
 func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
@@ -227,4 +265,17 @@ func (w *Wrapper) AddVerificationMethod(ctx context.Context, request AddVerifica
 		return nil, err
 	}
 	return AddVerificationMethod200JSONResponse(vms), nil
+}
+
+// requestedWebDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
+// - did:web:example.com
+// - did:web:example:iam:1234
+// When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
+func (r Wrapper) requestedWebDID(userID string) did.DID {
+	identityURL := r.VDR.PublicURL()
+	if userID != "" {
+		identityURL = identityURL.JoinPath("iam", userID)
+	}
+	result, _ := didweb.URLToDID(*identityURL)
+	return *result
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
 )
 
 // VDR defines the public end facing methods for the Verifiable Data Registry.
@@ -39,4 +40,6 @@ type VDR interface {
 	SupportedMethods() []string
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error)
+	// PublicURL returns the public URL of the Nuts node, which is used as base URL for web-based DIDs.
+	PublicURL() *url.URL
 }
