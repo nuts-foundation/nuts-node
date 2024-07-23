@@ -110,7 +110,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	oauthSession := OAuthSession{
 		ClientFlow:    accessTokenRequestClientFlow,
 		ClientState:   crypto.GenerateNonce(),
-		OwnDID:        &redirectSession.OwnDID,
+		SubjectID:     redirectSession.SubjectID,
 		PKCEParams:    generatePKCEParams(),
 		RedirectURI:   accessTokenRequest.Body.RedirectUri,
 		SessionID:     redirectSession.SessionID,
@@ -125,11 +125,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := createOAuth2BaseURL(redirectSession.OwnDID)
-	if err != nil {
-		return fmt.Errorf("failed to create callback URL: %w", err)
-	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
+	callbackURL := r.createOAuth2BaseURL(redirectSession.SubjectID).JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
@@ -138,7 +134,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, authServerURL, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.SubjectID, authServerURL, modifier)
 	if err != nil {
 		return err
 	}
@@ -170,12 +166,16 @@ func (r Wrapper) provisionUserSession(ctx context.Context, session *user.Session
 }
 
 func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Session, userDetails UserDetails) (*vc.VerifiableCredential, error) {
+	subjectDID, err := r.selectDID(ctx, session.SubjectID)
+	if err != nil {
+		return nil, err
+	}
 	issuanceDate := time.Now()
 	expirationDate := session.ExpiresAt
 	template := vc.VerifiableCredential{
 		Context:        []ssi.URI{credential.NutsV1ContextURI},
 		Type:           []ssi.URI{ssi.MustParseURI("EmployeeCredential")},
-		Issuer:         session.TenantDID.URI(),
+		Issuer:         subjectDID.URI(),
 		IssuanceDate:   issuanceDate,
 		ExpirationDate: &expirationDate,
 		CredentialSubject: []interface{}{

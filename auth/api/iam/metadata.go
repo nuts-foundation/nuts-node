@@ -23,20 +23,18 @@ import (
 	"strings"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	metadata := &oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                      "openid4vp:",
-		ClientIdSchemesSupported:                   clientIdSchemesSupported,
-		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                        grantTypesSupported,
-		Issuer:                                     issuerURL.String(),
+func authorizationServerMetadata(issuerURL *url.URL) oauth.AuthorizationServerMetadata {
+	return oauth.AuthorizationServerMetadata{
+		ClientIdSchemesSupported:      clientIdSchemesSupported,
+		DPoPSigningAlgValuesSupported: jwx.SupportedAlgorithmsAsStrings(),
+		GrantTypesSupported:           grantTypesSupported,
+		Issuer:                        issuerURL.String(),
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         to.Ptr(true),
 		RequireSignedRequestObject:                 true,
@@ -45,14 +43,10 @@ func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) (*oauth.A
 		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
+		AuthorizationEndpoint:                      issuerURL.JoinPath("authorize").String(),
+		PresentationDefinitionEndpoint:             issuerURL.JoinPath("presentation_definition").String(),
+		TokenEndpoint:                              issuerURL.JoinPath("token").String(),
 	}
-	if ownedDID.Method == "web" {
-		// add endpoints for did:web
-		metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
-		metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
-		metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
-	}
-	return metadata, nil
 }
 
 // staticAuthorizationServerMetadata is used in the OpenID4VP flow when authorization server (wallet) issuer is unknown.
@@ -71,7 +65,7 @@ func staticAuthorizationServerMetadata() oauth.AuthorizationServerMetadata {
 }
 
 // clientMetadata should only be used for dids managed by the node. It assumes the provided identity URL is correct.
-func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
+func clientMetadata() oauth.OAuthClientMetadata {
 	softwareID, softwareVersion, _ := strings.Cut(core.UserAgent(), "/")
 	return oauth.OAuthClientMetadata{
 		TokenEndpointAuthMethod: "none", // defaults is "client_secret_basic" if not provided

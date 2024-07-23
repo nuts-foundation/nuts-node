@@ -133,7 +133,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 		// check for issued EmployeeCredential in session wallet
 		require.NoError(t, err)
-		assert.Equal(t, walletDID, userSession.TenantDID)
+		assert.Equal(t, walletDID, userSession.SubjectID)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)

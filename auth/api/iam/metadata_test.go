@@ -19,7 +19,6 @@
 package iam
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -49,9 +48,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	t.Run("base", func(t *testing.T) {
-		md, err := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
-		assert.NoError(t, err)
-		assert.Equal(t, baseExpected, *md)
+		md := authorizationServerMetadata(test.MustParseURL("https://example.com/oauth2/" + didExample.String()))
+		assert.Equal(t, baseExpected, md)
 	})
 	t.Run("did:web", func(t *testing.T) {
 		didWeb := did.MustParseDID("did:web:example.com:iam:123")
@@ -86,5 +84,5 @@ func Test_clientMetadata(t *testing.T) {
 		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
 		ClientIdScheme:          "did",
 	}
-	assert.Equal(t, expected, clientMetadata(url.URL{}))
+	assert.Equal(t, expected, clientMetadata())
 }

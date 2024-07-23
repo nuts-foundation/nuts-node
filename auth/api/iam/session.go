@@ -37,7 +37,8 @@ type OAuthSession struct {
 	ClientID          string          `json:"client_id,omitempty"`
 	ClientState       string          `json:"client_state,omitempty"`
 	OpenID4VPVerifier *PEXConsumer    `json:"openid4vp_verifier,omitempty"`
-	OwnDID            *did.DID        `json:"own_did,omitempty"`
+	SubjectDID        did.DID         `json:"subject_did,omitempty"`
+	SubjectID         string          `json:"subject_id,omitempty"`
 	OtherDID          *did.DID        `json:"other_did,omitempty"`
 	PKCEParams        PKCEParams      `json:"pkce_params"`
 	RedirectURI       string          `json:"redirect_uri,omitempty"`
@@ -165,7 +166,7 @@ type RedirectSession struct {
 	AccessTokenRequest RequestUserAccessTokenRequestObject
 	// SessionID is used by the calling app to get the access token later on
 	SessionID string
-	OwnDID    did.DID
+	SubjectID string
 }
 
 func (s OAuthSession) CreateRedirectURI(params map[string]string) string {

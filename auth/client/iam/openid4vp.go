@@ -227,7 +227,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 	}
 
 	params := holder.BuildParams{
-		Audience: authServerURL,
+		Audience: metadata.Issuer,
 		Expires:  time.Now().Add(time.Second * 5),
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
