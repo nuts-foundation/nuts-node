@@ -212,6 +212,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyOrg.KID()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			tmpResolver := vdr.didResolver
+			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(*core.NewServerConfig())
 			vdr.didResolver = tmpResolver
 
@@ -264,6 +265,7 @@ func TestVDR_Configure(t *testing.T) {
 			})
 
 			instance := NewVDR(nil, nil, nil, nil, storageInstance)
+			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
 			require.NoError(t, err)
 
@@ -275,6 +277,7 @@ func TestVDR_Configure(t *testing.T) {
 		})
 		t.Run("resolves local DID from database", func(t *testing.T) {
 			instance := NewVDR(nutsCrypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
+			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
 			db := storageInstance.GetSQLDatabase()
@@ -304,6 +307,7 @@ func TestVDR_Configure(t *testing.T) {
 		require.NoError(t, err)
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
@@ -318,6 +322,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
