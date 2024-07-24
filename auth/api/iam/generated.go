@@ -541,18 +541,12 @@ func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Returns the root did:web DID of this domain.
-	// (GET /.well-known/did.json)
-	GetRootWebDID(ctx echo.Context) error
 	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx echo.Context) error
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
 	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
-	// Returns the did:web DID for the specified tenant.
-	// (GET /iam/{id}/did.json)
-	GetTenantWebDID(ctx echo.Context, id string) error
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
 	// It returns fields derived from the credentials that were used during authentication.
 	// (POST /internal/auth/v2/accesstoken/introspect)
@@ -614,17 +608,6 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// GetRootWebDID converts echo context to params.
-func (w *ServerInterfaceWrapper) GetRootWebDID(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetRootWebDID(ctx)
-	return err
-}
-
 // RootOAuthAuthorizationServerMetadata converts echo context to params.
 func (w *ServerInterfaceWrapper) RootOAuthAuthorizationServerMetadata(ctx echo.Context) error {
 	var err error
@@ -651,24 +634,6 @@ func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Conte
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, did)
-	return err
-}
-
-// GetTenantWebDID converts echo context to params.
-func (w *ServerInterfaceWrapper) GetTenantWebDID(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetTenantWebDID(ctx, id)
 	return err
 }
 
@@ -1025,10 +990,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server", wrapper.RootOAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/oauth2/:did", wrapper.OAuthAuthorizationServerMetadata)
-	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
@@ -1047,30 +1010,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/oauth2/:did/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
 
-}
-
-type GetRootWebDIDRequestObject struct {
-}
-
-type GetRootWebDIDResponseObject interface {
-	VisitGetRootWebDIDResponse(w http.ResponseWriter) error
-}
-
-type GetRootWebDID200JSONResponse DIDDocument
-
-func (response GetRootWebDID200JSONResponse) VisitGetRootWebDIDResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetRootWebDID404Response struct {
-}
-
-func (response GetRootWebDID404Response) VisitGetRootWebDIDResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
 }
 
 type RootOAuthAuthorizationServerMetadataRequestObject struct {
@@ -1146,31 +1085,6 @@ func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSON
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)
-}
-
-type GetTenantWebDIDRequestObject struct {
-	Id string `json:"id"`
-}
-
-type GetTenantWebDIDResponseObject interface {
-	VisitGetTenantWebDIDResponse(w http.ResponseWriter) error
-}
-
-type GetTenantWebDID200JSONResponse DIDDocument
-
-func (response GetTenantWebDID200JSONResponse) VisitGetTenantWebDIDResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type GetTenantWebDID404Response struct {
-}
-
-func (response GetTenantWebDID404Response) VisitGetTenantWebDIDResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
 }
 
 type IntrospectAccessTokenRequestObject struct {
@@ -1793,18 +1707,12 @@ func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusL
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Returns the root did:web DID of this domain.
-	// (GET /.well-known/did.json)
-	GetRootWebDID(ctx context.Context, request GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error)
 	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
 	// (GET /.well-known/oauth-authorization-server)
 	RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error)
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
 	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
-	// Returns the did:web DID for the specified tenant.
-	// (GET /iam/{id}/did.json)
-	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
 	// It returns fields derived from the credentials that were used during authentication.
 	// (POST /internal/auth/v2/accesstoken/introspect)
@@ -1873,29 +1781,6 @@ type strictHandler struct {
 	middlewares []StrictMiddlewareFunc
 }
 
-// GetRootWebDID operation middleware
-func (sh *strictHandler) GetRootWebDID(ctx echo.Context) error {
-	var request GetRootWebDIDRequestObject
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetRootWebDID(ctx.Request().Context(), request.(GetRootWebDIDRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetRootWebDID")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(GetRootWebDIDResponseObject); ok {
-		return validResponse.VisitGetRootWebDIDResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
 // RootOAuthAuthorizationServerMetadata operation middleware
 func (sh *strictHandler) RootOAuthAuthorizationServerMetadata(ctx echo.Context) error {
 	var request RootOAuthAuthorizationServerMetadataRequestObject
@@ -1938,31 +1823,6 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, did 
 		return err
 	} else if validResponse, ok := response.(OAuthAuthorizationServerMetadataResponseObject); ok {
 		return validResponse.VisitOAuthAuthorizationServerMetadataResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// GetTenantWebDID operation middleware
-func (sh *strictHandler) GetTenantWebDID(ctx echo.Context, id string) error {
-	var request GetTenantWebDIDRequestObject
-
-	request.Id = id
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetTenantWebDID(ctx.Request().Context(), request.(GetTenantWebDIDRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetTenantWebDID")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(GetTenantWebDIDResponseObject); ok {
-		return validResponse.VisitGetTenantWebDIDResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

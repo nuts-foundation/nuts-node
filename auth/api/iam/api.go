@@ -75,8 +75,6 @@ const oid4vciSessionValidity = 15 * time.Minute
 
 // cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
 var cacheControlMaxAgeURLs = []string{
-	"/.well-known/did.json",
-	"/iam/:id/did.json",
 	"/oauth2/:did/presentation_definition",
 	"/.well-known/oauth-authorization-server/oauth2/:did",
 	"/.well-known/oauth-authorization-server",
@@ -591,7 +589,8 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request O
 }
 
 func (r Wrapper) RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error) {
-	md, err := r.oauthAuthorizationServerMetadata(ctx, r.requestedWebDID("").String())
+	rootDID, _ := didweb.URLToDID(*r.auth.PublicURL())
+	md, err := r.oauthAuthorizationServerMetadata(ctx, rootDID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -608,32 +607,6 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 		return nil, err
 	}
 	return authorizationServerMetadata(*ownDID, issuerURL)
-}
-
-func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
-	ownDID := r.requestedWebDID(request.Id)
-	document, err := r.vdr.ResolveManaged(ownDID)
-	if err != nil {
-		if resolver.IsFunctionalResolveError(err) {
-			return GetTenantWebDID404Response{}, nil
-		}
-		log.Logger().WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
-		return nil, errors.New("unable to resolve DID")
-	}
-	return GetTenantWebDID200JSONResponse(*document), nil
-}
-
-func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error) {
-	ownDID := r.requestedWebDID("")
-	document, err := r.vdr.ResolveManaged(ownDID)
-	if err != nil {
-		if resolver.IsFunctionalResolveError(err) {
-			return GetRootWebDID404Response{}, nil
-		}
-		log.Logger().WithError(err).Errorf("Could not resolve root did:web: %s", ownDID.String())
-		return nil, errors.New("unable to resolve DID")
-	}
-	return GetRootWebDID200JSONResponse(*document), nil
 }
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
@@ -897,19 +870,6 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, client did.DID,
 	modifier(params)
 	redirectURL := nutsHttp.AddQueryParams(*endpoint, params)
 	return &redirectURL, nil
-}
-
-// requestedWebDID constructs a did:web DID as it was requested by the API caller. It can be a DID with or without user path, e.g.:
-// - did:web:example.com
-// - did:web:example:iam:1234
-// When userID is given, it's appended to the DID as `:iam:<userID>`. If it's absent, the DID is returned as is.
-func (r Wrapper) requestedWebDID(userID string) did.DID {
-	identityURL := r.auth.PublicURL()
-	if userID != "" {
-		identityURL = identityURL.JoinPath("iam", userID)
-	}
-	result, _ := didweb.URLToDID(*identityURL)
-	return *result
 }
 
 // accessTokenClientStore is used by the client to store pending access tokens and return them to the calling app.

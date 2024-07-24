@@ -168,6 +168,12 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetRootWebDID request
+	GetRootWebDID(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTenantWebDID request
+	GetTenantWebDID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListDIDs request
 	ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -205,6 +211,30 @@ type ClientInterface interface {
 	AddVerificationMethodWithBody(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	AddVerificationMethod(ctx context.Context, id string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetRootWebDID(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetRootWebDIDRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTenantWebDID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTenantWebDIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -373,6 +403,67 @@ func (c *Client) AddVerificationMethod(ctx context.Context, id string, body AddV
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetRootWebDIDRequest generates requests for GetRootWebDID
+func NewGetRootWebDIDRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/.well-known/did.json")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTenantWebDIDRequest generates requests for GetTenantWebDID
+func NewGetTenantWebDIDRequest(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/iam/%s/did.json", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewListDIDsRequest generates requests for ListDIDs
@@ -818,6 +909,12 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetRootWebDIDWithResponse request
+	GetRootWebDIDWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetRootWebDIDResponse, error)
+
+	// GetTenantWebDIDWithResponse request
+	GetTenantWebDIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTenantWebDIDResponse, error)
+
 	// ListDIDsWithResponse request
 	ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error)
 
@@ -855,6 +952,50 @@ type ClientWithResponsesInterface interface {
 	AddVerificationMethodWithBodyWithResponse(ctx context.Context, id string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error)
 
 	AddVerificationMethodWithResponse(ctx context.Context, id string, body AddVerificationMethodJSONRequestBody, reqEditors ...RequestEditorFn) (*AddVerificationMethodResponse, error)
+}
+
+type GetRootWebDIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DIDDocument
+}
+
+// Status returns HTTPResponse.Status
+func (r GetRootWebDIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetRootWebDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTenantWebDIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *DIDDocument
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTenantWebDIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTenantWebDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type ListDIDsResponse struct {
@@ -1175,6 +1316,24 @@ func (r AddVerificationMethodResponse) StatusCode() int {
 	return 0
 }
 
+// GetRootWebDIDWithResponse request returning *GetRootWebDIDResponse
+func (c *ClientWithResponses) GetRootWebDIDWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetRootWebDIDResponse, error) {
+	rsp, err := c.GetRootWebDID(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetRootWebDIDResponse(rsp)
+}
+
+// GetTenantWebDIDWithResponse request returning *GetTenantWebDIDResponse
+func (c *ClientWithResponses) GetTenantWebDIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTenantWebDIDResponse, error) {
+	rsp, err := c.GetTenantWebDID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTenantWebDIDResponse(rsp)
+}
+
 // ListDIDsWithResponse request returning *ListDIDsResponse
 func (c *ClientWithResponses) ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error) {
 	rsp, err := c.ListDIDs(ctx, reqEditors...)
@@ -1295,6 +1454,58 @@ func (c *ClientWithResponses) AddVerificationMethodWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseAddVerificationMethodResponse(rsp)
+}
+
+// ParseGetRootWebDIDResponse parses an HTTP response from a GetRootWebDIDWithResponse call
+func ParseGetRootWebDIDResponse(rsp *http.Response) (*GetRootWebDIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetRootWebDIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DIDDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTenantWebDIDResponse parses an HTTP response from a GetTenantWebDIDWithResponse call
+func ParseGetTenantWebDIDResponse(rsp *http.Response) (*GetTenantWebDIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTenantWebDIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DIDDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseListDIDsResponse parses an HTTP response from a ListDIDsWithResponse call
@@ -1705,6 +1916,12 @@ func ParseAddVerificationMethodResponse(rsp *http.Response) (*AddVerificationMet
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Returns the root did:web DID of this domain.
+	// (GET /.well-known/did.json)
+	GetRootWebDID(ctx echo.Context) error
+	// Returns the did:web DID for the specified tenant.
+	// (GET /iam/{id}/did.json)
+	GetTenantWebDID(ctx echo.Context, id string) error
 	// Lists all locally managed DIDs
 	// (GET /internal/vdr/v2/did)
 	ListDIDs(ctx echo.Context) error
@@ -1740,6 +1957,35 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetRootWebDID converts echo context to params.
+func (w *ServerInterfaceWrapper) GetRootWebDID(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetRootWebDID(ctx)
+	return err
+}
+
+// GetTenantWebDID converts echo context to params.
+func (w *ServerInterfaceWrapper) GetTenantWebDID(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetTenantWebDID(ctx, id)
+	return err
 }
 
 // ListDIDs converts echo context to params.
@@ -1938,6 +2184,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
+	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.GET(baseURL+"/internal/vdr/v2/did", wrapper.ListDIDs)
 	router.GET(baseURL+"/internal/vdr/v2/did/:did", wrapper.ResolveDID)
 	router.POST(baseURL+"/internal/vdr/v2/subject", wrapper.CreateDID)
@@ -1949,6 +2197,55 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.PUT(baseURL+"/internal/vdr/v2/subject/:id/service/:serviceId", wrapper.UpdateService)
 	router.POST(baseURL+"/internal/vdr/v2/subject/:id/verificationmethod", wrapper.AddVerificationMethod)
 
+}
+
+type GetRootWebDIDRequestObject struct {
+}
+
+type GetRootWebDIDResponseObject interface {
+	VisitGetRootWebDIDResponse(w http.ResponseWriter) error
+}
+
+type GetRootWebDID200JSONResponse DIDDocument
+
+func (response GetRootWebDID200JSONResponse) VisitGetRootWebDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRootWebDID404Response struct {
+}
+
+func (response GetRootWebDID404Response) VisitGetRootWebDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type GetTenantWebDIDRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetTenantWebDIDResponseObject interface {
+	VisitGetTenantWebDIDResponse(w http.ResponseWriter) error
+}
+
+type GetTenantWebDID200JSONResponse DIDDocument
+
+func (response GetTenantWebDID200JSONResponse) VisitGetTenantWebDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTenantWebDID404Response struct {
+}
+
+func (response GetTenantWebDID404Response) VisitGetTenantWebDIDResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
 }
 
 type ListDIDsRequestObject struct {
@@ -2336,6 +2633,12 @@ func (response AddVerificationMethoddefaultApplicationProblemPlusJSONResponse) V
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Returns the root did:web DID of this domain.
+	// (GET /.well-known/did.json)
+	GetRootWebDID(ctx context.Context, request GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error)
+	// Returns the did:web DID for the specified tenant.
+	// (GET /iam/{id}/did.json)
+	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
 	// Lists all locally managed DIDs
 	// (GET /internal/vdr/v2/did)
 	ListDIDs(ctx context.Context, request ListDIDsRequestObject) (ListDIDsResponseObject, error)
@@ -2378,6 +2681,54 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetRootWebDID operation middleware
+func (sh *strictHandler) GetRootWebDID(ctx echo.Context) error {
+	var request GetRootWebDIDRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRootWebDID(ctx.Request().Context(), request.(GetRootWebDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRootWebDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetRootWebDIDResponseObject); ok {
+		return validResponse.VisitGetRootWebDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// GetTenantWebDID operation middleware
+func (sh *strictHandler) GetTenantWebDID(ctx echo.Context, id string) error {
+	var request GetTenantWebDIDRequestObject
+
+	request.Id = id
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTenantWebDID(ctx.Request().Context(), request.(GetTenantWebDIDRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTenantWebDID")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetTenantWebDIDResponseObject); ok {
+		return validResponse.VisitGetTenantWebDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // ListDIDs operation middleware

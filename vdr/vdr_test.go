@@ -214,7 +214,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			tmpResolver := vdr.didResolver
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
-			_ = vdr.Configure(*core.NewServerConfig())
+			_ = vdr.Configure(core.TestServerConfig())
 			vdr.didResolver = tmpResolver
 
 			_ = vdr.store.Add(*didDocVendor, didstore.TestTransaction(*didDocVendor))

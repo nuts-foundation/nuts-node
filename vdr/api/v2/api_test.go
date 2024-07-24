@@ -21,11 +21,15 @@ package v2
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -442,6 +446,143 @@ func TestWrapper_AddVerificationMethod(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Equal(t, http.StatusBadRequest, err.(core.HTTPStatusCodeError).StatusCode())
+	})
+}
+
+func TestWrapper_GetTenantWebDID(t *testing.T) {
+	const webIDPart = "123"
+	var webDID = did.MustParseDID("did:web:example.com:iam:123")
+	baseURL, _ := url.Parse("https://example.com")
+	ctx := audit.TestContext()
+	expectedWebDIDDoc := did.Document{
+		ID: webDID,
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := json.Marshal(expectedWebDIDDoc)
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(&expectedWebDIDDoc, nil)
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetTenantWebDID200JSONResponse)))
+	})
+	t.Run("non-root base URL", func(t *testing.T) {
+		baseURL, _ := url.Parse("https://example.com/identities/tenant1")
+		nonRootWebDID := did.MustParseDID("did:web:example.com:identities:tenant1:iam:123")
+		expectedWebDIDDoc := did.Document{
+			ID: nonRootWebDID,
+		}
+		data, _ := json.Marshal(expectedWebDIDDoc)
+		_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+		test := newMockContext(t)
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+		test.vdr.EXPECT().ResolveManaged(nonRootWebDID).Return(&expectedWebDIDDoc, nil)
+
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetTenantWebDID200JSONResponse)))
+	})
+	t.Run("unknown DID", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, resolver.ErrNotFound)
+
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.NoError(t, err)
+		assert.IsType(t, GetTenantWebDID404Response{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().ResolveManaged(webDID).Return(nil, errors.New("failed"))
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+
+		response, err := test.client.GetTenantWebDID(ctx, GetTenantWebDIDRequestObject{webIDPart})
+
+		assert.EqualError(t, err, "unable to resolve DID")
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_GetRootWebDID(t *testing.T) {
+	var rootWebDID = did.MustParseDID("did:web:example.com")
+	baseURL, _ := url.Parse("https://example.com")
+	ctx := audit.TestContext()
+	expectedWebDIDDoc := did.Document{
+		ID: rootWebDID,
+	}
+	// remarshal expectedWebDIDDoc to make sure in-memory format is the same as the one returned by the API
+	data, _ := json.Marshal(expectedWebDIDDoc)
+	_ = expectedWebDIDDoc.UnmarshalJSON(data)
+
+	t.Run("ok", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(&expectedWebDIDDoc, nil)
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedWebDIDDoc, did.Document(response.(GetRootWebDID200JSONResponse)))
+	})
+	t.Run("unknown DID", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, resolver.ErrNotFound)
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.NoError(t, err)
+		assert.IsType(t, GetRootWebDID404Response{}, response)
+	})
+	t.Run("other error", func(t *testing.T) {
+		test := newMockContext(t)
+		test.vdr.EXPECT().ResolveManaged(rootWebDID).Return(nil, errors.New("failed"))
+		test.vdr.EXPECT().PublicURL().Return(baseURL)
+
+		response, err := test.client.GetRootWebDID(ctx, GetRootWebDIDRequestObject{})
+
+		assert.EqualError(t, err, "unable to resolve DID")
+		assert.Nil(t, response)
+	})
+}
+
+func TestWrapper_Routes(t *testing.T) {
+	t.Run("cache middleware URLs match registered paths", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		router := core.NewMockEchoRouter(ctrl)
+
+		var registeredPaths []string
+		router.EXPECT().GET(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().POST(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().PUT(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().DELETE(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(path string, _ echo.HandlerFunc, _ ...echo.MiddlewareFunc) *echo.Route {
+			registeredPaths = append(registeredPaths, path)
+			return nil
+		}).AnyTimes()
+		router.EXPECT().Use(gomock.Any()).AnyTimes()
+		(&Wrapper{}).Routes(router)
+
+		// Check that all cache-control max-age paths are actual paths
+		for _, path := range cacheControlMaxAgeURLs {
+			assert.Contains(t, registeredPaths, path)
+		}
 	})
 }
 
