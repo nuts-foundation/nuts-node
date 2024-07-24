@@ -75,7 +75,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			return nil, err
 		}
 	}
-	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, issuer, scope)
+	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, scope)
 	if err != nil {
 		return nil, err
 	}

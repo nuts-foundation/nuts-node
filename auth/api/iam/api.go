@@ -628,12 +628,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	authorizer, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
-	if err != nil {
-		return nil, err
-	}
-
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, *authorizer, request.Params.Scope)
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,

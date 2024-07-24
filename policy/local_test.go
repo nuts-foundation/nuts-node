@@ -22,7 +22,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,7 +58,7 @@ func TestStore_PresentationDefinitions(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
 		store := LocalPDP{}
 
-		_, err := store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope2")
+		_, err := store.PresentationDefinitions(context.Background(), "example-scope2")
 
 		assert.Equal(t, ErrNotFound, err)
 	})
@@ -69,7 +68,7 @@ func TestStore_PresentationDefinitions(t *testing.T) {
 		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
-		result, err := store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope")
+		result, err := store.PresentationDefinitions(context.Background(), "example-scope")
 
 		require.NoError(t, err)
 		assert.NotNil(t, result)
@@ -89,7 +88,7 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "example-scope")
+		_, err = store.PresentationDefinitions(context.Background(), "example-scope")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, 3 scopes", func(t *testing.T) {
@@ -98,11 +97,11 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test/2_files")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "1")
+		_, err = store.PresentationDefinitions(context.Background(), "1")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "2")
+		_, err = store.PresentationDefinitions(context.Background(), "2")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), did.DID{}, "3")
+		_, err = store.PresentationDefinitions(context.Background(), "3")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, duplicate scope", func(t *testing.T) {

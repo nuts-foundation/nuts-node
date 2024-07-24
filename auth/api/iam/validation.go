@@ -77,8 +77,8 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	}
 }
 
-func (r Wrapper) presentationDefinitionForScope(ctx context.Context, authorizer did.DID, scope string) (pe.WalletOwnerMapping, error) {
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, authorizer, scope)
+func (r Wrapper) presentationDefinitionForScope(ctx context.Context, scope string) (pe.WalletOwnerMapping, error) {
+	mapping, err := r.policyBackend.PresentationDefinitions(ctx, scope)
 	if err != nil {
 		if errors.Is(err, policy.ErrNotFound) {
 			return nil, oauth.OAuth2Error{
