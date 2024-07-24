@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"strings"
 	"testing"
 
@@ -119,8 +120,8 @@ func TestManager_Create(t *testing.T) {
 func TestManager_RemoveVerificationMethod(t *testing.T) {
 	id123, _ := did.ParseDID("did:nuts:123")
 	id123Method, _ := did.ParseDIDURL("did:nuts:123#method-1")
-	publicKey := nutsCrypto.NewTestKey("did:nuts:123").Public()
-	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, publicKey)
+	key, _ := spi.GenerateKeyPair()
+	vm, _ := did.NewVerificationMethod(*id123Method, ssi.JsonWebKey2020, did.DID{}, key.Public())
 	doc := &did.Document{ID: *id123}
 	doc.AddCapabilityInvocation(vm)
 	doc.AddCapabilityDelegation(vm)

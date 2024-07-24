@@ -90,11 +90,11 @@ func (m *mockKeyStore) List(ctx context.Context) []string {
 	panic("not implemented")
 }
 
-func (m *mockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+func (m *mockKeyStore) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error) {
 	panic("not implemented")
 }
 
-func (m *mockKeyStore) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
+func (m *mockKeyStore) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error) {
 	panic("not implemented")
 }
 

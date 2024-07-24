@@ -42,17 +42,15 @@ import (
 )
 
 // SignJWT creates a JWT from the given claims and signs it with the given key.
-func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
+func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error) {
 	// copy headers so we don't change the input
 	headersLocal := make(map[string]interface{})
 	maps.Copy(headersLocal, headers)
 
-	privateKey, kid, err := client.getPrivateKey(ctx, key)
+	privateKey, kid, err := client.getPrivateKey(ctx, kid)
 	if err != nil {
 		return "", err
 	}
-
-	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", kid, claims["iss"], claims["sub"])
 
 	alg, err := signingAlg(privateKey.Public())
 	if err != nil {
@@ -60,23 +58,20 @@ func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}
 	}
 
 	headersLocal["kid"] = kid
-	return signJWT(privateKey, alg, claims, headersLocal)
+	return SignJWT(ctx, privateKey, alg, claims, headersLocal)
 }
 
 // SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
-func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error) {
-	privateKey, kid, err := client.getPrivateKey(ctx, key)
-	if err != nil {
-		return "", err
-	}
-	alg, err := SignatureAlgorithm(privateKey.Public())
+func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error) {
+	privateKey, kid, err := client.getPrivateKey(ctx, kid)
 	if err != nil {
 		return "", err
 	}
 
-	audit.Log(ctx, log.Logger(), audit.CryptoSignJWSEvent).Infof("Signing a JWS with key: %s", kid)
-
-	return signJWS(payload, headers, privateKey, alg, detached)
+	if _, ok := headers["jwk"]; !ok {
+		headers["kid"] = kid
+	}
+	return SignJWS(ctx, payload, headers, privateKey, detached)
 }
 
 // EncryptJWE encrypts a payload using the provided public key and key identifier.
@@ -119,8 +114,10 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 	return body, headers, err
 }
 
-// signJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
-func signJWT(key crypto.Signer, alg jwa.SignatureAlgorithm, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
+// SignJWT signs claims with the signer and returns the compacted token. The headers param can be used to add additional headers
+func SignJWT(ctx context.Context, key crypto.Signer, alg jwa.SignatureAlgorithm, claims map[string]interface{}, headers map[string]interface{}) (token string, err error) {
+	audit.Log(ctx, log.Logger(), audit.CryptoSignJWTEvent).Infof("Signing a JWT with key: %s (issuer: %s, subject: %s)", headers["kid"], claims["iss"], claims["sub"])
+
 	var sig []byte
 	t := jwt.New()
 
@@ -228,7 +225,8 @@ func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
 	return body, nil
 }
 
-func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, alg jwa.SignatureAlgorithm, detachedPayload bool) (string, error) {
+func SignJWS(ctx context.Context, payload []byte, protectedHeaders map[string]interface{}, privateKey crypto.Signer, detachedPayload bool) (string, error) {
+	audit.Log(ctx, log.Logger(), audit.CryptoSignJWSEvent).Infof("Signing a JWS with key: %s", protectedHeaders["kid"])
 	headers := jws.NewHeaders()
 	for key, value := range protectedHeaders {
 		if err := headers.Set(key, value); err != nil {
@@ -251,6 +249,11 @@ func signJWS(payload []byte, protectedHeaders map[string]interface{}, privateKey
 		data []byte
 		err  error
 	)
+	alg, err := SignatureAlgorithm(privateKey.Public())
+	if err != nil {
+		return "", err
+	}
+
 	if detachedPayload {
 		// Sign JWS with detached payload
 		data, err = jws.Sign(nil, jws.WithKey(alg, privateKey, jws.WithProtectedHeaders(headers)), jws.WithDetachedPayload(payload))
@@ -304,19 +307,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 	return string(encoded), err
 }
 
-func (client *Crypto) getPrivateKey(ctx context.Context, key interface{}) (crypto.Signer, string, error) {
-	var kid string
-	switch k := key.(type) {
-	case exportableKey:
-		return k.Signer(), k.KID(), nil
-	case Key:
-		kid = k.KID()
-	case string:
-		kid = k
-	default:
-		return nil, "", errors.New("provided key must be either string or Key")
-	}
-
+func (client *Crypto) getPrivateKey(ctx context.Context, kid string) (crypto.Signer, string, error) {
 	privateKey, err := client.storage.GetPrivateKey(ctx, kid)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {

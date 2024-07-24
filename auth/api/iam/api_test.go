@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -386,8 +387,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			Fragment:        "key",
 			DecodedFragment: "key",
 		}
-		kid := vmId.String()
-		key := cryptoNuts.NewTestKey(kid)
+		key, _ := spi.GenerateKeyPair()
 		didDocument := did.Document{ID: verifierDID}
 		vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
 		didDocument.AddAssertionMethod(vm)
@@ -1449,13 +1449,7 @@ func testAuthzReqRedirectURI(t testing.TB, expectedRedirectURI, actualRedirectUR
 }
 
 func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.VerifiableCredential {
-	vmId := did.DIDURL{
-		DID:             issuerDID,
-		Fragment:        "key",
-		DecodedFragment: "key",
-	}
-	kid := vmId.String()
-	key := cryptoNuts.NewTestKey(kid)
+	privateKey, _ := spi.GenerateKeyPair()
 	credType := ssi.MustParseURI("ExampleType")
 
 	captureFn := func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
@@ -1467,7 +1461,7 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 		for key, val := range claims {
 			request.Set(key, val)
 		}
-		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, key.Private(), jws.WithProtectedHeaders(hdrs)))
+		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(hdrs)))
 		return string(sign), err
 	}
 

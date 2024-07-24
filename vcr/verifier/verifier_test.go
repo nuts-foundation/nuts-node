@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
@@ -378,7 +379,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 
 	t.Run("it handles an invalid signature error", func(t *testing.T) {
 		sut := newMockContext(t)
-		otherKey := crypto.NewTestKey("did:nuts:123#abc").Public()
+		otherKey, _ := spi.GenerateKeyPair()
 		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType).Return(otherKey, nil)
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")

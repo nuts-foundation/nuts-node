@@ -47,13 +47,10 @@ func Test_GenerateTestData(t *testing.T) {
 	require.NoError(t, err)
 	privateKey, err := util.PemToPrivateKey(privateKeyData)
 	require.NoError(t, err)
-	key := crypto.TestKey{
-		PrivateKey: privateKey,
-		Kid:        keyID,
-	}
+
 	cryptoStorage := crypto.NewMemoryStorage()
 	cryptoInstance := crypto.NewTestCryptoInstance(cryptoStorage)
-	err = cryptoStorage.SavePrivateKey(context.Background(), keyID, key.PrivateKey)
+	err = cryptoStorage.SavePrivateKey(context.Background(), keyID, privateKey)
 	require.NoError(t, err)
 
 	jws2020 := signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}

@@ -19,8 +19,6 @@
 package dag
 
 import (
-	"crypto/sha1"
-	"encoding/base32"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -34,9 +32,6 @@ import (
 
 func TestTransactionSigner(t *testing.T) {
 	payloadHash, _ := hash2.ParseHex("452d9e89d5bd5d9225fb6daecd579e7388a166c7661ca04e47fd3cd8446e4620")
-	key := generateKey()
-	kidAsArray := sha1.Sum(key.X.Bytes())
-	kid := base32.HexEncoding.EncodeToString(kidAsArray[:])
 	prev1, _ := hash2.ParseHex("3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986")
 	prev2, _ := hash2.ParseHex("b3f2c3c396da1a949d214e4c2fe0fc9fb5f2a68ff1860df4ef10c9835e62e7c1")
 	expectedPrevs := []hash2.SHA256Hash{prev1, prev2}
@@ -44,11 +39,11 @@ func TestTransactionSigner(t *testing.T) {
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
 	jwxSigner := crypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()
+	key, _ := jwxSigner.New(ctx, crypto.StringNamingFunc("kid"))
 	t.Run("ok - attach key", func(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		require.NoError(t, err)
 
-		key := crypto.NewTestKey(kid)
 		signedTx, err := NewTransactionSigner(jwxSigner, key, true).Sign(ctx, tx, moment)
 		require.NoError(t, err)
 		// JWS headers
@@ -70,22 +65,21 @@ func TestTransactionSigner(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		require.NoError(t, err)
 
-		key := crypto.NewTestKey(kid)
 		signedTx, err := NewTransactionSigner(jwxSigner, key, false).Sign(ctx, tx, moment)
 		require.NoError(t, err)
-		assert.Equal(t, kid, signedTx.SigningKeyID())
+		assert.Equal(t, "kid", signedTx.SigningKeyID())
 		assert.Nil(t, signedTx.SigningKey())
 		assert.NotEmpty(t, signedTx.Data())
 	})
 	t.Run("signing time is zero", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		signedTransaction, err := NewTransactionSigner(jwxSigner, crypto.NewTestKey(kid), false).Sign(ctx, tx, time.Time{})
+		signedTransaction, err := NewTransactionSigner(jwxSigner, key, false).Sign(ctx, tx, time.Time{})
 		assert.Empty(t, signedTransaction)
 		assert.EqualError(t, err, "signing time is zero")
 	})
 	t.Run("already signed", func(t *testing.T) {
 		tx, _ := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
-		signer := NewTransactionSigner(jwxSigner, crypto.NewTestKey(kid), false)
+		signer := NewTransactionSigner(jwxSigner, key, false)
 		signedTransaction, _ := signer.Sign(ctx, tx, time.Now())
 		signedTransaction2, err := signer.Sign(ctx, signedTransaction, time.Now())
 		assert.Nil(t, signedTransaction2)

@@ -97,8 +97,7 @@ func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, 
 	} else {
 		headerMap[jws.KeyIDKey] = d.key.KID()
 	}
-
-	data, err := d.signer.SignJWS(ctx, []byte(input.PayloadHash().String()), headerMap, d.key, false)
+	data, err := d.signer.SignJWS(ctx, []byte(input.PayloadHash().String()), headerMap, d.key.KID(), false)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

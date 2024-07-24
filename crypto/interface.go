@@ -75,16 +75,16 @@ type Decrypter interface {
 // JWTSigner is the interface used to sign authorization tokens.
 type JWTSigner interface {
 	// SignJWT creates a signed JWT using the indicated key and map of claims and additional headers.
-	// The key can be its KID (key ID) or an instance of Key, the context is used to pass audit information.
+	// The KID is the external facing Key ID (eg: from the DID Document). the context is used to pass audit information.
 	// The headers can be used to add/override headers in the JWT.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
-	SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error)
+	SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error)
 	// SignJWS creates a signed JWS using the indicated key and map of headers and payload as bytes.
 	// The detached boolean indicates if the body needs to be excluded from the response (detached mode).
-	// The key can be its KID (key ID) or an instance of Key,
+	// The KID is the external facing Key ID (eg: from the DID Document).
 	// context is used to pass audit information.
 	// Returns ErrPrivateKeyNotFound when the private key is not present.
-	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, key interface{}, detached bool) (string, error)
+	SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error)
 	// SignDPoP signs a DPoP token for the given kid.
 	// It adds the requested key as jwk header to the DPoP token.
 	SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error)

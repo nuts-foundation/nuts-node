@@ -407,7 +407,6 @@ func TestNetwork_PeerDiagnostics(t *testing.T) {
 }
 
 func TestNetwork_CreateTransaction(t *testing.T) {
-	key := crypto.NewTestKey("signing-key")
 	ctx := audit.TestContext()
 	t.Run("ok - attach key", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -415,11 +414,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
-
+		key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
 		_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAttachKey())
+
 		assert.NoError(t, err)
 	})
 	t.Run("ok - detached key", func(t *testing.T) {
@@ -428,9 +428,12 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
+		key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
+
 		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key))
+
 		assert.NoError(t, err)
 		assert.Len(t, tx.Previous(), 0)
 	})
@@ -448,11 +451,10 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil).Times(2)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
-
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
-
 		err := cxt.start()
 		require.NoError(t, err)
+		key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
@@ -467,6 +469,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
+		key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		// 'Register' prev on DAG
 		prev, _, _ := dag.CreateTestTransaction(1)
@@ -480,7 +483,6 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		assert.Nil(t, tx)
 	})
 	t.Run("private transaction", func(t *testing.T) {
-		key := crypto.NewTestKey("signing-key")
 		sender, _ := did.ParseDID("did:nuts:sender")
 		senderKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		receiver, _ := did.ParseDID("did:nuts:receiver")
@@ -491,6 +493,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
+			key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 			cxt.network.nodeDID = *nodeDID
 
@@ -509,6 +512,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
+			key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithPrivate([]did.DID{*sender, *receiver}))
 			assert.EqualError(t, err, "node DID must be configured to create private transactions")
@@ -526,6 +530,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
+		key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		_, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, key).WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
@@ -650,7 +655,7 @@ func TestNetwork_validateNodeDID(t *testing.T) {
 	ctx := context.Background()
 	keyID := did.DIDURL{DID: *nodeDID}
 	keyID.Fragment = "some-key"
-	key := crypto.NewTestKey(keyID.String()).PrivateKey
+	key, _ := spi.GenerateKeyPair()
 	documentWithoutNutsCommService := &did.Document{
 		KeyAgreement: []did.VerificationRelationship{
 			{VerificationMethod: &did.VerificationMethod{ID: keyID}},

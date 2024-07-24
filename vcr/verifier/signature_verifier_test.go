@@ -89,7 +89,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		template.Issuer = did.MustParseDIDURL(key.KID()).DID.URI()
 
 		cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-			return keyStore.SignJWT(ctx, claims, headers, key)
+			return keyStore.SignJWT(ctx, claims, headers, key.KID())
 		})
 		require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			sv, mockKeyResolver := signatureVerifierTestSetup(t)
 
 			cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-				return keyStore.SignJWT(ctx, claims, headers, key)
+				return keyStore.SignJWT(ctx, claims, headers, key.KID())
 			})
 			require.NoError(t, err)
 			cred.Issuer = ssi.MustParseURI("did:example:test")
