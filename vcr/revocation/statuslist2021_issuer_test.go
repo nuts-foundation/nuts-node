@@ -20,10 +20,10 @@ package revocation
 
 import (
 	"context"
+	"crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"strconv"
 	"testing"
 	"time"
@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -121,7 +122,9 @@ func TestStatusList2021_Entry(t *testing.T) {
 	})
 	t.Run("error - singing key not found", func(t *testing.T) {
 		s := newTestStatusList2021(t, aliceDID, bobDID)
-		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("do re mi") }
+		s.ResolveKey = func(_ did.DID, _ *time.Time, _ resolver.RelationType) (string, crypto.PublicKey, error) {
+			return "", nil, errors.New("do re mi")
+		}
 
 		entry, err = s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
 
@@ -205,7 +208,7 @@ func TestStatusList2021_Entry(t *testing.T) {
 func TestStatusList2021_Revoke(t *testing.T) {
 	s := newTestStatusList2021(t, aliceDID, bobDID)
 
-	entryP, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
+	entryP, err := s.Entry(context.Background(), aliceDID, StatusPurposeRevocation)
 	require.NoError(t, err)
 	entry := *entryP
 
@@ -235,33 +238,35 @@ func TestStatusList2021_Revoke(t *testing.T) {
 	})
 	t.Run("error - signing key not found", func(t *testing.T) {
 		s := newTestStatusList2021(t, aliceDID, bobDID)
-		entry, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
+		entry, err := s.Entry(context.Background(), aliceDID, StatusPurposeRevocation)
 		require.NoError(t, err)
-		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("no key") }
-		assert.EqualError(t, s.Revoke(nil, ssi.URI{}, *entry), "no key")
+		s.ResolveKey = func(_ did.DID, _ *time.Time, _ resolver.RelationType) (string, crypto.PublicKey, error) {
+			return "", nil, errors.New("no key")
+		}
+		assert.EqualError(t, s.Revoke(context.Background(), ssi.URI{}, *entry), "no key")
 	})
 	t.Run("error - ErrRevoked", func(t *testing.T) {
-		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, entry), types.ErrRevoked)
+		assert.ErrorIs(t, s.Revoke(context.Background(), ssi.URI{}, entry), types.ErrRevoked)
 	})
 	t.Run("error - unsupportedPurpose", func(t *testing.T) {
 		cEntry := entry
 		cEntry.StatusPurpose = statusPurposeSuspension
-		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, cEntry), errUnsupportedPurpose)
+		assert.ErrorIs(t, s.Revoke(context.Background(), ssi.URI{}, cEntry), errUnsupportedPurpose)
 	})
 	t.Run("error - ErrNotFound", func(t *testing.T) {
 		cEntry := entry
 		cEntry.StatusListCredential += "unknown"
-		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, cEntry), types.ErrNotFound)
+		assert.ErrorIs(t, s.Revoke(context.Background(), ssi.URI{}, cEntry), types.ErrNotFound)
 	})
 	t.Run("error - statusListIndex NaN", func(t *testing.T) {
 		cEntry := entry
 		cEntry.StatusListIndex = "NaN"
-		assert.ErrorContains(t, s.Revoke(nil, ssi.URI{}, cEntry), "invalid syntax")
+		assert.ErrorContains(t, s.Revoke(context.Background(), ssi.URI{}, cEntry), "invalid syntax")
 	})
 	t.Run("error - statusListIndex OOB", func(t *testing.T) {
 		cEntry := entry
 		cEntry.StatusListIndex = "10"
-		assert.ErrorIs(t, s.Revoke(nil, ssi.URI{}, cEntry), ErrIndexNotInBitstring)
+		assert.ErrorIs(t, s.Revoke(context.Background(), ssi.URI{}, cEntry), ErrIndexNotInBitstring)
 	})
 }
 
@@ -323,12 +328,12 @@ func TestStatusList2021_Credential(t *testing.T) {
 	t.Run("ok - refresh expired credential", func(t *testing.T) {
 		old := s.Sign
 		defer func() { s.Sign = old }()
-		s.Sign = func(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error) {
+		s.Sign = func(ctx context.Context, unsignedCredential vc.VerifiableCredential, kid string) (*vc.VerifiableCredential, error) {
 			info := audit.InfoFromContext(ctx)
 			require.NotNil(t, info)
 			assert.Equal(t, info.Actor, "_system_signing_expired_statuslist2021credential")
 			assert.Equal(t, info.Operation, "TestModule.TestOperation") // confirm unchanged
-			return noopSign(ctx, unsignedCredential, key)
+			return noopSign(ctx, unsignedCredential, kid)
 		}
 		// change expires so that time.Now is between refresh and expired
 		err = s.db.Model(new(credentialRecord)).Where("subject_id = ?", entry.StatusListCredential).
@@ -341,12 +346,14 @@ func TestStatusList2021_Credential(t *testing.T) {
 	})
 	t.Run("error - signing key not found", func(t *testing.T) {
 		s := newTestStatusList2021(t, aliceDID)
-		entry2, err := s.Entry(nil, aliceDID, StatusPurposeRevocation)
+		entry2, err := s.Entry(context.Background(), aliceDID, StatusPurposeRevocation)
 		require.NoError(t, err)
 		// change expires to now so the StatusList2021Credential has to be signed again
 		err = s.db.Model(new(credentialRecord)).Where("subject_id = ?", entry2.StatusListCredential).UpdateColumn("expires", time.Now()).Error
 		require.NoError(t, err)
-		s.ResolveKey = func(_ context.Context, _ did.DID) (crypto.Key, error) { return nil, errors.New("no key") }
+		s.ResolveKey = func(_ did.DID, _ *time.Time, _ resolver.RelationType) (string, crypto.PublicKey, error) {
+			return "", nil, errors.New("no key")
+		}
 
 		cred, err := s.Credential(auditCtx, aliceDID, 1)
 
@@ -374,7 +381,7 @@ func TestStatusList2021_buildAndSignVC(t *testing.T) {
 		EncodedList:   encodedList,
 	}
 
-	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS, nil)
+	cred, err := cs.buildAndSignVC(nil, aliceDID, expectedCS, "")
 
 	// signature is checked in vcr.issuer
 

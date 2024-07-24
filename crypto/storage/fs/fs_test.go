@@ -120,7 +120,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 
-		key, err := storage.GetPrivateKey(nil, "unknown")
+		key, err := storage.GetPrivateKey(nil, "unknown", "")
 
 		assert.Contains(t, err.Error(), "could not open entry unknown with filename")
 		assert.Nil(t, key)
@@ -133,7 +133,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		_, err := file.WriteString("hello world")
 		require.NoError(t, err)
 
-		key, err := storage.GetPrivateKey(nil, kid)
+		key, err := storage.GetPrivateKey(nil, kid, "")
 
 		assert.Nil(t, key)
 		assert.Error(t, err)
@@ -146,7 +146,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		err := storage.SavePrivateKey(nil, kid, pk)
 		require.NoError(t, err)
 
-		key, err := storage.GetPrivateKey(nil, kid)
+		key, err := storage.GetPrivateKey(nil, kid, "")
 
 		assert.NoError(t, err)
 		require.NotNil(t, key)
@@ -157,7 +157,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 func Test_fs_KeyExistsFor(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		exists, err := storage.PrivateKeyExists(nil, "unknown")
+		exists, err := storage.PrivateKeyExists(nil, "unknown", "")
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
@@ -166,7 +166,7 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 		pk := test.GenerateECKey()
 		kid := "kid"
 		storage.SavePrivateKey(nil, kid, pk)
-		exists, err := storage.PrivateKeyExists(nil, kid)
+		exists, err := storage.PrivateKeyExists(nil, kid, "")
 		assert.NoError(t, err)
 		assert.True(t, exists)
 	})
@@ -193,7 +193,7 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 		_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
 		_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
 
-		keys := backend.ListPrivateKeys(nil)
+		keys, _ := backend.ListPrivateKeys(nil)
 		sort.Strings(keys)
 		assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
 	})
@@ -203,7 +203,7 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 		// This happens when the root directory does not exist (or any other underlying FS error).
 		storage := &fileSystemBackend{fspath: path.Join(io.TestDirectory(t), "does-not-exist")}
 
-		keys := storage.ListPrivateKeys(nil)
+		keys, _ := storage.ListPrivateKeys(nil)
 
 		assert.Empty(t, keys)
 	})

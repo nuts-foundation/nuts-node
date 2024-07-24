@@ -19,7 +19,6 @@
 package crypto
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -29,11 +28,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestMemoryKeyStore_SignJWS(t *testing.T) {
-	_, err := MemoryJWTSigner{}.SignJWS(context.Background(), nil, nil, "", false)
-	assert.ErrorIs(t, err, errNotSupportedForInMemoryKeyStore)
-}
 
 func TestMemoryKeyStore_SignJWT(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

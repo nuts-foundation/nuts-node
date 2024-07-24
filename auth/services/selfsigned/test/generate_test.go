@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
@@ -49,8 +50,10 @@ func Test_GenerateTestData(t *testing.T) {
 	require.NoError(t, err)
 
 	cryptoStorage := crypto.NewMemoryStorage()
-	cryptoInstance := crypto.NewTestCryptoInstance(cryptoStorage)
+	cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), cryptoStorage)
 	err = cryptoStorage.SavePrivateKey(context.Background(), keyID, privateKey)
+	require.NoError(t, err)
+	err = cryptoInstance.Link(context.Background(), keyID, keyID, "1")
 	require.NoError(t, err)
 
 	jws2020 := signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}

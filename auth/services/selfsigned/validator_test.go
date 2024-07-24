@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -51,23 +52,26 @@ var docTXTime, _ = time.Parse(time.RFC3339, "2023-04-14T12:00:00.000000+02:00")
 func TestSigner_Validator_Roundtrip(t *testing.T) {
 	// Setup VCR
 	keyStore := crypto.NewMemoryStorage()
-	vcrContext := vcr.NewTestVCRContext(t, crypto.NewTestCryptoInstance(keyStore))
-	{
-		didDocument := did.Document{}
-		didDocumentBytes, _ := os.ReadFile("./test/diddocument.json")
-		_ = json.Unmarshal(didDocumentBytes, &didDocument)
-		// Register DID document in VDR
-		tx := didstore.TestTransaction(didDocument)
-		tx.SigningTime = docTXTime
-		err := vcrContext.DIDStore.Add(didDocument, tx)
-		require.NoError(t, err)
-		// Load private key so we can sign
-		privateKeyData, _ := os.ReadFile("./test/private.pem")
-		privateKey, err := util.PemToPrivateKey(privateKeyData)
-		require.NoError(t, err)
-		err = keyStore.SavePrivateKey(context.Background(), didDocument.VerificationMethod[0].ID.String(), privateKey)
-		require.NoError(t, err)
-	}
+	cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+	vcrContext := vcr.NewTestVCRContext(t, cryptoInstance)
+
+	didDocument := did.Document{}
+	didDocumentBytes, _ := os.ReadFile("./test/diddocument.json")
+	_ = json.Unmarshal(didDocumentBytes, &didDocument)
+	// Register DID document in VDR
+	tx := didstore.TestTransaction(didDocument)
+	tx.SigningTime = docTXTime
+	err := vcrContext.DIDStore.Add(didDocument, tx)
+	require.NoError(t, err)
+	// Load private key so we can sign
+	privateKeyData, _ := os.ReadFile("./test/private.pem")
+	privateKey, err := util.PemToPrivateKey(privateKeyData)
+	require.NoError(t, err)
+	kid := didDocument.VerificationMethod[0].ID.String()
+	err = keyStore.SavePrivateKey(context.Background(), kid, privateKey)
+	require.NoError(t, err)
+	err = cryptoInstance.Link(context.Background(), kid, kid, "1")
+	require.NoError(t, err)
 
 	// Sign VP
 	issuanceDate := time.Date(2023, 4, 14, 13, 40, 0, 0, time.Local)
@@ -177,27 +181,28 @@ func TestValidator_VerifyVP(t *testing.T) {
 
 	t.Run("ok using in-memory DBs", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
-		vcrContext := vcr.NewTestVCRContext(t, crypto.NewTestCryptoInstance(keyStore))
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+		vcrContext := vcr.NewTestVCRContext(t, cryptoInstance)
 		var didDocument did.Document
-		{
-			ddBytes, _ := os.ReadFile("./test/diddocument.json")
-			err := json.Unmarshal(ddBytes, &didDocument)
-			require.NoError(t, err)
-		}
-		{
-			// Load private key so we can sign
-			privateKeyData, _ := os.ReadFile("./test/private.pem")
-			privateKey, err := util.PemToPrivateKey(privateKeyData)
-			require.NoError(t, err)
-			err = keyStore.SavePrivateKey(context.Background(), didDocument.VerificationMethod[0].ID.String(), privateKey)
-			require.NoError(t, err)
-		}
+		ddBytes, _ := os.ReadFile("./test/diddocument.json")
+		err := json.Unmarshal(ddBytes, &didDocument)
+		require.NoError(t, err)
+
+		// Load private key so we can sign
+		privateKeyData, _ := os.ReadFile("./test/private.pem")
+		privateKey, err := util.PemToPrivateKey(privateKeyData)
+		require.NoError(t, err)
+		kid := didDocument.VerificationMethod[0].ID.String()
+		err = keyStore.SavePrivateKey(context.Background(), kid, privateKey)
+		require.NoError(t, err)
+		err = cryptoInstance.Link(context.Background(), kid, kid, "1")
+		require.NoError(t, err)
 
 		ss := NewValidator(vcrContext.VCR, contract.StandardContractTemplates)
 		// test transaction for DIDStore ordering
 		tx := didstore.TestTransaction(didDocument)
 		tx.SigningTime = docTXTime
-		err := vcrContext.DIDStore.Add(didDocument, tx)
+		err = vcrContext.DIDStore.Add(didDocument, tx)
 		require.NoError(t, err)
 		// #2428: NutsEmployeeCredential issuer needs a trusted NutsOrganizationCredential
 		issuer.TimeFunc = func() time.Time {

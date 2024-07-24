@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"strconv"
 	"strings"
@@ -32,7 +34,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -153,7 +154,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	}
 
 	// resolve signing key outside of transaction
-	key, err := cs.ResolveKey(ctx, issuerDID)
+	kid, _, err := cs.ResolveKey(issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		// should never happen; credential confirmed to issued by this node
 		return nil, err
@@ -177,7 +178,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 			// gorm.ErrRecordNotFound can't happen, isManaged() confirmed it exists
 			return err
 		}
-		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord, key)
+		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord, kid)
 		if err != nil {
 			return err
 		}
@@ -201,7 +202,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 
 // updateCredential creates a signed StatusList2021Credential and a credentialRecord from the credentialIssuerRecord.
 // All revocations must be present in the issuerRecord. The caller is responsible for writing the credentialRecord to the db.
-func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord, key crypto.Key) (*vc.VerifiableCredential, *credentialRecord, error) {
+func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *credentialIssuerRecord, kid string) (*vc.VerifiableCredential, *credentialRecord, error) {
 	issuerDID, err := did.ParseDID(issuerRecord.Issuer)
 	if err != nil {
 		return nil, nil, err
@@ -229,7 +230,7 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 		EncodedList:   encodedList,
 	}
 	// create and sign a new StatusList2021Credential
-	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject, key)
+	statusListCredential, err := cs.buildAndSignVC(ctx, *issuerDID, *credSubject, kid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -247,7 +248,7 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 }
 
 // buildAndSignVC intends to do the same as vcr.issuer.buildAndSignVC
-func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject StatusList2021CredentialSubject, key crypto.Key) (*vc.VerifiableCredential, error) {
+func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID, credSubject StatusList2021CredentialSubject, kid string) (*vc.VerifiableCredential, error) {
 	iss := time.Now()
 	exp := iss.Add(statusListValidity)
 	credentialID := ssi.MustParseURI(fmt.Sprintf("%s#%s", issuerDID.String(), uuid.New().String()))
@@ -268,7 +269,7 @@ func (cs *StatusList2021) buildAndSignVC(ctx context.Context, issuerDID did.DID,
 	}
 
 	// sign the StatusList2021Credential
-	return cs.Sign(ctx, template, key)
+	return cs.Sign(ctx, template, kid)
 }
 
 func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose StatusPurpose) (*StatusList2021Entry, error) {
@@ -277,7 +278,7 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 	}
 
 	// resolve signing key outside of transaction
-	key, err := cs.ResolveKey(ctx, issuer)
+	kid, _, err := cs.ResolveKey(issuer, nil, resolver.AssertionMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -317,7 +318,9 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 					return err
 				}
 
-				_, credRecord, err := cs.updateCredential(ctx, credentialIssuer, key)
+				// store transaction context
+				transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+				_, credRecord, err := cs.updateCredential(transactionContext, credentialIssuer, kid)
 				if err != nil {
 					return err
 				}
@@ -378,7 +381,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		// can't happen; own DB
 		return err
 	}
-	key, err := cs.ResolveKey(ctx, *issuerDID)
+	kid, _, err := cs.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		// can't happen; credential confirmed to issued by this node
 		return err
@@ -429,7 +432,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 
 		// append new revocation and re-issue the StatusList2021Credential.
-		_, credRecord, err := cs.updateCredential(ctx, issuerRecord, key)
+		_, credRecord, err := cs.updateCredential(ctx, issuerRecord, kid)
 		if err != nil {
 			return err
 		}

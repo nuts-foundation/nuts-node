@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
+	storage2 "github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -111,8 +112,13 @@ func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
 	if err != nil {
 		return nil, err
 	}
-	instance := cryptoEngine.NewCryptoInstance()
+	storage := storage2.New()
+	instance := cryptoEngine.NewCryptoInstance(storage)
 	err = cfg.InjectIntoEngine(instance)
+	if err != nil {
+		return nil, err
+	}
+	err = storage.Configure(*cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -139,21 +145,24 @@ func fsToOtherStorage(ctx context.Context, sourceDir string, target spi.Storage)
 // If an error occurs, the returned keys are the keys that were exported before the error occurred.
 func exportToOtherStorage(ctx context.Context, source, target spi.Storage) ([]string, error) {
 	var keys []string
-	for _, kid := range source.ListPrivateKeys(ctx) {
-		privateKey, err := source.GetPrivateKey(ctx, kid)
+	keyNames, versions := source.ListPrivateKeys(ctx)
+	for i := range keyNames {
+		keyName := keyNames[i]
+		version := versions[i]
+		privateKey, err := source.GetPrivateKey(ctx, keyName, version)
 		if err != nil {
-			return keys, fmt.Errorf("unable to retrieve private key (kid=%s): %w", kid, err)
+			return keys, fmt.Errorf("unable to retrieve private key (kid=%s): %w", keyName, err)
 		}
-		err = target.SavePrivateKey(ctx, kid, privateKey)
+		err = target.SavePrivateKey(ctx, keyName, privateKey)
 		if err != nil {
 			// ignore duplicate keys, allows for reruns
 			if errors.Is(err, spi.ErrKeyAlreadyExists) {
 				continue
 			}
-			return keys, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", kid, err)
+			return keys, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", keyName, err)
 		}
 		// only add if no error occurred
-		keys = append(keys, kid)
+		keys = append(keys, keyName)
 	}
 	return keys, nil
 }

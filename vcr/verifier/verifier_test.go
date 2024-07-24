@@ -20,14 +20,10 @@ package verifier
 
 import (
 	"context"
-	crypt "crypto"
+	"crypto"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -37,14 +33,18 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/trust"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -155,12 +155,14 @@ func TestVerifier_Verify(t *testing.T) {
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
 		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com")
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
-		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ crypto.Key) (*vc.VerifiableCredential, error) {
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)
 			require.NoError(t, err)
 			return &unsignedCredential, json.Unmarshal(bs, &unsignedCredential)
 		}
-		ctx.verifier.credentialStatus.(*revocation.StatusList2021).ResolveKey = func(ctx context.Context, issuerDID did.DID) (crypto.Key, error) { return nil, nil } // ctx.verifier.credentialStatus.Sign ignores the key
+		ctx.verifier.credentialStatus.(*revocation.StatusList2021).ResolveKey = func(issuerDID did.DID, _ *time.Time, _ resolver.RelationType) (string, crypto.PublicKey, error) {
+			return "", nil, nil
+		} // ctx.verifier.credentialStatus.Sign ignores the key
 
 		cred := test.ValidNutsOrganizationCredential(t)
 		cred.Context = append(cred.Context, ssi.MustParseURI(jsonld.W3cStatusList2021Context))
@@ -176,7 +178,7 @@ func TestVerifier_Verify(t *testing.T) {
 		t.Run("is revoked", func(t *testing.T) {
 			didAlice := did.MustParseDID("did:web:example.com:iam:alice")
 			storage.AddDIDtoSQLDB(t, db, didAlice)
-			entry, err := ctx.verifier.credentialStatus.(*revocation.StatusList2021).Entry(nil, didAlice, revocation.StatusPurposeRevocation)
+			entry, err := ctx.verifier.credentialStatus.(*revocation.StatusList2021).Entry(context.Background(), didAlice, revocation.StatusPurposeRevocation)
 			require.NoError(t, err)
 			require.NoError(t, ctx.verifier.credentialStatus.(*revocation.StatusList2021).Revoke(nil, ssi.URI{}, *entry))
 			cred := test.ValidNutsOrganizationCredential(t)
@@ -398,7 +400,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
  "y": "UYZoXK13bedMDHvsrGskxihDuWIXgGBdQfTvjyQlCDE"
 }`))
 		require.NoError(t, err)
-		var publicKey crypt.PublicKey
+		var publicKey crypto.PublicKey
 		require.NoError(t, key.Raw(&publicKey))
 
 		const rawVP = `eyJhbGciOiJFUzI1NiIsImtpZCI6ImRpZDpudXRzOkd2a3p4c2V6SHZFYzhuR2hnejZYbzNqYnFrSHdzd0xtV3czQ1l0Q203aEFXI2FiYy1tZXRob2QtMSIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTc2OTY3NDEsImlzcyI6ImRpZDpudXRzOkd2a3p4c2V6SHZFYzhuR2hnejZYbzNqYnFrSHdzd0xtV3czQ1l0Q203aEFXIiwibmJmIjoxNjk3NjEwMzQxLCJzdWIiOiJkaWQ6bnV0czpHdmt6eHNlekh2RWM4bkdoZ3o2WG8zamJxa0h3c3dMbVd3M0NZdENtN2hBVyIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOiJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIiwidmVyaWZpYWJsZUNyZWRlbnRpYWwiOnsiQGNvbnRleHQiOlsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL251dHMubmwvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL3czYy1jY2cuZ2l0aHViLmlvL2xkcy1qd3MyMDIwL2NvbnRleHRzL2xkcy1qd3MyMDIwLXYxLmpzb24iXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiY29tcGFueSI6eyJjaXR5IjoiSGVuZ2VsbyIsIm5hbWUiOiJEZSBiZXN0ZSB6b3JnIn0sImlkIjoiZGlkOm51dHM6R3ZrenhzZXpIdkVjOG5HaGd6NlhvM2picWtId3N3TG1XdzNDWXRDbTdoQVcifSwiaWQiOiJkaWQ6bnV0czo0dHpNYVdmcGl6VktlQThmc2NDM0pUZFdCYzNhc1VXV01qNWhVRkhkV1gzSCNmNDNiZWY0Zi0xYTc5LTQzNjQtOTJmMy0zZmM3NDNmYTlmMTkiLCJpc3N1YW5jZURhdGUiOiIyMDIxLTEyLTI0VDEzOjIxOjI5LjA4NzIwNSswMTowMCIsImlzc3VlciI6ImRpZDpudXRzOjR0ek1hV2ZwaXpWS2VBOGZzY0MzSlRkV0JjM2FzVVdXTWo1aFVGSGRXWDNIIiwicHJvb2YiOnsiY3JlYXRlZCI6IjIwMjEtMTItMjRUMTM6MjE6MjkuMDg3MjA1KzAxOjAwIiwiandzIjoiZXlKaGJHY2lPaUpGVXpJMU5pSXNJbUkyTkNJNlptRnNjMlVzSW1OeWFYUWlPbHNpWWpZMElsMTkuLmhQTTJHTGMxSzlkMkQ4U2J2ZTAwNHg5U3VtakxxYVhUaldoVWh2cVdSd3hmUldsd2ZwNWdIRFVZdVJvRWpoQ1hmTHQtX3Uta25DaFZtSzk4ME4zTEJ3IiwicHJvb2ZQdXJwb3NlIjoiTnV0c1NpZ25pbmdLZXlUeXBlIiwidHlwZSI6Ikpzb25XZWJTaWduYXR1cmUyMDIwIiwidmVyaWZpY2F0aW9uTWV0aG9kIjoiZGlkOm51dHM6R3ZrenhzZXpIdkVjOG5HaGd6NlhvM2picWtId3N3TG1XdzNDWXRDbTdoQVcjYWJjLW1ldGhvZC0xIn0sInR5cGUiOlsiQ29tcGFueUNyZWRlbnRpYWwiLCJWZXJpZmlhYmxlQ3JlZGVudGlhbCJdfX19.v3beJvGa3HeImU3VLvsrZjnHs0krKPaCdTEh-qHS7j26LIQYcMHhrLkIexrpPO5z0TKSDnKq5Jl10SWaJpLRIA`
@@ -419,7 +421,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 		t.Run("ok - no credentials", func(t *testing.T) {
 			ctx := newMockContext(t)
 			presentation, key := test.CreateJWTPresentation(t, subjectDID, nil)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), resolver.NutsSigningKeyType).Return(key, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(presentation, false, false, nil)
 
@@ -446,7 +448,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 					_ = token.Set("vp", castVP)
 				}, selfAssertedCredential)
 				ctx := newMockContext(t)
-				ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(key.Public(), nil)
+				ctx.keyResolver.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(key, nil)
 
 				mockVerifier := NewMockVerifier(ctx.ctrl)
 				mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, false, nil)
@@ -555,7 +557,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			var validAt *time.Time
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
@@ -568,7 +570,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			var validAt *time.Time
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
@@ -584,7 +586,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			var validAt *time.Time
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
@@ -614,7 +616,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			var validAt *time.Time
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
@@ -631,7 +633,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			ctx := newMockContext(t)
 			// Return incorrect key, causing signature verification failure
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().PublicKey, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
@@ -761,7 +763,8 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, &revocation.StatusList2021{}).(*verifier)
+	db := orm.NewTestDatabase(t)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, "")).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

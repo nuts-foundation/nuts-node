@@ -36,11 +36,20 @@ create table did_change_log
 
 create index did_change_log_transaction_idx on did_change_log (transaction_id);
 
+-- key_references store the private key information from the secure backend.
+-- this is needed because verificationMethod IDs have specific requirements that the backend doesn't support.
+create table key_reference
+(
+    kid varchar(415) primary key,
+    key_name varchar(255) not null,
+    version varchar(255) not null
+);
+
 -- this table is used to store the verification methods for locally managed DIDs
 create table did_verificationmethod
 (
-    -- id is the unique id of the verification method as it appears in the DID document using the shorthand representation.
-    id varchar(254) not null primary key,
+    -- id is the unique id of the verification method as it appears in the DID document using the fully qualified representation.
+    id varchar(415) not null primary key,
     -- did_document_id references the DID document version
     did_document_id  varchar(36) not null,
     -- key_types is a base64 encoded bitmask of the key types supported by the verification method.
@@ -50,6 +59,9 @@ create table did_verificationmethod
     -- 0x08 - CapabilityInvocation
     -- 0x10 - KeyAgreement
     key_types SMALLINT not null,
+    -- weight is the weight of the verification method. The weight is used to determine the order of the verification methods.
+    -- can also be derived from version of the backend storage.
+    weight SMALLINT default 0,
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null,

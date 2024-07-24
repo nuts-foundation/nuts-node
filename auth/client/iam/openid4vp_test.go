@@ -54,8 +54,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	callbackURI := "https://test.test/iam/123/callback"
 	clientID := did.MustParseDID("did:web:test.test:iam:123")
 	codeVerifier := "code_verifier"
-	kid := clientID.URI()
-	kid.Fragment = "1"
+	kid := "did:web:test.test:iam:123#1"
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -70,7 +69,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok - with DPoP", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
@@ -91,7 +90,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("error - failed to create DPoP header", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("", assert.AnError)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("", assert.AnError)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, clientID, codeVerifier, true)
 
@@ -233,8 +232,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 
 func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	walletDID := did.MustParseDID("did:test:123")
-	kid := walletDID.URI()
-	kid.Fragment = "1"
+	kid := "did:test:123#1"
 	scopes := "first second"
 
 	t.Run("ok", func(t *testing.T) {
@@ -269,7 +267,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		}
 		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		vp, _ := test.CreateJWTPresentation(t, walletDID, nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), kid.String()).
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), kid).
 			DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, _ string) (string, error) {
 				vcs := claims["vp"].(vc.VerifiablePresentation).VerifiableCredential
 				require.Len(t, vcs, 1)
@@ -314,7 +312,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid.String()).Return("dpop", nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, true, nil)

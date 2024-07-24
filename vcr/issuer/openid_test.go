@@ -20,7 +20,6 @@ package issuer
 
 import (
 	"context"
-	crypt "crypto"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -116,14 +115,12 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 }
 
 func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
-	keyStore := crypto.NewMemoryCryptoInstance()
+	keyStore := crypto.NewMemoryCryptoInstance(t)
 	ctx := audit.TestContext()
-	signerKey, _ := keyStore.New(ctx, func(key crypt.PublicKey) (string, error) {
-		return keyID, nil
-	})
+	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
 	ctrl := gomock.NewController(t)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
-	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey.Public(), nil)
+	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey, nil)
 
 	createHeaders := func() map[string]interface{} {
 		return map[string]interface{}{

@@ -101,7 +101,7 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 
 	keyJWK, err := jwk.FromRaw(privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("keys stored in '%s' do not support JWE decryption", client.storage.Name())
+		return nil, nil, fmt.Errorf("keys stored in '%s' do not support JWE decryption", client.backend.Name())
 	}
 	body, err = jwe.Decrypt([]byte(message), jwe.WithKey(protectedHeaders.Algorithm(), keyJWK))
 	if err != nil {
@@ -308,7 +308,11 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 }
 
 func (client *Crypto) getPrivateKey(ctx context.Context, kid string) (crypto.Signer, string, error) {
-	privateKey, err := client.storage.GetPrivateKey(ctx, kid)
+	keyRef, err := findKeyReferenceByKid(ctx, client.db, kid)
+	if err != nil {
+		return nil, "", err
+	}
+	privateKey, err := client.backend.GetPrivateKey(ctx, keyRef.KeyName, keyRef.Version)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
 			return nil, "", ErrPrivateKeyNotFound

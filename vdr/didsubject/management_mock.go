@@ -87,18 +87,18 @@ func (mr *MockMethodManagerMockRecorder) NewDocument(ctx, keyFlags any) *gomock.
 }
 
 // NewVerificationMethod mocks base method.
-func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyUsage)
+	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyFlags)
 	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NewVerificationMethod indicates an expected call of NewVerificationMethod.
-func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, keyUsage any) *gomock.Call {
+func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, keyFlags any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerificationMethod", reflect.TypeOf((*MockMethodManager)(nil).NewVerificationMethod), ctx, controller, keyUsage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerificationMethod", reflect.TypeOf((*MockMethodManager)(nil).NewVerificationMethod), ctx, controller, keyFlags)
 }
 
 // MockDocumentManager is a mock of DocumentManager interface.

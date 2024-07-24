@@ -14,7 +14,6 @@ import (
 	reflect "reflect"
 	time "time"
 
-	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	gomock "go.uber.org/mock/gomock"
@@ -44,10 +43,10 @@ func (m *MockKeyResolver) EXPECT() *MockKeyResolverMockRecorder {
 }
 
 // ResolveKey mocks base method.
-func (m *MockKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error) {
+func (m *MockKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResolveKey", id, validAt, relationType)
-	ret0, _ := ret[0].(ssi.URI)
+	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(crypto.PublicKey)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2

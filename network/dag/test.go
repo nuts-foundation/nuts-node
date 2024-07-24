@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"path"
@@ -50,10 +51,14 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
+	var publicKey crypto.PublicKey
+	key, _ := nutsCrypto.GenerateJWK()
+	jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
 	kid := fmt.Sprintf("%d", payloadNum)
-	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-	key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
-	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, attach).Sign(audit.TestContext(), unsignedTransaction, signingTime)
+	if attach {
+		publicKey = jwkToCryptoPublicKey(key)
+	}
+	signedTransaction, err := NewTransactionSigner(jwtSigner, kid, publicKey).Sign(audit.TestContext(), unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
 	}
@@ -61,18 +66,36 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 
 }
 
+func jwkToCryptoPublicKey(jwkKey jwk.Key) crypto.PublicKey {
+	jwkPublicKey, _ := jwkKey.PublicKey()
+	var rawKey interface{}
+	if err := jwkPublicKey.Raw(&rawKey); err != nil {
+		panic(err)
+	}
+
+	publicKey, ok := rawKey.(crypto.PublicKey)
+	if !ok {
+		panic("wrong key type")
+	}
+
+	return publicKey
+}
+
 // CreateTestTransactionEx creates a transaction with the given payload hash and signs it with a random EC key.
 func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participants EncryptedPAL, prevs ...Transaction) (Transaction, string, crypto.PublicKey) {
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevHashes(prevs), participants, lamportClock)
 	kid := fmt.Sprintf("%d", num)
-	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-	key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
-	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, false).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+
+	// generate new key in jwk.Key format
+	key, _ := nutsCrypto.GenerateJWK()
+	publicKey := jwkToCryptoPublicKey(key)
+	jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
+	signedTransaction, err := NewTransactionSigner(jwtSigner, kid, nil).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)
 	}
-	return signedTransaction, kid, key.Public()
+	return signedTransaction, kid, publicKey
 }
 
 // CreateTestTransaction creates a transaction with the given num as payload hash and signs it with a random EC key.

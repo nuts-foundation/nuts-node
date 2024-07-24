@@ -26,7 +26,11 @@ import (
 
 // Decrypt decrypts the `cipherText` with key `kid`
 func (client *Crypto) Decrypt(ctx context.Context, kid string, cipherText []byte) ([]byte, error) {
-	key, err := client.storage.GetPrivateKey(ctx, kid)
+	keyRef, err := findKeyReferenceByKid(ctx, client.db, kid)
+	if err != nil {
+		return nil, err
+	}
+	key, err := client.backend.GetPrivateKey(ctx, keyRef.KeyName, keyRef.Version)
 	if err != nil {
 		return nil, err
 	}

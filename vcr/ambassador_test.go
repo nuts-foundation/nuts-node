@@ -21,23 +21,18 @@ package vcr
 
 import (
 	"context"
-	crypt "crypto"
+	"crypto"
 	"encoding/json"
 	"errors"
-	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/piprate/json-gold/ld"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
 	"testing"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/nuts-foundation/nuts-node/events"
@@ -46,9 +41,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -113,14 +111,17 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// load key
 	pem, _ := os.ReadFile("test/private.pem")
 	signer, _ := util.PemToPrivateKey(pem)
-	key, _ := ctx.crypto.New(audit.TestContext(), crypto.StringNamingFunc(fmt.Sprintf("%s#1", vc.Issuer.String())))
+	publicKey := signer.Public()
+	kid := vc.Issuer.String() + "#1"
+	_ = ctx.cryptoBackend.SavePrivateKey(audit.TestContext(), kid, signer.(crypto.PrivateKey))
+	_ = ctx.crypto.Link(audit.TestContext(), kid, kid, "1")
 
 	// trust otherwise Resolve won't work
 	ctx.vcr.Trust(vc.Type[0], vc.Issuer)
 	ctx.vcr.Trust(vc.Type[1], vc.Issuer)
 
 	// mocks
-	publicKey := signer.Public()
+	//publicKey := signer.Public()
 
 	ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
 	ctx.didResolver.EXPECT().Resolve(gomock.Any(), gomock.Any()).Return(documentWithPublicKey(t, publicKey), nil, nil)
@@ -128,7 +129,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// Publish a VC
 	payload, _ := json.Marshal(vc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), types.VcDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(ctx.crypto, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.crypto, kid, publicKey).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
@@ -372,7 +373,7 @@ func (s stubRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 	return &http.Response{StatusCode: http.StatusNotFound}, nil
 }
 
-func documentWithPublicKey(t *testing.T, publicKey crypt.PublicKey) *did.Document {
+func documentWithPublicKey(t *testing.T, publicKey crypto.PublicKey) *did.Document {
 	id := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
 	keyID := did.DIDURL{DID: id}
 	keyID.Fragment = "sNGDQ3NlOe6Icv0E7_ufviOLG6Y25bSEyS5EbXBgp8Y"

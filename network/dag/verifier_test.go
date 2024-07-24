@@ -27,6 +27,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -73,9 +74,12 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 
 		// malformed TX with LC = 2
 		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
-		cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
-		key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key"))
-		signedTransaction, _ := NewTransactionSigner(cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+		key, _ := nutsCrypto.GenerateJWK()
+		publicKey := jwkToCryptoPublicKey(key)
+		jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
+		kid := "kid"
+		signedTransaction, err := NewTransactionSigner(jwtSigner, kid, publicKey).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+		require.NoError(t, err)
 
 		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)

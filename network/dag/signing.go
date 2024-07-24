@@ -20,14 +20,14 @@ package dag
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"fmt"
-
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 )
 
 const errSigningTransactionFmt = "error while signing transaction: %w"
@@ -39,20 +39,20 @@ type TransactionSigner interface {
 }
 
 // NewTransactionSigner creates a TransactionSigner that signs the transaction using the given key.
-// The public key is included in the signed transaction if attach == true. If not attached, the `kid` header is added which refers to the ID
+// The public key is included in the signed transaction when given. If not, the `kid` header is added which refers to the ID
 // of the used key.
-func NewTransactionSigner(signer crypto.JWTSigner, key crypto.Key, attach bool) TransactionSigner {
+func NewTransactionSigner(signer nutsCrypto.JWTSigner, kid string, key crypto.PublicKey) TransactionSigner {
 	return &transactionSigner{
 		key:    key,
-		attach: attach,
+		kid:    kid,
 		signer: signer,
 	}
 }
 
 type transactionSigner struct {
-	attach bool
-	key    crypto.Key
-	signer crypto.JWTSigner
+	kid    string
+	key    crypto.PublicKey
+	signer nutsCrypto.JWTSigner
 }
 
 func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, signingTime time.Time) (Transaction, error) {
@@ -66,12 +66,12 @@ func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, 
 
 	var key jwk.Key
 	var err error
-	if d.attach {
-		key, err = jwk.FromRaw(d.key.Public())
+	if d.key != nil {
+		key, err = jwk.FromRaw(d.key)
 		if err != nil {
 			return nil, fmt.Errorf(errSigningTransactionFmt, err)
 		}
-		_ = key.Set(jwk.KeyIDKey, d.key.KID())
+		_ = key.Set(jwk.KeyIDKey, d.kid)
 	}
 
 	prevsAsString := make([]string, len(input.Previous()))
@@ -92,12 +92,12 @@ func (d transactionSigner) Sign(ctx context.Context, input UnsignedTransaction, 
 		headerMap[palHeader] = input.PAL()
 	}
 
-	if d.attach {
+	if d.key != nil {
 		headerMap[jws.JWKKey] = key
 	} else {
-		headerMap[jws.KeyIDKey] = d.key.KID()
+		headerMap[jws.KeyIDKey] = d.kid
 	}
-	data, err := d.signer.SignJWS(ctx, []byte(input.PayloadHash().String()), headerMap, d.key.KID(), false)
+	data, err := d.signer.SignJWS(ctx, []byte(input.PayloadHash().String()), headerMap, d.kid, false)
 	if err != nil {
 		return nil, fmt.Errorf(errSigningTransactionFmt, err)
 	}

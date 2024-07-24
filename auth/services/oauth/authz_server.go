@@ -407,7 +407,7 @@ func (s *authzServer) validateSubject(ctx context.Context, validationCtx *valida
 	if err != nil {
 		return err
 	}
-	exists, err := s.privateKeyStore.Exists(ctx, signingKeyID.String())
+	exists, err := s.privateKeyStore.Exists(ctx, signingKeyID)
 	if err != nil {
 		return fmt.Errorf("could not check if JWT signing key exists: %w", err)
 	}
@@ -563,7 +563,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID.String())
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}

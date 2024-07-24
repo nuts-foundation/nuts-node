@@ -34,14 +34,15 @@ import (
 
 func TestDPOP(t *testing.T) {
 	client := createCrypto(t)
-	privateKey, _ := client.New(audit.TestContext(), StringNamingFunc("kid"))
-	keyAsJWK, _ := jwk.FromRaw(privateKey.Public())
+	kid := "kid"
+	_, pubKey := newKeyReference(t, client, kid)
+	keyAsJWK, _ := jwk.FromRaw(pubKey)
 	_ = keyAsJWK.Set(jwk.AlgorithmKey, jwa.ES256)
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
 	t.Run("creates valid DPoP token", func(t *testing.T) {
 		token := dpop.New(*request)
-		tokenString, err := client.SignDPoP(audit.TestContext(), *token, privateKey.KID())
+		tokenString, err := client.SignDPoP(audit.TestContext(), *token, kid)
 		require.NoError(t, err)
 
 		token, err = dpop.Parse(tokenString)
@@ -58,7 +59,7 @@ func TestDPOP(t *testing.T) {
 		hashString := base64.RawURLEncoding.EncodeToString(hashBytes.Slice())
 		token := dpop.New(*request)
 		token.GenerateProof(accesstoken)
-		proofString, err := client.SignDPoP(audit.TestContext(), *token, privateKey.KID())
+		proofString, err := client.SignDPoP(audit.TestContext(), *token, kid)
 		require.NoError(t, err)
 
 		proof, err := dpop.Parse(proofString)

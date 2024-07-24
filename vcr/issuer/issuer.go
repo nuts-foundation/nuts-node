@@ -60,10 +60,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
 	statusList *revocation.StatusList2021) Issuer {
-	keyResolver := vdrKeyResolver{
-		publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
-		privateKeyResolver: keyStore,
-	}
+	keyResolver := resolver.DIDKeyResolver{Resolver: didResolver}
 	i := &issuer{
 		store:            store,
 		networkPublisher: networkPublisher,
@@ -79,7 +76,7 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 		statusList:    statusList,
 	}
 	statusList.Sign = i.buildJSONLDCredential
-	statusList.ResolveKey = i.keyResolver.ResolveAssertionKey
+	statusList.ResolveKey = i.keyResolver.ResolveKey
 	return i
 }
 
@@ -87,7 +84,7 @@ type issuer struct {
 	store            Store
 	networkPublisher Publisher
 	openidHandlerFn  func(ctx context.Context, id did.DID) (OpenIDHandler, error)
-	keyResolver      keyResolver
+	keyResolver      resolver.KeyResolver
 	keyStore         crypto.KeyStore
 	trustConfig      *trust.Config
 	jsonldManager    jsonld.JSONLD
@@ -200,7 +197,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	}
 
 	// immediately fail if we do not have the private key
-	key, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	keyURI, _, err := i.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
@@ -257,18 +254,18 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	switch options.Format {
 	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-			return i.keyStore.SignJWT(ctx, claims, headers, key.KID())
+			return i.keyStore.SignJWT(ctx, claims, headers, keyURI)
 		})
 	case "":
 		fallthrough
 	case vc.JSONLDCredentialProofFormat:
-		return i.buildJSONLDCredential(ctx, unsignedCredential, key)
+		return i.buildJSONLDCredential(ctx, unsignedCredential, keyURI)
 	default:
 		return nil, errors.New("unsupported credential proof format")
 	}
 }
 
-func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error) {
+func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc.VerifiableCredential, kid string) (*vc.VerifiableCredential, error) {
 	credentialAsMap := map[string]interface{}{}
 	b, _ := json.Marshal(unsignedCredential)
 	_ = json.Unmarshal(b, &credentialAsMap)
@@ -276,7 +273,7 @@ func (i issuer) buildJSONLDCredential(ctx context.Context, unsignedCredential vc
 	proofOptions := proof.ProofOptions{Created: unsignedCredential.IssuanceDate}
 
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, key.KID())
+	signingResult, err := proof.NewLDProof(proofOptions).Sign(ctx, credentialAsMap, webSig, kid)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +376,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 
-	assertionKey, err := i.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	keyURI, _, err := i.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
@@ -397,7 +394,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 
 	ldProof := proof.NewLDProof(proof.ProofOptions{Created: TimeFunc()})
 	webSig := signature.JSONWebSignature2020{ContextLoader: i.jsonldManager.DocumentLoader(), Signer: i.keyStore}
-	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, assertionKey.KID())
+	signingResult, err := ldProof.Sign(ctx, revocationAsMap, webSig, keyURI)
 	if err != nil {
 		return nil, err
 	}

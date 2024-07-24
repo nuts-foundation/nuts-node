@@ -123,11 +123,11 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 	switch options.Format {
 	case JWTPresentationFormat:
-		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid.String())
+		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid)
 	case "":
 		fallthrough
 	case JSONLDPresentationFormat:
-		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid.String())
+		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid)
 	default:
 		return nil, fmt.Errorf("unsupported presentation proof format: %s", options.Format)
 	}

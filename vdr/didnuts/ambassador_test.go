@@ -20,27 +20,29 @@ package didnuts
 
 import (
 	"context"
-	crypto2 "crypto"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -48,21 +50,27 @@ import (
 
 // mockKeyStore creates a single new key
 type mockKeyStore struct {
-	key crypto.Key
+	keyReference *orm.KeyReference
+	privateKey   *ecdsa.PrivateKey
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyStore) New(_ context.Context, fn crypto.KIDNamingFunc) (crypto.Key, error) {
-	if m.key == nil {
-		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		kid, _ := fn(privateKey.Public())
+func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+	if m.privateKey == nil {
+		m.privateKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-		m.key = &crypto.TestKey{
-			PrivateKey: privateKey,
-			Kid:        kid,
+		kid, _ := nf(m.privateKey.PublicKey)
+		m.keyReference = &orm.KeyReference{
+			KID:     kid,
+			KeyName: uuid.NewString(),
+			Version: uuid.NewString(),
 		}
 	}
-	return m.key, nil
+	return m.keyReference, m.privateKey.Public(), nil
+}
+
+func (m *mockKeyStore) Link(_ context.Context, _ string, _ string, _ string) error {
+	return nil
 }
 
 func (m *mockKeyStore) Decrypt(ctx context.Context, kid string, ciphertext []byte) ([]byte, error) {
@@ -81,8 +89,8 @@ func (m *mockKeyStore) Exists(ctx context.Context, kid string) (bool, error) {
 	panic("not implemented")
 }
 
-func (m *mockKeyStore) Resolve(ctx context.Context, kid string) (crypto.Key, error) {
-	return m.key, nil
+func (m *mockKeyStore) Resolve(ctx context.Context, kid string) (crypto.PublicKey, error) {
+	return m.privateKey.Public(), nil
 }
 
 func (m *mockKeyStore) List(ctx context.Context) []string {
@@ -408,7 +416,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 				Hash:    currentPayloadHash,
 			}
 
-			var pKey crypto2.PublicKey
+			var pKey crypto.PublicKey
 			_ = signingKey.Raw(&pKey)
 
 			ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
@@ -445,7 +453,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
 		}
 
-		var pKey crypto2.PublicKey
+		var pKey crypto.PublicKey
 		_ = signingKey.Raw(&pKey)
 
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &resolver.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
@@ -480,7 +488,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			Hash:    hash.SHA256Sum([]byte("currentPayloadHash")),
 		}
 
-		var pKey crypto2.PublicKey
+		var pKey crypto.PublicKey
 		_ = signingKey.Raw(&pKey)
 
 		gomock.InOrder(
@@ -504,7 +512,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		// Create the DID docs controller
 		didDocumentController, controllerSigningKey := newDidDoc(t)
 
-		var pKey crypto2.PublicKey
+		var pKey crypto.PublicKey
 		_ = controllerSigningKey.Raw(&pKey)
 
 		// set the didDocument`s controller to the controller
@@ -561,7 +569,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		didDocumentController, _ := newDidDoc(t)
 
 		// We still use the document signing key, not the one from the controller
-		var pKey crypto2.PublicKey
+		var pKey crypto.PublicKey
 		_ = documentSigningKey.Raw(&pKey)
 
 		// set the didDocument`s controller to the controller
@@ -730,8 +738,6 @@ func newDidDoc(t *testing.T) (did.Document, jwk.Key) {
 	publicKey, err := didDocument.VerificationMethod[0].PublicKey()
 	require.NoError(t, err)
 	signingKey, _ := jwk.FromRaw(publicKey)
-	//thumbStr, _ := crypto.Thumbprint(signingKey)
-	//didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
 	serviceID := did.MustParseDIDURL(didDocument.ID.String())
 	serviceID.Fragment = "1234"
 	didDocument.Service = []did.Service{
@@ -742,6 +748,14 @@ func newDidDoc(t *testing.T) (did.Document, jwk.Key) {
 		},
 	}
 	return didDocument, signingKey
+}
+
+func newDidDocWithStore(t *testing.T, manager *Manager) did.Document {
+	ormDocument, err := manager.NewDocument(audit.TestContext(), DefaultKeyFlags())
+	require.NoError(t, err)
+	didDocument, err := ormDocument.ToDIDDocument()
+	require.NoError(t, err)
+	return didDocument
 }
 
 type mockContext struct {

@@ -57,18 +57,18 @@ func (w wrapper) validateKID(kid string) error {
 	return nil
 }
 
-func (w wrapper) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
-	if err := w.validateKID(kid); err != nil {
+func (w wrapper) GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error) {
+	if err := w.validateKID(keyName); err != nil {
 		return nil, err
 	}
-	return w.wrappedBackend.GetPrivateKey(ctx, kid)
+	return w.wrappedBackend.GetPrivateKey(ctx, keyName, version)
 }
 
-func (w wrapper) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
-	if err := w.validateKID(kid); err != nil {
+func (w wrapper) PrivateKeyExists(ctx context.Context, keyName string, version string) (bool, error) {
+	if err := w.validateKID(keyName); err != nil {
 		return false, err
 	}
-	return w.wrappedBackend.PrivateKeyExists(ctx, kid)
+	return w.wrappedBackend.PrivateKeyExists(ctx, keyName, version)
 }
 
 func (w wrapper) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
@@ -78,24 +78,21 @@ func (w wrapper) SavePrivateKey(ctx context.Context, kid string, key crypto.Priv
 	return w.wrappedBackend.SavePrivateKey(ctx, kid, key)
 }
 
-func (w wrapper) DeletePrivateKey(ctx context.Context, kid string) error {
-	if err := w.validateKID(kid); err != nil {
+func (w wrapper) DeletePrivateKey(ctx context.Context, keyName string) error {
+	if err := w.validateKID(keyName); err != nil {
 		return err
 	}
-	return w.wrappedBackend.DeletePrivateKey(ctx, kid)
+	return w.wrappedBackend.DeletePrivateKey(ctx, keyName)
 }
 
-func (w wrapper) ListPrivateKeys(ctx context.Context) []string {
+func (w wrapper) ListPrivateKeys(ctx context.Context) ([]string, []string) {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }
 
-func (w wrapper) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	publicKey, kid, err := w.wrappedBackend.NewPrivateKey(ctx, namingFunc)
+func (w wrapper) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	publicKey, version, err := w.wrappedBackend.NewPrivateKey(ctx, keyName)
 	if err != nil {
 		return nil, "", err
 	}
-	if err := w.validateKID(kid); err != nil {
-		return nil, "", err
-	}
-	return publicKey, kid, err
+	return publicKey, version, err
 }

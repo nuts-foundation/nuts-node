@@ -153,7 +153,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID).Return("token", nil)
 
 		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, request)
 
@@ -170,7 +170,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("token", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID).Return("token", nil)
 
 		validRequest := request
 		validRequest.Credentials = []vc.VerifiableCredential{validCredential}
@@ -231,7 +231,7 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID.String()).Return("", errors.New("boom!"))
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID).Return("", errors.New("boom!"))
 
 		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, request)
 

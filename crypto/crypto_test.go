@@ -23,6 +23,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -43,8 +45,7 @@ func TestCrypto_Exists(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	_, err := client.New(audit.TestContext(), StringNamingFunc(kid))
-	require.NoError(t, err)
+	_, _ = newKeyReference(t, client, kid)
 
 	t.Run("returns true for existing key", func(t *testing.T) {
 		exists, err := client.Exists(ctx, kid)
@@ -57,11 +58,30 @@ func TestCrypto_Exists(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, exists)
 	})
+}
 
-	t.Run("returns false for invalid kid", func(t *testing.T) {
-		exists, err := client.Exists(ctx, "../")
-		require.Error(t, err)
-		assert.False(t, exists)
+func TestCrypto_Migrate(t *testing.T) {
+	backend := NewMemoryStorage()
+	db := orm.NewTestDatabase(t)
+	client := &Crypto{backend: backend, db: db}
+
+	t.Run("ok - 1 key migrated", func(t *testing.T) {
+		keypair, _ := spi.GenerateKeyPair()
+		err := backend.SavePrivateKey(context.Background(), "test", keypair)
+		require.NoError(t, err)
+
+		err = client.Migrate()
+		require.NoError(t, err)
+
+		keys := client.List(context.Background())
+		require.Len(t, keys, 1)
+		// kid will equal the key name
+		assert.Equal(t, "test", keys[0])
+
+		t.Run("ok - already exists", func(t *testing.T) {
+			err = client.Migrate()
+			assert.NoError(t, err)
+		})
 	})
 }
 
@@ -71,65 +91,48 @@ func TestCrypto_New(t *testing.T) {
 	ctx := audit.TestContext()
 
 	t.Run("ok", func(t *testing.T) {
-		kid := "kid"
 		auditLogs := audit.CaptureLogs(t)
 
-		key, err := client.New(ctx, StringNamingFunc(kid))
+		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
 
 		assert.NoError(t, err)
-		assert.NotNil(t, key.Public())
-		assert.Equal(t, kid, key.KID())
-		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: kid")
-	})
-
-	t.Run("error - invalid KID", func(t *testing.T) {
-		kid := "../certificate"
-
-		key, err := client.New(ctx, StringNamingFunc(kid))
-
-		assert.ErrorContains(t, err, "invalid key ID")
-		assert.Nil(t, key)
+		assert.NotNil(t, ref)
+		assert.NotNil(t, pubKey)
+		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
 }
 
 func TestCrypto_Delete(t *testing.T) {
-	const kid = "kid"
 	ctx := audit.TestContext()
 	auditLogs := audit.CaptureLogs(t)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().DeletePrivateKey(ctx, kid).Return(nil)
+		storageMock.EXPECT().DeletePrivateKey(ctx, "test").Return(nil)
+		client := &Crypto{backend: storageMock, db: orm.NewTestDatabase(t)}
+		err := client.db.Save(&orm.KeyReference{KID: "kid", KeyName: "test", Version: "1"}).Error
+		require.NoError(t, err)
 
-		client := &Crypto{storage: storageMock}
-		err := client.Delete(ctx, kid)
+		err = client.Delete(ctx, "kid")
 
 		assert.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "DeleteKey", audit.TestActor, "Deleting private key: kid")
 	})
-
 }
 
 func TestCrypto_Resolve(t *testing.T) {
 	ctx := context.Background()
 	client := createCrypto(t)
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	_, pubKey := newKeyReference(t, client, kid)
 
 	t.Run("ok", func(t *testing.T) {
 		resolvedKey, err := client.Resolve(ctx, "kid")
 
 		require.NoError(t, err)
 
-		assert.Equal(t, key, resolvedKey)
-	})
-
-	t.Run("error - invalid kid", func(t *testing.T) {
-		resolvedKey, err := client.Resolve(ctx, "../certificate")
-
-		assert.ErrorContains(t, err, "invalid key ID")
-		assert.Nil(t, resolvedKey)
+		assert.Equal(t, pubKey, resolvedKey)
 	})
 
 	t.Run("error - not found", func(t *testing.T) {
@@ -150,7 +153,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 			client := createCrypto(t)
 			err := client.setupFSBackend(cfg)
 			require.NoError(t, err)
-			storageType := reflect.TypeOf(client.storage).String()
+			storageType := reflect.TypeOf(client.backend).String()
 			assert.Equal(t, "spi.wrapper", storageType)
 		})
 
@@ -164,7 +167,7 @@ func TestCrypto_setupBackend(t *testing.T) {
 			client.config.Vault.Address = s.URL
 			err := client.setupVaultBackend(cfg)
 			require.NoError(t, err)
-			storageType := reflect.TypeOf(client.storage).String()
+			storageType := reflect.TypeOf(client.backend).String()
 			assert.Equal(t, "spi.wrapper", storageType)
 		})
 	})
@@ -196,13 +199,13 @@ func TestCrypto_Configure(t *testing.T) {
 }
 
 func Test_CryptoGetters(t *testing.T) {
-	instance := NewCryptoInstance()
+	instance := NewCryptoInstance(nil)
 	assert.Equal(t, ModuleName, instance.Name())
 	assert.Equal(t, &instance.config, instance.Config())
 }
 
 func TestNewCryptoInstance(t *testing.T) {
-	instance := NewCryptoInstance()
+	instance := NewCryptoInstance(nil)
 	assert.NotNil(t, instance)
 	assert.Empty(t, instance.config.Storage)
 }
@@ -211,7 +214,9 @@ func createCrypto(t *testing.T) *Crypto {
 	dir := io.TestDirectory(t)
 	backend, _ := fs.NewFileSystemBackend(dir)
 	c := Crypto{
-		storage: spi.NewValidatedKIDBackendWrapper(backend, spi.KidPattern),
+		backend: spi.NewValidatedKIDBackendWrapper(backend, spi.KidPattern),
+		storage: storage.NewTestStorageEngine(t),
+		db:      orm.NewTestDatabase(t),
 	}
 	return &c
 }

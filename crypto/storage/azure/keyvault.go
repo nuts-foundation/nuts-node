@@ -24,6 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -34,10 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
-	"io"
-	"net/http"
-	"regexp"
-	"time"
 )
 
 const (
@@ -45,9 +45,11 @@ const (
 	ManagedIdentityCredentialType string = "managed_identity"
 )
 
+var _ spi.Storage = &Keyvault{}
+
 // New creates a new Azure Key Vault storage backend.
 // If useHSM is true, the key type will be azkeys.KeyTypeECHSM, otherwise azkeys.KeyTypeEC.
-func New(config Config) (spi.Storage, error) {
+func New(config Config) (*Keyvault, error) {
 	if config.URL == "" {
 		return nil, errors.New("missing Azure Key Vault URL")
 	}
@@ -59,7 +61,7 @@ func New(config Config) (spi.Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create Azure Key Vault client: %w", err)
 	}
-	return &keyvault{client: client, timeOut: config.Timeout, useHSM: config.UseHSM}, nil
+	return &Keyvault{client: client, timeOut: config.Timeout, useHSM: config.UseHSM}, nil
 }
 
 func createCredential(credentialType string) (azcore.TokenCredential, error) {
@@ -76,36 +78,21 @@ func createCredential(credentialType string) (azcore.TokenCredential, error) {
 // StorageType is the name of this storage type, used in health check reports and configuration.
 const StorageType = "azure-keyvault"
 
-type keyvault struct {
+type Keyvault struct {
 	client  keyVaultClient
 	timeOut time.Duration
 	useHSM  bool
 }
 
-func (a keyvault) Name() string {
+func (a Keyvault) Name() string {
 	return StorageType
 }
 
-func (a keyvault) CheckHealth() map[string]core.Health {
+func (a Keyvault) CheckHealth() map[string]core.Health {
 	return nil
 }
 
-func (a keyvault) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	keyID, err := namingFunc(nil)
-	if err != nil {
-		return nil, "", err
-	}
-	// Make sure it doesn't already exist: Azure Key Vault otherwise creates a new version for the same key.
-	exists, err := a.PrivateKeyExists(ctx, keyID)
-	if err != nil {
-		return nil, "", err
-	}
-	if exists {
-		return nil, "", spi.ErrKeyAlreadyExists
-	}
-
-	keyName := keyIDToKeyName(keyID)
-
+func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
 	var keyType azkeys.KeyType
 	if a.useHSM {
 		keyType = azkeys.KeyTypeECHSM
@@ -120,27 +107,23 @@ func (a keyvault) NewPrivateKey(ctx context.Context, namingFunc func(crypto.Publ
 			Enabled:    to.Ptr(true),
 			Exportable: to.Ptr(false),
 		},
-		Tags: map[string]*string{
-			"originalKID": to.Ptr(keyID),
-		},
 	}, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("unable to create key in Azure Key Vault (name=%s): %w", keyName, err)
 	}
-	publicKey, _, err := parseKey(response.Key)
+	publicKey, _, version, err := parseKey(response.Key)
 	if err != nil {
 		return nil, "", err
 	}
-	return publicKey, keyID, nil
+	return publicKey, version, nil
 }
 
-func (a keyvault) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
-	keyName := keyIDToKeyName(kid)
-	response, err := a.getPrivateKey(ctx, keyName)
+func (a Keyvault) GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error) {
+	response, err := a.getPrivateKey(ctx, keyName, version)
 	if err != nil {
 		return nil, err
 	}
-	publicKey, signingAlgorithm, err := parseKey(response.Key)
+	publicKey, signingAlgorithm, _, err := parseKey(response.Key)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +136,8 @@ func (a keyvault) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer,
 	}, nil
 }
 
-func (a keyvault) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
-	_, err := a.getPrivateKey(ctx, keyIDToKeyName(kid))
+func (a Keyvault) PrivateKeyExists(ctx context.Context, keyName string, version string) (bool, error) {
+	_, err := a.getPrivateKey(ctx, keyName, version)
 	if errors.Is(err, spi.ErrNotFound) {
 		return false, nil
 	}
@@ -164,19 +147,19 @@ func (a keyvault) PrivateKeyExists(ctx context.Context, kid string) (bool, error
 	return true, nil
 }
 
-func (a keyvault) DeletePrivateKey(ctx context.Context, kid string) error {
-	_, err := a.client.DeleteKey(ctx, keyIDToKeyName(kid), nil)
+func (a Keyvault) DeletePrivateKey(ctx context.Context, keyName string) error {
+	_, err := a.client.DeleteKey(ctx, keyName, nil)
 	responseError := new(azcore.ResponseError)
 	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
 		return spi.ErrNotFound
 	} else if err != nil {
-		return fmt.Errorf("unable to delete key from Azure Key Vault (name=%s): %w", keyIDToKeyName(kid), err)
+		return fmt.Errorf("unable to delete key from Azure Key Vault (name=%s): %w", keyName, err)
 	}
 	return nil
 }
 
-func (a keyvault) getPrivateKey(ctx context.Context, keyName string) (*azkeys.GetKeyResponse, error) {
-	response, err := a.client.GetKey(ctx, keyName, "", nil)
+func (a Keyvault) getPrivateKey(ctx context.Context, keyName string, version string) (*azkeys.GetKeyResponse, error) {
+	response, err := a.client.GetKey(ctx, keyName, version, nil)
 	responseError := new(azcore.ResponseError)
 	if errors.As(err, &responseError) && responseError.StatusCode == http.StatusNotFound {
 		return nil, spi.ErrNotFound
@@ -187,51 +170,52 @@ func (a keyvault) getPrivateKey(ctx context.Context, keyName string) (*azkeys.Ge
 	return &response, nil
 }
 
-func (a keyvault) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
+func (a Keyvault) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
 	// Only used for migrating to a new storage backend, which is not implemented yet for Azure Key Vault
 	return errors.New("SavePrivateKey() is not supported for Azure Key Vault")
 }
 
-func (a keyvault) ListPrivateKeys(ctx context.Context) []string {
+func (a Keyvault) ListPrivateKeys(ctx context.Context) ([]string, []string) {
 	pager := a.client.NewListKeyPropertiesPager(nil)
 	result := make([]string, 0)
+	versions := make([]string, 0)
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
 			log.Logger().WithError(err).Error("unable to list keys from Azure Key Vault")
-			return nil
+			return nil, nil
 		}
 		for _, keyProperties := range page.Value {
-			kid, ok := keyProperties.Tags["originalKID"]
-			if ok {
-				result = append(result, *kid)
-			}
+			result = append(result, keyProperties.KID.Name())
+			versions = append(result, keyProperties.KID.Version())
 		}
 	}
-	return result
+	return result, versions
 }
 
 // parseKey parses an Azure Key Vault key into a crypto.PublicKey and selects the azkeys.SignatureAlgorithm.
-func parseKey(key *azkeys.JSONWebKey) (crypto.PublicKey, azkeys.SignatureAlgorithm, error) {
+func parseKey(key *azkeys.JSONWebKey) (publicKey crypto.PublicKey, keyType azkeys.SignatureAlgorithm, version string, err error) {
 	jwkData, _ := json.Marshal(key)
 	keyAsJWK, err := jwk.ParseKey(jwkData)
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to parse key from Azure Key Vault as JWK: %w", err)
+		err = fmt.Errorf("unable to parse key from Azure Key Vault as JWK: %w", err)
+		return
 	}
-	var publicKey crypto.PublicKey
-	if err := keyAsJWK.Raw(&publicKey); err != nil {
-		return nil, "", fmt.Errorf("unable to convert key from Azure Key Vault Key to crypto.PublicKey: %w", err)
+	if err = keyAsJWK.Raw(&publicKey); err != nil {
+		err = fmt.Errorf("unable to convert key from Azure Key Vault Key to crypto.PublicKey: %w", err)
+		return
 	}
 	if !(*key.Kty == azkeys.KeyTypeEC || *key.Kty == azkeys.KeyTypeECHSM) || *key.Crv != azkeys.CurveNameP256 {
-		return nil, "", errors.New("only ES256 keys are supported")
+		err = errors.New("only ES256 keys are supported")
+		return
 	}
-	return publicKey, azkeys.SignatureAlgorithmES256, nil
-}
-
-var allowedKeyNameRegex = regexp.MustCompile("[^0-9a-zA-Z-]+")
-
-func keyIDToKeyName(keyID string) string {
-	return allowedKeyNameRegex.ReplaceAllString(keyID, "-")
+	keyType = azkeys.SignatureAlgorithmES256
+	if key.KID == nil {
+		err = errors.New("missing KID in key")
+		return
+	}
+	version = key.KID.Version()
+	return
 }
 
 var _ crypto.Signer = &azureSigningKey{}

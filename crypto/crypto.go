@@ -23,9 +23,13 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"gorm.io/gorm"
 	"path"
 	"time"
 
@@ -51,7 +55,7 @@ type Config struct {
 	External      external.Config `koanf:"external"`
 }
 
-// DefaultCryptoConfig returns a Config with a fs backend storage
+// DefaultCryptoConfig returns a Config with a fs backend
 func DefaultCryptoConfig() Config {
 	return Config{
 		Vault:         vault.DefaultConfig(),
@@ -62,22 +66,25 @@ func DefaultCryptoConfig() Config {
 	}
 }
 
-var _ KeyStore = &Crypto{}
+var _ KeyStore = (*Crypto)(nil)
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
-	storage spi.Storage
 	config  Config
+	backend spi.Storage
+	db      *gorm.DB
+	storage storage.Engine
 }
 
 func (client *Crypto) CheckHealth() map[string]core.Health {
-	return client.storage.CheckHealth()
+	return client.backend.CheckHealth()
 }
 
 // NewCryptoInstance creates a new instance of the crypto engine.
-func NewCryptoInstance() *Crypto {
+func NewCryptoInstance(storage storage.Engine) *Crypto {
 	return &Crypto{
-		config: DefaultCryptoConfig(),
+		config:  DefaultCryptoConfig(),
+		storage: storage,
 	}
 }
 
@@ -97,7 +104,7 @@ func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
 	if err != nil {
 		return err
 	}
-	client.storage = spi.NewValidatedKIDBackendWrapper(fsBackend, spi.KidPattern)
+	client.backend = spi.NewValidatedKIDBackendWrapper(fsBackend, spi.KidPattern)
 	return nil
 }
 
@@ -108,7 +115,7 @@ func (client *Crypto) setupStorageAPIBackend() error {
 	if err != nil {
 		return fmt.Errorf("unable to set up external crypto API client: %w", err)
 	}
-	client.storage = spi.NewValidatedKIDBackendWrapper(apiBackend, spi.KidPattern)
+	client.backend = spi.NewValidatedKIDBackendWrapper(apiBackend, spi.KidPattern)
 	return nil
 }
 
@@ -120,27 +127,40 @@ func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
 		return err
 	}
 
-	client.storage = spi.NewValidatedKIDBackendWrapper(vaultBackend, spi.KidPattern)
+	client.backend = spi.NewValidatedKIDBackendWrapper(vaultBackend, spi.KidPattern)
 	return nil
 }
 
 func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
-	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material. ")
+	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material.")
 	azureBackend, err := azure.New(client.config.AzureKeyVault)
 	if err != nil {
 		return err
 	}
-	client.storage = spi.NewValidatedKIDBackendWrapper(azureBackend, spi.KidPattern)
+	client.backend = spi.NewValidatedKIDBackendWrapper(azureBackend, spi.KidPattern)
 	return nil
 }
 
 // List returns the KIDs of the private keys that are present in the key store.
 func (client *Crypto) List(ctx context.Context) []string {
-	return client.storage.ListPrivateKeys(ctx)
+	keyRefs := make([]orm.KeyReference, 0)
+	tx := client.db
+	if val := ctx.Value(storage.TransactionKey{}); val != nil {
+		tx = val.(*gorm.DB)
+	}
+	// ignore errors
+	tx.WithContext(ctx).Find(&keyRefs)
+	kids := make([]string, len(keyRefs))
+	for i, keyRef := range keyRefs {
+		kids[i] = keyRef.KID
+	}
+	return kids
 }
 
 // Configure loads the given configurations in the engine. Any wrong combination will return an error
 func (client *Crypto) Configure(config core.ServerConfig) error {
+	client.db = client.storage.GetSQLDatabase()
+
 	switch client.config.Storage {
 	case fs.StorageType:
 		return client.setupFSBackend(config)
@@ -161,25 +181,95 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 	}
 }
 
+func (client *Crypto) Migrate() error {
+	// List all keys from the backend
+	// check for each key if a KeyReference exists in the SQL database
+	// if not, create a new KeyReference
+	// else do nothing
+
+	// run everything in a single transaction
+	// we do not expect to have a lot of keys, so this should be fine
+	return client.db.Transaction(func(tx *gorm.DB) error {
+		ctx := context.WithValue(context.Background(), storage.TransactionKey{}, tx)
+		keys, versions := client.backend.ListPrivateKeys(context.Background())
+		for i, keyName := range keys {
+			// check if key exists in the database
+			var keyRef orm.KeyReference
+			err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("key_name = ? and version = ?", keyName, versions[i]).First(&keyRef).Error
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// create a new key reference
+					ref := &orm.KeyReference{
+						KID:     keyName,
+						KeyName: keyName,
+						Version: versions[i],
+					}
+					err := tx.Save(ref).Error
+					if err != nil {
+						log.Logger().Errorf("could not save key reference to database: %s", err.Error())
+					}
+				} else {
+					return fmt.Errorf("error finding KeyReference in DB: %w", err)
+				}
+			}
+		}
+		return nil
+	})
+}
+
 // New generates a new key pair.
-// Stores the private key, returns the public basicKey.
+// Stores the private key, returns the public key and DB reference.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
-	publicKey, kid, err := client.storage.NewPrivateKey(ctx, namingFunc)
+func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+	keyName := uuid.New().String()
+	publicKey, version, err := client.backend.NewPrivateKey(ctx, keyName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	kid, err := namingFunc(publicKey)
+	if err != nil {
+		return nil, nil, err
 	}
 	audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generated new key pair: %s", kid)
-	return basicKey{
-		publicKey: publicKey,
-		kid:       kid,
-	}, nil
+
+	ref := &orm.KeyReference{
+		KID:     kid,
+		KeyName: keyName,
+		Version: version,
+	}
+
+	tx := client.db
+	if val := ctx.Value(storage.TransactionKey{}); val != nil {
+		tx = val.(*gorm.DB)
+	}
+
+	return ref, publicKey, tx.Save(ref).Error
 }
 
 // Delete removes the private key with the given KID from the KeyStore.
 func (client *Crypto) Delete(ctx context.Context, kid string) error {
+	// find the key_reference
+	keyRef, err := findKeyReferenceByKid(ctx, client.db, kid)
+	if err != nil {
+		return err
+	}
 	audit.Log(ctx, log.Logger(), audit.CryptoDeleteKeyEvent).Infof("Deleting private key: %s", kid)
-	return client.storage.DeletePrivateKey(ctx, kid)
+	return client.backend.DeletePrivateKey(ctx, keyRef.KeyName)
+}
+
+func (client *Crypto) Link(ctx context.Context, kid string, keyName string, version string) error {
+	ref := &orm.KeyReference{
+		KID:     kid,
+		KeyName: keyName,
+		Version: version,
+	}
+	tx := client.db
+	if val := ctx.Value(storage.TransactionKey{}); val != nil {
+		tx = val.(*gorm.DB)
+	}
+
+	return tx.Save(ref).Error
 }
 
 // GenerateJWK a new in-memory key pair and returns it as JWK.
@@ -198,46 +288,43 @@ func GenerateJWK() (jwk.Key, error) {
 
 // Exists checks storage for an entry for the given legal entity and returns true if it exists
 func (client *Crypto) Exists(ctx context.Context, kid string) (bool, error) {
-	exists, err := client.storage.PrivateKeyExists(ctx, kid)
+	_, err := findKeyReferenceByKid(ctx, client.db, kid)
 	if err != nil {
-		return false, fmt.Errorf("could not check if private key exists: %w", err)
+		if errors.Is(err, ErrPrivateKeyNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
-	return exists, nil
+	return true, nil
 }
 
-func (client *Crypto) Resolve(ctx context.Context, kid string) (Key, error) {
-	keypair, err := client.storage.GetPrivateKey(ctx, kid)
+func (client *Crypto) Resolve(ctx context.Context, kid string) (crypto.PublicKey, error) {
+	keyRef, err := findKeyReferenceByKid(ctx, client.db, kid)
+	if err != nil {
+		return nil, err
+	}
+	keypair, err := client.backend.GetPrivateKey(ctx, keyRef.KeyName, keyRef.Version)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
 			return nil, ErrPrivateKeyNotFound
 		}
 		return nil, err
 	}
-	return basicKey{
-		publicKey: keypair.Public(),
-		kid:       kid,
-	}, nil
+	return keypair.Public(), nil
 }
 
-// memoryKey is a Key that is only present in memory and not stored in the key store.
-type memoryKey struct {
-	basicKey
-	privateKey crypto.Signer
-}
-
-func (m memoryKey) Signer() crypto.Signer {
-	return m.privateKey
-}
-
-type basicKey struct {
-	publicKey crypto.PublicKey
-	kid       string
-}
-
-func (e basicKey) KID() string {
-	return e.kid
-}
-
-func (e basicKey) Public() crypto.PublicKey {
-	return e.publicKey
+func findKeyReferenceByKid(ctx context.Context, db *gorm.DB, kid string) (*orm.KeyReference, error) {
+	var keyRef orm.KeyReference
+	tx := db
+	if val := ctx.Value(storage.TransactionKey{}); val != nil {
+		tx = val.(*gorm.DB)
+	}
+	err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("kid = ?", kid).First(&keyRef).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPrivateKeyNotFound
+		}
+		return nil, fmt.Errorf("could not find key reference in DB: %w", err)
+	}
+	return &keyRef, nil
 }

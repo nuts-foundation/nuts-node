@@ -92,12 +92,12 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	return fsc, nil
 }
 
-func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	return spi.GenerateAndStore(ctx, fsc, namingFunc)
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, fsc, keyName)
 }
 
-func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
-	_, err := os.Stat(fsc.getEntryPath(kid, privateKeyEntry))
+func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, keyName string, _ string) (bool, error) {
+	_, err := os.Stat(fsc.getEntryPath(keyName, privateKeyEntry))
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
 	}
@@ -105,8 +105,8 @@ func (fsc fileSystemBackend) PrivateKeyExists(_ context.Context, kid string) (bo
 }
 
 // GetPrivateKey loads the private key for the given legalEntity from disk. Since a legalEntity has a URI as identifier, the URI is base64 encoded and postfixed with '_private.pem'. Keys are stored in pem format and are 2k RSA keys.
-func (fsc fileSystemBackend) GetPrivateKey(_ context.Context, kid string) (crypto.Signer, error) {
-	data, err := fsc.readEntry(kid, privateKeyEntry)
+func (fsc fileSystemBackend) GetPrivateKey(_ context.Context, keyName string, _ string) (crypto.Signer, error) {
+	data, err := fsc.readEntry(keyName, privateKeyEntry)
 	if err != nil {
 		return nil, err
 	}
@@ -139,20 +139,21 @@ func (fsc fileSystemBackend) SavePrivateKey(_ context.Context, kid string, key c
 }
 
 // DeletePrivateKey removes the private key for the given legalEntity from disk.
-func (fsc fileSystemBackend) DeletePrivateKey(_ context.Context, kid string) error {
-	filePath := fsc.getEntryPath(kid, privateKeyEntry)
+func (fsc fileSystemBackend) DeletePrivateKey(_ context.Context, keyName string) error {
+	filePath := fsc.getEntryPath(keyName, privateKeyEntry)
 	err := os.Remove(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return spi.ErrNotFound
 		}
-		return fmt.Errorf("could not open entry %s with filename %s: %w", kid, filePath, err)
+		return fmt.Errorf("could not open entry %s with filename %s: %w", keyName, filePath, err)
 	}
 	return nil
 }
 
-func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) []string {
+func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) ([]string, []string) {
 	var result []string
+	var versions []string
 	err := filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -161,6 +162,7 @@ func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) []string {
 			upper := len(info.Name()) - len(privateKeyEntry) - 1
 			if upper > 0 {
 				result = append(result, info.Name()[:upper])
+				versions = append(versions, "1")
 			}
 		}
 		return nil
@@ -170,7 +172,7 @@ func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) []string {
 			WithError(err).
 			Errorf("Error while listing private keys in %s", fsc.fspath)
 	}
-	return result
+	return result, versions
 }
 
 func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte, error) {

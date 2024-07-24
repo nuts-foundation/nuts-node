@@ -38,7 +38,7 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 	t.Run("ok - it finds the key", func(t *testing.T) {
 		keyId, key, err := keyResolver.ResolveKey(doc.ID, nil, AssertionMethod)
 		require.NoError(t, err)
-		assert.Equal(t, doc.VerificationMethod[0].ID.URI(), keyId)
+		assert.Equal(t, doc.VerificationMethod[0].ID.String(), keyId)
 		assert.NotNil(t, key)
 	})
 	t.Run("ok - did:web with port", func(t *testing.T) {
@@ -52,7 +52,7 @@ func TestKeyResolver_ResolveKey(t *testing.T) {
 
 		keyId, _, err := keyResolver.ResolveKey(doc.ID, nil, AssertionMethod)
 		require.NoError(t, err)
-		assert.Truef(t, strings.HasPrefix(keyId.String(), doc.ID.String()), "%s does not start with DID %s", keyId, doc.ID)
+		assert.Truef(t, strings.HasPrefix(keyId, doc.ID.String()), "%s does not start with DID %s", keyId, doc.ID)
 	})
 
 	t.Run("error - document not found", func(t *testing.T) {

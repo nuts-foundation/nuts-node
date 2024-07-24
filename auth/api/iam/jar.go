@@ -105,7 +105,7 @@ func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId.String())
+	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId)
 }
 
 func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error) {

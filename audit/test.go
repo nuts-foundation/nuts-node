@@ -88,7 +88,9 @@ func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, 
 			formatted, err := entry.Logger.Formatter.Format(entry)
 			require.NoError(t, err)
 			// Assert that the log entry is logged on "audit" level (since that's achieved rather hacky)
-			if !strings.Contains(string(formatted), "level=audit") && !strings.Contains(string(formatted), "AUDIT") {
+			if !strings.Contains(string(formatted), "level=audit") &&
+				!strings.Contains(string(formatted), "AUDIT") &&
+				!strings.Contains(string(formatted), "\"level\":\"audit\"") {
 				t.Error("Audit log entry is not logged on 'audit' level")
 			}
 			return

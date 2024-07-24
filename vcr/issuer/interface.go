@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
@@ -38,10 +37,6 @@ type Publisher interface {
 	// PublishRevocation publishes the revocation to the outside world.
 	// It indicates to the network a credential can no longer be used.
 	PublishRevocation(ctx context.Context, revocation credential.Revocation) error
-}
-
-type keyResolver interface {
-	ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error)
 }
 
 // Issuer is a role in the network for a party who issues credentials about a subject to a holder.

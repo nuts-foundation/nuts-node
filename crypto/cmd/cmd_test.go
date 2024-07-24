@@ -95,6 +95,8 @@ func Test_fs2VaultCommand(t *testing.T) {
 
 	testDirectory := testIo.TestDirectory(t)
 	setupFSStoreData(t, testDirectory)
+	// default datadir is unavailable causing sqlite to fail
+	t.Setenv("NUTS_DATADIR", testDirectory)
 
 	outBuf := new(bytes.Buffer)
 	cryptoCmd := ServerCmd()

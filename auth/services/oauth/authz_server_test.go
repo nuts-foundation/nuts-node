@@ -65,12 +65,12 @@ var authorizerSigningKeyID = getAuthorizerSigningKey()
 const expectedService = "unit-test"
 const expectedAudience = "http://oauth"
 
-func getRequesterSigningKey() ssi.URI {
-	return ssi.MustParseURI(requesterDID.String() + "#signing-key")
+func getRequesterSigningKey() string {
+	return requesterDID.String() + "#signing-key"
 }
 
-func getAuthorizerSigningKey() ssi.URI {
-	return ssi.MustParseURI(authorizerDID.String() + "#signing-key")
+func getAuthorizerSigningKey() string {
+	return authorizerDID.String() + "#signing-key"
 }
 
 func getAuthorizerDIDDocument() *did.Document {
@@ -125,9 +125,9 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(nil, errors.New("identity validation failed"))
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true, nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
 		tokenCtx := validContext(t)
 		signToken(tokenCtx)
 
@@ -141,7 +141,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("JWT validity too long", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 
 		tokenCtx := validContext(t)
 		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(10*time.Second))
@@ -158,8 +158,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx := createContext(t)
 
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true, nil)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{Val: contract.Invalid, FailureReason: "because of reasons"}, nil)
 
@@ -175,12 +175,12 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 
 	t.Run("error detail masking", func(t *testing.T) {
 		setup := func(ctx *testContext) *testContext {
-			ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil).AnyTimes()
+			ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil).AnyTimes()
 			ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), gomock.Any()).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil).AnyTimes()
 			ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil).AnyTimes()
 			ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 			ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil).AnyTimes()
-			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true, nil).AnyTimes()
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil).AnyTimes()
 			ctx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil).AnyTimes()
 			ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 				Val:         contract.Valid,
@@ -221,13 +221,13 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("valid - without user identity", func(t *testing.T) {
 		testCtx := createContext(t)
 
-		testCtx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		testCtx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		testCtx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
 		testCtx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		testCtx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		testCtx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		testCtx.keyStore.EXPECT().Exists(testCtx.audit, authorizerSigningKeyID.String()).Return(true, nil)
-		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID.String()).Return("expectedAccessToken", nil)
+		testCtx.keyStore.EXPECT().Exists(testCtx.audit, authorizerSigningKeyID).Return(true, nil)
+		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID).Return("expectedAccessToken", nil)
 		testCtx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		ctx := validContext(t)
@@ -243,13 +243,13 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("valid - all fields", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true, nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID.String()).Return("expectedAT", nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID).Return("expectedAT", nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
@@ -268,7 +268,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 	t.Run("missing organization credential", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 
@@ -293,7 +293,7 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx := createContext(t)
 
 		tokenCtx := validContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
@@ -305,7 +305,7 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx := createContext(t)
 
 		tokenCtx := validContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
@@ -325,7 +325,7 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx := createContext(t)
 
 		tokenCtx := validContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).Return(requesterSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return(nil, errors.New("error occurred"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
@@ -335,7 +335,7 @@ func TestService_validateIssuer(t *testing.T) {
 		ctx := createContext(t)
 
 		tokenCtx := validContext(t)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).Return(requesterSigningKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).Return(requesterSigningKey.Public(), nil)
 		ctx.nameResolver.EXPECT().Search(context.Background(), searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
@@ -346,7 +346,7 @@ func TestService_validateIssuer(t *testing.T) {
 
 		tokenCtx := validContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(nil, fmt.Errorf("not found"))
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(nil, fmt.Errorf("not found"))
 
 		err := ctx.oauthService.validateIssuer(tokenCtx)
 		assert.EqualError(t, err, "invalid jwt.issuer key ID: not found")
@@ -361,7 +361,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(true, nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
 
 		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 		assert.NoError(t, err)
@@ -391,7 +391,7 @@ func TestService_validateSubject(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.SubjectKey, authorizerDID.String())
 
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID.String()).Return(false, nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(false, nil)
 
 		err := ctx.oauthService.validateSubject(ctx.audit, tokenCtx)
 
@@ -599,12 +599,12 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		tokenCtx := validContext(t)
 		signToken(tokenCtx)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
 		assert.Equal(t, requesterDID.String(), tokenCtx.jwtBearerToken.Issuer())
-		assert.Equal(t, requesterSigningKeyID.String(), tokenCtx.kid)
+		assert.Equal(t, requesterSigningKeyID, tokenCtx.kid)
 	})
 
 	t.Run("valid token with clock diff", func(t *testing.T) {
@@ -616,7 +616,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
 		signToken(tokenCtx)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
@@ -631,7 +631,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
 		signToken(tokenCtx)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.EqualError(t, err, "\"exp\" not satisfied")
@@ -684,8 +684,8 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
 
 		// First build an access token
 		tokenCtx := validAccessToken()
@@ -705,8 +705,8 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("invalid signature", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
 
 		// First build an access token
 		tokenCtx := validAccessToken()
@@ -723,7 +723,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("private key not present", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(false, nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(false, nil)
 
 		// First build an access token
 		tokenCtx := validContext(t)
@@ -737,8 +737,8 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("key not present on DID", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID.String()).Return(true, nil)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID.String(), nil, resolver.NutsSigningKeyType).MinTimes(1).Return(nil, resolver.ErrNotFound)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(nil, resolver.ErrNotFound)
 
 		// First build an access token
 		tokenCtx := validContext(t)
@@ -790,7 +790,7 @@ func validContext(t *testing.T) *validationContext {
 	}
 	return &validationContext{
 		jwtBearerToken: token,
-		kid:            requesterSigningKeyID.String(),
+		kid:            requesterSigningKeyID,
 		purposeOfUse:   expectedService,
 	}
 }
@@ -817,7 +817,7 @@ func validAccessToken() *validationContext {
 	}
 	return &validationContext{
 		jwtBearerToken: token,
-		kid:            requesterSigningKeyID.String(),
+		kid:            requesterSigningKeyID,
 		purposeOfUse:   expectedService,
 	}
 }
@@ -828,7 +828,7 @@ func signToken(context *validationContext) {
 
 func signTokenWithKey(context *validationContext, key *ecdsa.PrivateKey) {
 	hdrs := jws.NewHeaders()
-	err := hdrs.Set(jws.KeyIDKey, requesterSigningKeyID.String())
+	err := hdrs.Set(jws.KeyIDKey, requesterSigningKeyID)
 	if err != nil {
 		panic(err)
 	}
