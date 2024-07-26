@@ -20,6 +20,7 @@ package vdr
 
 import (
 	"context"
+	crypto2 "crypto"
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -54,8 +55,9 @@ func TestVDRIntegration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	docs, _, err := ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
 	require.NoError(t, err)
+	docA := &docs[0]
 
 	docAID := docA.ID
 
@@ -88,8 +90,9 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected updated docA to have a service")
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	docs, _, err = ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
 	require.NoError(t, err, "unexpected error while creating DocumentB")
+	docB := &docs[0]
 	_, _, err = ctx.didStore.Resolve(docB.ID, nil)
 	assert.NoError(t, err,
 		"unexpected error while resolving documentB")
@@ -113,7 +116,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"news service of document a does not contain expected values")
 
 	// deactivate document B
-	err = ctx.vdr.nutsDocumentManager.Deactivate(ctx.audit, docB.ID)
+	err = ctx.vdr.Deactivate(ctx.audit, docB.ID.String())
 	require.NoError(t, err,
 		"expected deactivation to succeed")
 
@@ -123,7 +126,7 @@ func TestVDRIntegration_Test(t *testing.T) {
 		"expected document B to not have any CapabilityInvocation methods after deactivation")
 
 	// try to deactivate the document again
-	err = ctx.vdr.nutsDocumentManager.Deactivate(ctx.audit, docB.ID)
+	err = ctx.vdr.Deactivate(ctx.audit, docB.ID.String())
 	assert.ErrorIs(t, err, resolver.ErrDeactivated,
 		"expected an error when trying to deactivate an already deactivated document")
 }
@@ -133,12 +136,14 @@ func TestVDRMigration_Test(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	docA, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	docs, _, err := ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
+	docA := &docs[0]
 
 	// Create a new DID Document we name DocumentB
-	docB, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	docs, _, err = ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions())
 	require.NoError(t, err)
+	docB := &docs[0]
 
 	// Update the controller of DocumentA with DocumentB
 	docA.Controller = []did.DID{docB.ID}
@@ -166,8 +171,9 @@ func TestVDRIntegration_ConcurrencyTest(t *testing.T) {
 	ctx := setup(t)
 
 	// Start with a first and fresh document named DocumentA.
-	initialDoc, _, err := ctx.vdr.nutsDocumentManager.Create(ctx.audit, didsubject.DefaultCreationOptions())
+	docs, _, err := ctx.vdr.Create(ctx.audit, didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
 	require.NoError(t, err)
+	initialDoc := &docs[0]
 
 	// Check if the document can be found in the store
 	_, _, err = ctx.didStore.Resolve(initialDoc.ID, nil)
@@ -208,10 +214,13 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	ctx := setup(t)
 
 	// Publish a DID Document
-	didDoc, key, _ := ctx.vdr.NutsDocumentManager().Create(audit.TestContext(), didsubject.DefaultCreationOptions())
+	docs, _, _ := ctx.vdr.Create(audit.TestContext(), didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
+	didDoc := &docs[0]
+	kid := didDoc.VerificationMethod[0].ID.String()
+	publicKey, _ := didDoc.VerificationMethod[0].PublicKey()
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didnuts.DIDDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, testKey{kid: kid, publicKey: publicKey}, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
@@ -244,7 +253,7 @@ func setup(t *testing.T) testContext {
 	testDir := io.TestDirectory(t)
 	nutsConfig := core.TestServerConfig(func(config *core.ServerConfig) {
 		config.Strictmode = false
-		config.Verbosity = "debug"
+		config.Verbosity = "trace"
 		config.Datadir = testDir
 	})
 
@@ -288,7 +297,7 @@ func setup(t *testing.T) testContext {
 		pkiValidator,
 	)
 	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
-	vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
+	vdr.Config().(*Config).DIDMethods = []string{"nuts"}
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))
@@ -312,4 +321,18 @@ func setup(t *testing.T) testContext {
 		audit:           audit.TestContext(),
 		storageInstance: storageEngine,
 	}
+}
+
+// testKey is temporary and will be removed by a future PR
+type testKey struct {
+	kid       string
+	publicKey crypto2.PublicKey
+}
+
+func (t testKey) KID() string {
+	return t.kid
+}
+
+func (t testKey) Public() crypto2.PublicKey {
+	return t.publicKey
 }

@@ -64,6 +64,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	// defaults
 	keyFlags := orm.AssertionKeyUsage()
 	subject := uuid.New().String()
+	nutsLegacy := false
 
 	// apply options
 	for _, option := range options.All() {
@@ -72,6 +73,8 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
 			keyFlags = keyFlags | orm.EncryptionKeyUsage()
+		case NutsLegacyNamingOption:
+			nutsLegacy = true
 		default:
 			return nil, "", fmt.Errorf("unknown option: %T", option)
 		}
@@ -94,6 +97,9 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 			sqlDoc, err := manager.NewDocument(ctx, keyFlags)
 			if err != nil {
 				return nil, fmt.Errorf("could not generate DID document (method %s): %w", method, err)
+			}
+			if nutsLegacy && method == "nuts" {
+				subject = sqlDoc.DID.ID
 			}
 			sqlDocs[method] = *sqlDoc
 		}
@@ -369,9 +375,11 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 	// Call commit for all managers on the created docs
 	var errManager error
 	for method, manager := range r.MethodManagers {
-		errManager = manager.Commit(ctx, changes[method])
-		if errManager != nil {
-			break
+		if change, ok := changes[method]; ok {
+			errManager = manager.Commit(ctx, change)
+			if errManager != nil {
+				break
+			}
 		}
 	}
 

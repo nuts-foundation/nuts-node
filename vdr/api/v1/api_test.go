@@ -49,7 +49,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return(didDoc, nil, nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{})).Return([]did.Document{*didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -72,7 +72,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 			SelfControl: new(bool),
 			Controllers: &controllers,
 		}
-		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDoc, nil, nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return([]did.Document{*didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -83,7 +83,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{}
-		ctx.nutsDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, nil, errors.New("b00m!"))
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, "", errors.New("b00m!"))
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
@@ -307,7 +307,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	did123, _ := did.ParseDID("did:nuts:123")
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(nil)
+		ctx.subjectManager.EXPECT().Deactivate(ctx.requestCtx, did123.String()).Return(nil)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -326,7 +326,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrNotFound)
+		ctx.subjectManager.EXPECT().Deactivate(ctx.requestCtx, did123.String()).Return(resolver.ErrNotFound)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -336,7 +336,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - document already deactivated", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDeactivated)
+		ctx.subjectManager.EXPECT().Deactivate(ctx.requestCtx, did123.String()).Return(resolver.ErrDeactivated)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -346,7 +346,7 @@ func TestWrapper_DeactivateDID(t *testing.T) {
 
 	t.Run("error - did not managed by this node", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.nutsDocumentManager.EXPECT().Deactivate(ctx.requestCtx, *did123).Return(resolver.ErrDIDNotManagedByThisNode)
+		ctx.subjectManager.EXPECT().Deactivate(ctx.requestCtx, did123.String()).Return(resolver.ErrDIDNotManagedByThisNode)
 
 		_, err := ctx.client.DeactivateDID(ctx.requestCtx, DeactivateDIDRequestObject{Did: did123.String()})
 
@@ -363,7 +363,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("ok - without key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, didnuts.DefaultKeyFlags()).Return(newMethod, nil)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(ctx.requestCtx, did123.String(), didnuts.DefaultKeyFlags()).Return([]did.VerificationMethod{*newMethod}, nil)
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -374,7 +374,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 	t.Run("ok - with key usage", func(t *testing.T) {
 		ctx := newMockContext(t)
 		expectedKeyUsage := didnuts.DefaultKeyFlags() | orm.AuthenticationUsage | orm.CapabilityDelegationUsage
-		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(ctx.requestCtx, *did123, expectedKeyUsage).Return(newMethod, nil)
+		ctx.subjectManager.EXPECT().AddVerificationMethod(ctx.requestCtx, did123.String(), expectedKeyUsage).Return([]did.VerificationMethod{*newMethod}, nil)
 		trueBool := true
 		request := AddNewVerificationMethodJSONRequestBody{
 			Authentication:       &trueBool,
@@ -399,7 +399,7 @@ func TestWrapper_AddNewVerificationMethod(t *testing.T) {
 
 	t.Run("error - internal error", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.nutsDocumentManager.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
+		ctx.subjectManager.EXPECT().AddVerificationMethod(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
 
 		response, err := ctx.client.AddNewVerificationMethod(ctx.requestCtx, AddNewVerificationMethodRequestObject{Did: did123.String()})
 
@@ -460,6 +460,7 @@ type mockContext struct {
 	vdr                 *vdr.MockVDR
 	didResolver         *resolver.MockDIDResolver
 	nutsDocumentManager *didsubject.MockDocumentManager
+	subjectManager      *didsubject.MockSubjectManager
 	client              *Wrapper
 	requestCtx          context.Context
 }
@@ -472,7 +473,8 @@ func newMockContext(t *testing.T) mockContext {
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	nutsDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	vdr.EXPECT().NutsDocumentManager().Return(nutsDocumentManager).AnyTimes()
-	client := &Wrapper{VDR: vdr}
+	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	client := &Wrapper{VDR: vdr, SubjectManager: subjectManager}
 	requestCtx := audit.TestContext()
 
 	return mockContext{
@@ -481,6 +483,7 @@ func newMockContext(t *testing.T) mockContext {
 		didResolver:         didResolver,
 		client:              client,
 		nutsDocumentManager: nutsDocumentManager,
+		subjectManager:      subjectManager,
 		requestCtx:          requestCtx,
 	}
 }

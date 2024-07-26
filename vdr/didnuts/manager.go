@@ -130,22 +130,6 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	return kid.String(), nil
 }
 
-// Create creates a Nuts DID Document with a valid DID id based on a freshly generated keypair.
-// The key is added to the verificationMethod list and referred to from the Authentication list
-// It also publishes the DID Document to the network.
-func (m Manager) Create(ctx context.Context, _ didsubject.CreationOptions) (*did.Document, nutsCrypto.Key, error) {
-	doc, key, err := m.create(ctx, DefaultKeyFlags())
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := m.publish(ctx, *doc, key); err != nil {
-		return nil, nil, err
-	}
-
-	// return the doc and the keyCreator that created the private key
-	return doc, key, nil
-}
-
 // Deactivate updates the DID Document so it can no longer be updated
 // It removes key material, services and controllers.
 func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
@@ -153,112 +137,6 @@ func (m Manager) Deactivate(ctx context.Context, id did.DID) error {
 	emptyDoc := CreateDocument()
 	emptyDoc.ID = id
 	return m.Update(ctx, id, emptyDoc)
-}
-
-func (m Manager) create(ctx context.Context, flags orm.DIDKeyFlags) (*did.Document, nutsCrypto.Key, error) {
-	// First, generate a new keyPair with the correct kid
-	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
-	// Relevant issue:
-	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
-	// } else {
-	// 	key, err = nutsCrypto.NewEphemeralKey(didKIDNamingFunc)
-	// }
-	if err != nil {
-		return nil, nil, err
-	}
-
-	keyID, err := did.ParseDIDURL(key.KID())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Create the bare document. The Document DID will be the keyIDStr without the fragment.
-	didID, _ := resolver.GetDIDFromURL(key.KID())
-	doc := CreateDocument()
-	doc.ID = didID
-
-	var verificationMethod *did.VerificationMethod
-
-	// Add VerificationMethod using generated key
-	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, did.DID{}, key.Public())
-	if err != nil {
-		return nil, nil, err
-	}
-
-	applyKeyUsage(&doc, verificationMethod, flags)
-	return &doc, key, nil
-}
-
-func (m Manager) publish(ctx context.Context, doc did.Document, key nutsCrypto.Key) error {
-	payload, err := json.Marshal(doc)
-	if err != nil {
-		return err
-	}
-
-	// extract the transaction refs from the controller metadata
-	refs := make([]hash.SHA256Hash, 0)
-
-	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-	dagTx, err := m.networkClient.CreateTransaction(ctx, tx)
-	if err != nil {
-		return fmt.Errorf("could not store DID document in network: %w", err)
-	}
-
-	// add it to the store after the transaction is successful
-	if err = m.store.Add(doc, didnutsStore.Transaction{
-		Clock:       dagTx.Clock(),
-		PayloadHash: dagTx.PayloadHash(),
-		Previous:    dagTx.Previous(),
-		Ref:         dagTx.Ref(),
-		SigningTime: dagTx.SigningTime(),
-	}); err != nil {
-		return fmt.Errorf("DID document created but could not add result to store: %w", err)
-	}
-
-	return nil
-}
-
-// applyKeyUsage checks intendedKeyUsage and adds the given verificationMethod to every relationship specified as key usage.
-func applyKeyUsage(document *did.Document, keyToAdd *did.VerificationMethod, intendedKeyUsage orm.DIDKeyFlags) {
-	if intendedKeyUsage.Is(orm.CapabilityDelegationUsage) {
-		document.AddCapabilityDelegation(keyToAdd)
-	}
-	if intendedKeyUsage.Is(orm.CapabilityInvocationUsage) {
-		document.AddCapabilityInvocation(keyToAdd)
-	}
-	if intendedKeyUsage.Is(orm.AuthenticationUsage) {
-		document.AddAuthenticationMethod(keyToAdd)
-	}
-	if intendedKeyUsage.Is(orm.AssertionMethodUsage) {
-		document.AddAssertionMethod(keyToAdd)
-	}
-	if intendedKeyUsage.Is(orm.KeyAgreementUsage) {
-		document.AddKeyAgreement(keyToAdd)
-	}
-}
-
-// AddVerificationMethod adds a new key as a VerificationMethod to the document.
-// The key is added to the VerficationMethod relationships specified by keyUsage.
-func (m Manager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
-	doc, meta, err := m.resolver.Resolve(id, &resolver.ResolveMetadata{AllowDeactivated: true})
-	if err != nil {
-		return nil, err
-	}
-	if meta.Deactivated {
-		return nil, resolver.ErrDeactivated
-	}
-	method, err := CreateNewVerificationMethodForDID(ctx, doc.ID, m.keyStore)
-	if err != nil {
-		return nil, err
-	}
-	method.Controller = doc.ID
-	doc.VerificationMethod.Add(method)
-	applyKeyUsage(doc, method, keyUsage)
-	if err = m.Update(ctx, id, *doc); err != nil {
-		return nil, err
-	}
-	return method, nil
 }
 
 // RemoveVerificationMethod is a helper function to remove a verificationMethod from a DID Document
@@ -373,7 +251,7 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
-func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
 	// First, generate a new keyPair with the correct kid
 	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
 	// Relevant issue:
@@ -382,6 +260,8 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	if err != nil {
 		return nil, err
 	}
+
+	keyFlags := DefaultKeyFlags()
 
 	keyID, err := did.ParseDIDURL(key.KID())
 	if err != nil {
