@@ -13,7 +13,8 @@ services:
       NUTS_STORAGE_SQL_CONNECTION: sqlserver://sa:MyStrong(!)Password@db:1433?database=node_b
   db:
     # image: mcr.microsoft.com/azure-sql-edge:latest <-- "The sqlcmd utility is not included in the ARM64 version of the SQL Edge container" - https://github.com/microsoft/mssql-docker/issues/734
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    # image mcr.microsoft.com/mssql/server:2022-latest <-- They broke the sqlcmd path - https://github.com/microsoft/mssql-docker/issues/892
+    image: mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04
     restart: always
     ports:
       - "1433:1433"
