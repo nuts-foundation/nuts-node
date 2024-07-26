@@ -57,7 +57,7 @@ type vdrTestCtx struct {
 	vdr                 Module
 	mockStore           *didstore.MockStore
 	mockNetwork         *network.MockTransactions
-	mockKeyStore        *nutsCrypto.MockKeyStore
+	keyStore            nutsCrypto.KeyStore
 	mockAmbassador      *didnuts.MockAmbassador
 	ctx                 context.Context
 	mockDocumentManager *didsubject.MockDocumentManager
@@ -70,11 +70,11 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockAmbassador := didnuts.NewMockAmbassador(ctrl)
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
-	mockKeyStore := nutsCrypto.NewMockKeyStore(ctrl)
+	keyStore := nutsCrypto.NewMemoryCryptoInstance()
 	mockDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
-	vdr := NewVDR(mockKeyStore, mockNetwork, mockStore, nil, nil)
+	vdr := NewVDR(keyStore, mockNetwork, mockStore, nil, nil)
 	vdr.networkAmbassador = mockAmbassador
 	vdr.nutsDocumentManager = mockDocumentManager
 	vdr.documentOwner = mockDocumentOwner
@@ -90,7 +90,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockAmbassador:      mockAmbassador,
 		mockStore:           mockStore,
 		mockNetwork:         mockNetwork,
-		mockKeyStore:        mockKeyStore,
+		keyStore:            keyStore,
 		mockDocumentManager: mockDocumentManager,
 		mockDocumentOwner:   mockDocumentOwner,
 		ctx:                 audit.TestContext(),
@@ -186,32 +186,23 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 owned conflict in controlled document", func(t *testing.T) {
 			// vendor
 			test := newVDRTestCtx(t)
-			keyVendor := nutsCrypto.NewTestKey("did:nuts:vendor#keyVendor-1")
+			keyVendor, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:vendor#keyVendor-1"))
 
 			didDocVendor := &did.Document{ID: did.MustParseDID("did:nuts:vendor")}
 			vendorVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyVendor.KID()), ssi.JsonWebKey2020, didDocVendor.ID, keyVendor.Public())
 			require.NoError(t, err)
 			didDocVendor.AddCapabilityInvocation(vendorVM)
-			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocVendor, keyVendor, nil)
-			test.mockNetwork.EXPECT().CreateTransaction(test.ctx, gomock.Any()).AnyTimes()
-			didDocVendor, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions())
-			require.NoError(t, err)
 
 			// organization
-			keyOrg := nutsCrypto.NewTestKey("did:nuts:org#keyOrg-1")
+			keyOrg, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:org#keyOrg-1"))
 			didDocOrg := &did.Document{ID: did.MustParseDID("did:nuts:org")}
 			didDocOrg.Controller = []did.DID{didDocVendor.ID}
 			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyOrg.KID()), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg.Public())
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
-			test.mockDocumentManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(didDocOrg, keyOrg, nil)
-			didDocOrg, _, err = test.vdr.NutsDocumentManager().Create(test.ctx, didsubject.DefaultCreationOptions())
-			require.NoError(t, err)
 
-			client := nutsCrypto.NewMemoryCryptoInstance()
-			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyVendor.KID()))
-			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyOrg.KID()))
-			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			// change vdr to allow for Configure()
+			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
 			tmpResolver := vdr.didResolver
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())

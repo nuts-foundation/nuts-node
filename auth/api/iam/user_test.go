@@ -21,6 +21,7 @@ package iam
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"strings"
@@ -33,7 +34,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/mock"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -78,7 +78,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		Fragment:        "key",
 		DecodedFragment: "key",
 	}
-	key := cryptoNuts.NewTestKey(vmId.String())
+	key, _ := spi.GenerateKeyPair()
 	didDocument := did.Document{ID: walletDID}
 	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
 	didDocument.AddAssertionMethod(vm)

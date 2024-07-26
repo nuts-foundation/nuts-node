@@ -21,14 +21,15 @@ package issuer
 import (
 	"context"
 	"errors"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
 )
 
 func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
@@ -36,8 +37,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	issuerDID, _ := did.ParseDID("did:nuts:123")
 	methodID := did.DIDURL{DID: *issuerDID}
 	methodID.Fragment = "abc"
-	publicKey := crypto.NewTestKey(issuerDID.String() + "abc").Public()
-	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, publicKey)
+	key := nutsCrypto.NewTestKey(methodID.String())
+	newMethod, err := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, *issuerDID, key.Public())
 	require.NoError(t, err)
 	docWithAssertionKey := &did.Document{}
 	docWithAssertionKey.AddAssertionMethod(newMethod)
@@ -45,9 +46,9 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockPubKeyResolver := resolver.NewMockKeyResolver(ctrl)
-		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.NutsSigningKeyType).Return(methodID.URI(), publicKey, nil)
-		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
-		mockPrivKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(crypto.NewTestKey(methodID.String()), nil)
+		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.NutsSigningKeyType).Return(methodID.URI(), key.Public(), nil)
+		mockPrivKeyResolver := nutsCrypto.NewMockKeyResolver(ctrl)
+		mockPrivKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(key, nil)
 
 		sut := vdrKeyResolver{
 			publicKeyResolver:  mockPubKeyResolver,
@@ -57,7 +58,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		key, err := sut.ResolveAssertionKey(ctx, *issuerDID)
 
 		assert.NotNil(t, key)
-		assert.Implements(t, (*crypto.Key)(nil), key)
+		assert.Implements(t, (*nutsCrypto.Key)(nil), key)
 		assert.NoError(t, err)
 	})
 
@@ -65,7 +66,7 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockPubKeyResolver := resolver.NewMockKeyResolver(ctrl)
 		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.NutsSigningKeyType).Return(ssi.URI{}, nil, errors.New("not found"))
-		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
+		mockPrivKeyResolver := nutsCrypto.NewMockKeyResolver(ctrl)
 
 		sut := vdrKeyResolver{
 			publicKeyResolver:  mockPubKeyResolver,
@@ -81,8 +82,8 @@ func Test_vdrKeyResolver_ResolveAssertionKey(t *testing.T) {
 	t.Run("key not found in crypto", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		mockPubKeyResolver := resolver.NewMockKeyResolver(ctrl)
-		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.NutsSigningKeyType).Return(methodID.URI(), publicKey, nil)
-		mockPrivKeyResolver := crypto.NewMockKeyResolver(ctrl)
+		mockPubKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.NutsSigningKeyType).Return(methodID.URI(), key.Public(), nil)
+		mockPrivKeyResolver := nutsCrypto.NewMockKeyResolver(ctrl)
 		mockPrivKeyResolver.EXPECT().Resolve(ctx, methodID.String()).Return(nil, errors.New("not found"))
 
 		sut := vdrKeyResolver{

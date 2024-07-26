@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -70,7 +71,6 @@ var keyStore nutsCrypto.KeyStore
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(t)
-	key := nutsCrypto.NewTestKey("key")
 	expectedDocLogSize := 0
 
 	// Start 3 nodes: bootstrap, node1 and node2. Node 1 and 2 connect to the bootstrap node and should discover
@@ -89,13 +89,13 @@ func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	}
 
 	// Publish first transaction on node1, we expect in to come out on node2 and bootstrap
-	if !addTransactionAndWaitForItToArrive(t, "doc1", key, node1, "integration_node2", "integration_bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc1", node1, "integration_node2", "integration_bootstrap") {
 		return
 	}
 	expectedDocLogSize++
 
 	// Now the graph has a root, and node2 can publish a transaction
-	if !addTransactionAndWaitForItToArrive(t, "doc2", key, node2, "integration_node1", "integration_bootstrap") {
+	if !addTransactionAndWaitForItToArrive(t, "doc2", node2, "integration_node1", "integration_bootstrap") {
 		return
 	}
 	expectedDocLogSize++
@@ -153,7 +153,6 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 	}
 
 	t.Run("Gossip", func(t *testing.T) {
-		key := nutsCrypto.NewTestKey("key")
 		expectedDocLogSize := 0
 
 		bootstrap, node1 := testNodes(t)
@@ -168,7 +167,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 		// create some transactions on the bootstrap node
 		for i := 0; i < 10; i++ {
-			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), bootstrap) {
 				return
 			}
 			expectedDocLogSize++
@@ -193,7 +192,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		})
 
 		// set root
-		key := nutsCrypto.NewTestKey("key")
+		key, _ := bootstrap.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key1"))
 		rootTx, err := bootstrap.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte("root_tx"), key).WithAttachKey())
 		require.NoError(t, err)
 		require.NoError(t, node1.network.state.Add(context.Background(), rootTx, []byte("root_tx")))
@@ -201,13 +200,13 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 		// create some transactions on the bootstrap node to get it ahead of node 1
 		for i := 0; i < 10; i++ {
-			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("bootstrap_doc%d", i), key, bootstrap) {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("bootstrap_doc%d", i), bootstrap) {
 				return
 			}
 			expectedDocLogSize++
 		}
 		// create a single transaction on node1
-		if !addTransactionAndWaitForItToArrive(t, "node1_doc", nutsCrypto.NewTestKey("key_node1"), node1) {
+		if !addTransactionAndWaitForItToArrive(t, "node1_doc", node1) {
 			return
 		}
 		expectedDocLogSize++
@@ -226,14 +225,13 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 	})
 
 	t.Run("IBLT", func(t *testing.T) {
-		key := nutsCrypto.NewTestKey("key")
 		expectedDocLogSize := 0
 
 		bootstrap, node1 := testNodes(t)
 
 		// create some transactions on the bootstrap node
 		for i := 0; i < 10; i++ {
-			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, bootstrap) {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), bootstrap) {
 				return
 			}
 			expectedDocLogSize++
@@ -252,7 +250,6 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 	})
 
 	t.Run("Parallel node sync", func(t *testing.T) {
-		key := nutsCrypto.NewTestKey("key")
 		expectedDocLogSize := 0
 
 		testDirectory := io.TestDirectory(t)
@@ -281,7 +278,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 
 		// create some transactions on node1
 		for i := 0; i < 10; i++ {
-			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), key, node1) {
+			if !addTransactionAndWaitForItToArrive(t, fmt.Sprintf("doc%d", i), node1) {
 				return
 			}
 			expectedDocLogSize++
@@ -325,7 +322,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 			return
 		}
 
-		addTransactionAndWaitForItToArrive(t, "foobar", nutsCrypto.NewTestKey("key"), bootstrap, "integration_node1")
+		addTransactionAndWaitForItToArrive(t, "foobar", bootstrap, "integration_node1")
 
 		time.Sleep(100 * time.Millisecond) // wait for diagnostics to be sent
 
@@ -495,7 +492,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -513,6 +509,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -529,7 +526,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("event received", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -562,6 +558,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -578,7 +575,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("third node knows nothing", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -600,6 +596,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -623,7 +620,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("three participants", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -657,6 +653,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		rand.Shuffle(len(pal), func(i, j int) {
 			pal[i], pal[j] = pal[j], pal[i]
 		})
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate(pal)
@@ -668,7 +665,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("large amount of private transactions", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -681,6 +677,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// create some transactions
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		for i := 0; i < 10; i++ {
 			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
 				WithAttachKey().
@@ -706,7 +703,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("TLS disabled", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "noTLS1", testDirectory, func(serverConfig *core.ServerConfig, cfg *Config) {
@@ -726,6 +722,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -742,7 +739,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 	t.Run("spoofing peerID does not change the recipient of a response message", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
-		key := nutsCrypto.NewTestKey("key")
 
 		// Start 2 nodes: node1 and node2, node1 sends a private TX to node 2
 		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
@@ -772,6 +768,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
+		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
 			WithAttachKey().
 			WithPrivate([]did.DID{node1DID, node2DID})
@@ -877,8 +874,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	})
 
 	// add a transaction
-	key := nutsCrypto.NewTestKey("key")
-	addTransactionAndWaitForItToArrive(t, "payload", key, node1)
+	addTransactionAndWaitForItToArrive(t, "payload", node1)
 
 	test.WaitFor(t, func() (bool, error) {
 		foundMutex.Lock()
@@ -1033,7 +1029,8 @@ func resetIntegrationTest(t *testing.T) {
 	writeDIDDocument("did:nuts:node3")
 }
 
-func addTransactionAndWaitForItToArrive(t *testing.T, payload string, key nutsCrypto.Key, sender node, receivers ...string) bool {
+func addTransactionAndWaitForItToArrive(t *testing.T, payload string, sender node, receivers ...string) bool {
+	key, _ := sender.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(uuid.New().String()))
 	expectedTransaction, err := sender.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte(payload), key).WithAttachKey())
 	if !assert.NoError(t, err) {
 		return false

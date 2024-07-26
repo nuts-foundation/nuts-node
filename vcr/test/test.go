@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -35,14 +35,14 @@ import (
 )
 
 // CreateJWTPresentation creates a JWT presentation with the given subject DID and credentials.
-func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) (vc.VerifiablePresentation, crypto.Key) {
+func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) (vc.VerifiablePresentation, nutsCrypto.Key) {
 	headers := map[string]any{jws.TypeKey: "JWT"}
 	claims := map[string]interface{}{
 		jwt.SubjectKey:    subjectDID.String(),
 		jwt.JwtIDKey:      subjectDID.String() + "#" + uuid.NewString(),
 		jwt.NotBeforeKey:  time.Now().Unix(),
 		jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
-		"nonce":           crypto.GenerateNonce(),
+		"nonce":           nutsCrypto.GenerateNonce(),
 		"vp": vc.VerifiablePresentation{
 			Type:                 []ssi.URI{vc.VerifiablePresentationTypeV1URI()},
 			VerifiableCredential: credentials,
@@ -55,8 +55,8 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	if tokenVisitor != nil {
 		tokenVisitor(unsignedToken)
 	}
-	keyStore := crypto.NewMemoryCryptoInstance()
-	key, err := keyStore.New(audit.TestContext(), crypto.StringNamingFunc(subjectDID.String()))
+	keyStore := nutsCrypto.NewMemoryCryptoInstance()
+	key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(subjectDID.String()))
 	require.NoError(t, err)
 	claims, err = unsignedToken.AsMap(context.Background())
 	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
@@ -70,7 +70,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 func CreateJSONLDPresentation(t *testing.T, subjectDID did.DID, visitor func(presentation *vc.VerifiablePresentation), verifiableCredential ...vc.VerifiableCredential) vc.VerifiablePresentation {
 	id := ssi.MustParseURI(subjectDID.String() + "#" + uuid.NewString())
 	exp := time.Now().Add(5 * time.Second)
-	nonce := crypto.GenerateNonce()
+	nonce := nutsCrypto.GenerateNonce()
 	vp := vc.VerifiablePresentation{
 		ID:                   &id,
 		VerifiableCredential: verifiableCredential,

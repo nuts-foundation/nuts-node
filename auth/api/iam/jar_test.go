@@ -20,7 +20,10 @@ package iam
 
 import (
 	"context"
+	"crypto"
 	"errors"
+	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
 
@@ -103,9 +106,10 @@ func TestJar_Sign(t *testing.T) {
 
 func TestJar_Parse(t *testing.T) {
 	// setup did document and keys
-	key := cryptoNuts.NewTestKey(did.DIDURL{DID: holderDID, Fragment: "key"}.String())
+	privateKey, _ := spi.GenerateKeyPair()
+	kid := fmt.Sprintf("%s#%s", holderDID.String(), "key")
 
-	bytes, err := createSignedRequestObject(t, key, oauthParameters{
+	bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 		jwt.IssuerKey:       holderDID.String(),
 		oauth.ClientIDParam: holderDID.String(),
 	})
@@ -117,7 +121,7 @@ func TestJar_Parse(t *testing.T) {
 
 		t.Run("ok - get", func(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierDID,
 				map[string][]string{
@@ -131,7 +135,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 		t.Run("ok - param not supported", func(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierDID,
 				map[string][]string{
@@ -146,7 +150,7 @@ func TestJar_Parse(t *testing.T) {
 		t.Run("ok - post", func(t *testing.T) {
 			md, _ := authorizationServerMetadata(walletDID, walletIssuerURL)
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return(token, nil)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 			res, err := ctx.jar.Parse(context.Background(), walletDID,
 				map[string][]string{
@@ -171,7 +175,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 	})
 	t.Run("ok - 'request'", func(t *testing.T) {
-		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,
 			map[string][]string{
@@ -233,7 +237,7 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match", func(t *testing.T) {
-		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,
 			map[string][]string{
@@ -245,12 +249,12 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match signer", func(t *testing.T) {
-		bytes, err := createSignedRequestObject(t, key, oauthParameters{
+		bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 			jwt.IssuerKey:       verifierDID.String(),
 			oauth.ClientIDParam: verifierDID.String(),
 		})
 		require.NoError(t, err)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(key.KID(), nil, resolver.AssertionMethod).Return(key.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierDID,
 			map[string][]string{
@@ -263,14 +267,14 @@ func TestJar_Parse(t *testing.T) {
 	})
 }
 
-func createSignedRequestObject(t testing.TB, testKey *cryptoNuts.TestKey, params oauthParameters) ([]byte, error) {
+func createSignedRequestObject(t testing.TB, kid string, privateKey crypto.PrivateKey, params oauthParameters) ([]byte, error) {
 	request := jwt.New()
 	for k, v := range params {
 		require.NoError(t, request.Set(k, v))
 	}
 	headers := jws.NewHeaders()
-	require.NoError(t, headers.Set(jws.KeyIDKey, testKey.KID()))
-	return jwt.Sign(request, jwt.WithKey(jwa.ES256, testKey.Private(), jws.WithProtectedHeaders(headers)))
+	require.NoError(t, headers.Set(jws.KeyIDKey, kid))
+	return jwt.Sign(request, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
 }
 
 type testJarCtx struct {

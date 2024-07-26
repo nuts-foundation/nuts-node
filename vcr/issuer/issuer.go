@@ -257,7 +257,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	switch options.Format {
 	case vc.JWTCredentialProofFormat:
 		return vc.CreateJWTVerifiableCredential(ctx, unsignedCredential, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-			return i.keyStore.SignJWT(ctx, claims, headers, key)
+			return i.keyStore.SignJWT(ctx, claims, headers, key.KID())
 		})
 	case "":
 		fallthrough

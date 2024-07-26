@@ -37,16 +37,12 @@ type MemoryJWTSigner struct {
 	Key jwk.Key
 }
 
-func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, rawKey interface{}) (string, error) {
+func (m MemoryJWTSigner) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error) {
 	// copy headers so we don't change the input
 	headersLocal := make(map[string]interface{})
 	maps.Copy(headersLocal, headers)
 
-	keyID, ok := rawKey.(string)
-	if !ok {
-		return "", errors.New("key should be string (key ID)")
-	}
-	if keyID != m.Key.KeyID() {
+	if kid != m.Key.KeyID() {
 		return "", ErrPrivateKeyNotFound
 	}
 	var signer crypto.Signer
@@ -58,11 +54,11 @@ func (m MemoryJWTSigner) SignJWT(_ context.Context, claims map[string]interface{
 		return "", err
 	}
 
-	headersLocal["kid"] = keyID
-	return signJWT(signer, alg, claims, headersLocal)
+	headersLocal["kid"] = kid
+	return SignJWT(ctx, signer, alg, claims, headersLocal)
 }
 
-func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ interface{}, _ bool) (string, error) {
+func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ string, _ bool) (string, error) {
 	return "", errNotSupportedForInMemoryKeyStore
 }
 

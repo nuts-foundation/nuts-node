@@ -139,7 +139,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		}
 	}
 	createRequest := func(headers, claims map[string]interface{}) openid4vci.CredentialRequest {
-		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"])
+		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"].(string))
 		require.NoError(t, err)
 		return openid4vci.CredentialRequest{
 			Format: vc.JSONLDCredentialProofFormat,

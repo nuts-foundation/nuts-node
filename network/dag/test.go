@@ -50,8 +50,9 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
-	key := nutsCrypto.NewTestKey(fmt.Sprintf("%d", payloadNum))
+	kid := fmt.Sprintf("%d", payloadNum)
 	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
+	key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, attach).Sign(audit.TestContext(), unsignedTransaction, signingTime)
 	if err != nil {
 		panic(err)
@@ -65,8 +66,8 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 	lamportClock := calculateLamportClock(prevs)
 	unsignedTransaction, _ := NewTransaction(payloadHash, "application/did+json", prevHashes(prevs), participants, lamportClock)
 	kid := fmt.Sprintf("%d", num)
-	key := nutsCrypto.NewTestKey(kid)
 	cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
+	key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	signedTransaction, err := NewTransactionSigner(cryptoInstance, key, false).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	if err != nil {
 		panic(err)

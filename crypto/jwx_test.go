@@ -52,7 +52,7 @@ func TestSignJWT(t *testing.T) {
 	claims := map[string]interface{}{"iss": "nuts"}
 	t.Run("creates valid JWT using rsa keys", func(t *testing.T) {
 		rsaKey := test.GenerateRSAKey()
-		tokenString, err := signJWT(rsaKey, jwa.PS256, claims, nil)
+		tokenString, err := SignJWT(audit.TestContext(), rsaKey, jwa.PS256, claims, nil)
 
 		assert.Nil(t, err)
 
@@ -76,7 +76,7 @@ func TestSignJWT(t *testing.T) {
 		for i, ecKey := range keys {
 			name := fmt.Sprintf("using %s", ecKey.Params().Name)
 			t.Run(name, func(t *testing.T) {
-				tokenString, err := signJWT(ecKey, algs[i], claims, nil)
+				tokenString, err := SignJWT(audit.TestContext(), ecKey, algs[i], claims, nil)
 
 				require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func TestSignJWT(t *testing.T) {
 
 	t.Run("sets correct headers", func(t *testing.T) {
 		ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		tokenString, err := signJWT(ecKey, jwa.ES256, claims, nil)
+		tokenString, err := SignJWT(audit.TestContext(), ecKey, jwa.ES256, claims, nil)
 
 		require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func TestSignJWT(t *testing.T) {
 	})
 
 	t.Run("invalid claim", func(t *testing.T) {
-		tokenString, err := signJWT(nil, jwa.ES256, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
+		tokenString, err := SignJWT(audit.TestContext(), nil, jwa.ES256, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
 		assert.Empty(t, tokenString)
 		assert.EqualError(t, err, "invalid value for iat key: failed to accept string \"foobar\": value is not number of seconds since the epoch, and attempt to parse it as RFC3339 timestamp failed: parsing time \"foobar\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"foobar\" as \"2006\"")
 	})
@@ -158,7 +158,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 
 	t.Run("creates valid JWT", func(t *testing.T) {
-		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
+		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, kid)
 
 		require.NoError(t, err)
 
@@ -200,20 +200,20 @@ func TestCrypto_SignJWT(t *testing.T) {
 	t.Run("writes audit logs", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, key)
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, kid)
 
 		require.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "SignJWT", audit.TestActor, "Signing a JWT with key: kid (issuer: nuts, subject: subject)")
 	})
 
 	t.Run("returns error for not found", func(t *testing.T) {
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, basicKey{kid: "unknown"})
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, "unknown")
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
 
 	t.Run("returns error for invalid KID", func(t *testing.T) {
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, basicKey{kid: "../certificate"})
+		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, "../certificate")
 
 		assert.ErrorContains(t, err, "invalid key ID")
 	})
@@ -227,7 +227,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 
 	t.Run("creates valid JWS", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		tokenString, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, key, false)
+		tokenString, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, kid, false)
 
 		require.NoError(t, err)
 
@@ -272,7 +272,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 	t.Run("writes audit log", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		_, err := client.SignJWS(audit.TestContext(), []byte{1, 2, 3}, map[string]interface{}{"typ": "JWT"}, key, false)
+		_, err := client.SignJWS(audit.TestContext(), []byte{1, 2, 3}, map[string]interface{}{"typ": "JWT"}, kid, false)
 
 		require.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "SignJWS", audit.TestActor, "Signing a JWS with key: kid")
@@ -280,14 +280,14 @@ func TestCrypto_SignJWS(t *testing.T) {
 
 	t.Run("returns error for not found", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, basicKey{kid: "unknown"}, false)
+		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, "unknown", false)
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
 
 	t.Run("returns error for invalid KID", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, basicKey{kid: "../certificate"}, false)
+		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, "../certificate", false)
 
 		assert.ErrorContains(t, err, "invalid key ID")
 	})
@@ -296,7 +296,8 @@ func TestCrypto_SignJWS(t *testing.T) {
 func TestCrypto_EncryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
-	key, _ := client.New(audit.TestContext(), StringNamingFunc("did:nuts:1234#key-1"))
+	kid := "did:nuts:1234#key-1"
+	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
 	public := key.Public()
 
 	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
@@ -306,7 +307,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), kid)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
@@ -343,7 +344,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), kid)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwa.ECDH_ES, privateKey))
@@ -363,7 +364,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 
 		require.NoError(t, err)
 
-		privateKey, _, err := client.getPrivateKey(context.Background(), key)
+		privateKey, _, err := client.getPrivateKey(context.Background(), kid)
 		require.NoError(t, err)
 
 		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwx.DefaultEcEncryptionAlgorithm, privateKey))
@@ -468,7 +469,7 @@ func TestSignJWS(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 			hdrs := map[string]interface{}{"foo": "bar"}
-			signature, err := signJWS(payload, hdrs, key, jwa.ES256, false)
+			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			require.NoError(t, err, "error during signing")
 			message, err := jws.Parse([]byte(signature))
 			require.NoError(t, err, "error during parsing sign result as jws")
@@ -491,7 +492,7 @@ func TestSignJWS(t *testing.T) {
 
 			publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
 			hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
-			signature, err := signJWS(payload, hdrs, key, jwa.ES256, false)
+			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, signature)
 		})
@@ -501,7 +502,7 @@ func TestSignJWS(t *testing.T) {
 			// a dot is an invalid character when nog base64 encoded
 			payload := []byte{'.'}
 
-			signature, err := signJWS(payload, hdrs, key, jwa.ES256, false)
+			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			assert.EqualError(t, err, "unable to sign JWS failed to generate signature for signer #0 (alg=ES256): payload must not contain a \".\"")
 			assert.Empty(t, signature)
 		})
@@ -510,7 +511,7 @@ func TestSignJWS(t *testing.T) {
 
 			privateKeyAsJWK, _ := jwk.FromRaw(key)
 			hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
-			signature, err := signJWS(payload, hdrs, key, jwa.ES256, false)
+			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
 			assert.Empty(t, signature)
 		})
@@ -518,7 +519,7 @@ func TestSignJWS(t *testing.T) {
 		t.Run("it checks the headers", func(t *testing.T) {
 			t.Run("it fails with an invalid jwk format", func(t *testing.T) {
 				payload := []byte{1, 2, 3}
-				signature, err := signJWS(payload, map[string]interface{}{"jwk": "invalid jwk"}, key, jwa.ES256, false)
+				signature, err := SignJWS(audit.TestContext(), payload, map[string]interface{}{"jwk": "invalid jwk"}, key, false)
 				assert.EqualError(t, err, "unable to set header jwk: invalid value for jwk key: string")
 				assert.Empty(t, signature)
 			})
@@ -527,7 +528,7 @@ func TestSignJWS(t *testing.T) {
 	t.Run("detached", func(t *testing.T) {
 		t.Run("it can sign with a detached payload", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
-			signature, err := signJWS(payload, map[string]interface{}{"b64": false}, key, jwa.ES256, true)
+			signature, err := SignJWS(audit.TestContext(), payload, map[string]interface{}{"b64": false}, key, true)
 			assert.NoError(t, err, "no error expected")
 			assert.Contains(t, signature, "..")
 		})

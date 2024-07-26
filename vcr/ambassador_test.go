@@ -113,7 +113,7 @@ func TestAmbassador_handleReprocessEvent(t *testing.T) {
 	// load key
 	pem, _ := os.ReadFile("test/private.pem")
 	signer, _ := util.PemToPrivateKey(pem)
-	key := crypto.NewTestKey(fmt.Sprintf("%s#1", vc.Issuer.String()))
+	key, _ := ctx.crypto.New(audit.TestContext(), crypto.StringNamingFunc(fmt.Sprintf("%s#1", vc.Issuer.String())))
 
 	// trust otherwise Resolve won't work
 	ctx.vcr.Trust(vc.Type[0], vc.Issuer)

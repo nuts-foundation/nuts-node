@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -30,7 +31,7 @@ import (
 )
 
 func TestMemoryKeyStore_SignJWS(t *testing.T) {
-	_, err := MemoryJWTSigner{}.SignJWS(context.Background(), nil, nil, nil, false)
+	_, err := MemoryJWTSigner{}.SignJWS(context.Background(), nil, nil, "", false)
 	assert.ErrorIs(t, err, errNotSupportedForInMemoryKeyStore)
 }
 
@@ -44,14 +45,14 @@ func TestMemoryKeyStore_SignJWT(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		signedJWT, err := MemoryJWTSigner{
 			Key: privateKeyJWK,
-		}.SignJWT(context.Background(), nil, nil, "123")
+		}.SignJWT(audit.TestContext(), nil, nil, "123")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, signedJWT)
 	})
 	t.Run("unknown key", func(t *testing.T) {
 		_, err := MemoryJWTSigner{
 			Key: privateKeyJWK,
-		}.SignJWT(context.Background(), nil, nil, "456")
+		}.SignJWT(audit.TestContext(), nil, nil, "456")
 		assert.ErrorIs(t, err, ErrPrivateKeyNotFound)
 	})
 }

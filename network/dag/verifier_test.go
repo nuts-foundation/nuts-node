@@ -73,8 +73,9 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 
 		// malformed TX with LC = 2
 		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
-		signer := nutsCrypto.NewTestKey("1")
-		signedTransaction, _ := NewTransactionSigner(nutsCrypto.NewMemoryCryptoInstance(), signer, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+		cryptoInstance := nutsCrypto.NewMemoryCryptoInstance()
+		key, _ := cryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key"))
+		signedTransaction, _ := NewTransactionSigner(cryptoInstance, key, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 
 		_ = testState.db.Read(ctx, func(dbTx stoabs.ReadTx) error {
 			err := NewPrevTransactionsVerifier()(dbTx, signedTransaction)

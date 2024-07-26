@@ -25,6 +25,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"net/http"
 	"testing"
 
@@ -32,7 +33,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,7 +53,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	}
 	didDocument := did.Document{ID: holderDID}
 	vmId := did.MustParseDIDURL(webDID.String() + "#key1")
-	key := cryptoNuts.NewTestKey(vmId.String())
+	key, _ := spi.GenerateKeyPair()
 	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, webDID, key.Public())
 	didDocument.AddAssertionMethod(vm)
 	dpopToken := dpop.New(*request)
