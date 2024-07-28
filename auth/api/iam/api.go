@@ -883,11 +883,22 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 }
 
 // createOAuth2BaseURL creates an OAuth2 base URL for an owned did:web DID
-// It creates a URL in the following format: https://<did:web host>/oauth2/<did>
+// It creates a URL in the following format: https://<did:web host>/<base path>/oauth2/<did>
 func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	didURL, err := didweb.DIDToURL(webDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DID to URL: %w", err)
 	}
-	return didURL.Parse("/oauth2/" + webDID.String())
+	// Part until /iam/<webDID> is the base path, which we need to prepend
+	tenantIdx := strings.Index(didURL.Path, "/iam/")
+	var basePath string
+	if tenantIdx != -1 {
+		basePath = didURL.Path[:tenantIdx]
+	}
+	result, err := didURL.Parse("/")
+	if err != nil {
+		return nil, err
+	}
+	result = result.JoinPath(basePath, "oauth2", webDID.String())
+	return result, err
 }
