@@ -20,7 +20,7 @@ require (
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
-	github.com/lestrrat-go/jwx/v2 v2.1.0
+	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/mr-tron/base58 v1.2.0
@@ -132,7 +132,7 @@ require (
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc v1.0.5 // indirect
+	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
