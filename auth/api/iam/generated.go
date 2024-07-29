@@ -541,9 +541,6 @@ func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
-	// (GET /.well-known/oauth-authorization-server)
-	RootOAuthAuthorizationServerMetadata(ctx echo.Context) error
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
 	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx echo.Context, did string) error
@@ -606,17 +603,6 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
-}
-
-// RootOAuthAuthorizationServerMetadata converts echo context to params.
-func (w *ServerInterfaceWrapper) RootOAuthAuthorizationServerMetadata(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RootOAuthAuthorizationServerMetadata(ctx)
-	return err
 }
 
 // OAuthAuthorizationServerMetadata converts echo context to params.
@@ -990,7 +976,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/.well-known/oauth-authorization-server", wrapper.RootOAuthAuthorizationServerMetadata)
 	router.GET(baseURL+"/.well-known/oauth-authorization-server/oauth2/:did", wrapper.OAuthAuthorizationServerMetadata)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
@@ -1010,43 +995,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/oauth2/:did/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
 
-}
-
-type RootOAuthAuthorizationServerMetadataRequestObject struct {
-}
-
-type RootOAuthAuthorizationServerMetadataResponseObject interface {
-	VisitRootOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error
-}
-
-type RootOAuthAuthorizationServerMetadata200JSONResponse OAuthAuthorizationServerMetadata
-
-func (response RootOAuthAuthorizationServerMetadata200JSONResponse) VisitRootOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type RootOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response RootOAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse) VisitRootOAuthAuthorizationServerMetadataResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type OAuthAuthorizationServerMetadataRequestObject struct {
@@ -1707,9 +1655,6 @@ func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusL
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get the OAuth2 Authorization Server metadata of a root did:web DID.
-	// (GET /.well-known/oauth-authorization-server)
-	RootOAuthAuthorizationServerMetadata(ctx context.Context, request RootOAuthAuthorizationServerMetadataRequestObject) (RootOAuthAuthorizationServerMetadataResponseObject, error)
 	// Get the OAuth2 Authorization Server metadata for the specified DID.
 	// (GET /.well-known/oauth-authorization-server/oauth2/{did})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
@@ -1779,29 +1724,6 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
-}
-
-// RootOAuthAuthorizationServerMetadata operation middleware
-func (sh *strictHandler) RootOAuthAuthorizationServerMetadata(ctx echo.Context) error {
-	var request RootOAuthAuthorizationServerMetadataRequestObject
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RootOAuthAuthorizationServerMetadata(ctx.Request().Context(), request.(RootOAuthAuthorizationServerMetadataRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RootOAuthAuthorizationServerMetadata")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(RootOAuthAuthorizationServerMetadataResponseObject); ok {
-		return validResponse.VisitRootOAuthAuthorizationServerMetadataResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
 }
 
 // OAuthAuthorizationServerMetadata operation middleware
