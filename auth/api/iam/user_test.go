@@ -61,14 +61,14 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		Role: "Caregiver",
 	}
 	redirectSession := RedirectSession{
-		OwnDID: walletDID,
+		SubjectID: holderSubjectID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:               "first second",
 				PreauthorizedUser:   &userDetails,
-				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
+				AuthorizationServer: "https://example.com/oauth2/verifier",
 			},
-			Did: walletDID.String(),
+			Subject: holderSubjectID,
 		},
 	}
 
@@ -99,7 +99,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, userSession := user.CreateTestSession(context.Background(), walletDID)
+		requestCtx, userSession := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
@@ -115,7 +115,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return &t, nil
 		})
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(webDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+		ctx.jar.EXPECT().Create(holderDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims
 
@@ -188,7 +188,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, _ := user.CreateTestSession(context.Background(), walletDID)
+		requestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
@@ -203,7 +203,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	httpRequest := &http.Request{Host: "example.com"}
-	session, _ := user.CreateTestSession(audit.TestContext(), walletDID)
+	session, _ := user.CreateTestSession(audit.TestContext(), holderSubjectID)
 	httpRequest = httpRequest.WithContext(session)
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -222,7 +222,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
@@ -239,7 +239,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})

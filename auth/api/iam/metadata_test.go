@@ -21,7 +21,6 @@ package iam
 import (
 	"testing"
 
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
@@ -31,13 +30,14 @@ import (
 
 func Test_authorizationServerMetadata(t *testing.T) {
 	presentationDefinitionURISupported := true
-	didExample := did.MustParseDID("did:example:test")
 	baseExpected := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                      "openid4vp:",
+		AuthorizationEndpoint:                      "https://example.com/oauth2/subby/authorize",
+		TokenEndpoint:                              "https://example.com/oauth2/subby/token",
+		PresentationDefinitionEndpoint:             "https://example.com/oauth2/subby/presentation_definition",
 		ClientIdSchemesSupported:                   []string{"did"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
-		Issuer:                                     "https://example.com/oauth2/" + didExample.String(),
+		Issuer:                                     "https://example.com/oauth2/" + subjectID,
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		RequireSignedRequestObject:                 true,
@@ -48,22 +48,20 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	t.Run("base", func(t *testing.T) {
-		md := authorizationServerMetadata(test.MustParseURL("https://example.com/oauth2/" + didExample.String()))
+		md := authorizationServerMetadata(test.MustParseURL("https://example.com/oauth2/" + subjectID))
 		assert.Equal(t, baseExpected, md)
 	})
 	t.Run("did:web", func(t *testing.T) {
-		didWeb := did.MustParseDID("did:web:example.com:iam:123")
-		oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
+		issuerURL := test.MustParseURL("https://example.com/oauth2/123")
 
 		webExpected := baseExpected
-		webExpected.Issuer = oauth2Base.String()
-		webExpected.AuthorizationEndpoint = oauth2Base.String() + "/authorize"
-		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
-		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
+		webExpected.Issuer = issuerURL.String()
+		webExpected.AuthorizationEndpoint = issuerURL.String() + "/authorize"
+		webExpected.PresentationDefinitionEndpoint = issuerURL.String() + "/presentation_definition"
+		webExpected.TokenEndpoint = issuerURL.String() + "/token"
 
-		md, err := authorizationServerMetadata(didWeb, oauth2Base)
-		assert.NoError(t, err)
-		assert.Equal(t, webExpected, *md)
+		md := authorizationServerMetadata(issuerURL)
+		assert.Equal(t, webExpected, md)
 	})
 }
 
