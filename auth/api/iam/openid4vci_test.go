@@ -37,6 +37,8 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
+var holderSubjectID = "holder"
+
 func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 	redirectURI := "https://test.test/iam/123/cb"
 	authServer := "https://auth.server/"
@@ -56,7 +58,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
-			Did: holderDID.String(),
+			Subject: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
 				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
 				Issuer:               issuerURL,
@@ -71,7 +73,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "/authorize", redirectUri.Path)
 		assert.True(t, redirectUri.Query().Has("state"))
 		assert.True(t, redirectUri.Query().Has("code_challenge"))
-		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder/callback", redirectUri.Query().Get("redirect_uri"))
+		assert.Equal(t, "https://example.com/oauth2/holder/callback", redirectUri.Query().Get("redirect_uri"))
 		assert.Equal(t, holderDID.String(), redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
@@ -129,19 +131,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 		assert.EqualError(t, err, "issuer is empty")
 	})
-	t.Run("error - requester not a did:web", func(t *testing.T) {
-		req := requestCredentials(holderDID, issuerURL, redirectURI)
-		didNuts := did.MustParseDID("did:nuts:123")
-		req.Did = didNuts.String()
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, didNuts).Return(true, nil)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
-
-		assert.ErrorContains(t, err, "URL does not represent a Web DID\nunsupported DID method: nuts")
-	})
 	t.Run("error - invalid authorization endpoint in metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
@@ -189,7 +178,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 func requestCredentials(holderDID did.DID, issuer string, redirectURI string) RequestOpenid4VCICredentialIssuanceRequestObject {
 	return RequestOpenid4VCICredentialIssuanceRequestObject{
-		Did: holderDID.String(),
+		Subject: holderSubjectID,
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
 			Issuer:      issuer,
 			RedirectUri: redirectURI,
@@ -198,7 +187,7 @@ func requestCredentials(holderDID did.DID, issuer string, redirectURI string) Re
 }
 
 func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
-	redirectURI := "https://example.com/oauth2/did:web:example.com:iam:holder/callback"
+	redirectURI := "https://example.com/oauth2/holder/callback"
 	authServer := "https://auth.server"
 	tokenEndpoint := authServer + "/token"
 	cNonce := crypto.GenerateNonce()
@@ -212,7 +201,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 	session := OAuthSession{
 		ClientFlow:               "openid4vci_credential_request",
-		OwnDID:                   &holderDID,
+		SubjectDID:               holderDID,
 		RedirectURI:              redirectUrl,
 		PKCEParams:               pkceParams,
 		TokenEndpoint:            tokenEndpoint,
@@ -248,7 +237,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
 		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
-			Did: holderDID.String(),
+			Subject: holderSubjectID,
 			Params: CallbackParams{
 				Code:  to.Ptr(code),
 				State: to.Ptr(state),

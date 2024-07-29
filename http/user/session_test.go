@@ -76,12 +76,12 @@ func TestMiddleware_Handle(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, capturedSession)
-		assert.Equal(t, tenantDID, capturedSession.TenantDID)
+		assert.Equal(t, tenantDID, capturedSession.SubjectID)
 		// Assert stored session
 		var storedSession = new(Session)
 		cookie := httpResponse.Result().Cookies()[0]
 		require.NoError(t, sessionStore.Get(cookie.Value, storedSession))
-		assert.Equal(t, tenantDID, storedSession.TenantDID)
+		assert.Equal(t, tenantDID, storedSession.SubjectID)
 		assert.NotNil(t, capturedSession.Save)
 	})
 	t.Run("ok - existing session", func(t *testing.T) {
@@ -104,7 +104,7 @@ func TestMiddleware_Handle(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, capturedSession)
-		assert.Equal(t, expected.TenantDID, capturedSession.TenantDID)
+		assert.Equal(t, expected.SubjectID, capturedSession.SubjectID)
 		assert.NotNil(t, capturedSession.Save)
 		// Make sure no new cookie is set, which indicates session creation
 		assert.Empty(t, httpResponse.Result().Cookies())
@@ -174,7 +174,7 @@ func TestMiddleware_Handle(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, capturedSession)
-		assert.Equal(t, tenantDID, capturedSession.TenantDID)
+		assert.Equal(t, tenantDID, capturedSession.SubjectID)
 		// Assert stored session
 		assert.Len(t, httpResponse.Result().Cookies(), 1)
 	})
@@ -188,7 +188,7 @@ func TestMiddleware_loadUserSession(t *testing.T) {
 
 		actualID, actualData, err := instance.loadUserSession((*testCookieReader)(&sessionCookie), tenantDID)
 		require.NoError(t, err)
-		assert.Equal(t, expected.TenantDID, actualData.TenantDID)
+		assert.Equal(t, expected.SubjectID, actualData.SubjectID)
 		assert.Equal(t, sessionCookie.Value, actualID)
 	})
 	t.Run("error - no session cookie", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestMiddleware_loadUserSession(t *testing.T) {
 	t.Run("error - session belongs to a different tenant", func(t *testing.T) {
 		instance, sessionStore := createInstance(t)
 		expected, _ := createUserSession(tenantDID, time.Hour)
-		expected.TenantDID = did.MustParseDID("did:web:someone-else")
+		expected.SubjectID = did.MustParseDID("did:web:someone-else")
 		_ = sessionStore.Put(sessionCookie.Value, expected)
 
 		_, actual, err := instance.loadUserSession((*testCookieReader)(&sessionCookie), tenantDID)
@@ -221,7 +221,7 @@ func TestMiddleware_loadUserSession(t *testing.T) {
 	t.Run("error - expired", func(t *testing.T) {
 		instance, sessionStore := createInstance(t)
 		expected := Session{
-			TenantDID: tenantDID,
+			SubjectID: tenantDID,
 			Wallet: Wallet{
 				DID: userDID,
 			},

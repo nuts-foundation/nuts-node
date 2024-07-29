@@ -20,12 +20,11 @@ package user
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did/did"
 	"time"
 )
 
-func CreateTestSession(ctx context.Context, tenantDID did.DID) (context.Context, *Session) {
-	session, _ := createUserSession(tenantDID, time.Hour)
+func CreateTestSession(ctx context.Context, subjectID string) (context.Context, *Session) {
+	session, _ := createUserSession(subjectID, time.Hour)
 	session.Save = func() error {
 		return nil
 	}

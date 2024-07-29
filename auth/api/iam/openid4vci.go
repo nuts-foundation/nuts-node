@@ -48,9 +48,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, core.InvalidInputError("missing request body")
 	}
 	// Parse and check the requester
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	if err := r.subjectExists(ctx, request.Subject); err != nil {
+		return nil, err
+	}
+	// TODO: Might have to filter DIDs based on the DID methods the issuer supports
+	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
-		return nil, core.NotFoundError("requester DID: %w", err)
+		return nil, err
 	}
 
 	// Parse the issuer
@@ -82,15 +86,12 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	redirectUri, err := createOAuth2BaseURL(*requestHolder)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
-	}
-	redirectUri = redirectUri.JoinPath(oauth.CallbackPath)
+	redirectUri := r.createOAuth2BaseURL(request.Subject).JoinPath(oauth.CallbackPath)
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		ClientFlow:  credentialRequestClientFlow,
-		OwnDID:      requestHolder,
+		SubjectDID:  *requestHolder,
+		SubjectID:   request.Subject,
 		RedirectURI: request.Body.RedirectUri,
 		PKCEParams:  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
@@ -128,20 +129,20 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
-	checkURL, err := createOAuth2BaseURL(*oauthSession.OwnDID)
+	checkURL := r.createOAuth2BaseURL(oauthSession.SubjectID).JoinPath(oauth.CallbackPath)
+	subjectDID, err := r.selectDID(ctx, oauthSession.SubjectID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
+		return nil, err
 	}
-	checkURL = checkURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, false)
+	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *subjectDID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
 	// make proof and collect credential
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
+	proofJWT, err := r.openid4vciProof(ctx, oauthSession.SubjectDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
