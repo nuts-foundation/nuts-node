@@ -50,7 +50,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	// Parse and check the requester
 	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
-		return nil, core.NotFoundError("requester DID: %w", err)
+		return nil, err
 	}
 
 	// Parse the issuer
