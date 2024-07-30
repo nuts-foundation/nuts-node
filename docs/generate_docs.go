@@ -111,7 +111,11 @@ func generateServerOptions(system *core.System) {
 			return strings.HasPrefix(f.Name, "events.")
 		},
 		func(f *pflag.Flag) bool {
-			return strings.HasPrefix(f.Name, "auth.")
+			// Auth engine
+			return strings.HasPrefix(f.Name, "auth.irma") ||
+				strings.HasPrefix(f.Name, "auth.clockskew") ||
+				strings.HasPrefix(f.Name, "auth.contractvalidators") ||
+				strings.HasPrefix(f.Name, "auth.accesstokenlifespan")
 		},
 		func(f *pflag.Flag) bool {
 			return strings.HasPrefix(f.Name, "tls.")

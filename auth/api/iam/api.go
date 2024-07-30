@@ -71,8 +71,6 @@ type httpRequestContextKey struct{}
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-const oid4vciSessionValidity = 15 * time.Minute
-
 // cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
 var cacheControlMaxAgeURLs = []string{
 	"/oauth2/:did/presentation_definition",
@@ -241,6 +239,13 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
+	if !r.auth.AuthorizationEndpointEnabled() {
+		// Callback endpoint is only used by flows initiated through the authorization endpoint.
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "callback endpoint is disabled",
+		}
+	}
 	// validate request
 	// check did in path
 	ownDID, err := r.toOwnedDID(ctx, request.Did)
@@ -419,6 +424,12 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
+	if !r.auth.AuthorizationEndpointEnabled() {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "authorization endpoint is disabled",
+		}
+	}
 	ownDID, err := r.toOwnedDIDForOAuth2(ctx, request.Did)
 	if err != nil {
 		return nil, err
@@ -601,6 +612,9 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ownDID *did.DID) (*oauth.Autho
 		return nil, err
 	}
 	md := authorizationServerMetadata(*ownDID, issuerURL)
+	if !r.auth.AuthorizationEndpointEnabled() {
+		md.AuthorizationEndpoint = ""
+	}
 	return &md, nil
 }
 
