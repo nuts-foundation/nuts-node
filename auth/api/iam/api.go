@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -71,8 +72,6 @@ type httpRequestContextKey struct{}
 // TODO: Might want to make this configurable at some point
 const accessTokenValidity = 15 * time.Minute
 
-const oid4vciSessionValidity = 15 * time.Minute
-
 // cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
 var cacheControlMaxAgeURLs = []string{
 	"/oauth2/:did/presentation_definition",
@@ -93,19 +92,20 @@ var assetsFS embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	auth          auth.AuthenticationServices
-	policyBackend policy.PDPBackend
-	storageEngine storage.Engine
-	jsonldManager jsonld.JSONLD
-	vcr           vcr.VCR
-	vdr           vdr.VDR
-	jwtSigner     nutsCrypto.JWTSigner
-	keyResolver   resolver.KeyResolver
-	jar           JAR
+	auth           auth.AuthenticationServices
+	policyBackend  policy.PDPBackend
+	storageEngine  storage.Engine
+	jsonldManager  jsonld.JSONLD
+	vcr            vcr.VCR
+	vdr            vdr.VDR
+	subjectManager didsubject.SubjectManager
+	jwtSigner      nutsCrypto.JWTSigner
+	keyResolver    resolver.KeyResolver
+	jar            JAR
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assetsFS, "assets/*.html")
@@ -113,14 +113,15 @@ func New(
 		panic(err)
 	}
 	return &Wrapper{
-		auth:          authInstance,
-		policyBackend: policyBackend,
-		storageEngine: storageEngine,
-		vcr:           vcrInstance,
-		vdr:           vdrInstance,
-		jsonldManager: jsonldManager,
-		jwtSigner:     jwtSigner,
-		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
+		auth:           authInstance,
+		policyBackend:  policyBackend,
+		storageEngine:  storageEngine,
+		vcr:            vcrInstance,
+		vdr:            vdrInstance,
+		subjectManager: subjectManager,
+		jsonldManager:  jsonldManager,
+		jwtSigner:      jwtSigner,
+		keyResolver:    resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
 		jar: &jar{
 			auth:        authInstance,
 			jwtSigner:   jwtSigner,
@@ -904,7 +905,7 @@ func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
 
 // subjectExists checks whether the given subject is known on the local node.
 func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
-	dids, err := r.vdr.List(ctx, subjectID)
+	dids, err := r.subjectManager.List(ctx, subjectID)
 	if err != nil {
 		return false, err
 	}
@@ -918,7 +919,7 @@ func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID d
 
 func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, error) {
 	// TODO: List() should return the DIDs in preferred order?
-	dids, err := r.vdr.List(ctx, subjectID)
+	dids, err := r.subjectManager.List(ctx, subjectID)
 	if err != nil {
 		return nil, err
 	}

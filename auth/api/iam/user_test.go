@@ -42,17 +42,7 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var walletDID = did.MustParseDID("did:web:example.com:iam:123")
-var userDID = did.MustParseDID("did:jwk:really-a-jwk")
-
-var sessionCookie = http.Cookie{
-	Name:     "__Host-SID",
-	Value:    "sessionID",
-	Path:     "/",
-	Secure:   true,
-	HttpOnly: true,
-	SameSite: http.SameSiteStrictMode,
-}
+var walletDID = did.MustParseDID("did:web:example.com:iam:holder")
 
 func TestWrapper_handleUserLanding(t *testing.T) {
 	userDetails := UserDetails{
@@ -68,7 +58,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 				PreauthorizedUser:   &userDetails,
 				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
 			},
-			Did: walletDID.String(),
+			Subject: holderSubjectID,
 		},
 	}
 
@@ -93,7 +83,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Aholder&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		httpRequest := &http.Request{
@@ -115,7 +105,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return &t, nil
 		})
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(webDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+		ctx.jar.EXPECT().Create(walletDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims
 

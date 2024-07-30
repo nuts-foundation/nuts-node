@@ -48,7 +48,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, core.InvalidInputError("missing request body")
 	}
 	// Parse and check the requester
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, core.NotFoundError("requester DID: %w", err)
 	}

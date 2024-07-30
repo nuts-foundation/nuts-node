@@ -67,11 +67,12 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var rootWebDID = did.MustParseDID("did:web:example.com")
-var rootURL = test.MustParseURL("https://example.com/oauth2/" + rootWebDID.String())
 var webDID = did.MustParseDID("did:web:example.com:iam:123")
 var verifierDID = did.MustParseDID("did:web:example.com:iam:verifier")
 var verifierURL = test.MustParseURL("https://example.com/oauth2/" + verifierDID.String())
+
+const holderSubjectID = "subby"
+const unknownSubjectID = "unknown"
 
 func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -841,7 +842,6 @@ func TestWrapper_toOwnedDID(t *testing.T) {
 }
 
 func TestWrapper_RequestServiceAccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	verifierURL := test.MustParseURL("https://test.test/oauth2/did:web:test.test:iam:456")
 	body := &RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: verifierURL.String(),
@@ -850,10 +850,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 		require.NoError(t, err)
 	})
@@ -865,35 +864,24 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			Scope:               "first second",
 			TokenType:           &tokenTypeBearer,
 		}
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", false, nil).Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 		require.NoError(t, err)
 	})
-	t.Run("error - DID not owned", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(false, nil)
-
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
-
-		require.Error(t, err)
-		assert.EqualError(t, err, "DID document not managed by this node")
-	})
-	t.Run("error - invalid DID", func(t *testing.T) {
+	t.Run("error - unknown subject", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: "invalid", Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: "unknown", Body: body})
 
-		require.EqualError(t, err, "invalid DID: invalid DID")
+		require.EqualError(t, err, "subject not found")
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 		require.Error(t, err)
 		assert.Equal(t, err, holder.ErrNoCredentials)
@@ -902,7 +890,6 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 }
 
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:web:test.test:iam:123")
 	tokenType := UserAccessTokenRequestTokenType("dpop")
 	userDetails := UserDetails{
 		Id:   "test",
@@ -920,15 +907,14 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).Return(true, nil)
 
-		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 		// assert token
 		require.NoError(t, err)
 		redirectResponse, ok := response.(RequestUserAccessToken200JSONResponse)
 		assert.True(t, ok)
-		assert.Contains(t, redirectResponse.RedirectUri, "https://test.test/oauth2/"+walletDID.String()+"/user?token=")
+		assert.Contains(t, redirectResponse.RedirectUri, "https://example.com/oauth2/"+walletDID.String()+"/user?token=")
 
 		// assert session
 		var target RedirectSession
@@ -956,7 +942,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user")
 		})
@@ -968,7 +954,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.id")
 		})
@@ -980,7 +966,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.name")
 		})
@@ -992,18 +978,18 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: walletDID.String(), Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.role")
 		})
 	})
 
-	t.Run("error - invalid DID", func(t *testing.T) {
+	t.Run("error - unknown subject", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Did: "invalid", Body: body})
+		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: "unknown", Body: body})
 
-		require.EqualError(t, err, "invalid DID: invalid DID")
+		require.EqualError(t, err, "subject not found")
 	})
 }
 
@@ -1464,6 +1450,7 @@ func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
 	iamClient := iam.NewMockClient(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
+	subjectManager := didsubject.NewMockSubjectManager(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)
@@ -1478,6 +1465,9 @@ func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
+
+	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
+	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, nil).AnyTimes()
 
 	return &testCtx{
 		ctrl:          ctrl,
@@ -1496,14 +1486,15 @@ func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
 		jwtSigner:     jwtSigner,
 		jar:           mockJAR,
 		client: &Wrapper{
-			auth:          authnServices,
-			vdr:           mockVDR,
-			vcr:           mockVCR,
-			storageEngine: storageEngine,
-			policyBackend: policyInstance,
-			keyResolver:   keyResolver,
-			jwtSigner:     jwtSigner,
-			jar:           mockJAR,
+			auth:           authnServices,
+			vdr:            mockVDR,
+			subjectManager: subjectManager,
+			vcr:            mockVCR,
+			storageEngine:  storageEngine,
+			policyBackend:  policyInstance,
+			keyResolver:    keyResolver,
+			jwtSigner:      jwtSigner,
+			jar:            mockJAR,
 		},
 	}
 }
