@@ -85,6 +85,22 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
 	})
 
+	t.Run("base URL (prepended before /iam)", func(t *testing.T) {
+		var webDID = did.MustParseDID("did:web:example.com:base:iam:123")
+		//	200
+		baseURL := test.MustParseURL("https://example.com/base")
+		ctx := newTestClientWithBaseURL(t, baseURL)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
+
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
+
+		require.NoError(t, err)
+		require.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
+		md := res.(OAuthAuthorizationServerMetadata200JSONResponse)
+		assert.Equal(t, "https://example.com/base/oauth2/did:web:example.com:base:iam:123", md.Issuer)
+		assert.Equal(t, "https://example.com/base/oauth2/did:web:example.com:base:iam:123/presentation_definition", md.PresentationDefinitionEndpoint)
+	})
+
 	t.Run("error - DID not managed by this node", func(t *testing.T) {
 		//404
 		ctx := newTestClient(t)
@@ -1285,6 +1301,14 @@ func Test_createOAuth2BaseURL(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, actual)
 		assert.Equal(t, "https://example.com/oauth2/did:web:example.com:iam:holder", actual.String())
+	})
+	t.Run("with non-root base path", func(t *testing.T) {
+		webDID := did.MustParseDID("did:web:example.com:tenant1:iam:holder")
+		actual, err := createOAuth2BaseURL(webDID)
+
+		require.NoError(t, err)
+		require.NotNil(t, actual)
+		assert.Equal(t, "https://example.com/tenant1/oauth2/did:web:example.com:tenant1:iam:holder", actual.String())
 	})
 	t.Run("did:web with port", func(t *testing.T) {
 		const didAsString = "did:web:example.com%3A8080:iam:holder"
