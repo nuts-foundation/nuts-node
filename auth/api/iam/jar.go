@@ -62,7 +62,9 @@ type JAR interface {
 	Sign(ctx context.Context, claims oauthParameters) (string, error)
 	// Parse and validate an incoming authorization request.
 	// Requests that do not conform to RFC9101 or OpenID4VP result in an error.
-	Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error)
+	// The ownMetadata parameter is used when the request contains a request_uri, and it is fetched using HTTP POST;
+	// in that case, the metadata is posted to the Authorization Server.
+	Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error)
 }
 
 func (j jar) Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
@@ -108,7 +110,7 @@ func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId.String())
 }
 
-func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error) {
+func (j jar) Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error) {
 	var rawRequestObject string
 	var err error
 	if rawRequestObject = q.Get(oauth.RequestParam); rawRequestObject != "" {
@@ -123,13 +125,7 @@ func (j jar) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthPara
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}
 		case "post":
-			issuerURL := ownDID.URI().URL
-			md, err := authorizationServerMetadata(ownDID, &issuerURL)
-			if err != nil {
-				// DB error
-				return nil, err
-			}
-			rawRequestObject, err = j.auth.IAMClient().RequestObjectByPost(ctx, requestURI, *md)
+			rawRequestObject, err = j.auth.IAMClient().RequestObjectByPost(ctx, requestURI, ownMetadata)
 			if err != nil {
 				return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestURI, Description: "failed to get Request Object", InternalError: err}
 			}

@@ -117,13 +117,14 @@ func TestJar_Parse(t *testing.T) {
 	token := string(bytes)
 	walletIssuerURL := test.MustParseURL(walletDID.String())
 	ctx := newJarTestCtx(t)
+	verifierMetadata := authorizationServerMetadata(verifierDID, verifierURL)
 	t.Run("request_uri_method", func(t *testing.T) {
 
 		t.Run("ok - get", func(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
 					oauth.RequestURIParam:       {"request_uri"},
@@ -137,7 +138,7 @@ func TestJar_Parse(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
 					oauth.RequestURIParam:       {"request_uri"},
@@ -148,11 +149,11 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - post", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(walletDID, walletIssuerURL)
-			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return(token, nil)
+			md := authorizationServerMetadata(walletDID, walletIssuerURL)
+			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-			res, err := ctx.jar.Parse(context.Background(), walletDID,
+			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
 					oauth.RequestURIParam:       {"request_uri"},
@@ -163,7 +164,7 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("error - unsupported method", func(t *testing.T) {
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
 					oauth.RequestURIParam:       {"request_uri"},
@@ -177,7 +178,7 @@ func TestJar_Parse(t *testing.T) {
 	t.Run("ok - 'request'", func(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.ClientIDParam: {holderDID.String()},
 				oauth.RequestParam:  {token},
@@ -189,7 +190,7 @@ func TestJar_Parse(t *testing.T) {
 	t.Run("server error", func(t *testing.T) {
 		t.Run("get", func(t *testing.T) {
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return("", errors.New("server error"))
-			res, err := ctx.jar.Parse(context.Background(), verifierDID,
+			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
 					oauth.RequestURIParam: {"request_uri"},
 				})
@@ -198,9 +199,9 @@ func TestJar_Parse(t *testing.T) {
 			assert.Nil(t, res)
 		})
 		t.Run("post (made by wallet)", func(t *testing.T) {
-			md, _ := authorizationServerMetadata(walletDID, walletIssuerURL)
-			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", *md).Return("", errors.New("server error"))
-			res, err := ctx.jar.Parse(context.Background(), walletDID,
+			md := authorizationServerMetadata(walletDID, walletIssuerURL)
+			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return("", errors.New("server error"))
+			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
 					oauth.RequestURIParam:       {"request_uri"},
 					oauth.RequestURIMethodParam: {"post"},
@@ -211,7 +212,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 	})
 	t.Run("error - both 'request' and 'request_uri'", func(t *testing.T) {
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.RequestParam:    {"request"},
 				oauth.RequestURIParam: {"request_uri"},
@@ -221,13 +222,13 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - no 'request' or 'request_uri'", func(t *testing.T) {
-		res, err := ctx.jar.Parse(context.Background(), verifierDID, map[string][]string{})
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata, map[string][]string{})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "authorization request are required to use signed request objects (RFC9101)")
 		assert.Nil(t, res)
 	})
 	t.Run("error - request signature validation failed", func(t *testing.T) {
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.ClientIDParam: {"invalid"},
 				oauth.RequestParam:  {"invalid"},
@@ -239,7 +240,7 @@ func TestJar_Parse(t *testing.T) {
 	t.Run("error - client_id does not match", func(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.ClientIDParam: {"invalid"},
 				oauth.RequestParam:  {token},
@@ -256,7 +257,7 @@ func TestJar_Parse(t *testing.T) {
 		require.NoError(t, err)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
-		res, err := ctx.jar.Parse(context.Background(), verifierDID,
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.ClientIDParam: {verifierDID.String()},
 				oauth.RequestParam:  {string(bytes)},

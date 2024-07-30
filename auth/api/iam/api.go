@@ -433,8 +433,12 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 // The caller must ensure ownDID is actually owned by this node.
 func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
+	metadata, err := r.oauthAuthorizationServerMetadata(ctx, ownDID.String())
+	if err != nil {
+		return nil, err
+	}
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.jar.Parse(ctx, ownDID, request.Query())
+	requestObject, err := r.jar.Parse(ctx, *metadata, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
@@ -596,7 +600,8 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsStri
 	if err != nil {
 		return nil, err
 	}
-	return authorizationServerMetadata(*ownDID, issuerURL)
+	md := authorizationServerMetadata(*ownDID, issuerURL)
+	return &md, nil
 }
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
