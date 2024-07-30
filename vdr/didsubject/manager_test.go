@@ -28,12 +28,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -101,7 +99,7 @@ func TestManager_Create(t *testing.T) {
 
 		_, _, err = m.Create(audit.TestContext(), opts)
 
-		require.ErrorIs(t, err, ErrDIDAlreadyExists)
+		require.ErrorIs(t, err, ErrSubjectAlreadyExists)
 	})
 }
 
@@ -213,7 +211,7 @@ func TestManager_Deactivate(t *testing.T) {
 		}}
 
 		err := m.Deactivate(ctx, "subject")
-		require.ErrorIs(t, err, resolver.ErrNotFound)
+		require.ErrorIs(t, err, ErrSubjectNotFound)
 	})
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
