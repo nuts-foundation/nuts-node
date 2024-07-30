@@ -64,6 +64,7 @@ type DocumentManager interface {
 	Update(ctx context.Context, id did.DID, next did.Document) error
 
 	// RemoveVerificationMethod removes a VerificationMethod from a DID document.
+	// Deprecated: only relevant for v1 API calls.
 	// It accepts the id DID as identifier for the DID document.
 	// It accepts the kid DID as identifier for the VerificationMethod.
 	// It returns an ErrNotFound when the DID document could not be found.

@@ -29,7 +29,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -103,7 +102,7 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		}
 	}
 	if vm == nil {
-		return nil, resolver.ErrNotFound
+		return nil, fmt.Errorf("verification method added for subject: %s but not for DID: %s, do not use the V1 API for non-nuts DIDs", request.Did, request.Did)
 	}
 
 	return AddNewVerificationMethod200JSONResponse(*vm), nil
@@ -143,7 +142,7 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 	}
 	var doc *did.Document
 	for _, m := range docs {
-		if strings.HasPrefix(m.ID.String(), "did:nuts:") {
+		if m.ID.Method == "nuts" {
 			doc = &m
 			break
 		}
