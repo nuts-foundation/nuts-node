@@ -61,16 +61,6 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 			oauth.CodeChallengeMethodParam: "S256",
 		}
 	}
-
-	t.Run("invalid client_id", func(t *testing.T) {
-		ctx := newTestClient(t)
-		params := defaultParams()
-		params[oauth.ClientIDParam] = "did:nuts:1"
-
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)")
-	})
 	t.Run("invalid redirect_uri", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -98,18 +88,6 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/did:web:example.com:iam:verifier, was: ")
 	})
-	t.Run("missing did in supported_client_id_schemes", func(t *testing.T) {
-		ctx := newTestClient(t)
-		params := defaultParams()
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&oauth.AuthorizationServerMetadata{
-			AuthorizationEndpoint:    "http://example.com",
-			ClientIdSchemesSupported: []string{"not_did"},
-		}, nil)
-
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
-
-		requireOAuthError(t, err, oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported")
-	})
 	t.Run("missing code_challenge", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -122,10 +100,6 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("unknown scope", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&oauth.AuthorizationServerMetadata{
-			AuthorizationEndpoint:    "http://example.com",
-			ClientIdSchemesSupported: []string{"did"},
-		}, nil)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{}, policy.ErrNotFound)
 		params := defaultParams()
 		params[oauth.ScopeParam] = "unknown"
@@ -143,21 +117,13 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
 	})
-	t.Run("error on authorization server metadata", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(nil, assert.AnError)
-
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, defaultParams())
-
-		requireOAuthError(t, err, oauth.ServerError, "failed to get metadata from wallet")
-	})
 	t.Run("failed to generate authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderURL).Return(&oauth.AuthorizationServerMetadata{
 			ClientIdSchemesSupported: []string{didClientIDScheme},
-		}, nil).Times(2)
+		}, nil)
 
 		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
 
@@ -421,7 +387,6 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			session := OAuthSession{
 				SessionID:         "token",
 				OwnDID:            &verifierDID,
-				IssuerURL:         verifierURL.String(),
 				ClientID:          holderDID.String(),
 				RedirectURI:       "https://example.com/iam/holder/cb",
 				Scope:             "test",
