@@ -297,7 +297,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ScopeParam:              "test",
 			oauth.StateParam:              "state",
 		}
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil).Times(2)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), gomock.Any()).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromVerifier
