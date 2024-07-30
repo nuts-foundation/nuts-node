@@ -83,7 +83,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Aholder&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Aholder&request_uri=https://example.com/oauth2/" + walletDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		httpRequest := &http.Request{
@@ -123,7 +123,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 		// check for issued EmployeeCredential in session wallet
 		require.NoError(t, err)
-		assert.Equal(t, walletDID, userSession.TenantDID)
+		require.Equal(t, walletDID, userSession.TenantDID)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
