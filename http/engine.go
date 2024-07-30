@@ -20,7 +20,6 @@ package http
 
 import (
 	"context"
-	"crypto"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -29,19 +28,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
-	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 )
-
-// AdminTokenSigningKID returns the KID of the signing key used to sign the admin token.
-const AdminTokenSigningKID = "admin-token-signing-key"
 
 const moduleName = "HTTP"
 
@@ -229,26 +222,6 @@ func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, con
 	case "":
 		return nil
 
-	// The legacy authentication middleware
-	case BearerTokenAuth:
-		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
-		signingPublicKey, signingKeyLookupErr := h.getLegacyTokenAuthKey()
-		echoServer.Use(echojwt.WithConfig(echojwt.Config{
-			KeyFunc: func(*jwt.Token) (interface{}, error) {
-				return signingPublicKey, signingKeyLookupErr
-			},
-			Skipper: skipper,
-			SuccessHandler: func(c echo.Context) {
-				// Replace user in context, which now contains the validated JWT token, with the name of the user.
-				// This is easier for logging.
-				token := c.Get(core.UserContextKey).(*jwt.Token)
-				c.Set(core.UserContextKey, token.Claims.(jwt.MapClaims)["sub"])
-			},
-			ContextKey:    core.UserContextKey,
-			SigningMethod: jwa.ES256.String(),
-		}))
-
-	// The V2 bearer token authentication middleware
 	case BearerTokenAuthV2:
 		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
 
@@ -279,13 +252,4 @@ func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, con
 	}
 
 	return nil
-}
-
-func (h Engine) getLegacyTokenAuthKey() (crypto.PublicKey, error) {
-	key, err := h.signingKeyResolver.Resolve(context.Background(), AdminTokenSigningKID)
-	if err != nil {
-		log.Logger().Errorf("Unable to resolve legacy token authentication key '%s', authentication will always fail.", AdminTokenSigningKID)
-		return nil, err
-	}
-	return key.Public(), nil
 }

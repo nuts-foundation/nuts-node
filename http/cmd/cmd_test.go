@@ -19,48 +19,11 @@
 package cmd
 
 import (
-	"bytes"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/stretchr/testify/require"
-	"regexp"
-	"strconv"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestFlagSet(t *testing.T) {
 	flags := FlagSet()
 	assert.NotEmpty(t, flags)
-}
-
-func TestGenToken(t *testing.T) {
-	const daysValid = 365
-	testDirectory := io.TestDirectory(t)
-	t.Setenv("NUTS_DATADIR", testDirectory)
-	t.Setenv("NUTS_CRYPTO_STORAGE", "fs")
-
-	outBuf := new(bytes.Buffer)
-	cmd := ServerCmd()
-	cmd.Commands()[0].Flags().AddFlagSet(core.FlagSet())
-	cmd.SetOut(outBuf)
-	cmd.SetArgs([]string{"gen-token", "admin", strconv.Itoa(daysValid)})
-
-	err := cmd.Execute()
-
-	output := outBuf.String()
-	println(output)
-	assert.NoError(t, err)
-
-	matches := regexp.MustCompile("Token:\n\n(.*)\n").FindStringSubmatch(output)
-	assert.Len(t, matches, 2)
-	token := matches[1]
-	parsedToken, err := jwt.Parse([]byte(token), jwt.WithVerify(false))
-	require.NoError(t, err)
-	assert.Less(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid+1))
-	assert.Greater(t, parsedToken.Expiration(), time.Now().AddDate(0, 0, daysValid-1))
-	assert.Equal(t, "admin", parsedToken.Subject())
 }

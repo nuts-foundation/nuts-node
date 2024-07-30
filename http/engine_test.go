@@ -20,11 +20,7 @@ package http
 
 import (
 	"bytes"
-	"context"
-	"crypto/ecdsa"
 	"crypto/ed25519"
-	"crypto/elliptic"
-	"crypto/rand"
 	b64 "encoding/base64"
 	"fmt"
 	"io"
@@ -40,14 +36,12 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -76,135 +70,6 @@ func TestEngine_Configure(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("middleware", func(t *testing.T) {
-		t.Run("auth", func(t *testing.T) {
-			t.Run("bearer token - signing key not found", func(t *testing.T) {
-				ctrl := gomock.NewController(t)
-				keyResolver := crypto.NewMockKeyResolver(ctrl)
-				keyResolver.EXPECT().Resolve(context.Background(), AdminTokenSigningKID).Return(nil, crypto.ErrPrivateKeyNotFound)
-
-				engine := New(noop, keyResolver)
-				engine.config = createTestConfig()
-				engine.config.Internal.Auth = AuthConfig{
-					Type: BearerTokenAuth,
-				}
-				_ = engine.Configure(*core.NewServerConfig())
-				engine.Router().GET("/", func(c echo.Context) error {
-					return c.String(200, "OK")
-				})
-				_ = engine.Start()
-				defer engine.Shutdown()
-				assertServerStarted(t, engine.config.Internal.Address)
-
-				signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				claims := jwt.New()
-				_ = claims.Set(jwt.SubjectKey, "admin")
-				_ = claims.Set(jwt.ExpirationKey, time.Now().Add(time.Hour))
-				tokenBytes, _ := jwt.Sign(claims, jwt.WithKey(jwa.ES256, signingKey))
-				token := string(tokenBytes)
-
-				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
-				request.Header.Set("Authorization", "Bearer "+token)
-				response, err := http.DefaultClient.Do(request)
-
-				assert.NoError(t, err)
-				assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-			})
-			t.Run("bearer token", func(t *testing.T) {
-				// Create new, valid token
-				signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				claims := jwt.New()
-				_ = claims.Set(jwt.SubjectKey, "admin")
-				_ = claims.Set(jwt.ExpirationKey, time.Now().Add(time.Hour))
-				tokenBytes, _ := jwt.Sign(claims, jwt.WithKey(jwa.ES256, signingKey))
-				token := string(tokenBytes)
-
-				// Create new, invalid token an attacker could use
-				attackerSigningKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				tokenBytes, _ = jwt.Sign(claims, jwt.WithKey(jwa.ES256, attackerSigningKey))
-				attackerToken := string(tokenBytes)
-
-				ctrl := gomock.NewController(t)
-				keyResolver := crypto.NewMockKeyResolver(ctrl)
-				keyResolver.EXPECT().Resolve(context.Background(), AdminTokenSigningKID).Return(crypto.TestKey{
-					PrivateKey: signingKey,
-					Kid:        AdminTokenSigningKID,
-				}, nil).AnyTimes()
-
-				engine := New(noop, keyResolver)
-				engine.config = createTestConfig()
-				engine.config = createTestConfig()
-				engine.config.Internal.Auth = AuthConfig{
-					Type: BearerTokenAuth,
-				}
-				_ = engine.Configure(*core.NewServerConfig())
-				var capturedUser string
-				captureUser := func(c echo.Context) error {
-					userContext := c.Get(core.UserContextKey)
-					if userContext == nil {
-						capturedUser = ""
-						return nil
-					}
-					capturedUser = userContext.(string)
-					return nil
-				}
-				engine.Router().GET(securedPath, captureUser)   // requires auth
-				engine.Router().GET(unsecuredPath, captureUser) // publicly available
-				_ = engine.Start()
-				defer engine.Shutdown()
-
-				assertServerStarted(t, engine.config.Internal.Address)
-
-				t.Run("success - no auth", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Public.Address+unsecuredPath, nil)
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Empty(t, capturedUser)
-				})
-				t.Run("success - auth on default", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
-					request.Header.Set("Authorization", "Bearer "+token)
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusOK, response.StatusCode)
-					assert.Equal(t, "admin", capturedUser)
-				})
-				t.Run("no token", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
-					response, err := http.DefaultClient.Do(request)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
-				})
-				t.Run("invalid token", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
-					response, err := http.DefaultClient.Do(request)
-					request.Header.Set("Authorization", "Bearer invalid")
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
-				})
-				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
-					capturedUser = ""
-					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
-					response, err := http.DefaultClient.Do(request)
-					request.Header.Set("Authorization", "Bearer "+attackerToken)
-
-					assert.NoError(t, err)
-					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
-				})
-			})
-		})
-
 		t.Run("auth-tokenV2", func(t *testing.T) {
 			// Ensure the server can be started and protected without applying a specific audience in the configuration
 			t.Run("default audience", func(t *testing.T) {

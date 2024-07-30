@@ -283,7 +283,6 @@ func addSubCommands(system *core.System, root *cobra.Command) {
 		createServerCommand(system),
 		createPrintConfigCommand(system),
 		cryptoCmd.ServerCmd(),
-		httpCmd.ServerCmd(),
 	}
 	flagSet := serverConfigFlags()
 	registerFlags(serverCommands, flagSet)
