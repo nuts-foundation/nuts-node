@@ -52,9 +52,10 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 	unsignedTransaction, _ := NewTransaction(payloadHash, payloadType, prevHashes(prevs), pal, lamportClock)
 
 	var publicKey crypto.PublicKey
-	key, _ := nutsCrypto.GenerateJWK()
-	jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
 	kid := fmt.Sprintf("%d", payloadNum)
+	key, _ := nutsCrypto.GenerateJWK()
+	_ = key.Set(jwk.KeyIDKey, kid)
+	jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
 	if attach {
 		publicKey = jwkToCryptoPublicKey(key)
 	}
@@ -89,6 +90,7 @@ func CreateTestTransactionEx(num uint32, payloadHash hash.SHA256Hash, participan
 
 	// generate new key in jwk.Key format
 	key, _ := nutsCrypto.GenerateJWK()
+	_ = key.Set(jwk.KeyIDKey, kid)
 	publicKey := jwkToCryptoPublicKey(key)
 	jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
 	signedTransaction, err := NewTransactionSigner(jwtSigner, kid, nil).Sign(audit.TestContext(), unsignedTransaction, time.Now())

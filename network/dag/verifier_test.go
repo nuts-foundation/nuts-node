@@ -74,10 +74,11 @@ func Test_PrevTransactionVerifier(t *testing.T) {
 
 		// malformed TX with LC = 2
 		unsignedTransaction, _ := NewTransaction(hash.EmptyHash(), "application/did+json", []hash.SHA256Hash{root.Ref()}, nil, 2)
+		kid := "kid"
 		key, _ := nutsCrypto.GenerateJWK()
+		_ = key.Set(jwk.KeyIDKey, kid)
 		publicKey := jwkToCryptoPublicKey(key)
 		jwtSigner := nutsCrypto.MemoryJWTSigner{Key: key}
-		kid := "kid"
 		signedTransaction, err := NewTransactionSigner(jwtSigner, kid, publicKey).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 		require.NoError(t, err)
 

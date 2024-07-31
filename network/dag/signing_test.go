@@ -19,6 +19,7 @@
 package dag
 
 import (
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -37,11 +38,12 @@ func TestTransactionSigner(t *testing.T) {
 	expectedPrevs := []hash2.SHA256Hash{prev1, prev2}
 	contentType := "foo/bar"
 	moment := time.Date(2020, 10, 23, 13, 0, 0, 0, time.FixedZone("test", 1))
+	kid := "kid"
 	key, _ := crypto.GenerateJWK()
+	_ = key.Set(jwk.KeyIDKey, kid)
 	publicKey := jwkToCryptoPublicKey(key)
 	jwxSigner := crypto.MemoryJWTSigner{Key: key}
 	ctx := audit.TestContext()
-	kid := "kid"
 	t.Run("ok - attach key", func(t *testing.T) {
 		tx, err := NewTransaction(payloadHash, contentType, expectedPrevs, nil, 0)
 		require.NoError(t, err)
