@@ -103,6 +103,33 @@ func TestManager_Create(t *testing.T) {
 	})
 }
 
+func TestManager_List(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+		}}
+		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
+		_, subject, err := m.Create(audit.TestContext(), opts)
+		require.NoError(t, err)
+
+		dids, err := m.List(audit.TestContext(), subject)
+
+		require.NoError(t, err)
+		assert.Len(t, dids, 1)
+	})
+	t.Run("unknown subject", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+		}}
+
+		_, err := m.List(audit.TestContext(), "subject")
+
+		require.ErrorIs(t, err, ErrSubjectNotFound)
+	})
+}
+
 func TestManager_Services(t *testing.T) {
 	db := testDB(t)
 	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
