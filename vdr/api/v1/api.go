@@ -21,6 +21,7 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -41,7 +42,8 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
-	VDR vdr.VDR
+	VDR            vdr.VDR
+	SubjectManager didsubject.SubjectManager
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
@@ -88,10 +90,21 @@ func (a *Wrapper) AddNewVerificationMethod(ctx context.Context, request AddNewVe
 		opts = &VerificationMethodRelationship{}
 	}
 
-	vm, err := a.VDR.NutsDocumentManager().AddVerificationMethod(ctx, *d, opts.ToFlags(didnuts.DefaultKeyFlags()))
+	vms, err := a.SubjectManager.AddVerificationMethod(ctx, d.String(), opts.ToFlags(didnuts.DefaultKeyFlags()))
 	if err != nil {
 		return nil, err
 	}
+	var vm *did.VerificationMethod
+	for _, m := range vms {
+		if m.ID.DID.String() == request.Did {
+			vm = &m
+			break
+		}
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("verification method added for subject: %s but not for DID: %s, do not use the V1 API for non-nuts DIDs", request.Did, request.Did)
+	}
+
 	return AddNewVerificationMethod200JSONResponse(*vm), nil
 }
 
@@ -120,11 +133,23 @@ func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 	if keyFlags != defaultKeyFlags {
 		options = options.With(keyFlags)
 	}
+	options = options.With(didsubject.NutsLegacyNamingOption{})
 
-	doc, _, err := a.VDR.NutsDocumentManager().Create(ctx, options)
+	docs, _, err := a.SubjectManager.Create(ctx, options)
 	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return nil, err
+	}
+	var doc *did.Document
+	for _, m := range docs {
+		if m.ID.Method == "nuts" {
+			doc = &m
+			break
+		}
+	}
+	if doc == nil {
+		// only happens when did:nuts is disabled but V1 API is used.
+		return nil, errors.New("no nuts DID created, did you disable did:nuts support?")
 	}
 
 	// this API returns a DIDDocument according to spec, so it may return the business object
@@ -212,7 +237,7 @@ func (a *Wrapper) DeactivateDID(ctx context.Context, request DeactivateDIDReques
 	if err != nil {
 		return nil, err
 	}
-	err = a.VDR.NutsDocumentManager().Deactivate(ctx, *id)
+	err = a.SubjectManager.Deactivate(ctx, id.String())
 	if err != nil {
 		return nil, err
 	}

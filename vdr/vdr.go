@@ -272,6 +272,8 @@ func (r *Module) ConflictedDocuments() ([]did.Document, []resolver.DocumentMetad
 	return conflictedDocs, conflictedMeta, err
 }
 
+// NutsDocumentManager returns the nuts document manager
+// Deprecated
 func (r *Module) NutsDocumentManager() didsubject.DocumentManager {
 	return r.nutsDocumentManager
 }

@@ -28,6 +28,7 @@ import (
 // VDR defines the public end facing methods for the Verifiable Data Registry.
 type VDR interface {
 	// NutsDocumentManager returns the nuts document manager.
+	// Deprecated
 	NutsDocumentManager() didsubject.DocumentManager
 	// DocumentOwner returns the document owner.
 	DocumentOwner() didsubject.DocumentOwner

@@ -23,7 +23,6 @@ import (
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 )
 
@@ -55,29 +54,17 @@ type MethodManager interface {
 }
 
 // DocumentManager is the interface that groups several higher level methods to create and update DID documents.
+// Deprecated
 // Only used for V1 API calls.
 type DocumentManager interface {
-	// Create creates a new DID document and returns it.
-	// The ID in the provided DID document will be ignored and a new one will be generated.
-	// If something goes wrong an error is returned.
-	// Implementors should generate private key and store it in a secure backend
-	Create(ctx context.Context, options CreationOptions) (*did.Document, crypto.Key, error)
-
 	// Update replaces the DID document identified by DID with the nextVersion
 	// Deprecated: only did:nuts implements it, new methods should higher level functions, then this method can become private
 	// If the DID Document is not found, ErrNotFound is returned
 	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
 	Update(ctx context.Context, id did.DID, next did.Document) error
 
-	// Deactivate deactivates a DID document
-	// Deactivation will be done in such a way that a DID doc cannot be used / activated anymore.
-	// Since the deactivation is definitive, no version is required
-	// If the DID Document is not found ErrNotFound is returned
-	// If the DID Document is not managed by this node, ErrDIDNotManagedByThisNode is returned
-	// If the DID Document is already deactivated ErrDeactivated is returned
-	Deactivate(ctx context.Context, id did.DID) error
-
 	// RemoveVerificationMethod removes a VerificationMethod from a DID document.
+	// Deprecated: only relevant for v1 API calls.
 	// It accepts the id DID as identifier for the DID document.
 	// It accepts the kid DID as identifier for the VerificationMethod.
 	// It returns an ErrNotFound when the DID document could not be found.
@@ -85,13 +72,6 @@ type DocumentManager interface {
 	// It returns an ErrDeactivated when the DID document has the deactivated state.
 	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
 	RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error
-
-	// AddVerificationMethod generates a new key and adds it, wrapped as a VerificationMethod, to a DID document.
-	// It accepts a DID as identifier for the DID document.
-	// It returns an ErrNotFound when the DID document could not be found.
-	// It returns an ErrDeactivated when the DID document has the deactivated state.
-	// It returns an ErrDIDNotManagedByThisNode if the DID document is not managed by this node.
-	AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error)
 }
 
 // SubjectManager abstracts DID Document management away from the API caller.
@@ -142,6 +122,9 @@ type EncryptionKeyCreationOption struct{}
 
 // SkipAssertionKeyCreationOption signals that no assertion key should be created.
 type SkipAssertionKeyCreationOption struct{}
+
+// NutsLegacyNamingOption will make the subject equal to the Nuts DID.
+type NutsLegacyNamingOption struct{}
 
 // CreationOptions defines options for creating DID Documents.
 type CreationOptions interface {

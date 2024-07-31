@@ -35,27 +35,27 @@ import (
 func Test_verificationMethodValidator(t *testing.T) {
 	table := []validatorTest{
 		{"ok - valid document", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			return didDoc
 		}, nil},
 		{"nok - verificationMethod ID has no fragment", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.Fragment = ""
 			return didDoc
 		}, errors.New("invalid verificationMethod: ID must have a fragment")},
 		{"nok - verificationMethod ID has wrong prefix", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			didDoc.VerificationMethod[0].ID.ID = "foo:123"
 			return didDoc
 		}, errors.New("invalid verificationMethod: ID must have document prefix")},
 		{"nok - verificationMethod with duplicate id", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			method := didDoc.VerificationMethod[0]
 			didDoc.VerificationMethod = append(didDoc.VerificationMethod, method)
 			return didDoc
 		}, errors.New("invalid verificationMethod: ID must be unique")},
 		{"nok - verificationMethod with invalid thumbprint", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			keyID := didDoc.VerificationMethod[0].ID
 			keyID.Fragment = "foobar"
 			pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -70,34 +70,34 @@ func Test_verificationMethodValidator(t *testing.T) {
 func Test_basicServiceValidator(t *testing.T) {
 	table := []validatorTest{
 		{"ok - valid document", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			return didDoc
 		}, nil},
 		{"ok - service endpoint is not validated", func() did.Document {
 			// service endpoint is validated in managedServiceValidator
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			didDoc.Service[0].ServiceEndpoint = "did:foo:123/serviceEndpoint?type=NutsComm"
 			return didDoc
 		}, nil},
 		{"nok - service with duplicate id", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			service := didDoc.Service[0]
 			didDoc.Service = append(didDoc.Service, service)
 			return didDoc
 		}, errors.New("invalid service: ID must be unique")},
 		{"nok - service ID has no fragment", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			didDoc.Service[0].ID.Fragment = ""
 			return didDoc
 		}, errors.New("invalid service: ID must have a fragment")},
 		{"nok - service ID has wrong prefix", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			uri := ssi.MustParseURI("did:foo:123#foobar")
 			didDoc.Service[0].ID = uri
 			return didDoc
 		}, errors.New("invalid service: ID must have document prefix")},
 		{"nok - service with duplicate type", func() did.Document {
-			didDoc, _, _ := newDidDoc()
+			didDoc, _ := newDidDoc(t)
 			service := didDoc.Service[0]
 			service.ID.Fragment = "foobar"
 			didDoc.Service = append(didDoc.Service, service)
@@ -110,7 +110,7 @@ func Test_basicServiceValidator(t *testing.T) {
 func Test_managedServiceValidator(t *testing.T) {
 	// table driven testing errors for unexpected (number of) mock calls have poor localisation.
 	// comment out validatorTests in the table to find the culprit.
-	referencedDocument, _, _ := newDidDoc()
+	referencedDocument, _ := newDidDoc(t)
 	service := did.Service{Type: "referenced_service", ServiceEndpoint: "https://nuts.nl"}
 	serviceRef := resolver.MakeServiceReference(referencedDocument.ID, service.Type)
 	referencedDocument.Service = append(referencedDocument.Service, service)
@@ -122,16 +122,16 @@ func Test_managedServiceValidator(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		table := []validatorTest{
 			{"ok - valid document", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				return didDoc
 			}, nil},
 			{"ok - doesn't panic", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service = nil
 				return didDoc
 			}, nil},
 			{"ok - resolves string", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 
 				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
@@ -139,7 +139,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"ok - normalizes and resolves map", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = map[string]interface{}{
 					"reference":      serviceRef, // URI must be normalized
 					"url":            "super invalid but isn't validated",
@@ -151,7 +151,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"ok - self reference", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = serviceRef.String()
 				didDoc.Service = append(didDoc.Service, did.Service{
 					ID:              ssi.URI{},
@@ -164,7 +164,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"nok - resolve fails", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = resolver.MakeServiceReference(referencedDocument.ID, "does_not_exist")
 
 				didResolver.EXPECT().Resolve(referencedDocument.ID, nil).Return(&referencedDocument, nil, nil)
@@ -172,12 +172,12 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, errors.New("invalid service: service not found in DID Document")},
 			{"nok - invalid format", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = []string{serviceRef.String(), serviceRef.String()}
 				return didDoc
 			}, errors.New("invalid service: invalid service format")},
 			{"nok - invalid reference", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].ServiceEndpoint = "did:invalid:reference"
 				return didDoc
 			}, errors.New("invalid service: DID service query invalid: endpoint URI path must be /serviceEndpoint")},
@@ -188,18 +188,18 @@ func Test_managedServiceValidator(t *testing.T) {
 	t.Run("NutsComm", func(t *testing.T) {
 		table := []validatorTest{
 			{"ok", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "NutsComm"
 				didDoc.Service[0].ServiceEndpoint = "grpc://nuts.nl:5555"
 				return didDoc
 			}, nil},
 			{"nok - invalid scheme", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "NutsComm"
 				return didDoc
 			}, errors.New("invalid service: NutsComm: scheme must be grpc")},
 			{"nok - validates after resolving", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service = append(didDoc.Service, did.Service{
 					Type:            "NutsComm",
 					ServiceEndpoint: resolver.MakeServiceReference(didDoc.ID, didDoc.Service[0].Type),
@@ -207,7 +207,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, errors.New("invalid service: NutsComm: scheme must be grpc")},
 			{"nok - invalid format", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "NutsComm"
 				didDoc.Service[0].ServiceEndpoint = map[string]string{"NutsComm": "grpc://nuts.nl:5555"}
 				return didDoc
@@ -219,7 +219,7 @@ func Test_managedServiceValidator(t *testing.T) {
 	t.Run("node-contact-info", func(t *testing.T) {
 		table := []validatorTest{
 			{"ok - node-contact-info all valid", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "node-contact-info"
 				didDoc.Service[0].ServiceEndpoint = map[string]string{
 					"name":      "name",
@@ -230,7 +230,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"ok - minimal info", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "node-contact-info"
 				didDoc.Service[0].ServiceEndpoint = map[string]string{
 					"email": "valid@email.address",
@@ -238,7 +238,7 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"ok - validates after resolving", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0] = did.Service{
 					Type:            "node-contact-info",
 					ServiceEndpoint: resolver.MakeServiceReference(didDoc.ID, "otherService"),
@@ -249,13 +249,13 @@ func Test_managedServiceValidator(t *testing.T) {
 				return didDoc
 			}, nil},
 			{"nok - missing email", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "node-contact-info"
 				didDoc.Service[0].ServiceEndpoint = map[string]string{}
 				return didDoc
 			}, errors.New("invalid service: node-contact-info: missing email")},
 			{"nok - not a map", func() did.Document {
-				didDoc, _, _ := newDidDoc()
+				didDoc, _ := newDidDoc(t)
 				didDoc.Service[0].Type = "node-contact-info"
 				didDoc.Service[0].ServiceEndpoint = "valid@email.address"
 				return didDoc

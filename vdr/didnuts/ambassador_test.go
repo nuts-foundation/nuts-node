@@ -26,7 +26,6 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -320,8 +319,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 	}
 
 	t.Run("create ok", func(t *testing.T) {
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
+		didDocument, signingKey := newDidDoc(t)
 
 		tx := newCreateTX(signingKey)
 
@@ -329,7 +327,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 			ctx := newMockContext(t)
 			ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(nil)
 
-			err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
+			err := ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
 			assert.NoError(t, err)
 		})
@@ -337,14 +335,13 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 
 	t.Run("create failed", func(t *testing.T) {
 		ctx := newMockContext(t)
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
+		didDocument, signingKey := newDidDoc(t)
 
 		tx := newCreateTX(signingKey)
 
 		ctx.didStore.EXPECT().Add(didDocument, toStoreTX(tx)).Return(errors.New("b00m!"))
 
-		err = ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
+		err := ctx.ambassador.handleCreateDIDDocument(tx, didDocument)
 
 		assert.EqualError(t, err, "unable to register DID document: b00m!")
 	})
@@ -358,7 +355,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 		tx.signingKeyID = ""
 		tx.signingKey = signingKey
 
-		doc, _, _ := newDidDoc()
+		doc, _ := newDidDoc(t)
 
 		err := ctx.ambassador.handleCreateDIDDocument(tx, doc)
 
@@ -386,8 +383,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("update ok - with a deactivated document", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		didDocument, signingKey, err := newDidDoc()
-		require.NoError(t, err)
+		didDocument, signingKey := newDidDoc(t)
 
 		didDocPayload, _ := json.Marshal(didDocument)
 		payloadHash := hash.SHA256Sum(didDocPayload)
@@ -419,7 +415,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			ctx.keyResolver.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 			ctx.didStore.EXPECT().Add(deactivatedDocument, toStoreTX(tx))
 
-			err = ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
+			err := ctx.ambassador.handleUpdateDIDDocument(tx, deactivatedDocument)
 
 			assert.NoError(t, err)
 		})
@@ -428,7 +424,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("update ok - update with a new capabilityInvocation key", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		currentDoc, signingKey, _ := newDidDoc()
+		currentDoc, signingKey := newDidDoc(t)
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
 		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
@@ -463,7 +459,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 	t.Run("update ok - using 2nd prev for document resolution", func(t *testing.T) {
 		ctx := newMockContext(t)
 
-		currentDoc, signingKey, _ := newDidDoc()
+		currentDoc, signingKey := newDidDoc(t)
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
 		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
@@ -503,12 +499,10 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		// Create a fresh DID Document
-		didDocument, _, err := newDidDoc()
-		require.NoError(t, err)
+		didDocument, _ := newDidDoc(t)
 
 		// Create the DID docs controller
-		didDocumentController, controllerSigningKey, err := newDidDoc()
-		require.NoError(t, err)
+		didDocumentController, controllerSigningKey := newDidDoc(t)
 
 		var pKey crypto2.PublicKey
 		_ = controllerSigningKey.Raw(&pKey)
@@ -549,7 +543,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolvePublicKey(didDocumentController.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
 		ctx.didStore.EXPECT().Add(expectedDocument, toStoreTX(tx))
 
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
+		err := ctx.ambassador.handleUpdateDIDDocument(tx, expectedDocument)
 		assert.NoError(t, err)
 	})
 
@@ -561,12 +555,10 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx := newMockContext(t)
 
 		// Create a fresh DID Document
-		didDocument, documentSigningKey, err := newDidDoc()
-		require.NoError(t, err)
+		didDocument, documentSigningKey := newDidDoc(t)
 
 		// Create the DID docs controller
-		didDocumentController, _, err := newDidDoc()
-		require.NoError(t, err)
+		didDocumentController, _ := newDidDoc(t)
 
 		// We still use the document signing key, not the one from the controller
 		var pKey crypto2.PublicKey
@@ -609,7 +601,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(didDocumentController.ID, gomock.Any()).Return(&didDocumentController, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(keyID, gomock.Any()).Return(pKey, nil)
 
-		err = ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
+		err := ctx.ambassador.handleUpdateDIDDocument(tx, didDocument)
 		assert.EqualError(t, err, "network document not signed by one of its controllers")
 	})
 }
@@ -628,8 +620,8 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 			didResolver: didResolver,
 		}
 
-		didDocument, _, _ := newDidDoc()
-		didDocumentController, _, _ := newDidDoc()
+		didDocument, _ := newDidDoc(t)
+		didDocumentController, _ := newDidDoc(t)
 		didDocument.Controller = []did.DID{didDocumentController.ID}
 		tx := testTransaction{signingTime: time.Now()}
 
@@ -728,17 +720,19 @@ func Test_checkTransactionIntegrity(t *testing.T) {
 	}
 }
 
-func newDidDoc() (did.Document, jwk.Key, error) {
+func newDidDoc(t *testing.T) (did.Document, jwk.Key) {
 	kc := &mockKeyStore{}
 	docCreator := Manager{keyStore: kc}
-	didDocument, key, err := docCreator.create(audit.TestContext(), DefaultKeyFlags())
-	signingKey, _ := jwk.FromRaw(key.Public())
-	thumbStr, _ := crypto.Thumbprint(signingKey)
-	didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
-	if err != nil {
-		return did.Document{}, nil, err
-	}
-	serviceID := did.DIDURL{DID: didDocument.ID}
+	ormDocument, err := docCreator.NewDocument(audit.TestContext(), DefaultKeyFlags())
+	require.NoError(t, err)
+	didDocument, err := ormDocument.ToDIDDocument()
+	require.NoError(t, err)
+	publicKey, err := didDocument.VerificationMethod[0].PublicKey()
+	require.NoError(t, err)
+	signingKey, _ := jwk.FromRaw(publicKey)
+	//thumbStr, _ := crypto.Thumbprint(signingKey)
+	//didDocument.ID = did.MustParseDID(fmt.Sprintf("did:nuts:%s", thumbStr))
+	serviceID := did.MustParseDIDURL(didDocument.ID.String())
 	serviceID.Fragment = "1234"
 	didDocument.Service = []did.Service{
 		{
@@ -747,7 +741,7 @@ func newDidDoc() (did.Document, jwk.Key, error) {
 			ServiceEndpoint: "https://nuts.nl",
 		},
 	}
-	return *didDocument, signingKey, nil
+	return didDocument, signingKey
 }
 
 type mockContext struct {
