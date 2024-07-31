@@ -63,13 +63,15 @@ func (m MemoryJWTSigner) SignJWS(ctx context.Context, payload []byte, headers ma
 	if err := m.Key.Raw(&signer); err != nil {
 		return "", err
 	}
-
+	if kid != m.Key.KeyID() {
+		return "", ErrPrivateKeyNotFound
+	}
 	if _, ok := headers["jwk"]; !ok {
 		headers["kid"] = kid
 	}
 	return SignJWS(ctx, payload, headers, signer, detached)
 }
 
-func (m MemoryJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+func (m MemoryJWTSigner) SignDPoP(_ context.Context, _ dpop.DPoP, _ string) (string, error) {
 	return "", errNotSupportedForInMemoryKeyStore
 }

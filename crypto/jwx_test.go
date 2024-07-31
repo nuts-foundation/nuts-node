@@ -49,6 +49,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestGenerateJWK(t *testing.T) {
+	key, err := GenerateJWK()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+}
+
 func TestSignJWT(t *testing.T) {
 	claims := map[string]interface{}{"iss": "nuts"}
 	t.Run("creates valid JWT using rsa keys", func(t *testing.T) {

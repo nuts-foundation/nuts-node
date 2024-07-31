@@ -41,6 +41,20 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 )
 
+// GenerateJWK a new in-memory key pair and returns it as JWK.
+// It sets the alg field of the JWK.
+func GenerateJWK() (jwk.Key, error) {
+	keyPair, err := spi.GenerateKeyPair()
+	if err != nil {
+		return nil, nil
+	}
+	result, err := jwk.FromRaw(keyPair)
+	if err != nil {
+		return nil, err
+	}
+	return result, result.Set(jwk.AlgorithmKey, jwa.ES256)
+}
+
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error) {
 	// copy headers so we don't change the input
@@ -308,7 +322,7 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 }
 
 func (client *Crypto) getPrivateKey(ctx context.Context, kid string) (crypto.Signer, string, error) {
-	keyRef, err := findKeyReferenceByKid(ctx, client.db, kid)
+	keyRef, err := client.findKeyReferenceByKid(ctx, kid)
 	if err != nil {
 		return nil, "", err
 	}

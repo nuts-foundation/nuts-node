@@ -100,6 +100,24 @@ func TestCrypto_New(t *testing.T) {
 		assert.NotNil(t, pubKey)
 		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
+	t.Run("error - invalid naming function", func(t *testing.T) {
+		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+	})
+	t.Run("error from backend", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		storageMock := spi.NewMockStorage(ctrl)
+		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", assert.AnError)
+		client := createCrypto(t)
+		client.backend = storageMock
+
+		_, _, err := client.New(ctx, StringNamingFunc("kid"))
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, assert.AnError)
+	})
 }
 
 func TestCrypto_Delete(t *testing.T) {
@@ -134,9 +152,21 @@ func TestCrypto_Resolve(t *testing.T) {
 
 		assert.Equal(t, pubKey, resolvedKey)
 	})
-
 	t.Run("error - not found", func(t *testing.T) {
 		_, err := client.Resolve(ctx, "no kidding")
+
+		assert.Equal(t, ErrPrivateKeyNotFound, err)
+	})
+	t.Run("key not found in backend", func(t *testing.T) {
+		keyRef := orm.KeyReference{
+			KID:     "known",
+			KeyName: "unknown",
+			Version: "1",
+		}
+		err := client.db.Save(&keyRef).Error
+		require.NoError(t, err)
+
+		_, err = client.Resolve(ctx, "unknown")
 
 		assert.Equal(t, ErrPrivateKeyNotFound, err)
 	})

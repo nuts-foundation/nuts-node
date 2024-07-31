@@ -50,3 +50,27 @@ func TestMemoryKeyStore_SignJWT(t *testing.T) {
 		assert.ErrorIs(t, err, ErrPrivateKeyNotFound)
 	})
 }
+
+func TestMemoryJWTSigner_SignJWS(t *testing.T) {
+	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	privateKeyJWK, _ := jwk.FromRaw(pk)
+	privateKeyJWK.Set(jwk.KeyIDKey, "123")
+	alg, _ := ecAlgUsingPublicKey(pk.PublicKey)
+	privateKeyJWK.Set(jwk.AlgorithmKey, alg)
+	payload := []byte("{}")
+	headers := map[string]interface{}{}
+
+	t.Run("ok", func(t *testing.T) {
+		signedJWT, err := MemoryJWTSigner{
+			Key: privateKeyJWK,
+		}.SignJWS(audit.TestContext(), payload, headers, "123", false)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, signedJWT)
+	})
+	t.Run("unknown key", func(t *testing.T) {
+		_, err := MemoryJWTSigner{
+			Key: privateKeyJWK,
+		}.SignJWS(audit.TestContext(), payload, headers, "456", false)
+		assert.ErrorIs(t, err, ErrPrivateKeyNotFound)
+	})
+}
