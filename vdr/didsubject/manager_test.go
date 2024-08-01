@@ -420,3 +420,20 @@ func (t testMethod) Commit(_ context.Context, _ orm.DIDChangeLog) error {
 func (t testMethod) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, error) {
 	return t.committed, t.error
 }
+
+func Test_sortDIDDocuments(t *testing.T) {
+	t.Run("duplicate", func(t *testing.T) {
+		documents := []did.Document{
+			{ID: did.MustParseDID("did:example:1")},
+			{ID: did.MustParseDID("did:example:1")},
+			{ID: did.MustParseDID("did:test:1")},
+		}
+
+		sortDIDDocuments(documents, []string{"test", "example"})
+
+		require.Len(t, documents, 3)
+		assert.Equal(t, "did:test:1", documents[0].ID.String())
+		assert.Equal(t, "did:example:1", documents[1].ID.String())
+		assert.Equal(t, "did:example:1", documents[2].ID.String())
+	})
+}
