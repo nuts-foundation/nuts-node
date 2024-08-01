@@ -90,7 +90,7 @@ The following options apply to the server commands below:
       --vcr.openid4vci.definitionsdir string              Directory with the additional credential definitions the node could issue (experimental, may change without notice).
       --vcr.openid4vci.enabled                            Enable issuing and receiving credentials over OpenID4VCI. (default true)
       --vcr.openid4vci.timeout duration                   Time-out for OpenID4VCI HTTP client operations. (default 30s)
-      --vdr.didmethods strings                            Comma-separated list of enabled DID methods (without did: prefix). (default [web,nuts])
+      --vdr.didmethods strings                            Comma-separated list of enabled DID methods (without did: prefix). DIDs returned by the API are also returned in this order. (default [web,nuts])
       --verbosity string                                  Log level (trace, debug, info, warn, error) (default "info")
 
 nuts config

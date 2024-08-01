@@ -202,7 +202,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
-	r.Manager = didsubject.Manager{DB: db, MethodManagers: methodManagers}
+	r.Manager = didsubject.Manager{DB: db, MethodManagers: methodManagers, PreferredOrder: r.config.DIDMethods}
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()

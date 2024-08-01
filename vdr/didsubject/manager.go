@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
+	"sort"
 	"time"
 )
 
@@ -44,6 +45,8 @@ var ErrSubjectNotFound = errors.New("subject not found")
 type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
+	// PreferredOrder is the order in which the methods are preferred, which dictates the order in which they are returned.
+	PreferredOrder []string
 }
 
 func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
@@ -60,6 +63,7 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 		}
 		result[i] = *id
 	}
+	sortDIDs(result, r.PreferredOrder)
 	return result, nil
 }
 
@@ -154,6 +158,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		}
 		docs = append(docs, doc)
 	}
+	sortDIDDocuments(docs, r.PreferredOrder)
 	return docs, subject, nil
 }
 
@@ -526,4 +531,44 @@ func (r *Manager) Rollback(ctx context.Context) {
 	if err != nil {
 		log.Logger().WithError(err).Error("failed to rollback DID documents")
 	}
+}
+
+func sortDIDs(list []did.DID, order []string) {
+	sort.Slice(list, func(i, j int) bool {
+		iOrder := -1
+		jOrder := -1
+		for k, v := range order {
+			if v == list[i].Method {
+				iOrder = k
+			}
+			if v == list[j].Method {
+				jOrder = k
+			}
+		}
+		// If both are -1, they are not in the preferred order list, so sort by method for stable order
+		if iOrder == -1 && jOrder == -1 {
+			return list[i].Method < list[j].Method
+		}
+		return iOrder < jOrder
+	})
+}
+
+func sortDIDDocuments(list []did.Document, order []string) {
+	listOfDIDs := make([]did.DID, len(list))
+	for i, doc := range list {
+		listOfDIDs[i] = doc.ID
+	}
+	sortDIDs(listOfDIDs, order)
+	// order list according to listOfDIDs
+	orderedList := make([]did.Document, len(list))
+	for i, id := range listOfDIDs {
+	inner:
+		for _, doc := range list {
+			if doc.ID == id {
+				orderedList[i] = doc
+				break inner
+			}
+		}
+	}
+	copy(list, orderedList)
 }

@@ -61,8 +61,8 @@ func TestManager_Create(t *testing.T) {
 		db := testDB(t)
 		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
 			"example": testMethod{},
-			"test":    testMethod{},
-		}}
+			"test":    testMethod{method: "test"},
+		}, PreferredOrder: []string{"test", "example"}}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestManager_Create(t *testing.T) {
 		for i, document := range documents {
 			IDs[i] = document.ID.String()
 		}
-		assert.True(t, strings.HasPrefix(IDs[0], "did:example:"))
+		assert.True(t, strings.HasPrefix(IDs[0], "did:test:"))
 		assert.True(t, strings.HasPrefix(IDs[1], "did:example:"))
 
 		// test alsoKnownAs requirements
@@ -127,6 +127,28 @@ func TestManager_List(t *testing.T) {
 		_, err := m.List(audit.TestContext(), "subject")
 
 		require.ErrorIs(t, err, ErrSubjectNotFound)
+	})
+}
+
+func TestManager_List(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"method1": testMethod{method: "method1"},
+			"method2": testMethod{method: "method2"},
+		}, PreferredOrder: []string{"method2", "method1"}}
+		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
+		_, subject, err := m.Create(audit.TestContext(), opts)
+		require.NoError(t, err)
+
+		dids, err := m.List(audit.TestContext(), subject)
+
+		require.NoError(t, err)
+		require.Len(t, dids, 2)
+		t.Run("preferred order", func(t *testing.T) {
+			assert.True(t, strings.HasPrefix(dids[0].String(), "did:method2:"))
+			assert.True(t, strings.HasPrefix(dids[1].String(), "did:method1:"))
+		})
 	})
 }
 
@@ -398,10 +420,15 @@ func TestNewIDForService(t *testing.T) {
 type testMethod struct {
 	committed bool
 	error     error
+	method    string
 }
 
 func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
-	id := fmt.Sprintf("did:example:%s", uuid.New().String())
+	method := t.method
+	if method == "" {
+		method = "example"
+	}
+	id := fmt.Sprintf("did:%s:%s", method, uuid.New().String())
 	return &orm.DIDDocument{DID: orm.DID{ID: id}}, t.error
 }
 
@@ -417,4 +444,21 @@ func (t testMethod) Commit(_ context.Context, _ orm.DIDChangeLog) error {
 
 func (t testMethod) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, error) {
 	return t.committed, t.error
+}
+
+func Test_sortDIDDocuments(t *testing.T) {
+	t.Run("duplicate", func(t *testing.T) {
+		documents := []did.Document{
+			{ID: did.MustParseDID("did:example:1")},
+			{ID: did.MustParseDID("did:example:1")},
+			{ID: did.MustParseDID("did:test:1")},
+		}
+
+		sortDIDDocuments(documents, []string{"test", "example"})
+
+		require.Len(t, documents, 3)
+		assert.Equal(t, "did:test:1", documents[0].ID.String())
+		assert.Equal(t, "did:example:1", documents[1].ID.String())
+		assert.Equal(t, "did:example:1", documents[2].ID.String())
+	})
 }
