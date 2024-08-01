@@ -220,13 +220,22 @@ func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[
 func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
 	var l KeyList
 	flags.VisitAll(func(f *pflag.Flag) {
+		// maps (stringToString) are randomly ordered, so we need to sort them to have consistent output.
+		// Otherwise, everytime the documentation is generated order might change, causing unnecessary diffs.
+		// They are in the form of [key1=value1,key2=value2]
+		defValue := f.DefValue
+		if f.Value.Type() == "stringToString" {
+			values := strings.Split(f.Value.String(), ",")
+			sort.Strings(values)
+			defValue = strings.Join(values, ",")
+		}
 		if f.Hidden {
 			return
 		}
-		l = append(l, vals(f.Name, f.DefValue, f.Usage))
+		l = append(l, vals(f.Name, defValue, f.Usage))
 	})
 	sort.Sort(l)
-	return [][]rstValue(l)
+	return l
 }
 
 func generateRstTable(tableName, fileName string, values [][]rstValue) {
