@@ -30,7 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) (*oauth.AuthorizationServerMetadata, error) {
+func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
@@ -52,7 +52,7 @@ func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) (*oauth.A
 		metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
 		metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
 	}
-	return metadata, nil
+	return *metadata
 }
 
 // staticAuthorizationServerMetadata is used in the OpenID4VP flow when authorization server (wallet) issuer is unknown.

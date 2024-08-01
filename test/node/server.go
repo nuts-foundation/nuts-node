@@ -75,6 +75,7 @@ func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, publicH
 	t.Setenv("NUTS_EVENTS_NATS_PORT", natsPort)
 	t.Setenv("NUTS_EVENTS_NATS_HOSTNAME", "localhost")
 	t.Setenv("NUTS_URL", publicHttpServerURL)
+	t.Setenv("NUTS_VDR_DIDMETHODS", "nuts")
 
 	for _, fn := range configFunc {
 		fn(internalHttpServerURL, publicHttpServerURL)

@@ -49,9 +49,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	t.Run("base", func(t *testing.T) {
-		md, err := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
-		assert.NoError(t, err)
-		assert.Equal(t, baseExpected, *md)
+		md := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
+		assert.Equal(t, baseExpected, md)
 	})
 	t.Run("did:web", func(t *testing.T) {
 		didWeb := did.MustParseDID("did:web:example.com:iam:123")
@@ -63,9 +62,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
 		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
 
-		md, err := authorizationServerMetadata(didWeb, oauth2Base)
-		assert.NoError(t, err)
-		assert.Equal(t, webExpected, *md)
+		md := authorizationServerMetadata(didWeb, oauth2Base)
+		assert.Equal(t, webExpected, md)
 	})
 }
 

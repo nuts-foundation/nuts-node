@@ -424,18 +424,22 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	if err != nil {
 		return nil, err
 	}
+	metadata, err := r.oauthAuthorizationServerMetadata(ownDID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
-	return r.handleAuthorizeRequest(ctx, *ownDID, *httpRequest.URL)
+	return r.handleAuthorizeRequest(ctx, *ownDID, *metadata, *httpRequest.URL)
 }
 
 // handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 // The caller must ensure ownDID is actually owned by this node.
-func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
+func (r Wrapper) handleAuthorizeRequest(ctx context.Context, ownDID did.DID, ownMetadata oauth.AuthorizationServerMetadata, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.jar.Parse(ctx, ownDID, request.Query())
+	requestObject, err := r.jar.Parse(ctx, ownMetadata, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
@@ -581,23 +585,24 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	md, err := r.oauthAuthorizationServerMetadata(ctx, request.Did)
+	ownDID, err := r.toOwnedDID(ctx, request.Did)
+	if err != nil {
+		return nil, err
+	}
+	md, err := r.oauthAuthorizationServerMetadata(ownDID)
 	if err != nil {
 		return nil, err
 	}
 	return OAuthAuthorizationServerMetadata200JSONResponse(*md), nil
 }
 
-func (r Wrapper) oauthAuthorizationServerMetadata(ctx context.Context, didAsString string) (*oauth.AuthorizationServerMetadata, error) {
-	ownDID, err := r.toOwnedDID(ctx, didAsString)
-	if err != nil {
-		return nil, err
-	}
+func (r Wrapper) oauthAuthorizationServerMetadata(ownDID *did.DID) (*oauth.AuthorizationServerMetadata, error) {
 	issuerURL, err := createOAuth2BaseURL(*ownDID)
 	if err != nil {
 		return nil, err
 	}
-	return authorizationServerMetadata(*ownDID, issuerURL)
+	md := authorizationServerMetadata(*ownDID, issuerURL)
+	return &md, nil
 }
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.

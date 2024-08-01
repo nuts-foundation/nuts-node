@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
+	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -56,18 +57,18 @@ func (mr *MockJARMockRecorder) Create(client, authServerURL, modifier any) *gomo
 }
 
 // Parse mocks base method.
-func (m *MockJAR) Parse(ctx context.Context, ownDID did.DID, q url.Values) (oauthParameters, error) {
+func (m *MockJAR) Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Parse", ctx, ownDID, q)
+	ret := m.ctrl.Call(m, "Parse", ctx, ownMetadata, q)
 	ret0, _ := ret[0].(oauthParameters)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Parse indicates an expected call of Parse.
-func (mr *MockJARMockRecorder) Parse(ctx, ownDID, q any) *gomock.Call {
+func (mr *MockJARMockRecorder) Parse(ctx, ownMetadata, q any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockJAR)(nil).Parse), ctx, ownDID, q)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockJAR)(nil).Parse), ctx, ownMetadata, q)
 }
 
 // Sign mocks base method.

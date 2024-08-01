@@ -239,8 +239,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeParam:       "code_challenge",
 			oauth.CodeChallengeMethodParam: "S256",
 		}
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
-		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil).MinTimes(1)
+		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromHolder
 		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Averifier&request_uri=https://example.com/oauth2/" + verifierDID.String() + "/request.jwt/&request_uri_method=get"
@@ -251,7 +251,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RequireSignedRequestObject: true,
 		}
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil).Times(2)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil)
 		ctx.jar.EXPECT().Create(verifierDID, holderURL, gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims
@@ -299,7 +299,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.StateParam:              "state",
 		}
 		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
-		ctx.jar.EXPECT().Parse(gomock.Any(), holderDID, gomock.Any()).Return(requestParams, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), gomock.Any()).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromVerifier
 		_ = ctx.client.storageEngine.GetSessionDatabase().GetStore(oAuthFlowTimeout, oauthClientStateKey...).Put("state", OAuthSession{
@@ -333,8 +333,8 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ClientIDParam:     holderDID.String(),
 			oauth.ResponseTypeParam: "unsupported",
 		}
-		ctx.jar.EXPECT().Parse(gomock.Any(), verifierDID, gomock.Any()).Return(requestParams, nil)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), gomock.Any()).Return(requestParams, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil).MinTimes(1)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
 			HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})

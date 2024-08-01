@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/vdr"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -229,12 +230,16 @@ func getIntegrationTestConfig(t *testing.T, testDirectory string) (core.ServerCo
 	httpConfig.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 	httpConfig.Public.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
 
+	vdrConfig := vdr.DefaultConfig()
+	vdrConfig.DIDMethods = []string{"nuts"}
+
 	return config, ModuleConfig{
 		Network: networkConfig,
 		Auth:    authConfig,
 		Crypto:  cryptoConfig,
 		Events:  eventsConfig,
 		HTTP:    httpConfig,
+		VDR:     vdrConfig,
 	}
 }
 
@@ -244,4 +249,5 @@ type ModuleConfig struct {
 	Crypto  crypto.Config     `koanf:"crypto"`
 	Events  events.Config     `koanf:"events"`
 	HTTP    httpEngine.Config `koanf:"http"`
+	VDR     vdr.Config        `koanf:"vdr"`
 }

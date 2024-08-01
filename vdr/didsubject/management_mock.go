@@ -15,7 +15,6 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	orm "github.com/nuts-foundation/nuts-node/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -123,51 +122,6 @@ func NewMockDocumentManager(ctrl *gomock.Controller) *MockDocumentManager {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockDocumentManager) EXPECT() *MockDocumentManagerMockRecorder {
 	return m.recorder
-}
-
-// AddVerificationMethod mocks base method.
-func (m *MockDocumentManager) AddVerificationMethod(ctx context.Context, id did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddVerificationMethod", ctx, id, keyUsage)
-	ret0, _ := ret[0].(*did.VerificationMethod)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddVerificationMethod indicates an expected call of AddVerificationMethod.
-func (mr *MockDocumentManagerMockRecorder) AddVerificationMethod(ctx, id, keyUsage any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddVerificationMethod", reflect.TypeOf((*MockDocumentManager)(nil).AddVerificationMethod), ctx, id, keyUsage)
-}
-
-// Create mocks base method.
-func (m *MockDocumentManager) Create(ctx context.Context, options CreationOptions) (*did.Document, crypto.Key, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, options)
-	ret0, _ := ret[0].(*did.Document)
-	ret1, _ := ret[1].(crypto.Key)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// Create indicates an expected call of Create.
-func (mr *MockDocumentManagerMockRecorder) Create(ctx, options any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockDocumentManager)(nil).Create), ctx, options)
-}
-
-// Deactivate mocks base method.
-func (m *MockDocumentManager) Deactivate(ctx context.Context, id did.DID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Deactivate", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Deactivate indicates an expected call of Deactivate.
-func (mr *MockDocumentManagerMockRecorder) Deactivate(ctx, id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Deactivate", reflect.TypeOf((*MockDocumentManager)(nil).Deactivate), ctx, id)
 }
 
 // RemoveVerificationMethod mocks base method.

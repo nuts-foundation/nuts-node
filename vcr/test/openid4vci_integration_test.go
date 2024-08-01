@@ -26,7 +26,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +41,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/node"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -247,17 +245,17 @@ func testCredential() vc.VerifiableCredential {
 }
 
 func registerDID(t *testing.T, system *core.System) did.DID {
-	vdrService := system.FindEngineByName("vdr").(vdr.VDR)
+	vdrService := system.FindEngineByName("vdr").(didsubject.SubjectManager)
 	ctx := audit.TestContext()
-	didDocument, _, err := vdrService.NutsDocumentManager().Create(ctx, didsubject.DefaultCreationOptions())
+	didDocument, _, err := vdrService.Create(ctx, didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
 	require.NoError(t, err)
-	return didDocument.ID
+	return didDocument[0].ID
 
 }
 
 func registerBaseURL(t *testing.T, httpServerURL string, system *core.System, id did.DID) {
-	didmanService := system.FindEngineByName("didman").(didman.Didman)
+	subjectManager := system.FindEngineByName("vdr").(didsubject.SubjectManager)
 	baseURL, _ := url.Parse(httpServerURL)
-	_, err := didmanService.AddEndpoint(audit.TestContext(), id, resolver.BaseURLServiceType, *baseURL)
+	_, err := subjectManager.CreateService(audit.TestContext(), id.String(), did.Service{Type: resolver.BaseURLServiceType, ServiceEndpoint: baseURL.String()})
 	require.NoError(t, err)
 }

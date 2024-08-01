@@ -27,7 +27,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"strings"
 	"testing"
 
@@ -38,12 +37,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -90,31 +89,6 @@ func testDB(t *testing.T) *gorm.DB {
 	require.NoError(t, storageEngine.Start())
 	db := storageEngine.GetSQLDatabase()
 	return db
-}
-
-func TestManager_Create(t *testing.T) {
-	ctx := newTestContext(t)
-	ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
-	ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
-		assert.Equal(t, DIDDocumentType, template.Type)
-		assert.True(t, template.AttachKey)
-		assert.Empty(t, template.AdditionalPrevs)
-		assert.Empty(t, template.Participants)
-		var didDocument did.Document
-		_ = json.Unmarshal(template.Payload, &didDocument)
-		assert.Len(t, didDocument.VerificationMethod, 1)
-		assert.Len(t, didDocument.CapabilityInvocation, 1)
-		assert.Len(t, didDocument.CapabilityDelegation, 1)
-		assert.Len(t, didDocument.AssertionMethod, 1)
-		assert.Len(t, didDocument.Authentication, 1)
-		assert.Len(t, didDocument.KeyAgreement, 1)
-		assert.Nil(t, didDocument.Service)
-		return testTransaction{}, nil
-	})
-
-	_, _, err := ctx.manager.Create(nil, didsubject.DefaultCreationOptions())
-
-	assert.NoError(t, err)
 }
 
 func TestManager_RemoveVerificationMethod(t *testing.T) {
@@ -191,59 +165,6 @@ func TestManager_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	})
 }
 
-func TestManipulator_AddKey(t *testing.T) {
-	id, _ := did.ParseDID("did:nuts:123")
-	keyID, _ := did.ParseDIDURL("did:nuts:123#key-1")
-
-	t.Run("ok - add a new key", func(t *testing.T) {
-		ctx := newTestContext(t)
-
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		ctx.didStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
-		ctx.didResolver.EXPECT().Resolve(*id, nil).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, template network.Template) (dag.Transaction, error) {
-			var didDocument did.Document
-			_ = json.Unmarshal(template.Payload, &didDocument)
-			assert.Len(t, didDocument.VerificationMethod, 1)
-			assert.Len(t, didDocument.CapabilityInvocation, 1)
-			return testTransaction{}, nil
-		})
-
-		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, orm.CapabilityInvocationUsage)
-		require.NoError(t, err)
-		assert.NotNil(t, key)
-		assert.Equal(t, key.Controller, *id,
-			"expected method to have DID as controller")
-	})
-
-	t.Run("error - didStore throws an error", func(t *testing.T) {
-		ctx := newTestContext(t)
-
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		currentDIDDocument.AddCapabilityInvocation(&did.VerificationMethod{ID: *keyID})
-		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{}, nil)
-		ctx.didStore.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(nil, nil, resolver.ErrNotFound)
-
-		key, err := ctx.manager.AddVerificationMethod(ctx.ctx, *id, 0)
-		assert.ErrorIs(t, err, resolver.ErrNotFound)
-		assert.Nil(t, key)
-	})
-
-	t.Run("error - did is deactivated", func(t *testing.T) {
-		ctx := newTestContext(t)
-
-		currentDIDDocument := did.Document{ID: *id, Controller: []did.DID{*id}}
-		ctx.didResolver.EXPECT().Resolve(*id, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&currentDIDDocument, &resolver.DocumentMetadata{Deactivated: true}, nil)
-
-		key, err := ctx.manager.AddVerificationMethod(nil, *id, 0)
-
-		assert.ErrorIs(t, err, resolver.ErrDeactivated)
-		assert.Nil(t, key)
-	})
-}
-
 func TestManager_GenerateDocument(t *testing.T) {
 	keyStore := nutsCrypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()
@@ -287,55 +208,6 @@ func TestManager_GenerateDocument(t *testing.T) {
 }
 
 var jwkString = `{"crv":"P-256","kid":"did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE","kty":"EC","x":"Qn6xbZtOYFoLO2qMEAczcau9uGGWwa1bT+7JmAVLtg4=","y":"d20dD0qlT+d1djVpAfrfsAfKOUxKwKkn1zqFSIuJ398="},"type":"JsonWebKey2020"}`
-
-func TestManager_Create2(t *testing.T) {
-	defaultOptions := didsubject.DefaultCreationOptions()
-
-	t.Run("ok", func(t *testing.T) {
-		t.Run("defaults", func(t *testing.T) {
-			ctx := newTestContext(t)
-			var txTemplate network.Template
-			ctx.didStore.EXPECT().Add(gomock.Any(), gomock.Any()).Return(nil)
-			ctx.networkClient.EXPECT().CreateTransaction(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, tx network.Template) (dag.Transaction, error) {
-				txTemplate = tx
-				return testTransaction{}, nil
-			})
-
-			doc, key, err := ctx.manager.Create(nil, defaultOptions)
-			assert.NoError(t, err, "create should not return an error")
-			assert.NotNil(t, doc, "create should return a document")
-			assert.NotNil(t, key, "create should return a Key")
-			assert.Equal(t, did.MustParseDIDURL(ctx.keyStore.key.KID()).DID, doc.ID, "the DID Doc should have the expected id")
-			assert.Len(t, doc.VerificationMethod, 1, "it should have one verificationMethod")
-			assert.Equal(t, ctx.keyStore.key.KID(), doc.VerificationMethod[0].ID.String(),
-				"verificationMethod should have the correct id")
-			assert.Len(t, doc.CapabilityInvocation, 1, "it should have 1 CapabilityInvocation")
-			assert.Equal(t, doc.CapabilityInvocation[0].VerificationMethod, doc.VerificationMethod[0], "the assertionMethod should be a pointer to the verificationMethod")
-			assert.Len(t, doc.AssertionMethod, 1, "it should have 1 AssertionMethod")
-			assert.Equal(t, DIDDocumentType, txTemplate.Type)
-			payload, _ := json.Marshal(doc)
-			assert.Equal(t, payload, txTemplate.Payload)
-			assert.Equal(t, key, txTemplate.Key)
-			assert.Empty(t, txTemplate.AdditionalPrevs)
-			assert.Len(t, doc.AssertionMethod, 1)
-			assert.Len(t, doc.Authentication, 1)
-			assert.Len(t, doc.CapabilityDelegation, 1)
-			assert.Len(t, doc.CapabilityInvocation, 1)
-			assert.Len(t, doc.KeyAgreement, 1)
-		})
-	})
-
-	t.Run("error - failed to create key", func(t *testing.T) {
-		ctx := newTestContext(t)
-		mock := nutsCrypto.NewMockKeyStore(ctx.ctrl)
-		ctx.manager.keyStore = mock
-		mock.EXPECT().New(gomock.Any(), gomock.Any()).Return(nil, errors.New("b00m!"))
-
-		_, _, err := ctx.manager.Create(nil, didsubject.DefaultCreationOptions())
-
-		assert.EqualError(t, err, "b00m!")
-	})
-}
 
 func TestManager_Deactivate(t *testing.T) {
 	id, _ := did.ParseDID("did:nuts:123")
@@ -460,7 +332,7 @@ func TestManager_NewDocument(t *testing.T) {
 }
 
 func TestManager_Commit(t *testing.T) {
-	document, _, _ := newDidDoc()
+	document, _ := newDidDoc(t)
 	data, _ := json.Marshal(document.VerificationMethod[0])
 	eventLog := orm.DIDChangeLog{
 		Type: orm.DIDChangeCreated,
@@ -544,7 +416,7 @@ func TestManager_Commit(t *testing.T) {
 }
 
 func TestManager_IsCommitted(t *testing.T) {
-	document, _, _ := newDidDoc()
+	document, _ := newDidDoc(t)
 	documentData, _ := json.Marshal(document)
 	vmData, _ := json.Marshal(document.VerificationMethod[0])
 	eventLog := orm.DIDChangeLog{
