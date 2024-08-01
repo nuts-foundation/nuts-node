@@ -529,7 +529,6 @@ func (r *Manager) Rollback(ctx context.Context) {
 }
 
 func sortDIDs(list []did.DID, order []string) {
-	// Thank you, Copilot
 	sort.Slice(list, func(i, j int) bool {
 		iOrder := -1
 		jOrder := -1
