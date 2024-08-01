@@ -67,13 +67,6 @@ func generateCLICommands(system *core.System) {
 		"Server commands (e.g. ``nuts server``) can only be run on the system where the node is (or will be) running, because they require the node's config. " +
 		"Client commands are used to remotely administer a Nuts node and require the node's API address." + newline + newline)
 
-	// Server commands
-	writeHeader(writer, "Server Commands", 1)
-	_, _ = writer.WriteString("The following options apply to the server commands below:" + newline + newline)
-
-	_, _ = io.WriteString(writer, newline+"::"+newline+newline)
-	writeCommandOptions(writer, cmd.CreateCommand(system).Commands()[0])
-
 	err := GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
 		return serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"
 	}, false)
@@ -223,22 +216,27 @@ func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
 		if f.Hidden {
 			return
 		}
-		// maps (stringToString) are randomly ordered, so we need to sort them to have consistent output.
-		// Otherwise, everytime the documentation is generated order might change, causing unnecessary diffs.
-		// They are in the form of [key1=value1,key2=value2]
-		defValue := f.DefValue
-		if f.Value.Type() == "stringToString" {
-			value := f.Value.String()
-			value = strings.TrimPrefix(value, "[")
-			value = strings.TrimSuffix(value, "]")
-			values := strings.Split(value, ",")
-			sort.Strings(values)
-			defValue = fmt.Sprintf("[%s]", strings.Join(values, ","))
-		}
+		defValue := normalizeDefaultValue(f)
 		l = append(l, vals(f.Name, defValue, f.Usage))
 	})
 	sort.Sort(l)
 	return l
+}
+
+func normalizeDefaultValue(f *pflag.Flag) string {
+	// maps (stringToString) are randomly ordered, so we need to sort them to have consistent output.
+	// Otherwise, everytime the documentation is generated order might change, causing unnecessary diffs.
+	// They are in the form of [key1=value1,key2=value2]
+	defValue := f.DefValue
+	if f.Value.Type() == "stringToString" {
+		value := f.Value.String()
+		value = strings.TrimPrefix(value, "[")
+		value = strings.TrimSuffix(value, "]")
+		values := strings.Split(value, ",")
+		sort.Strings(values)
+		defValue = fmt.Sprintf("[%s]", strings.Join(values, ","))
+	}
+	return defValue
 }
 
 func generateRstTable(tableName, fileName string, values [][]rstValue) {
