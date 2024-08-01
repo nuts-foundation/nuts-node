@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
@@ -30,10 +31,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"time"
 )
+
+// ErrSubjectAlreadyExists is returned when a subject already exists.
+var ErrSubjectAlreadyExists = errors.New("subject already exists")
+
+// ErrSubjectNotFound is returned when a subject is not found.
+var ErrSubjectNotFound = errors.New("subject not found")
 
 type Manager struct {
 	DB             *gorm.DB
@@ -84,12 +90,14 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
 		sqlDIDManager := NewDIDManager(tx)
-		exists, err := sqlDIDManager.FindBySubject(subject)
-		if err != nil {
+		_, err := sqlDIDManager.FindBySubject(subject)
+		if errors.Is(err, ErrSubjectNotFound) {
+			// this is ok, doesn't exist yet
+		} else if err != nil {
+			// other error occurred
 			return nil, err
-		}
-		if len(exists) > 0 {
-			return nil, ErrDIDAlreadyExists
+		} else {
+			return nil, ErrSubjectAlreadyExists
 		}
 
 		// call generate on all managers
@@ -161,9 +169,6 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 		dids, err := sqlDIDManager.FindBySubject(subject)
 		if err != nil {
 			return changes, err
-		}
-		if len(dids) == 0 {
-			return nil, resolver.ErrNotFound
 		}
 		transactionID := uuid.New().String()
 		for _, sqlDID := range dids {

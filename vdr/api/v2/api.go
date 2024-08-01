@@ -56,12 +56,13 @@ type Wrapper struct {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
+		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
+		didsubject.ErrSubjectAlreadyExists:  http.StatusConflict,
 		resolver.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
 		didsubject.ErrInvalidService:        http.StatusBadRequest,
 		didsubject.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
-		didsubject.ErrDIDAlreadyExists:      http.StatusConflict,
 	})
 }
 

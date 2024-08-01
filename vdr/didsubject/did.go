@@ -87,5 +87,11 @@ func (d SqlDIDManager) Find(id did.DID) (*orm.DID, error) {
 func (d SqlDIDManager) FindBySubject(subject string) ([]orm.DID, error) {
 	dids := make([]orm.DID, 0)
 	err := d.tx.Preload("Aka").Find(&dids, "subject = ?", subject).Error
-	return dids, err
+	if err != nil {
+		return nil, err
+	}
+	if len(dids) == 0 {
+		return nil, ErrSubjectNotFound
+	}
+	return dids, nil
 }
