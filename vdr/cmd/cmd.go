@@ -45,7 +45,7 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultConfig()
 
-	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix).")
+	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). DIDs returned by the API are also returned in this order.")
 	return flagSet
 }
 
