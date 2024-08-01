@@ -60,9 +60,6 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 		}
 		result[i] = *id
 	}
-	if len(result) == 0 {
-		return nil, ErrSubjectNotFound
-	}
 	return result, nil
 }
 
@@ -90,11 +87,13 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
 		sqlDIDManager := NewDIDManager(tx)
-		exists, err := sqlDIDManager.FindBySubject(subject)
-		if err != nil {
+		_, err := sqlDIDManager.FindBySubject(subject)
+		if errors.Is(err, ErrSubjectNotFound) {
+			// this is ok, doesn't exist yet
+		} else if err != nil {
+			// other error occurred
 			return nil, err
-		}
-		if len(exists) > 0 {
+		} else {
 			return nil, ErrSubjectAlreadyExists
 		}
 
@@ -164,9 +163,6 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 		dids, err := sqlDIDManager.FindBySubject(subject)
 		if err != nil {
 			return changes, err
-		}
-		if len(dids) == 0 {
-			return nil, ErrSubjectNotFound
 		}
 		transactionID := uuid.New().String()
 		for _, sqlDID := range dids {
