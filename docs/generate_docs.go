@@ -61,11 +61,10 @@ func generateCLICommands(system *core.System) {
 	defer writer.Close()
 
 	_, _ = writer.WriteString(".. _nuts-cli-reference:" + newline + newline)
-	writeHeader(writer, "CLI Command Reference", 0)
+	writeHeader(writer, "Server CLI Command Reference", 0)
 
-	_, _ = writer.WriteString("There are 2 types of commands: server command and client commands. " +
-		"Server commands (e.g. ``nuts server``) can only be run on the system where the node is (or will be) running, because they require the node's config. " +
-		"Client commands are used to remotely administer a Nuts node and require the node's API address." + newline + newline)
+	_, _ = writer.WriteString("Aside from ``nuts server``, there are few other server commands that can be run. They can only be run on the system where the node is (or will be) running, because they require the node's config." + newline)
+	_, _ = writer.WriteString("Refer to the configuration reference for how and what can be configured." + newline + newline)
 
 	err := GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
 		return serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"

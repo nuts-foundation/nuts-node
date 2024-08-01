@@ -1,9 +1,10 @@
 .. _nuts-cli-reference:
 
-CLI Command Reference
-#####################
+Server CLI Command Reference
+############################
 
-There are 2 types of commands: server command and client commands. Server commands (e.g. ``nuts server``) can only be run on the system where the node is (or will be) running, because they require the node's config. Client commands are used to remotely administer a Nuts node and require the node's API address.
+Aside from ``nuts server``, there are few other server commands that can be run. They can only be run on the system where the node is (or will be) running, because they require the node's config.
+Refer to the configuration reference for how and what can be configured.
 
 
 nuts config
