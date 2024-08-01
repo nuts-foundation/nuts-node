@@ -250,7 +250,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RequireSignedRequestObject: true,
 		}
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil).Times(2)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), holderURL).Return(&serverMetadata, nil)
 		ctx.jar.EXPECT().Create(verifierDID, holderURL, gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims

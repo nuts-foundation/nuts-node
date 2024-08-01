@@ -106,28 +106,6 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 		return nil, oauthError(oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
 	}
 
-	// GET authorization server metadata for wallet
-	walletID := params.get(oauth.ClientIDParam)
-	// the walletDID must be a did:web
-	walletDID, err := did.ParseDID(walletID)
-	if err != nil || walletDID.Method != "web" {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)"), redirectURL)
-	}
-	// TODO: issue #3216 (client_id is assumed to be did:web DID)
-	oauthIssuer, err := nutsOAuth2Issuer(*walletDID)
-	if err != nil {
-		// can't fail since it's a valid did:web
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", err), redirectURL)
-	}
-	metadata, err := r.auth.IAMClient().AuthorizationServerMetadata(ctx, oauthIssuer.String())
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to get metadata from wallet", err), redirectURL)
-	}
-	// check metadata for supported client_id_schemes
-	if !slices.Contains(metadata.ClientIdSchemesSupported, didClientIDScheme) {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "wallet metadata does not contain did in client_id_schemes_supported"), redirectURL)
-	}
-
 	// Determine which PEX Presentation Definitions we want to see fulfilled during authorization through OpenID4VP.
 	// Each Presentation Definition triggers 1 OpenID4VP flow.
 	// TODO: Support multiple scopes?
@@ -137,8 +115,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, verifier 
 	}
 
 	session := OAuthSession{
-		ClientID:          walletID,
-		IssuerURL:         oauthIssuer.String(),
+		ClientID:          params.get(oauth.ClientIDParam),
 		Scope:             params.get(oauth.ScopeParam),
 		OwnDID:            &verifier,
 		ClientState:       params.get(oauth.StateParam),
