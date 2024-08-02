@@ -432,7 +432,8 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 
 		// append new revocation and re-issue the StatusList2021Credential.
-		_, credRecord, err := cs.updateCredential(ctx, issuerRecord, kid)
+		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+		_, credRecord, err := cs.updateCredential(transactionContext, issuerRecord, kid)
 		if err != nil {
 			return err
 		}
