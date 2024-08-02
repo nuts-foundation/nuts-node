@@ -180,7 +180,7 @@ func TestVerifier_Verify(t *testing.T) {
 			storage.AddDIDtoSQLDB(t, db, didAlice)
 			entry, err := ctx.verifier.credentialStatus.(*revocation.StatusList2021).Entry(context.Background(), didAlice, revocation.StatusPurposeRevocation)
 			require.NoError(t, err)
-			require.NoError(t, ctx.verifier.credentialStatus.(*revocation.StatusList2021).Revoke(nil, ssi.URI{}, *entry))
+			require.NoError(t, ctx.verifier.credentialStatus.(*revocation.StatusList2021).Revoke(context.Background(), ssi.URI{}, *entry))
 			cred := test.ValidNutsOrganizationCredential(t)
 			credentialID := didAlice.URI()
 			credentialID.Fragment = "123"

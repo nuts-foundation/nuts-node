@@ -220,7 +220,7 @@ func TestStatusList2021_Revoke(t *testing.T) {
 		set, _ := credRecord.Expanded.bit(statusListIndex)
 		assert.False(t, set)
 		credentialID := bobDID.URI() // not alice
-		require.NoError(t, s.Revoke(nil, credentialID, entry))
+		require.NoError(t, s.Revoke(context.Background(), credentialID, entry))
 		// confirm the revocation is in the DB
 		var revocation revocationRecord
 		err = s.db.Where(&revocationRecord{
@@ -298,7 +298,7 @@ func TestStatusList2021_Credential(t *testing.T) {
 		assert.Equal(t, expectedCS, cred.CredentialSubject[0])
 	})
 	t.Run("ok - with revocations", func(t *testing.T) {
-		require.NoError(t, s.Revoke(nil, ssi.URI{}, entry))
+		require.NoError(t, s.Revoke(context.Background(), ssi.URI{}, entry))
 		s.Sign = nil // guarantees credential comes from db
 		defer func() { s.Sign = noopSign }()
 
