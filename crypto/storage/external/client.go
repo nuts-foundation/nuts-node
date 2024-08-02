@@ -169,23 +169,23 @@ func (c APIClient) DeletePrivateKey(ctx context.Context, keyName string) error {
 	}
 }
 
-func (c APIClient) ListPrivateKeys(ctx context.Context) ([]string, []string) {
+func (c APIClient) ListPrivateKeys(ctx context.Context) []spi.KeyNameVersion {
 	response, err := c.httpClient.ListKeysWithResponse(ctx)
 	if err != nil {
-		return nil, nil
+		return nil
 	}
 	switch response.StatusCode() {
 	case http.StatusOK:
 		if response.JSON200 == nil {
-			return nil, nil
+			return nil
 		}
 		keys := *response.JSON200
-		versions := make([]string, len(keys))
+		result := make([]spi.KeyNameVersion, len(keys))
 		for i := range keys {
-			versions[i] = "1"
+			result[i] = spi.KeyNameVersion{KeyName: keys[i], Version: "1"}
 		}
-		return keys, versions
+		return result
 	default:
-		return nil, nil
+		return nil
 	}
 }

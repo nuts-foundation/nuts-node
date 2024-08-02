@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"syscall"
 	"testing"
 
@@ -193,9 +192,12 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 		_ = os.Mkdir(path.Join(backend.fspath, "subdir"), os.ModePerm)
 		_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
 
-		keys, _ := backend.ListPrivateKeys(nil)
-		sort.Strings(keys)
-		assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
+		keys := backend.ListPrivateKeys(nil)
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-0", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-1", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-2", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-3", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-4", "1"})
 	})
 	t.Run("WalkFunc error", func(t *testing.T) {
 		// https://github.com/nuts-foundation/nuts-node/issues/1943
@@ -203,7 +205,7 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 		// This happens when the root directory does not exist (or any other underlying FS error).
 		storage := &fileSystemBackend{fspath: path.Join(io.TestDirectory(t), "does-not-exist")}
 
-		keys, _ := storage.ListPrivateKeys(nil)
+		keys := storage.ListPrivateKeys(nil)
 
 		assert.Empty(t, keys)
 	})

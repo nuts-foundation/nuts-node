@@ -85,7 +85,7 @@ func (w wrapper) DeletePrivateKey(ctx context.Context, keyName string) error {
 	return w.wrappedBackend.DeletePrivateKey(ctx, keyName)
 }
 
-func (w wrapper) ListPrivateKeys(ctx context.Context) ([]string, []string) {
+func (w wrapper) ListPrivateKeys(ctx context.Context) []KeyNameVersion {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }
 

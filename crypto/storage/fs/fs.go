@@ -151,9 +151,8 @@ func (fsc fileSystemBackend) DeletePrivateKey(_ context.Context, keyName string)
 	return nil
 }
 
-func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) ([]string, []string) {
-	var result []string
-	var versions []string
+func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) []spi.KeyNameVersion {
+	var result []spi.KeyNameVersion
 	err := filepath.Walk(fsc.fspath, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -161,8 +160,7 @@ func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) ([]string, []str
 		if !info.IsDir() && strings.HasSuffix(info.Name(), string(privateKeyEntry)) {
 			upper := len(info.Name()) - len(privateKeyEntry) - 1
 			if upper > 0 {
-				result = append(result, info.Name()[:upper])
-				versions = append(versions, "1")
+				result = append(result, spi.KeyNameVersion{KeyName: info.Name()[:upper], Version: "1"})
 			}
 		}
 		return nil
@@ -172,7 +170,7 @@ func (fsc fileSystemBackend) ListPrivateKeys(_ context.Context) ([]string, []str
 			WithError(err).
 			Errorf("Error while listing private keys in %s", fsc.fspath)
 	}
-	return result, versions
+	return result
 }
 
 func (fsc fileSystemBackend) readEntry(kid string, entryType entryType) ([]byte, error) {

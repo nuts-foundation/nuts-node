@@ -404,27 +404,6 @@ func (m Manager) onDeactivate(ctx context.Context, event orm.DIDChangeLog) error
 	return m.Deactivate(ctx, event.DID())
 }
 
-type cryptoKey struct {
-	vm did.VerificationMethod
-}
-
-func (c cryptoKey) KID() string {
-	return c.vm.ID.String()
-}
-
-func (c cryptoKey) Public() crypto.PublicKey {
-	pk, _ := c.vm.PublicKey()
-	return pk
-}
-
-func (c cryptoKey) KeyName() string {
-	panic("implement me")
-}
-
-func (c cryptoKey) Version() string {
-	panic("implement me")
-}
-
 func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	contextPresent := false
 
@@ -440,6 +419,7 @@ func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	return document
 }
 
+// resolveControllerWithKey finds the controller of the document and returns the controller document and the KID
 func (m Manager) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, string, error) {
 	controllers, err := ResolveControllers(m.store, doc, nil)
 	if err != nil {

@@ -54,11 +54,18 @@ type Storage interface {
 	// PrivateKeyExists checks if the private key indicated with the keyname/version is stored in the storage backend.
 	PrivateKeyExists(ctx context.Context, keyName string, version string) (bool, error)
 	// SavePrivateKey imports the key under the keyname in the storage backend.
+	// see https://github.com/nuts-foundation/nuts-node/issues/3292
 	SavePrivateKey(ctx context.Context, keyname string, key crypto.PrivateKey) error
 	// ListPrivateKeys returns the KeyName and Version of the private keys that are present. Returns a []string(nil) if there was a problem.
-	ListPrivateKeys(ctx context.Context) ([]string, []string)
+	ListPrivateKeys(ctx context.Context) []KeyNameVersion
 	// DeletePrivateKey removes the private key with the given keyname from the storage backend.
 	DeletePrivateKey(ctx context.Context, keyName string) error
+}
+
+// KeyNameVersion contains a key name and version. It used as return argument for ListPrivateKeys.
+type KeyNameVersion struct {
+	KeyName string
+	Version string
 }
 
 // PublicKeyEntry is a public key entry also containing the period it's valid for.

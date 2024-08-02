@@ -442,8 +442,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		}))
 		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
-		keys, _ := client.ListPrivateKeys(ctx)
-		require.Equal(t, []string{}, keys)
+		keys := client.ListPrivateKeys(ctx)
+		require.Equal(t, []spi.KeyNameVersion{}, keys)
 	})
 
 	t.Run("ok - it returns a list of unescaped keys", func(t *testing.T) {
@@ -465,8 +465,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		}))
 		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
-		keys, _ := client.ListPrivateKeys(ctx)
-		require.Equal(t, []string{"key1", complexKeyName}, keys)
+		keys := client.ListPrivateKeys(ctx)
+		require.Equal(t, []spi.KeyNameVersion{{"key1", "1"}, {complexKeyName, "1"}}, keys)
 	})
 
 	t.Run("error - it returns an empty list of keys if the server returns an error", func(t *testing.T) {
@@ -484,8 +484,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		}))
 		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
-		keys, _ := client.ListPrivateKeys(ctx)
-		require.Equal(t, []string(nil), keys)
+		keys := client.ListPrivateKeys(ctx)
+		require.Equal(t, []spi.KeyNameVersion(nil), keys)
 	})
 
 	t.Run("error - it returns an empty list of keys if the server returns an invalid response", func(t *testing.T) {
@@ -503,8 +503,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		}))
 		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
-		keys, _ := client.ListPrivateKeys(ctx)
-		require.Equal(t, []string(nil), keys)
+		keys := client.ListPrivateKeys(ctx)
+		require.Equal(t, []spi.KeyNameVersion(nil), keys)
 	})
 	t.Run("error - it returns an empty list of keys if the server does not respond with json", func(t *testing.T) {
 		s := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -521,8 +521,8 @@ func TestAPIClient_ListPrivateKeys(t *testing.T) {
 		}))
 		client, err := NewAPIClient(Config{s.URL, time.Second})
 		require.NoError(t, err)
-		keys, _ := client.ListPrivateKeys(ctx)
-		require.Equal(t, []string(nil), keys)
+		keys := client.ListPrivateKeys(ctx)
+		require.Equal(t, []spi.KeyNameVersion(nil), keys)
 	})
 }
 

@@ -21,6 +21,7 @@ package spi
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"testing"
 )
@@ -156,9 +157,10 @@ func TestWrapper_ListPrivateKeys(t *testing.T) {
 		mockStorage := NewMockStorage(ctrl)
 		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
-		mockStorage.EXPECT().ListPrivateKeys(ctx).Return([]string{"foo", "bar"}, []string{"1", "1"})
-		keys, _ := w.ListPrivateKeys(ctx)
-		assert.Equal(t, []string{"foo", "bar"}, keys)
+		mockStorage.EXPECT().ListPrivateKeys(ctx).Return([]KeyNameVersion{{"foo", "1"}, {"bar", "1"}})
+		keys := w.ListPrivateKeys(ctx)
+		require.Len(t, keys, 2)
+		assert.Equal(t, KeyNameVersion{"foo", "1"}, keys[0])
 		ctrl.Finish()
 	})
 }

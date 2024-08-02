@@ -292,9 +292,8 @@ func TestIntegrationTest(t *testing.T) {
 		})
 	})
 	t.Run("ListPrivateKeys", func(t *testing.T) {
-		keys, versions := store.ListPrivateKeys(ctx)
-		assert.Contains(t, keys, keyName)
-		assert.Contains(t, versions, version)
+		keys := store.ListPrivateKeys(ctx)
+		assert.Contains(t, keys, spi.KeyNameVersion{keyName, version})
 	})
 	t.Run("GetPrivateKey", func(t *testing.T) {
 		t.Run("does not exist", func(t *testing.T) {

@@ -61,8 +61,6 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 	return result, nil
 }
 
-type transactionKey struct{}
-
 // Create generates new DID Documents
 func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error) {
 	log.Logger().Debug("Creating new DID Documents.")
@@ -100,7 +98,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
-			// save tx in context to pass all the way down to KeyStore, todo: hack
+			// save tx in context to pass all the way down to KeyStore
 			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
 			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
 			if err != nil {

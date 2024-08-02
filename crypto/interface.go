@@ -35,7 +35,7 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
 	// New generates a keypair and returns a reference. The context is used to pass audit information.
-	// It'll generate a key at the backend and store a reference in the SQL DB.
+	// It generates a key at the backend and stores its reference in the SQL DB.
 	// A DB transaction may be passed through the context using `orm.TransactionKey`.
 	New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error)
 }
@@ -63,6 +63,7 @@ type KeyStore interface {
 	Delete(ctx context.Context, kid string) error
 
 	// Link links the key in the keystore to a kid
+	// see https://github.com/nuts-foundation/nuts-node/issues/3292
 	Link(ctx context.Context, kid string, keyName string, version string) error
 }
 

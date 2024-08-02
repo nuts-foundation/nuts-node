@@ -211,11 +211,11 @@ func TestVaultKVStorage_ListPrivateKeys(t *testing.T) {
 	}))
 	defer s.Close()
 	storage, _ := NewVaultKVStorage(Config{Address: s.URL})
-	keys, _ := storage.ListPrivateKeys(context.Background())
+	keys := storage.ListPrivateKeys(context.Background())
 	assert.Len(t, keys, 7)
 	// Assert first and last entry, rest should be OK then
-	assert.Equal(t, "did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#45KSfeG71ZMh9NjGzSWFfcMsmu5587J93prf8Io1wf4", keys[0])
-	assert.Equal(t, "did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#yREqK5id7I6SP1Iq7teThin2o53w17tb9sgEXZBIcDo", keys[6])
+	assert.Equal(t, "did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#45KSfeG71ZMh9NjGzSWFfcMsmu5587J93prf8Io1wf4", keys[0].KeyName)
+	assert.Equal(t, "did:nuts:8AB7Jf8KYgNHC52sfyTTK2f2yGnDoSHkgzDgeqvrUBLo#yREqK5id7I6SP1Iq7teThin2o53w17tb9sgEXZBIcDo", keys[6].KeyName)
 }
 
 func Test_PrivateKeyPath(t *testing.T) {

@@ -189,30 +189,28 @@ func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, keyName string, _ 
 	return err == nil, err
 }
 
-func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) ([]string, []string) {
+func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []spi.KeyNameVersion {
 	path := privateKeyListPath(v.config.PathPrefix)
 	response, err := v.client.ReadWithDataWithContext(ctx, path, map[string][]string{"list": {"true"}})
 	if err != nil {
 		log.Logger().
 			WithError(err).
 			Error("Could not list private keys in Vault")
-		return nil, nil
+		return nil
 	}
 	if response == nil {
 		log.Logger().Warnf("Vault returned nothing while fetching private keys, maybe the path prefix ('%s') is incorrect or the engine doesn't exist?", v.config.PathPrefix)
-		return nil, nil
+		return nil
 	}
 	keys, _ := response.Data["keys"].([]interface{})
-	var result []string
-	var versions []string
+	var result []spi.KeyNameVersion
 	for _, key := range keys {
 		keyStr, ok := key.(string)
 		if ok {
-			result = append(result, keyStr)
-			versions = append(versions, "1")
+			result = append(result, spi.KeyNameVersion{KeyName: keyStr, Version: "1"})
 		}
 	}
-	return result, versions
+	return result
 }
 
 // privateKeyPath cleans the kid by removing optional slashes and dots and constructs the key path

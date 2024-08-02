@@ -45,7 +45,7 @@ const (
 	ManagedIdentityCredentialType string = "managed_identity"
 )
 
-var _ spi.Storage = &Keyvault{}
+var _ spi.Storage = (*Keyvault)(nil)
 
 // New creates a new Azure Key Vault storage backend.
 // If useHSM is true, the key type will be azkeys.KeyTypeECHSM, otherwise azkeys.KeyTypeEC.
@@ -175,22 +175,20 @@ func (a Keyvault) SavePrivateKey(ctx context.Context, kid string, key crypto.Pri
 	return errors.New("SavePrivateKey() is not supported for Azure Key Vault")
 }
 
-func (a Keyvault) ListPrivateKeys(ctx context.Context) ([]string, []string) {
+func (a Keyvault) ListPrivateKeys(ctx context.Context) []spi.KeyNameVersion {
 	pager := a.client.NewListKeyPropertiesPager(nil)
-	result := make([]string, 0)
-	versions := make([]string, 0)
+	result := make([]spi.KeyNameVersion, 0)
 	for pager.More() {
 		page, err := pager.NextPage(ctx)
 		if err != nil {
 			log.Logger().WithError(err).Error("unable to list keys from Azure Key Vault")
-			return nil, nil
+			return nil
 		}
 		for _, keyProperties := range page.Value {
-			result = append(result, keyProperties.KID.Name())
-			versions = append(result, keyProperties.KID.Version())
+			result = append(result, spi.KeyNameVersion{KeyName: keyProperties.KID.Name(), Version: keyProperties.KID.Version()})
 		}
 	}
-	return result, versions
+	return result
 }
 
 // parseKey parses an Azure Key Vault key into a crypto.PublicKey and selects the azkeys.SignatureAlgorithm.

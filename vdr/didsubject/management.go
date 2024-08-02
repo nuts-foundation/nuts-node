@@ -43,7 +43,8 @@ type MethodManager interface {
 	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error)
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
-	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key. <<-- todo for RSA keys
+	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
+	// RSA keys are not yet fully supported, see https://github.com/nuts-foundation/nuts-node/issues/1948
 	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.

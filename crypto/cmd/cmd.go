@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
@@ -29,7 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
-	storage2 "github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -112,7 +113,7 @@ func LoadCryptoModule(cmd *cobra.Command) (*cryptoEngine.Crypto, error) {
 	if err != nil {
 		return nil, err
 	}
-	storage := storage2.New()
+	storage := storage.New()
 	instance := cryptoEngine.NewCryptoInstance(storage)
 	err = cfg.InjectIntoEngine(instance)
 	if err != nil {
@@ -144,14 +145,14 @@ func fsToOtherStorage(ctx context.Context, sourceDir string, target spi.Storage)
 // It accepts a source, target and returns all exported keys.
 // If an error occurs, the returned keys are the keys that were exported before the error occurred.
 func exportToOtherStorage(ctx context.Context, source, target spi.Storage) ([]string, error) {
-	var keys []string
-	keyNames, versions := source.ListPrivateKeys(ctx)
-	for i := range keyNames {
-		keyName := keyNames[i]
-		version := versions[i]
+	var result []string
+	keys := source.ListPrivateKeys(ctx)
+	for _, keyNameVersion := range keys {
+		keyName := keyNameVersion.KeyName
+		version := keyNameVersion.Version
 		privateKey, err := source.GetPrivateKey(ctx, keyName, version)
 		if err != nil {
-			return keys, fmt.Errorf("unable to retrieve private key (kid=%s): %w", keyName, err)
+			return result, fmt.Errorf("unable to retrieve private key (kid=%s): %w", keyName, err)
 		}
 		err = target.SavePrivateKey(ctx, keyName, privateKey)
 		if err != nil {
@@ -159,10 +160,10 @@ func exportToOtherStorage(ctx context.Context, source, target spi.Storage) ([]st
 			if errors.Is(err, spi.ErrKeyAlreadyExists) {
 				continue
 			}
-			return keys, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", keyName, err)
+			return result, fmt.Errorf("unable to store private key in Vault (kid=%s): %w", keyName, err)
 		}
 		// only add if no error occurred
-		keys = append(keys, keyName)
+		result = append(result, keyName)
 	}
-	return keys, nil
+	return result, nil
 }

@@ -40,8 +40,11 @@ create index did_change_log_transaction_idx on did_change_log (transaction_id);
 -- this is needed because verificationMethod IDs have specific requirements that the backend doesn't support.
 create table key_reference
 (
+    -- kid is the key ID and matches the verification method ID
     kid varchar(415) primary key,
+    -- key_name is the primary identifier for the key in the secure backend
     key_name varchar(255) not null,
+    -- version is the version of the key in the secure backend, for backends that do not support key rotation, this is always "1"
     version varchar(255) not null
 );
 

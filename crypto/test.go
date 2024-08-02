@@ -80,14 +80,12 @@ func (m memoryStorage) CheckHealth() map[string]core.Health {
 	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
 }
 
-func (m memoryStorage) ListPrivateKeys(_ context.Context) ([]string, []string) {
-	var result []string
-	var versions []string
+func (m memoryStorage) ListPrivateKeys(_ context.Context) []spi.KeyNameVersion {
+	var result []spi.KeyNameVersion
 	for key := range m {
-		result = append(result, key)
-		versions = append(versions, "1")
+		result = append(result, spi.KeyNameVersion{KeyName: key, Version: "1"})
 	}
-	return result, versions
+	return result
 }
 
 func (m memoryStorage) GetPrivateKey(_ context.Context, keyName string, _ string) (crypto.Signer, error) {

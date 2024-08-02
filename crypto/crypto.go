@@ -53,7 +53,7 @@ type Config struct {
 	External      external.Config `koanf:"external"`
 }
 
-// DefaultCryptoConfig returns a Config with a fs backend
+// DefaultCryptoConfig returns a Config with default settings for Vault and Azure keyVault
 func DefaultCryptoConfig() Config {
 	return Config{
 		Vault:         vault.DefaultConfig(),
@@ -189,22 +189,24 @@ func (client *Crypto) Migrate() error {
 	// if not, create a new KeyReference
 	// else do nothing
 
+	outerContext := context.TODO()
+
 	// run everything in a single transaction
 	// we do not expect to have a lot of keys, so this should be fine
 	return client.db.Transaction(func(tx *gorm.DB) error {
-		ctx := context.WithValue(context.Background(), storage.TransactionKey{}, tx)
-		keys, versions := client.backend.ListPrivateKeys(context.Background())
-		for i, keyName := range keys {
-			// check if key exists in the database
+		ctx := context.WithValue(outerContext, storage.TransactionKey{}, tx)
+		keys := client.backend.ListPrivateKeys(ctx)
+		for _, keyNameVersion := range keys {
 			var keyRef orm.KeyReference
-			err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("key_name = ? and version = ?", keyName, versions[i]).First(&keyRef).Error
+			// find existing record, if it exists do nothing
+			err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("key_name = ? and version = ?", keyNameVersion.KeyName, keyNameVersion.KeyName).First(&keyRef).Error
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					// create a new key reference
 					ref := &orm.KeyReference{
-						KID:     keyName,
-						KeyName: keyName,
-						Version: versions[i],
+						KID:     keyNameVersion.KeyName,
+						KeyName: keyNameVersion.KeyName,
+						Version: keyNameVersion.Version,
 					}
 					err := tx.Save(ref).Error
 					if err != nil {
