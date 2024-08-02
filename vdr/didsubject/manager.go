@@ -29,6 +29,8 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
@@ -44,6 +46,7 @@ var ErrSubjectNotFound = errors.New("subject not found")
 type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
+	KeyStore       nutsCrypto.KeyStore
 }
 
 func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
@@ -102,7 +105,9 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
-			sqlDoc, err := manager.NewDocument(ctx, keyFlags)
+			// save tx in context to pass all the way down to KeyStore
+			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
 			if err != nil {
 				return nil, fmt.Errorf("could not generate DID document (method %s): %w", method, err)
 			}
@@ -333,7 +338,17 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 	verificationMethods := make([]did.VerificationMethod, 0)
 
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
-		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(ctx, id, keyUsage)
+		// known limitation
+		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
+			return nil, errors.New("key agreement not supported for did:web")
+			// todo requires update to nutsCrypto module
+			//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
+			//	return verificationMethodID.String(), nil
+			//})
+		}
+
+		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(transactionContext, id, keyUsage)
 		if err != nil {
 			return nil, err
 		}

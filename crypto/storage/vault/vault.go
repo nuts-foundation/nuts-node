@@ -103,8 +103,8 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func (v vaultKVStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	return spi.GenerateAndStore(ctx, v, namingFunc)
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, v, keyName)
 }
 
 func configureVaultClient(cfg Config) (*vault.Client, error) {
@@ -141,8 +141,8 @@ func (v vaultKVStorage) checkConnection() error {
 	return nil
 }
 
-func (v vaultKVStorage) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
-	path := privateKeyPath(v.config.PathPrefix, kid)
+func (v vaultKVStorage) GetPrivateKey(ctx context.Context, keyName string, _ string) (crypto.Signer, error) {
+	path := privateKeyPath(v.config.PathPrefix, keyName)
 	value, err := v.getValue(ctx, path, keyName)
 	if err != nil {
 		return nil, err
@@ -180,8 +180,8 @@ func (v vaultKVStorage) storeValue(ctx context.Context, path, key string, value 
 	return nil
 }
 
-func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
-	path := privateKeyPath(v.config.PathPrefix, kid)
+func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, keyName string, _ string) (bool, error) {
+	path := privateKeyPath(v.config.PathPrefix, keyName)
 	_, err := v.getValue(ctx, path, keyName)
 	if errors.Is(err, spi.ErrNotFound) {
 		return false, nil
@@ -189,7 +189,7 @@ func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, kid string) (bool,
 	return err == nil, err
 }
 
-func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []string {
+func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []spi.KeyNameVersion {
 	path := privateKeyListPath(v.config.PathPrefix)
 	response, err := v.client.ReadWithDataWithContext(ctx, path, map[string][]string{"list": {"true"}})
 	if err != nil {
@@ -203,11 +203,11 @@ func (v vaultKVStorage) ListPrivateKeys(ctx context.Context) []string {
 		return nil
 	}
 	keys, _ := response.Data["keys"].([]interface{})
-	var result []string
+	var result []spi.KeyNameVersion
 	for _, key := range keys {
 		keyStr, ok := key.(string)
 		if ok {
-			result = append(result, keyStr)
+			result = append(result, spi.KeyNameVersion{KeyName: keyStr, Version: "1"})
 		}
 	}
 	return result
@@ -225,8 +225,8 @@ func privateKeyListPath(prefix string) string {
 	return filepath.Clean(path)
 }
 
-func (v vaultKVStorage) SavePrivateKey(ctx context.Context, kid string, key crypto.PrivateKey) error {
-	path := privateKeyPath(v.config.PathPrefix, kid)
+func (v vaultKVStorage) SavePrivateKey(ctx context.Context, keyName string, key crypto.PrivateKey) error {
+	path := privateKeyPath(v.config.PathPrefix, keyName)
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)

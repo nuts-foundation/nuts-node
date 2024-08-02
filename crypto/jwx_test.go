@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"go.uber.org/mock/gomock"
 	"io"
 	"testing"
@@ -47,6 +48,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGenerateJWK(t *testing.T) {
+	key, err := GenerateJWK()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+}
 
 func TestSignJWT(t *testing.T) {
 	claims := map[string]interface{}{"iss": "nuts"}
@@ -155,7 +163,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	ref, pubKey := newKeyReference(t, client, kid)
 
 	t.Run("creates valid JWT", func(t *testing.T) {
 		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, kid)
@@ -165,7 +173,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		var actualKID string
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			actualKID = kid
-			return key.Public(), nil
+			return pubKey, nil
 		})
 
 		require.NoError(t, err)
@@ -179,8 +187,9 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		storage := spi.NewMockStorage(ctrl)
-		storage.EXPECT().GetPrivateKey(gomock.Any(), kid).Return(key, nil)
-		client := &Crypto{storage: storage}
+		storage.EXPECT().GetPrivateKey(gomock.Any(), ref.KeyName, ref.Version).Return(key, nil)
+		client := &Crypto{backend: storage, db: orm.NewTestDatabase(t)}
+		client.Link(context.Background(), kid, ref.KeyName, ref.Version)
 
 		tokenString, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, kid)
 
@@ -211,19 +220,13 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
-
-	t.Run("returns error for invalid KID", func(t *testing.T) {
-		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts"}, nil, "../certificate")
-
-		assert.ErrorContains(t, err, "invalid key ID")
-	})
 }
 
 func TestCrypto_SignJWS(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "kid"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	ref, pubKey := newKeyReference(t, client, kid)
 
 	t.Run("creates valid JWS", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
@@ -232,7 +235,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		require.NoError(t, err)
 
 		token, err := ParseJWS([]byte(tokenString), func(kid string) (crypto.PublicKey, error) {
-			return key.Public(), nil
+			return pubKey, nil
 		})
 		require.NoError(t, err)
 
@@ -249,8 +252,9 @@ func TestCrypto_SignJWS(t *testing.T) {
 
 		ctrl := gomock.NewController(t)
 		storage := spi.NewMockStorage(ctrl)
-		storage.EXPECT().GetPrivateKey(gomock.Any(), kid).Return(key, nil)
-		client := &Crypto{storage: storage}
+		storage.EXPECT().GetPrivateKey(gomock.Any(), ref.KeyName, ref.Version).Return(key, nil)
+		client := &Crypto{backend: storage, db: orm.NewTestDatabase(t)}
+		_ = client.Link(context.Background(), kid, ref.KeyName, ref.Version)
 
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		tokenString, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, kid, false)
@@ -284,26 +288,18 @@ func TestCrypto_SignJWS(t *testing.T) {
 
 		assert.True(t, errors.Is(err, ErrPrivateKeyNotFound))
 	})
-
-	t.Run("returns error for invalid KID", func(t *testing.T) {
-		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		_, err := client.SignJWS(audit.TestContext(), payload, map[string]interface{}{"typ": "JWT"}, "../certificate", false)
-
-		assert.ErrorContains(t, err, "invalid key ID")
-	})
 }
 
 func TestCrypto_EncryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "did:nuts:1234#key-1"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
-	public := key.Public()
+	_, pubKey := newKeyReference(t, client, kid)
 
-	headers := map[string]interface{}{"typ": "JWT", "kid": key.KID()}
+	headers := map[string]interface{}{"typ": "JWT", "kid": kid}
 	t.Run("creates valid JWE (EC)", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, pubKey)
 
 		require.NoError(t, err)
 
@@ -340,7 +336,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates valid JWE, alt alg", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "alg": "ECDH-ES"}
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, pubKey)
 
 		require.NoError(t, err)
 
@@ -360,7 +356,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates valid JWE, alt enc", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "enc": "A256CBC-HS512"}
-		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+		tokenString, err := client.EncryptJWE(audit.TestContext(), payload, headers, pubKey)
 
 		require.NoError(t, err)
 
@@ -380,13 +376,13 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 	t.Run("creates broken JWE, enc header", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 		headers := map[string]interface{}{"typ": "JWT", "enc": "ECDH-ES"}
-		_, err := client.EncryptJWE(audit.TestContext(), payload, headers, public)
+		_, err := client.EncryptJWE(audit.TestContext(), payload, headers, pubKey)
 		require.Error(t, err)
 	})
 	t.Run("writes audit log", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, public)
+		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, pubKey)
 
 		require.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "EncryptJWE", audit.TestActor, "Encrypting a JWE")
@@ -397,12 +393,12 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 	client := createCrypto(t)
 
 	kid := "did:nuts:1234#key-1"
-	key, _ := client.New(audit.TestContext(), StringNamingFunc(kid))
+	ref, pubKey := newKeyReference(t, client, kid)
 
 	t.Run("decrypts valid JWE", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 
-		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": kid}, key.Public())
+		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": kid}, pubKey)
 
 		require.NoError(t, err)
 
@@ -420,7 +416,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 	t.Run("decrypts invalid JWE, broken kid", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
 
-		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": "banana"}, key.Public())
+		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": "banana"}, pubKey)
 
 		require.NoError(t, err)
 
@@ -437,21 +433,22 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storage := spi.NewMockStorage(ctrl)
 		storage.EXPECT().Name().Return("test")
-		storage.EXPECT().GetPrivateKey(gomock.Any(), kid).Return(wrappedPrivateKey, nil)
-
+		storage.EXPECT().GetPrivateKey(gomock.Any(), ref.KeyName, ref.Version).Return(wrappedPrivateKey, nil)
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
+		client := &Crypto{backend: storage, db: orm.NewTestDatabase(t)}
+		_ = client.Link(context.Background(), kid, ref.KeyName, ref.Version)
 
 		tokenString, err := EncryptJWE(payload, map[string]interface{}{"typ": "JWT", "kid": kid}, privateKey.Public())
 
 		require.NoError(t, err)
 
-		_, _, err = (&Crypto{storage: storage}).DecryptJWE(audit.TestContext(), tokenString)
+		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
 		require.EqualError(t, err, "keys stored in 'test' do not support JWE decryption")
 	})
 	t.Run("writes audit log", func(t *testing.T) {
 		auditLogs := audit.CaptureLogs(t)
 
-		tokenString, err := EncryptJWE([]byte{1, 2, 3}, map[string]interface{}{"typ": "JWT", "kid": kid}, key.Public())
+		tokenString, err := EncryptJWE([]byte{1, 2, 3}, map[string]interface{}{"typ": "JWT", "kid": kid}, pubKey)
 		require.NoError(t, err)
 		_, _, err = client.DecryptJWE(audit.TestContext(), tokenString)
 

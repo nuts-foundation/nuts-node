@@ -323,7 +323,7 @@ func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request h
 	}
 
 	token := dpop.New(request)
-	return c.jwtSigner.SignDPoP(ctx, *token, keyID.String())
+	return c.jwtSigner.SignDPoP(ctx, *token, keyID)
 }
 
 // autoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.

@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -158,15 +159,15 @@ func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
 // with a freshly generated key for a given DID.
 func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	key, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, err
 	}
-	keyID, err := did.ParseDIDURL(key.KID())
+	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
 		return nil, err
 	}
-	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, key.Public())
+	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +206,7 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
 		return fmt.Errorf("update DID document: %w", err)
 	}
 
-	controller, key, err := m.resolveControllerWithKey(ctx, *currentDIDDocument)
+	controller, kid, err := m.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
 		return fmt.Errorf("update DID document: %w", err)
 	}
@@ -219,7 +220,7 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
-	tx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
+	tx := network.TransactionTemplate(DIDDocumentType, payload, kid).WithAdditionalPrevs(previousTransactions)
 	dagTx, err := m.networkClient.CreateTransaction(ctx, tx)
 	if err != nil {
 		log.Logger().WithError(err).Warn("Unable to update DID document")
@@ -252,26 +253,20 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  ******************************/
 
 func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
-	// First, generate a new keyPair with the correct kid
-	// Currently, always keep the key in the keystore. This allows us to change the transaction format and regenerate transactions at a later moment.
-	// Relevant issue:
-	// https://github.com/nuts-foundation/nuts-node/issues/1947
-	key, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
 	if err != nil {
 		return nil, err
 	}
-
 	keyFlags := DefaultKeyFlags()
 
-	keyID, err := did.ParseDIDURL(key.KID())
+	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
 		return nil, err
 	}
 
-	didID, _ := resolver.GetDIDFromURL(key.KID())
 	var verificationMethod *did.VerificationMethod
 	// Add VerificationMethod using generated key
-	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, didID, key.Public())
+	verificationMethod, err = did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, keyID.DID, publicKey)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +274,7 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DIDDo
 	now := time.Now().Unix()
 	sqlDoc := orm.DIDDocument{
 		DID: orm.DID{
-			ID: didID.String(),
+			ID: keyID.DID.String(),
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -339,9 +334,14 @@ func (m Manager) onCreate(ctx context.Context, event orm.DIDChangeLog) error {
 
 		// extract the transaction refs from the controller metadata
 		refs := make([]hash.SHA256Hash, 0)
-		key := cryptoKey{vm: *didDocument.VerificationMethod[0]}
-		networkTx := network.TransactionTemplate(DIDDocumentType, payload, key).WithAttachKey().WithAdditionalPrevs(refs)
-		_, err = m.networkClient.CreateTransaction(ctx, networkTx)
+		publicKey, err := didDocument.VerificationMethod[0].PublicKey()
+		if err != nil {
+			return err
+		}
+		networkTx := network.TransactionTemplate(DIDDocumentType, payload, didDocument.VerificationMethod[0].ID.String()).WithAttachKey(publicKey).WithAdditionalPrevs(refs)
+		// set transaction on context
+		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+		_, err = m.networkClient.CreateTransaction(transactionContext, networkTx)
 		if err != nil {
 			return fmt.Errorf("could not publish DID document on the network: %w", err)
 		}
@@ -381,7 +381,7 @@ func (m Manager) onUpdate(ctx context.Context, event orm.DIDChangeLog) error {
 		return err
 	}
 
-	controller, key, err := m.resolveControllerWithKey(ctx, *currentDIDDocument)
+	controller, kid, err := m.resolveControllerWithKey(ctx, *currentDIDDocument)
 	if err != nil {
 		return err
 	}
@@ -395,26 +395,13 @@ func (m Manager) onUpdate(ctx context.Context, event orm.DIDChangeLog) error {
 	// a DIDDocument update must point to its previous version, current heads and the controller TX (for signing key transaction ordering)
 	previousTransactions := append(currentMeta.SourceTransactions, controllerMeta.SourceTransactions...)
 
-	networkTransaction := network.TransactionTemplate(DIDDocumentType, payload, key).WithAdditionalPrevs(previousTransactions)
+	networkTransaction := network.TransactionTemplate(DIDDocumentType, payload, kid).WithAdditionalPrevs(previousTransactions)
 	_, err = m.networkClient.CreateTransaction(ctx, networkTransaction)
 	return err
 }
 
 func (m Manager) onDeactivate(ctx context.Context, event orm.DIDChangeLog) error {
 	return m.Deactivate(ctx, event.DID())
-}
-
-type cryptoKey struct {
-	vm did.VerificationMethod
-}
-
-func (c cryptoKey) KID() string {
-	return c.vm.ID.String()
-}
-
-func (c cryptoKey) Public() crypto.PublicKey {
-	pk, _ := c.vm.PublicKey()
-	return pk
 }
 
 func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
@@ -432,24 +419,24 @@ func withJSONLDContext(document did.Document, ctx ssi.URI) did.Document {
 	return document
 }
 
-func (m Manager) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, nutsCrypto.Key, error) {
+// resolveControllerWithKey finds the controller of the document and returns the controller document and the KID
+func (m Manager) resolveControllerWithKey(ctx context.Context, doc did.Document) (did.Document, string, error) {
 	controllers, err := ResolveControllers(m.store, doc, nil)
 	if err != nil {
-		return did.Document{}, nil, fmt.Errorf("error while finding controllers for document: %w", err)
+		return did.Document{}, "", fmt.Errorf("error while finding controllers for document: %w", err)
 	}
 	if len(controllers) == 0 {
-		return did.Document{}, nil, fmt.Errorf("could not find any controllers for document")
+		return did.Document{}, "", fmt.Errorf("could not find any controllers for document")
 	}
 
-	var key nutsCrypto.Key
 	for _, c := range controllers {
 		for _, cik := range c.CapabilityInvocation {
-			key, err = m.keyStore.Resolve(ctx, cik.ID.String())
-			if err == nil {
-				return c, key, nil
+			ok, err := m.keyStore.Exists(ctx, cik.ID.String())
+			if err == nil && ok {
+				return c, cik.ID.String(), nil
 			}
 		}
 	}
 
-	return did.Document{}, nil, fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
+	return did.Document{}, "", fmt.Errorf("could not find capabilityInvocation key for updating the DID document: %w", err)
 }

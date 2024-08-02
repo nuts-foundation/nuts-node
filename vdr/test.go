@@ -22,10 +22,6 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
-	"testing"
 )
 
 // Two TestDIDs which can be used during testing:
@@ -46,7 +42,7 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgmvipTdytRXwTTY/6
 wJl5Cwj0YQ4+QdJK+fEC8DzL9/OhRANCAATxa8o5Htmk5J83FPbRCKDwO5VjtADD
 HpB7g016NM3emlGGaFytd23nTAx77KxrJMYoQ7liF4BgXUH0748kJQgx
 -----END PRIVATE KEY-----`))
-	return crypto.TestKey{PrivateKey: key, Kid: TestMethodDIDA.String()}
+	return crypto.TestKey{PrivateKey: key, KID: TestMethodDIDA.String(), PublicKey: key.Public()}
 }
 
 // TestMethodDIDB is a test method DID for the TestDIDB
@@ -59,13 +55,5 @@ MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg3dY0NAGN7koRq+BH
 XxhMnrGAyJ4c6DWkQyjAfhgzMJChRANCAARyqdBob46wU2n+qqQHwnxRa/KprcVr
 rYrfaOuqO34hTemBL1DkecuWBTPYT5HKiuKPn7LnDRupFXuCLF4tp+BR
 -----END PRIVATE KEY-----`))
-	return crypto.TestKey{PrivateKey: key, Kid: TestMethodDIDB.String()}
-}
-
-func testDB(t *testing.T) *gorm.DB {
-	//logrus.SetLevel(logrus.TraceLevel)
-	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
-	db := storageEngine.GetSQLDatabase()
-	return db
+	return crypto.TestKey{PrivateKey: key, KID: TestMethodDIDB.String(), PublicKey: key.Public()}
 }

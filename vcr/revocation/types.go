@@ -20,6 +20,7 @@ package revocation
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"fmt"
 	"net/url"
@@ -30,9 +31,9 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 )
 
@@ -90,11 +91,11 @@ type StatusList2021Verifier interface {
 type VerifySignFn func(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error
 
 // SignFn signs a VC according to the specified format. The vcr.issuer injects its signVC method here.
-type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential, key crypto.Key) (*vc.VerifiableCredential, error)
+type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential, kid string) (*vc.VerifiableCredential, error)
 
 // ResolveKeyFn resolves the key used SignFn to sign the StatusList2021Credential.
 // The vcr.issuer injects its keyResolver.ResolveAssertionKey here.
-type ResolveKeyFn func(ctx context.Context, issuerDID did.DID) (crypto.Key, error)
+type ResolveKeyFn func(issuerDID did.DID, at *time.Time, relationType resolver.RelationType) (string, crypto.PublicKey, error)
 
 var _ StatusList2021Issuer = (*StatusList2021)(nil)
 var _ StatusList2021Verifier = (*StatusList2021)(nil)

@@ -17,7 +17,6 @@ import (
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
 	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -71,44 +70,6 @@ func (m *MockPublisher) PublishRevocation(ctx context.Context, revocation creden
 func (mr *MockPublisherMockRecorder) PublishRevocation(ctx, revocation any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PublishRevocation", reflect.TypeOf((*MockPublisher)(nil).PublishRevocation), ctx, revocation)
-}
-
-// MockkeyResolver is a mock of keyResolver interface.
-type MockkeyResolver struct {
-	ctrl     *gomock.Controller
-	recorder *MockkeyResolverMockRecorder
-}
-
-// MockkeyResolverMockRecorder is the mock recorder for MockkeyResolver.
-type MockkeyResolverMockRecorder struct {
-	mock *MockkeyResolver
-}
-
-// NewMockkeyResolver creates a new mock instance.
-func NewMockkeyResolver(ctrl *gomock.Controller) *MockkeyResolver {
-	mock := &MockkeyResolver{ctrl: ctrl}
-	mock.recorder = &MockkeyResolverMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockkeyResolver) EXPECT() *MockkeyResolverMockRecorder {
-	return m.recorder
-}
-
-// ResolveAssertionKey mocks base method.
-func (m *MockkeyResolver) ResolveAssertionKey(ctx context.Context, issuerDID did.DID) (crypto.Key, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveAssertionKey", ctx, issuerDID)
-	ret0, _ := ret[0].(crypto.Key)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ResolveAssertionKey indicates an expected call of ResolveAssertionKey.
-func (mr *MockkeyResolverMockRecorder) ResolveAssertionKey(ctx, issuerDID any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveAssertionKey", reflect.TypeOf((*MockkeyResolver)(nil).ResolveAssertionKey), ctx, issuerDID)
 }
 
 // MockIssuer is a mock of Issuer interface.

@@ -95,7 +95,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			"nonce": nonce,
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
 
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)

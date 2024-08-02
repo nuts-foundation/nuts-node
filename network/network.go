@@ -634,7 +634,7 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 		WithField(core.LogFieldTransactionPayloadHash, payloadHash).
 		WithField(core.LogFieldTransactionPayloadLength, len(template.Payload)).
 		WithField(core.LogFieldTransactionIsPrivate, len(template.Participants) > 0).
-		WithField(core.LogFieldKeyID, template.Key.KID()).
+		WithField(core.LogFieldKeyID, template.KID).
 		Debug("Creating transaction")
 
 	// Assert that all additional prevs are present and its Payload is there
@@ -693,7 +693,7 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 
 	// Sign it
 	var transaction dag.Transaction
-	signer := dag.NewTransactionSigner(n.keyStore, template.Key, template.AttachKey)
+	signer := dag.NewTransactionSigner(n.keyStore, template.KID, template.PublicKey)
 	timestamp := time.Now()
 	if !template.Timestamp.IsZero() {
 		timestamp = template.Timestamp

@@ -35,7 +35,7 @@ func TestConfig() Config {
 }
 
 func testInstance(t *testing.T, cfg Config) *Auth {
-	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	cryptoInstance := crypto.NewMemoryCryptoInstance(t)
 	vcrInstance := vcr.NewTestVCRInstance(t)
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockProvider(ctrl)

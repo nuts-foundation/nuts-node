@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
@@ -33,9 +34,10 @@ type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 
 // KeyCreator is the interface for creating key pairs.
 type KeyCreator interface {
-	// New generates a keypair and returns a Key. The context is used to pass audit information.
-	// The KIDNamingFunc will provide the kid.
-	New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error)
+	// New generates a keypair and returns a reference. The context is used to pass audit information.
+	// It generates a key at the backend and stores its reference in the SQL DB.
+	// A DB transaction may be passed through the context using `orm.TransactionKey`.
+	New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error)
 }
 
 // KeyResolver is the interface for resolving keys.
@@ -44,7 +46,7 @@ type KeyResolver interface {
 	// If an error occurs, false is also returned
 	Exists(ctx context.Context, kid string) (bool, error)
 	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
-	Resolve(ctx context.Context, kid string) (Key, error)
+	Resolve(ctx context.Context, kid string) (crypto.PublicKey, error)
 	// List returns the KIDs of the private keys that are present in the KeyStore.
 	List(ctx context.Context) []string
 }
@@ -59,6 +61,10 @@ type KeyStore interface {
 
 	// Delete removes the private key with the given KID from the KeyStore.
 	Delete(ctx context.Context, kid string) error
+
+	// Link links the key in the keystore to a kid
+	// see https://github.com/nuts-foundation/nuts-node/issues/3292
+	Link(ctx context.Context, kid string, keyName string, version string) error
 }
 
 // Decrypter is the interface to support decryption
@@ -100,20 +106,4 @@ type JsonWebEncryptor interface {
 	// DecryptJWE decrypts a message as bytes into a decrypted body and headers.
 	// The corresponding private key must be located in the KeyID (kid) header.
 	DecryptJWE(ctx context.Context, message string) (body []byte, headers map[string]interface{}, err error)
-}
-
-// Key is a helper interface that describes a private key in the crypto module, specifying its KID and public part.
-type Key interface {
-	// KID returns the unique ID for this key.
-	KID() string
-	// Public returns the public key.
-	Public() crypto.PublicKey
-}
-
-// exportableKey is a Key that contains the private key itself and thus is exportable.
-// Should only be used for select purposes (e.g. ephemeral keys).
-type exportableKey interface {
-	Key
-	// Signer returns the private key.
-	Signer() crypto.Signer
 }

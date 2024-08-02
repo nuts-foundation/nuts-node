@@ -21,6 +21,7 @@ package didsubject
 import (
 	"context"
 	"errors"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
@@ -43,7 +44,8 @@ type MethodManager interface {
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
 	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
-	NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error)
+	// RSA keys are not yet fully supported, see https://github.com/nuts-foundation/nuts-node/issues/1948
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.
 	Commit(ctx context.Context, event orm.DIDChangeLog) error
