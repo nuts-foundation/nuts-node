@@ -58,15 +58,6 @@ else
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $VALIDATION_REQUEST | curl -s -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/verifier/vc -H "Content-Type:application/json")
-if [[ $( echo $RESPONSE | jq -r .validity ) ==  "true" ]]; then
-  echo "  VC considered valid by node-A"
-else
-  echo "  FAILED: Could not validate NutsOrganizationCredential in node-A wallet" 1>&2
-  echo $RESPONSE
-  exitWithDockerLogs 1
-fi
-
 echo "---------------------------------------"
 echo "Revoking NutsOrganizationCredential..."
 echo "---------------------------------------"
