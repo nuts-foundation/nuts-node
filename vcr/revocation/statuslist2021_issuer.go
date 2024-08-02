@@ -178,7 +178,8 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 			// gorm.ErrRecordNotFound can't happen, isManaged() confirmed it exists
 			return err
 		}
-		cred, credRecord, err = cs.updateCredential(ctx, issuerRecord, kid)
+		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+		cred, credRecord, err = cs.updateCredential(transactionContext, issuerRecord, kid)
 		if err != nil {
 			return err
 		}
