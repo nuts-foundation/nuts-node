@@ -58,10 +58,20 @@ func (m MemoryJWTSigner) SignJWT(ctx context.Context, claims map[string]interfac
 	return SignJWT(ctx, signer, alg, claims, headersLocal)
 }
 
-func (m MemoryJWTSigner) SignJWS(_ context.Context, _ []byte, _ map[string]interface{}, _ string, _ bool) (string, error) {
-	return "", errNotSupportedForInMemoryKeyStore
+func (m MemoryJWTSigner) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error) {
+	var signer crypto.Signer
+	if err := m.Key.Raw(&signer); err != nil {
+		return "", err
+	}
+	if kid != m.Key.KeyID() {
+		return "", ErrPrivateKeyNotFound
+	}
+	if _, ok := headers["jwk"]; !ok {
+		headers["kid"] = kid
+	}
+	return SignJWS(ctx, payload, headers, signer, detached)
 }
 
-func (m MemoryJWTSigner) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {
+func (m MemoryJWTSigner) SignDPoP(_ context.Context, _ dpop.DPoP, _ string) (string, error) {
 	return "", errNotSupportedForInMemoryKeyStore
 }

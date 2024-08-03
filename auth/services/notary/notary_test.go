@@ -52,8 +52,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	duration := 10 * time.Minute
 
 	// Create DID document for org
-	keyID := orgID.URI()
-	keyID.Fragment = "key-1"
+	keyID := vdr.TestDIDA.String() + "#key-1"
 
 	searchTerms := []vcr.SearchTerm{
 		{IRIPath: jsonld.CredentialSubjectPath, Value: orgID.String()},
@@ -68,7 +67,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, resolver.NutsSigningKeyType).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
@@ -83,7 +82,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		defer test.ctrl.Finish()
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, gomock.Any(), resolver.NutsSigningKeyType).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, &testCredential)
 		require.NoError(t, err)
@@ -96,7 +95,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, 0, nil)
@@ -110,7 +109,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &time.Time{}, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		timeNow = func() time.Time {
@@ -127,7 +126,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - unknown organization", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(ssi.URI{}, nil, resolver.ErrNotFound)
+		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return("", nil, resolver.ErrNotFound)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -139,7 +138,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(false, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(false, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -150,7 +149,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 	t.Run("nok - other DID resolver error", func(t *testing.T) {
 		test := buildContext(t)
 
-		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(ssi.URI{}, nil, errors.New("error occurred"))
+		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return("", nil, errors.New("error occurred"))
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
 
@@ -162,7 +161,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return(nil, errors.New("error occurred"))
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
@@ -175,7 +174,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential}, nil)
 
 		template := contract.Template{
@@ -192,7 +191,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential}, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
@@ -209,7 +208,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		_ = json.Unmarshal([]byte(jsonld.TestCredential), &testCredential2)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 		test.vcr.EXPECT().Search(context.Background(), searchTerms, false, nil).Return([]vc.VerifiableCredential{testCredential, testCredential2}, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, nil)
@@ -222,7 +221,7 @@ func TestContract_DrawUpContract(t *testing.T) {
 		test := buildContext(t)
 
 		test.keyResolver.EXPECT().ResolveKey(orgID, &validFrom, gomock.Any()).Return(keyID, nil, nil)
-		test.keyStore.EXPECT().Exists(ctx, keyID.String()).Return(true, nil)
+		test.keyStore.EXPECT().Exists(ctx, keyID).Return(true, nil)
 
 		drawnUpContract, err := test.notary.DrawUpContract(ctx, template, orgID, validFrom, duration, &vc.VerifiableCredential{})
 
@@ -239,7 +238,7 @@ func TestNewContractNotary(t *testing.T) {
 			},
 			vcr.NewTestVCRInstance(t),
 			resolver.DIDKeyResolver{},
-			crypto.NewMemoryCryptoInstance(),
+			crypto.NewMemoryCryptoInstance(t),
 			nil,
 			nil,
 		)

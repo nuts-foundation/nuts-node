@@ -99,7 +99,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 	t.Run("ok - public", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		mockKeyResolver := NewMockkeyResolver(ctrl)
+		mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 		mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
 
@@ -115,13 +115,12 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 		mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 		expectedTemplate := network.Template{
-			Key:             testKey,
+			KID:             testKey.KID,
 			Payload:         payload,
 			Type:            types.VcDocumentType,
-			AttachKey:       false,
 			Timestamp:       issuanceDate,
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{},
@@ -135,7 +134,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 	t.Run("ok - private", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		mockKeyResolver := NewMockkeyResolver(ctrl)
+		mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 		mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
 		mockServiceResolver := resolver.NewMockServiceResolver(ctrl)
@@ -157,7 +156,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 		testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 		mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 		expectedIssuerServiceURI := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=NutsComm")
 		expectedSubjectServiceURI := ssi.MustParseURI("did:nuts:456/serviceEndpoint?type=NutsComm")
@@ -165,10 +164,9 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		mockServiceResolver.EXPECT().Resolve(expectedSubjectServiceURI, 5).Return(did.Service{ID: subjectID, ServiceEndpoint: "grpc://foo"}, nil)
 
 		expectedTemplate := network.Template{
-			Key:             testKey,
+			KID:             testKey.KID,
 			Payload:         payload,
 			Type:            types.VcDocumentType,
-			AttachKey:       false,
 			Timestamp:       issuanceDate,
 			AdditionalPrevs: nil,
 			Participants:    []did.DID{*issuerDID, *subjectDID},
@@ -239,7 +237,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		t.Run("unable to resolve an assertionKey for the issuer", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockKeyResolver := NewMockkeyResolver(ctrl)
+			mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 			sut := networkPublisher{keyResolver: mockKeyResolver}
 
 			credentialToPublish := vc.VerifiableCredential{
@@ -247,7 +245,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
 			}
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("b00m!"))
+			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return("", nil, errors.New("b00m!"))
 
 			err := sut.PublishCredential(ctx, credentialToPublish, true)
 			assert.EqualError(t, err, "could not resolve an assertion key for issuer: b00m!")
@@ -256,7 +254,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		t.Run("error while creating network transaction", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockKeyResolver := NewMockkeyResolver(ctrl)
+			mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
@@ -272,13 +270,12 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			testKey := crypto.NewTestKey(issuerID.String() + "#abc")
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 			mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 			expectedTemplate := network.Template{
-				Key:             testKey,
+				KID:             testKey.KID,
 				Payload:         payload,
 				Type:            types.VcDocumentType,
-				AttachKey:       false,
 				Timestamp:       issuanceDate,
 				AdditionalPrevs: nil,
 				Participants:    make([]did.DID, 0),
@@ -307,11 +304,11 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 	t.Run("it should publish a revocation", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 
-		mockKeyResolver := NewMockkeyResolver(ctrl)
+		mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 		mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 		mockNetwork := network.NewMockTransactions(ctrl)
 
-		mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+		mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 		mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 
 		revocationToPublish := credential.Revocation{
@@ -320,10 +317,9 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		payload, _ := json.Marshal(revocationToPublish)
 
 		expectedTemplate := network.Template{
-			Key:             testKey,
+			KID:             testKey.KID,
 			Payload:         payload,
 			Type:            types.RevocationLDDocumentType,
-			AttachKey:       false,
 			Timestamp:       time.Time{},
 			AdditionalPrevs: nil,
 			Participants:    nil,
@@ -349,11 +345,11 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		t.Run("assertion key could not be found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockKeyResolver := NewMockkeyResolver(ctrl)
+			mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(nil, errors.New("not found"))
+			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return("", nil, errors.New("not found"))
 
 			revocationToPublish := credential.Revocation{
 				Issuer: issuerID,
@@ -369,11 +365,11 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		t.Run("did document of issuer could not be found", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockKeyResolver := NewMockkeyResolver(ctrl)
+			mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 			mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(nil, nil, errors.New("not found"))
 
 			revocationToPublish := credential.Revocation{
@@ -389,11 +385,11 @@ func Test_networkPublisher_PublishRevocation(t *testing.T) {
 		t.Run("network returns error", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			mockKeyResolver := NewMockkeyResolver(ctrl)
+			mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
 			mockDidResolver := resolver.NewMockDIDResolver(ctrl)
 			mockNetwork := network.NewMockTransactions(ctrl)
 
-			mockKeyResolver.EXPECT().ResolveAssertionKey(ctx, *issuerDID).Return(testKey, nil)
+			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return(testKey.KID, testKey.PublicKey, nil)
 			mockDidResolver.EXPECT().Resolve(*issuerDID, nil).Return(&did.Document{}, &resolver.DocumentMetadata{}, nil)
 			mockNetwork.EXPECT().CreateTransaction(ctx, gomock.Any()).Return(nil, errors.New("foo"))
 

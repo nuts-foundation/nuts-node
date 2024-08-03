@@ -188,10 +188,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Create instances
 	pkiInstance := pki.New()
-	cryptoInstance := crypto.NewCryptoInstance()
+	storageInstance := storage.New()
+	cryptoInstance := crypto.NewCryptoInstance(storageInstance)
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
-	storageInstance := storage.New()
 	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didStore, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
@@ -228,9 +228,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	// Register engines
 	// without dependencies
 	system.RegisterEngine(pkiInstance)
+	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(cryptoInstance)
 	system.RegisterEngine(jsonld)
-	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(eventManager)

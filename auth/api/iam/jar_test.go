@@ -30,7 +30,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
@@ -72,11 +71,11 @@ func TestJar_Create(t *testing.T) {
 func TestJar_Sign(t *testing.T) {
 	clientDID := did.MustParseDID("did:web:example.com:iam:client")
 	claims := oauthParameters{oauth.ClientIDParam: clientDID.String()}
-	keyID := ssi.MustParseURI("this-key")
+	keyID := "this-key"
 	t.Run("ok", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.AssertionMethod).Return(keyID, nil, nil)
-		ctx.jwtSigner.EXPECT().SignJWT(context.Background(), claims, nil, keyID.String()).Return("valid token", nil)
+		ctx.jwtSigner.EXPECT().SignJWT(context.Background(), claims, nil, keyID).Return("valid token", nil)
 
 		token, err := ctx.jar.Sign(context.Background(), claims)
 

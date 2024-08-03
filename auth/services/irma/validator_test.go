@@ -195,5 +195,5 @@ func defaultVerifier(t *testing.T) (contract.VPVerifier, crypto.KeyStore) {
 	return Verifier{
 		IrmaConfig: irmaConfig,
 		Templates:  contract.StandardContractTemplates,
-	}, crypto.NewMemoryCryptoInstance()
+	}, crypto.NewMemoryCryptoInstance(t)
 }

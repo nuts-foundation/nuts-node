@@ -52,9 +52,10 @@ func TestWallet_BuildPresentation(t *testing.T) {
 	ctx := audit.TestContext()
 
 	keyStorage := crypto.NewMemoryStorage()
-	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
-	keyStore := crypto.NewTestCryptoInstance(keyStorage)
+	_ = keyStorage.SavePrivateKey(ctx, key.KID, key.PrivateKey)
 	storageEngine := storage.NewTestStorageEngine(t)
+	keyStore := crypto.NewTestCryptoInstance(storageEngine.GetSQLDatabase(), keyStorage)
+	_ = keyStore.Link(ctx, key.KID, key.KID, "1")
 
 	t.Run("validation", func(t *testing.T) {
 		created := time.Now()
@@ -67,7 +68,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().VerifySignature(testCredential, &created)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := NewSQLWallet(keyResolver, keyStore, mockVerifier, jsonldManager, storageEngine)
 
@@ -83,7 +84,7 @@ func TestWallet_BuildPresentation(t *testing.T) {
 			mockVerifier := verifier.NewMockVerifier(ctrl)
 			mockVerifier.EXPECT().VerifySignature(gomock.Any(), gomock.Any())
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := NewSQLWallet(keyResolver, keyStore, mockVerifier, jsonldManager, storageEngine)
 

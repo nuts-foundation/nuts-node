@@ -176,7 +176,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	headers := map[string]interface{}{
 		"typ": jwtTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": kid.String(),           // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	if err != nil {
 		// can't fail or would have failed before
@@ -190,9 +190,9 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	if nonce != "" {
 		claims[oauth.NonceParam] = nonce
 	}
-	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, headers, kid.String())
+	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, headers, kid)
 	if err != nil {
-		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
+		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid, err)
 	}
 	return proofJwt, nil
 }

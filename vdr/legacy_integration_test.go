@@ -220,7 +220,7 @@ func TestVDRIntegration_ReprocessEvents(t *testing.T) {
 	publicKey, _ := didDoc.VerificationMethod[0].PublicKey()
 	payload, _ := json.Marshal(didDoc)
 	unsignedTransaction, _ := dag.NewTransaction(hash.SHA256Sum(payload), didnuts.DIDDocumentType, nil, nil, uint32(0))
-	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, testKey{kid: kid, publicKey: publicKey}, true).Sign(audit.TestContext(), unsignedTransaction, time.Now())
+	signedTransaction, err := dag.NewTransactionSigner(ctx.cryptoInstance, kid, publicKey).Sign(audit.TestContext(), unsignedTransaction, time.Now())
 	require.NoError(t, err)
 	twp := events.TransactionWithPayload{
 		Transaction: signedTransaction,
@@ -267,12 +267,12 @@ func setup(t *testing.T) testContext {
 	log.SetLevel(lvl)
 	log.SetFormatter(&log.TextFormatter{ForceColors: true})
 
-	// Startup crypto
-	cryptoInstance := crypto.NewCryptoInstance()
-	require.NoError(t, cryptoInstance.Configure(nutsConfig))
-
 	// Storage
 	storageEngine := storage.NewTestStorageEngine(t)
+
+	// Startup crypto
+	cryptoInstance := crypto.NewCryptoInstance(storageEngine)
+	require.NoError(t, cryptoInstance.Configure(nutsConfig))
 
 	// DID Store
 	didStore := didstore.TestStore(t, storageEngine)

@@ -113,7 +113,7 @@ func (r *Wrapper) DPoPProof(ctx context.Context, requester did.DID, request http
 
 	token := dpop.New(request)
 	token.GenerateProof(accessToken)
-	return r.jwtSigner.SignDPoP(ctx, *token, keyID.String())
+	return r.jwtSigner.SignDPoP(ctx, *token, keyID)
 }
 
 func dpopFromRequest(httpRequest http.Request) (*dpop.DPoP, error) {

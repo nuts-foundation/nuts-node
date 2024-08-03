@@ -22,6 +22,7 @@ package vcr
 import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/network"
@@ -96,7 +97,7 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	testDirectory := io.TestDirectory(t)
 	didStore := didstore.NewTestStore(t)
 	storageEngine := storage.NewTestStorageEngine(t)
-	keyStore := crypto.NewMemoryCryptoInstance()
+	keyStore := crypto.NewDatabaseCryptoInstance(storageEngine.GetSQLDatabase())
 	eventManager := events.NewTestManager(t)
 	networkInstance := network.NewNetworkInstance(network.TestNetworkConfig(), didStore, keyStore, eventManager, storageEngine.GetProvider("network"), nil)
 	serverCfg := core.TestServerConfig(func(config *core.ServerConfig) {
@@ -167,6 +168,7 @@ type mockContext struct {
 	didResolver   *resolver.MockDIDResolver
 	documentOwner *didsubject.MockDocumentOwner
 	crypto        *crypto.Crypto
+	cryptoBackend spi.Storage
 	vdr           *vdr.MockVDR
 }
 
@@ -186,7 +188,8 @@ func newMockContext(t *testing.T) mockContext {
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	eventManager := events.NewTestManager(t)
 	storageClient := storage.NewTestStorageEngine(t)
-	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	cryptoBackend := crypto.NewMemoryStorage()
+	cryptoInstance := crypto.NewTestCryptoInstance(storageClient.GetSQLDatabase(), cryptoBackend)
 	vcr := NewVCRInstance(cryptoInstance, vdrInstance, tx, jsonldManager, eventManager, storageClient, pki.New()).(*vcr)
 	vcr.pkiProvider = pki.New()
 	vcr.trustConfig = trust.NewConfig(path.Join(testDir, "trust.yaml"))
@@ -206,6 +209,7 @@ func newMockContext(t *testing.T) mockContext {
 	return mockContext{
 		ctrl:          ctrl,
 		crypto:        cryptoInstance,
+		cryptoBackend: cryptoBackend,
 		documentOwner: documentOwner,
 		vcr:           vcr,
 		vdr:           vdrInstance,

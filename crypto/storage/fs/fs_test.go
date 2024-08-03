@@ -25,7 +25,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
 	"syscall"
 	"testing"
 
@@ -120,7 +119,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
 
-		key, err := storage.GetPrivateKey(nil, "unknown")
+		key, err := storage.GetPrivateKey(nil, "unknown", "")
 
 		assert.Contains(t, err.Error(), "could not open entry unknown with filename")
 		assert.Nil(t, key)
@@ -133,7 +132,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		_, err := file.WriteString("hello world")
 		require.NoError(t, err)
 
-		key, err := storage.GetPrivateKey(nil, kid)
+		key, err := storage.GetPrivateKey(nil, kid, "")
 
 		assert.Nil(t, key)
 		assert.Error(t, err)
@@ -146,7 +145,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 		err := storage.SavePrivateKey(nil, kid, pk)
 		require.NoError(t, err)
 
-		key, err := storage.GetPrivateKey(nil, kid)
+		key, err := storage.GetPrivateKey(nil, kid, "")
 
 		assert.NoError(t, err)
 		require.NotNil(t, key)
@@ -157,7 +156,7 @@ func Test_fs_GetPrivateKey(t *testing.T) {
 func Test_fs_KeyExistsFor(t *testing.T) {
 	t.Run("non-existing entry", func(t *testing.T) {
 		storage, _ := NewFileSystemBackend(io.TestDirectory(t))
-		exists, err := storage.PrivateKeyExists(nil, "unknown")
+		exists, err := storage.PrivateKeyExists(nil, "unknown", "")
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
@@ -166,7 +165,7 @@ func Test_fs_KeyExistsFor(t *testing.T) {
 		pk := test.GenerateECKey()
 		kid := "kid"
 		storage.SavePrivateKey(nil, kid, pk)
-		exists, err := storage.PrivateKeyExists(nil, kid)
+		exists, err := storage.PrivateKeyExists(nil, kid, "")
 		assert.NoError(t, err)
 		assert.True(t, exists)
 	})
@@ -194,8 +193,11 @@ func Test_fs_ListPrivateKeys(t *testing.T) {
 		_ = os.WriteFile(path.Join(backend.fspath, "subdir", "daslkdjaslkdj_public.json"), []byte{1, 2, 3}, os.ModePerm)
 
 		keys := backend.ListPrivateKeys(nil)
-		sort.Strings(keys)
-		assert.Equal(t, []string{"key-0", "key-1", "key-2", "key-3", "key-4"}, keys)
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-0", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-1", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-2", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-3", "1"})
+		assert.Contains(t, keys, spi.KeyNameVersion{"key-4", "1"})
 	})
 	t.Run("WalkFunc error", func(t *testing.T) {
 		// https://github.com/nuts-foundation/nuts-node/issues/1943

@@ -39,7 +39,7 @@ func NewTestNetworkInstance(t *testing.T) *Network {
 	defaultBBoltOptions.NoSync = true
 	config := TestNetworkConfig()
 	didResolver := didstore.NewTestStore(t)
-	cryptoInstance := crypto.NewMemoryCryptoInstance()
+	cryptoInstance := crypto.NewMemoryCryptoInstance(t)
 	eventPublisher := events.NewManager()
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)

@@ -38,7 +38,7 @@ type networkPublisher struct {
 	networkTx       network.Transactions
 	didResolver     resolver.DIDResolver
 	serviceResolver resolver.ServiceResolver
-	keyResolver     keyResolver
+	keyResolver     resolver.KeyResolver
 }
 
 // NewNetworkPublisher creates a new networkPublisher which implements the Publisher interface.
@@ -48,10 +48,7 @@ func NewNetworkPublisher(networkTx network.Transactions, didResolver resolver.DI
 		networkTx:       networkTx,
 		didResolver:     didResolver,
 		serviceResolver: resolver.DIDServiceResolver{Resolver: didResolver},
-		keyResolver: vdrKeyResolver{
-			publicKeyResolver:  resolver.DIDKeyResolver{Resolver: didResolver},
-			privateKeyResolver: keyResolver,
-		},
+		keyResolver:     resolver.DIDKeyResolver{Resolver: didResolver},
 	}
 }
 
@@ -73,7 +70,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 		}
 	}
 
-	key, err := p.keyResolver.ResolveAssertionKey(ctx, issuerDID.DID)
+	kid, _, err := p.keyResolver.ResolveKey(issuerDID.DID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}
@@ -85,7 +82,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 	}
 
 	payload, _ := json.Marshal(verifiableCredential)
-	tx := network.TransactionTemplate(types.VcDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.VcDocumentType, payload, kid).
 		WithTimestamp(verifiableCredential.IssuanceDate).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithPrivate(participants)
@@ -153,7 +150,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	if err != nil {
 		return fmt.Errorf("invalid revocation issuer: %w", err)
 	}
-	key, err := p.keyResolver.ResolveAssertionKey(ctx, *issuerDID)
+	kid, _, err := p.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}
@@ -165,7 +162,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	}
 	payload, _ := json.Marshal(revocation)
 
-	tx := network.TransactionTemplate(types.RevocationLDDocumentType, payload, key).
+	tx := network.TransactionTemplate(types.RevocationLDDocumentType, payload, kid).
 		WithAdditionalPrevs(meta.SourceTransactions).
 		WithTimestamp(revocation.Date)
 

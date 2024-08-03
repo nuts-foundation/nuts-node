@@ -21,24 +21,33 @@ package crypto
 import (
 	"context"
 	"crypto"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	log "github.com/sirupsen/logrus"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"testing"
 )
 
-// NewMemoryCryptoInstance returns a new Crypto instance to be used for tests, storing keys in-memory.
-func NewMemoryCryptoInstance() *Crypto {
-	return NewTestCryptoInstance(NewMemoryStorage())
+// NewMemoryCryptoInstance returns a new Crypto instance to be used for tests, storing keys in-memory and creating a new SQL DB.
+func NewMemoryCryptoInstance(t *testing.T) *Crypto {
+	return NewTestCryptoInstance(orm.NewTestDatabase(t), NewMemoryStorage())
 }
 
-// NewTestCryptoInstance returns a new Crypto instance to be used for tests, allowing to use of preconfigured storage.
-func NewTestCryptoInstance(storage spi.Storage) *Crypto {
-	newInstance := NewCryptoInstance()
-	newInstance.storage = storage
+// NewDatabaseCryptoInstance returns a new Crypto instance to be used for tests, storing keys in-memory and the given DB.
+func NewDatabaseCryptoInstance(db *gorm.DB) *Crypto {
+	return NewTestCryptoInstance(db, NewMemoryStorage())
+}
+
+// NewTestCryptoInstance returns a new Crypto instance to be used for tests, allowing to use of preconfigured backend.
+func NewTestCryptoInstance(db *gorm.DB, storage spi.Storage) *Crypto {
+	newInstance := NewCryptoInstance(nil)
+	newInstance.backend = storage
+	newInstance.db = db
 	return newInstance
 }
 
-// StringNamingFunc can be used to give a key a simple string name
 func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
@@ -59,8 +68,8 @@ var _ spi.Storage = &memoryStorage{}
 
 type memoryStorage map[string]crypto.PrivateKey
 
-func (m memoryStorage) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	return spi.GenerateAndStore(ctx, m, namingFunc)
+func (m memoryStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, m, keyName)
 }
 
 func (m memoryStorage) Name() string {
@@ -71,33 +80,33 @@ func (m memoryStorage) CheckHealth() map[string]core.Health {
 	return map[string]core.Health{"memory": {Status: core.HealthStatusUp}}
 }
 
-func (m memoryStorage) ListPrivateKeys(_ context.Context) []string {
-	var result []string
+func (m memoryStorage) ListPrivateKeys(_ context.Context) []spi.KeyNameVersion {
+	var result []spi.KeyNameVersion
 	for key := range m {
-		result = append(result, key)
+		result = append(result, spi.KeyNameVersion{KeyName: key, Version: "1"})
 	}
 	return result
 }
 
-func (m memoryStorage) GetPrivateKey(_ context.Context, kid string) (crypto.Signer, error) {
-	pk, ok := m[kid]
+func (m memoryStorage) GetPrivateKey(_ context.Context, keyName string, _ string) (crypto.Signer, error) {
+	pk, ok := m[keyName]
 	if !ok {
 		return nil, ErrPrivateKeyNotFound
 	}
 	return pk.(crypto.Signer), nil
 }
 
-func (m memoryStorage) PrivateKeyExists(_ context.Context, kid string) (bool, error) {
-	_, ok := m[kid]
+func (m memoryStorage) PrivateKeyExists(_ context.Context, keyName string, _ string) (bool, error) {
+	_, ok := m[keyName]
 	return ok, nil
 }
 
-func (m memoryStorage) DeletePrivateKey(_ context.Context, kid string) error {
-	_, ok := m[kid]
+func (m memoryStorage) DeletePrivateKey(_ context.Context, keyName string) error {
+	_, ok := m[keyName]
 	if !ok {
 		return ErrPrivateKeyNotFound
 	}
-	delete(m, kid)
+	delete(m, keyName)
 	return nil
 }
 
@@ -108,36 +117,44 @@ func (m memoryStorage) SavePrivateKey(_ context.Context, kid string, key crypto.
 
 // NewTestKey creates a new TestKey with a given kid
 func NewTestKey(kid string) *TestKey {
-	key, err := NewEphemeralKey(func(key crypto.PublicKey) (string, error) {
-		return kid, nil
-	})
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	keyPair, _ := spi.GenerateKeyPair()
 	return &TestKey{
-		Kid:        kid,
-		PrivateKey: key.(*memoryKey).privateKey,
+		KID:        kid,
+		PublicKey:  keyPair.Public(),
+		PrivateKey: keyPair,
 	}
 }
 
 // TestKey is a Key impl for testing purposes
 type TestKey struct {
+	KID        string
+	PublicKey  crypto.PublicKey
 	PrivateKey crypto.Signer
-	Kid        string
 }
 
 func (t TestKey) Signer() crypto.Signer {
 	return t.PrivateKey
 }
 
-func (t TestKey) KID() string {
-	return t.Kid
-}
-
-func (t TestKey) Public() crypto.PublicKey {
-	return t.PrivateKey.Public()
-}
-
 func (t TestKey) Private() crypto.PrivateKey {
 	return t.PrivateKey
+}
+
+// newKeyReference creates a new DID, DIDocument, VerificationMethod and KeyReference in the DB
+// It does not create valid DID Document data
+func newKeyReference(t *testing.T, client *Crypto, kid string) (*orm.KeyReference, crypto.PublicKey) {
+	ref, publicKey, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+	require.NoError(t, err)
+	DID := orm.DID{ID: "did:test:" + t.Name(), Subject: "subject"}
+	DIDDoc := orm.DIDDocument{
+		DID: DID,
+		VerificationMethods: []orm.VerificationMethod{
+			{
+				ID:   kid,
+				Data: []byte("{}"),
+			},
+		},
+	}
+	require.NoError(t, client.db.Save(&DIDDoc).Error)
+	return ref, publicKey
 }

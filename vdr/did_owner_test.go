@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -136,7 +137,7 @@ func Test_privateKeyDocumentOwner_ListOwned(t *testing.T) {
 
 func TestDBDocumentOwner_IsOwner(t *testing.T) {
 	// using the MultiDocumentOwner
-	db := testDB(t)
+	db := orm.NewTestDatabase(t)
 	sqlDIDManager := didsubject.NewDIDManager(db)
 	_, err := sqlDIDManager.Add("subject", TestDIDA)
 	require.NoError(t, err)
@@ -165,7 +166,7 @@ func TestDBDocumentOwner_IsOwner(t *testing.T) {
 }
 
 func TestDBDocumentOwner_ListOwned(t *testing.T) {
-	db := testDB(t)
+	db := orm.NewTestDatabase(t)
 	sqlDIDManager := didsubject.NewDIDManager(db)
 	_, err := sqlDIDManager.Add("subject", TestDIDA)
 	require.NoError(t, err)

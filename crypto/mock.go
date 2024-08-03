@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	dpop "github.com/nuts-foundation/nuts-node/crypto/dpop"
+	orm "github.com/nuts-foundation/nuts-node/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -42,12 +43,13 @@ func (m *MockKeyCreator) EXPECT() *MockKeyCreatorMockRecorder {
 }
 
 // New mocks base method.
-func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
+func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
-	ret0, _ := ret[0].(Key)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(*orm.KeyReference)
+	ret1, _ := ret[1].(crypto.PublicKey)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // New indicates an expected call of New.
@@ -109,10 +111,10 @@ func (mr *MockKeyResolverMockRecorder) List(ctx any) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockKeyResolver) Resolve(ctx context.Context, kid string) (Key, error) {
+func (m *MockKeyResolver) Resolve(ctx context.Context, kid string) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ctx, kid)
-	ret0, _ := ret[0].(Key)
+	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -221,6 +223,20 @@ func (mr *MockKeyStoreMockRecorder) Exists(ctx, kid any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockKeyStore)(nil).Exists), ctx, kid)
 }
 
+// Link mocks base method.
+func (m *MockKeyStore) Link(ctx context.Context, kid, keyName, version string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Link", ctx, kid, keyName, version)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Link indicates an expected call of Link.
+func (mr *MockKeyStoreMockRecorder) Link(ctx, kid, keyName, version any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Link", reflect.TypeOf((*MockKeyStore)(nil).Link), ctx, kid, keyName, version)
+}
+
 // List mocks base method.
 func (m *MockKeyStore) List(ctx context.Context) []string {
 	m.ctrl.T.Helper()
@@ -236,12 +252,13 @@ func (mr *MockKeyStoreMockRecorder) List(ctx any) *gomock.Call {
 }
 
 // New mocks base method.
-func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (Key, error) {
+func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
-	ret0, _ := ret[0].(Key)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(*orm.KeyReference)
+	ret1, _ := ret[1].(crypto.PublicKey)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // New indicates an expected call of New.
@@ -251,10 +268,10 @@ func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc any) *gomock.Call {
 }
 
 // Resolve mocks base method.
-func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (Key, error) {
+func (m *MockKeyStore) Resolve(ctx context.Context, kid string) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Resolve", ctx, kid)
-	ret0, _ := ret[0].(Key)
+	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -468,120 +485,4 @@ func (m *MockJsonWebEncryptor) EncryptJWE(ctx context.Context, payload []byte, h
 func (mr *MockJsonWebEncryptorMockRecorder) EncryptJWE(ctx, payload, headers, publicKey any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EncryptJWE", reflect.TypeOf((*MockJsonWebEncryptor)(nil).EncryptJWE), ctx, payload, headers, publicKey)
-}
-
-// MockKey is a mock of Key interface.
-type MockKey struct {
-	ctrl     *gomock.Controller
-	recorder *MockKeyMockRecorder
-}
-
-// MockKeyMockRecorder is the mock recorder for MockKey.
-type MockKeyMockRecorder struct {
-	mock *MockKey
-}
-
-// NewMockKey creates a new mock instance.
-func NewMockKey(ctrl *gomock.Controller) *MockKey {
-	mock := &MockKey{ctrl: ctrl}
-	mock.recorder = &MockKeyMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockKey) EXPECT() *MockKeyMockRecorder {
-	return m.recorder
-}
-
-// KID mocks base method.
-func (m *MockKey) KID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "KID")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// KID indicates an expected call of KID.
-func (mr *MockKeyMockRecorder) KID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KID", reflect.TypeOf((*MockKey)(nil).KID))
-}
-
-// Public mocks base method.
-func (m *MockKey) Public() crypto.PublicKey {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Public")
-	ret0, _ := ret[0].(crypto.PublicKey)
-	return ret0
-}
-
-// Public indicates an expected call of Public.
-func (mr *MockKeyMockRecorder) Public() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockKey)(nil).Public))
-}
-
-// MockexportableKey is a mock of exportableKey interface.
-type MockexportableKey struct {
-	ctrl     *gomock.Controller
-	recorder *MockexportableKeyMockRecorder
-}
-
-// MockexportableKeyMockRecorder is the mock recorder for MockexportableKey.
-type MockexportableKeyMockRecorder struct {
-	mock *MockexportableKey
-}
-
-// NewMockexportableKey creates a new mock instance.
-func NewMockexportableKey(ctrl *gomock.Controller) *MockexportableKey {
-	mock := &MockexportableKey{ctrl: ctrl}
-	mock.recorder = &MockexportableKeyMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockexportableKey) EXPECT() *MockexportableKeyMockRecorder {
-	return m.recorder
-}
-
-// KID mocks base method.
-func (m *MockexportableKey) KID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "KID")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// KID indicates an expected call of KID.
-func (mr *MockexportableKeyMockRecorder) KID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KID", reflect.TypeOf((*MockexportableKey)(nil).KID))
-}
-
-// Public mocks base method.
-func (m *MockexportableKey) Public() crypto.PublicKey {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Public")
-	ret0, _ := ret[0].(crypto.PublicKey)
-	return ret0
-}
-
-// Public indicates an expected call of Public.
-func (mr *MockexportableKeyMockRecorder) Public() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Public", reflect.TypeOf((*MockexportableKey)(nil).Public))
-}
-
-// Signer mocks base method.
-func (m *MockexportableKey) Signer() crypto.Signer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Signer")
-	ret0, _ := ret[0].(crypto.Signer)
-	return ret0
-}
-
-// Signer indicates an expected call of Signer.
-func (mr *MockexportableKeyMockRecorder) Signer() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Signer", reflect.TypeOf((*MockexportableKey)(nil).Signer))
 }

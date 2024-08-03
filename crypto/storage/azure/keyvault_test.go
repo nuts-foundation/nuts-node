@@ -20,7 +20,6 @@ package azure
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -28,6 +27,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
@@ -37,32 +41,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
-func Test_keyIDToKeyName(t *testing.T) {
-	t.Run("did:web", func(t *testing.T) {
-		keyID := "did:web:example.com:1234567890#0"
-		expected := "did-web-example-com-1234567890-0"
-		actual := keyIDToKeyName(keyID)
-		assert.Equal(t, expected, actual)
-	})
-}
-
-func Test_keyvault_Name(t *testing.T) {
-	actual := keyvault{}.Name()
+func Test_Keyvault_Name(t *testing.T) {
+	actual := Keyvault{}.Name()
 	assert.Equal(t, "azure-keyvault", actual)
 }
 
-func Test_keyvault_NewPrivateKey(t *testing.T) {
+func Test_Keyvault_NewPrivateKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		vaultClient := NewMockkeyVaultClient(ctrl)
-		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
-			Return(azkeys.GetKeyResponse{}, &azcore.ResponseError{StatusCode: http.StatusNotFound})
 		response := azkeys.CreateKeyResponse{
 			KeyBundle: keyBundle(),
 		}
@@ -74,48 +63,19 @@ func Test_keyvault_NewPrivateKey(t *testing.T) {
 				return response, nil
 			})
 
-		store := keyvault{client: vaultClient}
-		privateKey, kid, err := store.NewPrivateKey(context.Background(), func(key crypto.PublicKey) (string, error) {
-			return "did:web:example.com#0", nil
-		})
+		store := Keyvault{client: vaultClient}
+		privateKey, version, err := store.NewPrivateKey(context.Background(), "did-web-example-com-0")
 		require.NoError(t, err)
 		assert.NotNil(t, privateKey)
-		assert.Equal(t, "did:web:example.com#0", kid)
+		assert.Equal(t, "b86c2e6ad9054f4abf69cc185b99aa60", version)
 		assert.Equal(t, azkeys.KeyTypeEC, *capturedParams.Kty)
 		assert.Equal(t, azkeys.CurveNameP256, *capturedParams.Curve)
 		assert.True(t, *capturedParams.KeyAttributes.Enabled)
 		assert.False(t, *capturedParams.KeyAttributes.Exportable)
-		assert.Equal(t, "did:web:example.com#0", *capturedParams.Tags["originalKID"])
-	})
-	t.Run("already exists", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		vaultClient := NewMockkeyVaultClient(ctrl)
-		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
-			Return(azkeys.GetKeyResponse{
-				KeyBundle: keyBundle(),
-			}, nil)
-
-		store := keyvault{client: vaultClient}
-		_, _, err := store.NewPrivateKey(context.Background(), func(key crypto.PublicKey) (string, error) {
-			return "did:web:example.com#0", nil
-		})
-		assert.ErrorIs(t, err, spi.ErrKeyAlreadyExists)
-	})
-	t.Run("existence check fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		vaultClient := NewMockkeyVaultClient(ctrl)
-		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
-			Return(azkeys.GetKeyResponse{}, errors.New("existence check error"))
-
-		store := keyvault{client: vaultClient}
-		_, _, err := store.NewPrivateKey(context.Background(), func(key crypto.PublicKey) (string, error) {
-			return "did:web:example.com#0", nil
-		})
-		assert.EqualError(t, err, "unable to get key from Azure Key Vault (name=did-web-example-com-0): existence check error")
 	})
 }
 
-func Test_keyvault_GetPrivateKey(t *testing.T) {
+func Test_Keyvault_GetPrivateKey(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		vaultClient := NewMockkeyVaultClient(ctrl)
@@ -124,8 +84,8 @@ func Test_keyvault_GetPrivateKey(t *testing.T) {
 				KeyBundle: keyBundle(),
 			}, nil)
 
-		store := keyvault{client: vaultClient}
-		privateKey, err := store.GetPrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		privateKey, err := store.GetPrivateKey(context.Background(), "did-web-example-com-0", "")
 		require.NoError(t, err)
 		assert.NotNil(t, privateKey)
 	})
@@ -135,8 +95,8 @@ func Test_keyvault_GetPrivateKey(t *testing.T) {
 		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
 			Return(azkeys.GetKeyResponse{}, &azcore.ResponseError{StatusCode: http.StatusNotFound})
 
-		store := keyvault{client: vaultClient}
-		_, err := store.GetPrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		_, err := store.GetPrivateKey(context.Background(), "did-web-example-com-0", "")
 		assert.ErrorIs(t, err, spi.ErrNotFound)
 	})
 	t.Run("error", func(t *testing.T) {
@@ -145,8 +105,8 @@ func Test_keyvault_GetPrivateKey(t *testing.T) {
 		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
 			Return(azkeys.GetKeyResponse{}, errors.New("error"))
 
-		store := keyvault{client: vaultClient}
-		_, err := store.GetPrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		_, err := store.GetPrivateKey(context.Background(), "did-web-example-com-0", "")
 		assert.Error(t, err)
 	})
 	t.Run("unsupported key type", func(t *testing.T) {
@@ -168,13 +128,13 @@ func Test_keyvault_GetPrivateKey(t *testing.T) {
 				},
 			}, nil)
 
-		store := keyvault{client: vaultClient}
-		_, err = store.GetPrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		_, err = store.GetPrivateKey(context.Background(), "did-web-example-com-0", "")
 		assert.EqualError(t, err, "only ES256 keys are supported")
 	})
 }
 
-func Test_keyvault_PrivateKeyExists(t *testing.T) {
+func Test_Keyvault_PrivateKeyExists(t *testing.T) {
 	t.Run("found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		vaultClient := NewMockkeyVaultClient(ctrl)
@@ -183,8 +143,8 @@ func Test_keyvault_PrivateKeyExists(t *testing.T) {
 				KeyBundle: keyBundle(),
 			}, nil)
 
-		store := keyvault{client: vaultClient}
-		exists, err := store.PrivateKeyExists(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		exists, err := store.PrivateKeyExists(context.Background(), "did-web-example-com-0", "")
 		require.NoError(t, err)
 		assert.True(t, exists)
 	})
@@ -194,8 +154,8 @@ func Test_keyvault_PrivateKeyExists(t *testing.T) {
 		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
 			Return(azkeys.GetKeyResponse{}, &azcore.ResponseError{StatusCode: http.StatusNotFound})
 
-		store := keyvault{client: vaultClient}
-		exists, err := store.PrivateKeyExists(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		exists, err := store.PrivateKeyExists(context.Background(), "did-web-example-com-0", "")
 		require.NoError(t, err)
 		assert.False(t, exists)
 	})
@@ -205,22 +165,22 @@ func Test_keyvault_PrivateKeyExists(t *testing.T) {
 		vaultClient.EXPECT().GetKey(gomock.Any(), "did-web-example-com-0", "", gomock.Any()).
 			Return(azkeys.GetKeyResponse{}, errors.New("error"))
 
-		store := keyvault{client: vaultClient}
-		exists, err := store.PrivateKeyExists(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		exists, err := store.PrivateKeyExists(context.Background(), "did-web-example-com-0", "")
 		assert.Error(t, err)
 		assert.False(t, exists)
 	})
 }
 
-func Test_keyvault_DeletePrivateKey(t *testing.T) {
+func Test_Keyvault_DeletePrivateKey(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		vaultClient := NewMockkeyVaultClient(ctrl)
 		vaultClient.EXPECT().DeleteKey(gomock.Any(), "did-web-example-com-0", gomock.Any()).
 			Return(azkeys.DeleteKeyResponse{}, nil)
 
-		store := keyvault{client: vaultClient}
-		err := store.DeletePrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		err := store.DeletePrivateKey(context.Background(), "did-web-example-com-0")
 		require.NoError(t, err)
 	})
 	t.Run("not found", func(t *testing.T) {
@@ -229,8 +189,8 @@ func Test_keyvault_DeletePrivateKey(t *testing.T) {
 		vaultClient.EXPECT().DeleteKey(gomock.Any(), "did-web-example-com-0", gomock.Any()).
 			Return(azkeys.DeleteKeyResponse{}, &azcore.ResponseError{StatusCode: http.StatusNotFound})
 
-		store := keyvault{client: vaultClient}
-		err := store.DeletePrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		err := store.DeletePrivateKey(context.Background(), "did-web-example-com-0")
 		assert.ErrorIs(t, err, spi.ErrNotFound)
 	})
 	t.Run("error", func(t *testing.T) {
@@ -239,8 +199,8 @@ func Test_keyvault_DeletePrivateKey(t *testing.T) {
 		vaultClient.EXPECT().DeleteKey(gomock.Any(), "did-web-example-com-0", gomock.Any()).
 			Return(azkeys.DeleteKeyResponse{}, errors.New("error"))
 
-		store := keyvault{client: vaultClient}
-		err := store.DeletePrivateKey(context.Background(), "did:web:example.com#0")
+		store := Keyvault{client: vaultClient}
+		err := store.DeletePrivateKey(context.Background(), "did-web-example-com-0")
 		assert.Error(t, err)
 	})
 }
@@ -279,12 +239,14 @@ func Test_azureSigningKey_Sign(t *testing.T) {
 }
 
 func keyBundle() azkeys.KeyBundle {
+	id := azkeys.ID("https://myvaultname.vault.azure.net/keys/did-web-example-com-0/b86c2e6ad9054f4abf69cc185b99aa60")
 	return azkeys.KeyBundle{
 		Key: &azkeys.JSONWebKey{
 			Kty: to.Ptr(azkeys.KeyTypeEC),
 			Crv: to.Ptr(azkeys.CurveNameP256),
 			X:   []byte{1, 2, 3},
 			Y:   []byte{4, 5, 6},
+			KID: &id,
 		},
 	}
 }
@@ -298,52 +260,48 @@ func TestIntegrationTest(t *testing.T) {
 	os.Setenv("AZURE_CLIENT_SECRET", "")
 
 	store, err := New(Config{
-		URL:     "https://geheim-keyvault.vault.azure.net/",
+		URL:     "https://geheim-Keyvault.vault.azure.net/",
 		Timeout: 10 * time.Second,
 		Auth:    AuthConfig{Type: DefaultChainCredentialType},
 	})
 	assert.NoError(t, err)
 
-	var kid = "did:web:example.com#" + uuid.NewString()
+	var keyName = uuid.NewString()
 	ctx := context.Background()
-	_, _, err = store.NewPrivateKey(ctx, func(key crypto.PublicKey) (string, error) {
-		return kid, nil
-	})
+	_, version, err := store.NewPrivateKey(ctx, keyName)
 	if !errors.Is(err, spi.ErrKeyAlreadyExists) {
 		assert.NoError(t, err)
 	}
 
 	t.Run("New", func(t *testing.T) {
 		t.Run("already exists", func(t *testing.T) {
-			_, _, err := store.NewPrivateKey(ctx, func(key crypto.PublicKey) (string, error) {
-				return kid, nil
-			})
+			_, _, err := store.NewPrivateKey(ctx, keyName)
 			assert.ErrorIs(t, err, spi.ErrKeyAlreadyExists)
 		})
 	})
 	t.Run("PrivateKeyExists", func(t *testing.T) {
 		t.Run("does not exist", func(t *testing.T) {
-			exists, err := store.PrivateKeyExists(ctx, "does-not-exist")
+			exists, err := store.PrivateKeyExists(ctx, "does-not-exist", "")
 			assert.NoError(t, err)
 			assert.False(t, exists)
 		})
 		t.Run("exists", func(t *testing.T) {
-			exists, err := store.PrivateKeyExists(ctx, kid)
+			exists, err := store.PrivateKeyExists(ctx, keyName, version)
 			assert.NoError(t, err)
 			assert.True(t, exists)
 		})
 	})
 	t.Run("ListPrivateKeys", func(t *testing.T) {
 		keys := store.ListPrivateKeys(ctx)
-		assert.Contains(t, keys, kid)
+		assert.Contains(t, keys, spi.KeyNameVersion{keyName, version})
 	})
 	t.Run("GetPrivateKey", func(t *testing.T) {
 		t.Run("does not exist", func(t *testing.T) {
-			_, err := store.GetPrivateKey(ctx, "does-not-exist")
+			_, err := store.GetPrivateKey(ctx, "does-not-exist", "")
 			assert.ErrorIs(t, err, spi.ErrNotFound)
 		})
 		t.Run("sign", func(t *testing.T) {
-			signer, err := store.GetPrivateKey(ctx, kid)
+			signer, err := store.GetPrivateKey(ctx, keyName, version)
 			assert.NoError(t, err)
 
 			// Sign something
@@ -359,16 +317,14 @@ func TestIntegrationTest(t *testing.T) {
 	})
 	t.Run("DeletePrivateKey", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			otherKid := uuid.NewString()
-			_, _, err := store.NewPrivateKey(ctx, func(key crypto.PublicKey) (string, error) {
-				return otherKid, nil
-			})
+			otherKeyName := uuid.NewString()
+			_, version, err := store.NewPrivateKey(ctx, otherKeyName)
 			assert.NoError(t, err)
 
-			err = store.DeletePrivateKey(ctx, otherKid)
+			err = store.DeletePrivateKey(ctx, otherKeyName)
 			assert.NoError(t, err)
 
-			exists, err := store.PrivateKeyExists(ctx, otherKid)
+			exists, err := store.PrivateKeyExists(ctx, otherKeyName, version)
 			assert.NoError(t, err)
 			assert.False(t, exists)
 		})

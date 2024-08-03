@@ -98,3 +98,6 @@ type SessionStore interface {
 	// GetAndDelete combines Get and Delete as a convenience for burning nonce entries.
 	GetAndDelete(key string, target interface{}) error
 }
+
+// TransactionKey is the key used to store the SQL transaction in the context.
+type TransactionKey struct{}

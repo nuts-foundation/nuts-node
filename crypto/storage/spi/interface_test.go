@@ -18,7 +18,6 @@ package spi
 
 import (
 	"context"
-	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -56,12 +55,9 @@ func TestPublicKeyEntry_FromJWK(t *testing.T) {
 
 func TestGenerateKeyPairAndKID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		keyPair, kid, err := GenerateKeyPairAndKID(func(_ crypto.PublicKey) (string, error) {
-			return "keyname", nil
-		})
+		keyPair, err := GenerateKeyPair()
 		require.NoError(t, err)
 		assert.NotNil(t, keyPair)
-		assert.Equal(t, "keyname", kid)
 	})
 }
 
@@ -70,39 +66,25 @@ func TestGenerateAndStore(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false, nil)
+		store.EXPECT().PrivateKeyExists(ctx, "123", "1").Return(false, nil)
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(nil)
-		kid := "123"
+		keyName := "123"
 
-		key, kid, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
-			return kid, nil
-		})
+		key, version, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
-		assert.Equal(t, "123", kid)
-	})
-	t.Run("error - NamingFunction returns err", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		store := NewMockStorage(ctrl)
-
-		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
-			return "", errors.New("foo")
-		})
-
-		assert.ErrorContains(t, err, "foo")
+		assert.Equal(t, "1", version)
 	})
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(false, nil)
+		store.EXPECT().PrivateKeyExists(ctx, "123", "1").Return(false, nil)
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
-		kid := "123"
+		keyName := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
-			return kid, nil
-		})
+		_, _, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.ErrorContains(t, err, "could not create new keypair: could not save private key: foo")
 	})
@@ -110,12 +92,10 @@ func TestGenerateAndStore(t *testing.T) {
 	t.Run("error - ID already in use", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := NewMockStorage(ctrl)
-		store.EXPECT().PrivateKeyExists(ctx, "123").Return(true, nil)
-		kid := "123"
+		store.EXPECT().PrivateKeyExists(ctx, "123", "1").Return(true, nil)
+		keyName := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, func(_ crypto.PublicKey) (string, error) {
-			return kid, nil
-		})
+		_, _, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.ErrorContains(t, err, "key with the given ID already exists")
 	})

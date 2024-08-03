@@ -20,6 +20,7 @@ package test
 
 import (
 	"context"
+	"crypto"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -35,8 +36,9 @@ import (
 )
 
 // CreateJWTPresentation creates a JWT presentation with the given subject DID and credentials.
-func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) (vc.VerifiablePresentation, nutsCrypto.Key) {
+func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(token jwt.Token), credentials ...vc.VerifiableCredential) (vc.VerifiablePresentation, crypto.PublicKey) {
 	headers := map[string]any{jws.TypeKey: "JWT"}
+	kid := subjectDID.String() + "#1"
 	claims := map[string]interface{}{
 		jwt.SubjectKey:    subjectDID.String(),
 		jwt.JwtIDKey:      subjectDID.String() + "#" + uuid.NewString(),
@@ -55,11 +57,11 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	if tokenVisitor != nil {
 		tokenVisitor(unsignedToken)
 	}
-	keyStore := nutsCrypto.NewMemoryCryptoInstance()
-	key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(subjectDID.String()))
+	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
+	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	require.NoError(t, err)
 	claims, err = unsignedToken.AsMap(context.Background())
-	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, key.KID())
+	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, kid)
 	result, err := vc.ParseVerifiablePresentation(signedToken)
 	require.NoError(t, err)
 	return *result, key

@@ -47,7 +47,7 @@ func TestAuth_Configure(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
@@ -61,7 +61,7 @@ func TestAuth_Configure(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
@@ -119,7 +119,7 @@ func TestAuth_IAMClient(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(), nil, jsonld.NewTestJSONLDManager(t), pkiMock)
+		i := NewAuthInstance(config, vdrInstance, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, jsonld.NewTestJSONLDManager(t), pkiMock)
 
 		assert.NotNil(t, i.IAMClient())
 	})

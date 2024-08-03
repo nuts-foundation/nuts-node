@@ -24,13 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"gorm.io/gorm"
 )
@@ -91,30 +91,31 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 }
 
 func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
-	var err error
-	var verificationMethodKey nutsCrypto.Key
 	verificationMethodID := did.DIDURL{
 		DID:      controller,
 		Fragment: uuid.New().String(),
 	}
+	var publicKey crypto.PublicKey
+	var err error
 	if keyUsage.Is(orm.KeyAgreementUsage) {
 		return nil, errors.New("key agreement not supported for did:web")
 		// todo requires update to nutsCrypto module
 		//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
-		//	return verificationMethodID.String(), nil
+		//      return verificationMethodID.String(), nil
 		//})
 	} else {
-		verificationMethodKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+		_, publicKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
 			return verificationMethodID.String(), nil
 		})
 	}
 	if err != nil {
 		return nil, err
 	}
-	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, verificationMethodKey.Public())
+	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, publicKey)
 	if err != nil {
 		return nil, err
 	}
+
 	return verificationMethod, nil
 }
 
