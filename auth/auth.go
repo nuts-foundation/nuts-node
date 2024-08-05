@@ -77,6 +77,11 @@ func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL
 }
 
+// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
+func (auth *Auth) AuthorizationEndpointEnabled() bool {
+	return auth.config.AuthorizationEndpoint.Enabled
+}
+
 // ContractNotary returns an implementation of the ContractNotary interface.
 func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary

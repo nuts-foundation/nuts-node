@@ -41,6 +41,9 @@ const ConfHTTPTimeout = "auth.http.timeout"
 // ConfAccessTokenLifeSpan defines how long (in seconds) an access token is valid
 const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 
+// ConfAuthEndpointEnabled is the config key for enabling the Auth v2 API's Authorization Endpoint
+const ConfAuthEndpointEnabled = "auth.authorizationendpoint.enabled"
+
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("auth", pflag.ContinueOnError)
@@ -52,6 +55,8 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
+	flags.Bool(ConfAuthEndpointEnabled, defs.AuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. "+
+		"This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.")
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 
 	return flags

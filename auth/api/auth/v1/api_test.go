@@ -58,12 +58,18 @@ type TestContext struct {
 	audit                 context.Context
 }
 
+var _ pkg2.AuthenticationServices = &mockAuthClient{}
+
 type mockAuthClient struct {
 	ctrl           *gomock.Controller
 	authzServer    *oauth.MockAuthorizationServer
 	contractNotary *services.MockContractNotary
 	iamClient      *iam.MockClient
 	relyingParty   *oauth.MockRelyingParty
+}
+
+func (m *mockAuthClient) AuthorizationEndpointEnabled() bool {
+	return true
 }
 
 func (m *mockAuthClient) AuthzServer() oauth.AuthorizationServer {

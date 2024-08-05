@@ -10,6 +10,8 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
+  authorizationendpoint:
+    enabled: true
 policy:
   directory: /opt/nuts/policies
 tls:

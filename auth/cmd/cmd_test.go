@@ -43,6 +43,7 @@ func TestFlagSet(t *testing.T) {
 
 	assert.Equal(t, []string{
 		ConfAccessTokenLifeSpan,
+		ConfAuthEndpointEnabled,
 		ConfClockSkew,
 		ConfContractValidators,
 		ConfHTTPTimeout,
