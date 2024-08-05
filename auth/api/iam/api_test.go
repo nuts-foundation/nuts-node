@@ -850,7 +850,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
@@ -864,7 +864,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			Scope:               "first second",
 			TokenType:           &tokenTypeBearer,
 		}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", false, nil).Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderSubjectID, verifierURL.String(), "first second", false, nil).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 
@@ -879,7 +879,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, walletDID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
 

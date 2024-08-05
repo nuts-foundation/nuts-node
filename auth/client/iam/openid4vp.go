@@ -22,10 +22,12 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/piprate/json-gold/ld"
 	"net/http"
 	"net/url"
@@ -53,10 +55,12 @@ type OpenID4VPClient struct {
 	strictMode       bool
 	wallet           holder.Wallet
 	ldDocumentLoader ld.DocumentLoader
+	subjectManager   didsubject.SubjectManager
 }
 
 // NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner nutsCrypto.JWTSigner, ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.SubjectManager, jwtSigner nutsCrypto.JWTSigner,
+	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode: strictMode,
@@ -65,6 +69,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, jwtSigner
 		keyResolver:      keyResolver,
 		jwtSigner:        jwtSigner,
 		ldDocumentLoader: ldDocumentLoader,
+		subjectManager:   subjectManager,
 		strictMode:       strictMode,
 		wallet:           wallet,
 	}
@@ -205,7 +210,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requester did.DID, authServerURL string, scopes string,
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
@@ -232,24 +237,42 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
 
-	targetWallet := c.wallet
-	if len(credentials) > 0 {
-		// This feature is used for presenting self-attested credentials which aren't signed (they're only protected by the VP's signature).
-		// To make the API easier to use, we can set a few required fields if it's a self-attested credential.
-		for i, credential := range credentials {
-			credentials[i] = autoCorrectSelfAttestedCredential(credential, requester)
+	subjectDIDs, err := c.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to fulfill the
+	var vp *vc.VerifiablePresentation
+	var submission *pe.PresentationSubmission
+	var subjectDID did.DID
+	for _, subjectDID = range subjectDIDs {
+		targetWallet := c.wallet
+		if len(credentials) > 0 {
+			additionalCredentials := make([]vc.VerifiableCredential, len(credentials))
+			// This feature is used for presenting self-attested credentials which aren't signed (they're only protected by the VP's signature).
+			// To make the API easier to use, we can set a few required fields if it's a self-attested credential.
+			for i, credential := range credentials {
+				additionalCredentials[i] = autoCorrectSelfAttestedCredential(credential, subjectDID)
+			}
+			// We have additional credentials to present, aside from those in the persistent wallet.
+			// Create a temporary in-memory wallet with the requester's persisted VCs and the
+			targetWallet, err = c.walletWithExtraCredentials(ctx, subjectDID, additionalCredentials)
+			if err != nil {
+				return nil, err
+			}
 		}
-		// We have additional credentials to present, aside from those in the persistent wallet.
-		// Create a temporary in-memory wallet with the requester's persisted VCs and the
-		targetWallet, err = c.walletWithExtraCredentials(ctx, requester, credentials)
+
+		vp, submission, err = targetWallet.BuildSubmission(ctx, subjectDID, *presentationDefinition, metadata.VPFormatsSupported, params)
+		if errors.Is(err, holder.ErrNoCredentials) {
+			// The DID doesn't have the right credentials to present, try the next DID of the subject.
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	vp, submission, err := targetWallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormatsSupported, params)
-	if err != nil {
-		return nil, err
+		// We can fulfill the request with the VC set of this DID
+		break
 	}
 
 	assertion := vp.Raw()
@@ -267,7 +290,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.dpop(ctx, requester, *request)
+		dpopHeader, err = c.dpop(ctx, subjectDID, *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
 		}

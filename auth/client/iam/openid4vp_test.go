@@ -27,6 +27,7 @@ import (
 	test2 "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -231,15 +232,31 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 }
 
 func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
-	walletDID := did.MustParseDID("did:test:123")
-	kid := "did:test:123#1"
+	const subjectID = "subby"
+	primaryWalletDID := did.MustParseDID("did:primary:123")
+	secondaryWalletDID := did.MustParseDID("did:secondary:123")
+	primaryKID := "did:primary:123#1"
 	scopes := "first second"
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("first DID matches", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
+
+		assert.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("second DID matches", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), secondaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -265,19 +282,20 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			data, _ := json.Marshal(pd)
 			_, _ = writer.Write(data)
 		}
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		vp, _ := test.CreateJWTPresentation(t, walletDID, nil)
-		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), kid).
+		ctx.keyResolver.EXPECT().ResolveKey(primaryWalletDID, nil, resolver.NutsSigningKeyType).Return(primaryKID, nil, nil)
+		vp, _ := test.CreateJWTPresentation(t, primaryWalletDID, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), primaryKID).
 			DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, _ string) (string, error) {
 				vcs := claims["vp"].(vc.VerifiablePresentation).VerifiableCredential
 				require.Len(t, vcs, 1)
 				assert.Equal(t, "EmployeeCredential", vcs[0].Type[1].String())
 				assert.NotNil(t, vcs[0].ID, "id of self-attested VC should be auto-generated if not set")
 				credentialSubject := vcs[0].CredentialSubject[0].(map[string]interface{})
-				assert.Equal(t, walletDID.String(), credentialSubject["id"], "credentialSubject.id of self-attested VC should be set if not set")
+				assert.Equal(t, primaryWalletDID.String(), credentialSubject["id"], "credentialSubject.id of self-attested VC should be set if not set")
 				return vp.Raw(), nil
 			})
-		ctx.wallet.EXPECT().List(gomock.Any(), walletDID).Return([]vc.VerifiableCredential{{Issuer: ssi.MustParseURI("did:web:example.com")}}, nil)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), primaryWalletDID).Return([]vc.VerifiableCredential{{Issuer: ssi.MustParseURI("did:web:example.com")}}, nil)
 
 		credentials := []vc.VerifiableCredential{
 			{
@@ -302,7 +320,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			credentials[i] = *credPtr
 		}
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, credentials)
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, credentials)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -311,11 +329,12 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
-		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(primaryWalletDID, nil, resolver.NutsSigningKeyType).Return(primaryKID, nil, nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), primaryKID).Return("dpop", nil)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, true, nil)
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, true, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -334,9 +353,10 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			writer.WriteHeader(http.StatusBadRequest)
 			_, _ = writer.Write(oauthErrorBytes)
 		}
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		require.Error(t, err)
 		oauthError, ok := err.(oauth.OAuth2Error)
@@ -347,7 +367,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.presentationDefinition = nil
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to retrieve presentation definition: server returned HTTP 404 (expected: 200)")
@@ -356,7 +376,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.metadata = nil
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
@@ -369,17 +389,17 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			_, _ = writer.Write([]byte("{"))
 		}
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to retrieve presentation definition: unable to unmarshal response: unexpected end of JSON input")
 	})
 	t.Run("error - failed to build vp", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, assert.AnError)
 
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), walletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, assert.AnError)
-
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), walletDID, ctx.verifierURL.String(), scopes, false, nil)
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.Error(t, err)
 	})
@@ -450,6 +470,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 	ctrl := gomock.NewController(t)
 	jwtSigner := crypto.NewMockJWTSigner(ctrl)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	subjectManager := didsubject.NewMockSubjectManager(ctrl)
 	wallet := holder.NewMockWallet(ctrl)
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
@@ -460,7 +481,8 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		audit: audit.TestContext(),
 		ctrl:  ctrl,
 		client: &OpenID4VPClient{
-			wallet: wallet,
+			wallet:         wallet,
+			subjectManager: subjectManager,
 			httpClient: HTTPClient{
 				strictMode: false,
 				httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
@@ -468,19 +490,21 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			jwtSigner:   jwtSigner,
 			keyResolver: keyResolver,
 		},
-		jwtSigner:   jwtSigner,
-		keyResolver: keyResolver,
-		wallet:      wallet,
+		jwtSigner:      jwtSigner,
+		keyResolver:    keyResolver,
+		wallet:         wallet,
+		subjectManager: subjectManager,
 	}
 }
 
 type clientTestContext struct {
-	audit       context.Context
-	client      Client
-	ctrl        *gomock.Controller
-	jwtSigner   *crypto.MockJWTSigner
-	keyResolver *resolver.MockKeyResolver
-	wallet      *holder.MockWallet
+	audit          context.Context
+	client         Client
+	ctrl           *gomock.Controller
+	jwtSigner      *crypto.MockJWTSigner
+	keyResolver    *resolver.MockKeyResolver
+	wallet         *holder.MockWallet
+	subjectManager *didsubject.MockSubjectManager
 }
 
 type clientServerTestContext struct {

@@ -682,7 +682,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	requestHolder, err := r.selectDID(ctx, request.Subject)
+	err := r.subjectExists(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +696,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, request.Subject, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err

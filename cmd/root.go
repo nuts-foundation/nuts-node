@@ -199,7 +199,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
 	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
