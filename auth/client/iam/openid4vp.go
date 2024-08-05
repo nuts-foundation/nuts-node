@@ -242,7 +242,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 		return nil, err
 	}
 
-	// Try to fulfill the
+	// Try to fulfill the Presentation Defition with any of the subject's DIDs
 	var vp *vc.VerifiablePresentation
 	var submission *pe.PresentationSubmission
 	var subjectDID did.DID
@@ -273,6 +273,10 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 		}
 		// We can fulfill the request with the VC set of this DID
 		break
+	}
+	if vp == nil {
+		// No DID has the right credentials to present
+		return nil, holder.ErrNoCredentials
 	}
 
 	assertion := vp.Raw()

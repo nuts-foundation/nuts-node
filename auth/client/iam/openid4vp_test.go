@@ -238,7 +238,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	primaryKID := "did:primary:123#1"
 	scopes := "first second"
 
-	t.Run("first DID matches", func(t *testing.T) {
+	t.Run("first DID fulfills the Presentation Definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
@@ -250,7 +250,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
 	})
-	t.Run("second DID matches", func(t *testing.T) {
+	t.Run("second DID fulfills the Presentation Definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
@@ -262,6 +262,17 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		require.NotNil(t, response)
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("no DID fulfills the Presentation Definition", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), secondaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
+
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
+
+		assert.ErrorIs(t, err, holder.ErrNoCredentials)
+		assert.Nil(t, response)
 	})
 	t.Run("with additional credentials", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
