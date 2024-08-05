@@ -40,4 +40,6 @@ type AuthenticationServices interface {
 	ContractNotary() services.ContractNotary
 	// PublicURL returns the public URL of the node.
 	PublicURL() *url.URL
+	// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
+	AuthorizationEndpointEnabled() bool
 }

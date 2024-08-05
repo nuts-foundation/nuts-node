@@ -8,6 +8,8 @@ http:
 auth:
   contractvalidators:
     - dummy
+  authorizationendpoint:
+    enabled: true
 policy:
   directory: /opt/nuts/policy
 vdr:

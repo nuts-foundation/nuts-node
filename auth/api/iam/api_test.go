@@ -84,13 +84,23 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
+		assert.NotEmpty(t, res.(OAuthAuthorizationServerMetadata200JSONResponse).AuthorizationEndpoint)
 	})
+	t.Run("authorization endpoint disabled", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false)
+		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
+
+		require.NoError(t, err)
+		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
+		assert.Empty(t, res.(OAuthAuthorizationServerMetadata200JSONResponse).AuthorizationEndpoint)
+	})
 	t.Run("base URL (prepended before /iam)", func(t *testing.T) {
 		var webDID = did.MustParseDID("did:web:example.com:base:iam:123")
 		//	200
 		baseURL := test.MustParseURL("https://example.com/base")
-		ctx := newTestClientWithBaseURL(t, baseURL)
+		ctx := newCustomTestClient(t, baseURL, false)
 		ctx.documentOwner.EXPECT().IsOwner(nil, webDID).Return(true, nil)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Did: webDID.String()})
@@ -222,7 +232,14 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 }
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false)
 
+		response, err := ctx.client.HandleAuthorizeRequest(nil, HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint is disabled")
+		assert.Nil(t, response)
+	})
 	t.Run("ok - response_type=code", func(t *testing.T) {
 		ctx := newTestClient(t)
 
@@ -239,7 +256,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeParam:       "code_challenge",
 			oauth.CodeChallengeMethodParam: "S256",
 		}
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil).MinTimes(1)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromHolder
@@ -334,7 +351,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.ResponseTypeParam: "unsupported",
 		}
 		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), gomock.Any()).Return(requestParams, nil)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil).MinTimes(1)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), verifierDID).Return(true, nil)
 
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
 			HandleAuthorizeRequestRequestObject{Did: verifierDID.String()})
@@ -378,7 +395,14 @@ func TestWrapper_Callback(t *testing.T) {
 		OtherDID:      &verifierDID,
 		TokenEndpoint: "https://example.com/token",
 	}
+	t.Run("disabled", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false)
 
+		response, err := ctx.client.Callback(nil, CallbackRequestObject{Did: holderDID.String()})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "callback endpoint is disabled")
+		assert.Nil(t, response)
+	})
 	t.Run("ok - error flow", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
@@ -1435,10 +1459,10 @@ type testCtx struct {
 
 func newTestClient(t testing.TB) *testCtx {
 	publicURL, _ := url.Parse("https://example.com")
-	return newTestClientWithBaseURL(t, publicURL)
+	return newCustomTestClient(t, publicURL, true)
 }
 
-func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
+func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled bool) *testCtx {
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
@@ -1463,6 +1487,7 @@ func newTestClientWithBaseURL(t testing.TB, publicURL *url.URL) *testCtx {
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
+	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
 

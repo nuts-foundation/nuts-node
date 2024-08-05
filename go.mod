@@ -9,16 +9,15 @@ require (
 	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
-	github.com/chromedp/chromedp v0.9.5
+	github.com/chromedp/chromedp v0.10.0
 	github.com/dlclark/regexp2 v1.11.2
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-redis/redismock/v9 v9.2.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/knadh/koanf v1.5.0
-	github.com/labstack/echo-jwt/v4 v4.2.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/magiconair/properties v1.8.7
@@ -80,7 +79,7 @@ require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chromedp/cdproto v0.0.0-20240202021202-6d0b6a386732 // indirect
+	github.com/chromedp/cdproto v0.0.0-20240801214329-3f85d328b335 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
@@ -101,7 +100,7 @@ require (
 	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/gobwas/ws v1.3.2 // indirect
+	github.com/gobwas/ws v1.4.0 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
