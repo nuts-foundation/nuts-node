@@ -38,9 +38,11 @@ import (
 
 var keyPairs map[string]*ecdsa.PrivateKey
 var authorityDID did.DID
+var aliceSubject string
 var aliceDID did.DID
 var vcAlice vc.VerifiableCredential
 var vpAlice vc.VerifiablePresentation
+var bobSubject string
 var bobDID did.DID
 var vcBob vc.VerifiableCredential
 var vpBob vc.VerifiablePresentation
@@ -104,8 +106,10 @@ func init() {
 	keyPairs = make(map[string]*ecdsa.PrivateKey)
 	authorityDID = did.MustParseDID("did:example:authority")
 	keyPairs[authorityDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	aliceSubject = "alice"
 	aliceDID = did.MustParseDID("did:example:alice")
 	keyPairs[aliceDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	bobSubject = "bob"
 	bobDID = did.MustParseDID("did:example:bob")
 	keyPairs[bobDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	unsupportedDID = did.MustParseDID("did:web:example.com")

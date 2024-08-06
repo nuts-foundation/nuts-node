@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -32,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/url"
 	"os"
 	"path"
@@ -67,11 +66,11 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR, vdrInstance vdr.VDR) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.SubjectManager) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
-		vdrInstance:     vdrInstance,
+		subjectManager:  subjectManager,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -88,7 +87,7 @@ type Module struct {
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
-	vdrInstance         vdr.VDR
+	subjectManager      didsubject.SubjectManager
 	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -136,7 +135,7 @@ func (m *Module) Start() error {
 		return err
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
-	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance)
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager)
 	if m.config.Client.RefreshInterval > 0 {
 		m.routines.Add(1)
 		go func() {
@@ -332,32 +331,29 @@ func forwardedHost(ctx context.Context) string {
 	return host
 }
 
-// ActivateServiceForDID is a Discovery Client function that activates a service for a DID.
+// ActivateServiceForSubject is a Discovery Client function that activates a service for a subject.
 // See interface.go for more information.
-func (m *Module) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	log.Logger().Debugf("Activating service for DID (did=%s, service=%s)", subjectDID, serviceID)
-	isOwner, err := m.vdrInstance.DocumentOwner().IsOwner(ctx, subjectDID)
+func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
+	log.Logger().Debugf("Activating service for subject (subject=%s, service=%s)", subjectID, serviceID)
+
+	err := m.registrationManager.activate(ctx, serviceID, subjectID)
 	if err != nil {
+		if errors.Is(err, ErrPresentationRegistrationFailed) {
+			log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (subject=%s,service=%s)", subjectID, serviceID)
+		}
 		return err
 	}
-	if !isOwner {
-		return errors.New("not owner of DID")
-	}
-	err = m.registrationManager.activate(ctx, serviceID, subjectDID)
-	if errors.Is(err, ErrPresentationRegistrationFailed) {
-		log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (did=%s,service=%s)", subjectDID, serviceID)
-	} else if err == nil {
-		log.Logger().Infof("Successfully activated service for DID (did=%s,service=%s)", subjectDID, serviceID)
-		_ = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
-	}
-	return err
+
+	log.Logger().Infof("Successfully activated service for subject (subject=%s,service=%s)", subjectID, serviceID)
+	_ = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
+	return nil
 }
 
-// DeactivateServiceForDID is a Discovery Client function that deactivates a service for a DID.
+// DeactivateServiceForSubject is a Discovery Client function that deactivates a service for a subject.
 // See interface.go for more information.
-func (m *Module) DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
-	log.Logger().Infof("Deactivating service for DID (did=%s, service=%s)", subjectDID, serviceID)
-	return m.registrationManager.deactivate(ctx, serviceID, subjectDID)
+func (m *Module) DeactivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
+	log.Logger().Infof("Deactivating service for subject (subject=%s, service=%s)", subjectID, serviceID)
+	return m.registrationManager.deactivate(ctx, serviceID, subjectID)
 }
 
 func (m *Module) Services() []ServiceDefinition {
@@ -370,25 +366,31 @@ func (m *Module) Services() []ServiceDefinition {
 
 // GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a DID.
 // See interface.go for more information.
-func (m *Module) GetServiceActivation(_ context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error) {
-	refreshTime, err := m.store.getPresentationRefreshTime(serviceID, subjectDID)
+func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
+	refreshTime, err := m.store.getPresentationRefreshTime(serviceID, subjectID)
 	if err != nil {
 		return false, nil, err
 	}
 	if refreshTime == nil {
 		return false, nil, nil
 	}
+	// subject is activated for service
 
-	presentations, err := m.store.search(serviceID, map[string]string{
-		"credentialSubject.id": subjectDID.String(),
-	})
+	subjectDIDs, err := m.subjectManager.List(ctx, subjectID)
 	if err != nil {
-		return false, nil, err
+		// can only happen if DB is offline/corrupt, or between deactivating a subject and its next refresh on the service (didsubject.ErrSubjectNotFound)
+		return true, nil, err
 	}
-	if len(presentations) > 0 {
-		return true, &presentations[0], nil
+
+	vps2D, err := m.store.getSubjectVPsOnService(serviceID, subjectDIDs)
+	if err != nil {
+		return true, nil, err // DB err
 	}
-	return true, nil, nil
+	var results []vc.VerifiablePresentation
+	for _, vps := range vps2D {
+		results = append(results, vps...)
+	}
+	return true, results, nil
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
