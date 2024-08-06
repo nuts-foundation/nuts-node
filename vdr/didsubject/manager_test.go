@@ -424,8 +424,8 @@ func (t testMethod) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, er
 func Test_sortDIDDocuments(t *testing.T) {
 	t.Run("duplicate", func(t *testing.T) {
 		documents := []did.Document{
-			{ID: did.MustParseDID("did:example:1")},
-			{ID: did.MustParseDID("did:example:1")},
+			{ID: did.MustParseDID("did:example:1"), Context: []interface{}{"version one"}},
+			{ID: did.MustParseDID("did:example:1"), Context: []interface{}{"version two"}},
 			{ID: did.MustParseDID("did:test:1")},
 		}
 
@@ -435,5 +435,6 @@ func Test_sortDIDDocuments(t *testing.T) {
 		assert.Equal(t, "did:test:1", documents[0].ID.String())
 		assert.Equal(t, "did:example:1", documents[1].ID.String())
 		assert.Equal(t, "did:example:1", documents[2].ID.String())
+		assert.NotEqual(t, documents[1].Context[0], documents[2].Context[0])
 	})
 }
