@@ -22,11 +22,11 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"net/url"
 )
@@ -43,6 +43,8 @@ type Wrapper struct {
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
 	case errors.Is(err, discovery.ErrServiceNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, didsubject.ErrSubjectNotFound):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
@@ -91,22 +93,18 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 		}
 		subjectDID, _ := credential.PresentationSigner(searchResult.Presentation)
 		if subjectDID != nil {
-			result.SubjectId = subjectDID.String()
+			result.CredentialSubjectId = subjectDID.String()
 		}
 		results = append(results, result)
 	}
 	return SearchPresentations200JSONResponse(results), nil
 }
 
-func (w *Wrapper) ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error) {
-	subjectDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, err
-	}
-	err = w.Client.ActivateServiceForDID(ctx, request.ServiceID, *subjectDID)
+func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error) {
+	err := w.Client.ActivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
 	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
 		// registration failed, but will be retried
-		return ActivateServiceForDID202JSONResponse{
+		return ActivateServiceForSubject202JSONResponse{
 			Reason: err.Error(),
 		}, nil
 	}
@@ -114,25 +112,21 @@ func (w *Wrapper) ActivateServiceForDID(ctx context.Context, request ActivateSer
 		// other error
 		return nil, err
 	}
-	return ActivateServiceForDID200Response{}, nil
+	return ActivateServiceForSubject200Response{}, nil
 }
 
-func (w *Wrapper) DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error) {
-	subjectDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, err
-	}
-	err = w.Client.DeactivateServiceForDID(ctx, request.ServiceID, *subjectDID)
+func (w *Wrapper) DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error) {
+	err := w.Client.DeactivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
 	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
-		// deactivation succeeded, but Verifiable Presentation couldn't be removed from remote Discovery Server.
-		return DeactivateServiceForDID202JSONResponse{
+		// deactivation succeeded, but not all Verifiable Presentation couldn't be removed from remote Discovery Server.
+		return DeactivateServiceForSubject202JSONResponse{
 			Reason: err.Error(),
 		}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return DeactivateServiceForDID200Response{}, nil
+	return DeactivateServiceForSubject200Response{}, nil
 }
 
 func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (GetServicesResponseObject, error) {
@@ -141,16 +135,12 @@ func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (Ge
 }
 
 func (w *Wrapper) GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error) {
-	subjectDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, err
-	}
-	activated, presentation, err := w.Client.GetServiceActivation(ctx, request.ServiceID, *subjectDID)
+	activated, presentations, err := w.Client.GetServiceActivation(ctx, request.ServiceID, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
 	return GetServiceActivation200JSONResponse{
 		Activated: activated,
-		Vp:        presentation,
+		Vp:        &presentations,
 	}, nil
 }

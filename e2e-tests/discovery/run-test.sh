@@ -20,8 +20,10 @@ docker compose up --wait nodeB-backend nodeB
 echo "------------------------------------"
 echo "Registering care organization..."
 echo "------------------------------------"
-DIDDOC=$(docker compose exec nodeB-backend nuts vdr create-did --v2)
-DID=$(echo $DIDDOC | jq -r .[0].id)
+RESPONSE=$(curl --insecure -s -X POST http://localhost:28081/internal/vdr/v2/subject -H "Content-Type:application/json")
+SUBJECT=$(echo $RESPONSE | jq -r .subject)
+echo SUBJECT: $SUBJECT
+DID=$(echo $RESPONSE | jq -r .documents[0].id)
 echo DID: $DID
 
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${DID}\", \"credentialSubject\": {\"id\":\"${DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": false}"
@@ -46,7 +48,7 @@ fi
 echo "---------------------------------------"
 echo "Registering care organization on Discovery Service..."
 echo "---------------------------------------"
-curl --insecure -s -X POST http://localhost:28081/internal/discovery/v1/dev:eOverdracht2023/${DID}
+curl --insecure -s -X POST http://localhost:28081/internal/discovery/v1/dev:eOverdracht2023/${SUBJECT}
 # Start Discovery Server
 docker compose up --wait nodeA-backend nodeA
 # Registration refresh interval is 500ms, wait some to make sure the registration is refreshed

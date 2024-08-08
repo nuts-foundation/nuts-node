@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
@@ -30,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -290,9 +290,9 @@ func Test_Module_Get(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl          *gomock.Controller
-	documentOwner *didsubject.MockDocumentOwner
-	verifier      *verifier.MockVerifier
+	ctrl           *gomock.Controller
+	subjectManager *didsubject.MockSubjectManager
+	verifier       *verifier.MockVerifier
 }
 
 func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(module *Module)) (*Module, mockContext) {
@@ -301,10 +301,8 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	mockVerifier := verifier.NewMockVerifier(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
-	mockVDR := vdr.NewMockVDR(ctrl)
-	mockVDR.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
-	m := New(storageInstance, mockVCR, mockVDR)
+	mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
+	m := New(storageInstance, mockVCR, mockSubjectManager)
 	m.config = DefaultConfig()
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)
@@ -325,9 +323,9 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 		_ = m.Shutdown()
 	})
 	return m, mockContext{
-		ctrl:          ctrl,
-		documentOwner: documentOwner,
-		verifier:      mockVerifier,
+		ctrl:           ctrl,
+		verifier:       mockVerifier,
+		subjectManager: mockSubjectManager,
 	}
 }
 
@@ -436,7 +434,7 @@ func TestModule_update(t *testing.T) {
 	})
 }
 
-func TestModule_ActivateServiceForDID(t *testing.T) {
+func TestModule_ActivateServiceForSubject(t *testing.T) {
 	t.Run("ok, syncs VPs immediately after registration", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
@@ -454,9 +452,9 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
-		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
+		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
@@ -464,11 +462,11 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
 		m, testContext := setupModule(t, storageEngine)
-		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(false, nil)
+		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
 
-		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
-		require.EqualError(t, err, "not owner of DID")
+		require.EqualError(t, err, "subject not found")
 	})
 	t.Run("ok, but couldn't register presentation -> maps to ErrRegistrationFailed", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
@@ -477,9 +475,9 @@ func TestModule_ActivateServiceForDID(t *testing.T) {
 		wallet := holder.NewMockWallet(gomock.NewController(t))
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
-		testContext.documentOwner.EXPECT().IsOwner(gomock.Any(), aliceDID).Return(true, nil)
+		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).Times(2)
 
-		err := m.ActivateServiceForDID(context.Background(), testServiceID, aliceDID)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 	})
@@ -502,30 +500,32 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	t.Run("not activated", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 
-		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
 		require.NoError(t, err)
 		assert.False(t, activated)
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, no VP", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
+		m, ctx := setupModule(t, storageEngine)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
-		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
 
-		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
 		require.NoError(t, err)
 		assert.True(t, activated)
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, with VP", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
+		m, testContext := setupModule(t, storageEngine)
+		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
-		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceDID, &next)
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
 		_ = m.store.add(testServiceID, vpAlice, 0)
 
-		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceDID)
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
 		require.NoError(t, err)
 		assert.True(t, activated)

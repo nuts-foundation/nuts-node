@@ -22,7 +22,6 @@ import (
 	"context"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/discovery"
@@ -36,75 +35,72 @@ import (
 	"testing"
 )
 
-const serviceID = "wonderland"
+const (
+	serviceID = "wonderland"
+	subjectID = "alice"
+)
 
-var subjectDID = did.MustParseDID("did:web:example.com")
-
-func TestWrapper_ActivateServiceForDID(t *testing.T) {
+func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), serviceID, subjectDID).Return(nil)
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(nil)
 
-		response, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
-			Did:       subjectDID.String(),
+			SubjectID: subjectID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, ActivateServiceForDID200Response{}, response)
+		assert.IsType(t, ActivateServiceForSubject200Response{}, response)
 	})
 	t.Run("ok, but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
-		expectedDID := "did:web:example.com"
-		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
 
-		response, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
-			Did:       expectedDID,
+			SubjectID: subjectID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, ActivateServiceForDID202JSONResponse{}, response)
+		assert.IsType(t, ActivateServiceForSubject202JSONResponse{}, response)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)
-		expectedDID := "did:web:example.com"
-		test.client.EXPECT().ActivateServiceForDID(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
-		_, err := test.wrapper.ActivateServiceForDID(nil, ActivateServiceForDIDRequestObject{
+		_, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
-			Did:       expectedDID,
+			SubjectID: subjectID,
 		})
 
-		assert.Error(t, err)
+		assert.EqualError(t, err, "foo")
 	})
 }
 
-func TestWrapper_DeactivateServiceForDID(t *testing.T) {
+func TestWrapper_DeactivateServiceForSubject(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
-		expectedDID := "did:web:example.com"
-		test.client.EXPECT().DeactivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(nil)
+		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(nil)
 
-		response, err := test.wrapper.DeactivateServiceForDID(nil, DeactivateServiceForDIDRequestObject{
+		response, err := test.wrapper.DeactivateServiceForSubject(nil, DeactivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
-			Did:       expectedDID,
+			SubjectID: subjectID,
 		})
 
 		assert.NoError(t, err)
-		assert.IsType(t, DeactivateServiceForDID200Response{}, response)
+		assert.IsType(t, DeactivateServiceForSubject200Response{}, response)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		expectedDID := "did:web:example.com"
-		test.client.EXPECT().DeactivateServiceForDID(gomock.Any(), serviceID, did.MustParseDID(expectedDID)).Return(errors.New("foo"))
+		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(errors.New("foo"))
 
-		_, err := test.wrapper.DeactivateServiceForDID(nil, DeactivateServiceForDIDRequestObject{
+		_, err := test.wrapper.DeactivateServiceForSubject(nil, DeactivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
-			Did:       expectedDID,
+			SubjectID: subjectID,
 		})
 
-		assert.Error(t, err)
+		assert.EqualError(t, err, "foo")
 	})
 }
 
@@ -143,7 +139,7 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		require.Len(t, actual, 1)
 		assert.Equal(t, vp, actual[0].Vp)
 		assert.Equal(t, vp.ID.String(), actual[0].Id)
-		assert.Equal(t, "did:nuts:foo", actual[0].SubjectId)
+		assert.Equal(t, "did:nuts:foo", actual[0].CredentialSubjectId)
 	})
 	t.Run("no results", func(t *testing.T) {
 		test := newMockContext(t)
@@ -174,28 +170,28 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 func TestWrapper_GetServiceActivation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(true, nil, nil)
+		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectID).Return(true, nil, nil)
 
 		response, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
-			Did:       subjectDID.String(),
+			SubjectID: subjectID,
 			ServiceID: serviceID,
 		})
 
 		assert.NoError(t, err)
 		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
 		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
-		assert.Nil(t, response.(GetServiceActivation200JSONResponse).Vp)
+		assert.Empty(t, response.(GetServiceActivation200JSONResponse).Vp)
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectDID).Return(false, nil, assert.AnError)
+		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectID).Return(false, nil, assert.AnError)
 
 		_, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
-			Did:       subjectDID.String(),
+			SubjectID: subjectID,
 			ServiceID: serviceID,
 		})
 
-		assert.Error(t, err)
+		assert.ErrorIs(t, assert.AnError, err)
 	})
 }
 

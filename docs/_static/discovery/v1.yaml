@@ -84,35 +84,32 @@ paths:
                   $ref: "#/components/schemas/SearchResult"
         default:
           $ref: "../common/error_response.yaml"
-  /internal/discovery/v1/{serviceID}/{did}:
+  /internal/discovery/v1/{serviceID}/{subjectID}:
     description: |
-      APIs to manage the activation of a DID on a Discovery Service.
-      When a service has been activated for a DID, the Discovery Client will automatically register the DID on the Discovery Service.
+      APIs to manage the activation of a DID subject on a Discovery Service.
+      When a service has been activated for a subject, the Discovery Client will automatically register all qualifying DIDs of that subject on the Discovery Service.
     parameters:
       - name: serviceID
         in: path
         required: true
         schema:
           type: string
-      - name: did
+      - name: subjectID
         in: path
+        description: URL encoded subject.
         required: true
         content:
           plain/text:
             schema:
               type: string
-              example:
-                - did:web:example.com
-                - did:web:example.com:iam:user
-                - did:web:example.com%3A9443
-                - did:web:example.com%3A9443:iam:user
+              example: "tenant-123"
     get:
-      summary: Retrieves the activation status a DID on a Discovery Service.
+      summary: Retrieves the activation status of a subject on a Discovery Service.
       description: |
         An API provided by the Discovery Client,
-        used to check whether the client is managing the given DID on the specified Discovery Service (service has been activated for the DID).
-        It will return true after successfully calling the activateServiceForDID API, and false after calling the deactivateServiceForDID API.
-        It also returns the active Verifiable Presentation, if any.
+        used to check whether the client is managing the given subject on the specified Discovery Service (service has been activated for the subject).
+        It will return true after successfully calling the activateServiceForSubject API, and false after calling the deactivateServiceForSubject API.
+        It also returns the active Verifiable Presentations, if any.
       operationId: getServiceActivation
       tags:
         - discovery
@@ -128,25 +125,30 @@ paths:
                 properties:
                   activated:
                     type: boolean
-                    description: Whether the DID is activated on the Discovery Service.
+                    description: Whether the Discovery Service is activated for the given subject
                   vp:
-                    $ref: "#/components/schemas/VerifiablePresentation"
+                    description: |
+                      List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
+                      The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VerifiablePresentation"
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Client API to activate a DID on the specified Discovery Service.
+      summary: Client API to activate a subject on the specified Discovery Service.
       description: |
-        An API provided by the discovery client that will cause the given DID to be registered on the specified Discovery Service.
-        Registration of a Verifiable Presentation will be attempted immediately, and it will be automatically refreshed.
-        Application only need to call this API once for every service/DID combination, until the registration is explicitly deleted through this API.
+        An API provided by the discovery client that will cause all qualifying DIDs of a subject to be registered on the specified Discovery Service.
+        A DID qualifies for registration if it meets the requirements defined the Presentation Definition of the Discovery Service.
+        Registration of all DIDs of a subject will be attempted immediately, and they will be automatically refreshed.
+        Applications only need to call this API once for every service/subject combination, until the registration is explicitly deleted through this API.
         
-        For successful registration on the Discovery Server, the DID's credential wallet must contain the credentials specified by the Discovery Service definition.
-        If initial registration fails this API returns the error indicating what failed, but will retry at a later moment.
+        If initial registration fails, this API returns the error indicating what failed and periodically retry registration.
         Applications can force a retry by calling this API again.
         
         error returns:
-        * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: activateServiceForDID
+        * 400 - incorrect input: invalid/unknown service or subject.
+      operationId: activateServiceForSubject
       tags:
         - discovery
       responses:
@@ -169,14 +171,14 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Client API to deactivate the given DID from the Discovery Service.
+      summary: Client API to deactivate the given subject from the Discovery Service.
       description: |
-        An API provided by the discovery client that will cause the given DID to be not to be registered any more on the specified Discovery Service.
-        It will try to delete the existing registration at the Discovery Service, if any.
+        An API provided by the discovery client that will cancel the periodic registration of a subject on the specified Discovery Service.
+        It will also try to delete all the existing registrations on the Discovery Service, if any.
         
         error returns:
-        * 400 - incorrect input: invalid/unknown service or DID.
-      operationId: deactivateServiceForDID
+        * 400 - incorrect input: invalid/unknown service or subject.
+      operationId: deactivateServiceForSubject
       tags:
         - discovery
       responses:
@@ -210,14 +212,14 @@ components:
       type: object
       required:
         - id
-        - subject_id
+        - credential_subject_id
         - vp
         - fields
       properties:
         id:
           type: string
           description: The ID of the Verifiable Presentation.
-        subject_id:
+        credential_subject_id:
           type: string
           description: The ID of the Verifiable Credential subject (holder), typically a DID.
         vp:
