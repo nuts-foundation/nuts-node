@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -91,19 +92,20 @@ var assetsFS embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	auth          auth.AuthenticationServices
-	policyBackend policy.PDPBackend
-	storageEngine storage.Engine
-	jsonldManager jsonld.JSONLD
-	vcr           vcr.VCR
-	vdr           vdr.VDR
-	jwtSigner     nutsCrypto.JWTSigner
-	keyResolver   resolver.KeyResolver
-	jar           JAR
+	auth           auth.AuthenticationServices
+	policyBackend  policy.PDPBackend
+	storageEngine  storage.Engine
+	jsonldManager  jsonld.JSONLD
+	vcr            vcr.VCR
+	vdr            vdr.VDR
+	subjectManager didsubject.SubjectManager
+	jwtSigner      nutsCrypto.JWTSigner
+	keyResolver    resolver.KeyResolver
+	jar            JAR
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assetsFS, "assets/*.html")
@@ -111,14 +113,15 @@ func New(
 		panic(err)
 	}
 	return &Wrapper{
-		auth:          authInstance,
-		policyBackend: policyBackend,
-		storageEngine: storageEngine,
-		vcr:           vcrInstance,
-		vdr:           vdrInstance,
-		jsonldManager: jsonldManager,
-		jwtSigner:     jwtSigner,
-		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
+		auth:           authInstance,
+		policyBackend:  policyBackend,
+		storageEngine:  storageEngine,
+		vcr:            vcrInstance,
+		vdr:            vdrInstance,
+		subjectManager: subjectManager,
+		jsonldManager:  jsonldManager,
+		jwtSigner:      jwtSigner,
+		keyResolver:    resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
 		jar: &jar{
 			auth:        authInstance,
 			jwtSigner:   jwtSigner,
@@ -695,7 +698,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	err := r.subjectExists(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +712,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, request.Subject, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -718,7 +721,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -910,4 +913,39 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	}
 	result = result.JoinPath(basePath, "oauth2", webDID.String())
 	return result, err
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
+	_, err := r.selectDID(ctx, subjectID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
+	dids, err := r.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return false, err
+	}
+	for _, d := range dids {
+		if d.Equals(subjectDID) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, error) {
+	// TODO: List() should return the DIDs in preferred order?
+	dids, err := r.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	if len(dids) == 0 {
+		return nil, core.NotFoundError("subject not found")
+	}
+	return &dids[0], nil
 }

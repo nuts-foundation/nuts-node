@@ -1,6 +1,6 @@
 services:
   nodeA-backend:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
     ports:
       - "18081:8081"
     environment:
@@ -16,7 +16,7 @@ services:
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB-backend:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:local}"
     ports:
       - "28081:8081"
     environment:
