@@ -1,0 +1,63 @@
+{{ define "employee_identity_nl" }}
+<main>
+    <p>Lees a.u.b. de volgende verklaring:</p>
+    <div class="contract" id="contract">{{.HumanReadableContract}}</div>
+    <p>En controleer of de onderstaande gegevens kloppen:</p>
+    <table>
+        <tr>
+            <td>Medewerkernummer</td>
+            <td id="employee-identifier">{{.Employee.Identifier}}</td>
+        </tr>
+        <tr>
+            <td>Naam</td>
+            <td id="employee-name">{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
+        </tr>
+        {{ if .Employee.RoleName }}
+        <tr>
+            <td>Functieomschrijving</td>
+            <td id="employee-role">{{.Employee.RoleName }}</td>
+        </tr>
+        {{ end }}
+    </table>
+    <p>
+        Als u akkoord gaat worden deze gegevens gebruikt bij het opvragen van patiënt-gegevens bij andere
+        zorginstellingen.
+    </p>
+    <form method="POST">
+        <input type="hidden" name="secret" value="{{.Secret}}" />
+        <button type="submit" id="accept-button" name="accept" value="true">Ja, de gegevens kloppen en ik ben akkoord</button>
+        <button type="submit" id="reject-button" name="accept" value="false">Nee</button>
+    </form>
+</main>
+{{ end }}
+{{ define "employee_identity_en" }}
+<main>
+    <p>Please, read the following statement:</p>
+    <div class="contract" id="contract">{{.HumanReadableContract}}</div>
+    <p>And check if the following information describes your identity:</p>
+    <table>
+        <tr>
+            <td>Employee identifier</td>
+            <td id="employee-identifier">{{.Employee.Identifier}}</td>
+        </tr>
+        <tr>
+            <td>Name</td>
+            <td id="employee-name">{{.Employee.Initials}} {{.Employee.FamilyName}}</td>
+        </tr>
+        {{ if .Employee.RoleName }}
+        <tr>
+            <td>Title</td>
+            <td id="employee-role">{{.Employee.RoleName }}</td>
+        </tr>
+        {{ end }}
+    </table>
+    <p>If you agree, this data is used to fetch patient information from other care organisations.</p>
+    <form method="POST">
+        <input type="hidden" name="secret" value="{{.Secret}}" />
+        <button type="submit" id="accept-button" name="accept" value="true">
+            Yes, the information is correct and I agree.
+        </button>
+        <button type="submit" id="reject-button" name="accept" value="false">No</button>
+    </form>
+</main>
+{{ end }}
