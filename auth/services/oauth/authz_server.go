@@ -510,7 +510,7 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken string) (*services.NutsAccessToken, error) {
 	token, err := nutsCrypto.ParseJWT(accessToken, func(kid string) (crypto.PublicKey, error) {
 		if !s.privateKeyStore.Exists(ctx, kid) {
-			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
+			return nil, fmt.Errorf("could not check if JWT signing key exists (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveSigningKey(kid, nil)
 	}, jwt.WithAcceptableSkew(s.clockSkew))

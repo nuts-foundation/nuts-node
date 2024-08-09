@@ -40,7 +40,7 @@ type KeyCreator interface {
 // KeyResolver is the interface for resolving keys.
 type KeyResolver interface {
 	// Exists returns if the specified private key exists.
-	// If an error occurs, false is also returned
+	// If an error occurs or the context is cancelled/expired, false is also returned
 	Exists(ctx context.Context, kid string) bool
 	// Resolve returns a Key for the given KID. ErrPrivateKeyNotFound is returned for an unknown KID.
 	Resolve(ctx context.Context, kid string) (Key, error)
