@@ -33,9 +33,10 @@ import (
 )
 
 func TestRenderTemplate(t *testing.T) {
-	buf := new(bytes.Buffer)
 	roleName := "Administrator"
-	err := renderTemplate("employee_identity", "nl", types.Session{
+	buf := new(bytes.Buffer)
+	templates := NewTemplates()
+	err := templates.Render("employee_identity", "nl", PageData{Session: types.Session{
 		ExpiresAt: time.Now(),
 		Contract:  "Hello, World!",
 		Secret:    "secret",
@@ -47,7 +48,7 @@ func TestRenderTemplate(t *testing.T) {
 			Initials:   "J",
 			FamilyName: "Doe",
 		},
-	}, buf)
+	}}, buf)
 	require.NoError(t, err)
 }
 
@@ -72,7 +73,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		mockContext.EXPECT().Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, "123"))
 
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		require.NoError(t, err)
 	})
 
@@ -82,7 +83,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		mockContext := mock.NewMockContext(ctrl)
 		store.EXPECT().Load("123").Return(types.Session{}, false)
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "code=404, message=session not found")
 	})
@@ -97,7 +98,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		}, true)
 		store.EXPECT().CheckAndSetStatus("123", types.SessionInProgress, types.SessionExpired).Return(true)
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "code=404, message=session expired")
 	})
@@ -116,7 +117,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		mockContext.EXPECT().FormValue("secret").Return("invalid-secret")
 		mockContext.EXPECT().Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, "123"))
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		assert.NoError(t, err)
 	})
 
@@ -134,7 +135,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		mockContext.EXPECT().FormValue("secret").Return("secret-value")
 		mockContext.EXPECT().Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, "123"))
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		assert.NoError(t, err)
 	})
 
@@ -152,7 +153,7 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 		mockContext.EXPECT().FormValue("secret").Return("secret-value")
 
 		h := NewHandler(store)
-		err := h.HandleEmployeeIDForm(mockContext, "123", HandleEmployeeIDFormParams{})
+		err := h.HandleEmployeeIDForm(mockContext, "123")
 		assert.EqualError(t, err, "code=404, message=no session with status in-progress found")
 	})
 }
@@ -160,17 +161,21 @@ func TestHandler_HandleEmployeeIDForm(t *testing.T) {
 func TestHandler_RenderEmployeeIDDonePage(t *testing.T) {
 	validContractText := "NL:BehandelaarLogin:v3 Hierbij verklaar ik te handelen in naam van Zorg & Zo te A & B. Deze verklaring is geldig van woensdag, 1 januari 2020 02:01:01 tot woensdag, 1 januari 2020 03:01:01."
 
+	// Test the RenderEmployeeIDDonePage function with a newly created session.
+	// Expect a check for status for created and update to in-progress.
+	// Expect a status 200 response with the rendered template.
 	t.Run("ok - session found", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := types.NewMockSessionStore(ctrl)
 		mockContext := mock.NewMockContext(ctrl)
 		store.EXPECT().Load("123").Return(types.Session{
-			Status:   types.SessionCompleted,
+			Status:   types.SessionCreated,
 			Contract: validContractText,
 		}, true)
+		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
 		mockContext.EXPECT().HTMLBlob(http.StatusOK, gomock.Any())
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDDonePage(mockContext, "123")
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		assert.NoError(t, err)
 	})
 
@@ -180,7 +185,7 @@ func TestHandler_RenderEmployeeIDDonePage(t *testing.T) {
 		mockContext := mock.NewMockContext(ctrl)
 		store.EXPECT().Load("123").Return(types.Session{}, false)
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDDonePage(mockContext, "123")
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "code=404, message=session not found")
 	})
@@ -193,8 +198,9 @@ func TestHandler_RenderEmployeeIDDonePage(t *testing.T) {
 			Status:   types.SessionCompleted,
 			Contract: "invalid-contract-text",
 		}, true)
+		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDDonePage(mockContext, "123")
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid contract text: could not extract contract version, language and type")
 	})
@@ -208,7 +214,7 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 		store := types.NewMockSessionStore(ctrl)
 		mockContext := mock.NewMockContext(ctrl)
 		store.EXPECT().Load("123").Return(types.Session{
-			Status:   types.SessionInProgress,
+			Status:   types.SessionCreated,
 			Contract: validContractText,
 		}, true)
 		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
@@ -216,7 +222,7 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 		mockContext.EXPECT().HTMLBlob(http.StatusOK, gomock.Any())
 
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDPage(mockContext, "123", RenderEmployeeIDPageParams{})
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		assert.NoError(t, err)
 	})
 
@@ -226,7 +232,7 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 		mockContext := mock.NewMockContext(ctrl)
 		store.EXPECT().Load("123").Return(types.Session{}, false)
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDPage(mockContext, "123", RenderEmployeeIDPageParams{})
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "code=404, message=session not found")
 	})
@@ -239,13 +245,17 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 			Status:   types.SessionInProgress,
 			Contract: "invalid-contract-text",
 		}, true)
+		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(true)
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDPage(mockContext, "123", RenderEmployeeIDPageParams{})
+		err := h.RenderEmployeeIDPage(mockContext, "123")
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid contract text: could not extract contract version, language and type")
 	})
 
-	t.Run("err - session status not created", func(t *testing.T) {
+	// Test the RenderEmployeeIDPage function with a session that has the status completed
+	// Expect a check for status for created which returns false.
+	// Expect rendering the the done page with status 200
+	t.Run("err - session.status not SessionCreated", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		store := types.NewMockSessionStore(ctrl)
 		mockContext := mock.NewMockContext(ctrl)
@@ -254,10 +264,9 @@ func TestHandler_RenderEmployeeIDPage(t *testing.T) {
 			Contract: validContractText,
 		}, true)
 		store.EXPECT().CheckAndSetStatus("123", types.SessionCreated, types.SessionInProgress).Return(false)
+		mockContext.EXPECT().HTMLBlob(http.StatusOK, gomock.Any())
 		h := NewHandler(store)
-		err := h.RenderEmployeeIDPage(mockContext, "123", RenderEmployeeIDPageParams{})
-		require.Error(t, err)
-		assert.EqualError(t, err, "code=404, message=no session with status created found")
+		require.NoError(t, h.RenderEmployeeIDPage(mockContext, "123"))
 	})
 }
 
@@ -265,9 +274,10 @@ func TestHandler_Routes(t *testing.T) {
 }
 
 func Test_renderTemplate(t *testing.T) {
+	templates := NewTemplates()
 	t.Run("ok - all values are rendered in the template", func(t *testing.T) {
 		roleName := "Nurse"
-		s := types.Session{
+		s := PageData{Session: types.Session{
 			Contract: "nl:logincontract:v1 contract string",
 			Secret:   "secret value",
 			Employee: types.Employee{
@@ -276,22 +286,23 @@ func Test_renderTemplate(t *testing.T) {
 				Initials:   "T",
 				FamilyName: "Tester",
 			},
-		}
+		}}
+		buf := new(bytes.Buffer)
+
 		for _, lang := range []contract.Language{"en", "nl"} {
-			buf := new(bytes.Buffer)
-			err := renderTemplate("employee_identity", lang, s, buf)
+			err := templates.Render("employee_identity", lang, s, buf)
 
 			assert.NoError(t, err)
 			assert.Contains(t, buf.String(), "contract string")
-			assert.Contains(t, buf.String(), s.Secret, buf.String())
-			assert.Contains(t, buf.String(), s.Employee.Identifier)
-			assert.Contains(t, buf.String(), *s.Employee.RoleName)
-			assert.Contains(t, buf.String(), s.Employee.Initials)
-			assert.Contains(t, buf.String(), s.Employee.FamilyName)
+			assert.Contains(t, buf.String(), s.Session.Secret, buf.String())
+			assert.Contains(t, buf.String(), s.Session.Employee.Identifier)
+			assert.Contains(t, buf.String(), *s.Session.Employee.RoleName)
+			assert.Contains(t, buf.String(), s.Session.Employee.Initials)
+			assert.Contains(t, buf.String(), s.Session.Employee.FamilyName)
 		}
 	})
 	t.Run("ok - role name not present", func(t *testing.T) {
-		s := types.Session{
+		s := PageData{Session: types.Session{
 			Contract: "nl:logincontract:v1 contract string",
 			Secret:   "secret value",
 			Employee: types.Employee{
@@ -299,10 +310,10 @@ func Test_renderTemplate(t *testing.T) {
 				Initials:   "T",
 				FamilyName: "Tester",
 			},
-		}
+		}}
 		for _, lang := range []contract.Language{"en", "nl"} {
 			buf := new(bytes.Buffer)
-			err := renderTemplate("employee_identity", lang, s, buf)
+			err := templates.Render("employee_identity", lang, s, buf)
 
 			assert.NoError(t, err)
 			assert.NotContains(t, buf.String(), "<td>Title</td>")
@@ -312,7 +323,7 @@ func Test_renderTemplate(t *testing.T) {
 
 	t.Run("err - unknown template", func(t *testing.T) {
 		buf := new(bytes.Buffer)
-		err := renderTemplate("employee_identity", "de", types.Session{}, buf)
-		assert.EqualError(t, err, "template: pattern matches no files: `templates/employee_identity_de.html`")
+		err := templates.Render("employee_identity", "de", PageData{Session: types.Session{}}, buf)
+		assert.EqualError(t, err, "could not find template employee_identity_de")
 	})
 }
