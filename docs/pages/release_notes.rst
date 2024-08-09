@@ -86,6 +86,27 @@ The following features have been deprecated:
   Users are recommended to switch to the built-in client of their key storage backend.
 
 ************************
+Hazelnut update (v5.4.9)
+************************
+
+Release date: 2024-08-09
+
+- Disabled darkmode in UI for EmployeeID contract screen
+- Clarified logging when existence of private key cannot be determined
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.8...v5.4.9
+
+************************
+Hazelnut update (v5.4.8)
+************************
+
+Release date: 2024-07-15
+
+- Fixed a VC search bug where certain VCs could no longer be found.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.7...v5.4.8
+
+************************
 Hazelnut update (v5.4.7)
 ************************
 
