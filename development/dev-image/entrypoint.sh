@@ -7,15 +7,24 @@ mkdir -p /devtunnel
 # login with github user
 devtunnel user login -d -g
 
+# clear log without error if does not exist
+rm -f /devtunnel/tunnel.log
+
 # read from /devtunnel/tunnelid
-# if it exists add it to the end of the devtunnel host command
-devtunnel_host_command="devtunnel host -p 8080 -a"
-if [ -f /devtunnel/tunnel.id ]; then
-  devtunnel_host_command="devtunnel host $(cat /devtunnel/tunnel.id)"
+# if it does not exist, create a new tunnel
+if [ ! -f /devtunnel/tunnel.id ]; then
+  # create persistent tunnel. We could set our own TUNNEL_ID, but a random one seems more fault tolerant.
+  # calling "devtunnel host" without TUNNEL_ID creates a temporary tunnel, so we need to create a persistent tunnel first.
+  # https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/faq#how-can-i-create-a-persistent-tunnel
+  devtunnel create -a >> /devtunnel/tunnel.log 2>&1
+  # add port 8080 to most recent tunnel. (can't be done in a single call unfortunately)
+  devtunnel port create -p 8080 >> /devtunnel/tunnel.log 2>&1
+  # save the TUNNEL_ID
+  grep "Tunnel ID" /devtunnel/tunnel.log | head -1 | awk '{print $4}' > /devtunnel/tunnel.id
 fi
 
 # Execute the devtunnel host command and write the output to a log file
-${devtunnel_host_command} > /devtunnel/tunnel.log 2>&1 &
+devtunnel host $(cat /devtunnel/tunnel.id) >> /devtunnel/tunnel.log 2>&1 &
 # safe the pid for later
 echo $! > /devtunnel/tunnel.pid
 
