@@ -39,7 +39,7 @@ type Conn interface {
 	JetStream(opts ...nats.JSOpt) (nats.JetStreamContext, error)
 }
 
-// JetStreamContext defines the interface for the JetStreamContext of the NATS connection
+// JetStreamContext is a copy of the nats.JetStreamContext interface that exists for mocking purposes
 type JetStreamContext interface {
 	nats.JetStreamContext
 }
@@ -47,14 +47,14 @@ type JetStreamContext interface {
 // ConnectionPool defines the interface for a NATS connection-pool
 type ConnectionPool interface {
 	// Acquire returns a NATS connection and JetStream context
-	Acquire(ctx context.Context) (Conn, JetStreamContext, error)
+	Acquire(ctx context.Context) (Conn, nats.JetStreamContext, error)
 	// Shutdown closes all the connections
 	Shutdown()
 }
 
 type connectionAndContext struct {
 	conn Conn
-	js   JetStreamContext
+	js   nats.JetStreamContext
 }
 
 // NATSConnectFunc defines the function signature for the NATS connection factory
@@ -79,7 +79,7 @@ func NewNATSConnectionPool(config Config) *NATSConnectionPool {
 }
 
 // Acquire returns a NATS connection and JetStream context, it will connect if not already connected
-func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
+func (pool *NATSConnectionPool) Acquire(ctx context.Context) (Conn, nats.JetStreamContext, error) {
 	log.Logger().Trace("Trying to acquire a NATS connection")
 
 	// If the connection is already set, return it
