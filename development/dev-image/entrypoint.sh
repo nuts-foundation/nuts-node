@@ -6,8 +6,11 @@ NUTS_TUNNEL_PATH="./config/nuts-devtunnel"
 # mkdir if not mounted
 mkdir -p $NUTS_TUNNEL_PATH
 
-# login with github user
-devtunnel user login -d -g
+# login with github user if no session exists
+# by default devtunnel stores session data in ~/DevTunnels/...
+if ! devtunnel user show | grep -q "Logged in as"; then
+  devtunnel user login -d -g
+fi
 
 # clear log without error if does not exist
 rm -f ${NUTS_TUNNEL_PATH}/tunnel.log
