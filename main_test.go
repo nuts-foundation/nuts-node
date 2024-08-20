@@ -20,6 +20,8 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/knadh/koanf"
@@ -46,6 +48,35 @@ import (
 	"testing"
 	"time"
 )
+
+func TestParseCertificateSerialNumber(t *testing.T) {
+	pemString := `-----BEGIN CERTIFICATE-----
+MIIDgTCCAwigAwIBAgISAz1gIAwkNztxYvxde1PCgO7aMAoGCCqGSM49BAMDMDIx
+CzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MQswCQYDVQQDEwJF
+NTAeFw0yNDA2MTEyMjI3MTZaFw0yNDA5MDkyMjI3MTVaMBUxEzARBgNVBAMTCmxp
+bmVhci5hcHAwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQCbmy/iIsJKeyagjCe
+0FtZ2jtWaLJV/wo5czGWm35bW4+yaR1pOSqOnGrJZTAAF9YqOUDdylYHMBHTzTBs
+E3zFo4ICGTCCAhUwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMB
+BggrBgEFBQcDAjAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBSMmA3vIfc2xonsoXZr
+u3dcNINA+jAfBgNVHSMEGDAWgBSfK1/PPCFPnQS37SssxMZwi9LXDTBVBggrBgEF
+BQcBAQRJMEcwIQYIKwYBBQUHMAGGFWh0dHA6Ly9lNS5vLmxlbmNyLm9yZzAiBggr
+BgEFBQcwAoYWaHR0cDovL2U1LmkubGVuY3Iub3JnLzAjBgNVHREEHDAaggwqLmxp
+bmVhci5hcHCCCmxpbmVhci5hcHAwEwYDVR0gBAwwCjAIBgZngQwBAgEwggEDBgor
+BgEEAdZ5AgQCBIH0BIHxAO8AdQDuzdBk1dsazsVct520zROiModGfLzs3sNRSFlG
+cR+1mwAAAZAJoJPJAAAEAwBGMEQCIBcLZaBuy40BinPKlmrvdoEm/gwkLGrdAXdo
+G+onz8epAiBpBd9wIzS9clsWpP0mE4gru5zvPtm5l0cqfgzx5gOzwQB2AN/hVuuq
+Ba+1nA+GcY2owDJOrlbZbqf1pWoB0cE7vlJcAAABkAmglJwAAAQDAEcwRQIhAOX3
++ArDneTimFqlcUERavKi7Sp/ZPJVDNb1f8Z4IEC1AiA2AURTexow8/uIApJrXyyK
+TOGyR7jbiunxWRhclDP3dzAKBggqhkjOPQQDAwNnADBkAjB3UPD0zb5rzEB1UviV
+ap8WPD868rvatzRguaqn1dWVrr/mR7JAIia1OQCn3Z0gH9sCME2XpNNlcM/PZOky
+k80kzjPv5AjVj2xP5OuzdJaNZcIqvBbu5oJXGOTrakE/EUouIw==
+-----END CERTIFICATE-----`
+	pemDecoded, _ := pem.Decode([]byte(pemString))
+	cert, err := x509.ParseCertificate(pemDecoded.Bytes)
+	require.NoError(t, err)
+	println(cert.SerialNumber.String())
+	assert.Equal(t, "282221854464811033881370898807204576554714", cert.SerialNumber.String())
+}
 
 // Test_ServerLifecycle tests the lifecycle of the Nuts node:
 // - It starts the Nuts node
