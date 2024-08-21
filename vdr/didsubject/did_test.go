@@ -129,3 +129,20 @@ func TestSqlDIDManager_FindBySubject(t *testing.T) {
 		require.Len(t, a.Aka, 2)
 	})
 }
+
+func TestSqlDIDManager_SubjectExists(t *testing.T) {
+	manager := NewDIDManager(transaction(t, testDB(t)))
+	_, err := manager.Add("alice", alice)
+	require.NoError(t, err)
+
+	t.Run("ok", func(t *testing.T) {
+		ok, err := manager.SubjectExists("alice")
+		require.NoError(t, err)
+		assert.True(t, ok)
+	})
+	t.Run("not found", func(t *testing.T) {
+		ok, err := manager.SubjectExists("bob")
+		require.NoError(t, err)
+		assert.False(t, ok)
+	})
+}

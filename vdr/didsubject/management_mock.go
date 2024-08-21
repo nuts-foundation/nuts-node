@@ -249,6 +249,21 @@ func (mr *MockSubjectManagerMockRecorder) DeleteService(ctx, subject, serviceID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockSubjectManager)(nil).DeleteService), ctx, subject, serviceID)
 }
 
+// Exists mocks base method.
+func (m *MockSubjectManager) Exists(ctx context.Context, subject string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", ctx, subject)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockSubjectManagerMockRecorder) Exists(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockSubjectManager)(nil).Exists), ctx, subject)
+}
+
 // FindServices mocks base method.
 func (m *MockSubjectManager) FindServices(ctx context.Context, subject string, serviceType *string) ([]did.Service, error) {
 	m.ctrl.T.Helper()
