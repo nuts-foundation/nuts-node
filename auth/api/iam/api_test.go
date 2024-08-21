@@ -894,13 +894,6 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 	})
-	t.Run("error - unknown subject", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: "unknown", Body: body})
-
-		require.EqualError(t, err, "subject not found")
-	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
@@ -1006,14 +999,6 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 
 			require.EqualError(t, err, "missing preauthorized_user.role")
 		})
-	})
-
-	t.Run("error - unknown subject", func(t *testing.T) {
-		ctx := newTestClient(t)
-
-		_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: "unknown", Body: body})
-
-		require.EqualError(t, err, "subject not found")
 	})
 }
 

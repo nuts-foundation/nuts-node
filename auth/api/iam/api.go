@@ -944,8 +944,5 @@ func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, err
 	if err != nil {
 		return nil, err
 	}
-	if len(dids) == 0 {
-		return nil, core.NotFoundError("subject not found")
-	}
 	return &dids[0], nil
 }

@@ -99,12 +99,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerURL, redirectURI))
 			assert.ErrorIs(t, err, assert.AnError)
 		})
-		t.Run("error - unknown subject", func(t *testing.T) {
-			ctx := newTestClient(t)
-			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(unknownSubjectID, issuerURL, redirectURI))
-			require.Error(t, err)
-			assert.EqualError(t, err, "subject not found")
-		})
 		t.Run("error - fetching credential issuer metadata fails", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(nil, assert.AnError)

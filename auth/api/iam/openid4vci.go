@@ -48,11 +48,11 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, core.InvalidInputError("missing request body")
 	}
 	// Parse and check the requester
+	// TODO: DID should be selected based on what the Credential Issuer supports, which should/could be part of the metadata.
 	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
-
 	// Parse the issuer
 	issuer := request.Body.Issuer
 	if issuer == "" {
