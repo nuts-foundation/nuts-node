@@ -36,6 +36,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 	baseExpected := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   []string{"did"},
+		SupportedClientIDDIDMethods:                []string{"did:test"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
 		Issuer:                                     "https://example.com/oauth2/" + didExample.String(),
@@ -49,7 +50,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	t.Run("base", func(t *testing.T) {
-		md := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
+		md := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()), []string{"test"})
 		assert.Equal(t, baseExpected, md)
 	})
 	t.Run("did:web", func(t *testing.T) {
@@ -62,7 +63,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
 		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
 
-		md := authorizationServerMetadata(didWeb, oauth2Base)
+		md := authorizationServerMetadata(didWeb, oauth2Base, []string{"test"})
 		assert.Equal(t, webExpected, md)
 	})
 }
