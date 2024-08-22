@@ -200,6 +200,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		holder.ErrNoCredentials:             http.StatusPreconditionFailed,
+		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
 	})
 }
 
@@ -721,6 +722,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
+	err := r.subjectExists(ctx, request.Subject)
+	if err != nil {
+		return nil, err
+	}
+
 	requestHolder, err := r.selectDID(ctx, request.Subject)
 	if err != nil {
 		return nil, err
@@ -917,9 +923,12 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 
 // subjectExists checks whether the given subject is known on the local node.
 func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
-	_, err := r.selectDID(ctx, subjectID)
+	exists, err := r.subjectManager.Exists(ctx, subjectID)
 	if err != nil {
 		return err
+	}
+	if !exists {
+		return didsubject.ErrSubjectNotFound
 	}
 	return nil
 }

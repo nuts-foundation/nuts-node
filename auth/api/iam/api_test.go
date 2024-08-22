@@ -1424,22 +1424,23 @@ func statusCodeFrom(err error) int {
 }
 
 type testCtx struct {
-	authnServices *auth.MockAuthenticationServices
-	ctrl          *gomock.Controller
-	client        *Wrapper
-	documentOwner *didsubject.MockDocumentOwner
-	iamClient     *iam.MockClient
-	jwtSigner     *cryptoNuts.MockJWTSigner
-	keyResolver   *resolver.MockKeyResolver
-	policy        *policy.MockPDPBackend
-	resolver      *resolver.MockDIDResolver
-	relyingParty  *oauthServices.MockRelyingParty
-	vcr           *vcr.MockVCR
-	vdr           *vdr.MockVDR
-	vcIssuer      *issuer.MockIssuer
-	vcVerifier    *verifier.MockVerifier
-	wallet        *holder.MockWallet
-	jar           *MockJAR
+	authnServices  *auth.MockAuthenticationServices
+	ctrl           *gomock.Controller
+	client         *Wrapper
+	documentOwner  *didsubject.MockDocumentOwner
+	iamClient      *iam.MockClient
+	jwtSigner      *cryptoNuts.MockJWTSigner
+	keyResolver    *resolver.MockKeyResolver
+	policy         *policy.MockPDPBackend
+	resolver       *resolver.MockDIDResolver
+	relyingParty   *oauthServices.MockRelyingParty
+	vcr            *vcr.MockVCR
+	vdr            *vdr.MockVDR
+	vcIssuer       *issuer.MockIssuer
+	vcVerifier     *verifier.MockVerifier
+	wallet         *holder.MockWallet
+	subjectManager *didsubject.MockSubjectManager
+	jar            *MockJAR
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1478,23 +1479,26 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 
 	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
 	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, nil).AnyTimes()
+	subjectManager.EXPECT().Exists(gomock.Any(), holderSubjectID).Return(true, nil).AnyTimes()
+	subjectManager.EXPECT().Exists(gomock.Any(), unknownSubjectID).Return(false, nil).AnyTimes()
 
 	return &testCtx{
-		ctrl:          ctrl,
-		authnServices: authnServices,
-		policy:        policyInstance,
-		relyingParty:  relyingPary,
-		vcIssuer:      vcIssuer,
-		vcVerifier:    vcVerifier,
-		resolver:      mockResolver,
-		vdr:           mockVDR,
-		documentOwner: mockDocumentOwner,
-		iamClient:     iamClient,
-		vcr:           mockVCR,
-		wallet:        mockWallet,
-		keyResolver:   keyResolver,
-		jwtSigner:     jwtSigner,
-		jar:           mockJAR,
+		ctrl:           ctrl,
+		authnServices:  authnServices,
+		policy:         policyInstance,
+		relyingParty:   relyingPary,
+		vcIssuer:       vcIssuer,
+		vcVerifier:     vcVerifier,
+		resolver:       mockResolver,
+		vdr:            mockVDR,
+		documentOwner:  mockDocumentOwner,
+		subjectManager: subjectManager,
+		iamClient:      iamClient,
+		vcr:            mockVCR,
+		wallet:         mockWallet,
+		keyResolver:    keyResolver,
+		jwtSigner:      jwtSigner,
+		jar:            mockJAR,
 		client: &Wrapper{
 			auth:           authnServices,
 			vdr:            mockVDR,
