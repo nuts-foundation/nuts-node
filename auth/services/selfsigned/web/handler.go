@@ -22,30 +22,37 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
-	"github.com/nuts-foundation/nuts-node/core"
 	"html/template"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 //go:embed templates/*
 var webTemplates embed.FS
 
 // donePagePathTemplate is the path to the done page, %s is the session ID
-const donePagePathTemplate = `./%s/done`
+const donePagePathTemplate = `./%s`
+
+// PageParams is the data that is passed to the template
+type PageData struct {
+	Session types.Session
+}
 
 type Handler struct {
-	store types.SessionStore
+	store     types.SessionStore
+	templates *Templates
 }
 
 func NewHandler(store types.SessionStore) *Handler {
-	return &Handler{store}
+	return &Handler{store, NewTemplates()}
 }
 
 // Routes registers the Echo routes for the API.
@@ -53,12 +60,19 @@ func (h Handler) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, h)
 }
 
-func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params RenderEmployeeIDPageParams) error {
+func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID SessionID) error {
 	session, ok := h.store.Load(sessionID)
 	if !ok {
 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
 	}
 
+	var templateToRender string
+	// the form for a created session should only be loaded once
+	if h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
+		templateToRender = "employee_identity"
+	} else {
+		templateToRender = "done"
+	}
 	// find the correct template language from the used contract template
 	userContract, err := contract.ParseContractString(session.Contract, contract.StandardContractTemplates)
 	if err != nil {
@@ -66,21 +80,18 @@ func (h Handler) RenderEmployeeIDPage(ctx echo.Context, sessionID string, params
 	}
 	lang := userContract.Template.Language
 
+	pageData := PageData{
+		Session: session,
+	}
+
 	responseHTML := new(bytes.Buffer)
-	err = renderTemplate("employee_identity", lang, session, responseHTML)
-	if err != nil {
+	if err := h.templates.Render(templateToRender, lang, pageData, responseHTML); err != nil {
 		return err
 	}
-
-	// Check the current status before returning, this results that the form is only shown once
-	if !h.store.CheckAndSetStatus(sessionID, types.SessionCreated, types.SessionInProgress) {
-		return echo.NewHTTPError(http.StatusNotFound, "no session with status created found")
-	}
-
 	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
 }
 
-func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params HandleEmployeeIDFormParams) error {
+func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID SessionID) error {
 	session, ok := h.store.Load(sessionID)
 	if !ok {
 		return echo.NewHTTPError(http.StatusNotFound, "session not found")
@@ -97,19 +108,23 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 	submitValue := ctx.FormValue("accept")
 	secret := ctx.FormValue("secret")
 
-	//  check the hidden secret field
+	var newStatus string
+
+	// Update the signing status based on the form submission:
 	if session.Secret != secret {
-		session.Status = types.SessionErrored
+		//  If secret is not correct, set status to errored
+		newStatus = types.SessionErrored
 		log.Logger().Warn("could not sign contract, secret does not match")
 	} else {
+		// check if the form was submitted or cancelled
 		if submitValue == "true" {
-			session.Status = types.SessionCompleted
+			newStatus = types.SessionCompleted
 		} else if submitValue == "false" {
-			session.Status = types.SessionCancelled
+			newStatus = types.SessionCancelled
 		}
 	}
 	// Require the session to be in-progress to prevent double submission
-	if !h.store.CheckAndSetStatus(sessionID, types.SessionInProgress, session.Status) {
+	if !h.store.CheckAndSetStatus(sessionID, types.SessionInProgress, newStatus) {
 		log.Logger().Warn("could not sign contract, session is does not have the in-progress status")
 		return echo.NewHTTPError(http.StatusNotFound, "no session with status in-progress found")
 	}
@@ -117,31 +132,37 @@ func (h Handler) HandleEmployeeIDForm(ctx echo.Context, sessionID string, params
 	return ctx.Redirect(http.StatusFound, fmt.Sprintf(donePagePathTemplate, sessionID))
 }
 
-func (h Handler) RenderEmployeeIDDonePage(ctx echo.Context, sessionID string) error {
-	session, ok := h.store.Load(sessionID)
-	if !ok {
-		return echo.NewHTTPError(http.StatusNotFound, "session not found")
-	}
-	// find the correct template language from the used contract template
-	userContract, err := contract.ParseContractString(session.Contract, contract.StandardContractTemplates)
-	if err != nil {
-		return err
-	}
-	lang := userContract.Template.Language
-
-	responseHTML := new(bytes.Buffer)
-	err = renderTemplate("done", lang, session, responseHTML)
-	if err != nil {
-		return err
-	}
-
-	return ctx.HTMLBlob(http.StatusOK, responseHTML.Bytes())
+type Templates struct {
+	templates *template.Template
 }
 
-func renderTemplate(name string, lang contract.Language, session types.Session, target io.Writer) error {
-	tmpl, err := template.ParseFS(webTemplates, fmt.Sprintf("templates/%s_%s.html", name, strings.ToLower(string(lang))))
+func NewTemplates() *Templates {
+	return &Templates{
+		templates: template.Must(template.ParseFS(webTemplates, "templates/*.templ")),
+	}
+}
+
+// Render renders the template with the given name and language to the target writer.
+func (t Templates) Render(name string, lang contract.Language, pageData PageData, target io.Writer) error {
+	templ, err := t.templates.Clone()
 	if err != nil {
 		return err
 	}
-	return tmpl.Execute(target, session)
+
+	layoutTempl := templ.Lookup("layout")
+	if layoutTempl == nil {
+		return fmt.Errorf("could not find layout template")
+	}
+	bodyName := fmt.Sprintf("%s_%s", name, strings.ToLower(string(lang)))
+	bodyTempl := templ.Lookup(bodyName)
+	if bodyTempl == nil {
+		return fmt.Errorf("could not find template %s", bodyName)
+	}
+
+	_, err = layoutTempl.AddParseTree("body", bodyTempl.Tree)
+	if err != nil {
+		return err
+	}
+
+	return layoutTempl.Execute(target, pageData)
 }

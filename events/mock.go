@@ -193,6 +193,18 @@ func (mr *MockJetStreamContextMockRecorder) ChanSubscribe(subj, ch any, opts ...
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChanSubscribe", reflect.TypeOf((*MockJetStreamContext)(nil).ChanSubscribe), varargs...)
 }
 
+// CleanupPublisher mocks base method.
+func (m *MockJetStreamContext) CleanupPublisher() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CleanupPublisher")
+}
+
+// CleanupPublisher indicates an expected call of CleanupPublisher.
+func (mr *MockJetStreamContextMockRecorder) CleanupPublisher() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupPublisher", reflect.TypeOf((*MockJetStreamContext)(nil).CleanupPublisher))
+}
+
 // ConsumerInfo mocks base method.
 func (m *MockJetStreamContext) ConsumerInfo(stream, name string, opts ...nats.JSOpt) (*nats.ConsumerInfo, error) {
 	m.ctrl.T.Helper()
@@ -923,11 +935,11 @@ func (m *MockConnectionPool) EXPECT() *MockConnectionPoolMockRecorder {
 }
 
 // Acquire mocks base method.
-func (m *MockConnectionPool) Acquire(ctx context.Context) (Conn, JetStreamContext, error) {
+func (m *MockConnectionPool) Acquire(ctx context.Context) (Conn, nats.JetStreamContext, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Acquire", ctx)
 	ret0, _ := ret[0].(Conn)
-	ret1, _ := ret[1].(JetStreamContext)
+	ret1, _ := ret[1].(nats.JetStreamContext)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

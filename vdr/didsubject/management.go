@@ -90,6 +90,9 @@ type SubjectManager interface {
 	// List returns all DIDs for a subject
 	List(ctx context.Context, subject string) ([]did.DID, error)
 
+	// Exists returns true if the subject exists
+	Exists(ctx context.Context, subject string) (bool, error)
+
 	// CreateService creates a new service in DID documents for the given subject.
 	// The service ID will be generated.
 	CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error)
