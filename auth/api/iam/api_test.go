@@ -1503,6 +1503,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
+	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
 	return &testCtx{
 		ctrl:          ctrl,

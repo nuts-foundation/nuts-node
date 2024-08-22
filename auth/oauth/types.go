@@ -284,6 +284,7 @@ type AuthorizationServerMetadata struct {
 
 	// SupportedClientIDDIDMethods is a JSON array containing a list of the DID methods that are supported for the `did` client ID scheme.
 	// If omitted, any DID method is supported (if `did` is a supported client ID scheme).
+	// Note: this is a custom parameter, not part of the OpenID4VC specifications.
 	SupportedClientIDDIDMethods []string `json:"supported_client_id_did_methods,omitempty"`
 
 	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
