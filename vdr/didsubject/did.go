@@ -95,3 +95,9 @@ func (d SqlDIDManager) FindBySubject(subject string) ([]orm.DID, error) {
 	}
 	return dids, nil
 }
+
+func (s SqlDIDManager) SubjectExists(subject string) (bool, error) {
+	var count int64
+	err := s.tx.Model(&orm.DID{}).Where("subject = ?", subject).Count(&count).Error
+	return count > 0, err
+}

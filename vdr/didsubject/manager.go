@@ -43,6 +43,8 @@ var ErrSubjectAlreadyExists = errors.New("subject already exists")
 // ErrSubjectNotFound is returned when a subject is not found.
 var ErrSubjectNotFound = errors.New("subject not found")
 
+var _ SubjectManager = (*Manager)(nil)
+
 type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
@@ -64,6 +66,11 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 		result[i] = *id
 	}
 	return result, nil
+}
+
+func (r *Manager) Exists(_ context.Context, subject string) (bool, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	return sqlDIDManager.SubjectExists(subject)
 }
 
 // Create generates new DID Documents
