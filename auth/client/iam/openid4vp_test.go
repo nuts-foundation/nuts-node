@@ -253,8 +253,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("second DID fulfills the Presentation Definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), secondaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
@@ -343,7 +342,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(primaryWalletDID, nil, resolver.NutsSigningKeyType).Return(primaryKID, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), primaryKID).Return("dpop", nil)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID}, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, true, nil)
 
@@ -365,7 +364,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			_, _ = writer.Write(oauthErrorBytes)
 		}
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID}, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(&vc.VerifiablePresentation{}, &pe.PresentationSubmission{}, nil)
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
@@ -410,6 +409,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().List(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), primaryWalletDID, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, assert.AnError)
 
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID}, gomock.Any(), oauth.DefaultOpenIDSupportedFormats(), gomock.Any()).Return(nil, nil, assert.AnError)
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		assert.Error(t, err)

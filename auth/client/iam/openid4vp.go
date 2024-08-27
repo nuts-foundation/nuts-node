@@ -263,7 +263,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 			}
 		}
 
-		vp, submission, err = targetWallet.BuildSubmission(ctx, subjectDID, *presentationDefinition, metadata.VPFormatsSupported, params)
+		vp, submission, err = targetWallet.BuildSubmission(ctx, []did.DID{subjectDID}, *presentationDefinition, metadata.VPFormatsSupported, params)
 		if errors.Is(err, holder.ErrNoCredentials) {
 			// The DID doesn't have the right credentials to present, try the next DID of the subject.
 			continue
