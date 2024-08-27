@@ -157,7 +157,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		RedirectURI: "https://example.com/iam/holder/cb",
 		OtherDID:    &verifierDID,
 	}
-	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
+	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()

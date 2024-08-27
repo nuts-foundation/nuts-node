@@ -87,7 +87,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, userSession := user.CreateTestSession(context.Background(), holderDID)
+		requestCtx, userSession := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
@@ -121,7 +121,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 		// check for issued EmployeeCredential in session wallet
 		require.NoError(t, err)
-		require.Equal(t, holderDID, userSession.TenantDID)
+		require.Equal(t, holderSubjectID, userSession.SubjectID)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
@@ -176,7 +176,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
+		requestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
@@ -191,7 +191,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	httpRequest := &http.Request{Host: "example.com"}
-	session, _ := user.CreateTestSession(audit.TestContext(), holderDID)
+	session, _ := user.CreateTestSession(audit.TestContext(), holderSubjectID)
 	httpRequest = httpRequest.WithContext(session)
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)

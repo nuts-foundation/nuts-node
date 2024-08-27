@@ -327,7 +327,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			ClientState: "state",
 			RedirectURI: "https://example.com/iam/holder/cb",
 		})
-		callCtx, _ := user.CreateTestSession(requestContext(nil), holderDID)
+		callCtx, _ := user.CreateTestSession(requestContext(nil), holderSubjectID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/oauth2/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/did:web:example.com:iam:verifier/presentation_definition?scope=test"

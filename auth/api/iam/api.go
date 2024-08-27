@@ -142,7 +142,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 	}))
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
+	router.GET("/oauth2/:subjectID/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			middleware(c, "handleUserLanding")
 			return next(c)
@@ -154,9 +154,9 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		Skipper: func(c echo.Context) bool {
 			// The following URLs require a user session:
 			paths := []string{
-				"/oauth2/:did/user",
-				"/oauth2/:did/authorize",
-				"/oauth2/:did/callback",
+				"/oauth2/:subjectID/user",
+				"/oauth2/:subjectID/authorize",
+				"/oauth2/:subjectID/callback",
 			}
 			for _, path := range paths {
 				if c.Path() == path {
@@ -167,10 +167,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 		TimeOut: time.Hour,
 		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
-		CookiePath: func(tenantDID did.DID) string {
-			baseURL, _ := createOAuth2BaseURL(tenantDID)
-			// error only happens on invalid did:web DID, which can't happen here
-			return baseURL.Path
+		CookiePath: func(subjectID string) string {
+			return r.auth.PublicURL().JoinPath("oauth2", subjectID).String()
 		},
 	}.Handle)
 }
