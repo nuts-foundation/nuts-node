@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -276,7 +277,23 @@ func TestPresenter_buildSubmission(t *testing.T) {
 	}
 
 	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
-	presentationDefinition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{{Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}}}}
+	presentationDefinition := pe.PresentationDefinition{
+		InputDescriptors: []*pe.InputDescriptor{
+			{
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{
+						{
+							Path: []string{"$.credentialSubject.id"},
+							Filter: &pe.Filter{
+								Type:    "string",
+								Pattern: to.Ptr("^did:nuts:.*$"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	vpFormats := oauth.DefaultOpenIDSupportedFormats()
 
 	key := vdr.TestMethodDIDAPrivateKey()
@@ -319,7 +336,8 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
+		keyResolver.EXPECT().ResolveKey(webWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
 		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
