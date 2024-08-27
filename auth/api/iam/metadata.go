@@ -19,7 +19,6 @@
 package iam
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 
@@ -32,14 +31,10 @@ import (
 )
 
 func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
-	var didMethods []string
-	for _, method := range supportedDIDMethods {
-		didMethods = append(didMethods, fmt.Sprintf("did:%s", method))
-	}
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
-		SupportedClientIDDIDMethods:                didMethods,
+		SupportedDIDMethods:                        supportedDIDMethods,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
 		Issuer:                                     issuerURL.String(),
