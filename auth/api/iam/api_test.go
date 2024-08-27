@@ -1476,6 +1476,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
 	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
+	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
 	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
 	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, nil).AnyTimes()

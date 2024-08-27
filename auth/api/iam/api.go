@@ -615,7 +615,7 @@ func (r Wrapper) oauthAuthorizationServerMetadata(ownDID *did.DID) (*oauth.Autho
 	if err != nil {
 		return nil, err
 	}
-	md := authorizationServerMetadata(*ownDID, issuerURL)
+	md := authorizationServerMetadata(*ownDID, issuerURL, r.vdr.SupportedMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
