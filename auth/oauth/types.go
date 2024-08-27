@@ -300,6 +300,16 @@ type AuthorizationServerMetadata struct {
 	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
 }
 
+// SupportsClientIDScheme checks if the Authorization Server supports the given client ID scheme.
+func (m AuthorizationServerMetadata) SupportsClientIDScheme(scheme string) bool {
+	for _, method := range m.ClientIdSchemesSupported {
+		if method == scheme {
+			return true
+		}
+	}
+	return false
+}
+
 // OAuthClientMetadata defines the OAuth Client metadata.
 // Specified by https://www.rfc-editor.org/rfc/rfc7591.html and elsewhere.
 type OAuthClientMetadata struct {

@@ -931,14 +931,14 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		redirectResponse, ok := response.(RequestUserAccessToken200JSONResponse)
 		assert.True(t, ok)
-		assert.Contains(t, redirectResponse.RedirectUri, "https://example.com/oauth2/"+walletDID.String()+"/user?token=")
+		assert.Contains(t, redirectResponse.RedirectUri, "https://example.com/oauth2/"+holderSubjectID+"/user?token=")
 
 		// assert session
 		var target RedirectSession
 		redirectURI, _ := url.Parse(redirectResponse.RedirectUri)
 		err = ctx.client.userRedirectStore().Get(redirectURI.Query().Get("token"), &target)
 		require.NoError(t, err)
-		assert.Equal(t, walletDID, target.OwnDID)
+		assert.Equal(t, holderSubjectID, target.SubjectID)
 		require.NotNil(t, target.AccessTokenRequest)
 		require.NotNil(t, target.AccessTokenRequest.Body.TokenType)
 		assert.Equal(t, tokenType, *target.AccessTokenRequest.Body.TokenType)

@@ -89,3 +89,18 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 		ClientIdScheme:          didClientIDScheme,
 	}
 }
+
+// filterDIDOnMethod filters the candidates based on the supported DID methods.
+// The supported DID methods include that `did:` prefix.
+func filterDIDOnMethod(candidates []did.DID, supportedDIDMethods []string) []did.DID {
+	var filtered []did.DID
+	for _, candidate := range candidates {
+		for _, method := range supportedDIDMethods {
+			if "did:"+candidate.Method == method {
+				filtered = append(filtered, candidate)
+				break
+			}
+		}
+	}
+	return filtered
+}

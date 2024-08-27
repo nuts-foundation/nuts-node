@@ -105,13 +105,17 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if len(metadata.TokenEndpoint) == 0 {
 		return fmt.Errorf("no token_endpoint found for %s", authServerURL)
 	}
+	clientID, err := r.determineClientID(echoCtx.Request().Context(), metadata, redirectSession.SubjectID)
+	if err != nil {
+		return err
+	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
 		ClientFlow:    accessTokenRequestClientFlow,
 		ClientState:   crypto.GenerateNonce(),
-		OwnDID:        &redirectSession.OwnDID,
 		PKCEParams:    generatePKCEParams(),
+		OwnDID:        clientID,
 		RedirectURI:   accessTokenRequest.Body.RedirectUri,
 		SessionID:     redirectSession.SessionID,
 		UseDPoP:       useDPoP,
@@ -125,7 +129,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := createOAuth2BaseURL(redirectSession.OwnDID)
+	callbackURL, err := createOAuth2BaseURL(*clientID)
 	if err != nil {
 		return fmt.Errorf("failed to create callback URL: %w", err)
 	}
@@ -138,7 +142,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.OwnDID, authServerURL, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), *clientID, authServerURL, modifier)
 	if err != nil {
 		return err
 	}

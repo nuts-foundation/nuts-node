@@ -51,7 +51,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		Role: "Caregiver",
 	}
 	redirectSession := RedirectSession{
-		OwnDID: walletDID,
+		SubjectID: holderSubjectID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:               "first second",
