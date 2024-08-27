@@ -22,7 +22,6 @@ package iam
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -241,42 +240,20 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 	if err != nil {
 		return nil, err
 	}
-
-	// Try to fulfill the Presentation Defition with any of the subject's DIDs
-	var vp *vc.VerifiablePresentation
-	var submission *pe.PresentationSubmission
-	var subjectDID did.DID
-	for _, subjectDID = range subjectDIDs {
-		targetWallet := c.wallet
-		if len(credentials) > 0 {
-			additionalCredentials := make([]vc.VerifiableCredential, len(credentials))
-			// This feature is used for presenting self-attested credentials which aren't signed (they're only protected by the VP's signature).
-			// To make the API easier to use, we can set a few required fields if it's a self-attested credential.
-			for i, credential := range credentials {
-				additionalCredentials[i] = autoCorrectSelfAttestedCredential(credential, subjectDID)
-			}
-			// We have additional credentials to present, aside from those in the persistent wallet.
-			// Create a temporary in-memory wallet with the requester's persisted VCs and the
-			targetWallet, err = c.walletWithExtraCredentials(ctx, subjectDID, additionalCredentials)
-			if err != nil {
-				return nil, err
-			}
+	additionalCredentials := make(map[did.DID][]vc.VerifiableCredential)
+	for _, subjectDID := range subjectDIDs {
+		for _, curr := range credentials {
+			additionalCredentials[subjectDID] = append(additionalCredentials[subjectDID], autoCorrectSelfAttestedCredential(curr, subjectDID))
 		}
-
-		vp, submission, err = targetWallet.BuildSubmission(ctx, []did.DID{subjectDID}, *presentationDefinition, metadata.VPFormatsSupported, params)
-		if errors.Is(err, holder.ErrNoCredentials) {
-			// The DID doesn't have the right credentials to present, try the next DID of the subject.
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		// We can fulfill the request with the VC set of this DID
-		break
 	}
+	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalCredentials, *presentationDefinition, metadata.VPFormatsSupported, params)
 	if vp == nil {
 		// No DID has the right credentials to present
 		return nil, holder.ErrNoCredentials
+	}
+	subjectDID, err := did.ParseDID(vp.Holder.String())
+	if err != nil {
+		return nil, err
 	}
 
 	assertion := vp.Raw()
@@ -294,7 +271,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.dpop(ctx, subjectDID, *request)
+		dpopHeader, err = c.dpop(ctx, *subjectDID, *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
 		}

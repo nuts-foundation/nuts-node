@@ -315,7 +315,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, tenantD
 			map[did.DID][]vc.VerifiableCredential{userSession.Wallet.DID: userSession.Wallet.Credentials},
 		)
 	}
-	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, *presentationDefinition, metadata.VPFormats, buildParams)
+	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, nil, *presentationDefinition, metadata.VPFormats, buildParams)
 	if err != nil {
 		if errors.Is(err, holder.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: fmt.Sprintf("wallet does not contain the required credentials (PD ID: %s, wallet: %s)", presentationDefinition.Id, walletDID)}, responseURI, state)
