@@ -282,10 +282,9 @@ type AuthorizationServerMetadata struct {
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
 
-	// SupportedClientIDDIDMethods is a JSON array containing a list of the DID methods that are supported for the `did` client ID scheme.
-	// If omitted, any DID method is supported (if `did` is a supported client ID scheme).
+	// DIDMethodsSupported is a JSON array containing a list of the DID Methods (without scheme 'did:') that are supported by the Authorization Server.
 	// Note: this is a custom parameter, not part of the OpenID4VC specifications.
-	SupportedClientIDDIDMethods []string `json:"supported_client_id_did_methods,omitempty"`
+	DIDMethodsSupported []string `json:"did_methods_supported,omitempty"`
 
 	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
 	DPoPSigningAlgValuesSupported []string `json:"dpop_signing_alg_values_supported,omitempty"`

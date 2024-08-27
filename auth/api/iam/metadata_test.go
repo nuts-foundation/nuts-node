@@ -36,7 +36,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 	baseExpected := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   []string{"did"},
-		SupportedClientIDDIDMethods:                []string{"did:test"},
+		DIDMethodsSupported:                        []string{"test"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
 		Issuer:                                     "https://example.com/oauth2/" + didExample.String(),
