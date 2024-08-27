@@ -105,6 +105,10 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if len(metadata.TokenEndpoint) == 0 {
 		return fmt.Errorf("no token_endpoint found for %s", authServerURL)
 	}
+	clientID, err := r.determineClientID(echoCtx.Request().Context(), metadata, redirectSession.SubjectID)
+	if err != nil {
+		return err
+	}
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{

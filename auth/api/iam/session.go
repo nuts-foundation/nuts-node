@@ -165,7 +165,7 @@ type RedirectSession struct {
 	AccessTokenRequest RequestUserAccessTokenRequestObject
 	// SessionID is used by the calling app to get the access token later on
 	SessionID string
-	OwnDID    did.DID
+	SubjectID string
 }
 
 func (s OAuthSession) CreateRedirectURI(params map[string]string) string {

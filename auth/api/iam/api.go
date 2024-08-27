@@ -727,11 +727,6 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	requestHolder, err := r.selectDID(ctx, request.Subject)
-	if err != nil {
-		return nil, err
-	}
-
 	// Note: When we support authentication at an external IdP,
 	//       the properties below become conditionally required.
 	if request.Body.PreauthorizedUser == nil {
@@ -759,7 +754,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
-		OwnDID:             *requestHolder,
+		SubjectID:          request.Subject,
 	})
 	if err != nil {
 		return nil, err
@@ -769,14 +764,8 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	// generate a link to the redirect endpoint
-	webURL, err := createOAuth2BaseURL(*requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := nutsHttp.AddQueryParams(*webURL, map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*r.auth.PublicURL().JoinPath("oauth2", request.Subject, "user"), map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -954,4 +943,32 @@ func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, err
 		return nil, err
 	}
 	return &dids[0], nil
+}
+
+func (r Wrapper) determineClientID(ctx context.Context, authServerMetadata *oauth.AuthorizationServerMetadata, subjectID string) (*did.DID, error) {
+	if !authServerMetadata.SupportsClientIDScheme(didClientIDScheme) {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "authorization server does not support 'did' client_id scheme",
+		}
+	}
+	candidateDIDs, err := r.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	if len(authServerMetadata.SupportedClientIDDIDMethods) == 0 {
+		// Doesn't matter which one, server doesn't care (or can't tell us).
+		return &candidateDIDs[0], nil
+	}
+	for _, candidateDID := range candidateDIDs {
+		for _, method := range authServerMetadata.SupportedClientIDDIDMethods {
+			if method == "did:"+candidateDID.Method {
+				return &candidateDID, nil
+			}
+		}
+	}
+	return nil, oauth.OAuth2Error{
+		Code:        oauth.InvalidRequest,
+		Description: "none of the subject's DIDs are supported by the Authorization Server as client_id",
+	}
 }
