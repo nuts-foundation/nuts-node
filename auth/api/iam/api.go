@@ -946,19 +946,5 @@ func (r Wrapper) determineClientID(ctx context.Context, authServerMetadata *oaut
 	if err != nil {
 		return nil, err
 	}
-	if len(authServerMetadata.SupportedClientIDDIDMethods) == 0 {
-		// Doesn't matter which one, server doesn't care (or can't tell us).
-		return &candidateDIDs[0], nil
-	}
-	for _, candidateDID := range candidateDIDs {
-		for _, method := range authServerMetadata.SupportedClientIDDIDMethods {
-			if method == "did:"+candidateDID.Method {
-				return &candidateDID, nil
-			}
-		}
-	}
-	return nil, oauth.OAuth2Error{
-		Code:        oauth.InvalidRequest,
-		Description: "none of the subject's DIDs are supported by the Authorization Server as client_id",
-	}
+	return &candidateDIDs[0], nil
 }
