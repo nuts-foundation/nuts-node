@@ -59,8 +59,8 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		cancel()
 	}()
 
-	didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
-	didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
+	_, didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
+	subjectRequester, didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
 	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
 	require.NoError(t, err)
 	// Request an access token with user from verifying organization
@@ -69,7 +69,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		Name: "John Doe",
 		Role: "Accountant",
 	}
-	redirectSession, err := openid4vpClientB.RequesterUserAccessToken(didRequester, didVerifier, userDetails, oauth2Scope)
+	redirectSession, err := openid4vpClientB.RequesterUserAccessToken(subjectRequester, didVerifier, userDetails, oauth2Scope)
 	require.NoError(t, err)
 	// Navigate browser to redirect URL, which performs the OAuth2 authorization code flow
 	err = chromedp.Run(ctx, chromedp.Navigate(redirectSession.RedirectUri))
@@ -107,8 +107,8 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	}
 }
 
-func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (did.DID, OpenID4VP) {
-	didDoc, err := createDID(config)
+func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (string, did.DID, OpenID4VP) {
+	subject, didDoc, err := createDID(config)
 	require.NoError(t, err)
 	err = browser.IssueOrganizationCredential(didDoc, fmt.Sprintf("%s Organization", didDoc.ID.String()), "Testland", config)
 	require.NoError(t, err)
@@ -119,17 +119,14 @@ func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (did
 		ctx:       ctx,
 		iamClient: iamClientB,
 	}
-	return didDoc.ID, openid4vp
+	return subject, didDoc.ID, openid4vp
 }
 
-func createDID(config core.ClientConfig) (*did.Document, error) {
+func createDID(config core.ClientConfig) (string, *did.Document, error) {
 	didClient := didAPI.HTTPClient{ClientConfig: config}
-	docs, err := didClient.Create(didAPI.CreateDIDOptions{})
+	subject, docs, err := didClient.Create(didAPI.CreateDIDOptions{})
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	if len(docs) == 0 {
-		return nil, nil
-	}
-	return &docs[0], nil
+	return subject, &docs[0], nil
 }
