@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
 	"net/url"
@@ -37,7 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
 const (
@@ -165,21 +165,27 @@ func (r Wrapper) provisionUserSession(ctx context.Context, session *user.Session
 		// already provisioned
 		return nil
 	}
-	employeeCredential, err := r.issueEmployeeCredential(ctx, *session, preAuthorizedUser)
+	employerDIDs, err := r.subjectManager.List(ctx, session.SubjectID)
 	if err != nil {
 		return err
 	}
-	session.Wallet.Credentials = append(session.Wallet.Credentials, *employeeCredential)
+	for _, employerDID := range employerDIDs {
+		employeeCredential, err := r.issueEmployeeCredential(ctx, *session, preAuthorizedUser, employerDID.URI())
+		if err != nil {
+			return err
+		}
+		session.Wallet.Credentials = append(session.Wallet.Credentials, *employeeCredential)
+	}
 	return session.Save()
 }
 
-func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Session, userDetails UserDetails) (*vc.VerifiableCredential, error) {
+func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Session, userDetails UserDetails, issuerDID ssi.URI) (*vc.VerifiableCredential, error) {
 	issuanceDate := time.Now()
 	expirationDate := session.ExpiresAt
 	template := vc.VerifiableCredential{
 		Context:        []ssi.URI{credential.NutsV1ContextURI},
 		Type:           []ssi.URI{ssi.MustParseURI("EmployeeCredential")},
-		Issuer:         session.TenantDID.URI(),
+		Issuer:         issuerDID,
 		IssuanceDate:   issuanceDate,
 		ExpirationDate: &expirationDate,
 		CredentialSubject: []interface{}{

@@ -64,7 +64,7 @@ func TestMiddleware_Handle(t *testing.T) {
 		httpResponse := httptest.NewRecorder()
 		echoServer := echo.New()
 		echoContext := echoServer.NewContext(httptest.NewRequest(http.MethodGet, "/iam/"+subjectID, nil), httpResponse)
-		echoContext.SetParamNames("did")
+		echoContext.SetParamNames("subjectID")
 		echoContext.SetParamValues(subjectID)
 
 		var capturedSession *Session
@@ -91,7 +91,7 @@ func TestMiddleware_Handle(t *testing.T) {
 		httpResponse := httptest.NewRecorder()
 		echoServer := echo.New()
 		echoContext := echoServer.NewContext(httptest.NewRequest(http.MethodGet, "/iam/"+subjectID, nil), httpResponse)
-		echoContext.SetParamNames("did")
+		echoContext.SetParamNames("subjectID")
 		echoContext.SetParamValues(subjectID)
 		echoContext.Request().AddCookie(&sessionCookie)
 
@@ -145,7 +145,7 @@ func TestMiddleware_Handle(t *testing.T) {
 		httpResponse := httptest.NewRecorder()
 		echoServer := echo.New()
 		echoContext := echoServer.NewContext(httptest.NewRequest(http.MethodGet, "/iam/"+subjectID, nil), httpResponse)
-		echoContext.SetParamNames("did")
+		echoContext.SetParamNames("subjectID")
 		echoContext.SetParamValues(subjectID)
 		// Session is not in storage, so error will be triggered and new session be created
 		echoContext.Request().AddCookie(&sessionCookie)
@@ -200,7 +200,7 @@ func TestMiddleware_loadUserSession(t *testing.T) {
 
 		_, actual, err := instance.loadUserSession((*testCookieReader)(&sessionCookie), subjectID)
 
-		assert.EqualError(t, err, "session belongs to another tenant (did:web:someone-else)")
+		assert.EqualError(t, err, "session belongs to another subject (someone-else)")
 		assert.Nil(t, actual)
 	})
 	t.Run("error - expired", func(t *testing.T) {

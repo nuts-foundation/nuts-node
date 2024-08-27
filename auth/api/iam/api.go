@@ -155,8 +155,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			// The following URLs require a user session:
 			paths := []string{
 				"/oauth2/:subjectID/user",
-				"/oauth2/:subjectID/authorize",
-				"/oauth2/:subjectID/callback",
+				"/oauth2/:did/authorize",
+				"/oauth2/:did/callback",
 			}
 			for _, path := range paths {
 				if c.Path() == path {
@@ -168,7 +168,8 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		TimeOut: time.Hour,
 		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
 		CookiePath: func(subjectID string) string {
-			return r.auth.PublicURL().JoinPath("oauth2", subjectID).String()
+			// TODO: make this /oauth2/:subjectID when OAuth2 endpoints are refactored. Currently not possible, as /authorize and /callback are still using <did>
+			return "/"
 		},
 	}.Handle)
 }
