@@ -247,7 +247,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, requeste
 		}
 	}
 
-	vp, submission, err := targetWallet.BuildSubmission(ctx, requester, *presentationDefinition, metadata.VPFormatsSupported, params)
+	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{requester}, *presentationDefinition, metadata.VPFormatsSupported, params)
 	if err != nil {
 		return nil, err
 	}
