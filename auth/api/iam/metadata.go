@@ -34,7 +34,7 @@ func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supported
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
-		SupportedDIDMethods:                        supportedDIDMethods,
+		DIDMethodsSupported:                        supportedDIDMethods,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
 		Issuer:                                     issuerURL.String(),
