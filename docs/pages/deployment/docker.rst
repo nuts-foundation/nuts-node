@@ -94,5 +94,11 @@ You can also build the development image yourself by running the following comma
 
 When starting up the development image, it'll block and requires you to authenticate with Github.
 It'll print a URL to visit in your browser and a code to enter. After authenticating, the tunnel will be established and the Nuts Node will start.
-To save the tunnel configuration, mount a directory to ``/devtunnel`` inside the container. The last used tunnel is stored in ``/devtunnel/tunnel.id``.
-``devtunnel/tunnel.log`` contains the logs of the tunnel including the public accessible URL. This URL is also printed to the console.
+The container stores the last used tunnel in ``/nuts/config/devtunnel/tunnel.id``.
+``/nuts/config/devtunnel/tunnel.log`` contains the logs of the tunnel including the public accessible URL. This URL is also printed to the console.
+Devtunnel also stores some session information in ``/nuts/DevTunnel``.
+
+To persist a tunnel URL over node restarts, mount a directory at ``/nuts/config/devtunnel`` (or one of its parents) inside the container.
+Mounting ``/nuts`` would also persist the current Github session over container restarts.
+
+For trouble shooting devtunnel issues, see the `documentation <https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/>`_ and tunnel usage `limits <https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#dev-tunnels-limits>`_.
