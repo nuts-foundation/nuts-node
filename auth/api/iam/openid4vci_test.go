@@ -45,8 +45,9 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		Display:              nil,
 	}
 	authzMetadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint: "https://auth.server/authorize",
-		TokenEndpoint:         "https://auth.server/token",
+		AuthorizationEndpoint:    "https://auth.server/authorize",
+		TokenEndpoint:            "https://auth.server/token",
+		ClientIdSchemesSupported: []string{"did"},
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -58,6 +59,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
 				Issuer:               issuerURL,
 				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
 			},
 		})
 		require.NoError(t, err)
@@ -119,8 +121,10 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerURL).Return(&metadata, nil)
 		invalidAuthzMetadata := oauth.AuthorizationServerMetadata{
-			AuthorizationEndpoint: ":",
-			TokenEndpoint:         "https://auth.server/token"}
+			AuthorizationEndpoint:    ":",
+			TokenEndpoint:            "https://auth.server/token",
+			ClientIdSchemesSupported: []string{"did"},
+		}
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&invalidAuthzMetadata, nil)
 
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerURL, redirectURI))
@@ -162,6 +166,7 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
 			Issuer:      issuer,
 			RedirectUri: redirectURI,
+			WalletDid:   holderDID.String(),
 		},
 	}
 }

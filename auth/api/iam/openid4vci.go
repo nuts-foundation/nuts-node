@@ -43,20 +43,19 @@ var timeFunc = time.Now
 const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
-	err := r.subjectExists(ctx, request.Subject)
+	walletDID, err := did.ParseDID(request.Body.WalletDid)
 	if err != nil {
+		return nil, core.InvalidInputError("invalid wallet DID")
+	}
+	if owned, err := r.subjectOwns(ctx, request.Subject, *walletDID); err != nil {
 		return nil, err
+	} else if !owned {
+		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
 	}
 
 	if request.Body == nil {
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
-	}
-	// Parse and check the requester
-	// TODO: DID should be selected based on what the Credential Issuer supports, which should/could be part of the metadata.
-	requestHolder, err := r.selectDID(ctx, request.Subject)
-	if err != nil {
-		return nil, err
 	}
 	// Parse the issuer
 	issuer := request.Body.Issuer
@@ -77,6 +76,12 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if len(authzServerMetadata.TokenEndpoint) == 0 {
 		return nil, errors.New("no token_endpoint found")
 	}
+
+	clientID, err := r.determineClientID(ctx, authzServerMetadata, request.Subject)
+	if err != nil {
+		return nil, err
+	}
+
 	// Read and parse the authorization details
 	authorizationDetails := []byte("[]")
 	if len(request.Body.AuthorizationDetails) > 0 {
@@ -87,7 +92,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	redirectUri, err := createOAuth2BaseURL(*requestHolder)
+	redirectUri, err := createOAuth2BaseURL(*walletDID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
 	}
@@ -95,7 +100,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		ClientFlow:  credentialRequestClientFlow,
-		OwnDID:      requestHolder,
+		OwnDID:      walletDID,
 		RedirectURI: request.Body.RedirectUri,
 		PKCEParams:  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
@@ -115,7 +120,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
-		oauth.ClientIDParam:             requestHolder.String(),
+		oauth.ClientIDParam:             clientID.String(),
 		oauth.ClientIDSchemeParam:       didClientIDScheme,
 		oauth.AuthorizationDetailsParam: string(authorizationDetails),
 		oauth.RedirectURIParam:          redirectUri.String(),

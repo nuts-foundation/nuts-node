@@ -936,15 +936,6 @@ func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID d
 	return false, nil
 }
 
-func (r Wrapper) selectDID(ctx context.Context, subjectID string) (*did.DID, error) {
-	// TODO: List() should return the DIDs in preferred order?
-	dids, err := r.subjectManager.List(ctx, subjectID)
-	if err != nil {
-		return nil, err
-	}
-	return &dids[0], nil
-}
-
 func (r Wrapper) determineClientID(ctx context.Context, authServerMetadata *oauth.AuthorizationServerMetadata, subjectID string) (*did.DID, error) {
 	if !authServerMetadata.SupportsClientIDScheme(didClientIDScheme) {
 		return nil, oauth.OAuth2Error{

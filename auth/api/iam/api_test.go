@@ -913,7 +913,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 		Name: "Titus Tester",
 		Role: "Test Manager",
 	}
-	redirectURI := "https://test.test/oauth2/" + walletDID.String() + "/cb"
+	redirectURI := "https://test.test/oauth2/" + holderDID.String() + "/cb"
 	body := &RequestUserAccessTokenJSONRequestBody{
 		AuthorizationServer: "https://example.com",
 		Scope:               "first second",
@@ -951,7 +951,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	})
 	t.Run("preauthorized_user", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, walletDID).AnyTimes().Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID).AnyTimes().Return(true, nil)
 		t.Run("error - missing preauthorized_user", func(t *testing.T) {
 			body := &RequestUserAccessTokenJSONRequestBody{
 				AuthorizationServer: "https://example.com",
@@ -1343,6 +1343,49 @@ func testAuthzReqRedirectURI(t testing.TB, expectedRedirectURI, actualRedirectUR
 	assert.Contains(t, actualReqURI, expectedReqURIPartial) // both are URL decoded
 }
 
+func TestWrapper_subjectExists(t *testing.T) {
+	t.Run("unknown subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		err := ctx.client.subjectExists(context.Background(), unknownSubjectID)
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("subject exists", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		err := ctx.client.subjectExists(context.Background(), holderSubjectID)
+
+		assert.NoError(t, err)
+	})
+}
+
+func TestWrapper_subjectOwns(t *testing.T) {
+	t.Run("unknown subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.subjectOwns(context.Background(), unknownSubjectID, holderDID)
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("DID owned by subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		owned, err := ctx.client.subjectOwns(context.Background(), holderSubjectID, holderDID)
+
+		assert.NoError(t, err)
+		assert.True(t, owned)
+	})
+	t.Run("DID not owned by subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		owned, err := ctx.client.subjectOwns(context.Background(), holderSubjectID, did.MustParseDID("did:web:example.com:iam:456"))
+
+		assert.NoError(t, err)
+		assert.False(t, owned)
+	})
+}
+
 func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.VerifiableCredential {
 	privateKey, _ := spi.GenerateKeyPair()
 	credType := ssi.MustParseURI("ExampleType")
@@ -1479,7 +1522,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
 	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
-	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, nil).AnyTimes()
+	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), holderSubjectID).Return(true, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), unknownSubjectID).Return(false, nil).AnyTimes()
 

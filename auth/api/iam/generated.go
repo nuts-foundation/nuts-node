@@ -212,6 +212,9 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
+
+	// WalletDid The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+	WalletDid string `json:"wallet_did"`
 }
 
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.

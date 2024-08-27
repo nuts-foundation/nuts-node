@@ -813,7 +813,7 @@ func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response", "").Return("", assert.AnError)
 
-		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), walletDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
+		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), holderDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
 
 		assert.Equal(t, assert.AnError, err)
 	})
