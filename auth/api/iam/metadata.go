@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -30,10 +31,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
+	var didMethods []string
+	for _, method := range supportedDIDMethods {
+		didMethods = append(didMethods, fmt.Sprintf("did:%s", method))
+	}
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
+		SupportedClientIDDIDMethods:                didMethods,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
 		Issuer:                                     issuerURL.String(),

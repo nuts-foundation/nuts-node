@@ -386,7 +386,7 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, userWalletDID did.
 		// but with openid4vp: as scheme.
 		// The context contains data from the previous request. Usage by the handler will probably result in incorrect behavior.
 		issuerURL := userWalletDID.URI().URL
-		userWalletMetadata := authorizationServerMetadata(userWalletDID, &issuerURL)
+		userWalletMetadata := authorizationServerMetadata(userWalletDID, &issuerURL, r.vdr.SupportedMethods())
 		response, err := r.handleAuthorizeRequest(ctx, userWalletDID, userWalletMetadata, *parsedRedirectURI)
 		if err != nil {
 			return nil, err
