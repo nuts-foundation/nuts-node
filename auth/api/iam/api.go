@@ -168,7 +168,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		TimeOut: time.Hour,
 		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
 		CookiePath: func(subjectID string) string {
-			// TODO: make this /oauth2/:subjectID when OAuth2 endpoints are refactored. Currently not possible, as /authorize and /callback are still using <did>
+			// TODO: (#3264) make this /oauth2/:subjectID when OAuth2 endpoints are refactored. Currently not possible, as /authorize and /callback are still using <did>
 			return "/"
 		},
 	}.Handle)
