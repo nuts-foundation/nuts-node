@@ -34,6 +34,9 @@ var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 // ErrPresentationRegistrationFailed indicates registration of a presentation on a remote Discovery Service failed.
 var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable Presentation on remote Discovery Service failed")
 
+// errMissingCredential indicates that a VP does not have the credentials required to fulfill the Presentation Definition of a Discovery Service.
+var errMissingCredential = errors.New("missing credential")
+
 // Server defines the API for Discovery Servers.
 type Server interface {
 	// Register registers a presentation on the given Discovery Service.

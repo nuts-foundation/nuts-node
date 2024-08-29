@@ -84,16 +84,25 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service)
 		if err != nil {
-			loopErrs = append(loopErrs, err)
+			if !errors.Is(err, errMissingCredential) { // ignore missing credentials
+				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			}
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
 		}
 	}
 	if len(registeredDIDs) == 0 {
+		if len(registeredDIDs) != len(subjectDIDs) && len(loopErrs) == 0 {
+			// all registrations failed on missing credentials. can only be false if using complex presentation definitions
+			loopErrs = append(loopErrs, fmt.Errorf("failed registration for service=%s, subject=%s: %w", serviceID, subjectID, errMissingCredential))
+		}
 		// registration failed for all subjectDIDs, will be retried on next scheduled refresh
 		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, errors.Join(loopErrs...))
 	}
 	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, subject=%s, dids=[%s])", serviceID, subjectID, strings.Join(registeredDIDs, ","))
+	if len(loopErrs) != 0 {
+		log.Logger().Infof("Failed registration of Verifiable Presentation on Discovery Service (service=%s, subject=%s): %s", serviceID, subjectID, errors.Join(loopErrs...))
+	}
 
 	// Set presentation to be refreshed before it expires
 	// TODO: When to refresh? For now, we refresh when the registration is about at 45% of max age. This means a refresh can fail once without consequence.
@@ -128,13 +137,13 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 	// failures are collected and merged into a single error
 	service := r.services[serviceID]
 	var loopErrs []error
-	for ind, vps := range vps2D {
+	for did, vps := range vps2D {
 		for _, vp := range vps {
 			if vp.IsType(retractionPresentationType) {
 				// is already retracted
 				continue
 			}
-			err = r.deregisterPresentation(ctx, subjectDIDs[ind], service, vp)
+			err = r.deregisterPresentation(ctx, did, service, vp)
 			if err != nil {
 				loopErrs = append(loopErrs, err)
 			}
@@ -171,11 +180,12 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 		return nil, err
 	}
 	matchingCredentials, _, err := service.PresentationDefinition.Match(credentials)
+	const errStr = "failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w"
 	if err != nil {
-		return nil, fmt.Errorf("failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w", service.ID, subjectDID, err)
+		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
 	if len(matchingCredentials) == 0 && service.PresentationDefinition.CredentialsRequired() {
-		return nil, fmt.Errorf("DID wallet does not have credentials required for registration on Discovery Service (service=%s, did=%s)", service.ID, subjectDID)
+		return nil, fmt.Errorf(errStr, service.ID, subjectDID, errMissingCredential)
 	}
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }

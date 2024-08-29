@@ -348,9 +348,7 @@ func (s *sqlStore) getTimestamp(serviceID string) (int, error) {
 }
 
 // getSubjectVPsOnService finds all VPs in the service that contain a credential issued to any of the subjectDIDs.
-// It returns a (potentially empty) list of VPs for each of the subjectDIDs.
-// The list should not contain retractions since these do not contain any credentials.
-func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DID) ([][]vc.VerifiablePresentation, error) {
+func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DID) (map[did.DID][]vc.VerifiablePresentation, error) {
 	// this assumes Presentation Definitions for a service uses the subject wallet, meaning that a DID in a subject can
 	// fulfill the PD using credentials issued to any of the subjectDIDs.
 	// This complicates the search since we cannot filter on VP signer
@@ -377,8 +375,9 @@ func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DI
 	}
 
 	// deduplicate results by VP.ID and create a list of VPs per signer
-	signerToVPs := map[string][]vc.VerifiablePresentation{} // signerToVPs maps all VPs to their signer.
-	var uniqueVPIDs []string                                // keeps track of known VP.IDs
+	// TODO: confirm that there can only be one VP per discovery service-signer combination, meaning that results can be flattened.
+	signerToVPs := map[did.DID][]vc.VerifiablePresentation{} // signerToVPs maps all VPs to their signer.
+	var uniqueVPIDs []string                                 // keeps track of known VP.IDs
 	for _, vp := range vps {
 		vpID := vp.ID.String() // must be set according to Discovery Service RFC
 		if slices.Contains(uniqueVPIDs, vpID) {
@@ -395,14 +394,14 @@ func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DI
 
 		// update loop vars at the same time
 		uniqueVPIDs = append(uniqueVPIDs, vpID)
-		signerToVPs[signer.String()] = append(signerToVPs[signer.String()], vp)
+		signerToVPs[*signer] = append(signerToVPs[*signer], vp)
 	}
 
-	// TODO: confirm that there can only be one VP per discovery service-signer combination, meaning that results can be flattened.
-	results := make([][]vc.VerifiablePresentation, len(subjectDIDs))
-	for ind, subjectDID := range subjectDIDs {
-		// also set empty sets to maintain index with subjectDIDs
-		results[ind] = signerToVPs[subjectDID.String()]
+	// filter signers not in subjectDIDs.
+	// These can only exist when the subjectDIDs is incomplete, or VP signed by a different subject contains VCs issued to the current subject
+	result := make(map[did.DID][]vc.VerifiablePresentation, len(subjectDIDs))
+	for _, did := range subjectDIDs {
+		result[did] = signerToVPs[did]
 	}
-	return results, nil
+	return result, nil
 }

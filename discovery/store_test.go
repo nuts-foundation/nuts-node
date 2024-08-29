@@ -296,12 +296,12 @@ func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 	t.Run("ok - single", func(t *testing.T) {
 		vps, err := c.getSubjectVPsOnService(testServiceID, []did.DID{aliceDID})
 		require.NoError(t, err)
-		assert.Equal(t, [][]vc.VerifiablePresentation{{vpAlice2}}, vps)
+		assert.Equal(t, map[did.DID][]vc.VerifiablePresentation{aliceDID: {vpAlice2}}, vps)
 	})
 	t.Run("ok - multi", func(t *testing.T) {
 		vps, err := c.getSubjectVPsOnService(testServiceID, []did.DID{aliceDID, unsupportedDID, bobDID})
 		require.NoError(t, err)
-		assert.Equal(t, [][]vc.VerifiablePresentation{{vpAlice2}, []vc.VerifiablePresentation(nil), {vpBob2}}, vps)
+		assert.Equal(t, map[did.DID][]vc.VerifiablePresentation{aliceDID: {vpAlice2}, unsupportedDID: {}, unsupportedDID: nil, bobDID: {vpBob2}}, vps)
 	})
 }
 

@@ -364,7 +364,7 @@ func (m *Module) Services() []ServiceDefinition {
 	return result
 }
 
-// GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a DID.
+// GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a subject.
 // See interface.go for more information.
 func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
 	refreshTime, err := m.store.getPresentationRefreshTime(serviceID, subjectID)

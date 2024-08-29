@@ -49,7 +49,10 @@ type DefaultHTTPClient struct {
 }
 
 func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL string, presentation vc.VerifiablePresentation) error {
-	requestBody, _ := json.Marshal(presentation)
+	requestBody, err := json.Marshal(presentation)
+	if err != nil {
+		return err
+	}
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, serviceEndpointURL, bytes.NewReader(requestBody))
 	if err != nil {
 		return err

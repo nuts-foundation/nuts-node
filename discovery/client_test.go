@@ -94,7 +94,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
-		assert.ErrorContains(t, err, "DID wallet does not have credentials required for registration on Discovery Service (service=usecase_v1, did=did:example:alice)")
+		require.ErrorIs(t, err, errMissingCredential)
 	})
 	t.Run("subject with 2 DIDs, one registers and other fails", func(t *testing.T) {
 		subjectDIDs := []did.DID{aliceDID, bobDID}
@@ -323,7 +323,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		err := manager.refresh(audit.TestContext(), time.Now())
 
-		assert.EqualError(t, err, "failed to refresh Verifiable Presentation (service=usecase_v1, subject=alice): registration of Verifiable Presentation on remote Discovery Service failed: remote error")
+		assert.EqualError(t, err, "failed to refresh Verifiable Presentation (service=usecase_v1, subject=alice): registration of Verifiable Presentation on remote Discovery Service failed: did:example:alice: remote error")
 	})
 	t.Run("deactivate unknown subject", func(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
