@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
@@ -189,10 +190,10 @@ func (e *engine) initSQLDatabase() error {
 	dbType := strings.Split(connectionString, ":")[0]
 	if dbType == "sqlite" {
 		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
-	} else if dbType == "mysql" {
-		// MySQL DSN needs to be without mysql://
-		// See https://github.com/go-sql-driver/mysql#examples
-		connectionString = strings.TrimPrefix(connectionString, "mysql://")
+	} else if dbType == "mysql" || dbType == "azuresql" {
+		// These drivers need their connection string without the driver:// prefix.
+		idx := strings.Index(connectionString, "://")
+		connectionString = connectionString[idx+3:]
 	}
 	db, err := goose.OpenDBWithDriver(dbType, connectionString)
 	if err != nil {
@@ -245,6 +246,8 @@ func (e *engine) initSQLDatabase() error {
 			return err
 		}
 		dialect = goose.DialectPostgres
+	case "azuresql":
+		fallthrough
 	case "sqlserver":
 		err = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
 		if err != nil {
