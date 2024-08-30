@@ -60,7 +60,7 @@ type AccessToken struct {
 }
 
 // createAccessToken is used in both the s2s and openid4vp flows
-func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuer did.DID, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
 	credentialMap, err := pexState.credentialMap()
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime 
 		Token:                          crypto.GenerateNonce(),
 		Issuer:                         issuer.String(),
 		IssuedAt:                       issueTime,
-		ClientId:                       walletDID.String(),
+		ClientId:                       clientID,
 		Expiration:                     issueTime.Add(accessTokenValidity),
 		Scope:                          scope,
 		PresentationSubmissions:        pexState.Submissions,

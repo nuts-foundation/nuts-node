@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
+	"net/url"
 	"time"
 )
 
@@ -49,6 +50,7 @@ type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
 	KeyStore       nutsCrypto.KeyStore
+	PublicURL      *url.URL
 }
 
 func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
@@ -71,6 +73,15 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 func (r *Manager) Exists(_ context.Context, subject string) (bool, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	return sqlDIDManager.SubjectExists(subject)
+}
+
+func (r *Manager) FindByDID(ctx context.Context, did did.DID) (string, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	sqlDID, err := sqlDIDManager.Find(did)
+	if err != nil {
+		return "", err
+	}
+	return sqlDID.Subject, nil
 }
 
 // Create generates new DID Documents
@@ -133,12 +144,14 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		changes := make(map[string]orm.DIDChangeLog)
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
 		transactionId := uuid.New().String()
+		clientID := r.PublicURL.String() + "/oauth2/" + subject
 		for method, sqlDoc := range sqlDocs {
 			// overwrite sql.DID from returned document because we have the subject and alsoKnownAs here
 			sqlDID := orm.DID{
-				ID:      sqlDoc.DID.ID,
-				Subject: subject,
-				Aka:     alsoKnownAs,
+				ID:       sqlDoc.DID.ID,
+				Subject:  subject,
+				ClientID: clientID,
+				Aka:      alsoKnownAs,
 			}
 			createdDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, sqlDoc.VerificationMethods, nil)
 			if err != nil {

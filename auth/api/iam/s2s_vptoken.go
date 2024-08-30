@@ -43,7 +43,7 @@ const s2sMaxClockSkew = 5 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -51,8 +51,6 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 			Description: "assertion parameter is invalid: " + err.Error(),
 		}
 	}
-	issuerURL, _ := createOAuth2BaseURL(issuer)
-
 	submission, err := pe.ParsePresentationSubmission([]byte(submissionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -71,7 +69,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 		} else {
 			credentialSubjectID = *subjectDID
 		}
-		if err := r.validatePresentationAudience(presentation, issuerURL.String()); err != nil {
+		if err := r.validatePresentationAudience(presentation, subject); err != nil {
 			return nil, err
 		}
 	}
@@ -110,7 +108,11 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, issuer did.DID
 	}
 
 	// All OK, allow access
-	response, err := r.createAccessToken(issuer, credentialSubjectID, time.Now(), scope, *pexConsumer, dpopProof)
+	dids, err := r.subjectManager.List(ctx, subject)
+	if err != nil {
+		return nil, err
+	}
+	response, err := r.createAccessToken(dids[0], credentialSubjectID.String(), time.Now(), scope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}

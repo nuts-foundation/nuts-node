@@ -143,6 +143,16 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, oauth
 	return metadata, nil
 }
 
+func (c *OpenID4VPClient) OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error) {
+	iamClient := c.httpClient
+	// the wallet/client acts as authorization server
+	metadata, err := iamClient.OpenIDConfiguration(ctx, issuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OpenID configuration: %w", err)
+	}
+	return metadata, nil
+}
+
 func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
@@ -173,7 +183,7 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 	return requestObject, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, subject string, clientID string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	// validate tokenEndpoint
 	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
@@ -183,7 +193,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 
 	// call token endpoint
 	data := url.Values{}
-	data.Set(oauth.ClientIDParam, clientID.String())
+	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
 	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
@@ -196,7 +206,12 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.dpop(ctx, clientID, *request)
+		dids, err := c.subjectManager.List(ctx, subject)
+		if err != nil {
+			return nil, err
+		}
+		// todo select the right DID based upon metadata
+		dpopHeader, err = c.dpop(ctx, dids[0], *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
 		}

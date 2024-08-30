@@ -19,18 +19,19 @@
 package iam
 
 import (
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
@@ -47,12 +48,10 @@ func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supported
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
-	if ownedDID.Method == "web" {
-		// add endpoints for did:web
-		metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
-		metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
-		metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
-	}
+
+	metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
+	metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
+	metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
 	return *metadata
 }
 
@@ -60,9 +59,10 @@ func authorizationServerMetadata(ownedDID did.DID, issuerURL *url.URL, supported
 // Note: several specs (OpenID4VP, SIOPv2, OpenID core) define a static authorization server configuration that currently are conflicting.
 func staticAuthorizationServerMetadata() oauth.AuthorizationServerMetadata {
 	return oauth.AuthorizationServerMetadata{
-		Issuer:                 "https://self-issued.me/v2",
-		AuthorizationEndpoint:  "openid4vp:",
-		ResponseTypesSupported: []string{oauth.VPTokenResponseType},
+		Issuer:                   "https://self-issued.me/v2",
+		AuthorizationEndpoint:    "openid4vp:",
+		ClientIdSchemesSupported: clientIdSchemesSupported,
+		ResponseTypesSupported:   []string{oauth.VPTokenResponseType},
 		VPFormatsSupported: map[string]map[string][]string{
 			"jwt_vp_json": {"alg_values_supported": []string{string(jwa.ES256)}},
 			"jwt_vc_json": {"alg_values_supported": []string{string(jwa.ES256)}},
@@ -81,6 +81,17 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 		SoftwareID:              softwareID,      // nuts-node-refimpl
 		SoftwareVersion:         softwareVersion, // version tag or "unknown"
 		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdScheme:          didClientIDScheme,
+		//ClientIdScheme:          didClientIDScheme,
+		ClientIdScheme: entityClientIDScheme,
+	}
+}
+
+func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods []string) oauth.OpenIDConfiguration {
+	return oauth.OpenIDConfiguration{
+		Issuer:         issuerURL.String(),
+		IssuedAt:       time.Now().Unix(),
+		Subject:        issuerURL.String(),
+		JWKs:           jwkSet,
+		OpenIDProvider: authorizationServerMetadata(&issuerURL, supportedDIDMethods),
 	}
 }

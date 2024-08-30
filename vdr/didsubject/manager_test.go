@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test"
 	"net/url"
 	"strings"
 	"testing"
@@ -40,9 +41,13 @@ import (
 func TestManager_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 
@@ -59,10 +64,14 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("multiple methods", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-			"test":    testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+				"test":    testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
@@ -76,13 +85,17 @@ func TestManager_Create(t *testing.T) {
 
 		// test alsoKnownAs requirements
 		document := documents[0]
-		assert.Len(t, document.AlsoKnownAs, 1)
+		assert.Len(t, document.AlsoKnownAs, 2)
 	})
 	t.Run("with unknown option", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 
@@ -90,9 +103,13 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("already exists", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
 		_, _, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
@@ -106,9 +123,13 @@ func TestManager_Create(t *testing.T) {
 func TestManager_List(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
 		_, subject, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
@@ -120,9 +141,13 @@ func TestManager_List(t *testing.T) {
 	})
 	t.Run("unknown subject", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{
+			DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		_, err := m.List(audit.TestContext(), "subject")
 
@@ -132,9 +157,13 @@ func TestManager_List(t *testing.T) {
 
 func TestManager_Services(t *testing.T) {
 	db := testDB(t)
-	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-		"example": testMethod{},
-	}}
+	m := Manager{
+		DB: db,
+		MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+		},
+		PublicURL: test.MustParseURL("https://example.com"),
+	}
 	subject := "subject"
 	opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: subject})
 	documents, _, err := m.Create(audit.TestContext(), opts)
@@ -196,10 +225,13 @@ func TestManager_Services(t *testing.T) {
 
 func TestManager_AddVerificationMethod(t *testing.T) {
 	db := testDB(t)
-	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-		"example": testMethod{},
-		"test":    testMethod{},
-	}}
+	m := Manager{DB: db,
+		MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+			"test":    testMethod{},
+		},
+		PublicURL: test.MustParseURL("https://example.com"),
+	}
 	subject := "subject"
 	opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: subject})
 	documents, _, err := m.Create(audit.TestContext(), opts)
@@ -221,7 +253,7 @@ func TestManager_AddVerificationMethod(t *testing.T) {
 			didDocument, err := latest.ToDIDDocument()
 
 			require.NoError(t, err)
-			assert.Len(t, didDocument.AlsoKnownAs, 1)
+			assert.Len(t, didDocument.AlsoKnownAs, 2)
 		})
 	})
 }
@@ -233,18 +265,24 @@ func TestManager_Deactivate(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		err := m.Deactivate(ctx, "subject")
 		require.ErrorIs(t, err, ErrSubjectNotFound)
 	})
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		documents, subject, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 		require.Len(t, documents, 1)
@@ -254,9 +292,12 @@ func TestManager_Deactivate(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		documents, subject, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 		require.Len(t, documents, 1)
@@ -290,9 +331,12 @@ func TestManager_rollback(t *testing.T) {
 
 	t.Run("uncommited results in rollback", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 
 		saveExamples(t, db)
 
@@ -310,9 +354,12 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("IsCommitted returns error", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{error: assert.AnError},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{error: assert.AnError},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		saveExamples(t, db)
 
 		manager.Rollback(context.Background())
@@ -329,9 +376,12 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("commited by method removes changelog", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{committed: true},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{committed: true},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		saveExamples(t, db)
 
 		manager.Rollback(context.Background())
@@ -348,9 +398,12 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("rollback removes all from transaction", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			},
+			PublicURL: test.MustParseURL("https://example.com"),
+		}
 		saveExamples(t, db)
 		didId2 := orm.DID{
 			ID:      "did:example:321",

@@ -43,17 +43,17 @@ func (m *MockJAR) EXPECT() *MockJARMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockJAR) Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+func (m *MockJAR) Create(client did.DID, clientID, audience string, modifier requestObjectModifier) jarRequest {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", client, authServerURL, modifier)
+	ret := m.ctrl.Call(m, "Create", client, clientID, audience, modifier)
 	ret0, _ := ret[0].(jarRequest)
 	return ret0
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockJARMockRecorder) Create(client, authServerURL, modifier any) *gomock.Call {
+func (mr *MockJARMockRecorder) Create(client, clientID, audience, modifier any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockJAR)(nil).Create), client, authServerURL, modifier)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockJAR)(nil).Create), client, clientID, audience, modifier)
 }
 
 // Parse mocks base method.

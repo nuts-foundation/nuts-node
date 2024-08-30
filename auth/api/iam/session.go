@@ -21,6 +21,7 @@ package iam
 import (
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/url"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -33,17 +34,18 @@ import (
 // The client state (and nonce/redirectToken as well) is used to refer to this session.
 // Both the client and the server use this session to store information about the request.
 type OAuthSession struct {
-	ClientFlow        oauthClientFlow `json:"client_flow,omitempty"`
-	ClientID          string          `json:"client_id,omitempty"`
-	ClientState       string          `json:"client_state,omitempty"`
-	OpenID4VPVerifier *PEXConsumer    `json:"openid4vp_verifier,omitempty"`
-	OwnDID            *did.DID        `json:"own_did,omitempty"`
-	OtherDID          *did.DID        `json:"other_did,omitempty"`
-	PKCEParams        PKCEParams      `json:"pkce_params"`
-	RedirectURI       string          `json:"redirect_uri,omitempty"`
-	Scope             string          `json:"scope,omitempty"`
-	SessionID         string          `json:"session_id,omitempty"`
-	TokenEndpoint     string          `json:"token_endpoint,omitempty"`
+	AuthorizationServerMetadata *oauth.AuthorizationServerMetadata `json:"authorization_server_metadata,omitempty"`
+	ClientFlow                  oauthClientFlow                    `json:"client_flow,omitempty"`
+	ClientID                    string                             `json:"client_id,omitempty"`
+	ClientState                 string                             `json:"client_state,omitempty"`
+	OpenID4VPVerifier           *PEXConsumer                       `json:"openid4vp_verifier,omitempty"`
+	OwnSubject                  *string                            `json:"own_subject,omitempty"`
+	OtherDID                    *did.DID                           `json:"other_did,omitempty"`
+	PKCEParams                  PKCEParams                         `json:"pkce_params"`
+	RedirectURI                 string                             `json:"redirect_uri,omitempty"`
+	Scope                       string                             `json:"scope,omitempty"`
+	SessionID                   string                             `json:"session_id,omitempty"`
+	TokenEndpoint               string                             `json:"token_endpoint,omitempty"`
 	// IssuerURL is the URL that identifies the OAuth2 Authorization Server according to RFC 8414 (Authorization Server Metadata).
 	IssuerURL string `json:"issuer_url,omitempty"`
 	UseDPoP   bool   `json:"use_dpop,omitempty"`

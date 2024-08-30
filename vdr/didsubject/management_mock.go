@@ -264,6 +264,21 @@ func (mr *MockSubjectManagerMockRecorder) Exists(ctx, subject any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockSubjectManager)(nil).Exists), ctx, subject)
 }
 
+// FindByDID mocks base method.
+func (m *MockSubjectManager) FindByDID(ctx context.Context, did did.DID) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByDID", ctx, did)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByDID indicates an expected call of FindByDID.
+func (mr *MockSubjectManagerMockRecorder) FindByDID(ctx, did any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByDID", reflect.TypeOf((*MockSubjectManager)(nil).FindByDID), ctx, did)
+}
+
 // FindServices mocks base method.
 func (m *MockSubjectManager) FindServices(ctx context.Context, subject string, serviceType *string) ([]did.Service, error) {
 	m.ctrl.T.Helper()

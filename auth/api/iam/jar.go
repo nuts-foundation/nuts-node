@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto"
 	"net/url"
+	"slices"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -36,7 +37,7 @@ type requestObjectModifier func(claims map[string]string)
 
 type jarRequest struct {
 	Claims           oauthParameters `json:"claims"`
-	Client           did.DID         `json:"client_id"`
+	Client           string          `json:"client_id"`
 	RequestURIMethod string          `json:"request_uri_method"`
 }
 
@@ -46,6 +47,7 @@ type jar struct {
 	auth        auth.AuthenticationServices
 	jwtSigner   cryptoNuts.JWTSigner
 	keyResolver resolver.KeyResolver
+	resolver    resolver.DIDResolver
 }
 
 type JAR interface {
@@ -55,7 +57,7 @@ type JAR interface {
 	//  - iss
 	//  - aud (if server is not nil)
 	// the request_uri_method is determined by the presence of a server (get) or not (post)
-	Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest
+	Create(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest
 	// Sign the jarRequest, which is available on jarRequest.Token.
 	// Returns an error if the jarRequest already contains a signed JWT.
 	// TODO: check if signature type of client is supported by the AS/wallet.
@@ -67,20 +69,20 @@ type JAR interface {
 	Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error)
 }
 
-func (j jar) Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
-	return createJarRequest(client, authServerURL, modifier)
+func (j jar) Create(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
+	return createJarRequest(client, clientID, audience, modifier)
 }
 
-func createJarRequest(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+func createJarRequest(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
 	requestURIMethod := "post"
 	// default claims for JAR
 	params := map[string]string{
 		jwt.IssuerKey:       client.String(),
-		oauth.ClientIDParam: client.String(),
+		oauth.ClientIDParam: clientID,
 	}
-	if authServerURL != "" {
+	if audience != "" {
 		requestURIMethod = "get"
-		params[jwt.AudienceKey] = authServerURL
+		params[jwt.AudienceKey] = audience
 	}
 
 	// additional claims can be added by the caller
@@ -92,14 +94,14 @@ func createJarRequest(client did.DID, authServerURL string, modifier requestObje
 	}
 	return jarRequest{
 		Claims:           oauthParams,
-		Client:           client,
+		Client:           clientID,
 		RequestURIMethod: requestURIMethod,
 	}
 }
 
 func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
-	clientID := claims.get(oauth.ClientIDParam)
-	clientDID, err := did.ParseDID(clientID)
+	issuerID := claims.get(jwt.IssuerKey)
+	clientDID, err := did.ParseDID(issuerID)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +171,19 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 		// very unlikely since the key has already been resolved
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid signer", InternalError: err}
 	}
-	if signer.DID.String() != clientId {
+	// resolve DID and check if clientId is in AlsoKnownAs
+	doc, _, err := j.resolver.Resolve(signer.DID, nil)
+	if err != nil {
+		if resolver.IsFunctionalResolveError(err) {
+			return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid signer", InternalError: err}
+		}
+		return nil, oauth.OAuth2Error{Code: oauth.ServerError, Description: "server error", InternalError: err}
+	}
+	akaAsString := make([]string, len(doc.AlsoKnownAs))
+	for i, aka := range doc.AlsoKnownAs {
+		akaAsString[i] = aka.String()
+	}
+	if !slices.Contains(akaAsString, clientId) {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "client_id does not match signer of authorization request"}
 	}
 	return params, nil

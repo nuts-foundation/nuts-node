@@ -72,6 +72,11 @@ func (sqlDoc DIDDocument) GenerateDIDDocument() (did.Document, error) {
 			others = append(others, *uri)
 		}
 	}
+	clientID, err := ssi.ParseURI(sqlDoc.DID.ClientID)
+	if err != nil {
+		return did.Document{}, err
+	}
+	others = append(others, *clientID)
 	document := did.Document{
 		AlsoKnownAs: others,
 		Context: []interface{}{

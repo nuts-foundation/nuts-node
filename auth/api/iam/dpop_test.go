@@ -49,19 +49,19 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	}
 	requestObject := CreateDPoPProofRequestObject{
 		Body: &requestBody,
-		Did:  webDID.String(),
+		Did:  holderDID.String(),
 	}
 	didDocument := did.Document{ID: holderDID}
-	vmId := did.MustParseDIDURL(webDID.String() + "#key1")
+	vmId := did.MustParseDIDURL(holderDID.String() + "#key1")
 	key, _ := spi.GenerateKeyPair()
-	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, webDID, key.Public())
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, holderDID, key.Public())
 	didDocument.AddAssertionMethod(vm)
 	dpopToken := dpop.New(*request)
 	dpopToken.GenerateProof(accesstoken)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
 			assert.Equal(t, dpopToken.String(), token.String())
 			return "dpop", nil
@@ -83,7 +83,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("invalid method", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
 		requestBody.Htm = "\\"
 		defer (func() { requestBody.Htm = "GET" })()
 
@@ -111,7 +111,7 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("did not owned", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(false, nil)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
 
@@ -119,8 +119,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("proof error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), holderDID).Return(true, nil)
+		ctx.resolver.EXPECT().Resolve(holderDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)

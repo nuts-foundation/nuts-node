@@ -54,7 +54,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:               "first second",
 				PreauthorizedUser:   &userDetails,
-				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
+				AuthorizationServer: "https://example.com/oauth2/verifier",
 			},
 			Subject: holderSubjectID,
 		},
@@ -72,16 +72,17 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 	didDocument.AddAssertionMethod(vm)
 
 	serverMetadata := oauth.AuthorizationServerMetadata{
+		Issuer:                     verifierClientID,
 		AuthorizationEndpoint:      "https://example.com/authorize",
 		TokenEndpoint:              "https://example.com/token",
-		ClientIdSchemesSupported:   []string{didClientIDScheme},
+		ClientIdSchemesSupported:   []string{entityClientIDScheme},
 		VPFormats:                  oauth.DefaultOpenIDSupportedFormats(),
 		RequireSignedRequestObject: true,
 	}
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Aholder&request_uri=https://example.com/oauth2/" + holderDID.String() + "/request.jwt/&request_uri_method=get"
+		expectedURL := "https://example.com/authorize?client_id=https://example.com/oauth2/holder&request_uri=https://example.com/oauth2/holder/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		httpRequest := &http.Request{
@@ -102,9 +103,9 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			employeeCredentialOptions = o
 			return &t, nil
 		})
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(holderDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
-			req := createJarRequest(client, authServerURL, modifier)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil)
+		ctx.jar.EXPECT().Create(holderDID, holderURL.String(), verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, clientID string, authServerURL string, modifier requestObjectModifier) jarRequest {
+			req := createJarRequest(client, clientID, authServerURL, modifier)
 			params := req.Claims
 
 			// check the parameters
@@ -210,7 +211,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no authorization_endpoint found for https://example.com/oauth2/verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
@@ -227,7 +228,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err := ctx.client.handleUserLanding(echoCtx)
 
-		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/did:web:example.com:iam:verifier")
+		assert.EqualError(t, err, "no token_endpoint found for https://example.com/oauth2/verifier")
 		// token has been burned
 		assert.ErrorIs(t, ctx.client.userRedirectStore().Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})

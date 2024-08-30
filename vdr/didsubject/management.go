@@ -93,6 +93,10 @@ type SubjectManager interface {
 	// Exists returns true if the subject exists
 	Exists(ctx context.Context, subject string) (bool, error)
 
+	// FindByDID returns the subject for the given DID.
+	// temporary method untill all APIs use subjects and not DIDs.
+	FindByDID(ctx context.Context, did did.DID) (string, error)
+
 	// CreateService creates a new service in DID documents for the given subject.
 	// The service ID will be generated.
 	CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error)

@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
@@ -46,31 +47,32 @@ func TestJar_Create(t *testing.T) {
 		modifier := func(claims map[string]string) {
 			claims["requestObjectModifier"] = "works"
 		}
-		req := jar{}.Create(verifierDID, holderURL, modifier)
+		req := jar{}.Create(verifierDID, verifierURL.String(), holderURL.String(), modifier)
 		assert.Equal(t, "get", req.RequestURIMethod)
-		assert.Equal(t, verifierDID, req.Client)
+		assert.Equal(t, verifierClientID, req.Client)
 		assert.Len(t, req.Claims, 4)
-		assert.Equal(t, verifierDID.String(), req.Claims[oauth.ClientIDParam])
+		assert.Equal(t, verifierClientID, req.Claims[oauth.ClientIDParam])
 		assert.Equal(t, verifierDID.String(), req.Claims[jwt.IssuerKey])
-		assert.Equal(t, holderURL, req.Claims[jwt.AudienceKey])
+		assert.Equal(t, holderClientID, req.Claims[jwt.AudienceKey])
 		assert.Equal(t, "works", req.Claims["requestObjectModifier"])
 	})
 	t.Run("request_uri_method=post", func(t *testing.T) {
 		modifier := func(claims map[string]string) {
 			claims[jwt.IssuerKey] = holderDID.String()
 		}
-		req := jar{}.Create(verifierDID, "", modifier)
+		req := jar{}.Create(verifierDID, verifierURL.String(), "", modifier)
 		assert.Equal(t, "post", req.RequestURIMethod)
-		assert.Equal(t, verifierDID, req.Client)
+		assert.Equal(t, verifierClientID, req.Client)
 		assert.Len(t, req.Claims, 2)
 		assert.Equal(t, holderDID.String(), req.Claims[jwt.IssuerKey])
-		assert.Equal(t, verifierDID.String(), req.Claims[oauth.ClientIDParam])
+		assert.Equal(t, verifierClientID, req.Claims[oauth.ClientIDParam])
 		assert.Empty(t, req.Claims[jwt.AudienceKey])
 	})
 }
 func TestJar_Sign(t *testing.T) {
-	clientDID := did.MustParseDID("did:web:example.com:iam:client")
-	claims := oauthParameters{oauth.ClientIDParam: clientDID.String()}
+	clientDID := did.MustParseDID("did:example:iam:client")
+	clientID := "https://example.com/oauth2/client"
+	claims := oauthParameters{oauth.ClientIDParam: clientID, jwt.IssuerKey: clientDID.String()}
 	keyID := "this-key"
 	t.Run("ok", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
@@ -110,22 +112,28 @@ func TestJar_Parse(t *testing.T) {
 
 	bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 		jwt.IssuerKey:       holderDID.String(),
-		oauth.ClientIDParam: holderDID.String(),
+		oauth.ClientIDParam: holderClientID,
 	})
 	require.NoError(t, err)
 	token := string(bytes)
 	walletIssuerURL := test.MustParseURL(holderDID.String())
-	ctx := newJarTestCtx(t)
-	verifierMetadata := authorizationServerMetadata(verifierDID, verifierURL, []string{"web"})
+	verifierMetadata := authorizationServerMetadata(verifierURL, []string{"web"})
+	didDocument := did.Document{
+		ID:          holderDID,
+		AlsoKnownAs: []ssi.URI{ssi.MustParseURI(holderClientID)},
+	}
+
 	t.Run("request_uri_method", func(t *testing.T) {
 
 		t.Run("ok - get", func(t *testing.T) {
+			ctx := newJarTestCtx(t)
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
-					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.ClientIDParam:         {holderClientID},
 					oauth.RequestURIParam:       {"request_uri"},
 					oauth.RequestURIMethodParam: {"get"},
 				})
@@ -134,12 +142,14 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - param not supported", func(t *testing.T) {
+			ctx := newJarTestCtx(t)
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
-					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.ClientIDParam:         {holderClientID},
 					oauth.RequestURIParam:       {"request_uri"},
 					oauth.RequestURIMethodParam: {""},
 				})
@@ -148,13 +158,15 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - post", func(t *testing.T) {
-			md := authorizationServerMetadata(holderDID, walletIssuerURL, []string{"web"})
+			ctx := newJarTestCtx(t)
+			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
-					oauth.ClientIDParam:         {holderDID.String()},
+					oauth.ClientIDParam:         {holderClientID},
 					oauth.RequestURIParam:       {"request_uri"},
 					oauth.RequestURIMethodParam: {"post"},
 				})
@@ -163,6 +175,7 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("error - unsupported method", func(t *testing.T) {
+			ctx := newJarTestCtx(t)
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
 					oauth.ClientIDParam:         {holderDID.String()},
@@ -175,11 +188,13 @@ func TestJar_Parse(t *testing.T) {
 		})
 	})
 	t.Run("ok - 'request'", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+		ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
-				oauth.ClientIDParam: {holderDID.String()},
+				oauth.ClientIDParam: {holderClientID},
 				oauth.RequestParam:  {token},
 			})
 
@@ -188,6 +203,7 @@ func TestJar_Parse(t *testing.T) {
 	})
 	t.Run("server error", func(t *testing.T) {
 		t.Run("get", func(t *testing.T) {
+			ctx := newJarTestCtx(t)
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
@@ -198,7 +214,8 @@ func TestJar_Parse(t *testing.T) {
 			assert.Nil(t, res)
 		})
 		t.Run("post (made by wallet)", func(t *testing.T) {
-			md := authorizationServerMetadata(holderDID, walletIssuerURL, []string{"web"})
+			ctx := newJarTestCtx(t)
+			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
@@ -211,6 +228,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 	})
 	t.Run("error - both 'request' and 'request_uri'", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.RequestParam:    {"request"},
@@ -221,12 +239,14 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - no 'request' or 'request_uri'", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata, map[string][]string{})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "authorization request are required to use signed request objects (RFC9101)")
 		assert.Nil(t, res)
 	})
 	t.Run("error - request signature validation failed", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
 				oauth.ClientIDParam: {"invalid"},
@@ -237,6 +257,7 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
@@ -249,11 +270,13 @@ func TestJar_Parse(t *testing.T) {
 		assert.Nil(t, res)
 	})
 	t.Run("error - client_id does not match signer", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
 		bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 			jwt.IssuerKey:       verifierDID.String(),
 			oauth.ClientIDParam: verifierDID.String(),
 		})
 		require.NoError(t, err)
+		ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&did.Document{ID: holderDID}, nil, nil)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
@@ -283,6 +306,7 @@ type testJarCtx struct {
 	iamClient   *iam.MockClient
 	jwtSigner   *cryptoNuts.MockJWTSigner
 	keyResolver *resolver.MockKeyResolver
+	resolver    *resolver.MockDIDResolver
 }
 
 func newJarTestCtx(t testing.TB) testJarCtx {
@@ -291,16 +315,19 @@ func newJarTestCtx(t testing.TB) testJarCtx {
 	mockAuth := auth.NewMockAuthenticationServices(ctrl)
 	mockAuth.EXPECT().IAMClient().Return(mockIAMClient).AnyTimes()
 	mockSigner := cryptoNuts.NewMockJWTSigner(ctrl)
-	mockResolver := resolver.NewMockKeyResolver(ctrl)
+	mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
+	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	return testJarCtx{
 		jar: &jar{
 			auth:        mockAuth,
 			jwtSigner:   mockSigner,
-			keyResolver: mockResolver,
+			keyResolver: mockKeyResolver,
+			resolver:    mockResolver,
 		},
 		auth:        mockAuth,
 		iamClient:   mockIAMClient,
-		keyResolver: mockResolver,
+		keyResolver: mockKeyResolver,
 		jwtSigner:   mockSigner,
+		resolver:    mockResolver,
 	}
 }
