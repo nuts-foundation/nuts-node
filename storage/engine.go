@@ -22,8 +22,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/microsoft/go-mssqldb/azuread"
-	_ "github.com/microsoft/go-mssqldb/azuread"
 	"os"
 	"path"
 	"strings"
@@ -31,6 +29,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
@@ -247,7 +246,7 @@ func (e *engine) initSQLDatabase() error {
 			return err
 		}
 		dialect = goose.DialectPostgres
-	case azuread.DriverName:
+	case "azuresql":
 		fallthrough
 	case "sqlserver":
 		err = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
