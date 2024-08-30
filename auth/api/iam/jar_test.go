@@ -114,7 +114,7 @@ func TestJar_Parse(t *testing.T) {
 	})
 	require.NoError(t, err)
 	token := string(bytes)
-	walletIssuerURL := test.MustParseURL(walletDID.String())
+	walletIssuerURL := test.MustParseURL(holderDID.String())
 	ctx := newJarTestCtx(t)
 	verifierMetadata := authorizationServerMetadata(verifierDID, verifierURL, []string{"web"})
 	t.Run("request_uri_method", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestJar_Parse(t *testing.T) {
 			require.NotNil(t, res)
 		})
 		t.Run("ok - post", func(t *testing.T) {
-			md := authorizationServerMetadata(walletDID, walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(holderDID, walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
@@ -198,7 +198,7 @@ func TestJar_Parse(t *testing.T) {
 			assert.Nil(t, res)
 		})
 		t.Run("post (made by wallet)", func(t *testing.T) {
-			md := authorizationServerMetadata(walletDID, walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(holderDID, walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{

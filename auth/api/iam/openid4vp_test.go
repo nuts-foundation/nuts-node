@@ -157,7 +157,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		RedirectURI: "https://example.com/iam/holder/cb",
 		OtherDID:    &verifierDID,
 	}
-	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderDID)
+	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
 	t.Run("invalid client_id", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
@@ -297,7 +297,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -310,7 +310,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
 		expectPostError(t, ctx, oauth.InvalidRequest, "wallet does not contain the required credentials (PD ID: , wallet: did:web:example.com:iam:holder)", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
@@ -813,7 +813,7 @@ func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response", "").Return("", assert.AnError)
 
-		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), walletDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
+		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), holderDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
 
 		assert.Equal(t, assert.AnError, err)
 	})

@@ -33,8 +33,8 @@ type OpenID4VP struct {
 	iamClient iam.ClientInterface
 }
 
-func (o OpenID4VP) RequesterUserAccessToken(requesterDID, verifierDID did.DID, user iam.UserDetails, scope string) (*iam.RedirectResponseWithID, error) {
-	httpResponse, err := o.iamClient.RequestUserAccessToken(o.ctx, requesterDID.String(), iam.RequestUserAccessTokenJSONRequestBody{
+func (o OpenID4VP) RequesterUserAccessToken(subject string, verifierDID did.DID, user iam.UserDetails, scope string) (*iam.RedirectResponseWithID, error) {
+	httpResponse, err := o.iamClient.RequestUserAccessToken(o.ctx, subject, iam.RequestUserAccessTokenJSONRequestBody{
 		PreauthorizedUser:   &user,
 		RedirectUri:         "https://nodeA", // doesn't really matter where we redirect to
 		Scope:               scope,

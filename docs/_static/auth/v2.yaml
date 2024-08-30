@@ -8,7 +8,7 @@ servers:
   - url: http://localhost:8080
     description: For public-facing endpoints.
 paths:
-  /internal/auth/v2/{did}/request-service-access-token:
+  /internal/auth/v2/{subject}/request-service-access-token:
     post:
       operationId: requestServiceAccessToken
       summary: Start the authorization flow to get an access token from a remote authorization server.
@@ -23,15 +23,15 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subject
           in: path
           required: true
-          description: The DID of the requester, a Wallet owner at this node.
+          description: Subject of the requester, a wallet owner at this node.
           content:
             plain/text:
               schema:
                 type: string
-                example: did:web:example.com
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -47,7 +47,7 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{did}/request-user-access-token:
+  /internal/auth/v2/{subject}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
       summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
@@ -63,15 +63,15 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subject
           in: path
           required: true
-          description: The DID of the requester, a wallet owner at this node.
+          description: Subject of the requester, a wallet owner at this node.
           content:
             plain/text:
               schema:
                 type: string
-                example: did:web:example.com
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -236,7 +236,7 @@ paths:
                 $ref: "#/components/schemas/DPoPValidateResponse"
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{did}/request-credential:
+  /internal/auth/v2/{subject}/request-credential:
     post:
       operationId: requestOpenid4VCICredentialIssuance
       summary: Start the Oid4VCI authorization flow.
@@ -250,15 +250,15 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subject
           in: path
           required: true
-          description: The DID of the requester, a Wallet owner at this node.
+          description: Subject ID of the wallet owner at this node.
           content:
             plain/text:
               schema:
                 type: string
-                example: did:web:example.com
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -268,7 +268,12 @@ paths:
                 - issuer
                 - authorization_details
                 - redirect_uri
+                - wallet_did
               properties:
+                wallet_did:
+                  type: string
+                  description: The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+                  example: did:web:example.com
                 issuer:
                   type: string
                   description: |

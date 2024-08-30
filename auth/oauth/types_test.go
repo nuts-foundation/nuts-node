@@ -91,3 +91,11 @@ func TestTokenResponse_Get(t *testing.T) {
 		assert.Empty(t, tr.Get("c_nonce"))
 	})
 }
+
+func TestAuthorizationServerMetadata_SupportsClientIDScheme(t *testing.T) {
+	m := AuthorizationServerMetadata{
+		ClientIdSchemesSupported: []string{"did"},
+	}
+	assert.True(t, m.SupportsClientIDScheme("did"))
+	assert.False(t, m.SupportsClientIDScheme("web"))
+}

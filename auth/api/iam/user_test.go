@@ -42,18 +42,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var walletDID = did.MustParseDID("did:web:example.com:iam:123")
-var userDID = did.MustParseDID("did:jwk:really-a-jwk")
-
-var sessionCookie = http.Cookie{
-	Name:     "__Host-SID",
-	Value:    "sessionID",
-	Path:     "/",
-	Secure:   true,
-	HttpOnly: true,
-	SameSite: http.SameSiteStrictMode,
-}
-
 func TestWrapper_handleUserLanding(t *testing.T) {
 	userDetails := UserDetails{
 		Id:   "test",
@@ -61,25 +49,25 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		Role: "Caregiver",
 	}
 	redirectSession := RedirectSession{
-		OwnDID: walletDID,
+		SubjectID: holderSubjectID,
 		AccessTokenRequest: RequestUserAccessTokenRequestObject{
 			Body: &RequestUserAccessTokenJSONRequestBody{
 				Scope:               "first second",
 				PreauthorizedUser:   &userDetails,
 				AuthorizationServer: "https://example.com/oauth2/did:web:example.com:iam:verifier",
 			},
-			Did: walletDID.String(),
+			Subject: holderSubjectID,
 		},
 	}
 
 	// setup did document and keys
 	vmId := did.DIDURL{
-		DID:             walletDID,
+		DID:             holderDID,
 		Fragment:        "key",
 		DecodedFragment: "key",
 	}
 	key, _ := spi.GenerateKeyPair()
-	didDocument := did.Document{ID: walletDID}
+	didDocument := did.Document{ID: holderDID}
 	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, did.DID{}, key.Public())
 	didDocument.AddAssertionMethod(vm)
 
@@ -93,13 +81,13 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3A123&request_uri=https://example.com/oauth2/" + webDID.String() + "/request.jwt/&request_uri_method=get"
+		expectedURL := "https://example.com/authorize?client_id=did%3Aweb%3Aexample.com%3Aiam%3Aholder&request_uri=https://example.com/oauth2/" + holderDID.String() + "/request.jwt/&request_uri_method=get"
 		echoCtx := mock.NewMockContext(ctx.ctrl)
 		echoCtx.EXPECT().QueryParam("token").Return("token")
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, userSession := user.CreateTestSession(context.Background(), walletDID)
+		requestCtx, userSession := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		echoCtx.EXPECT().Redirect(http.StatusFound, gomock.Any()).DoAndReturn(func(_ int, arg1 string) error {
@@ -115,7 +103,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 			return &t, nil
 		})
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), verifierURL.String()).Return(&serverMetadata, nil).Times(2)
-		ctx.jar.EXPECT().Create(webDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+		ctx.jar.EXPECT().Create(holderDID, verifierURL.String(), gomock.Any()).DoAndReturn(func(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, authServerURL, modifier)
 			params := req.Claims
 
@@ -133,7 +121,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 		// check for issued EmployeeCredential in session wallet
 		require.NoError(t, err)
-		assert.Equal(t, walletDID, userSession.TenantDID)
+		require.Equal(t, holderSubjectID, userSession.SubjectID)
 		require.Len(t, userSession.Wallet.Credentials, 1)
 		// check the JWK can be parsed and contains a private key
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
@@ -188,7 +176,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		httpRequest := &http.Request{
 			Host: "example.com",
 		}
-		requestCtx, _ := user.CreateTestSession(context.Background(), walletDID)
+		requestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
 		httpRequest = httpRequest.WithContext(requestCtx)
 		echoCtx.EXPECT().Request().MinTimes(1).Return(httpRequest)
 		store := ctx.client.storageEngine.GetSessionDatabase().GetStore(time.Second*5, "user", "redirect")
@@ -203,7 +191,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		assert.ErrorIs(t, store.Get("token", new(RedirectSession)), storage.ErrNotFound)
 	})
 	httpRequest := &http.Request{Host: "example.com"}
-	session, _ := user.CreateTestSession(audit.TestContext(), walletDID)
+	session, _ := user.CreateTestSession(audit.TestContext(), holderSubjectID)
 	httpRequest = httpRequest.WithContext(session)
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)

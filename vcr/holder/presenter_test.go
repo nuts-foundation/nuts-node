@@ -326,7 +326,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)

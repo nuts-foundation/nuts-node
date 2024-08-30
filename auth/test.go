@@ -20,6 +20,7 @@ package auth
 
 import (
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -43,5 +44,6 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	pkiMock.EXPECT().CreateTLSConfig(gomock.Any()).AnyTimes()
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
-	return NewAuthInstance(cfg, vdrInstance, vcrInstance, cryptoInstance, nil, nil, pkiMock)
+	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

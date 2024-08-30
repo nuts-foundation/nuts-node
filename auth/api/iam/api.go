@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -91,19 +92,20 @@ var assetsFS embed.FS
 
 // Wrapper handles OAuth2 flows.
 type Wrapper struct {
-	auth          auth.AuthenticationServices
-	policyBackend policy.PDPBackend
-	storageEngine storage.Engine
-	jsonldManager jsonld.JSONLD
-	vcr           vcr.VCR
-	vdr           vdr.VDR
-	jwtSigner     nutsCrypto.JWTSigner
-	keyResolver   resolver.KeyResolver
-	jar           JAR
+	auth           auth.AuthenticationServices
+	policyBackend  policy.PDPBackend
+	storageEngine  storage.Engine
+	jsonldManager  jsonld.JSONLD
+	vcr            vcr.VCR
+	vdr            vdr.VDR
+	subjectManager didsubject.SubjectManager
+	jwtSigner      nutsCrypto.JWTSigner
+	keyResolver    resolver.KeyResolver
+	jar            JAR
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 	templates := template.New("oauth2 templates")
 	_, err := templates.ParseFS(assetsFS, "assets/*.html")
@@ -111,14 +113,15 @@ func New(
 		panic(err)
 	}
 	return &Wrapper{
-		auth:          authInstance,
-		policyBackend: policyBackend,
-		storageEngine: storageEngine,
-		vcr:           vcrInstance,
-		vdr:           vdrInstance,
-		jsonldManager: jsonldManager,
-		jwtSigner:     jwtSigner,
-		keyResolver:   resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
+		auth:           authInstance,
+		policyBackend:  policyBackend,
+		storageEngine:  storageEngine,
+		vcr:            vcrInstance,
+		vdr:            vdrInstance,
+		subjectManager: subjectManager,
+		jsonldManager:  jsonldManager,
+		jwtSigner:      jwtSigner,
+		keyResolver:    resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
 		jar: &jar{
 			auth:        authInstance,
 			jwtSigner:   jwtSigner,
@@ -139,7 +142,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 	}))
 	// The following handlers are used for the user facing OAuth2 flows.
-	router.GET("/oauth2/:did/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
+	router.GET("/oauth2/:subjectID/user", r.handleUserLanding, func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			middleware(c, "handleUserLanding")
 			return next(c)
@@ -151,7 +154,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		Skipper: func(c echo.Context) bool {
 			// The following URLs require a user session:
 			paths := []string{
-				"/oauth2/:did/user",
+				"/oauth2/:subjectID/user",
 				"/oauth2/:did/authorize",
 				"/oauth2/:did/callback",
 			}
@@ -164,10 +167,9 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 		},
 		TimeOut: time.Hour,
 		Store:   r.storageEngine.GetSessionDatabase().GetStore(time.Hour, "user", "session"),
-		CookiePath: func(tenantDID did.DID) string {
-			baseURL, _ := createOAuth2BaseURL(tenantDID)
-			// error only happens on invalid did:web DID, which can't happen here
-			return baseURL.Path
+		CookiePath: func(subjectID string) string {
+			// TODO: (#3264) make this /oauth2/:subjectID when OAuth2 endpoints are refactored. Currently not possible, as /authorize and /callback are still using <did>
+			return "/"
 		},
 	}.Handle)
 }
@@ -197,6 +199,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		holder.ErrNoCredentials:             http.StatusPreconditionFailed,
+		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
 	})
 }
 
@@ -695,7 +698,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	err := r.subjectExists(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +712,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, *requestHolder, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, request.Subject, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -718,7 +721,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
+	err := r.subjectExists(ctx, request.Subject)
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +753,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
-		OwnDID:             *requestHolder,
+		SubjectID:          request.Subject,
 	})
 	if err != nil {
 		return nil, err
@@ -760,14 +763,8 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 		return nil, err
 	}
 
-	// generate a link to the redirect endpoint
-	webURL, err := createOAuth2BaseURL(*requestHolder)
-	if err != nil {
-		return nil, err
-	}
-	webURL = webURL.JoinPath("user")
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := nutsHttp.AddQueryParams(*webURL, map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*r.auth.PublicURL().JoinPath("oauth2", request.Subject, "user"), map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -910,4 +907,44 @@ func createOAuth2BaseURL(webDID did.DID) (*url.URL, error) {
 	}
 	result = result.JoinPath(basePath, "oauth2", webDID.String())
 	return result, err
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
+	exists, err := r.subjectManager.Exists(ctx, subjectID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return didsubject.ErrSubjectNotFound
+	}
+	return nil
+}
+
+// subjectExists checks whether the given subject is known on the local node.
+func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
+	dids, err := r.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return false, err
+	}
+	for _, d := range dids {
+		if d.Equals(subjectDID) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (r Wrapper) determineClientID(ctx context.Context, authServerMetadata *oauth.AuthorizationServerMetadata, subjectID string) (*did.DID, error) {
+	if !authServerMetadata.SupportsClientIDScheme(didClientIDScheme) {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "authorization server does not support 'did' client_id scheme",
+		}
+	}
+	candidateDIDs, err := r.subjectManager.List(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	return &candidateDIDs[0], nil
 }

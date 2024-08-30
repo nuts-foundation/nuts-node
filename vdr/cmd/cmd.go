@@ -96,7 +96,7 @@ func createCmd() *cobra.Command {
 				err          error
 			)
 			if useV2 {
-				oneOrMoreDoc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
+				_, oneOrMoreDoc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
 			} else {
 				oneOrMoreDoc, err = httpClient(clientConfig).Create(createRequest)
 			}
