@@ -79,9 +79,6 @@ var grantTypesSupported = []string{oauth.AuthorizationCodeGrantType, oauth.VpTok
 
 var clientIdSchemesSupported = []string{entityClientIDScheme}
 
-// didClientIDScheme is the client_id_scheme value for DIDs
-const didClientIDScheme = "did"
-
 const entityClientIDScheme = "entity_id"
 
 const (

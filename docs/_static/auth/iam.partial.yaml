@@ -18,7 +18,7 @@ paths:
             plain/text:
               schema:
                 type: string
-                example: tenant-123
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -71,7 +71,7 @@ paths:
             plain/text:
               schema:
                 type: string
-                example: tenant-123
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         # Way to specify dynamic query parameters
         # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
         - in: query
@@ -107,7 +107,7 @@ paths:
           plain/text:
             schema:
               type: string
-              example: tenant-123
+              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       - name: id
         in: path
         required: true
@@ -180,7 +180,7 @@ paths:
             plain/text:
               schema:
                 type: string
-                example: tenant-123
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: code
           in: query
           description: The authorization code received from the authorization server.
@@ -231,7 +231,7 @@ paths:
             plain/text:
               schema:
                 type: string
-                example: tenant-123
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: scope
           in: query
           required: true
@@ -329,7 +329,7 @@ paths:
           description: The metadata subject.
           schema:
             type: string
-            example: tenant-123
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK
@@ -360,7 +360,7 @@ paths:
           description: The subject identifier part of the client_id.
           schema:
             type: string
-            example: tenant-123
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK
@@ -398,7 +398,7 @@ paths:
             plain/text:
               schema:
                 type: string
-                example: tenant-123
+                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK

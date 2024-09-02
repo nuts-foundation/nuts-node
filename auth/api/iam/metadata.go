@@ -81,8 +81,7 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 		SoftwareID:              softwareID,      // nuts-node-refimpl
 		SoftwareVersion:         softwareVersion, // version tag or "unknown"
 		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
-		//ClientIdScheme:          didClientIDScheme,
-		ClientIdScheme: entityClientIDScheme,
+		ClientIdScheme:          entityClientIDScheme,
 	}
 }
 

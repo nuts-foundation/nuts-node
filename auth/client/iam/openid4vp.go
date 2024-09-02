@@ -260,10 +260,11 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 		for _, curr := range credentials {
 			additionalCredentials[subjectDID] = append(additionalCredentials[subjectDID], autoCorrectSelfAttestedCredential(curr, subjectDID))
 		}
-		// We can fulfill the request with the VC set of this DID
-		break
 	}
 	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalCredentials, *presentationDefinition, metadata.VPFormatsSupported, params)
+	if err != nil {
+		return nil, err
+	}
 	if vp == nil {
 		// No DID has the right credentials to present
 		return nil, holder.ErrNoCredentials

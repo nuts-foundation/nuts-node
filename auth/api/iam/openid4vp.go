@@ -180,7 +180,6 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		values[oauth.ResponseTypeParam] = oauth.VPTokenResponseType
 		// todo
 		values[oauth.ClientIDSchemeParam] = entityClientIDScheme
-		//values[oauth.ClientIDSchemeParam] = didClientIDScheme
 		values[oauth.ResponseURIParam] = callbackURL.String()
 		values[oauth.PresentationDefUriParam] = presentationDefinitionURI.String()
 		values[oauth.ClientMetadataURIParam] = metadataURL.String()

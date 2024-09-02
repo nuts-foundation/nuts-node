@@ -734,25 +734,6 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 	return PresentationDefinition200JSONResponse(result), nil
 }
 
-// toOwnedDIDForOAuth2 is like toOwnedDID but wraps the errors in oauth.OAuth2Error to make sure they're returned as specified by the OAuth2 RFC.
-func (r Wrapper) toOwnedDIDForOAuth2(ctx context.Context, didAsString string) (*did.DID, error) {
-	result, err := r.toOwnedDID(ctx, didAsString)
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "DID resolution failed") {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.ServerError,
-				Description: err.Error(),
-			}
-		} else {
-			return nil, oauth.OAuth2Error{
-				Code:        oauth.InvalidRequest,
-				Description: err.Error(),
-			}
-		}
-	}
-	return result, nil
-}
-
 func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, error) {
 	ownDID, err := did.ParseDID(didAsString)
 	if err != nil {
