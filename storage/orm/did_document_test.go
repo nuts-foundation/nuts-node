@@ -43,5 +43,5 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 	require.Len(t, didDoc.Service, 1)
 	assert.Equal(t, "#1", didDoc.VerificationMethod[0].ID.String())
 	assert.Equal(t, "#2", didDoc.Service[0].ID.String())
-	assert.Len(t, didDoc.AlsoKnownAs, 2)
+	assert.Len(t, didDoc.AlsoKnownAs, 1)
 }

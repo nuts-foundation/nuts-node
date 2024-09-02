@@ -37,6 +37,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -101,8 +102,8 @@ type Wrapper struct {
 	vdr            vdr.VDR
 	jwtSigner      nutsCrypto.JWTSigner
 	keyResolver    resolver.KeyResolver
-	jar            JAR
 	subjectManager didsubject.SubjectManager
+	_jar           atomic.Value
 }
 
 func New(
@@ -114,6 +115,7 @@ func New(
 	if err != nil {
 		panic(err)
 	}
+	keyResolver := resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}
 	return &Wrapper{
 		auth:           authInstance,
 		policyBackend:  policyBackend,
@@ -123,14 +125,19 @@ func New(
 		subjectManager: subjectManager,
 		jsonldManager:  jsonldManager,
 		jwtSigner:      jwtSigner,
-		keyResolver:    resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
-		jar: &jar{
-			auth:        authInstance,
-			jwtSigner:   jwtSigner,
-			keyResolver: resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()},
-			resolver:    vdrInstance.Resolver(),
-		},
+		keyResolver:    keyResolver,
 	}
+}
+
+func (r Wrapper) jar() JAR {
+	// so we can mock it in tests
+	var current JAR
+	var ok bool
+	if current, ok = r._jar.Load().(JAR); !ok {
+		current = NewJAR(r.auth, r.jwtSigner, r.keyResolver, r.auth.IAMClient())
+		r._jar.Store(current)
+	}
+	return current
 }
 
 func (r Wrapper) Routes(router core.EchoRouter) {
@@ -235,7 +242,6 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		// todo pass clientID? (2b added to spec)
 		return r.handleS2SAccessTokenRequest(ctx, request.Subject, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
@@ -457,7 +463,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // The caller must ensure ownDID is actually owned by this node.
 func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, ownMetadata oauth.AuthorizationServerMetadata, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.jar.Parse(ctx, ownMetadata, request.Query())
+	requestObject, err := r.jar().Parse(ctx, ownMetadata, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
@@ -523,7 +529,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 	}
 
 	// TODO: supported signature types should be checked
-	token, err := r.jar.Sign(ctx, ro.Claims)
+	token, err := r.jar().Sign(ctx, ro.Claims)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
@@ -577,7 +583,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 	}
 
 	// TODO: supported signature types should be checked
-	token, err := r.jar.Sign(ctx, ro.Claims)
+	token, err := r.jar().Sign(ctx, ro.Claims)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
@@ -601,7 +607,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 	return OAuthAuthorizationServerMetadata200JSONResponse(*md), nil
 }
 
-func (r Wrapper) oauthAuthorizationServerMetadata(clientID *url.URL) (*oauth.AuthorizationServerMetadata, error) {
+func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
 	md := authorizationServerMetadata(clientID, r.vdr.SupportedMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
@@ -618,7 +624,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 
 	identityURL := r.subjectToBaseURL(request.Subject)
 
-	return OAuthClientMetadata200JSONResponse(clientMetadata(*identityURL)), nil
+	return OAuthClientMetadata200JSONResponse(clientMetadata(identityURL)), nil
 }
 
 func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error) {
@@ -896,7 +902,7 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, subject string,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar.Create(*clientDID, clientID.String(), audience, modifier)
+	requestObj := r.jar().Create(*clientDID, clientID.String(), audience, modifier)
 	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
@@ -937,12 +943,13 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, oauthRequestObjectKey...)
 }
 
-func (r Wrapper) subjectToBaseURL(subject string) *url.URL {
+func (r Wrapper) subjectToBaseURL(subject string) url.URL {
+	u := &url.URL{}
 	publicURL := r.auth.PublicURL()
-	if publicURL == nil {
-		return nil
+	if publicURL != nil {
+		u = publicURL.JoinPath("oauth2", subject)
 	}
-	return publicURL.JoinPath("oauth2", subject)
+	return *u
 }
 
 // subjectExists checks whether the given subject is known on the local node.

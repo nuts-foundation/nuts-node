@@ -132,9 +132,9 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
-	checkURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := checkURL.String()
-	checkURL = checkURL.JoinPath(oauth.CallbackPath)
+	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
+	clientID := baseURL.String()
+	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
 	clientDID, err := r.determineClientDID(ctx, *oauthSession.AuthorizationServerMetadata, *oauthSession.OwnSubject)

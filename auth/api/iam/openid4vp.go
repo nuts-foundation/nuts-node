@@ -93,7 +93,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, subject s
 	// additional JAR checks
 	// check if the audience is the verifier
 	if params.get(jwt.AudienceKey) != clientID.String() {
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, expected: %s, was: %s", clientID, params.get(jwt.AudienceKey))), redirectURL)
+		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, expected: %s, was: %s", clientID.String(), params.get(jwt.AudienceKey))), redirectURL)
 	}
 	// we require PKCE (RFC7636) for authorization code flows
 	// check code_challenge and code_challenge_method
@@ -178,7 +178,6 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 
 	modifier := func(values map[string]string) {
 		values[oauth.ResponseTypeParam] = oauth.VPTokenResponseType
-		// todo
 		values[oauth.ClientIDSchemeParam] = entityClientIDScheme
 		values[oauth.ResponseURIParam] = callbackURL.String()
 		values[oauth.PresentationDefUriParam] = presentationDefinitionURI.String()
@@ -298,9 +297,8 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, subject
 	if err != nil {
 		return nil, err
 	}
+	// same behaviour as determineClientDID
 	walletDID := candidateDIDs[0]
-	// todo
-	// walletDID, err := r.determineClientDID(ctx, *metadata, subject)
 	if walletOwnerType == pe.WalletOwnerUser {
 		// User wallet
 		var privateKey jwk.Key
@@ -733,9 +731,9 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	checkURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := checkURL.String()
-	checkURL = checkURL.JoinPath(oauth.CallbackPath)
+	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
+	clientID := baseURL.String()
+	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)

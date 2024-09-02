@@ -132,6 +132,6 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		// in did document (from Raw)
 		didDoc, err := latest.ToDIDDocument()
 		require.NoError(t, err)
-		assert.Len(t, didDoc.AlsoKnownAs, 2)
+		assert.Len(t, didDoc.AlsoKnownAs, 1)
 	})
 }

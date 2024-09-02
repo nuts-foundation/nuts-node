@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(issuerURL url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
@@ -91,6 +91,6 @@ func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods 
 		IssuedAt:       time.Now().Unix(),
 		Subject:        issuerURL.String(),
 		JWKs:           jwkSet,
-		OpenIDProvider: authorizationServerMetadata(&issuerURL, supportedDIDMethods),
+		OpenIDProvider: authorizationServerMetadata(issuerURL, supportedDIDMethods),
 	}
 }

@@ -6,7 +6,6 @@ create table did
     -- id is the fully qualified DID
     id varchar(370) not null,
     subject varchar(370) not null,
-    client_id varchar(255) not null,
     primary key (id)
 );
 

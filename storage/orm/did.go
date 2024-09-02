@@ -24,10 +24,9 @@ import (
 
 // DID is the gorm representation of the DID table
 type DID struct {
-	ID       string `gorm:"primaryKey"`
-	Subject  string `gorm:"column:subject"`
-	Aka      []DID  `gorm:"foreignKey:Subject;references:Subject"`
-	ClientID string `gorm:"column:client_id"`
+	ID      string `gorm:"primaryKey"`
+	Subject string `gorm:"column:subject"`
+	Aka     []DID  `gorm:"foreignKey:Subject;references:Subject"`
 }
 
 func (d DID) TableName() string {

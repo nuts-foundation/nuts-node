@@ -23,7 +23,7 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	ssi "github.com/nuts-foundation/go-did"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
@@ -109,6 +109,10 @@ func TestJar_Parse(t *testing.T) {
 	// setup did document and keys
 	privateKey, _ := spi.GenerateKeyPair()
 	kid := fmt.Sprintf("%s#%s", holderDID.String(), "key")
+	jwkKey, _ := jwk.FromRaw(privateKey.Public())
+	jwkKey.Set(jwk.KeyIDKey, kid)
+	jwkSet := jwk.NewSet()
+	_ = jwkSet.AddKey(jwkKey)
 
 	bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 		jwt.IssuerKey:       holderDID.String(),
@@ -117,19 +121,17 @@ func TestJar_Parse(t *testing.T) {
 	require.NoError(t, err)
 	token := string(bytes)
 	walletIssuerURL := test.MustParseURL(holderDID.String())
-	verifierMetadata := authorizationServerMetadata(verifierURL, []string{"web"})
-	didDocument := did.Document{
-		ID:          holderDID,
-		AlsoKnownAs: []ssi.URI{ssi.MustParseURI(holderClientID)},
+	verifierMetadata := authorizationServerMetadata(*verifierURL, []string{"web"})
+	configuration := &oauth.OpenIDConfiguration{
+		JWKs: jwkSet,
 	}
 
 	t.Run("request_uri_method", func(t *testing.T) {
-
 		t.Run("ok - get", func(t *testing.T) {
 			ctx := newJarTestCtx(t)
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
-			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
+			ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
@@ -145,7 +147,7 @@ func TestJar_Parse(t *testing.T) {
 			ctx := newJarTestCtx(t)
 			ctx.iamClient.EXPECT().RequestObjectByGet(context.Background(), "request_uri").Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
-			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
+			ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 				map[string][]string{
@@ -159,10 +161,10 @@ func TestJar_Parse(t *testing.T) {
 		})
 		t.Run("ok - post", func(t *testing.T) {
 			ctx := newJarTestCtx(t)
-			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(*walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
-			ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
+			ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
 
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
@@ -190,7 +192,7 @@ func TestJar_Parse(t *testing.T) {
 	t.Run("ok - 'request'", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
-		ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&didDocument, nil, nil)
+		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
@@ -215,7 +217,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 		t.Run("post (made by wallet)", func(t *testing.T) {
 			ctx := newJarTestCtx(t)
-			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(*walletIssuerURL, []string{"web"})
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{
@@ -276,16 +278,52 @@ func TestJar_Parse(t *testing.T) {
 			oauth.ClientIDParam: verifierDID.String(),
 		})
 		require.NoError(t, err)
-		ctx.resolver.EXPECT().Resolve(holderDID, nil).Return(&did.Document{ID: holderDID}, nil, nil)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 
 		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
 			map[string][]string{
-				oauth.ClientIDParam: {verifierDID.String()},
+				oauth.ClientIDParam: {verifierClientID},
 				oauth.RequestParam:  {string(bytes)},
 			})
 
-		requireOAuthError(t, err, oauth.InvalidRequestObject, "client_id does not match signer of authorization request")
+		requireOAuthError(t, err, oauth.InvalidRequestObject, "invalid client_id claim in signed authorization request")
+		assert.Nil(t, res)
+	})
+	t.Run("error - retrieving OpenID configuration", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(nil, assert.AnError)
+
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
+			map[string][]string{
+				oauth.ClientIDParam: {holderClientID},
+				oauth.RequestParam:  {token},
+			})
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve OpenID configuration")
+		assert.Nil(t, res)
+	})
+	t.Run("error - openID configuration key mismatch", func(t *testing.T) {
+		ctx := newJarTestCtx(t)
+		alternateKey, _ := spi.GenerateKeyPair()
+		jwkKey, _ := jwk.FromRaw(alternateKey.Public())
+		jwkKey.Set(jwk.KeyIDKey, kid)
+		jwkSet := jwk.NewSet()
+		_ = jwkSet.AddKey(jwkKey)
+
+		configuration := &oauth.OpenIDConfiguration{
+			JWKs: jwkSet,
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
+		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
+
+		res, err := ctx.jar.Parse(context.Background(), verifierMetadata,
+			map[string][]string{
+				oauth.ClientIDParam: {holderClientID},
+				oauth.RequestParam:  {token},
+			})
+
+		requireOAuthError(t, err, oauth.InvalidRequestObject, "key mismatch between OpenID configuration and signer key")
 		assert.Nil(t, res)
 	})
 }
@@ -306,7 +344,6 @@ type testJarCtx struct {
 	iamClient   *iam.MockClient
 	jwtSigner   *cryptoNuts.MockJWTSigner
 	keyResolver *resolver.MockKeyResolver
-	resolver    *resolver.MockDIDResolver
 }
 
 func newJarTestCtx(t testing.TB) testJarCtx {
@@ -316,18 +353,16 @@ func newJarTestCtx(t testing.TB) testJarCtx {
 	mockAuth.EXPECT().IAMClient().Return(mockIAMClient).AnyTimes()
 	mockSigner := cryptoNuts.NewMockJWTSigner(ctrl)
 	mockKeyResolver := resolver.NewMockKeyResolver(ctrl)
-	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	return testJarCtx{
 		jar: &jar{
 			auth:        mockAuth,
 			jwtSigner:   mockSigner,
 			keyResolver: mockKeyResolver,
-			resolver:    mockResolver,
+			client:      mockIAMClient,
 		},
 		auth:        mockAuth,
 		iamClient:   mockIAMClient,
 		keyResolver: mockKeyResolver,
 		jwtSigner:   mockSigner,
-		resolver:    mockResolver,
 	}
 }

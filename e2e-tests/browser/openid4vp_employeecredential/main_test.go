@@ -59,7 +59,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		cancel()
 	}()
 
-	_, didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
+	subjectVerifier, didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
 	subjectRequester, didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
 	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		Name: "John Doe",
 		Role: "Accountant",
 	}
-	redirectSession, err := openid4vpClientB.RequesterUserAccessToken(subjectRequester, didVerifier, userDetails, oauth2Scope)
+	redirectSession, err := openid4vpClientB.RequesterUserAccessToken(subjectRequester, subjectVerifier, userDetails, oauth2Scope)
 	require.NoError(t, err)
 	// Navigate browser to redirect URL, which performs the OAuth2 authorization code flow
 	err = chromedp.Run(ctx, chromedp.Navigate(redirectSession.RedirectUri))
@@ -86,7 +86,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	require.True(t, tokenInfo.Active)
 	require.Equal(t, oauth2Scope, *tokenInfo.Scope)
 	// Note to reviewer: audience is empty?
-	require.Equal(t, didRequester.String(), *tokenInfo.ClientId)
+	require.Equal(t, "https://nodeB/oauth2/"+subjectRequester, *tokenInfo.ClientId)
 	require.Equal(t, didVerifier.String(), *tokenInfo.Iss)
 	// Note to reviewer: is "sub" right?
 	require.Equal(t, didVerifier.String(), *tokenInfo.Sub)

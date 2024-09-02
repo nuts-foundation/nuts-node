@@ -49,7 +49,8 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
-	md := authorizationServerMetadata(test.MustParseURL("https://example.com/oauth2/example"), []string{"test"})
+	authServerUrl := test.MustParseURL("https://example.com/oauth2/example")
+	md := authorizationServerMetadata(*authServerUrl, []string{"test"})
 	assert.Equal(t, baseExpected, md)
 }
 

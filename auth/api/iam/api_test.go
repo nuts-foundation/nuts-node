@@ -1406,6 +1406,17 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	subjectManager.EXPECT().Exists(gomock.Any(), verifierSubject).Return(true, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), unknownSubjectID).Return(false, nil).AnyTimes()
 
+	client := &Wrapper{
+		auth:           authnServices,
+		vdr:            mockVDR,
+		subjectManager: subjectManager,
+		vcr:            mockVCR,
+		storageEngine:  storageEngine,
+		policyBackend:  policyInstance,
+		keyResolver:    keyResolver,
+		jwtSigner:      jwtSigner,
+	}
+	client._jar.Store(mockJAR)
 	return &testCtx{
 		ctrl:           ctrl,
 		authnServices:  authnServices,
@@ -1423,16 +1434,6 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		keyResolver:    keyResolver,
 		jwtSigner:      jwtSigner,
 		jar:            mockJAR,
-		client: &Wrapper{
-			auth:           authnServices,
-			vdr:            mockVDR,
-			subjectManager: subjectManager,
-			vcr:            mockVCR,
-			storageEngine:  storageEngine,
-			policyBackend:  policyInstance,
-			keyResolver:    keyResolver,
-			jwtSigner:      jwtSigner,
-			jar:            mockJAR,
-		},
+		client:         client,
 	}
 }

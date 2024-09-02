@@ -74,7 +74,7 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	return oauth.OAuth2Error{
 		Code:          oauth.InvalidRequest,
 		Description:   "presentation audience/domain is missing or does not match",
-		InternalError: fmt.Errorf("expected: %s, got: %v", expected, audience),
+		InternalError: fmt.Errorf("expected: %s, got: %v", expected.String(), audience),
 	}
 }
 
