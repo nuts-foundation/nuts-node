@@ -59,7 +59,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 		cancel()
 	}()
 
-	subjectVerifier, didVerifier, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
+	subjectVerifier, _, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
 	subjectRequester, didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
 	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
 	require.NoError(t, err)
@@ -87,9 +87,9 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	require.Equal(t, oauth2Scope, *tokenInfo.Scope)
 	// Note to reviewer: audience is empty?
 	require.Equal(t, "https://nodeB/oauth2/"+subjectRequester, *tokenInfo.ClientId)
-	require.Equal(t, didVerifier.String(), *tokenInfo.Iss)
+	require.Equal(t, "https://nodeA/oauth2/"+subjectVerifier, *tokenInfo.Iss)
 	// Note to reviewer: is "sub" right?
-	require.Equal(t, didVerifier.String(), *tokenInfo.Sub)
+	require.Equal(t, "https://nodeA/oauth2/"+subjectVerifier, *tokenInfo.Sub)
 	require.NotEmpty(t, tokenInfo.Exp)
 	require.NotEmpty(t, tokenInfo.Iat)
 	// Check the mapped input descriptor fields: for organization credential and employee credential
