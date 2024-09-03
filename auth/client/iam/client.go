@@ -23,11 +23,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -38,8 +42,9 @@ import (
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	strictMode bool
-	httpClient core.HTTPRequestDoer
+	strictMode  bool
+	keyResolver resolver.KeyResolver
+	httpClient  core.HTTPRequestDoer
 }
 
 // OAuthAuthorizationServerMetadata retrieves the OAuth authorization server metadata for the given oauth issuer.
@@ -232,10 +237,8 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 		return nil, err
 	}
 	var configuration oauth.OpenIDConfiguration
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
+	// url already checked
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL.String(), nil)
 	response, err := hb.httpClient.Do(request.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("failed to call endpoint: %w", err)
@@ -247,8 +250,8 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if data, err = core.LimitedReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
-	// todo check kid against something? get keys from somewhere? (issuerURL to keys)
-	token, err := jwt.Parse(data, jwt.WithVerify(false))
+	// kid is checked against did resolver
+	token, err := jwt.Parse(data, jwt.WithKeyProvider(hb.KeyProvider()), jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
@@ -259,11 +262,26 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	// hack, broken iat
 	claims["iat"] = token.IssuedAt().Unix()
 	asJSON, _ := json.Marshal(claims)
-	println("TOKEN ", string(asJSON))
 	if err = json.Unmarshal(asJSON, &configuration); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 	return &configuration, err
+}
+
+func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
+	return func(context context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
+		keyID := signature.ProtectedHeaders().KeyID()
+		publicKey, err := hb.keyResolver.ResolveKeyByID(keyID, nil, resolver.AssertionMethod)
+		if err != nil {
+			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)
+		}
+		alg, err := crypto.SignatureAlgorithm(publicKey)
+		if err != nil {
+			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)
+		}
+		keySink.Key(alg, publicKey)
+		return nil
+	}
 }
 
 // CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as

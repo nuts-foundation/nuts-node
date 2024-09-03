@@ -26,9 +26,11 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -121,6 +123,76 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
 	})
 }
+
+func TestWrapper_OpenIDConfiguration(t *testing.T) {
+	testKey := test2.GenerateECKey()
+	t.Run("ok", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return("kid", testKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, claims interface{}, headers interface{}, kid interface{}) (string, error) {
+			asMap := claims.(map[string]interface{})
+			assert.Equal(t, "https://example.com/oauth2/verifier", asMap["iss"])
+			assert.Len(t, asMap["jwks"], 1)
+			return "token", nil
+		})
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+
+		require.NoError(t, err)
+		assert.IsType(t, OpenIDConfiguration200ApplicationentityStatementJwtResponse{}, res)
+		successResponse := res.(OpenIDConfiguration200ApplicationentityStatementJwtResponse)
+		bodyBytes, err := io.ReadAll(successResponse.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "token", string(bodyBytes))
+	})
+	t.Run("error - subject does not exist", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: unknownSubjectID})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "subject not found")
+		assert.Nil(t, res)
+	})
+	t.Run("error - subject exists returns error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().Exists(gomock.Any(), "error").Return(false, assert.AnError)
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: "error"})
+
+		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		assert.Nil(t, res)
+	})
+	t.Run("error - subject existslist DIDs returns error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().Exists(gomock.Any(), "error").Return(true, nil)
+		ctx.subjectManager.EXPECT().List(gomock.Any(), "error").Return(nil, assert.AnError)
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: "error"})
+
+		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		assert.Nil(t, res)
+	})
+	t.Run("error - key resolution error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return("", nil, assert.AnError)
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+
+		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		assert.Nil(t, res)
+	})
+	t.Run("error - signing error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return("kid", testKey.Public(), nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", assert.AnError)
+
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+
+		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		assert.Nil(t, res)
+	})
+}
+
 func TestWrapper_PresentationDefinition(t *testing.T) {
 	ctx := audit.TestContext()
 	walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}

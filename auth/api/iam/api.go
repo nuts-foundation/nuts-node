@@ -639,7 +639,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	}
 	if !exists {
 		return nil, oauth.OAuth2Error{
-			Code:        "not_found",
+			Code:        oauth.InvalidRequest,
 			Description: "subject not found",
 		}
 	}
@@ -680,22 +680,8 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// we sign with a JWK, the receiving party can verify with the signature but not if the key corresponds to the DID since the DID method might not be supported.
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
-	baseURL := r.auth.PublicURL()
-	if baseURL == nil {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.ServerError,
-			Description: "misconfiguration: missing public URL",
-		}
-	}
-	issuerURL, err := baseURL.Parse("/oauth2/" + request.Subject)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			Description:   "internal server error",
-			InternalError: err,
-		}
-	}
-	configuration := openIDConfiguration(*issuerURL, set, r.vdr.SupportedMethods())
+	issuerURL := r.subjectToBaseURL(request.Subject)
+	configuration := openIDConfiguration(issuerURL, set, r.vdr.SupportedMethods())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)
