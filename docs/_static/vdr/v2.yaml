@@ -91,6 +91,29 @@ paths:
                 $ref: '#/components/schemas/SubjectCreationResult'
         default:
           $ref: '../common/error_response.yaml'
+    get:
+      summary: Lists all subjects and their DIDs.
+      description: |
+        Lists all subjects.
+
+        error returns:
+        * 500 - An error occurred while processing the request
+      operationId: "listSubjects"
+      tags:
+        - Subject
+      responses:
+        "200":
+          description: "List of all subjects and their DIDs."
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}:
     parameters:
       - name: id

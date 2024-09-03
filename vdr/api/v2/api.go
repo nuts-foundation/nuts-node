@@ -131,6 +131,21 @@ func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 		Subject:   subject,
 	}), nil
 }
+func (w *Wrapper) ListSubjects(ctx context.Context, _ ListSubjectsRequestObject) (ListSubjectsResponseObject, error) {
+	subjects, err := w.SubjectManager.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response := make(map[string][]string)
+	for subject, dids := range subjects {
+		didStrings := make([]string, len(dids))
+		for i, curr := range dids {
+			didStrings[i] = curr.String()
+		}
+		response[subject] = didStrings
+	}
+	return ListSubjects200JSONResponse(response), nil
+}
 
 func (w *Wrapper) Deactivate(ctx context.Context, request DeactivateRequestObject) (DeactivateResponseObject, error) {
 	err := w.SubjectManager.Deactivate(ctx, request.Id)
@@ -168,7 +183,7 @@ func (w *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDI
 }
 
 func (w *Wrapper) SubjectDIDs(ctx context.Context, request SubjectDIDsRequestObject) (SubjectDIDsResponseObject, error) {
-	list, err := w.SubjectManager.List(ctx, request.Id)
+	list, err := w.SubjectManager.ListDIDs(ctx, request.Id)
 
 	if err != nil {
 		return nil, err

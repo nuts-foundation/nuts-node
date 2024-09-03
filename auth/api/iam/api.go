@@ -923,7 +923,7 @@ func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
 
 // subjectExists checks whether the given subject is known on the local node.
 func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
-	dids, err := r.subjectManager.List(ctx, subjectID)
+	dids, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return false, err
 	}
@@ -942,7 +942,7 @@ func (r Wrapper) determineClientID(ctx context.Context, authServerMetadata *oaut
 			Description: "authorization server does not support 'did' client_id scheme",
 		}
 	}
-	candidateDIDs, err := r.subjectManager.List(ctx, subjectID)
+	candidateDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return nil, err
 	}

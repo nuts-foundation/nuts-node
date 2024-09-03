@@ -1521,8 +1521,8 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
 	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
-	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
-	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), holderSubjectID).Return(true, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), unknownSubjectID).Return(false, nil).AnyTimes()
 

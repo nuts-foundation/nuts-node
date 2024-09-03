@@ -36,7 +36,7 @@ type VerificationMethod = did.VerificationMethod
 type DIDCreateRequest struct {
 	VerificationMethodRelationship
 
-	// List of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
+	// ListDIDs of DIDs that can control the new DID Document. If selfControl = true and controllers is not empty,
 	// the newly generated DID will be added to the list of controllers.
 	Controllers *[]string `json:"controllers,omitempty"`
 

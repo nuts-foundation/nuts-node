@@ -280,18 +280,33 @@ func (mr *MockSubjectManagerMockRecorder) FindServices(ctx, subject, serviceType
 }
 
 // List mocks base method.
-func (m *MockSubjectManager) List(ctx context.Context, subject string) ([]did.DID, error) {
+func (m *MockSubjectManager) List(ctx context.Context) (map[string][]did.DID, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, subject)
-	ret0, _ := ret[0].([]did.DID)
+	ret := m.ctrl.Call(m, "List", ctx)
+	ret0, _ := ret[0].(map[string][]did.DID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockSubjectManagerMockRecorder) List(ctx, subject any) *gomock.Call {
+func (mr *MockSubjectManagerMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSubjectManager)(nil).List), ctx, subject)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSubjectManager)(nil).List), ctx)
+}
+
+// ListDIDs mocks base method.
+func (m *MockSubjectManager) ListDIDs(ctx context.Context, subject string) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListDIDs", ctx, subject)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListDIDs indicates an expected call of ListDIDs.
+func (mr *MockSubjectManagerMockRecorder) ListDIDs(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDIDs", reflect.TypeOf((*MockSubjectManager)(nil).ListDIDs), ctx, subject)
 }
 
 // UpdateService mocks base method.

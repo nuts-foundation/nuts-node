@@ -87,8 +87,11 @@ type SubjectManager interface {
 	// If no documents are found, an error is returned.
 	Deactivate(ctx context.Context, subject string) error
 
-	// List returns all DIDs for a subject
-	List(ctx context.Context, subject string) ([]did.DID, error)
+	// List returns all subjects and their DIDs.
+	List(ctx context.Context) (map[string][]did.DID, error)
+
+	// ListDIDs returns all DIDs for a subject
+	ListDIDs(ctx context.Context, subject string) ([]did.DID, error)
 
 	// Exists returns true if the subject exists
 	Exists(ctx context.Context, subject string) (bool, error)

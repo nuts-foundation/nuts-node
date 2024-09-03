@@ -100,7 +100,7 @@ type ResolveKeyFn func(issuerDID did.DID, at *time.Time, relationType resolver.R
 var _ StatusList2021Issuer = (*StatusList2021)(nil)
 var _ StatusList2021Verifier = (*StatusList2021)(nil)
 
-// StatusList2021 implements the W3C Verifiable Credentials Status List v2021 draft specification.
+// StatusList2021 implements the W3C Verifiable Credentials Status ListDIDs v2021 draft specification.
 // https://www.w3.org/TR/2023/WD-vc-status-list-20230427/
 // VerifySignature and Sign methods are used to verify and sign StatusList2021Credentials
 type StatusList2021 struct {

@@ -201,6 +201,25 @@ func TestWrapper_UpdateService(t *testing.T) {
 	})
 }
 
+func TestWrapper_List(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := newMockContext(t)
+		expected := map[string][]did.DID{
+			"subby": {
+				did.MustParseDID("did:web:example.com:iam:1"),
+				did.MustParseDID("did:web:example.com:iam:2"),
+			},
+		}
+		ctx.subjectManager.EXPECT().List(gomock.Any()).Return(expected, nil)
+
+		response, err := ctx.client.ListSubjects(context.Background(), ListSubjectsRequestObject{})
+
+		require.NoError(t, err)
+		assert.Len(t, response.(ListSubjects200JSONResponse), 1)
+		assert.Len(t, response.(ListSubjects200JSONResponse)["subby"], 2)
+	})
+}
+
 func TestWrapper_ListDIDs(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
@@ -226,7 +245,7 @@ func TestWrapper_ListDIDs(t *testing.T) {
 func TestWrapper_SubjectDIDs(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), "subject").Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), "subject").Return([]did.DID{did.MustParseDID("did:web:example.com:iam:1")}, nil)
 
 		response, err := ctx.client.SubjectDIDs(context.Background(), SubjectDIDsRequestObject{Id: "subject"})
 
@@ -236,7 +255,7 @@ func TestWrapper_SubjectDIDs(t *testing.T) {
 
 	t.Run("error - list fails", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), "subject").Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), "subject").Return(nil, assert.AnError)
 
 		response, err := ctx.client.SubjectDIDs(context.Background(), SubjectDIDsRequestObject{Id: "subject"})
 

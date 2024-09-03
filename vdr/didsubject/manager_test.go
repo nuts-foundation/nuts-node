@@ -37,6 +37,56 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestManager_List(t *testing.T) {
+	t.Run("2 subjects with each 2 DIDs", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example1": testMethod{},
+			"example2": testMethod{},
+		}}
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject1"}))
+		require.NoError(t, err)
+		_, _, err = m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject2"}))
+		require.NoError(t, err)
+
+		result, err := m.List(audit.TestContext())
+
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Contains(t, result, "subject1")
+		assert.Len(t, result["subject1"], 2)
+		assert.Contains(t, result, "subject2")
+		assert.Len(t, result["subject2"], 2)
+	})
+}
+
+func TestManager_ListDIDs(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+		}}
+		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
+		_, subject, err := m.Create(audit.TestContext(), opts)
+		require.NoError(t, err)
+
+		dids, err := m.ListDIDs(audit.TestContext(), subject)
+
+		require.NoError(t, err)
+		assert.Len(t, dids, 1)
+	})
+	t.Run("unknown subject", func(t *testing.T) {
+		db := testDB(t)
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+		}}
+
+		_, err := m.ListDIDs(audit.TestContext(), "subject")
+
+		require.ErrorIs(t, err, ErrSubjectNotFound)
+	})
+}
+
 func TestManager_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
@@ -100,33 +150,6 @@ func TestManager_Create(t *testing.T) {
 		_, _, err = m.Create(audit.TestContext(), opts)
 
 		require.ErrorIs(t, err, ErrSubjectAlreadyExists)
-	})
-}
-
-func TestManager_List(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
-		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
-		_, subject, err := m.Create(audit.TestContext(), opts)
-		require.NoError(t, err)
-
-		dids, err := m.List(audit.TestContext(), subject)
-
-		require.NoError(t, err)
-		assert.Len(t, dids, 1)
-	})
-	t.Run("unknown subject", func(t *testing.T) {
-		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
-
-		_, err := m.List(audit.TestContext(), "subject")
-
-		require.ErrorIs(t, err, ErrSubjectNotFound)
 	})
 }
 
