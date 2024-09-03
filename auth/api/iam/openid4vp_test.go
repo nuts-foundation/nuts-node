@@ -134,6 +134,52 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
 	})
+	t.Run("failed to resolve OpenID configuration", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
+		params := defaultParams()
+		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
+	})
+	t.Run("no redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.RedirectURIParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
+	})
+	t.Run("incorrect audience", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[jwt.AudienceKey] = []string{"other"}
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/verifier, was: other")
+	})
+	t.Run("missing code challenge parameter", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.CodeChallengeParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing code_challenge parameter")
+	})
+	t.Run("invalid code challenge method", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[oauth.CodeChallengeMethodParam] = "plain"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
+	})
 }
 
 func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
