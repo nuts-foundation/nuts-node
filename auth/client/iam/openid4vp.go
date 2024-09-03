@@ -225,7 +225,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectID string, authServerURL string, scopes string,
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
@@ -278,6 +278,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 	assertion := vp.Raw()
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
+	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
