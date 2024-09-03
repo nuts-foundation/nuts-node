@@ -236,13 +236,13 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		}
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
-		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil {
+		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleS2SAccessTokenRequest(ctx, request.Subject, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.Subject, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,

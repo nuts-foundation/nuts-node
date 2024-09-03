@@ -43,7 +43,7 @@ const s2sMaxClockSkew = 5 * time.Second
 
 // handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID string, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -108,11 +108,8 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, subject string
 	}
 
 	// All OK, allow access
-	dids, err := r.subjectManager.List(ctx, subject)
-	if err != nil {
-		return nil, err
-	}
-	response, err := r.createAccessToken(dids[0], credentialSubjectID.String(), time.Now(), scope, *pexConsumer, dpopProof)
+	issuerURL := r.subjectToBaseURL(subject)
+	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}

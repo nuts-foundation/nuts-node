@@ -114,12 +114,13 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		},
 	}
 	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
+	clientID := "https://example.com/oauth2/holder"
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -135,7 +136,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Remove(jwt.ExpirationKey))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
@@ -145,7 +146,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Remove(jwt.NotBeforeKey))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
 	})
@@ -155,7 +156,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
 		}, verifiableCredential)
 
-		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 5s)")
 	})
@@ -167,7 +168,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		require.NoError(t, err)
 		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -179,7 +180,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	})
 	t.Run("VP is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, "[true, false]")
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, "[true, false]")
 
 		assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 		assert.Nil(t, resp)
@@ -191,7 +192,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, test.JWTNutsOrganizationCredential(t, secondSubjectID))
 		assertionJSON, _ := json.Marshal([]VerifiablePresentation{presentation, secondPresentation})
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, string(assertionJSON))
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, string(assertionJSON))
 		assert.EqualError(t, err, "invalid_request - not all presentations have the same credential subject ID")
 		assert.Nil(t, resp)
 	})
@@ -201,10 +202,10 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil).Times(2)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			require.NoError(t, err)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
 			assert.Nil(t, resp)
 		})
@@ -217,7 +218,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 			assert.Nil(t, resp)
 		})
@@ -230,7 +231,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			})
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 			assert.Nil(t, resp)
 		})
@@ -242,7 +243,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				_ = token.Remove("nonce")
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
@@ -254,7 +255,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				_ = token.Set("nonce", "")
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
@@ -266,7 +267,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				_ = token.Set("nonce", true)
 			}, verifiableCredential)
 
-			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			_, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
 		})
@@ -276,7 +277,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
@@ -287,7 +288,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
 			}, verifiableCredential)
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [did:example:other] - presentation audience/domain is missing or does not match")
 			assert.Nil(t, resp)
@@ -298,7 +299,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or contained credential(s) are invalid")
 		assert.Nil(t, resp)
@@ -310,7 +311,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 				CredentialSubject: []interface{}{map[string]string{}},
 			})
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			assert.EqualError(t, err, `invalid_request - unable to get subject DID from VC: credential subjects have no ID`)
 			assert.Nil(t, resp)
@@ -325,7 +326,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			}
 			verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
 
-			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, string(verifiablePresentationJSON))
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, string(verifiablePresentationJSON))
 
 			assert.EqualError(t, err, `invalid_request - presentation signer is not credential subject`)
 			assert.Nil(t, resp)
@@ -334,7 +335,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("submission is not valid JSON", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, "not-a-valid-submission", presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, "not-a-valid-submission", presentation.Raw())
 
 		assert.EqualError(t, err, `invalid_request - invalid presentation submission: invalid character 'o' in literal null (expecting 'u')`)
 		assert.Nil(t, resp)
@@ -343,7 +344,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "everything").Return(nil, policy.ErrNotFound)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, "everything", submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, "everything", submissionJSON, presentation.Raw())
 
 		assert.EqualError(t, err, `invalid_scope - not found - unsupported scope (everything) for presentation exchange: not found`)
 		assert.Nil(t, resp)
@@ -365,7 +366,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 		assert.EqualError(t, err, "invalid_request - presentation submission does not conform to presentation definition (id=)")
 		assert.Nil(t, resp)
 	})
@@ -376,7 +377,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 
-		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
 		assert.Nil(t, resp)
@@ -446,7 +447,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 
 		require.NoError(t, err)
-		accessToken, err := ctx.client.createAccessToken(issuerDID, credentialSubjectID.String(), time.Now(), "everything", pexConsumer, dpopToken)
+		accessToken, err := ctx.client.createAccessToken(issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, dpopToken)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
@@ -464,12 +465,12 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		expectedVPJSON, _ := presentation.MarshalJSON()
 		actualVPJSON, _ := storedToken.VPToken[0].MarshalJSON()
 		assert.JSONEq(t, string(expectedVPJSON), string(actualVPJSON))
-		assert.Equal(t, issuerDID.String(), storedToken.Issuer)
+		assert.Equal(t, issuerURL.String(), storedToken.Issuer)
 		assert.NotEmpty(t, storedToken.Expiration)
 	})
 	t.Run("ok - bearer token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		accessToken, err := ctx.client.createAccessToken(issuerDID, credentialSubjectID.String(), time.Now(), "everything", pexConsumer, nil)
+		accessToken, err := ctx.client.createAccessToken(issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, nil)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

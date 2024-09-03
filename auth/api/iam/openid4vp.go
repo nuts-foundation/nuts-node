@@ -713,11 +713,8 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	}
 
 	// All done, issue access token
-	dids, err := r.subjectManager.List(ctx, *oauthSession.OwnSubject)
-	if err != nil {
-		return nil, err
-	}
-	response, err := r.createAccessToken(dids[0], oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
+	issuerURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
+	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}

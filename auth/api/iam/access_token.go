@@ -20,7 +20,6 @@ package iam
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"time"
@@ -60,7 +59,7 @@ type AccessToken struct {
 }
 
 // createAccessToken is used in both the s2s and openid4vp flows
-func (r Wrapper) createAccessToken(issuer did.DID, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
 	credentialMap, err := pexState.credentialMap()
 	if err != nil {
 		return nil, err
@@ -73,7 +72,7 @@ func (r Wrapper) createAccessToken(issuer did.DID, clientID string, issueTime ti
 	accessToken := AccessToken{
 		DPoP:                           dpopToken,
 		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuer.String(),
+		Issuer:                         issuerURL,
 		IssuedAt:                       issueTime,
 		ClientId:                       clientID,
 		Expiration:                     issueTime.Add(accessTokenValidity),
