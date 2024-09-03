@@ -137,6 +137,9 @@ type ServiceAccessTokenRequest struct {
 	// used to locate the OAuth2 Authorization Server metadata.
 	AuthorizationServer string `json:"authorization_server"`
 
+	// ClientId The client ID that will be used to request the access token.
+	ClientId string `json:"client_id"`
+
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.

@@ -391,6 +391,7 @@ components:
       description: Request for an access token for a service.
       required:
         - authorization_server
+        - client_id
         - scope
       properties:
         authorization_server:
@@ -399,6 +400,10 @@ components:
             used to locate the OAuth2 Authorization Server metadata.
           type: string
           example: https://example.com/oauth2
+        client_id:
+          type: string
+          description: The client ID that will be used to request the access token.
+          example: https://example.com/oauth2/client
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.

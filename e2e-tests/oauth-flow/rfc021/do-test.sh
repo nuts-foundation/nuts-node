@@ -70,6 +70,7 @@ REQUEST=$(
 cat << EOF
 {
   "authorization_server": "https://nodeA/oauth2/vendorA",
+  "client_id": "https://nodeB/oauth2/vendorB",
   "scope": "test",
   "credentials": [
       {
