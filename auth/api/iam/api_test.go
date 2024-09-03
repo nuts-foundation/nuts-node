@@ -403,6 +403,19 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 		requireOAuthError(t, err, oauth.UnsupportedGrantType, "grant_type 'unsupported' is not supported")
 		assert.Nil(t, res)
 	})
+	t.Run("missing clientID", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
+			Subject: verifierSubject,
+			Body: &HandleTokenRequestFormdataRequestBody{
+				GrantType: oauth.VpTokenGrantType,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing required parameters")
+		assert.Nil(t, res)
+	})
 }
 
 func TestWrapper_Callback(t *testing.T) {
