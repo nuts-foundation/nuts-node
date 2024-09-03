@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
+	"regexp"
 	"time"
 )
 
@@ -42,6 +43,9 @@ var ErrSubjectAlreadyExists = errors.New("subject already exists")
 
 // ErrSubjectNotFound is returned when a subject is not found.
 var ErrSubjectNotFound = errors.New("subject not found")
+
+// subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
+var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
 
 var _ SubjectManager = (*Manager)(nil)
 
@@ -86,6 +90,9 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	for _, option := range options.All() {
 		switch opt := option.(type) {
 		case SubjectCreationOption:
+			if !subjectPattern.MatchString(opt.Subject) {
+				return nil, "", fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String())
+			}
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
 			keyFlags = keyFlags | orm.EncryptionKeyUsage()

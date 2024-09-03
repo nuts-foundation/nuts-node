@@ -101,6 +101,28 @@ func TestManager_Create(t *testing.T) {
 
 		require.ErrorIs(t, err, ErrSubjectAlreadyExists)
 	})
+	t.Run("subject validation", func(t *testing.T) {
+		t.Run("empty", func(t *testing.T) {
+			db := testDB(t)
+			m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			}}
+
+			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: ""}))
+
+			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+		})
+		t.Run("contains illegal character (space)", func(t *testing.T) {
+			db := testDB(t)
+			m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			}}
+
+			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject with space"}))
+
+			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+		})
+	})
 }
 
 func TestManager_List(t *testing.T) {
