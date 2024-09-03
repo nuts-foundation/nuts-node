@@ -424,21 +424,21 @@ func (j *OpenIDConfiguration) UnmarshalJSON(bytes []byte) error {
 	if err := json.Unmarshal(bytes, &claims); err != nil {
 		return err
 	}
-	j.Issuer = claims["iss"].(string)
-	j.Subject = claims["sub"].(string)
-	j.IssuedAt = int64(claims["iat"].(float64))
-
-	metadataJson, err := json.Marshal(claims["openid_provider"])
-	if err != nil {
-		return err
+	if issuer, ok := claims["iss"].(string); ok {
+		j.Issuer = issuer
 	}
+	if subject, ok := claims["sub"].(string); ok {
+		j.Subject = subject
+	}
+	if issuedAt, ok := claims["iat"].(float64); ok {
+		j.IssuedAt = int64(issuedAt)
+	}
+
+	metadataJson, _ := json.Marshal(claims["openid_provider"])
 	if err := json.Unmarshal(metadataJson, &j.OpenIDProvider); err != nil {
 		return err
 	}
-	keysAsJson, err := json.Marshal(claims["jwks"])
-	if err != nil {
-		return err
-	}
+	keysAsJson, _ := json.Marshal(claims["jwks"])
 	j.JWKs = jwk.NewSet()
 
 	return json.Unmarshal(keysAsJson, &j.JWKs)
