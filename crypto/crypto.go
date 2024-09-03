@@ -184,7 +184,7 @@ func (client *Crypto) Configure(config core.ServerConfig) error {
 }
 
 func (client *Crypto) Migrate() error {
-	// ListDIDs all keys from the backend
+	// List all keys from the backend
 	// check for each key if a KeyReference exists in the SQL database
 	// if not, create a new KeyReference
 	// else do nothing

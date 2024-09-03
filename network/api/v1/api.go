@@ -64,7 +64,7 @@ func (a *Wrapper) ListTransactions(_ context.Context, request ListTransactionsRe
 		return nil, core.InvalidInputError("invalid range")
 	}
 
-	// ListDIDs the specified transaction range (if it exists)
+	// List the specified transaction range (if it exists)
 	transactions, err := a.Service.ListTransactionsInRange(uint32(start), uint32(end))
 	if err != nil {
 		return nil, err
