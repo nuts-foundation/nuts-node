@@ -170,18 +170,6 @@ func (w *Wrapper) ResolveDID(_ context.Context, request ResolveDIDRequestObject)
 	}, nil
 }
 
-func (w *Wrapper) ListDIDs(ctx context.Context, _ ListDIDsRequestObject) (ListDIDsResponseObject, error) {
-	list, err := w.VDR.DocumentOwner().ListOwned(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]string, len(list))
-	for i, curr := range list {
-		result[i] = curr.String()
-	}
-	return ListDIDs200JSONResponse(result), nil
-}
-
 func (w *Wrapper) SubjectDIDs(ctx context.Context, request SubjectDIDsRequestObject) (SubjectDIDsResponseObject, error) {
 	list, err := w.SubjectManager.ListDIDs(ctx, request.Id)
 

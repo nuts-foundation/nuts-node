@@ -8,28 +8,6 @@ info:
 servers:
   - url: http://localhost:8081
 paths:
-  /internal/vdr/v2/did:
-    get:
-      summary: Lists all locally managed DIDs
-      description: |
-        Lists all locally managed DIDs.
-  
-        error returns:
-        * 500 - An error occurred while processing the request
-      operationId: "listDIDs"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: "List of all locally managed DIDs."
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-        default:
-          $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}:
     parameters:
       - name: did
