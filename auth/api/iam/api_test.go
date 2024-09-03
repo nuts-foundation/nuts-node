@@ -153,23 +153,13 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 		requireOAuthError(t, err, oauth.InvalidRequest, "subject not found")
 		assert.Nil(t, res)
 	})
-	t.Run("error - subject exists returns error", func(t *testing.T) {
+	t.Run("error - subject list DIDs returns error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.subjectManager.EXPECT().Exists(gomock.Any(), "error").Return(false, assert.AnError)
-
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: "error"})
-
-		requireOAuthError(t, err, oauth.ServerError, "internal server error")
-		assert.Nil(t, res)
-	})
-	t.Run("error - subject existslist DIDs returns error", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.subjectManager.EXPECT().Exists(gomock.Any(), "error").Return(true, nil)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), "error").Return(nil, assert.AnError)
 
 		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: "error"})
 
-		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
 	})
 	t.Run("error - key resolution error", func(t *testing.T) {
@@ -178,7 +168,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 
 		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
 
-		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
 	})
 	t.Run("error - signing error", func(t *testing.T) {
@@ -188,7 +178,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 
 		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
 
-		requireOAuthError(t, err, oauth.ServerError, "internal server error")
+		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
 	})
 }

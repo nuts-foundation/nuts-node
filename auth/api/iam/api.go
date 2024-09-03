@@ -447,8 +447,8 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	if err != nil {
 		return nil, err
 	}
-	clientID := r.subjectToBaseURL(request.SubjectID)
-	metadata, err := r.oauthAuthorizationServerMetadata(clientID)
+	authServerURL := r.subjectToBaseURL(request.SubjectID)
+	metadata, err := r.oauthAuthorizationServerMetadata(authServerURL)
 	if err != nil {
 		return nil, err
 	}
@@ -628,27 +628,17 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 }
 
 func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error) {
-	// find subject
-	exists, err := r.subjectManager.Exists(ctx, request.Subject)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			Description:   "internal server error", // security reasons
-			InternalError: err,
-		}
-	}
-	if !exists {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidRequest,
-			Description: "subject not found",
-		}
-	}
 	// find DIDs for subject
 	dids, err := r.subjectManager.List(ctx, request.Subject)
 	if err != nil {
+		if errors.Is(err, didsubject.ErrSubjectNotFound) {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "subject not found",
+			}
+		}
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "internal server error", // security reasons
 			InternalError: err,
 		}
 	}
@@ -660,7 +650,6 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
-				Description:   "internal server error", // security reasons
 				InternalError: err,
 			}
 		}
@@ -669,7 +658,6 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
-				Description:   "internal server error", // security reasons
 				InternalError: err,
 			}
 		}
@@ -690,7 +678,6 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "internal server error",
 			InternalError: err,
 		}
 	}
