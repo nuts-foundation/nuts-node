@@ -127,7 +127,7 @@ func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 	for _, id := range dids {
 		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
-		require.NoError(t, db.Exec("INSERT INTO did ( subject, id ) VALUES ( ?, ? )", id.String(), id.String()).Error)
+		require.NoError(t, db.Exec("INSERT INTO did (subject, id ) VALUES ( ?, ? )", id.String(), id.String(), id.String()).Error)
 	}
 }
 

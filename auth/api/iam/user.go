@@ -21,23 +21,20 @@ package iam
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 )
 
 const (
@@ -105,22 +102,20 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	if len(metadata.TokenEndpoint) == 0 {
 		return fmt.Errorf("no token_endpoint found for %s", authServerURL)
 	}
-	clientID, err := r.determineClientID(echoCtx.Request().Context(), metadata, redirectSession.SubjectID)
-	if err != nil {
-		return err
-	}
+
 	// create oauthSession with userID from request
 	// generate new sessionID and clientState with crypto.GenerateNonce()
 	oauthSession := OAuthSession{
-		ClientFlow:    accessTokenRequestClientFlow,
-		ClientState:   crypto.GenerateNonce(),
-		PKCEParams:    generatePKCEParams(),
-		OwnDID:        clientID,
-		RedirectURI:   accessTokenRequest.Body.RedirectUri,
-		SessionID:     redirectSession.SessionID,
-		UseDPoP:       useDPoP,
-		IssuerURL:     authServerURL,
-		TokenEndpoint: metadata.TokenEndpoint,
+		AuthorizationServerMetadata: metadata,
+		ClientFlow:                  accessTokenRequestClientFlow,
+		ClientState:                 crypto.GenerateNonce(),
+		OwnSubject:                  &redirectSession.SubjectID,
+		PKCEParams:                  generatePKCEParams(),
+		RedirectURI:                 accessTokenRequest.Body.RedirectUri,
+		SessionID:                   redirectSession.SessionID,
+		UseDPoP:                     useDPoP,
+		IssuerURL:                   authServerURL,
+		TokenEndpoint:               metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState
 	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
@@ -129,11 +124,8 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	}
 
 	// construct callback URL to be used in (Signed)AuthorizationRequest
-	callbackURL, err := createOAuth2BaseURL(*clientID)
-	if err != nil {
-		return fmt.Errorf("failed to create callback URL: %w", err)
-	}
-	callbackURL = callbackURL.JoinPath(oauth.CallbackPath)
+	baseURL := r.subjectToBaseURL(redirectSession.SubjectID)
+	callbackURL := baseURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
@@ -142,7 +134,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
 	}
-	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), *clientID, authServerURL, modifier)
+	redirectURL, err := r.createAuthorizationRequest(echoCtx.Request().Context(), redirectSession.SubjectID, *metadata, modifier)
 	if err != nil {
 		return err
 	}
@@ -207,15 +199,4 @@ func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Sessi
 		return nil, fmt.Errorf("issue EmployeeCredential: %w", err)
 	}
 	return employeeCredential, nil
-}
-
-// nutsOAuth2Issuer returns the URL of the OAuth2 issuer for the given DID.
-// It's temporary: soon to be released by the application explicitly specifying the OAuth2 issuer URL.
-func nutsOAuth2Issuer(subject did.DID) (*url.URL, error) {
-	result, err := didweb.DIDToURL(subject)
-	if err != nil {
-		return nil, err
-	}
-	result.Path = "/oauth2/" + url.PathEscape(subject.String())
-	return result, nil
 }

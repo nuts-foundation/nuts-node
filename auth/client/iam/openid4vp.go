@@ -62,8 +62,9 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectMa
 	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
-			strictMode: strictMode,
-			httpClient: client.NewWithCache(httpClientTimeout),
+			strictMode:  strictMode,
+			httpClient:  client.NewWithCache(httpClientTimeout),
+			keyResolver: keyResolver,
 		},
 		keyResolver:      keyResolver,
 		jwtSigner:        jwtSigner,
@@ -143,6 +144,16 @@ func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, oauth
 	return metadata, nil
 }
 
+func (c *OpenID4VPClient) OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error) {
+	iamClient := c.httpClient
+	// the wallet/client acts as authorization server
+	metadata, err := iamClient.OpenIDConfiguration(ctx, issuer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve remote OpenID configuration: %w", err)
+	}
+	return metadata, nil
+}
+
 func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	iamClient := c.httpClient
 	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
@@ -173,7 +184,7 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 	return requestObject, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, clientID did.DID, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, subject string, clientID string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	// validate tokenEndpoint
 	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
@@ -183,7 +194,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 
 	// call token endpoint
 	data := url.Values{}
-	data.Set(oauth.ClientIDParam, clientID.String())
+	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
 	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
@@ -196,7 +207,12 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.dpop(ctx, clientID, *request)
+		dids, err := c.subjectManager.List(ctx, subject)
+		if err != nil {
+			return nil, err
+		}
+		// todo select the right DID based upon metadata
+		dpopHeader, err = c.dpop(ctx, dids[0], *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
 		}
@@ -209,7 +225,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectID string, authServerURL string, scopes string,
+func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
@@ -247,6 +263,9 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 		}
 	}
 	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalCredentials, *presentationDefinition, metadata.VPFormatsSupported, params)
+	if err != nil {
+		return nil, err
+	}
 	if vp == nil {
 		// No DID has the right credentials to present
 		return nil, holder.ErrNoCredentials
@@ -259,6 +278,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, subjectI
 	assertion := vp.Raw()
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
+	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
