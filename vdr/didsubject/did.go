@@ -72,9 +72,9 @@ func (s SqlDIDManager) DeleteAll(subject string) error {
 	return s.tx.Where("subject = ?", subject).Delete(&orm.DID{}).Error
 }
 
-func (d SqlDIDManager) Find(id did.DID) (*orm.DID, error) {
+func (s SqlDIDManager) Find(id did.DID) (*orm.DID, error) {
 	var did orm.DID
-	err := d.tx.Preload("Aka").First(&did, "id = ?", id.String()).Error
+	err := s.tx.Preload("Aka").First(&did, "id = ?", id.String()).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -84,9 +84,9 @@ func (d SqlDIDManager) Find(id did.DID) (*orm.DID, error) {
 	return &did, nil
 }
 
-func (d SqlDIDManager) FindBySubject(subject string) ([]orm.DID, error) {
+func (s SqlDIDManager) FindBySubject(subject string) ([]orm.DID, error) {
 	dids := make([]orm.DID, 0)
-	err := d.tx.Preload("Aka").Find(&dids, "subject = ?", subject).Error
+	err := s.tx.Preload("Aka").Find(&dids, "subject = ?", subject).Error
 	if err != nil {
 		return nil, err
 	}

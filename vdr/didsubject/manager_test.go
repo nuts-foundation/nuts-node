@@ -90,9 +90,7 @@ func TestManager_ListDIDs(t *testing.T) {
 func TestManager_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 
@@ -109,10 +107,7 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("multiple methods", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-			"test":    testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}, "test": testMethod{}}}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
@@ -130,9 +125,7 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("with unknown option", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 
@@ -140,9 +133,7 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("already exists", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
 		_, _, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
@@ -155,9 +146,7 @@ func TestManager_Create(t *testing.T) {
 
 func TestManager_Services(t *testing.T) {
 	db := testDB(t)
-	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-		"example": testMethod{},
-	}}
+	m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 	subject := "subject"
 	opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: subject})
 	documents, _, err := m.Create(audit.TestContext(), opts)
@@ -219,10 +208,7 @@ func TestManager_Services(t *testing.T) {
 
 func TestManager_AddVerificationMethod(t *testing.T) {
 	db := testDB(t)
-	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-		"example": testMethod{},
-		"test":    testMethod{},
-	}}
+	m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}, "test": testMethod{}}}
 	subject := "subject"
 	opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: subject})
 	documents, _, err := m.Create(audit.TestContext(), opts)
@@ -256,18 +242,14 @@ func TestManager_Deactivate(t *testing.T) {
 
 	t.Run("not found", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 
 		err := m.Deactivate(ctx, "subject")
 		require.ErrorIs(t, err, ErrSubjectNotFound)
 	})
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 		documents, subject, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 		require.Len(t, documents, 1)
@@ -277,9 +259,7 @@ func TestManager_Deactivate(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 		documents, subject, err := m.Create(ctx, DefaultCreationOptions())
 		require.NoError(t, err)
 		require.Len(t, documents, 1)
@@ -313,9 +293,7 @@ func TestManager_rollback(t *testing.T) {
 
 	t.Run("uncommited results in rollback", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 
 		saveExamples(t, db)
 
@@ -333,9 +311,11 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("IsCommitted returns error", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{error: assert.AnError},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{error: assert.AnError},
+			},
+		}
 		saveExamples(t, db)
 
 		manager.Rollback(context.Background())
@@ -352,9 +332,11 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("commited by method removes changelog", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{committed: true},
-		}}
+		manager := Manager{DB: db,
+			MethodManagers: map[string]MethodManager{
+				"example": testMethod{committed: true},
+			},
+		}
 		saveExamples(t, db)
 
 		manager.Rollback(context.Background())
@@ -371,9 +353,7 @@ func TestManager_rollback(t *testing.T) {
 	})
 	t.Run("rollback removes all from transaction", func(t *testing.T) {
 		db := testDB(t)
-		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+		manager := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
 		saveExamples(t, db)
 		didId2 := orm.DID{
 			ID:      "did:example:321",

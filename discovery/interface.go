@@ -21,7 +21,6 @@ package discovery
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 )
 
@@ -34,6 +33,9 @@ var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 
 // ErrPresentationRegistrationFailed indicates registration of a presentation on a remote Discovery Service failed.
 var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable Presentation on remote Discovery Service failed")
+
+// errMissingCredential indicates that a VP does not have the credentials required to fulfill the Presentation Definition of a Discovery Service.
+var errMissingCredential = errors.New("missing credential")
 
 // Server defines the API for Discovery Servers.
 type Server interface {
@@ -52,24 +54,26 @@ type Client interface {
 	// Query parameters are formatted as simple JSON paths, e.g. "issuer" or "credentialSubject.name".
 	Search(serviceID string, query map[string]string) ([]SearchResult, error)
 
-	// ActivateServiceForDID causes a DID, in the form of a Verifiable Presentation, to be registered on a Discovery Service.
-	// Registration will be attempted immediately, and automatically refreshed.
-	// If the initial registration fails with ErrPresentationRegistrationFailed, registration will be retried.
+	// ActivateServiceForSubject causes a subject to be registered for a Discovery Service.
+	// Registration of all DIDs of the subject will be attempted immediately, and automatically refreshed.
+	// If the initial registration for all DIDs fails with ErrPresentationRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
-	// It returns an error if the service or DID is invalid/unknown.
-	ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error
+	// It returns an error if the service or subject is invalid/unknown.
+	ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error
 
-	// DeactivateServiceForDID removes the registration of a DID on a Discovery Service.
-	// It returns an error if the service or DID is invalid/unknown.
-	DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error
+	// DeactivateServiceForSubject stops registration of a subject on a Discovery Service.
+	// It also tries to remove all active registrations of the subject from the Discovery Service.
+	// If removal of one or more active registration fails a ErrPresentationRegistrationFailed may be returned. The failed registrations will be removed when they expire.
+	// It returns an error if the service or subject is invalid/unknown.
+	DeactivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error
 
 	// Services returns the list of services that are registered on this client.
 	Services() []ServiceDefinition
 
-	// GetServiceActivation returns the activation status of a DID on a Discovery Service.
-	// The boolean indicates whether the DID is activated on the Discovery Service (ActivateServiceForDID() has been called).
-	// It also returns the Verifiable Presentation that is registered on the Discovery Service, if any.
-	GetServiceActivation(ctx context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error)
+	// GetServiceActivation returns the activation status of a subject on a Discovery Service.
+	// The boolean indicates whether the subject is activated on the Discovery Service (ActivateServiceForSubject() has been called).
+	// It also returns the Verifiable Presentations for all DIDs of the subject that are registered on the Discovery Service, if any.
+	GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error)
 }
 
 // SearchResult is a single result of a search operation.

@@ -20,15 +20,15 @@ const (
 
 // SearchResult defines model for SearchResult.
 type SearchResult struct {
+	// CredentialSubjectId The ID of the Verifiable Credential subject (holder), typically a DID.
+	CredentialSubjectId string `json:"credential_subject_id"`
+
 	// Fields Input descriptor IDs and their mapped values that from the Verifiable Credential.
 	Fields map[string]interface{} `json:"fields"`
 
 	// Id The ID of the Verifiable Presentation.
-	Id string `json:"id"`
-
-	// SubjectId The ID of the Verifiable Credential subject (holder), typically a DID.
-	SubjectId string                 `json:"subject_id"`
-	Vp        VerifiablePresentation `json:"vp"`
+	Id string                 `json:"id"`
+	Vp VerifiablePresentation `json:"vp"`
 }
 
 // SearchPresentationsParams defines parameters for SearchPresentations.
@@ -44,15 +44,15 @@ type ServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Client API to deactivate the given DID from the Discovery Service.
-	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error
-	// Retrieves the activation status a DID on a Discovery Service.
-	// (GET /internal/discovery/v1/{serviceID}/{did})
-	GetServiceActivation(ctx echo.Context, serviceID string, did string) error
-	// Client API to activate a DID on the specified Discovery Service.
-	// (POST /internal/discovery/v1/{serviceID}/{did})
-	ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error
+	// Client API to deactivate the given subject from the Discovery Service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
+	DeactivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
+	// Retrieves the activation status of a subject on a Discovery Service.
+	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
+	GetServiceActivation(ctx echo.Context, serviceID string, subjectID string) error
+	// Client API to activate a subject on the specified Discovery Service.
+	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
+	ActivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -98,8 +98,8 @@ func (w *ServerInterfaceWrapper) SearchPresentations(ctx echo.Context) error {
 	return err
 }
 
-// DeactivateServiceForDID converts echo context to params.
-func (w *ServerInterfaceWrapper) DeactivateServiceForDID(ctx echo.Context) error {
+// DeactivateServiceForSubject converts echo context to params.
+func (w *ServerInterfaceWrapper) DeactivateServiceForSubject(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "serviceID" -------------
 	var serviceID string
@@ -109,15 +109,15 @@ func (w *ServerInterfaceWrapper) DeactivateServiceForDID(ctx echo.Context) error
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
 	}
 
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	did = ctx.Param("did")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.DeactivateServiceForDID(ctx, serviceID, did)
+	err = w.Handler.DeactivateServiceForSubject(ctx, serviceID, subjectID)
 	return err
 }
 
@@ -132,20 +132,20 @@ func (w *ServerInterfaceWrapper) GetServiceActivation(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
 	}
 
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	did = ctx.Param("did")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetServiceActivation(ctx, serviceID, did)
+	err = w.Handler.GetServiceActivation(ctx, serviceID, subjectID)
 	return err
 }
 
-// ActivateServiceForDID converts echo context to params.
-func (w *ServerInterfaceWrapper) ActivateServiceForDID(ctx echo.Context) error {
+// ActivateServiceForSubject converts echo context to params.
+func (w *ServerInterfaceWrapper) ActivateServiceForSubject(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "serviceID" -------------
 	var serviceID string
@@ -155,15 +155,15 @@ func (w *ServerInterfaceWrapper) ActivateServiceForDID(ctx echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter serviceID: %s", err))
 	}
 
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	did = ctx.Param("did")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.ActivateServiceForDID(ctx, serviceID, did)
+	err = w.Handler.ActivateServiceForSubject(ctx, serviceID, subjectID)
 	return err
 }
 
@@ -197,9 +197,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/internal/discovery/v1", wrapper.GetServices)
 	router.GET(baseURL+"/internal/discovery/v1/:serviceID", wrapper.SearchPresentations)
-	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.DeactivateServiceForDID)
-	router.GET(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.GetServiceActivation)
-	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:did", wrapper.ActivateServiceForDID)
+	router.DELETE(baseURL+"/internal/discovery/v1/:serviceID/:subjectID", wrapper.DeactivateServiceForSubject)
+	router.GET(baseURL+"/internal/discovery/v1/:serviceID/:subjectID", wrapper.GetServiceActivation)
+	router.POST(baseURL+"/internal/discovery/v1/:serviceID/:subjectID", wrapper.ActivateServiceForSubject)
 
 }
 
@@ -279,36 +279,36 @@ func (response SearchPresentationsdefaultApplicationProblemPlusJSONResponse) Vis
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type DeactivateServiceForDIDRequestObject struct {
+type DeactivateServiceForSubjectRequestObject struct {
 	ServiceID string `json:"serviceID"`
-	Did       string `json:"did"`
+	SubjectID string `json:"subjectID"`
 }
 
-type DeactivateServiceForDIDResponseObject interface {
-	VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error
+type DeactivateServiceForSubjectResponseObject interface {
+	VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error
 }
 
-type DeactivateServiceForDID200Response struct {
+type DeactivateServiceForSubject200Response struct {
 }
 
-func (response DeactivateServiceForDID200Response) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForSubject200Response) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
 	return nil
 }
 
-type DeactivateServiceForDID202JSONResponse struct {
+type DeactivateServiceForSubject202JSONResponse struct {
 	// Reason Description of why removal of the registration failed.
 	Reason string `json:"reason"`
 }
 
-func (response DeactivateServiceForDID202JSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForSubject202JSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeactivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
+type DeactivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
@@ -319,14 +319,14 @@ type DeactivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
 	Title string `json:"title"`
 }
 
-func (response DeactivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForSubject400ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
+type DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -340,7 +340,7 @@ type DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitDeactivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -349,7 +349,7 @@ func (response DeactivateServiceForDIDdefaultApplicationProblemPlusJSONResponse)
 
 type GetServiceActivationRequestObject struct {
 	ServiceID string `json:"serviceID"`
-	Did       string `json:"did"`
+	SubjectID string `json:"subjectID"`
 }
 
 type GetServiceActivationResponseObject interface {
@@ -357,9 +357,12 @@ type GetServiceActivationResponseObject interface {
 }
 
 type GetServiceActivation200JSONResponse struct {
-	// Activated Whether the DID is activated on the Discovery Service.
-	Activated bool                    `json:"activated"`
-	Vp        *VerifiablePresentation `json:"vp,omitempty"`
+	// Activated Whether the Discovery Service is activated for the given subject
+	Activated bool `json:"activated"`
+
+	// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
+	// The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+	Vp *[]VerifiablePresentation `json:"vp,omitempty"`
 }
 
 func (response GetServiceActivation200JSONResponse) VisitGetServiceActivationResponse(w http.ResponseWriter) error {
@@ -390,36 +393,36 @@ func (response GetServiceActivationdefaultApplicationProblemPlusJSONResponse) Vi
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type ActivateServiceForDIDRequestObject struct {
+type ActivateServiceForSubjectRequestObject struct {
 	ServiceID string `json:"serviceID"`
-	Did       string `json:"did"`
+	SubjectID string `json:"subjectID"`
 }
 
-type ActivateServiceForDIDResponseObject interface {
-	VisitActivateServiceForDIDResponse(w http.ResponseWriter) error
+type ActivateServiceForSubjectResponseObject interface {
+	VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error
 }
 
-type ActivateServiceForDID200Response struct {
+type ActivateServiceForSubject200Response struct {
 }
 
-func (response ActivateServiceForDID200Response) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForSubject200Response) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
 	return nil
 }
 
-type ActivateServiceForDID202JSONResponse struct {
+type ActivateServiceForSubject202JSONResponse struct {
 	// Reason Description of why registration failed.
 	Reason string `json:"reason"`
 }
 
-func (response ActivateServiceForDID202JSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForSubject202JSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(202)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ActivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
+type ActivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
 
@@ -430,14 +433,14 @@ type ActivateServiceForDID400ApplicationProblemPlusJSONResponse struct {
 	Title string `json:"title"`
 }
 
-func (response ActivateServiceForDID400ApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForSubject400ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
+type ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -451,7 +454,7 @@ type ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response ActivateServiceForDIDdefaultApplicationProblemPlusJSONResponse) VisitActivateServiceForDIDResponse(w http.ResponseWriter) error {
+func (response ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -466,15 +469,15 @@ type StrictServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Client API to deactivate the given DID from the Discovery Service.
-	// (DELETE /internal/discovery/v1/{serviceID}/{did})
-	DeactivateServiceForDID(ctx context.Context, request DeactivateServiceForDIDRequestObject) (DeactivateServiceForDIDResponseObject, error)
-	// Retrieves the activation status a DID on a Discovery Service.
-	// (GET /internal/discovery/v1/{serviceID}/{did})
+	// Client API to deactivate the given subject from the Discovery Service.
+	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
+	DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error)
+	// Retrieves the activation status of a subject on a Discovery Service.
+	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error)
-	// Client API to activate a DID on the specified Discovery Service.
-	// (POST /internal/discovery/v1/{serviceID}/{did})
-	ActivateServiceForDID(ctx context.Context, request ActivateServiceForDIDRequestObject) (ActivateServiceForDIDResponseObject, error)
+	// Client API to activate a subject on the specified Discovery Service.
+	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
+	ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error)
 }
 
 type StrictHandlerFunc = strictecho.StrictEchoHandlerFunc
@@ -538,26 +541,26 @@ func (sh *strictHandler) SearchPresentations(ctx echo.Context, serviceID string,
 	return nil
 }
 
-// DeactivateServiceForDID operation middleware
-func (sh *strictHandler) DeactivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
-	var request DeactivateServiceForDIDRequestObject
+// DeactivateServiceForSubject operation middleware
+func (sh *strictHandler) DeactivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error {
+	var request DeactivateServiceForSubjectRequestObject
 
 	request.ServiceID = serviceID
-	request.Did = did
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeactivateServiceForDID(ctx.Request().Context(), request.(DeactivateServiceForDIDRequestObject))
+		return sh.ssi.DeactivateServiceForSubject(ctx.Request().Context(), request.(DeactivateServiceForSubjectRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeactivateServiceForDID")
+		handler = middleware(handler, "DeactivateServiceForSubject")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(DeactivateServiceForDIDResponseObject); ok {
-		return validResponse.VisitDeactivateServiceForDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(DeactivateServiceForSubjectResponseObject); ok {
+		return validResponse.VisitDeactivateServiceForSubjectResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}
@@ -565,11 +568,11 @@ func (sh *strictHandler) DeactivateServiceForDID(ctx echo.Context, serviceID str
 }
 
 // GetServiceActivation operation middleware
-func (sh *strictHandler) GetServiceActivation(ctx echo.Context, serviceID string, did string) error {
+func (sh *strictHandler) GetServiceActivation(ctx echo.Context, serviceID string, subjectID string) error {
 	var request GetServiceActivationRequestObject
 
 	request.ServiceID = serviceID
-	request.Did = did
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetServiceActivation(ctx.Request().Context(), request.(GetServiceActivationRequestObject))
@@ -590,26 +593,26 @@ func (sh *strictHandler) GetServiceActivation(ctx echo.Context, serviceID string
 	return nil
 }
 
-// ActivateServiceForDID operation middleware
-func (sh *strictHandler) ActivateServiceForDID(ctx echo.Context, serviceID string, did string) error {
-	var request ActivateServiceForDIDRequestObject
+// ActivateServiceForSubject operation middleware
+func (sh *strictHandler) ActivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error {
+	var request ActivateServiceForSubjectRequestObject
 
 	request.ServiceID = serviceID
-	request.Did = did
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.ActivateServiceForDID(ctx.Request().Context(), request.(ActivateServiceForDIDRequestObject))
+		return sh.ssi.ActivateServiceForSubject(ctx.Request().Context(), request.(ActivateServiceForSubjectRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ActivateServiceForDID")
+		handler = middleware(handler, "ActivateServiceForSubject")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(ActivateServiceForDIDResponseObject); ok {
-		return validResponse.VisitActivateServiceForDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(ActivateServiceForSubjectResponseObject); ok {
+		return validResponse.VisitActivateServiceForSubjectResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

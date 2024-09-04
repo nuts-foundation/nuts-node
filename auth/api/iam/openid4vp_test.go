@@ -43,13 +43,16 @@ import (
 
 var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
-var holderURL = "https://example.com/oauth2/" + holderDID.String()
-var issuerURL = "https://example.com/oauth2/" + issuerDID.String()
+var holderURL = test.MustParseURL("https://example.com/oauth2/holder")
+var issuerURL = test.MustParseURL("https://example.com/oauth2/issuer")
+var holderClientID = holderURL.String()
+var issuerClientID = issuerURL.String()
+var issuerSubjectID = "issuer"
 
 func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	defaultParams := func() oauthParameters {
 		return map[string]interface{}{
-			oauth.ClientIDParam:            holderDID.String(),
+			oauth.ClientIDParam:            holderClientID,
 			oauth.RedirectURIParam:         "https://example.com",
 			oauth.ResponseTypeParam:        "code",
 			oauth.ScopeParam:               "test",
@@ -66,7 +69,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		params := defaultParams()
 		params[oauth.RedirectURIParam] = ":/"
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid redirect_uri parameter")
 	})
@@ -75,7 +78,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.RedirectURIParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
 	})
@@ -84,16 +87,16 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		params := defaultParams()
 		delete(params, jwt.AudienceKey)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/did:web:example.com:iam:verifier, was: ")
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/verifier, was: ")
 	})
 	t.Run("missing code_challenge", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		delete(params, oauth.CodeChallengeParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "missing code_challenge parameter")
 
@@ -104,7 +107,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		params := defaultParams()
 		params[oauth.ScopeParam] = "unknown"
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.InvalidScope, "unsupported scope (unknown) for presentation exchange: not found")
 	})
@@ -113,7 +116,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.CodeChallengeMethodParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
 	})
@@ -121,13 +124,63 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(context.Background(), holderURL).Return(&oauth.AuthorizationServerMetadata{
-			ClientIdSchemesSupported: []string{didClientIDScheme},
+		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(&oauth.OpenIDConfiguration{
+			Metadata: oauth.EntityStatementMetadata{
+				OpenIDProvider: oauth.AuthorizationServerMetadata{
+					ClientIdSchemesSupported: []string{entityClientIDScheme},
+				},
+			},
 		}, nil)
 
-		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierDID, params)
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
 
 		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
+	})
+	t.Run("failed to resolve OpenID configuration", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
+		params := defaultParams()
+		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(nil, assert.AnError)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.ServerError, "failed to authorize client")
+	})
+	t.Run("no redirect_uri", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.RedirectURIParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing redirect_uri parameter")
+	})
+	t.Run("incorrect audience", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[jwt.AudienceKey] = []string{"other"}
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid audience, expected: https://example.com/oauth2/verifier, was: other")
+	})
+	t.Run("missing code challenge parameter", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		delete(params, oauth.CodeChallengeParam)
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "missing code_challenge parameter")
+	})
+	t.Run("invalid code challenge method", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := defaultParams()
+		params[oauth.CodeChallengeMethodParam] = "plain"
+
+		_, err := ctx.client.handleAuthorizeRequestFromHolder(context.Background(), verifierSubject, params)
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "invalid value for code_challenge_method parameter, only S256 is supported")
 	})
 }
 
@@ -140,7 +193,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	defaultParams := func() map[string]interface{} {
 		return map[string]interface{}{
 			oauth.ClientIDParam:           verifierDID.String(),
-			oauth.ClientIDSchemeParam:     didClientIDScheme,
+			oauth.ClientIDSchemeParam:     entityClientIDScheme,
 			oauth.ClientMetadataURIParam:  "https://example.com/.well-known/authorization-server/iam/verifier",
 			oauth.NonceParam:              "nonce",
 			oauth.PresentationDefUriParam: "https://example.com/iam/verifier/presentation_definition?scope=test",
@@ -153,28 +206,19 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 	}
 	authzCodeSession := OAuthSession{
 		SessionID:   "token",
-		OwnDID:      &holderDID,
+		OwnSubject:  &holderSubjectID,
 		RedirectURI: "https://example.com/iam/holder/cb",
 		OtherDID:    &verifierDID,
 	}
 	httpRequestCtx, _ := user.CreateTestSession(context.Background(), holderSubjectID)
-	t.Run("invalid client_id", func(t *testing.T) {
-		ctx := newTestClient(t)
-		params := defaultParams()
-		params[oauth.ClientIDParam] = "did:nuts:1"
-		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id parameter (only did:web is supported)", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
-
-		require.NoError(t, err)
-	})
 	t.Run("invalid client_id_scheme", func(t *testing.T) {
 		ctx := newTestClient(t)
 		params := defaultParams()
 		params[oauth.ClientIDSchemeParam] = "other"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_id_scheme parameter", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -184,7 +228,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -194,7 +238,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		delete(params, oauth.NonceParam)
 		expectPostError(t, ctx, oauth.InvalidRequest, "missing nonce parameter", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -204,7 +248,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params[oauth.ClientMetadataParam] = "not empty"
 		expectPostError(t, ctx, oauth.InvalidRequest, "client_metadata and client_metadata_uri are mutually exclusive", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -215,7 +259,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params[oauth.ClientMetadataParam] = "{invalid"
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid client_metadata", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -225,7 +269,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, "failed to get client metadata (verifier)", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -234,7 +278,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.ResponseModeParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		assert.EqualError(t, err, "invalid_request - invalid response_mode parameter")
 	})
@@ -243,7 +287,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.ResponseURIParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		assert.EqualError(t, err, "invalid_request - missing response_uri parameter")
 	})
@@ -252,7 +296,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params := defaultParams()
 		delete(params, oauth.StateParam)
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		assert.EqualError(t, err, "invalid_request - missing state parameter")
 	})
@@ -263,7 +307,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		params[oauth.PresentationDefParam] = "not empty"
 		expectPostError(t, ctx, oauth.InvalidRequest, "presentation_definition and presentation_definition_uri are mutually exclusive", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -275,7 +319,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		expectPostError(t, ctx, oauth.InvalidRequest, "invalid presentation_definition", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -287,7 +331,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(nil, assert.AnError)
 		expectPostError(t, ctx, oauth.InvalidPresentationDefinitionURI, "failed to retrieve presentation definition on https://example.com/iam/verifier/presentation_definition?scope=test", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -300,7 +344,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, assert.AnError)
 		expectPostError(t, ctx, oauth.ServerError, assert.AnError.Error(), responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -313,7 +357,7 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
 		expectPostError(t, ctx, oauth.InvalidRequest, "wallet does not contain the required credentials (PD ID: , wallet: did:web:example.com:iam:holder)", responseURI, "state")
 
-		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderDID, params, pe.WalletOwnerOrganization)
+		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 
 		require.NoError(t, err)
 	})
@@ -329,18 +373,19 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 		},
 	}
 	session := OAuthSession{
-		SessionID:         "token",
-		OwnDID:            &verifierDID,
-		ClientID:          holderDID.String(),
-		RedirectURI:       "https://example.com/iam/holder/cb",
-		Scope:             "test",
-		ClientState:       "client-state",
-		OpenID4VPVerifier: newPEXConsumer(walletOwnerMapping),
+		AuthorizationServerMetadata: &oauth.AuthorizationServerMetadata{ClientIdSchemesSupported: clientIdSchemesSupported},
+		SessionID:                   "token",
+		OwnSubject:                  &verifierSubject,
+		ClientID:                    holderClientID,
+		RedirectURI:                 "https://example.com/iam/holder/cb",
+		Scope:                       "test",
+		ClientState:                 "client-state",
+		OpenID4VPVerifier:           newPEXConsumer(walletOwnerMapping),
 	}
 	t.Run("submission", func(t *testing.T) {
 		challenge := "challenge"
 		// simple vp
-		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"did:web:example.com:iam:verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
+		vpToken := `{"type":"VerifiablePresentation", "verifiableCredential":{"type":"VerifiableCredential", "credentialSubject":{"id":"did:web:example.com:iam:holder"}},"proof":{"challenge":"challenge","domain":"https://example.com/oauth2/verifier","proofPurpose":"assertionMethod","type":"JsonWebSignature2020","verificationMethod":"did:web:example.com:iam:holder#0"}}`
 		// simple submission
 		submissionAsStr := `{"id":"1", "definition_id":"1", "descriptor_map":[{"id":"1","format":"ldp_vc","path":"$.verifiableCredential"}]}`
 		// simple request
@@ -352,7 +397,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					PresentationSubmission: &submissionAsStr,
 					State:                  &state,
 				},
-				Did: verifierDID.String(),
+				SubjectID: verifierSubject,
 			}
 		}
 		t.Run("ok - all Presentation Definitions fulfilled - code issued", func(t *testing.T) {
@@ -385,27 +430,28 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 				},
 			}
 			session := OAuthSession{
-				SessionID:         "token",
-				OwnDID:            &verifierDID,
-				ClientID:          holderDID.String(),
-				RedirectURI:       "https://example.com/iam/holder/cb",
-				Scope:             "test",
-				ClientState:       "client-state",
-				OpenID4VPVerifier: newPEXConsumer(walletOwnerMapping),
+				AuthorizationServerMetadata: &oauth.AuthorizationServerMetadata{ClientIdSchemesSupported: clientIdSchemesSupported},
+				SessionID:                   "token",
+				OwnSubject:                  &verifierSubject,
+				ClientID:                    holderClientID,
+				RedirectURI:                 "https://example.com/iam/holder/cb",
+				Scope:                       "test",
+				ClientState:                 "client-state",
+				OpenID4VPVerifier:           newPEXConsumer(walletOwnerMapping),
 			}
 
 			ctx := newTestClient(t)
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, nil)
-			ctx.jar.EXPECT().Create(verifierDID, "", gomock.Any())
+			ctx.jar.EXPECT().Create(verifierDID, verifierURL.String(), "", gomock.Any())
 
 			response, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
 			require.NoError(t, err)
 			actualRedirectURL, _ := url.Parse(response.(HandleAuthorizeResponse200JSONResponse).RedirectURI)
 			assert.True(t, strings.HasPrefix(actualRedirectURL.String(), "openid4vp:"))
-			assert.Equal(t, verifierDID.String(), actualRedirectURL.Query().Get("client_id"))
+			assert.Equal(t, verifierClientID, actualRedirectURL.Query().Get("client_id"))
 			// etc
 		})
 		t.Run("failed to verify vp", func(t *testing.T) {
@@ -438,12 +484,12 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 
 			_ = assertOAuthError(t, err, "invalid or missing nonce/challenge in presentation")
 		})
-		t.Run("DID in path does not match DID in session", func(t *testing.T) {
+		t.Run("Subject in path does not match subject in session", func(t *testing.T) {
 			ctx := newTestClient(t)
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
-			request.Did = "did:web:example.com:iam:other"
+			request.SubjectID = "other"
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -541,7 +587,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					ErrorDescription: &description,
 					State:            &state,
 				},
-				Did: verifierDID.String(),
+				SubjectID: verifierSubject,
 			}
 		}
 		t.Run("with client state", func(t *testing.T) {
@@ -582,7 +628,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 	pexEnvelope, _ := pe.ParseEnvelope([]byte(vpStr))
 	validSession := OAuthSession{
 		ClientID:    clientID,
-		OwnDID:      &verifierDID,
+		OwnSubject:  &verifierSubject,
 		RedirectURI: redirectURI,
 		Scope:       "scope",
 		OpenID4VPVerifier: &PEXConsumer{
@@ -692,7 +738,7 @@ func Test_handleCallback(t *testing.T) {
 
 	session := OAuthSession{
 		SessionID:     "token",
-		OwnDID:        &holderDID,
+		OwnSubject:    &holderSubjectID,
 		RedirectURI:   "https://example.com/iam/holder/cb",
 		OtherDID:      &verifierDID,
 		PKCEParams:    generatePKCEParams(),
@@ -700,10 +746,10 @@ func Test_handleCallback(t *testing.T) {
 	}
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		callbackURI := "https://example.com/oauth2/" + holderDID.String() + "/callback"
+		callbackURI := "https://example.com/oauth2/holder/callback"
 		codeVerifier := session.PKCEParams.Verifier
 
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderDID, codeVerifier, false).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderSubjectID, holderClientID, codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, code, &session)
 
@@ -802,8 +848,6 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		holderURL, _ := createOAuth2BaseURL(holderDID)
-		require.NotNil(t, holderURL)
 		return holderURL.JoinPath("callback").String(), nil
 	})
 }
@@ -813,7 +857,7 @@ func TestWrapper_sendAndHandleDirectPost(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().PostAuthorizationResponse(gomock.Any(), gomock.Any(), gomock.Any(), "response", "").Return("", assert.AnError)
 
-		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), holderDID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
+		_, err := ctx.client.sendAndHandleDirectPost(context.Background(), holderSubjectID, vc.VerifiablePresentation{}, pe.PresentationSubmission{}, "response", "")
 
 		assert.Equal(t, assert.AnError, err)
 	})

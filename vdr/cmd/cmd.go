@@ -85,10 +85,10 @@ func createCmd() *cobra.Command {
 	var useV2 bool
 
 	result := &cobra.Command{
-		Use:   "create-did",
+		Use:   "create-did [subject]",
 		Short: "Registers a new DID",
 		Long:  "When using the V2 API, a did:web DID will be created. All the other options are ignored for did:web.",
-		Args:  cobra.ExactArgs(0),
+		Args:  cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientConfig := core.NewClientConfigForCommand(cmd)
 			var (
@@ -96,7 +96,11 @@ func createCmd() *cobra.Command {
 				err          error
 			)
 			if useV2 {
-				_, oneOrMoreDoc, err = httpClientV2(clientConfig).Create(apiv2.CreateDIDOptions{})
+				options := apiv2.CreateDIDOptions{}
+				if len(args) == 1 {
+					options.Subject = &args[0]
+				}
+				_, oneOrMoreDoc, err = httpClientV2(clientConfig).Create(options)
 			} else {
 				oneOrMoreDoc, err = httpClient(clientConfig).Create(createRequest)
 			}

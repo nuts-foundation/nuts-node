@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
+	"strings"
 	"time"
 )
 
@@ -176,13 +177,18 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	}
 
 	docs := make([]did.Document, 0)
+	var dids []string
 	for _, sqlDoc := range sqlDocs {
 		doc, err := sqlDoc.ToDIDDocument()
 		if err != nil {
 			return nil, subject, err
 		}
 		docs = append(docs, doc)
+		dids = append(dids, sqlDoc.DID.ID)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Created new subject (DIDs: [%s])", strings.Join(dids, ", "))
 	return docs, subject, nil
 }
 
@@ -248,9 +254,8 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 
@@ -259,7 +264,9 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 	if err != nil {
 		return nil, fmt.Errorf("could not add service to DID Documents: %w", err)
 	}
-
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Created new service for subject (type: %s, id: %s)", service.Type, service.ID)
 	return services, nil
 }
 
@@ -315,6 +322,9 @@ func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID s
 	if err != nil {
 		return fmt.Errorf("could not delete service from DID Documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Deleted service for subject (id: %s)", serviceID.String())
 	return nil
 }
 
@@ -343,9 +353,8 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 		return current, nil
@@ -353,6 +362,9 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 	if err != nil {
 		return nil, fmt.Errorf("could not update service for DID Documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Updated service for subject (id: %s)", serviceID.String())
 	return services, nil
 }
 
@@ -360,7 +372,7 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 	log.Logger().Debug("Creating new VerificationMethods.")
 
 	verificationMethods := make([]did.VerificationMethod, 0)
-
+	var vmIDs []string
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
 		// known limitation
 		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
@@ -384,12 +396,16 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 			Data:     data,
 		}
 		current.VerificationMethods = append(current.VerificationMethods, sqlMethod)
+		vmIDs = append(vmIDs, vm.ID.String())
 		return current, nil
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("could not update DID documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Added verification method for subject (IDs: [%s])", strings.Join(vmIDs, ", "))
 	return verificationMethods, nil
 }
 

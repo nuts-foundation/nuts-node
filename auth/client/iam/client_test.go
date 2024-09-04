@@ -20,10 +20,21 @@ package iam
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"encoding/json"
+	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -173,6 +184,83 @@ func TestHTTPClient_ClientMetadata(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
+	ctx := context.Background()
+	configuration := oauth.OpenIDConfiguration{
+		Issuer: "issuer",
+	}
+
+	// create jwt
+	createToken := func(t *testing.T, client *HTTPClient) string {
+		testKey := client.keyResolver.(testKeyResolver).key
+		claims := make(map[string]interface{})
+		asJson, _ := json.Marshal(configuration)
+		_ = json.Unmarshal(asJson, &claims)
+		alg, _ := nutsCrypto.SignatureAlgorithm(testKey.Public())
+		headers := map[string]interface{}{jws.AlgorithmKey: alg, jws.KeyIDKey: "test"}
+		token, err := nutsCrypto.SignJWT(audit.TestContext(), testKey, alg, claims, headers)
+		require.NoError(t, err)
+		return token
+	}
+
+	t.Run("ok", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK}
+		tlsServer, client := testServerAndClient(t, &handler)
+		handler.ResponseData = createToken(t, client)
+
+		response, err := client.OpenIDConfiguration(ctx, tlsServer.URL)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, configuration, *response)
+		require.NotNil(t, handler.Request)
+	})
+	t.Run("error - invalid url", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK}
+		_, client := testServerAndClient(t, &handler)
+		handler.ResponseData = createToken(t, client)
+
+		_, err := client.OpenIDConfiguration(ctx, ":")
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "parse \":\": missing protocol scheme")
+	})
+	t.Run("error - error return", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.OpenIDConfiguration(ctx, tlsServer.URL)
+
+		require.Error(t, err)
+		require.Nil(t, response)
+		assert.EqualError(t, err, "server returned HTTP 500 (expected: 200)")
+	})
+	t.Run("error - not a signed jwt", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: ""}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		response, err := client.OpenIDConfiguration(ctx, tlsServer.URL)
+
+		require.Error(t, err)
+		require.Nil(t, response)
+		assert.EqualError(t, err, "unable to parse response: failed to parse jws: invalid byte sequence")
+	})
+	t.Run("error - unknown key", func(t *testing.T) {
+		otherClient := &HTTPClient{
+			keyResolver: newTestKeyResolver(),
+		}
+		handler := http2.Handler{StatusCode: http.StatusOK}
+		tlsServer, client := testServerAndClient(t, &handler)
+		handler.ResponseData = createToken(t, otherClient)
+
+		response, err := client.OpenIDConfiguration(ctx, tlsServer.URL)
+
+		require.Error(t, err)
+		require.Nil(t, response)
+		assert.EqualError(t, err, "unable to parse response: could not verify message using any of the signatures or keys")
+	})
+}
+
 func TestHTTPClient_PostError(t *testing.T) {
 	redirectReturn := oauth.Redirect{
 		RedirectURI: "http://test.test",
@@ -299,13 +387,6 @@ func TestHTTPClient_RequestObjectPost(t *testing.T) {
 	})
 }
 
-func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
-	tlsServer := http2.TestTLSServer(t, handler)
-	return tlsServer, &HTTPClient{
-		httpClient: tlsServer.Client(),
-	}
-}
-
 func TestHTTPClient_doGet(t *testing.T) {
 	t.Run("error - non 200 return value", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadRequest}
@@ -332,4 +413,32 @@ func TestHTTPClient_doGet(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+}
+
+func newTestKeyResolver() resolver.KeyResolver {
+	return testKeyResolver{
+		kid: uuid.NewString(),
+		key: test2.GenerateECKey(),
+	}
+}
+
+type testKeyResolver struct {
+	kid string
+	key *ecdsa.PrivateKey
+}
+
+func (t testKeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType resolver.RelationType) (crypto.PublicKey, error) {
+	return t.key.Public(), nil
+}
+
+func (t testKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType resolver.RelationType) (string, crypto.PublicKey, error) {
+	return t.kid, t.key.Public(), nil
+}
+
+func testServerAndClient(t *testing.T, handler http.Handler) (*httptest.Server, *HTTPClient) {
+	tlsServer := http2.TestTLSServer(t, handler)
+	return tlsServer, &HTTPClient{
+		httpClient:  tlsServer.Client(),
+		keyResolver: newTestKeyResolver(),
+	}
 }

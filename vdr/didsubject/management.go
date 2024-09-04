@@ -33,9 +33,6 @@ var ErrInvalidService = errors.New("invalid DID document service")
 // ErrUnsupportedDIDMethod is returned when a DID method is not supported.
 var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 
-// ErrDIDAlreadyExists is returned when a DID already exists.
-var ErrDIDAlreadyExists = errors.New("DID already exists")
-
 // MethodManager keeps DID method specific state in sync with the DID sql database.
 type MethodManager interface {
 	// NewDocument generates a new DID document for the given subject.
