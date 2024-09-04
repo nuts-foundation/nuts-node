@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -94,48 +93,48 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
-// ActivateServiceForDID mocks base method.
-func (m *MockClient) ActivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+// ActivateServiceForSubject mocks base method.
+func (m *MockClient) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateServiceForDID", ctx, serviceID, subjectDID)
+	ret := m.ctrl.Call(m, "ActivateServiceForSubject", ctx, serviceID, subjectID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ActivateServiceForDID indicates an expected call of ActivateServiceForDID.
-func (mr *MockClientMockRecorder) ActivateServiceForDID(ctx, serviceID, subjectDID any) *gomock.Call {
+// ActivateServiceForSubject indicates an expected call of ActivateServiceForSubject.
+func (mr *MockClientMockRecorder) ActivateServiceForSubject(ctx, serviceID, subjectID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateServiceForDID", reflect.TypeOf((*MockClient)(nil).ActivateServiceForDID), ctx, serviceID, subjectDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateServiceForSubject", reflect.TypeOf((*MockClient)(nil).ActivateServiceForSubject), ctx, serviceID, subjectID)
 }
 
-// DeactivateServiceForDID mocks base method.
-func (m *MockClient) DeactivateServiceForDID(ctx context.Context, serviceID string, subjectDID did.DID) error {
+// DeactivateServiceForSubject mocks base method.
+func (m *MockClient) DeactivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeactivateServiceForDID", ctx, serviceID, subjectDID)
+	ret := m.ctrl.Call(m, "DeactivateServiceForSubject", ctx, serviceID, subjectID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeactivateServiceForDID indicates an expected call of DeactivateServiceForDID.
-func (mr *MockClientMockRecorder) DeactivateServiceForDID(ctx, serviceID, subjectDID any) *gomock.Call {
+// DeactivateServiceForSubject indicates an expected call of DeactivateServiceForSubject.
+func (mr *MockClientMockRecorder) DeactivateServiceForSubject(ctx, serviceID, subjectID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateServiceForDID", reflect.TypeOf((*MockClient)(nil).DeactivateServiceForDID), ctx, serviceID, subjectDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeactivateServiceForSubject", reflect.TypeOf((*MockClient)(nil).DeactivateServiceForSubject), ctx, serviceID, subjectID)
 }
 
 // GetServiceActivation mocks base method.
-func (m *MockClient) GetServiceActivation(ctx context.Context, serviceID string, subjectDID did.DID) (bool, *vc.VerifiablePresentation, error) {
+func (m *MockClient) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetServiceActivation", ctx, serviceID, subjectDID)
+	ret := m.ctrl.Call(m, "GetServiceActivation", ctx, serviceID, subjectID)
 	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(*vc.VerifiablePresentation)
+	ret1, _ := ret[1].([]vc.VerifiablePresentation)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
 // GetServiceActivation indicates an expected call of GetServiceActivation.
-func (mr *MockClientMockRecorder) GetServiceActivation(ctx, serviceID, subjectDID any) *gomock.Call {
+func (mr *MockClientMockRecorder) GetServiceActivation(ctx, serviceID, subjectID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceActivation", reflect.TypeOf((*MockClient)(nil).GetServiceActivation), ctx, serviceID, subjectDID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceActivation", reflect.TypeOf((*MockClient)(nil).GetServiceActivation), ctx, serviceID, subjectID)
 }
 
 // Search mocks base method.

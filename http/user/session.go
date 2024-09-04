@@ -69,12 +69,10 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 			return next(echoCtx)
 		}
 		subjectID := echoCtx.Param("subjectID")
-		// TODO: Re-enable as part of #3264
-		//if subjectID == "" {
-		// Indicates misconfiguration
-		//	return errors.New("missing subject ID")
-		//}
-
+		if subjectID == "" {
+			// Indicates misconfiguration
+			return errors.New("missing subjectID")
+		}
 		sessionID, sessionData, err := u.loadUserSession(echoCtx, subjectID)
 		if err != nil {
 			// Should only really occur in exceptional circumstances (e.g. cookie survived after intended max age).
@@ -126,10 +124,9 @@ func (u SessionMiddleware) loadUserSession(cookies CookieReader, subjectID strin
 		// but this adds less complexity.
 		return "", nil, errors.New("expired session")
 	}
-	// TODO: Re-enable as part of #3264
-	//if session.SubjectID != subjectID {
-	//		return "", nil, fmt.Errorf("session belongs to another subject (%s)", session.SubjectID)
-	//	}
+	if session.SubjectID != subjectID {
+		return "", nil, fmt.Errorf("session belongs to another tenant (%s)", session.SubjectID)
+	}
 	return sessionID, session, nil
 }
 

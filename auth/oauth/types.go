@@ -21,9 +21,9 @@ package oauth
 
 import (
 	"encoding/json"
-	"net/url"
-
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
+	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -118,6 +118,9 @@ const (
 	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
 	// OpenID4VCI specification
 	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
+	// OpenIdConfigurationWellKnown is the well-known base path for the openID configuration metadata as defined in
+	// OpenID4 federation specification
+	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
 )
 
 // oauth parameter keys
@@ -396,4 +399,54 @@ type OpenIDCredentialIssuerMetadata struct {
 	AuthorizationServers []string `json:"authorization_servers,omitempty"`
 	// - Display: a slice of maps where each map represents the display information (optional)
 	Display []map[string]string `json:"display,omitempty"`
+}
+
+// OpenIDConfiguration represents the OpenID configuration
+// It contains the minimal information required for OpenID4VP, the required `jwks` is also omitted
+// see https://openid.net/specs/openid-connect-federation-1_0-29.html#entity-statement
+type OpenIDConfiguration struct {
+	// Issuer: an url representing the issuer of the entity statement
+	// for now we keep it teh same as the subject, eg the subject/tenant
+	Issuer string `json:"iss"`
+	// Subject: an url representing the subject of the entity statement
+	Subject string `json:"sub"`
+	// IssuedAt: the time the entity statement was issued
+	IssuedAt int64 `json:"iat"`
+	// JWKs is the JSON Web Key Set of the entity statement. Contains keys of all DIDs for the subject
+	JWKs jwk.Set `json:"jwks"`
+	// Metadata: the metadata of the entity statement
+	Metadata EntityStatementMetadata `json:"metadata"`
+}
+
+// EntityStatementMetadata represents the metadata of an openID federation entity statement
+// We only use the OpenID provider metadata
+type EntityStatementMetadata struct {
+	// OpenIDProvider: the metadata of the OpenID provider
+	OpenIDProvider AuthorizationServerMetadata `json:"openid_provider"`
+}
+
+// UnmarshalJSON parses the OpenIDConfiguration from JSON
+func (j *OpenIDConfiguration) UnmarshalJSON(bytes []byte) error {
+	claims := make(map[string]interface{})
+	if err := json.Unmarshal(bytes, &claims); err != nil {
+		return err
+	}
+	if issuer, ok := claims["iss"].(string); ok {
+		j.Issuer = issuer
+	}
+	if subject, ok := claims["sub"].(string); ok {
+		j.Subject = subject
+	}
+	if issuedAt, ok := claims["iat"].(float64); ok {
+		j.IssuedAt = int64(issuedAt)
+	}
+
+	metadataJson, _ := json.Marshal(claims["metadata"])
+	if err := json.Unmarshal(metadataJson, &j.Metadata); err != nil {
+		return err
+	}
+	keysAsJson, _ := json.Marshal(claims["jwks"])
+	j.JWKs = jwk.NewSet()
+
+	return json.Unmarshal(keysAsJson, &j.JWKs)
 }

@@ -69,7 +69,8 @@ echo "---------------------------------------"
 REQUEST=$(
 cat << EOF
 {
-  "authorization_server": "https://nodeA/oauth2/${VENDOR_A_DID}",
+  "authorization_server": "https://nodeA/oauth2/vendorA",
+  "client_id": "https://nodeB/oauth2/vendorB",
   "scope": "test",
   "credentials": [
       {

@@ -99,3 +99,46 @@ func TestAuthorizationServerMetadata_SupportsClientIDScheme(t *testing.T) {
 	assert.True(t, m.SupportsClientIDScheme("did"))
 	assert.False(t, m.SupportsClientIDScheme("web"))
 }
+
+func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
+	example := `
+{
+	"iss":"https://nuts.nl",
+	"sub": "https://nuts.nl",
+	"iat": 1600000000,
+	"metadata": {
+		"openid_provider": {
+			"authorization_endpoint":"https://nuts.nl/authorize"
+		}
+	},
+	"jwks": {
+		"keys": [
+		  {
+			"alg": "RS256",
+			"e": "AQAB",
+			"key_ops": ["verify"],
+			"kid": "key1",
+			"kty": "RSA",
+			"n": "pnXBOusEANuug6ewezb9J_",
+			"use": "sig"
+		  }
+		]
+	}
+}
+`
+	t.Run("ok", func(t *testing.T) {
+		var c OpenIDConfiguration
+		err := json.Unmarshal([]byte(example), &c)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https://nuts.nl", c.Issuer)
+		assert.Equal(t, "https://nuts.nl", c.Subject)
+		assert.Equal(t, int64(1600000000), c.IssuedAt)
+		assert.Equal(t, "https://nuts.nl/authorize", c.Metadata.OpenIDProvider.AuthorizationEndpoint)
+	})
+	t.Run("key error", func(t *testing.T) {
+		var c OpenIDConfiguration
+		err := json.Unmarshal([]byte(`{"jwks": {"keys": [{"alg": "RS256","n": "."}]}}`), &c)
+		assert.ErrorContains(t, err, "failed to decode key #0")
+	})
+}

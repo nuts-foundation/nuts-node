@@ -84,7 +84,7 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 		// add empty sign instruction
 		// TODO: If the verifier doesn't require any credentials, it also can't signal which DID methods it supports/requires?
 		var holderDID did.DID
-		for holder, _ := range credentials {
+		for holder := range credentials {
 			holderDID = holder
 			break
 		}

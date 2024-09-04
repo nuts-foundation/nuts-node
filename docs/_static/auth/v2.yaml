@@ -8,7 +8,7 @@ servers:
   - url: http://localhost:8080
     description: For public-facing endpoints.
 paths:
-  /internal/auth/v2/{subject}/request-service-access-token:
+  /internal/auth/v2/{subjectID}/request-service-access-token:
     post:
       operationId: requestServiceAccessToken
       summary: Start the authorization flow to get an access token from a remote authorization server.
@@ -23,7 +23,7 @@ paths:
       tags:
         - auth
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: Subject of the requester, a wallet owner at this node.
@@ -47,7 +47,7 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{subject}/request-user-access-token:
+  /internal/auth/v2/{subjectID}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
       summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
@@ -63,7 +63,7 @@ paths:
       tags:
         - auth
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: Subject of the requester, a wallet owner at this node.
@@ -236,7 +236,7 @@ paths:
                 $ref: "#/components/schemas/DPoPValidateResponse"
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{subject}/request-credential:
+  /internal/auth/v2/{subjectID}/request-credential:
     post:
       operationId: requestOpenid4VCICredentialIssuance
       summary: Start the Oid4VCI authorization flow.
@@ -250,7 +250,7 @@ paths:
       tags:
         - auth
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: Subject ID of the wallet owner at this node.

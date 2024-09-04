@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -80,8 +81,8 @@ func (p credentialRecord) TableName() string {
 type presentationRefreshRecord struct {
 	// ServiceID refers to the entry record in discovery_service
 	ServiceID string `gorm:"primaryKey"`
-	// Did is Did that should be registered on the service.
-	Did string `gorm:"primaryKey"`
+	// SubjectID is the ID of the subject that should be registered on the service.
+	SubjectID string `gorm:"primaryKey"`
 	// NextRefresh is the Timestamp (seconds since Unix epoch) when the registration on the Discovery Service should be refreshed.
 	NextRefresh int64
 }
@@ -295,20 +296,20 @@ func (s *sqlStore) removeExpired() (int, error) {
 
 // updatePresentationRefreshTime creates/updates the next refresh time for a Verifiable Presentation on a Discovery Service.
 // If nextRegistration is nil, the entry will be removed from the database.
-func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectDID did.DID, nextRefresh *time.Time) error {
+func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID string, nextRefresh *time.Time) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if nextRefresh == nil {
 			// Delete registration
-			return tx.Delete(&presentationRefreshRecord{}, "service_id = ? AND did = ?", serviceID, subjectDID.String()).Error
+			return tx.Delete(&presentationRefreshRecord{}, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error
 		}
 		// Create or update it
-		return tx.Save(presentationRefreshRecord{Did: subjectDID.String(), ServiceID: serviceID, NextRefresh: nextRefresh.Unix()}).Error
+		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: nextRefresh.Unix()}).Error
 	})
 }
 
-func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectDID did.DID) (*time.Time, error) {
+func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectID string) (*time.Time, error) {
 	var row presentationRefreshRecord
-	if err := s.db.Find(&row, "service_id = ? AND did = ?", serviceID, subjectDID.String()).Error; err != nil {
+	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
 		return nil, err
 	}
 	if row.NextRefresh == 0 {
@@ -318,25 +319,21 @@ func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectDID did.D
 	return &result, nil
 }
 
-// getPresentationsToBeRefreshed returns all DID discovery service registrations that are due for refreshing.
-// It returns a slice of service IDs and associated DIDs.
-func (s *sqlStore) getPresentationsToBeRefreshed(now time.Time) ([]string, []did.DID, error) {
-	var rows []presentationRefreshRecord
-	if err := s.db.Find(&rows, "next_refresh < ?", now.Unix()).Error; err != nil {
-		return nil, nil, err
+// getSubjectsToBeRefreshed returns all registered subject-service combinations that are due for refreshing.
+func (s *sqlStore) getSubjectsToBeRefreshed(now time.Time) ([]refreshCandidate, error) {
+	var candidates []refreshCandidate
+	if err := s.db.Model(&presentationRefreshRecord{}).Find(&candidates, "next_refresh < ?", now.Unix()).Error; err != nil {
+		return nil, err
 	}
-	var dids []did.DID
-	var serviceIDs []string
-	for _, row := range rows {
-		parsedDID, err := did.ParseDID(row.Did)
-		if err != nil {
-			log.Logger().WithError(err).Errorf("Invalid DID in discovery presentation refresh table: %s", row.Did)
-			continue
-		}
-		dids = append(dids, *parsedDID)
-		serviceIDs = append(serviceIDs, row.ServiceID)
-	}
-	return serviceIDs, dids, nil
+	return candidates, nil
+}
+
+// refreshCandidate is a subset of presentationRefreshRecord
+type refreshCandidate struct {
+	// ServiceID is the presentationRefreshRecord.ServiceID
+	ServiceID string
+	// SubjectID is the presentationRefreshRecord.SubjectID
+	SubjectID string
 }
 
 func (s *sqlStore) getTimestamp(serviceID string) (int, error) {
@@ -348,4 +345,63 @@ func (s *sqlStore) getTimestamp(serviceID string) (int, error) {
 		return 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
 	return service.LastLamportTimestamp, nil
+}
+
+// getSubjectVPsOnService finds all VPs in the service that contain a credential issued to any of the subjectDIDs.
+func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DID) (map[did.DID][]vc.VerifiablePresentation, error) {
+	// this assumes Presentation Definitions for a service uses the subject wallet, meaning that a DID in a subject can
+	// fulfill the PD using credentials issued to any of the subjectDIDs.
+	// This complicates the search since we cannot filter on VP signer
+	//
+	// Example: a subject has 2 DIDs, did:web and did:nuts.
+	// did:web has an organization credential
+	// did:nuts has a use-case credential
+	// The Presentation Definition of the use-case requires both credentials
+	// The Discovery Service will contain VPs:
+	// 	- VP with ID=123 that is signed by did:web and both credentials
+	//  - VP with ID=abc that is signed by did:nuts and both credentials
+	// since we can only filter on credential contents, a search on either DID will find both VPs.
+
+	// get all VPs with a credential that has one of subjectDIDs as credentialSubject.id
+	var vps []vc.VerifiablePresentation
+	for _, subjectDID := range subjectDIDs {
+		loopVPs, err := s.search(serviceID, map[string]string{
+			"credentialSubject.id": subjectDID.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		vps = append(vps, loopVPs...)
+	}
+
+	// deduplicate results by VP.ID and create a list of VPs per signer
+	// TODO: confirm that there can only be one VP per discovery service-signer combination, meaning that results can be flattened.
+	signerToVPs := map[did.DID][]vc.VerifiablePresentation{} // signerToVPs maps all VPs to their signer.
+	var uniqueVPIDs []string                                 // keeps track of known VP.IDs
+	for _, vp := range vps {
+		vpID := vp.ID.String() // must be set according to Discovery Service RFC
+		if slices.Contains(uniqueVPIDs, vpID) {
+			// already in the map
+			continue
+		}
+
+		signer, err := credential.PresentationSigner(vp)
+		if err != nil {
+			// this should not happen for VPs valid according to the Discovery Service RFC
+			log.Logger().WithError(err).Warn("Could not determine signer of Verifiable Presentation")
+			continue
+		}
+
+		// update loop vars at the same time
+		uniqueVPIDs = append(uniqueVPIDs, vpID)
+		signerToVPs[*signer] = append(signerToVPs[*signer], vp)
+	}
+
+	// filter signers not in subjectDIDs.
+	// These can only exist when the subjectDIDs is incomplete, or VP signed by a different subject contains VCs issued to the current subject
+	result := make(map[did.DID][]vc.VerifiablePresentation, len(subjectDIDs))
+	for _, did := range subjectDIDs {
+		result[did] = signerToVPs[did]
+	}
+	return result, nil
 }
