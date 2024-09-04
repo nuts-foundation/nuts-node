@@ -47,7 +47,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if err != nil {
 		return nil, core.InvalidInputError("invalid wallet DID")
 	}
-	if owned, err := r.subjectOwns(ctx, request.Subject, *walletDID); err != nil {
+	if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
 		return nil, err
 	} else if !owned {
 		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
@@ -77,7 +77,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, errors.New("no token_endpoint found")
 	}
 
-	clientID := r.subjectToBaseURL(request.Subject)
+	clientID := r.subjectToBaseURL(request.SubjectID)
 
 	// Read and parse the authorization details
 	authorizationDetails := []byte("[]")
@@ -94,7 +94,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		AuthorizationServerMetadata: authzServerMetadata,
 		ClientFlow:                  credentialRequestClientFlow,
-		OwnSubject:                  &request.Subject,
+		OwnSubject:                  &request.SubjectID,
 		RedirectURI:                 request.Body.RedirectUri,
 		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers

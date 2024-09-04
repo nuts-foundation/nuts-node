@@ -87,10 +87,10 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 
 func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods []string) oauth.OpenIDConfiguration {
 	return oauth.OpenIDConfiguration{
-		Issuer:         issuerURL.String(),
-		IssuedAt:       time.Now().Unix(),
-		Subject:        issuerURL.String(),
-		JWKs:           jwkSet,
-		OpenIDProvider: authorizationServerMetadata(issuerURL, supportedDIDMethods),
+		Issuer:   issuerURL.String(),
+		IssuedAt: time.Now().Unix(),
+		Subject:  issuerURL.String(),
+		JWKs:     jwkSet,
+		Metadata: oauth.EntityStatementMetadata{OpenIDProvider: authorizationServerMetadata(issuerURL, supportedDIDMethods)},
 	}
 }

@@ -549,11 +549,11 @@ func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for the specified subject.
-	// (GET /.well-known/oauth-authorization-server/oauth2/{subject})
-	OAuthAuthorizationServerMetadata(ctx echo.Context, subject string) error
+	// (GET /.well-known/oauth-authorization-server/oauth2/{subjectID})
+	OAuthAuthorizationServerMetadata(ctx echo.Context, subjectID string) error
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
-	// (GET /.well-known/openid-configuration/oauth2/{subject})
-	OpenIDConfiguration(ctx echo.Context, subject string) error
+	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
+	OpenIDConfiguration(ctx echo.Context, subjectID string) error
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
 	// It returns fields derived from the credentials that were used during authentication.
 	// (POST /internal/auth/v2/accesstoken/introspect)
@@ -573,14 +573,14 @@ type ServerInterface interface {
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx echo.Context, did string) error
 	// Start the Oid4VCI authorization flow.
-	// (POST /internal/auth/v2/{subject}/request-credential)
-	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subject string) error
+	// (POST /internal/auth/v2/{subjectID}/request-credential)
+	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{subject}/request-service-access-token)
-	RequestServiceAccessToken(ctx echo.Context, subject string) error
+	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
+	RequestServiceAccessToken(ctx echo.Context, subjectID string) error
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
-	// (POST /internal/auth/v2/{subject}/request-user-access-token)
-	RequestUserAccessToken(ctx echo.Context, subject string) error
+	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
+	RequestUserAccessToken(ctx echo.Context, subjectID string) error
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{subjectID}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, subjectID string, params HandleAuthorizeRequestParams) error
@@ -588,23 +588,23 @@ type ServerInterface interface {
 	// (GET /oauth2/{subjectID}/callback)
 	Callback(ctx echo.Context, subjectID string, params CallbackParams) error
 	// Get the OAuth2 Client metadata
-	// (GET /oauth2/{subject}/oauth-client)
-	OAuthClientMetadata(ctx echo.Context, subject string) error
+	// (GET /oauth2/{subjectID}/oauth-client)
+	OAuthClientMetadata(ctx echo.Context, subjectID string) error
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
-	// (GET /oauth2/{subject}/presentation_definition)
-	PresentationDefinition(ctx echo.Context, subject string, params PresentationDefinitionParams) error
+	// (GET /oauth2/{subjectID}/presentation_definition)
+	PresentationDefinition(ctx echo.Context, subjectID string, params PresentationDefinitionParams) error
 	// Get Request Object referenced in an authorization request to the Authorization Server.
-	// (GET /oauth2/{subject}/request.jwt/{id})
-	RequestJWTByGet(ctx echo.Context, subject string, id string) error
+	// (GET /oauth2/{subjectID}/request.jwt/{id})
+	RequestJWTByGet(ctx echo.Context, subjectID string, id string) error
 	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
-	// (POST /oauth2/{subject}/request.jwt/{id})
-	RequestJWTByPost(ctx echo.Context, subject string, id string) error
+	// (POST /oauth2/{subjectID}/request.jwt/{id})
+	RequestJWTByPost(ctx echo.Context, subjectID string, id string) error
 	// Used by wallets to post the authorization response or error to.
-	// (POST /oauth2/{subject}/response)
-	HandleAuthorizeResponse(ctx echo.Context, subject string) error
+	// (POST /oauth2/{subjectID}/response)
+	HandleAuthorizeResponse(ctx echo.Context, subjectID string) error
 	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
-	// (POST /oauth2/{subject}/token)
-	HandleTokenRequest(ctx echo.Context, subject string) error
+	// (POST /oauth2/{subjectID}/token)
+	HandleTokenRequest(ctx echo.Context, subjectID string) error
 	// Get the StatusList2021Credential for the given DID and page
 	// (GET /statuslist/{did}/{page})
 	StatusList(ctx echo.Context, did string, page int) error
@@ -618,36 +618,36 @@ type ServerInterfaceWrapper struct {
 // OAuthAuthorizationServerMetadata converts echo context to params.
 func (w *ServerInterfaceWrapper) OAuthAuthorizationServerMetadata(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subject", ctx.Param("subject"), &subject, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subject: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
 	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, subject)
+	err = w.Handler.OAuthAuthorizationServerMetadata(ctx, subjectID)
 	return err
 }
 
 // OpenIDConfiguration converts echo context to params.
 func (w *ServerInterfaceWrapper) OpenIDConfiguration(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "subject", ctx.Param("subject"), &subject, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subject: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
 	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.OpenIDConfiguration(ctx, subject)
+	err = w.Handler.OpenIDConfiguration(ctx, subjectID)
 	return err
 }
 
@@ -720,45 +720,45 @@ func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
 // RequestOpenid4VCICredentialIssuance converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestOpenid4VCICredentialIssuance(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestOpenid4VCICredentialIssuance(ctx, subject)
+	err = w.Handler.RequestOpenid4VCICredentialIssuance(ctx, subjectID)
 	return err
 }
 
 // RequestServiceAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestServiceAccessToken(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestServiceAccessToken(ctx, subject)
+	err = w.Handler.RequestServiceAccessToken(ctx, subjectID)
 	return err
 }
 
 // RequestUserAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestUserAccessToken(ctx, subject)
+	err = w.Handler.RequestUserAccessToken(ctx, subjectID)
 	return err
 }
 
@@ -834,25 +834,25 @@ func (w *ServerInterfaceWrapper) Callback(ctx echo.Context) error {
 // OAuthClientMetadata converts echo context to params.
 func (w *ServerInterfaceWrapper) OAuthClientMetadata(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.OAuthClientMetadata(ctx, subject)
+	err = w.Handler.OAuthClientMetadata(ctx, subjectID)
 	return err
 }
 
 // PresentationDefinition converts echo context to params.
 func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -873,17 +873,17 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.PresentationDefinition(ctx, subject, params)
+	err = w.Handler.PresentationDefinition(ctx, subjectID, params)
 	return err
 }
 
 // RequestJWTByGet converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestJWTByGet(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -896,17 +896,17 @@ func (w *ServerInterfaceWrapper) RequestJWTByGet(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestJWTByGet(ctx, subject, id)
+	err = w.Handler.RequestJWTByGet(ctx, subjectID, id)
 	return err
 }
 
 // RequestJWTByPost converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestJWTByPost(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -919,37 +919,37 @@ func (w *ServerInterfaceWrapper) RequestJWTByPost(ctx echo.Context) error {
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestJWTByPost(ctx, subject, id)
+	err = w.Handler.RequestJWTByPost(ctx, subjectID, id)
 	return err
 }
 
 // HandleAuthorizeResponse converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleAuthorizeResponse(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleAuthorizeResponse(ctx, subject)
+	err = w.Handler.HandleAuthorizeResponse(ctx, subjectID)
 	return err
 }
 
 // HandleTokenRequest converts echo context to params.
 func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subject" -------------
-	var subject string
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
 
-	subject = ctx.Param("subject")
+	subjectID = ctx.Param("subjectID")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleTokenRequest(ctx, subject)
+	err = w.Handler.HandleTokenRequest(ctx, subjectID)
 	return err
 }
 
@@ -1004,30 +1004,30 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/.well-known/oauth-authorization-server/oauth2/:subject", wrapper.OAuthAuthorizationServerMetadata)
-	router.GET(baseURL+"/.well-known/openid-configuration/oauth2/:subject", wrapper.OpenIDConfiguration)
+	router.GET(baseURL+"/.well-known/oauth-authorization-server/oauth2/:subjectID", wrapper.OAuthAuthorizationServerMetadata)
+	router.GET(baseURL+"/.well-known/openid-configuration/oauth2/:subjectID", wrapper.OpenIDConfiguration)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
-	router.POST(baseURL+"/internal/auth/v2/:subject/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
-	router.POST(baseURL+"/internal/auth/v2/:subject/request-service-access-token", wrapper.RequestServiceAccessToken)
-	router.POST(baseURL+"/internal/auth/v2/:subject/request-user-access-token", wrapper.RequestUserAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
+	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-service-access-token", wrapper.RequestServiceAccessToken)
+	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-user-access-token", wrapper.RequestUserAccessToken)
 	router.GET(baseURL+"/oauth2/:subjectID/authorize", wrapper.HandleAuthorizeRequest)
 	router.GET(baseURL+"/oauth2/:subjectID/callback", wrapper.Callback)
-	router.GET(baseURL+"/oauth2/:subject/oauth-client", wrapper.OAuthClientMetadata)
-	router.GET(baseURL+"/oauth2/:subject/presentation_definition", wrapper.PresentationDefinition)
-	router.GET(baseURL+"/oauth2/:subject/request.jwt/:id", wrapper.RequestJWTByGet)
-	router.POST(baseURL+"/oauth2/:subject/request.jwt/:id", wrapper.RequestJWTByPost)
-	router.POST(baseURL+"/oauth2/:subject/response", wrapper.HandleAuthorizeResponse)
-	router.POST(baseURL+"/oauth2/:subject/token", wrapper.HandleTokenRequest)
+	router.GET(baseURL+"/oauth2/:subjectID/oauth-client", wrapper.OAuthClientMetadata)
+	router.GET(baseURL+"/oauth2/:subjectID/presentation_definition", wrapper.PresentationDefinition)
+	router.GET(baseURL+"/oauth2/:subjectID/request.jwt/:id", wrapper.RequestJWTByGet)
+	router.POST(baseURL+"/oauth2/:subjectID/request.jwt/:id", wrapper.RequestJWTByPost)
+	router.POST(baseURL+"/oauth2/:subjectID/response", wrapper.HandleAuthorizeResponse)
+	router.POST(baseURL+"/oauth2/:subjectID/token", wrapper.HandleTokenRequest)
 	router.GET(baseURL+"/statuslist/:did/:page", wrapper.StatusList)
 
 }
 
 type OAuthAuthorizationServerMetadataRequestObject struct {
-	Subject string `json:"subject"`
+	SubjectID string `json:"subjectID"`
 }
 
 type OAuthAuthorizationServerMetadataResponseObject interface {
@@ -1065,7 +1065,7 @@ func (response OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSON
 }
 
 type OpenIDConfigurationRequestObject struct {
-	Subject string `json:"subject"`
+	SubjectID string `json:"subjectID"`
 }
 
 type OpenIDConfigurationResponseObject interface {
@@ -1256,8 +1256,8 @@ func (response CreateDPoPProof401Response) VisitCreateDPoPProofResponse(w http.R
 }
 
 type RequestOpenid4VCICredentialIssuanceRequestObject struct {
-	Subject string `json:"subject"`
-	Body    *RequestOpenid4VCICredentialIssuanceJSONRequestBody
+	SubjectID string `json:"subjectID"`
+	Body      *RequestOpenid4VCICredentialIssuanceJSONRequestBody
 }
 
 type RequestOpenid4VCICredentialIssuanceResponseObject interface {
@@ -1295,8 +1295,8 @@ func (response RequestOpenid4VCICredentialIssuancedefaultApplicationProblemPlusJ
 }
 
 type RequestServiceAccessTokenRequestObject struct {
-	Subject string `json:"subject"`
-	Body    *RequestServiceAccessTokenJSONRequestBody
+	SubjectID string `json:"subjectID"`
+	Body      *RequestServiceAccessTokenJSONRequestBody
 }
 
 type RequestServiceAccessTokenResponseObject interface {
@@ -1334,8 +1334,8 @@ func (response RequestServiceAccessTokendefaultApplicationProblemPlusJSONRespons
 }
 
 type RequestUserAccessTokenRequestObject struct {
-	Subject string `json:"subject"`
-	Body    *RequestUserAccessTokenJSONRequestBody
+	SubjectID string `json:"subjectID"`
+	Body      *RequestUserAccessTokenJSONRequestBody
 }
 
 type RequestUserAccessTokenResponseObject interface {
@@ -1459,7 +1459,7 @@ func (response CallbackdefaultApplicationProblemPlusJSONResponse) VisitCallbackR
 }
 
 type OAuthClientMetadataRequestObject struct {
-	Subject string `json:"subject"`
+	SubjectID string `json:"subjectID"`
 }
 
 type OAuthClientMetadataResponseObject interface {
@@ -1497,8 +1497,8 @@ func (response OAuthClientMetadatadefaultApplicationProblemPlusJSONResponse) Vis
 }
 
 type PresentationDefinitionRequestObject struct {
-	Subject string `json:"subject"`
-	Params  PresentationDefinitionParams
+	SubjectID string `json:"subjectID"`
+	Params    PresentationDefinitionParams
 }
 
 type PresentationDefinitionResponseObject interface {
@@ -1536,8 +1536,8 @@ func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) 
 }
 
 type RequestJWTByGetRequestObject struct {
-	Subject string `json:"subject"`
-	Id      string `json:"id"`
+	SubjectID string `json:"subjectID"`
+	Id        string `json:"id"`
 }
 
 type RequestJWTByGetResponseObject interface {
@@ -1585,9 +1585,9 @@ func (response RequestJWTByGetdefaultApplicationProblemPlusJSONResponse) VisitRe
 }
 
 type RequestJWTByPostRequestObject struct {
-	Subject string `json:"subject"`
-	Id      string `json:"id"`
-	Body    *RequestJWTByPostFormdataRequestBody
+	SubjectID string `json:"subjectID"`
+	Id        string `json:"id"`
+	Body      *RequestJWTByPostFormdataRequestBody
 }
 
 type RequestJWTByPostResponseObject interface {
@@ -1635,8 +1635,8 @@ func (response RequestJWTByPostdefaultApplicationProblemPlusJSONResponse) VisitR
 }
 
 type HandleAuthorizeResponseRequestObject struct {
-	Subject string `json:"subject"`
-	Body    *HandleAuthorizeResponseFormdataRequestBody
+	SubjectID string `json:"subjectID"`
+	Body      *HandleAuthorizeResponseFormdataRequestBody
 }
 
 type HandleAuthorizeResponseResponseObject interface {
@@ -1653,8 +1653,8 @@ func (response HandleAuthorizeResponse200JSONResponse) VisitHandleAuthorizeRespo
 }
 
 type HandleTokenRequestRequestObject struct {
-	Subject string `json:"subject"`
-	Body    *HandleTokenRequestFormdataRequestBody
+	SubjectID string `json:"subjectID"`
+	Body      *HandleTokenRequestFormdataRequestBody
 }
 
 type HandleTokenRequestResponseObject interface {
@@ -1724,10 +1724,10 @@ func (response StatusListdefaultApplicationProblemPlusJSONResponse) VisitStatusL
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get the OAuth2 Authorization Server metadata for the specified subject.
-	// (GET /.well-known/oauth-authorization-server/oauth2/{subject})
+	// (GET /.well-known/oauth-authorization-server/oauth2/{subjectID})
 	OAuthAuthorizationServerMetadata(ctx context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error)
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
-	// (GET /.well-known/openid-configuration/oauth2/{subject})
+	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
 	OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error)
 	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
 	// It returns fields derived from the credentials that were used during authentication.
@@ -1748,13 +1748,13 @@ type StrictServerInterface interface {
 	// (POST /internal/auth/v2/{did}/dpop)
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// Start the Oid4VCI authorization flow.
-	// (POST /internal/auth/v2/{subject}/request-credential)
+	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
-	// (POST /internal/auth/v2/{subject}/request-service-access-token)
+	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
 	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
-	// (POST /internal/auth/v2/{subject}/request-user-access-token)
+	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{subjectID}/authorize)
@@ -1763,22 +1763,22 @@ type StrictServerInterface interface {
 	// (GET /oauth2/{subjectID}/callback)
 	Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error)
 	// Get the OAuth2 Client metadata
-	// (GET /oauth2/{subject}/oauth-client)
+	// (GET /oauth2/{subjectID}/oauth-client)
 	OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error)
 	// Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
-	// (GET /oauth2/{subject}/presentation_definition)
+	// (GET /oauth2/{subjectID}/presentation_definition)
 	PresentationDefinition(ctx context.Context, request PresentationDefinitionRequestObject) (PresentationDefinitionResponseObject, error)
 	// Get Request Object referenced in an authorization request to the Authorization Server.
-	// (GET /oauth2/{subject}/request.jwt/{id})
+	// (GET /oauth2/{subjectID}/request.jwt/{id})
 	RequestJWTByGet(ctx context.Context, request RequestJWTByGetRequestObject) (RequestJWTByGetResponseObject, error)
 	// Provide missing information to Client to finish Authorization request's Request Object, which is then returned.
-	// (POST /oauth2/{subject}/request.jwt/{id})
+	// (POST /oauth2/{subjectID}/request.jwt/{id})
 	RequestJWTByPost(ctx context.Context, request RequestJWTByPostRequestObject) (RequestJWTByPostResponseObject, error)
 	// Used by wallets to post the authorization response or error to.
-	// (POST /oauth2/{subject}/response)
+	// (POST /oauth2/{subjectID}/response)
 	HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error)
 	// Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
-	// (POST /oauth2/{subject}/token)
+	// (POST /oauth2/{subjectID}/token)
 	HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error)
 	// Get the StatusList2021Credential for the given DID and page
 	// (GET /statuslist/{did}/{page})
@@ -1798,10 +1798,10 @@ type strictHandler struct {
 }
 
 // OAuthAuthorizationServerMetadata operation middleware
-func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, subject string) error {
+func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, subjectID string) error {
 	var request OAuthAuthorizationServerMetadataRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.OAuthAuthorizationServerMetadata(ctx.Request().Context(), request.(OAuthAuthorizationServerMetadataRequestObject))
@@ -1823,10 +1823,10 @@ func (sh *strictHandler) OAuthAuthorizationServerMetadata(ctx echo.Context, subj
 }
 
 // OpenIDConfiguration operation middleware
-func (sh *strictHandler) OpenIDConfiguration(ctx echo.Context, subject string) error {
+func (sh *strictHandler) OpenIDConfiguration(ctx echo.Context, subjectID string) error {
 	var request OpenIDConfigurationRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.OpenIDConfiguration(ctx.Request().Context(), request.(OpenIDConfigurationRequestObject))
@@ -1999,10 +1999,10 @@ func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, did string) error {
 }
 
 // RequestOpenid4VCICredentialIssuance operation middleware
-func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, subject string) error {
+func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error {
 	var request RequestOpenid4VCICredentialIssuanceRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	var body RequestOpenid4VCICredentialIssuanceJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -2030,10 +2030,10 @@ func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, s
 }
 
 // RequestServiceAccessToken operation middleware
-func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subject string) error {
+func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subjectID string) error {
 	var request RequestServiceAccessTokenRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	var body RequestServiceAccessTokenJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -2061,10 +2061,10 @@ func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subject str
 }
 
 // RequestUserAccessToken operation middleware
-func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, subject string) error {
+func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, subjectID string) error {
 	var request RequestUserAccessTokenRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	var body RequestUserAccessTokenJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
@@ -2144,10 +2144,10 @@ func (sh *strictHandler) Callback(ctx echo.Context, subjectID string, params Cal
 }
 
 // OAuthClientMetadata operation middleware
-func (sh *strictHandler) OAuthClientMetadata(ctx echo.Context, subject string) error {
+func (sh *strictHandler) OAuthClientMetadata(ctx echo.Context, subjectID string) error {
 	var request OAuthClientMetadataRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.OAuthClientMetadata(ctx.Request().Context(), request.(OAuthClientMetadataRequestObject))
@@ -2169,10 +2169,10 @@ func (sh *strictHandler) OAuthClientMetadata(ctx echo.Context, subject string) e
 }
 
 // PresentationDefinition operation middleware
-func (sh *strictHandler) PresentationDefinition(ctx echo.Context, subject string, params PresentationDefinitionParams) error {
+func (sh *strictHandler) PresentationDefinition(ctx echo.Context, subjectID string, params PresentationDefinitionParams) error {
 	var request PresentationDefinitionRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
@@ -2195,10 +2195,10 @@ func (sh *strictHandler) PresentationDefinition(ctx echo.Context, subject string
 }
 
 // RequestJWTByGet operation middleware
-func (sh *strictHandler) RequestJWTByGet(ctx echo.Context, subject string, id string) error {
+func (sh *strictHandler) RequestJWTByGet(ctx echo.Context, subjectID string, id string) error {
 	var request RequestJWTByGetRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
@@ -2221,10 +2221,10 @@ func (sh *strictHandler) RequestJWTByGet(ctx echo.Context, subject string, id st
 }
 
 // RequestJWTByPost operation middleware
-func (sh *strictHandler) RequestJWTByPost(ctx echo.Context, subject string, id string) error {
+func (sh *strictHandler) RequestJWTByPost(ctx echo.Context, subjectID string, id string) error {
 	var request RequestJWTByPostRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 	request.Id = id
 
 	if form, err := ctx.FormParams(); err == nil {
@@ -2257,10 +2257,10 @@ func (sh *strictHandler) RequestJWTByPost(ctx echo.Context, subject string, id s
 }
 
 // HandleAuthorizeResponse operation middleware
-func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, subject string) error {
+func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, subjectID string) error {
 	var request HandleAuthorizeResponseRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	if form, err := ctx.FormParams(); err == nil {
 		var body HandleAuthorizeResponseFormdataRequestBody
@@ -2292,10 +2292,10 @@ func (sh *strictHandler) HandleAuthorizeResponse(ctx echo.Context, subject strin
 }
 
 // HandleTokenRequest operation middleware
-func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, subject string) error {
+func (sh *strictHandler) HandleTokenRequest(ctx echo.Context, subjectID string) error {
 	var request HandleTokenRequestRequestObject
 
-	request.Subject = subject
+	request.SubjectID = subjectID
 
 	if form, err := ctx.FormParams(); err == nil {
 		var body HandleTokenRequestFormdataRequestBody

@@ -54,7 +54,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
-			Subject: holderSubjectID,
+			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
 				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
 				Issuer:               issuerClientID,
@@ -162,7 +162,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 func requestCredentials(subjectID string, issuer string, redirectURI string) RequestOpenid4VCICredentialIssuanceRequestObject {
 	return RequestOpenid4VCICredentialIssuanceRequestObject{
-		Subject: subjectID,
+		SubjectID: subjectID,
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
 			Issuer:      issuer,
 			RedirectUri: redirectURI,

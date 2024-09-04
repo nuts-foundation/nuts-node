@@ -56,7 +56,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 				PreauthorizedUser:   &userDetails,
 				AuthorizationServer: "https://example.com/oauth2/verifier",
 			},
-			Subject: holderSubjectID,
+			SubjectID: holderSubjectID,
 		},
 	}
 

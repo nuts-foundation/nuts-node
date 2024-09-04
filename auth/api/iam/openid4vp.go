@@ -198,11 +198,11 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
 				Description:   "failed to authorize client",
-				InternalError: fmt.Errorf("failed to fetch OpenIDConfiguration: %w", err),
+				InternalError: fmt.Errorf("failed to fetch OpenIDConfiguration: %w", innerErr),
 				RedirectURI:   session.redirectURI(),
 			}
 		}
-		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnSubject, configuration.OpenIDProvider, modifier)
+		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnSubject, configuration.Metadata.OpenIDProvider, modifier)
 	}
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -493,8 +493,8 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 	if err = r.oauthClientStateStore().Get(state, &session); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired session", err)
 	}
-	if request.Subject != *session.OwnSubject {
-		return nil, oauthError(oauth.InvalidRequest, "incorrect tenant", fmt.Errorf("expected: %s, was: %s", *session.OwnSubject, request.Subject))
+	if request.SubjectID != *session.OwnSubject {
+		return nil, oauthError(oauth.InvalidRequest, "incorrect tenant", fmt.Errorf("expected: %s, was: %s", *session.OwnSubject, request.SubjectID))
 	}
 
 	// any future error can be sent to the client using the redirectURI from the oauthSession
@@ -526,7 +526,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		} else {
 			credentialSubjectID = *subjectDID
 		}
-		if err := r.validatePresentationAudience(presentation, request.Subject); err != nil {
+		if err := r.validatePresentationAudience(presentation, request.SubjectID); err != nil {
 			return nil, withCallbackURI(err, callbackURI)
 		}
 	}

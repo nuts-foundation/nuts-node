@@ -405,16 +405,23 @@ type OpenIDCredentialIssuerMetadata struct {
 // It contains the minimal information required for OpenID4VP, the required `jwks` is also omitted
 // see https://openid.net/specs/openid-connect-federation-1_0-29.html#entity-statement
 type OpenIDConfiguration struct {
-	// - Issuer: an url representing the issuer of the entity statement
+	// Issuer: an url representing the issuer of the entity statement
 	// for now we keep it teh same as the subject, eg the subject/tenant
 	Issuer string `json:"iss"`
-	// - Subject: an url representing the subject of the entity statement
+	// Subject: an url representing the subject of the entity statement
 	Subject string `json:"sub"`
 	// IssuedAt: the time the entity statement was issued
 	IssuedAt int64 `json:"iat"`
 	// JWKs is the JSON Web Key Set of the entity statement. Contains keys of all DIDs for the subject
 	JWKs jwk.Set `json:"jwks"`
-	// OpenIDProvider: the metadata of the OpenID provider. We need it as Authorization server metadata
+	// Metadata: the metadata of the entity statement
+	Metadata EntityStatementMetadata `json:"metadata"`
+}
+
+// EntityStatementMetadata represents the metadata of an openID federation entity statement
+// We only use the OpenID provider metadata
+type EntityStatementMetadata struct {
+	// OpenIDProvider: the metadata of the OpenID provider
 	OpenIDProvider AuthorizationServerMetadata `json:"openid_provider"`
 }
 
@@ -434,8 +441,8 @@ func (j *OpenIDConfiguration) UnmarshalJSON(bytes []byte) error {
 		j.IssuedAt = int64(issuedAt)
 	}
 
-	metadataJson, _ := json.Marshal(claims["openid_provider"])
-	if err := json.Unmarshal(metadataJson, &j.OpenIDProvider); err != nil {
+	metadataJson, _ := json.Marshal(claims["metadata"])
+	if err := json.Unmarshal(metadataJson, &j.Metadata); err != nil {
 		return err
 	}
 	keysAsJson, _ := json.Marshal(claims["jwks"])

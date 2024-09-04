@@ -125,8 +125,10 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(&oauth.OpenIDConfiguration{
-			OpenIDProvider: oauth.AuthorizationServerMetadata{
-				ClientIdSchemesSupported: []string{entityClientIDScheme},
+			Metadata: oauth.EntityStatementMetadata{
+				OpenIDProvider: oauth.AuthorizationServerMetadata{
+					ClientIdSchemesSupported: []string{entityClientIDScheme},
+				},
 			},
 		}, nil)
 
@@ -395,7 +397,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					PresentationSubmission: &submissionAsStr,
 					State:                  &state,
 				},
-				Subject: verifierSubject,
+				SubjectID: verifierSubject,
 			}
 		}
 		t.Run("ok - all Presentation Definitions fulfilled - code issued", func(t *testing.T) {
@@ -487,7 +489,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 			putState(ctx, "state", session)
 			putNonce(ctx, challenge)
 			request := baseRequest()
-			request.Subject = "other"
+			request.SubjectID = "other"
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), request)
 
@@ -585,7 +587,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 					ErrorDescription: &description,
 					State:            &state,
 				},
-				Subject: verifierSubject,
+				SubjectID: verifierSubject,
 			}
 		}
 		t.Run("with client state", func(t *testing.T) {

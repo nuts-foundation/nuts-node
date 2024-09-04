@@ -83,7 +83,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		//	200
 		ctx := newTestClient(t)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{SubjectID: verifierSubject})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -92,7 +92,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("authorization endpoint disabled", func(t *testing.T) {
 		ctx := newCustomTestClient(t, verifierURL, false)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{SubjectID: verifierSubject})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -103,7 +103,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		baseURL := test.MustParseURL("https://example.com/base")
 		ctx := newCustomTestClient(t, baseURL, false)
 
-		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{SubjectID: verifierSubject})
 
 		require.NoError(t, err)
 		require.IsType(t, OAuthAuthorizationServerMetadata200JSONResponse{}, res)
@@ -117,7 +117,7 @@ func TestWrapper_GetOAuthClientMetadata(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{Subject: holderSubjectID})
+		res, err := ctx.client.OAuthClientMetadata(nil, OAuthClientMetadataRequestObject{SubjectID: holderSubjectID})
 
 		require.NoError(t, err)
 		assert.IsType(t, OAuthClientMetadata200JSONResponse{}, res)
@@ -136,7 +136,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 			return "token", nil
 		})
 
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: verifierSubject})
 
 		require.NoError(t, err)
 		assert.IsType(t, OpenIDConfiguration200ApplicationentityStatementJwtResponse{}, res)
@@ -148,7 +148,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 	t.Run("error - subject does not exist", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: unknownSubjectID})
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: unknownSubjectID})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "subject not found")
 		assert.Nil(t, res)
@@ -157,7 +157,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.subjectManager.EXPECT().List(gomock.Any(), "error").Return(nil, assert.AnError)
 
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: "error"})
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: "error"})
 
 		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
@@ -166,7 +166,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return("", nil, assert.AnError)
 
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: verifierSubject})
 
 		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
@@ -176,7 +176,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(verifierDID, nil, resolver.AssertionMethod).Return("kid", testKey.Public(), nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", assert.AnError)
 
-		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{Subject: verifierSubject})
+		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: verifierSubject})
 
 		requireOAuthError(t, err, oauth.ServerError, "")
 		assert.Nil(t, res)
@@ -192,7 +192,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Subject: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -203,7 +203,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 	t.Run("ok - missing scope", func(t *testing.T) {
 		test := newTestClient(t)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Subject: verifierSubject, Params: PresentationDefinitionParams{}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -217,7 +217,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Subject: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -229,7 +229,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Subject: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -240,7 +240,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		test := newTestClient(t)
 		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
 
-		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{Subject: verifierSubject, Params: PresentationDefinitionParams{Scope: "unknown"}})
+		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
 		require.Error(t, err)
 		assert.Nil(t, response)
@@ -285,7 +285,9 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			RequireSignedRequestObject: true,
 		}
 		configuration := oauth.OpenIDConfiguration{
-			OpenIDProvider: serverMetadata,
+			Metadata: oauth.EntityStatementMetadata{
+				OpenIDProvider: serverMetadata,
+			},
 		}
 		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
 		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderURL.String()).Return(&configuration, nil)
@@ -384,7 +386,7 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
-			Subject: verifierSubject,
+			SubjectID: verifierSubject,
 			Body: &HandleTokenRequestFormdataRequestBody{
 				GrantType: "unsupported",
 			},
@@ -397,7 +399,7 @@ func TestWrapper_HandleTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 
 		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
-			Subject: verifierSubject,
+			SubjectID: verifierSubject,
 			Body: &HandleTokenRequestFormdataRequestBody{
 				GrantType: oauth.VpTokenGrantType,
 			},
@@ -885,7 +887,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 		require.NoError(t, err)
 	})
@@ -899,7 +901,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", false, nil).Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 		require.NoError(t, err)
 	})
@@ -907,7 +909,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 		require.Error(t, err)
 		assert.Equal(t, err, holder.ErrNoCredentials)
@@ -934,7 +936,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 
-		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+		response, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 		// assert token
 		require.NoError(t, err)
@@ -968,7 +970,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user")
 		})
@@ -980,7 +982,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.id")
 		})
@@ -992,7 +994,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.name")
 		})
@@ -1004,7 +1006,7 @@ func TestWrapper_RequestUserAccessToken(t *testing.T) {
 				RedirectUri:         redirectURI,
 			}
 
-			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{Subject: holderSubjectID, Body: body})
+			_, err := ctx.client.RequestUserAccessToken(nil, RequestUserAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 			require.EqualError(t, err, "missing preauthorized_user.role")
 		})
@@ -1049,7 +1051,7 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
 
-		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.NoError(t, err)
 		assert.Equal(t, RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse{
@@ -1074,7 +1076,7 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 		ro := jar{}.Create(holderDID, holderClientID, verifierClientID, func(claims map[string]string) {})
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 
-		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Subject: unknownSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{SubjectID: unknownSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - client_id does not match request")
@@ -1087,7 +1089,7 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 		ro.RequestURIMethod = "post"
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 
-		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - wrong 'request_uri_method' authorization server or wallet probably does not support 'request_uri_method' - used request_uri_method 'get' on a 'post' request_uri")
@@ -1100,7 +1102,7 @@ func TestWrapper_GetRequestJWT(t *testing.T) {
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return("", errors.New("fail"))
 
-		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByGet(cont, RequestJWTByGetRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")
@@ -1129,7 +1131,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return(expectedToken, nil)
 
-		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.NoError(t, err)
 		assert.Equal(t, RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
@@ -1150,7 +1152,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 			WalletNonce:    &wallet_nonce,
 		})
 
-		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Subject: holderSubjectID, Id: requestID, Body: &body})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{SubjectID: holderSubjectID, Id: requestID, Body: &body})
 
 		assert.NoError(t, err)
 		assert.Equal(t, RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse{
@@ -1174,7 +1176,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, newReqObj("", "")))
 
-		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Subject: unknownSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{SubjectID: unknownSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - client_id does not match request")
@@ -1187,7 +1189,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 		ro.RequestURIMethod = "get"
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 
-		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "invalid_request - used request_uri_method 'post' on a 'get' request_uri")
@@ -1200,7 +1202,7 @@ func TestWrapper_PostRequestJWT(t *testing.T) {
 		require.NoError(t, ctx.client.authzRequestObjectStore().Put(requestID, ro))
 		ctx.jar.EXPECT().Sign(cont, ro.Claims).Return("", errors.New("fail"))
 
-		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{Subject: holderSubjectID, Id: requestID})
+		response, err := ctx.client.RequestJWTByPost(cont, RequestJWTByPostRequestObject{SubjectID: holderSubjectID, Id: requestID})
 
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "server_error - failed to sign authorization Request Object: fail - unable to create Request Object")

@@ -1,6 +1,6 @@
 # Note: no code is directly generated from this file, it is merged into v2.yaml and then code is generated from the merged file.
 paths:
-  /oauth2/{subject}/token:
+  /oauth2/{subjectID}/token:
     post:
       summary: Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
       description: |
@@ -10,7 +10,7 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: the subject of the token request
@@ -97,9 +97,9 @@ paths:
               schema:
                 type: string
                 format: uri
-  /oauth2/{subject}/request.jwt/{id}:
+  /oauth2/{subjectID}/request.jwt/{id}:
     parameters:
-      - name: subject
+      - name: subjectID
         in: path
         required: true
         description: Subject acting as the client for the authorization request
@@ -211,7 +211,7 @@ paths:
                 format: uri
         "default":
           $ref: '../common/error_response.yaml'
-  /oauth2/{subject}/presentation_definition:
+  /oauth2/{subjectID}/presentation_definition:
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
@@ -223,7 +223,7 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: Subject that holds the presentation definition.
@@ -253,7 +253,7 @@ paths:
                 "$ref": "#/components/schemas/PresentationDefinition"
         "default":
           $ref: '../common/error_response.yaml'
-  /oauth2/{subject}/response:
+  /oauth2/{subjectID}/response:
     post:
       summary: Used by wallets to post the authorization response or error to.
       description: |
@@ -264,7 +264,7 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: the subject of the authorization response
@@ -308,7 +308,7 @@ paths:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
   #  /oauth2/{did}/.well-known/oauth-authorization-server:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
-  /.well-known/oauth-authorization-server/oauth2/{subject}:
+  /.well-known/oauth-authorization-server/oauth2/{subjectID}:
     get:
       tags:
         - well-known
@@ -323,7 +323,7 @@ paths:
         * 500 - internal server error
       operationId: OAuthAuthorizationServerMetadata
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: The metadata subject.
@@ -339,7 +339,7 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-  /.well-known/openid-configuration/oauth2/{subject}:
+  /.well-known/openid-configuration/oauth2/{subjectID}:
     get:
       tags:
         - well-known
@@ -354,7 +354,7 @@ paths:
         * 500 - internal server error
       operationId: OpenIDConfiguration
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: The subject identifier part of the client_id.
@@ -374,7 +374,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /oauth2/{subject}/oauth-client:
+  /oauth2/{subjectID}/oauth-client:
     get:
       tags:
         - well-known
@@ -390,7 +390,7 @@ paths:
         * 500 - internal server error
       operationId: OAuthClientMetadata
       parameters:
-        - name: subject
+        - name: subjectID
           in: path
           required: true
           description: Subject that serves the metadata

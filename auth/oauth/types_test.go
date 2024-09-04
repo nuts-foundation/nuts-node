@@ -106,8 +106,10 @@ func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
 	"iss":"https://nuts.nl",
 	"sub": "https://nuts.nl",
 	"iat": 1600000000,
-	"openid_provider": {
-		"authorization_endpoint":"https://nuts.nl/authorize"
+	"metadata": {
+		"openid_provider": {
+			"authorization_endpoint":"https://nuts.nl/authorize"
+		}
 	},
 	"jwks": {
 		"keys": [
@@ -132,7 +134,7 @@ func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
 		assert.Equal(t, "https://nuts.nl", c.Issuer)
 		assert.Equal(t, "https://nuts.nl", c.Subject)
 		assert.Equal(t, int64(1600000000), c.IssuedAt)
-		assert.Equal(t, "https://nuts.nl/authorize", c.OpenIDProvider.AuthorizationEndpoint)
+		assert.Equal(t, "https://nuts.nl/authorize", c.Metadata.OpenIDProvider.AuthorizationEndpoint)
 	})
 	t.Run("key error", func(t *testing.T) {
 		var c OpenIDConfiguration

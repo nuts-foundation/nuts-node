@@ -76,15 +76,16 @@ const accessTokenValidity = 15 * time.Minute
 
 // cacheControlMaxAgeURLs holds API endpoints that should have a max-age cache control header set.
 var cacheControlMaxAgeURLs = []string{
-	"/oauth2/:subject/presentation_definition",
-	"/.well-known/oauth-authorization-server/oauth2/:subject",
-	"/oauth2/:subject/oauth-client",
+	"/oauth2/:subjectID/presentation_definition",
+	"/.well-known/oauth-authorization-server/oauth2/:subjectID",
+	"/.well-known/openid-configuration/oauth2/:subjectID",
+	"/oauth2/:subjectID/oauth-client",
 	"/statuslist/:did/:page",
 }
 
 // cacheControlNoCacheURLs holds API endpoints that should have a no-cache cache control header set.
 var cacheControlNoCacheURLs = []string{
-	"/oauth2/:subject/token",
+	"/oauth2/:subjectID/token",
 }
 
 type TokenIntrospectionResponse = ExtendedTokenIntrospectionResponse
@@ -215,7 +216,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
-	err := r.subjectExists(ctx, request.Subject)
+	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.Subject, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -512,7 +513,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 			Description: "request object not found",
 		}
 	}
-	expected := r.subjectToBaseURL(request.Subject)
+	expected := r.subjectToBaseURL(request.SubjectID)
 	if ro.Client != expected.String() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -555,7 +556,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 			Description: "request object not found",
 		}
 	}
-	expected := r.subjectToBaseURL(request.Subject)
+	expected := r.subjectToBaseURL(request.SubjectID)
 	if ro.Client != expected.String() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -599,7 +600,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 
 // OAuthAuthorizationServerMetadata returns the Authorization Server's metadata
 func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAuthAuthorizationServerMetadataRequestObject) (OAuthAuthorizationServerMetadataResponseObject, error) {
-	clientID := r.subjectToBaseURL(request.Subject)
+	clientID := r.subjectToBaseURL(request.SubjectID)
 	md, err := r.oauthAuthorizationServerMetadata(clientID)
 	if err != nil {
 		return nil, err
@@ -617,19 +618,19 @@ func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.Auth
 
 // OAuthClientMetadata returns the OAuth2 Client metadata for the request.Id if it is managed by this node.
 func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error) {
-	err := r.subjectExists(ctx, request.Subject)
+	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	identityURL := r.subjectToBaseURL(request.Subject)
+	identityURL := r.subjectToBaseURL(request.SubjectID)
 
 	return OAuthClientMetadata200JSONResponse(clientMetadata(identityURL)), nil
 }
 
 func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error) {
 	// find DIDs for subject
-	dids, err := r.subjectManager.List(ctx, request.Subject)
+	dids, err := r.subjectManager.List(ctx, request.SubjectID)
 	if err != nil {
 		if errors.Is(err, didsubject.ErrSubjectNotFound) {
 			return nil, oauth.OAuth2Error{
@@ -668,7 +669,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// we sign with a JWK, the receiving party can verify with the signature but not if the key corresponds to the DID since the DID method might not be supported.
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
-	issuerURL := r.subjectToBaseURL(request.Subject)
+	issuerURL := r.subjectToBaseURL(request.SubjectID)
 	configuration := openIDConfiguration(issuerURL, set, r.vdr.SupportedMethods())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
@@ -732,7 +733,7 @@ func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, 
 }
 
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
-	err := r.subjectExists(ctx, request.Subject)
+	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -746,8 +747,8 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	clientID := r.subjectToBaseURL(request.Subject)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.Subject, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	clientID := r.subjectToBaseURL(request.SubjectID)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -756,7 +757,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 }
 
 func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error) {
-	err := r.subjectExists(ctx, request.Subject)
+	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -788,7 +789,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	err = r.userRedirectStore().Put(token, RedirectSession{
 		AccessTokenRequest: request,
 		SessionID:          sessionID,
-		SubjectID:          request.Subject,
+		SubjectID:          request.SubjectID,
 	})
 	if err != nil {
 		return nil, err
@@ -799,7 +800,7 @@ func (r Wrapper) RequestUserAccessToken(ctx context.Context, request RequestUser
 	}
 
 	// redirect to generic user page, context of token will render correct page
-	redirectURL := nutsHttp.AddQueryParams(*r.auth.PublicURL().JoinPath("oauth2", request.Subject, "user"), map[string]string{
+	redirectURL := nutsHttp.AddQueryParams(*r.auth.PublicURL().JoinPath("oauth2", request.SubjectID, "user"), map[string]string{
 		"token": token,
 	})
 	return RequestUserAccessToken200JSONResponse{
@@ -864,7 +865,7 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, subject string,
 	}
 
 	clientID := r.subjectToBaseURL(subject)
-	clientDID, err := r.determineClientDID(ctx, metadata, subject)
+	signerDID, err := r.determineClientDID(ctx, metadata, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -876,7 +877,7 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, subject string,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar().Create(*clientDID, clientID.String(), audience, modifier)
+	requestObj := r.jar().Create(*signerDID, clientID.String(), audience, modifier)
 	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
@@ -920,9 +921,10 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 func (r Wrapper) subjectToBaseURL(subject string) url.URL {
 	u := &url.URL{}
 	publicURL := r.auth.PublicURL()
-	if publicURL != nil {
-		u = publicURL.JoinPath("oauth2", subject)
+	if publicURL == nil {
+		panic("publicURL is nil")
 	}
+	u = publicURL.JoinPath("oauth2", subject)
 	return *u
 }
 
@@ -957,7 +959,7 @@ func (r Wrapper) determineClientDID(ctx context.Context, authServerMetadata oaut
 	if !authServerMetadata.SupportsClientIDScheme(entityClientIDScheme) {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
-			Description: "authorization server does not support 'entity' client_id scheme",
+			Description: "authorization server does not support 'entity_id' client_id scheme",
 		}
 	}
 	candidateDIDs, err := r.subjectManager.List(ctx, subjectID)
