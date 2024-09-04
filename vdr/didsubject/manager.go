@@ -56,7 +56,24 @@ type Manager struct {
 	KeyStore       nutsCrypto.KeyStore
 }
 
-func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
+func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	dids, err := sqlDIDManager.All()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]did.DID)
+	for _, sqlDID := range dids {
+		id, err := did.ParseDID(sqlDID.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DID for subject (subject=%s, did=%s): %w", sqlDID.Subject, sqlDID.ID, err)
+		}
+		result[sqlDID.Subject] = append(result[sqlDID.Subject], *id)
+	}
+	return result, nil
+}
+
+func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	dids, err := sqlDIDManager.FindBySubject(subject)
 	if err != nil {

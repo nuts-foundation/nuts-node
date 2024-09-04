@@ -623,7 +623,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 
 func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error) {
 	// find DIDs for subject
-	dids, err := r.subjectManager.List(ctx, request.SubjectID)
+	dids, err := r.subjectManager.ListDIDs(ctx, request.SubjectID)
 	if err != nil {
 		if errors.Is(err, didsubject.ErrSubjectNotFound) {
 			return nil, oauth.OAuth2Error{
@@ -639,8 +639,8 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// resolve DID keys
 	set := jwk.NewSet()
 	var signingKey string
-	for _, did := range dids {
-		kid, key, err := r.keyResolver.ResolveKey(did, nil, resolver.AssertionMethod)
+	for _, currentDID := range dids {
+		kid, key, err := r.keyResolver.ResolveKey(currentDID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
@@ -917,7 +917,7 @@ func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
 
 // subjectExists checks whether the given subject is known on the local node.
 func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID did.DID) (bool, error) {
-	dids, err := r.subjectManager.List(ctx, subjectID)
+	dids, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return false, err
 	}
@@ -937,7 +937,7 @@ func (r Wrapper) determineClientDID(ctx context.Context, authServerMetadata oaut
 			Description: "authorization server does not support 'entity_id' client_id scheme",
 		}
 	}
-	candidateDIDs, err := r.subjectManager.List(ctx, subjectID)
+	candidateDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return nil, err
 	}

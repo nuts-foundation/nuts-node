@@ -157,7 +157,7 @@ func (r Wrapper) provisionUserSession(ctx context.Context, session *user.Session
 		// already provisioned
 		return nil
 	}
-	employerDIDs, err := r.subjectManager.List(ctx, session.SubjectID)
+	employerDIDs, err := r.subjectManager.ListDIDs(ctx, session.SubjectID)
 	if err != nil {
 		return err
 	}

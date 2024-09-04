@@ -174,11 +174,11 @@ type ClientInterface interface {
 	// GetTenantWebDID request
 	GetTenantWebDID(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListDIDs request
-	ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ResolveDID request
 	ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListSubjects request
+	ListSubjects(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateDIDWithBody request with any body
 	CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -237,8 +237,8 @@ func (c *Client) GetTenantWebDID(ctx context.Context, id string, reqEditors ...R
 	return c.Client.Do(req)
 }
 
-func (c *Client) ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListDIDsRequest(c.Server)
+func (c *Client) ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewResolveDIDRequest(c.Server, did)
 	if err != nil {
 		return nil, err
 	}
@@ -249,8 +249,8 @@ func (c *Client) ListDIDs(ctx context.Context, reqEditors ...RequestEditorFn) (*
 	return c.Client.Do(req)
 }
 
-func (c *Client) ResolveDID(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewResolveDIDRequest(c.Server, did)
+func (c *Client) ListSubjects(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListSubjectsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -466,16 +466,20 @@ func NewGetTenantWebDIDRequest(server string, id string) (*http.Request, error) 
 	return req, nil
 }
 
-// NewListDIDsRequest generates requests for ListDIDs
-func NewListDIDsRequest(server string) (*http.Request, error) {
+// NewResolveDIDRequest generates requests for ResolveDID
+func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
 	var err error
+
+	var pathParam0 string
+
+	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/internal/vdr/v2/did")
+	operationPath := fmt.Sprintf("/internal/vdr/v2/did/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -493,20 +497,16 @@ func NewListDIDsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewResolveDIDRequest generates requests for ResolveDID
-func NewResolveDIDRequest(server string, did string) (*http.Request, error) {
+// NewListSubjectsRequest generates requests for ListSubjects
+func NewListSubjectsRequest(server string) (*http.Request, error) {
 	var err error
-
-	var pathParam0 string
-
-	pathParam0 = did
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/internal/vdr/v2/did/%s", pathParam0)
+	operationPath := fmt.Sprintf("/internal/vdr/v2/subject")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -915,11 +915,11 @@ type ClientWithResponsesInterface interface {
 	// GetTenantWebDIDWithResponse request
 	GetTenantWebDIDWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTenantWebDIDResponse, error)
 
-	// ListDIDsWithResponse request
-	ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error)
-
 	// ResolveDIDWithResponse request
 	ResolveDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*ResolveDIDResponse, error)
+
+	// ListSubjectsWithResponse request
+	ListSubjectsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSubjectsResponse, error)
 
 	// CreateDIDWithBodyWithResponse request with any body
 	CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
@@ -998,38 +998,6 @@ func (r GetTenantWebDIDResponse) StatusCode() int {
 	return 0
 }
 
-type ListDIDsResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	JSON200                       *[]string
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r ListDIDsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListDIDsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ResolveDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1056,6 +1024,38 @@ func (r ResolveDIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ResolveDIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ListSubjectsResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *map[string][]string
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r ListSubjectsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListSubjectsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1334,15 +1334,6 @@ func (c *ClientWithResponses) GetTenantWebDIDWithResponse(ctx context.Context, i
 	return ParseGetTenantWebDIDResponse(rsp)
 }
 
-// ListDIDsWithResponse request returning *ListDIDsResponse
-func (c *ClientWithResponses) ListDIDsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListDIDsResponse, error) {
-	rsp, err := c.ListDIDs(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListDIDsResponse(rsp)
-}
-
 // ResolveDIDWithResponse request returning *ResolveDIDResponse
 func (c *ClientWithResponses) ResolveDIDWithResponse(ctx context.Context, did string, reqEditors ...RequestEditorFn) (*ResolveDIDResponse, error) {
 	rsp, err := c.ResolveDID(ctx, did, reqEditors...)
@@ -1350,6 +1341,15 @@ func (c *ClientWithResponses) ResolveDIDWithResponse(ctx context.Context, did st
 		return nil, err
 	}
 	return ParseResolveDIDResponse(rsp)
+}
+
+// ListSubjectsWithResponse request returning *ListSubjectsResponse
+func (c *ClientWithResponses) ListSubjectsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSubjectsResponse, error) {
+	rsp, err := c.ListSubjects(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListSubjectsResponse(rsp)
 }
 
 // CreateDIDWithBodyWithResponse request with arbitrary body returning *CreateDIDResponse
@@ -1508,22 +1508,22 @@ func ParseGetTenantWebDIDResponse(rsp *http.Response) (*GetTenantWebDIDResponse,
 	return response, nil
 }
 
-// ParseListDIDsResponse parses an HTTP response from a ListDIDsWithResponse call
-func ParseListDIDsResponse(rsp *http.Response) (*ListDIDsResponse, error) {
+// ParseResolveDIDResponse parses an HTTP response from a ResolveDIDWithResponse call
+func ParseResolveDIDResponse(rsp *http.Response) (*ResolveDIDResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ListDIDsResponse{
+	response := &ResolveDIDResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest []string
+		var dest DIDResolutionResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1550,22 +1550,22 @@ func ParseListDIDsResponse(rsp *http.Response) (*ListDIDsResponse, error) {
 	return response, nil
 }
 
-// ParseResolveDIDResponse parses an HTTP response from a ResolveDIDWithResponse call
-func ParseResolveDIDResponse(rsp *http.Response) (*ResolveDIDResponse, error) {
+// ParseListSubjectsResponse parses an HTTP response from a ListSubjectsWithResponse call
+func ParseListSubjectsResponse(rsp *http.Response) (*ListSubjectsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ResolveDIDResponse{
+	response := &ListSubjectsResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest DIDResolutionResult
+		var dest map[string][]string
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1922,12 +1922,12 @@ type ServerInterface interface {
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx echo.Context, id string) error
-	// Lists all locally managed DIDs
-	// (GET /internal/vdr/v2/did)
-	ListDIDs(ctx echo.Context) error
 	// Resolves a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx echo.Context, did string) error
+	// Lists all subjects and their DIDs.
+	// (GET /internal/vdr/v2/subject)
+	ListSubjects(ctx echo.Context) error
 	// Creates new DID Documents for a subject.
 	// (POST /internal/vdr/v2/subject)
 	CreateDID(ctx echo.Context) error
@@ -1988,17 +1988,6 @@ func (w *ServerInterfaceWrapper) GetTenantWebDID(ctx echo.Context) error {
 	return err
 }
 
-// ListDIDs converts echo context to params.
-func (w *ServerInterfaceWrapper) ListDIDs(ctx echo.Context) error {
-	var err error
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.ListDIDs(ctx)
-	return err
-}
-
 // ResolveDID converts echo context to params.
 func (w *ServerInterfaceWrapper) ResolveDID(ctx echo.Context) error {
 	var err error
@@ -2011,6 +2000,17 @@ func (w *ServerInterfaceWrapper) ResolveDID(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.ResolveDID(ctx, did)
+	return err
+}
+
+// ListSubjects converts echo context to params.
+func (w *ServerInterfaceWrapper) ListSubjects(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.ListSubjects(ctx)
 	return err
 }
 
@@ -2186,8 +2186,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 
 	router.GET(baseURL+"/.well-known/did.json", wrapper.GetRootWebDID)
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
-	router.GET(baseURL+"/internal/vdr/v2/did", wrapper.ListDIDs)
 	router.GET(baseURL+"/internal/vdr/v2/did/:did", wrapper.ResolveDID)
+	router.GET(baseURL+"/internal/vdr/v2/subject", wrapper.ListSubjects)
 	router.POST(baseURL+"/internal/vdr/v2/subject", wrapper.CreateDID)
 	router.DELETE(baseURL+"/internal/vdr/v2/subject/:id", wrapper.Deactivate)
 	router.GET(baseURL+"/internal/vdr/v2/subject/:id", wrapper.SubjectDIDs)
@@ -2248,43 +2248,6 @@ func (response GetTenantWebDID404Response) VisitGetTenantWebDIDResponse(w http.R
 	return nil
 }
 
-type ListDIDsRequestObject struct {
-}
-
-type ListDIDsResponseObject interface {
-	VisitListDIDsResponse(w http.ResponseWriter) error
-}
-
-type ListDIDs200JSONResponse []string
-
-func (response ListDIDs200JSONResponse) VisitListDIDsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ListDIDsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response ListDIDsdefaultApplicationProblemPlusJSONResponse) VisitListDIDsResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
 type ResolveDIDRequestObject struct {
 	Did string `json:"did"`
 }
@@ -2317,6 +2280,43 @@ type ResolveDIDdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ResolveDIDdefaultApplicationProblemPlusJSONResponse) VisitResolveDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListSubjectsRequestObject struct {
+}
+
+type ListSubjectsResponseObject interface {
+	VisitListSubjectsResponse(w http.ResponseWriter) error
+}
+
+type ListSubjects200JSONResponse map[string][]string
+
+func (response ListSubjects200JSONResponse) VisitListSubjectsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListSubjectsdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response ListSubjectsdefaultApplicationProblemPlusJSONResponse) VisitListSubjectsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2639,12 +2639,12 @@ type StrictServerInterface interface {
 	// Returns the did:web DID for the specified tenant.
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
-	// Lists all locally managed DIDs
-	// (GET /internal/vdr/v2/did)
-	ListDIDs(ctx context.Context, request ListDIDsRequestObject) (ListDIDsResponseObject, error)
 	// Resolves a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error)
+	// Lists all subjects and their DIDs.
+	// (GET /internal/vdr/v2/subject)
+	ListSubjects(ctx context.Context, request ListSubjectsRequestObject) (ListSubjectsResponseObject, error)
 	// Creates new DID Documents for a subject.
 	// (POST /internal/vdr/v2/subject)
 	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
@@ -2731,29 +2731,6 @@ func (sh *strictHandler) GetTenantWebDID(ctx echo.Context, id string) error {
 	return nil
 }
 
-// ListDIDs operation middleware
-func (sh *strictHandler) ListDIDs(ctx echo.Context) error {
-	var request ListDIDsRequestObject
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.ListDIDs(ctx.Request().Context(), request.(ListDIDsRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ListDIDs")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(ListDIDsResponseObject); ok {
-		return validResponse.VisitListDIDsResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
 // ResolveDID operation middleware
 func (sh *strictHandler) ResolveDID(ctx echo.Context, did string) error {
 	var request ResolveDIDRequestObject
@@ -2773,6 +2750,29 @@ func (sh *strictHandler) ResolveDID(ctx echo.Context, did string) error {
 		return err
 	} else if validResponse, ok := response.(ResolveDIDResponseObject); ok {
 		return validResponse.VisitResolveDIDResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// ListSubjects operation middleware
+func (sh *strictHandler) ListSubjects(ctx echo.Context) error {
+	var request ListSubjectsRequestObject
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSubjects(ctx.Request().Context(), request.(ListSubjectsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSubjects")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(ListSubjectsResponseObject); ok {
+		return validResponse.VisitListSubjectsResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

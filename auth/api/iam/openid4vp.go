@@ -293,7 +293,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, subject
 	}
 
 	targetWallet := r.vcr.Wallet()
-	candidateDIDs, err := r.subjectManager.List(ctx, subject)
+	candidateDIDs, err := r.subjectManager.ListDIDs(ctx, subject)
 	if err != nil {
 		return nil, err
 	}

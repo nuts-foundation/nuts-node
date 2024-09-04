@@ -155,7 +155,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 	})
 	t.Run("error - subject list DIDs returns error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), "error").Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), "error").Return(nil, assert.AnError)
 
 		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: "error"})
 
@@ -1440,10 +1440,10 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
 	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
-	subjectManager.EXPECT().List(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
-	subjectManager.EXPECT().List(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
-	subjectManager.EXPECT().List(gomock.Any(), verifierSubject).Return([]did.DID{verifierDID}, nil).AnyTimes()
-	subjectManager.EXPECT().List(gomock.Any(), issuerSubjectID).Return([]did.DID{issuerDID}, nil).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), verifierSubject).Return([]did.DID{verifierDID}, nil).AnyTimes()
+	subjectManager.EXPECT().ListDIDs(gomock.Any(), issuerSubjectID).Return([]did.DID{issuerDID}, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), holderSubjectID).Return(true, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), verifierSubject).Return(true, nil).AnyTimes()
 	subjectManager.EXPECT().Exists(gomock.Any(), unknownSubjectID).Return(false, nil).AnyTimes()

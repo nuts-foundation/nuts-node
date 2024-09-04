@@ -208,7 +208,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 		if err != nil {
 			return nil, err
 		}
-		dids, err := c.subjectManager.List(ctx, subject)
+		dids, err := c.subjectManager.ListDIDs(ctx, subject)
 		if err != nil {
 			return nil, err
 		}
@@ -256,7 +256,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
 
-	subjectDIDs, err := c.subjectManager.List(ctx, subjectID)
+	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return nil, err
 	}
