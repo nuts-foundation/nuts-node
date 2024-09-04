@@ -52,7 +52,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -70,7 +70,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -87,7 +87,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -105,7 +105,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return(subjectDIDs, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(subjectDIDs, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -139,7 +139,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		wallet.EXPECT().BuildPresentation(gomock.Any(), []vc.VerifiableCredential{}, gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(emptyDefinition, store, invoker, mockVCR, mockSubjectManager)
 
@@ -164,7 +164,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
 		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject)
@@ -182,7 +182,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		invoker := client.NewMockHTTPClient(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -199,7 +199,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 		require.NoError(t, store.add(testServiceID, vpAlice, 1))
@@ -214,7 +214,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(holder.NewMockWallet(ctrl)).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
@@ -238,7 +238,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 		require.NoError(t, store.add(testServiceID, vpAlice, 1))
@@ -256,7 +256,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 		require.NoError(t, store.add(testServiceID, vpAlice, 1))
@@ -271,7 +271,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
 		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
@@ -312,12 +312,12 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		// Alice
 		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, &time.Time{})
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
 		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		// Bob
 		_ = store.updatePresentationRefreshTime(testServiceID, bobSubject, &time.Time{})
-		mockSubjectManager.EXPECT().List(gomock.Any(), bobSubject).Return([]did.DID{bobDID}, nil)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), bobSubject).Return([]did.DID{bobDID}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
 		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
 
@@ -331,7 +331,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		invoker := client.NewMockHTTPClient(ctrl)
 		mockVCR := vcr.NewMockVCR(ctrl)
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
-		mockSubjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, &time.Time{})
 

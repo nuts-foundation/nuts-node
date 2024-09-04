@@ -452,7 +452,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
-		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
@@ -462,7 +462,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
 		m, testContext := setupModule(t, storageEngine)
-		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
@@ -475,7 +475,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		wallet := holder.NewMockWallet(gomock.NewController(t))
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
-		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).Times(2)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).Times(2)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
 
@@ -508,7 +508,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	})
 	t.Run("activated, no VP", func(t *testing.T) {
 		m, ctx := setupModule(t, storageEngine)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
 
@@ -520,7 +520,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	})
 	t.Run("activated, with VP", func(t *testing.T) {
 		m, testContext := setupModule(t, storageEngine)
-		testContext.subjectManager.EXPECT().List(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
 		_ = m.store.add(testServiceID, vpAlice, 0)

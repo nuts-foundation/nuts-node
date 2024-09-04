@@ -69,7 +69,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	if !serviceExists {
 		return ErrServiceNotFound
 	}
-	subjectDIDs, err := r.subjectManager.List(ctx, subjectID)
+	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 		return err
 	}
 	// subject is now successfully deactivated for the service, anything after this point is best effort
-	subjectDIDs, err := r.subjectManager.List(ctx, subjectID)
+	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		// this could be a didsubject.ErrSubjectNotFound after the subject has been deactivated
 		// still fail in this case since we no longer have the keys to sign a retraction

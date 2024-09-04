@@ -623,7 +623,7 @@ func (r Wrapper) OAuthClientMetadata(ctx context.Context, request OAuthClientMet
 
 func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error) {
 	// find DIDs for subject
-	dids, err := r.subjectManager.List(ctx, request.SubjectID)
+	dids, err := r.subjectManager.ListDIDs(ctx, request.SubjectID)
 	if err != nil {
 		if errors.Is(err, didsubject.ErrSubjectNotFound) {
 			return nil, oauth.OAuth2Error{
@@ -639,8 +639,8 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// resolve DID keys
 	set := jwk.NewSet()
 	var signingKey string
-	for _, did := range dids {
-		kid, key, err := r.keyResolver.ResolveKey(did, nil, resolver.AssertionMethod)
+	for _, currentDID := range dids {
+		kid, key, err := r.keyResolver.ResolveKey(currentDID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,

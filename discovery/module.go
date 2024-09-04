@@ -376,7 +376,7 @@ func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID 
 	}
 	// subject is activated for service
 
-	subjectDIDs, err := m.subjectManager.List(ctx, subjectID)
+	subjectDIDs, err := m.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		// can only happen if DB is offline/corrupt, or between deactivating a subject and its next refresh on the service (didsubject.ErrSubjectNotFound)
 		return true, nil, err

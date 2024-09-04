@@ -207,7 +207,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 		if err != nil {
 			return nil, err
 		}
-		dids, err := c.subjectManager.List(ctx, subject)
+		dids, err := c.subjectManager.ListDIDs(ctx, subject)
 		if err != nil {
 			return nil, err
 		}

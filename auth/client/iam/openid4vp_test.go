@@ -72,7 +72,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
 
@@ -94,7 +94,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.NutsSigningKeyType).Return(kid, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("", assert.AnError)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
 		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
 

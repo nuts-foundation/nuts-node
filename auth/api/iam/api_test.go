@@ -155,7 +155,7 @@ func TestWrapper_OpenIDConfiguration(t *testing.T) {
 	})
 	t.Run("error - subject list DIDs returns error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.subjectManager.EXPECT().List(gomock.Any(), "error").Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), "error").Return(nil, assert.AnError)
 
 		res, err := ctx.client.OpenIDConfiguration(nil, OpenIDConfigurationRequestObject{SubjectID: "error"})
 
