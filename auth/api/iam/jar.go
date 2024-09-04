@@ -27,7 +27,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -49,7 +48,6 @@ type jar struct {
 	auth        auth.AuthenticationServices
 	jwtSigner   cryptoNuts.JWTSigner
 	keyResolver resolver.KeyResolver
-	client      iam.Client
 }
 
 type JAR interface {
