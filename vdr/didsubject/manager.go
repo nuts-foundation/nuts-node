@@ -231,9 +231,8 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 
@@ -326,9 +325,8 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 		return current, nil
