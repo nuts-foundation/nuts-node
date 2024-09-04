@@ -21,6 +21,7 @@ package iam
 import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"time"
 
@@ -90,14 +91,15 @@ func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime 
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
 	expiresIn := int(accessTokenValidity.Seconds())
-	tokenType := AccessTokenTypeDPoP
-	if dpopToken == nil {
-		tokenType = AccessTokenTypeBearer
-	}
-	return &oauth.TokenResponse{
+	tokenResponse := oauth.TokenResponse{
 		AccessToken: accessToken.Token,
 		ExpiresIn:   &expiresIn,
 		Scope:       &scope,
-		TokenType:   tokenType,
-	}, nil
+		TokenType:   AccessTokenTypeBearer,
+	}
+	if dpopToken != nil {
+		tokenResponse.TokenType = AccessTokenTypeDPoP
+		tokenResponse.DPoPKid = to.Ptr(dpopToken.Kid)
+	}
+	return &tokenResponse, nil
 }

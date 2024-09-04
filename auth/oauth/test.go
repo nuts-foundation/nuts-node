@@ -20,7 +20,7 @@ package oauth
 
 // NewTokenResponse is a convenience function for creating a TokenResponse with the given parameters.
 // expires_in and scope are only set if they are passed a valid value.
-func NewTokenResponse(accessToken, tokenType string, expiresIn int, scope string) *TokenResponse {
+func NewTokenResponse(accessToken, tokenType string, expiresIn int, scope string, dpopKid string) *TokenResponse {
 	tr := &TokenResponse{
 		AccessToken: accessToken,
 		TokenType:   tokenType,
@@ -30,6 +30,9 @@ func NewTokenResponse(accessToken, tokenType string, expiresIn int, scope string
 	}
 	if scope != "" {
 		tr.Scope = &scope
+	}
+	if dpopKid != "" {
+		tr.DPoPKid = &dpopKid
 	}
 	return tr
 }

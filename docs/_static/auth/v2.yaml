@@ -27,11 +27,9 @@ paths:
           in: path
           required: true
           description: Subject of the requester, a wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -67,11 +65,9 @@ paths:
           in: path
           required: true
           description: Subject of the requester, a wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -174,22 +170,23 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
-  /internal/auth/v2/{did}/dpop:
+  /internal/auth/v2/{kid}/dpop:
     post:
       operationId: createDPoPProof
       summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: kid
           in: path
           required: true
-          description: The DID of the requester, a wallet owner at this node.
+          description: The kid used to create the DPoP proof returned by the access token request.
+          # we use the content hack so no unescaping happens in the generated code. This way we can handle web:did keys with port numbers.
           content:
             plain/text:
               schema:
                 type: string
-                example: did:web:example.com
+                example: did:web:example.com#1
       requestBody:
         required: true
         content:
@@ -254,11 +251,9 @@ paths:
           in: path
           required: true
           description: Subject ID of the wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -533,6 +528,11 @@ components:
           description: |
             The access token issued by the authorization server.
           example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        dpop_kid:
+          type: string
+          description: |
+            The kid of the DPoP key that is used to sign dpop headers.
+          example: "did:web:example.com:resource-owner#key-1"
         token_type:
           type: string
           description: |

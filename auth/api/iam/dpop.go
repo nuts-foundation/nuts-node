@@ -23,16 +23,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/http"
-
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHash "github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/http"
+	"net/url"
 )
 
 func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error) {
@@ -48,17 +46,22 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 		return nil, core.InvalidInputError("missing token")
 	}
 
-	// extract DID from request path
-	ownDID, err := r.toOwnedDID(ctx, request.Did)
-	if err != nil {
-		return nil, err
-	}
 	// create new DPoP header
 	httpRequest, err := http.NewRequest(request.Body.Htm, request.Body.Htu, nil)
 	if err != nil {
 		return nil, core.InvalidInputError(err.Error())
 	}
-	dpop, err := r.DPoPProof(ctx, *ownDID, *httpRequest, request.Body.Token)
+	token := dpop.New(*httpRequest)
+	token.GenerateProof(request.Body.Token)
+
+	// we use the content hack in Open API Spec so no unescaping happens in the generated code. This way we can handle web:did keys with port numbers.
+	// unescape manually here
+	kid, err := url.PathUnescape(request.Kid)
+	if err != nil {
+		return nil, core.InvalidInputError(err.Error())
+	}
+
+	dpop, err := r.jwtSigner.SignDPoP(ctx, *token, kid)
 	return CreateDPoPProof200JSONResponse{Dpop: dpop}, err
 }
 
@@ -101,19 +104,6 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 	}
 
 	return ValidateDPoPProof200JSONResponse{Valid: true}, nil
-}
-
-func (r *Wrapper) DPoPProof(ctx context.Context, requester did.DID, request http.Request, accessToken string) (string, error) {
-	// find the key to sign the DPoP token with
-	keyResolver := resolver.DIDKeyResolver{Resolver: r.vdr.Resolver()}
-	keyID, _, err := keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
-	if err != nil {
-		return "", err
-	}
-
-	token := dpop.New(request)
-	token.GenerateProof(accessToken)
-	return r.jwtSigner.SignDPoP(ctx, *token, keyID)
 }
 
 func dpopFromRequest(httpRequest http.Request) (*dpop.DPoP, error) {

@@ -99,14 +99,15 @@ else
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-
+DPOP_KID=$(echo $RESPONSE | sed -E 's/.*"dpop_kid":"([^"]*).*/\1/')
+DPOP_KID=$(urlencode $DPOP_KID)
 ACCESS_TOKEN=$(cat ./node-B/accesstoken.txt)
 
 echo "------------------------------------"
 echo "Create DPoP header..."
 echo "------------------------------------"
 REQUEST="{\"htm\":\"GET\",\"htu\":\"https://nodeA:443/resource\", \"token\":\"$ACCESS_TOKEN\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/dpop -H "Content-Type: application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$DPOP_KID/dpop -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "dpop"; then
   echo $RESPONSE | sed -E 's/.*"dpop":"([^"]*).*/\1/' > ./node-B/dpop.txt
   echo "dpop token stored in ./node-B/dpop.txt"

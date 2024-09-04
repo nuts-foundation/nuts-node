@@ -604,7 +604,7 @@ func TestWrapper_CreateAccessToken(t *testing.T) {
 		params := CreateAccessTokenRequest{GrantType: "urn:ietf:params:oauth:grant-type:jwt-bearer", Assertion: validJwt}
 
 		in800000 := 800000
-		pkgResponse := oauth2.NewTokenResponse("foo", "Bearer", in800000, "")
+		pkgResponse := oauth2.NewTokenResponse("foo", "Bearer", in800000, "", "")
 		ctx.authzServerMock.EXPECT().CreateAccessToken(gomock.Any(), services.CreateAccessTokenRequest{RawJwtBearerToken: validJwt}).Return(pkgResponse, nil)
 
 		expectedResponse := CreateAccessToken200JSONResponse{

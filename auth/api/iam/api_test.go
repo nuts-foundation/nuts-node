@@ -842,41 +842,6 @@ func TestWrapper_middleware(t *testing.T) {
 
 }
 
-func TestWrapper_toOwnedDID(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID).Return(true, nil)
-
-		_, err := ctx.client.toOwnedDID(nil, holderDID.String())
-
-		assert.NoError(t, err)
-	})
-	t.Run("error - did not managed by this node", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID)
-
-		_, err := ctx.client.toOwnedDID(nil, holderDID.String())
-
-		assert.EqualError(t, err, "DID document not managed by this node")
-	})
-	t.Run("DID does not exist (functional resolver error)", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID).Return(false, resolver.ErrNotFound)
-
-		_, err := ctx.client.toOwnedDID(nil, holderDID.String())
-
-		assert.EqualError(t, err, "invalid issuer DID: unable to find the DID document")
-	})
-	t.Run("other resolver error", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(nil, holderDID).Return(false, errors.New("unknown error"))
-
-		_, err := ctx.client.toOwnedDID(nil, holderDID.String())
-
-		assert.EqualError(t, err, "DID resolution failed: unknown error")
-	})
-}
-
 func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	body := &RequestServiceAccessTokenJSONRequestBody{
 		AuthorizationServer: verifierURL.String(),

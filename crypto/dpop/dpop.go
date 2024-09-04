@@ -59,6 +59,7 @@ const maxJtiLength = 256
 type DPoP struct {
 	raw     string
 	Headers jws.Headers `json:"-"`
+	Kid     string      `json:"-"`
 	Token   jwt.Token   `json:"-"`
 }
 
@@ -94,7 +95,7 @@ func generateID() string {
 
 // Sign the DPoP token with the given key
 // It also adds the jwk and alg header
-func (t *DPoP) Sign(key crypto.Signer, alg jwa.SignatureAlgorithm) (string, error) {
+func (t *DPoP) Sign(kid string, key crypto.Signer, alg jwa.SignatureAlgorithm) (string, error) {
 	if t.raw != "" {
 		return "", errors.New("already signed")
 	}
@@ -110,6 +111,7 @@ func (t *DPoP) Sign(key crypto.Signer, alg jwa.SignatureAlgorithm) (string, erro
 		return "", err
 	}
 	t.raw = string(sig)
+	t.Kid = kid
 
 	return t.raw, nil
 }
