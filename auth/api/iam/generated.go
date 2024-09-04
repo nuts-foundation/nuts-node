@@ -570,8 +570,8 @@ type ServerInterface interface {
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx echo.Context) error
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
-	// (POST /internal/auth/v2/{did}/dpop)
-	CreateDPoPProof(ctx echo.Context, did string) error
+	// (POST /internal/auth/v2/{kid}/dpop)
+	CreateDPoPProof(ctx echo.Context, kid string) error
 	// Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
@@ -705,15 +705,18 @@ func (w *ServerInterfaceWrapper) ValidateDPoPProof(ctx echo.Context) error {
 // CreateDPoPProof converts echo context to params.
 func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
+	// ------------- Path parameter "kid" -------------
+	var kid string
 
-	did = ctx.Param("did")
+	err = runtime.BindStyledParameterWithOptions("simple", "kid", ctx.Param("kid"), &kid, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.CreateDPoPProof(ctx, did)
+	err = w.Handler.CreateDPoPProof(ctx, kid)
 	return err
 }
 
@@ -723,7 +726,10 @@ func (w *ServerInterfaceWrapper) RequestOpenid4VCICredentialIssuance(ctx echo.Co
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -738,7 +744,10 @@ func (w *ServerInterfaceWrapper) RequestServiceAccessToken(ctx echo.Context) err
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -753,7 +762,10 @@ func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error 
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -768,7 +780,10 @@ func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error 
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -792,7 +807,10 @@ func (w *ServerInterfaceWrapper) Callback(ctx echo.Context) error {
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -837,7 +855,10 @@ func (w *ServerInterfaceWrapper) OAuthClientMetadata(ctx echo.Context) error {
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -852,7 +873,10 @@ func (w *ServerInterfaceWrapper) PresentationDefinition(ctx echo.Context) error 
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -883,7 +907,10 @@ func (w *ServerInterfaceWrapper) RequestJWTByGet(ctx echo.Context) error {
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -906,7 +933,10 @@ func (w *ServerInterfaceWrapper) RequestJWTByPost(ctx echo.Context) error {
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	// ------------- Path parameter "id" -------------
 	var id string
@@ -944,7 +974,10 @@ func (w *ServerInterfaceWrapper) HandleTokenRequest(ctx echo.Context) error {
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
 
-	subjectID = ctx.Param("subjectID")
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -1010,7 +1043,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
-	router.POST(baseURL+"/internal/auth/v2/:did/dpop", wrapper.CreateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/:kid/dpop", wrapper.CreateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-user-access-token", wrapper.RequestUserAccessToken)
@@ -1230,7 +1263,7 @@ func (response ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse) Visit
 }
 
 type CreateDPoPProofRequestObject struct {
-	Did  string `json:"did"`
+	Kid  string `json:"kid"`
 	Body *CreateDPoPProofJSONRequestBody
 }
 
@@ -1745,7 +1778,7 @@ type StrictServerInterface interface {
 	// (POST /internal/auth/v2/dpop_validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
-	// (POST /internal/auth/v2/{did}/dpop)
+	// (POST /internal/auth/v2/{kid}/dpop)
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
@@ -1968,10 +2001,10 @@ func (sh *strictHandler) ValidateDPoPProof(ctx echo.Context) error {
 }
 
 // CreateDPoPProof operation middleware
-func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, did string) error {
+func (sh *strictHandler) CreateDPoPProof(ctx echo.Context, kid string) error {
 	var request CreateDPoPProofRequestObject
 
-	request.Did = did
+	request.Kid = kid
 
 	var body CreateDPoPProofJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {

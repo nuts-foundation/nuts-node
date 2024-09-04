@@ -179,3 +179,9 @@ function removeNodeDID() {
     sed -i '/nodedid: did:nuts:/d' $1
   fi
 }
+
+# Function to URL-encode a string
+urlencode() {
+    local raw="$1"
+    jq -nr --arg raw "$raw" '$raw|@uri'
+}

@@ -707,24 +707,6 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 	return PresentationDefinition200JSONResponse(result), nil
 }
 
-func (r Wrapper) toOwnedDID(ctx context.Context, didAsString string) (*did.DID, error) {
-	ownDID, err := did.ParseDID(didAsString)
-	if err != nil {
-		return nil, fmt.Errorf("invalid DID: %s", err)
-	}
-	owned, err := r.vdr.DocumentOwner().IsOwner(ctx, *ownDID)
-	if err != nil {
-		if resolver.IsFunctionalResolveError(err) {
-			return nil, fmt.Errorf("invalid issuer DID: %s", err)
-		}
-		return nil, fmt.Errorf("DID resolution failed: %w", err)
-	}
-	if !owned {
-		return nil, resolver.ErrDIDNotManagedByThisNode
-	}
-	return ownDID, nil
-}
-
 func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error) {
 	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {

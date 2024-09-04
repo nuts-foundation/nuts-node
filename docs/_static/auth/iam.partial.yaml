@@ -14,11 +14,9 @@ paths:
           in: path
           required: true
           description: the subject of the token request
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843CC
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -67,11 +65,9 @@ paths:
           in: path
           required: true
           description: the subject of the authorization request
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         # Way to specify dynamic query parameters
         # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
         - in: query
@@ -103,11 +99,9 @@ paths:
         in: path
         required: true
         description: Subject acting as the client for the authorization request
-        content:
-          plain/text:
-            schema:
-              type: string
-              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+        schema:
+          type: string
+          example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       - name: id
         in: path
         required: true
@@ -176,11 +170,9 @@ paths:
           in: path
           required: true
           description: the subject of the callback
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: code
           in: query
           description: The authorization code received from the authorization server.
@@ -227,11 +219,9 @@ paths:
           in: path
           required: true
           description: Subject that holds the presentation definition.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: scope
           in: query
           required: true
@@ -394,11 +384,9 @@ paths:
           in: path
           required: true
           description: Subject that serves the metadata
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK

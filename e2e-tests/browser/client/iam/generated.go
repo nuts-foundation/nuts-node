@@ -559,9 +559,9 @@ type ClientInterface interface {
 	ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateDPoPProofWithBody request with any body
-	CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateDPoPProofWithBody(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateDPoPProof(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestOpenid4VCICredentialIssuanceWithBody request with any body
 	RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -663,8 +663,8 @@ func (c *Client) ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJS
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDPoPProofRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) CreateDPoPProofWithBody(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequestWithBody(c.Server, kid, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -675,8 +675,8 @@ func (c *Client) CreateDPoPProofWithBody(ctx context.Context, did string, conten
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDPoPProofRequest(c.Server, did, body)
+func (c *Client) CreateDPoPProof(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequest(c.Server, kid, body)
 	if err != nil {
 		return nil, err
 	}
@@ -914,23 +914,26 @@ func NewValidateDPoPProofRequestWithBody(server string, contentType string, body
 }
 
 // NewCreateDPoPProofRequest calls the generic CreateDPoPProof builder with application/json body
-func NewCreateDPoPProofRequest(server string, did string, body CreateDPoPProofJSONRequestBody) (*http.Request, error) {
+func NewCreateDPoPProofRequest(server string, kid string, body CreateDPoPProofJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateDPoPProofRequestWithBody(server, did, "application/json", bodyReader)
+	return NewCreateDPoPProofRequestWithBody(server, kid, "application/json", bodyReader)
 }
 
 // NewCreateDPoPProofRequestWithBody generates requests for CreateDPoPProof with any type of body
-func NewCreateDPoPProofRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateDPoPProofRequestWithBody(server string, kid string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "kid", runtime.ParamLocationPath, kid)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -974,7 +977,10 @@ func NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server string, subjec
 
 	var pathParam0 string
 
-	pathParam0 = subjectID
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1018,7 +1024,10 @@ func NewRequestServiceAccessTokenRequestWithBody(server string, subjectID string
 
 	var pathParam0 string
 
-	pathParam0 = subjectID
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1062,7 +1071,10 @@ func NewRequestUserAccessTokenRequestWithBody(server string, subjectID string, c
 
 	var pathParam0 string
 
-	pathParam0 = subjectID
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1151,9 +1163,9 @@ type ClientWithResponsesInterface interface {
 	ValidateDPoPProofWithResponse(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error)
 
 	// CreateDPoPProofWithBodyWithResponse request with any body
-	CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+	CreateDPoPProofWithBodyWithResponse(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
 
-	CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+	CreateDPoPProofWithResponse(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
 
 	// RequestOpenid4VCICredentialIssuanceWithBodyWithResponse request with any body
 	RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
@@ -1458,16 +1470,16 @@ func (c *ClientWithResponses) ValidateDPoPProofWithResponse(ctx context.Context,
 }
 
 // CreateDPoPProofWithBodyWithResponse request with arbitrary body returning *CreateDPoPProofResponse
-func (c *ClientWithResponses) CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
-	rsp, err := c.CreateDPoPProofWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateDPoPProofWithBodyWithResponse(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProofWithBody(ctx, kid, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCreateDPoPProofResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
-	rsp, err := c.CreateDPoPProof(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProof(ctx, kid, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

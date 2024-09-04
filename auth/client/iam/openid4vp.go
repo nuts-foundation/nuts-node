@@ -201,6 +201,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	data.Set(oauth.CodeVerifierParam, codeVerifier)
 
 	var dpopHeader string
+	var dpopKid string
 	if useDPoP {
 		// create DPoP header
 		request, err := http.NewRequestWithContext(ctx, http.MethodPost, parsedURL.String(), nil)
@@ -212,7 +213,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 			return nil, err
 		}
 		// todo select the right DID based upon metadata
-		dpopHeader, err = c.dpop(ctx, dids[0], *request)
+		dpopHeader, dpopKid, err = c.dpop(ctx, dids[0], *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
 		}
@@ -221,6 +222,9 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	token, err := iamClient.AccessToken(ctx, parsedURL.String(), data, dpopHeader)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: error creating access token: %w", err)
+	}
+	if dpopKid != "" {
+		token.DPoPKid = &dpopKid
 	}
 	return &token, nil
 }
@@ -286,12 +290,13 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 
 	// create DPoP header
 	var dpopHeader string
+	var dpopKid string
 	if useDPoP {
 		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
 		if err != nil {
 			return nil, err
 		}
-		dpopHeader, err = c.dpop(ctx, *subjectDID, *request)
+		dpopHeader, dpopKid, err = c.dpop(ctx, *subjectDID, *request)
 		if err != nil {
 			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
 		}
@@ -303,12 +308,16 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err
 	}
-	return &oauth.TokenResponse{
+	tokenResponse := oauth.TokenResponse{
 		AccessToken: token.AccessToken,
 		ExpiresIn:   token.ExpiresIn,
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
-	}, nil
+	}
+	if dpopKid != "" {
+		tokenResponse.DPoPKid = &dpopKid
+	}
+	return &tokenResponse, nil
 }
 
 func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
@@ -339,15 +348,19 @@ func (c *OpenID4VPClient) walletWithExtraCredentials(ctx context.Context, subjec
 	}), nil
 }
 
-func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, error) {
+func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	token := dpop.New(request)
-	return c.jwtSigner.SignDPoP(ctx, *token, keyID)
+	jwt, err := c.jwtSigner.SignDPoP(ctx, *token, keyID)
+	if err != nil {
+		return "", "", err
+	}
+	return jwt, keyID, nil
 }
 
 // autoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.

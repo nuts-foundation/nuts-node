@@ -67,12 +67,12 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 }
 
 func TestTokenResponse_Marshalling(t *testing.T) {
-	expected := *NewTokenResponse("1234567", "bearer", 5, "abc").With("c_nonce", "hello")
+	expected := *NewTokenResponse("1234567", "bearer", 5, "abc", "kid").With("c_nonce", "hello")
 
 	t.Run("marshal", func(t *testing.T) {
 		data, err := json.Marshal(expected)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"access_token":"1234567","expires_in":5,"token_type":"bearer","scope":"abc","c_nonce":"hello"}`, string(data))
+		assert.JSONEq(t, `{"access_token":"1234567","expires_in":5,"token_type":"bearer","scope":"abc","dpop_kid":"kid", "c_nonce":"hello"}`, string(data))
 	})
 	t.Run("unmarshal", func(t *testing.T) {
 		data, _ := json.Marshal(expected)

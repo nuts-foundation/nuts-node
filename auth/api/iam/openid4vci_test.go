@@ -196,7 +196,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		IssuerURL:                issuerClientID,
 		IssuerCredentialEndpoint: credEndpoint,
 	}
-	tokenResponse := oauth.NewTokenResponse(accessToken, "Bearer", 0, "").With("c_nonce", cNonce)
+	tokenResponse := oauth.NewTokenResponse(accessToken, "Bearer", 0, "", "").With("c_nonce", cNonce)
 	credentialResponse := iam.CredentialResponse{
 		Credential: verifiableCredential.Raw(),
 	}

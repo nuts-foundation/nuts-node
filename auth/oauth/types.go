@@ -32,6 +32,7 @@ import (
 // Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
+	DPoPKid     *string `json:"dpop_kid,omitempty"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
 	Scope       *string `json:"scope,omitempty"`
@@ -56,6 +57,7 @@ func (t *TokenResponse) UnmarshalJSON(data []byte) error {
 	delete(additionalParams, "expires_in")
 	delete(additionalParams, "token_type")
 	delete(additionalParams, "scope")
+	delete(additionalParams, "dpop_kid")
 	*t = TokenResponse(result)
 	if len(additionalParams) > 0 {
 		t.additionalParams = additionalParams
@@ -72,6 +74,7 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 	result["expires_in"] = t.ExpiresIn
 	result["token_type"] = t.TokenType
 	result["scope"] = t.Scope
+	result["dpop_kid"] = t.DPoPKid
 
 	return json.Marshal(result)
 }
