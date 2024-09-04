@@ -27,7 +27,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -49,7 +48,6 @@ type jar struct {
 	auth        auth.AuthenticationServices
 	jwtSigner   cryptoNuts.JWTSigner
 	keyResolver resolver.KeyResolver
-	client      iam.Client
 }
 
 type JAR interface {
@@ -69,15 +67,6 @@ type JAR interface {
 	// The ownMetadata parameter is used when the request contains a request_uri, and it is fetched using HTTP POST;
 	// in that case, the metadata is posted to the Authorization Server.
 	Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error)
-}
-
-func NewJAR(auth auth.AuthenticationServices, jwtSigner cryptoNuts.JWTSigner, keyResolver resolver.KeyResolver, client iam.Client) JAR {
-	return jar{
-		auth:        auth,
-		jwtSigner:   jwtSigner,
-		keyResolver: keyResolver,
-		client:      client,
-	}
 }
 
 func (j jar) Create(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
@@ -179,7 +168,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if clientId != params.get(oauth.ClientIDParam) {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid client_id claim in signed authorization request"}
 	}
-	configuration, err := j.client.OpenIDConfiguration(ctx, clientId)
+	configuration, err := j.auth.IAMClient().OpenIDConfiguration(ctx, clientId)
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to retrieve OpenID configuration", InternalError: err}
 	}

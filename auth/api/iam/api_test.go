@@ -1492,8 +1492,8 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		policyBackend:  policyInstance,
 		keyResolver:    keyResolver,
 		jwtSigner:      jwtSigner,
+		jar:            mockJAR,
 	}
-	client._jar.Store(mockJAR)
 	return &testCtx{
 		ctrl:           ctrl,
 		authnServices:  authnServices,

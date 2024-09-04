@@ -358,7 +358,6 @@ func newJarTestCtx(t testing.TB) testJarCtx {
 			auth:        mockAuth,
 			jwtSigner:   mockSigner,
 			keyResolver: mockKeyResolver,
-			client:      mockIAMClient,
 		},
 		auth:        mockAuth,
 		iamClient:   mockIAMClient,

@@ -37,7 +37,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -104,7 +103,7 @@ type Wrapper struct {
 	jwtSigner      nutsCrypto.JWTSigner
 	keyResolver    resolver.KeyResolver
 	subjectManager didsubject.SubjectManager
-	_jar           atomic.Value
+	jar            JAR
 }
 
 func New(
@@ -127,18 +126,12 @@ func New(
 		jsonldManager:  jsonldManager,
 		jwtSigner:      jwtSigner,
 		keyResolver:    keyResolver,
+		jar: jar{
+			auth:        authInstance,
+			jwtSigner:   jwtSigner,
+			keyResolver: keyResolver,
+		},
 	}
-}
-
-func (r Wrapper) jar() JAR {
-	// so we can mock it in tests
-	var current JAR
-	var ok bool
-	if current, ok = r._jar.Load().(JAR); !ok {
-		current = NewJAR(r.auth, r.jwtSigner, r.keyResolver, r.auth.IAMClient())
-		r._jar.Store(current)
-	}
-	return current
 }
 
 func (r Wrapper) Routes(router core.EchoRouter) {
@@ -464,7 +457,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // The caller must ensure ownDID is actually owned by this node.
 func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, ownMetadata oauth.AuthorizationServerMetadata, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
 	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.jar().Parse(ctx, ownMetadata, request.Query())
+	requestObject, err := r.jar.Parse(ctx, ownMetadata, request.Query())
 	if err != nil {
 		// already an oauth.OAuth2Error
 		return nil, err
@@ -530,7 +523,7 @@ func (r Wrapper) RequestJWTByGet(ctx context.Context, request RequestJWTByGetReq
 	}
 
 	// TODO: supported signature types should be checked
-	token, err := r.jar().Sign(ctx, ro.Claims)
+	token, err := r.jar.Sign(ctx, ro.Claims)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
@@ -584,7 +577,7 @@ func (r Wrapper) RequestJWTByPost(ctx context.Context, request RequestJWTByPostR
 	}
 
 	// TODO: supported signature types should be checked
-	token, err := r.jar().Sign(ctx, ro.Claims)
+	token, err := r.jar.Sign(ctx, ro.Claims)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:          oauth.ServerError,
@@ -877,7 +870,7 @@ func (r Wrapper) createAuthorizationRequest(ctx context.Context, subject string,
 
 	// request_uri
 	requestURIID := nutsCrypto.GenerateNonce()
-	requestObj := r.jar().Create(*signerDID, clientID.String(), audience, modifier)
+	requestObj := r.jar.Create(*signerDID, clientID.String(), audience, modifier)
 	if err := r.authzRequestObjectStore().Put(requestURIID, requestObj); err != nil {
 		return nil, err
 	}
