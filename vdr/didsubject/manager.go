@@ -74,7 +74,7 @@ func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
 		result[sqlDID.Subject] = append(result[sqlDID.Subject], *id)
 	}
 	for currentSubject := range result {
-		sortDIDs(result[currentSubject], r.PreferredOrder)
+		sortDIDsByMethod(result[currentSubject], r.PreferredOrder)
 	}
 	return result, nil
 }
@@ -93,7 +93,7 @@ func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error)
 		}
 		result[i] = *id
 	}
-	sortDIDs(result, r.PreferredOrder)
+	sortDIDsByMethod(result, r.PreferredOrder)
 	return result, nil
 }
 
@@ -200,7 +200,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		docs = append(docs, doc)
 		dids = append(dids, sqlDoc.DID.ID)
 	}
-	sortDIDDocuments(docs, r.PreferredOrder)
+	sortDIDDocumentsByMethod(docs, r.PreferredOrder)
 	log.Logger().
 		WithField(core.LogFieldDIDSubject, subject).
 		Infof("Created new subject (DIDs: [%s])", strings.Join(dids, ", "))
@@ -598,11 +598,16 @@ func (r *Manager) Rollback(ctx context.Context) {
 	}
 }
 
-func sortDIDs(list []did.DID, order []string) {
+func sortDIDsByMethod(list []did.DID, methodOrder []string) {
 	sort.Slice(list, func(i, j int) bool {
+		// if the DIDs are the same, use string compare
+		if list[i] == list[j] {
+			return list[i].String() < list[j].String()
+		}
+
 		iOrder := -1
 		jOrder := -1
-		for k, v := range order {
+		for k, v := range methodOrder {
 			if v == list[i].Method {
 				iOrder = k
 			}
@@ -610,7 +615,7 @@ func sortDIDs(list []did.DID, order []string) {
 				jOrder = k
 			}
 		}
-		// If both are -1, they are not in the preferred order list, so sort by method for stable order
+		// If both are -1, they are not in the preferred methodOrder list, so sort by method for stable methodOrder
 		if iOrder == -1 && jOrder == -1 {
 			return list[i].Method < list[j].Method
 		}
@@ -618,13 +623,14 @@ func sortDIDs(list []did.DID, order []string) {
 	})
 }
 
-func sortDIDDocuments(list []did.Document, order []string) {
+// sortDIDDocumentsByMethod sorts a list of DID documents by the methods of their ID, according to the given order.
+func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 	listOfDIDs := make([]did.DID, len(list))
 	for i, doc := range list {
 		listOfDIDs[i] = doc.ID
 	}
-	sortDIDs(listOfDIDs, order)
-	// order list according to listOfDIDs
+	sortDIDsByMethod(listOfDIDs, methodOrder)
+	// methodOrder list according to listOfDIDs
 	orderedList := make([]did.Document, len(list))
 	for i, id := range listOfDIDs {
 	inner:
