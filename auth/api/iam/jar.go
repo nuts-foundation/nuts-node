@@ -19,16 +19,18 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"crypto"
-	"net/url"
-
+	"errors"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
 )
 
 // requestObjectModifier is a function that modifies the Claims/params of an unsigned or signed (JWT) OAuth2 request
@@ -36,7 +38,7 @@ type requestObjectModifier func(claims map[string]string)
 
 type jarRequest struct {
 	Claims           oauthParameters `json:"claims"`
-	Client           did.DID         `json:"client_id"`
+	Client           string          `json:"client_id"`
 	RequestURIMethod string          `json:"request_uri_method"`
 }
 
@@ -53,9 +55,9 @@ type JAR interface {
 	// By default, it adds the following parameters:
 	//  - client_id
 	//  - iss
-	//  - aud (if server is not nil)
-	// the request_uri_method is determined by the presence of a server (get) or not (post)
-	Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest
+	//  - aud (if not nil)
+	// the request_uri_method is determined by the presence of an audience (get) or not (post)
+	Create(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest
 	// Sign the jarRequest, which is available on jarRequest.Token.
 	// Returns an error if the jarRequest already contains a signed JWT.
 	// TODO: check if signature type of client is supported by the AS/wallet.
@@ -67,20 +69,20 @@ type JAR interface {
 	Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error)
 }
 
-func (j jar) Create(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
-	return createJarRequest(client, authServerURL, modifier)
+func (j jar) Create(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
+	return createJarRequest(client, clientID, audience, modifier)
 }
 
-func createJarRequest(client did.DID, authServerURL string, modifier requestObjectModifier) jarRequest {
+func createJarRequest(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
 	requestURIMethod := "post"
 	// default claims for JAR
 	params := map[string]string{
 		jwt.IssuerKey:       client.String(),
-		oauth.ClientIDParam: client.String(),
+		oauth.ClientIDParam: clientID,
 	}
-	if authServerURL != "" {
+	if audience != "" {
 		requestURIMethod = "get"
-		params[jwt.AudienceKey] = authServerURL
+		params[jwt.AudienceKey] = audience
 	}
 
 	// additional claims can be added by the caller
@@ -92,14 +94,14 @@ func createJarRequest(client did.DID, authServerURL string, modifier requestObje
 	}
 	return jarRequest{
 		Claims:           oauthParams,
-		Client:           client,
+		Client:           clientID,
 		RequestURIMethod: requestURIMethod,
 	}
 }
 
 func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
-	clientID := claims.get(oauth.ClientIDParam)
-	clientDID, err := did.ParseDID(clientID)
+	issuerID := claims.get(jwt.IssuerKey)
+	clientDID, err := did.ParseDID(issuerID)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +109,7 @@ func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId.String())
+	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId)
 }
 
 func (j jar) Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error) {
@@ -145,10 +147,13 @@ func (j jar) Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMet
 // the client_id must match the signer of the JWT.
 func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oauthParameters, error) {
 	var signerKid string
+	var publicKey crypto.PublicKey
 	// Parse and validate the JWT
 	token, err := cryptoNuts.ParseJWT(rawToken, func(kid string) (crypto.PublicKey, error) {
+		var err error
 		signerKid = kid
-		return j.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+		publicKey, err = j.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+		return publicKey, err
 	}, jwt.WithValidate(true))
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
@@ -163,14 +168,36 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if clientId != params.get(oauth.ClientIDParam) {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid client_id claim in signed authorization request"}
 	}
-	// check if the signer of the JWT is the client
-	signer, err := did.ParseDIDURL(signerKid)
+	configuration, err := j.auth.IAMClient().OpenIDConfiguration(ctx, clientId)
 	if err != nil {
-		// very unlikely since the key has already been resolved
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid signer", InternalError: err}
+		return nil, oauth.OAuth2Error{Code: oauth.ServerError, Description: "failed to retrieve OpenID configuration", InternalError: err}
 	}
-	if signer.DID.String() != clientId {
-		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "client_id does not match signer of authorization request"}
+
+	key, exists := configuration.JWKs.LookupKeyID(signerKid)
+	if !exists {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "client_id does not own signer key"}
+	}
+	if err := compareThumbprint(key, publicKey); err != nil {
+		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "key mismatch between OpenID configuration and signer key", InternalError: err}
 	}
 	return params, nil
+}
+
+func compareThumbprint(configurationKey jwk.Key, publicKey crypto.PublicKey) error {
+	thumbprintLeft, err := configurationKey.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return err
+	}
+	signerKey, err := jwk.FromRaw(publicKey)
+	if err != nil {
+		return err
+	}
+	thumbprintRight, err := signerKey.Thumbprint(crypto.SHA256)
+	if err != nil {
+		return err
+	}
+	if bytes.Compare(thumbprintLeft, thumbprintRight) != 0 {
+		return errors.New("key thumbprints do not match")
+	}
+	return nil
 }

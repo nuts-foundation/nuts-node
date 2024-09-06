@@ -29,7 +29,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jws"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -180,9 +179,9 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	}
 
 	headers := encryptRequest.Headers
-	resolvedKid := keyID.String()
+
 	// set / override kid in headers with actual used kid
-	headers[jws.KeyIDKey] = resolvedKid
+	headers[jws.KeyIDKey] = keyID
 
 	jwe, err := w.C.EncryptJWE(ctx, encryptRequest.Payload, headers, key)
 	if err != nil {
@@ -191,20 +190,20 @@ func (w *Wrapper) EncryptJwe(ctx context.Context, request EncryptJweRequestObjec
 	return EncryptJwe200TextResponse(jwe), err
 }
 
-func (w *Wrapper) resolvePublicKey(id *did.DIDURL) (key crypt.PublicKey, keyID ssi.URI, err error) {
+func (w *Wrapper) resolvePublicKey(id *did.DIDURL) (key crypt.PublicKey, keyID string, err error) {
 	if id.Fragment != "" {
 		// Assume it is a keyId
 		now := time.Now()
 		key, err = w.K.ResolveKeyByID(id.String(), &now, resolver.KeyAgreement)
 		if err != nil {
-			return nil, ssi.URI{}, err
+			return nil, "", err
 		}
-		keyID = id.URI()
+		keyID = id.String()
 	} else {
 		// Assume it is a DID
 		keyID, key, err = w.K.ResolveKey(id.DID, nil, resolver.KeyAgreement)
 		if err != nil {
-			return nil, ssi.URI{}, err
+			return nil, "", err
 		}
 	}
 	return key, keyID, nil

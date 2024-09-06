@@ -112,7 +112,7 @@ func (n *notary) DrawUpContract(ctx context.Context, template contract.Template,
 		return nil, fmt.Errorf("could not draw up contract: %w", err)
 	}
 
-	exists, err := n.privateKeyStore.Exists(ctx, signingKeyID.String())
+	exists, err := n.privateKeyStore.Exists(ctx, signingKeyID)
 	if err != nil {
 		return nil, err
 	}

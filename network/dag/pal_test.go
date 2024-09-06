@@ -24,7 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -47,16 +47,17 @@ func TestEncryptPal(t *testing.T) {
 		// Encrypt
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return(ssi.URI{}, pkA.Public(), nil)
-		keyResolver.EXPECT().ResolveKey(*pB, nil, resolver.KeyAgreement).Return(ssi.URI{}, pkB.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return("", pkA.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(*pB, nil, resolver.KeyAgreement).Return("", pkB.Public(), nil)
 		expected := PAL{*pA, *pB}
 		pal, err := expected.Encrypt(keyResolver)
 		require.NoError(t, err)
 
 		// Decrypt
 		keyStore := crypto.NewMemoryStorage()
-		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
 		_ = keyStore.SavePrivateKey(ctx, "kid-B", pkB)
+		_ = cryptoInstance.Link(ctx, "kid-B", "kid-B", "1")
 		actual, err := pal.Decrypt(ctx, []string{"kid-B"}, cryptoInstance)
 		require.NoError(t, err)
 		assert.Equal(t, expected, actual)
@@ -71,7 +72,7 @@ func TestEncryptPal(t *testing.T) {
 	t.Run("error - keyAgreement key type is not supported", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return(ssi.URI{}, &rsa.PublicKey{}, nil)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return("", &rsa.PublicKey{}, nil)
 		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "resolved keyAgreement key is not an elliptic curve key (recipient=did:nuts:A)")
@@ -79,7 +80,7 @@ func TestEncryptPal(t *testing.T) {
 	t.Run("error - no keyAgreements", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return(ssi.URI{}, nil, resolver.ErrKeyNotFound)
+		keyResolver.EXPECT().ResolveKey(*pA, nil, resolver.KeyAgreement).Return("", nil, resolver.ErrKeyNotFound)
 		pal, err := PAL{*pA}.Encrypt(keyResolver)
 		assert.Nil(t, pal)
 		assert.EqualError(t, err, "unable to resolve keyAgreement key (recipient=did:nuts:A): key not found in DID document")
@@ -91,8 +92,9 @@ func TestDecryptPal(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	t.Run("ok - not decryptable, no matching private keys", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
-		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
-		keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		_ = cryptoInstance.Link(ctx, "kid-1", "kid-1", "1")
 
 		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 
@@ -100,14 +102,15 @@ func TestDecryptPal(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("error - private key is missing", func(t *testing.T) {
-		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, crypto.NewMemoryCryptoInstance())
+		actual, err := EncryptedPAL{{1, 2}, {3}}.Decrypt(ctx, []string{"kid-1"}, crypto.NewMemoryCryptoInstance(t))
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "private key of DID keyAgreement not found (kid=kid-1)")
 	})
 	t.Run("error - invalid DID in decrypted PAL", func(t *testing.T) {
 		keyStore := crypto.NewMemoryStorage()
-		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
-		keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		_ = cryptoInstance.Link(ctx, "kid-1", "kid-1", "1")
 
 		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
 

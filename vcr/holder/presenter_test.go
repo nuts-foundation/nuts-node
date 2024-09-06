@@ -24,9 +24,11 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -49,15 +51,16 @@ func TestPresenter_buildPresentation(t *testing.T) {
 	ctx := audit.TestContext()
 
 	keyStorage := crypto.NewMemoryStorage()
-	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
-	keyStore := crypto.NewTestCryptoInstance(keyStorage)
+	_ = keyStorage.SavePrivateKey(ctx, key.KID, key.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStorage)
+	_ = keyStore.Link(ctx, kid, kid, "1")
 
 	t.Run("JSON-LD", func(t *testing.T) {
 		t.Run("is default", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -71,7 +74,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -104,7 +107,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			}
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -127,7 +130,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.String(), key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -143,7 +146,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -164,7 +167,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.URI(), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDA.String(), key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -195,7 +198,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -222,7 +225,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			keyResolver := resolver.NewMockKeyResolver(ctrl)
 
-			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(kid), key.Public(), nil)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
 
 			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
@@ -265,11 +268,32 @@ func TestPresenter_buildPresentation(t *testing.T) {
 }
 
 func TestPresenter_buildSubmission(t *testing.T) {
-	credentials := []vc.VerifiableCredential{test.ValidNutsOrganizationCredential(t)}
-	// walletDID matches the subject of the ValidNutsOrganizationCredential
-	walletDID := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	// nutsWalletDID matches the subject of the ValidNutsOrganizationCredential
+	nutsWalletDID := did.MustParseDID("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey")
+	webWalletDID := did.MustParseDID("did:web:example.com")
+	credentials := map[did.DID][]vc.VerifiableCredential{
+		nutsWalletDID: {test.ValidNutsOrganizationCredential(t)},
+		webWalletDID:  {createCredential("did:web:example.com#1")},
+	}
+
 	verifierDID := did.MustParseDID("did:web:example.com:iam:verifier")
-	presentationDefinition := pe.PresentationDefinition{InputDescriptors: []*pe.InputDescriptor{{Constraints: &pe.Constraints{Fields: []pe.Field{{Path: []string{"$.type"}}}}}}}
+	presentationDefinition := pe.PresentationDefinition{
+		InputDescriptors: []*pe.InputDescriptor{
+			{
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{
+						{
+							Path: []string{"$.credentialSubject.id"},
+							Filter: &pe.Filter{
+								Type:    "string",
+								Pattern: to.Ptr("^did:nuts:.*$"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 	vpFormats := oauth.DefaultOpenIDSupportedFormats()
 
 	key := vdr.TestMethodDIDAPrivateKey()
@@ -277,31 +301,32 @@ func TestPresenter_buildSubmission(t *testing.T) {
 	ctx := audit.TestContext()
 
 	keyStorage := crypto.NewMemoryStorage()
-	_ = keyStorage.SavePrivateKey(ctx, key.KID(), key.PrivateKey)
-	keyStore := crypto.NewTestCryptoInstance(keyStorage)
+	_ = keyStorage.SavePrivateKey(ctx, key.KID, key.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStorage)
+	_ = keyStore.Link(ctx, key.KID, key.KID, "1")
 	storageEngine := storage.NewTestStorageEngine(t)
 
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok (did:nuts wallet matches)", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil)
 
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, walletDID, credentials, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
 		require.NotNil(t, submission)
-		assert.Equal(t, walletDID.String(), vp.Holder.String(), "holder must be the DID of the signer")
+		assert.Equal(t, nutsWalletDID.String(), vp.Holder.String(), "holder must be the DID of the signer")
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 
 		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, walletDID, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Equal(t, ErrNoCredentials, err)
 		assert.Nil(t, vp)
@@ -311,10 +336,11 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(walletDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI(key.KID()), key.Public(), nil)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
+		keyResolver.EXPECT().ResolveKey(webWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, walletDID, credentials, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
 		assert.Nil(t, err)
 		assert.NotNil(t, vp)

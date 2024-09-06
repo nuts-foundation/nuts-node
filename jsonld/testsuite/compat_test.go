@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/piprate/json-gold/ld"
@@ -87,7 +88,7 @@ func TestCompatibility(t *testing.T) {
 					ldProof := proof.LDProof{}
 					err = document.UnmarshalProofValue(&ldProof)
 					require.NoError(t, err)
-					err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: ctx.loader}, key.Public())
+					err = ldProof.Verify(document.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: ctx.loader}, key.PublicKey)
 					assert.NoError(t, err)
 				})
 			}
@@ -108,8 +109,9 @@ func TestGenerateSignedFixtures(t *testing.T) {
 
 	privateKey := readSigningKey(t)
 	cryptoStorage := crypto.NewMemoryStorage()
-	_ = cryptoStorage.SavePrivateKey(audit.TestContext(), privateKey.KID(), privateKey.PrivateKey)
-	keyStore := crypto.NewTestCryptoInstance(cryptoStorage)
+	_ = cryptoStorage.SavePrivateKey(audit.TestContext(), privateKey.KID, privateKey.PrivateKey)
+	keyStore := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), cryptoStorage)
+	_ = keyStore.Link(audit.TestContext(), privateKey.KID, privateKey.KID, "1")
 
 	for _, testCase := range testCases {
 		t.Run(testCase.file, func(t *testing.T) {
@@ -123,7 +125,7 @@ func TestGenerateSignedFixtures(t *testing.T) {
 
 			signed, err := proof.NewLDProof(proof.ProofOptions{
 				Created: time.Now(),
-			}).Sign(audit.TestContext(), tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey.KID())
+			}).Sign(audit.TestContext(), tbs, signature.JSONWebSignature2020{ContextLoader: loader, Signer: keyStore}, privateKey.KID)
 			require.NoError(t, err)
 
 			var targetFile = "./fixtures/" + testCase.file
@@ -157,6 +159,7 @@ func readSigningKey(t *testing.T) crypto.TestKey {
 	require.NoError(t, err)
 	return crypto.TestKey{
 		PrivateKey: privateKey,
-		Kid:        "key-id",
+		KID:        "key-id",
+		PublicKey:  privateKey.Public(),
 	}
 }

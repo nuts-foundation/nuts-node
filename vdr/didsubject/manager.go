@@ -22,28 +22,64 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mr-tron/base58"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 )
+
+// ErrSubjectAlreadyExists is returned when a subject already exists.
+var ErrSubjectAlreadyExists = errors.New("subject already exists")
+
+// ErrSubjectNotFound is returned when a subject is not found.
+var ErrSubjectNotFound = errors.New("subject not found")
+
+// subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
+var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
+
+var _ SubjectManager = (*Manager)(nil)
 
 type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
+	KeyStore       nutsCrypto.KeyStore
 	// PreferredOrder is the order in which the methods are preferred, which dictates the order in which they are returned.
 	PreferredOrder []string
 }
 
-func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
+func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	dids, err := sqlDIDManager.All()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]did.DID)
+	for _, sqlDID := range dids {
+		id, err := did.ParseDID(sqlDID.ID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DID for subject (subject=%s, did=%s): %w", sqlDID.Subject, sqlDID.ID, err)
+		}
+		result[sqlDID.Subject] = append(result[sqlDID.Subject], *id)
+	}
+	for currentSubject := range result {
+		sortDIDs(result[currentSubject], r.PreferredOrder)
+	}
+	return result, nil
+}
+
+func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	dids, err := sqlDIDManager.FindBySubject(subject)
 	if err != nil {
@@ -61,6 +97,11 @@ func (r *Manager) List(_ context.Context, subject string) ([]did.DID, error) {
 	return result, nil
 }
 
+func (r *Manager) Exists(_ context.Context, subject string) (bool, error) {
+	sqlDIDManager := NewDIDManager(r.DB)
+	return sqlDIDManager.SubjectExists(subject)
+}
+
 // Create generates new DID Documents
 func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error) {
 	log.Logger().Debug("Creating new DID Documents.")
@@ -74,6 +115,9 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	for _, option := range options.All() {
 		switch opt := option.(type) {
 		case SubjectCreationOption:
+			if !subjectPattern.MatchString(opt.Subject) {
+				return nil, "", fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String())
+			}
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
 			keyFlags = keyFlags | orm.EncryptionKeyUsage()
@@ -88,17 +132,21 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
 		sqlDIDManager := NewDIDManager(tx)
-		exists, err := sqlDIDManager.FindBySubject(subject)
-		if err != nil {
+		_, err := sqlDIDManager.FindBySubject(subject)
+		if errors.Is(err, ErrSubjectNotFound) {
+			// this is ok, doesn't exist yet
+		} else if err != nil {
+			// other error occurred
 			return nil, err
-		}
-		if len(exists) > 0 {
-			return nil, ErrDIDAlreadyExists
+		} else {
+			return nil, ErrSubjectAlreadyExists
 		}
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
-			sqlDoc, err := manager.NewDocument(ctx, keyFlags)
+			// save tx in context to pass all the way down to KeyStore
+			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
 			if err != nil {
 				return nil, fmt.Errorf("could not generate DID document (method %s): %w", method, err)
 			}
@@ -143,14 +191,19 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	}
 
 	docs := make([]did.Document, 0)
+	var dids []string
 	for _, sqlDoc := range sqlDocs {
 		doc, err := sqlDoc.ToDIDDocument()
 		if err != nil {
 			return nil, subject, err
 		}
 		docs = append(docs, doc)
+		dids = append(dids, sqlDoc.DID.ID)
 	}
 	sortDIDDocuments(docs, r.PreferredOrder)
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Created new subject (DIDs: [%s])", strings.Join(dids, ", "))
 	return docs, subject, nil
 }
 
@@ -166,9 +219,6 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 		dids, err := sqlDIDManager.FindBySubject(subject)
 		if err != nil {
 			return changes, err
-		}
-		if len(dids) == 0 {
-			return nil, resolver.ErrNotFound
 		}
 		transactionID := uuid.New().String()
 		for _, sqlDID := range dids {
@@ -219,9 +269,8 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 
@@ -230,7 +279,9 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 	if err != nil {
 		return nil, fmt.Errorf("could not add service to DID Documents: %w", err)
 	}
-
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Created new service for subject (type: %s, id: %s)", service.Type, service.ID)
 	return services, nil
 }
 
@@ -286,6 +337,9 @@ func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID s
 	if err != nil {
 		return fmt.Errorf("could not delete service from DID Documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Deleted service for subject (id: %s)", serviceID.String())
 	return nil
 }
 
@@ -314,9 +368,8 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 			return nil, err
 		}
 		sqlService := orm.Service{
-			ID:            service.ID.String(),
-			DIDDocumentID: current.DidID,
-			Data:          asJson,
+			ID:   service.ID.String(),
+			Data: asJson,
 		}
 		current.Services = append(current.Services, sqlService)
 		return current, nil
@@ -324,6 +377,9 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 	if err != nil {
 		return nil, fmt.Errorf("could not update service for DID Documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Updated service for subject (id: %s)", serviceID.String())
 	return services, nil
 }
 
@@ -331,9 +387,19 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 	log.Logger().Debug("Creating new VerificationMethods.")
 
 	verificationMethods := make([]did.VerificationMethod, 0)
-
+	var vmIDs []string
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
-		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(ctx, id, keyUsage)
+		// known limitation
+		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
+			return nil, errors.New("key agreement not supported for did:web")
+			// todo requires update to nutsCrypto module
+			//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
+			//	return verificationMethodID.String(), nil
+			//})
+		}
+
+		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
+		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(transactionContext, id, keyUsage)
 		if err != nil {
 			return nil, err
 		}
@@ -345,12 +411,16 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 			Data:     data,
 		}
 		current.VerificationMethods = append(current.VerificationMethods, sqlMethod)
+		vmIDs = append(vmIDs, vm.ID.String())
 		return current, nil
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("could not update DID documents: %w", err)
 	}
+	log.Logger().
+		WithField(core.LogFieldDIDSubject, subject).
+		Infof("Added verification method for subject (IDs: [%s])", strings.Join(vmIDs, ", "))
 	return verificationMethods, nil
 }
 

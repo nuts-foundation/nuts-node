@@ -19,12 +19,12 @@
 package didweb
 
 import (
+	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,9 +32,9 @@ import (
 
 func TestManager_NewDocument(t *testing.T) {
 	rootDID := did.MustParseDID("did:example:123")
-	keyStore := nutsCrypto.NewMemoryCryptoInstance()
 	ctx := audit.TestContext()
 	db := testDB(t)
+	keyStore := nutsCrypto.NewDatabaseCryptoInstance(db)
 	manager := NewManager(rootDID, "iam", keyStore, db)
 
 	t.Run("random id", func(t *testing.T) {

@@ -29,6 +29,7 @@ type VerificationMethod struct {
 	ID            string `gorm:"primaryKey"`
 	DIDDocumentID string `gorm:"column:did_document_id"`
 	KeyTypes      VerificationMethodKeyType
+	Weight        int16
 	Data          []byte
 }
 

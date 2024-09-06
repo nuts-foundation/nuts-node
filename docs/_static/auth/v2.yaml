@@ -8,7 +8,7 @@ servers:
   - url: http://localhost:8080
     description: For public-facing endpoints.
 paths:
-  /internal/auth/v2/{did}/request-service-access-token:
+  /internal/auth/v2/{subjectID}/request-service-access-token:
     post:
       operationId: requestServiceAccessToken
       summary: Start the authorization flow to get an access token from a remote authorization server.
@@ -23,15 +23,13 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: The DID of the requester, a Wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: Subject of the requester, a wallet owner at this node.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -47,7 +45,7 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{did}/request-user-access-token:
+  /internal/auth/v2/{subjectID}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
       summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
@@ -63,15 +61,13 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: The DID of the requester, a wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: Subject of the requester, a wallet owner at this node.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -174,22 +170,23 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
-  /internal/auth/v2/{did}/dpop:
+  /internal/auth/v2/{kid}/dpop:
     post:
       operationId: createDPoPProof
       summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: kid
           in: path
           required: true
-          description: The DID of the requester, a wallet owner at this node.
+          description: The kid used to create the DPoP proof returned by the access token request.
+          # we use the content hack so no unescaping happens in the generated code. This way we can handle web:did keys with port numbers.
           content:
             plain/text:
               schema:
                 type: string
-                example: did:web:example.com
+                example: did:web:example.com#1
       requestBody:
         required: true
         content:
@@ -236,7 +233,7 @@ paths:
                 $ref: "#/components/schemas/DPoPValidateResponse"
         default:
           $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{did}/request-credential:
+  /internal/auth/v2/{subjectID}/request-credential:
     post:
       operationId: requestOpenid4VCICredentialIssuance
       summary: Start the Oid4VCI authorization flow.
@@ -250,15 +247,13 @@ paths:
       tags:
         - auth
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: The DID of the requester, a Wallet owner at this node.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: Subject ID of the wallet owner at this node.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       requestBody:
         required: true
         content:
@@ -268,7 +263,12 @@ paths:
                 - issuer
                 - authorization_details
                 - redirect_uri
+                - wallet_did
               properties:
+                wallet_did:
+                  type: string
+                  description: The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+                  example: did:web:example.com
                 issuer:
                   type: string
                   description: |
@@ -528,6 +528,11 @@ components:
           description: |
             The access token issued by the authorization server.
           example: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+        dpop_kid:
+          type: string
+          description: |
+            The kid of the DPoP key that is used to sign dpop headers.
+          example: "did:web:example.com:resource-owner#key-1"
         token_type:
           type: string
           description: |

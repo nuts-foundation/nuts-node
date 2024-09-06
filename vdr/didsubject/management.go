@@ -21,6 +21,7 @@ package didsubject
 import (
 	"context"
 	"errors"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
@@ -32,9 +33,6 @@ var ErrInvalidService = errors.New("invalid DID document service")
 // ErrUnsupportedDIDMethod is returned when a DID method is not supported.
 var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 
-// ErrDIDAlreadyExists is returned when a DID already exists.
-var ErrDIDAlreadyExists = errors.New("DID already exists")
-
 // MethodManager keeps DID method specific state in sync with the DID sql database.
 type MethodManager interface {
 	// NewDocument generates a new DID document for the given subject.
@@ -43,7 +41,8 @@ type MethodManager interface {
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
 	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
-	NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error)
+	// RSA keys are not yet fully supported, see https://github.com/nuts-foundation/nuts-node/issues/1948
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.
 	Commit(ctx context.Context, event orm.DIDChangeLog) error
@@ -85,8 +84,14 @@ type SubjectManager interface {
 	// If no documents are found, an error is returned.
 	Deactivate(ctx context.Context, subject string) error
 
-	// List returns all DIDs for a subject
-	List(ctx context.Context, subject string) ([]did.DID, error)
+	// List returns all subjects and their DIDs.
+	List(ctx context.Context) (map[string][]did.DID, error)
+
+	// ListDIDs returns all DIDs for a subject
+	ListDIDs(ctx context.Context, subject string) ([]did.DID, error)
+
+	// Exists returns true if the subject exists
+	Exists(ctx context.Context, subject string) (bool, error)
 
 	// CreateService creates a new service in DID documents for the given subject.
 	// The service ID will be generated.

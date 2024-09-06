@@ -19,37 +19,37 @@
 package network
 
 import (
+	"crypto"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )
 
 // TransactionTemplate creates a new Template with the given required properties.
-func TransactionTemplate(payloadType string, payload []byte, key crypto.Key) Template {
+func TransactionTemplate(payloadType string, payload []byte, kid string) Template {
 	return Template{
 		Type:    payloadType,
 		Payload: payload,
-		Key:     key,
+		KID:     kid,
 	}
 }
 
 // Template is used to build a spec for new transactions.
 type Template struct {
-	Key             crypto.Key
+	KID             string
 	Payload         []byte
+	PublicKey       crypto.PublicKey
 	Type            string
-	AttachKey       bool
 	Timestamp       time.Time
 	AdditionalPrevs []hash.SHA256Hash
 	Participants    dag.PAL
 }
 
 // WithAttachKey specifies that the signing key must be attached to the transaction, because it wasn't published before.
-func (t Template) WithAttachKey() Template {
-	t.AttachKey = true
+func (t Template) WithAttachKey(key crypto.PublicKey) Template {
+	t.PublicKey = key
 	return t
 }
 

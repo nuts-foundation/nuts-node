@@ -210,6 +210,9 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
+
+	// WalletDid The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+	WalletDid string `json:"wallet_did"`
 }
 
 // IntrospectAccessTokenFormdataRequestBody defines body for IntrospectAccessToken for application/x-www-form-urlencoded ContentType.
@@ -556,24 +559,24 @@ type ClientInterface interface {
 	ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateDPoPProofWithBody request with any body
-	CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateDPoPProofWithBody(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateDPoPProof(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestOpenid4VCICredentialIssuanceWithBody request with any body
-	RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	RequestOpenid4VCICredentialIssuance(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestOpenid4VCICredentialIssuance(ctx context.Context, subjectID string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestServiceAccessTokenWithBody request with any body
-	RequestServiceAccessTokenWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestServiceAccessTokenWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	RequestServiceAccessToken(ctx context.Context, did string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestServiceAccessToken(ctx context.Context, subjectID string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestUserAccessTokenWithBody request with any body
-	RequestUserAccessTokenWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestUserAccessTokenWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	RequestUserAccessToken(ctx context.Context, did string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	RequestUserAccessToken(ctx context.Context, subjectID string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) IntrospectAccessTokenWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -660,8 +663,8 @@ func (c *Client) ValidateDPoPProof(ctx context.Context, body ValidateDPoPProofJS
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDPoPProofWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDPoPProofRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) CreateDPoPProofWithBody(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequestWithBody(c.Server, kid, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -672,8 +675,8 @@ func (c *Client) CreateDPoPProofWithBody(ctx context.Context, did string, conten
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDPoPProof(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDPoPProofRequest(c.Server, did, body)
+func (c *Client) CreateDPoPProof(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateDPoPProofRequest(c.Server, kid, body)
 	if err != nil {
 		return nil, err
 	}
@@ -684,8 +687,8 @@ func (c *Client) CreateDPoPProof(ctx context.Context, did string, body CreateDPo
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestOpenid4VCICredentialIssuanceRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestOpenid4VCICredentialIssuanceRequestWithBody(c.Server, subjectID, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -696,8 +699,8 @@ func (c *Client) RequestOpenid4VCICredentialIssuanceWithBody(ctx context.Context
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestOpenid4VCICredentialIssuance(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestOpenid4VCICredentialIssuanceRequest(c.Server, did, body)
+func (c *Client) RequestOpenid4VCICredentialIssuance(ctx context.Context, subjectID string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestOpenid4VCICredentialIssuanceRequest(c.Server, subjectID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -708,8 +711,8 @@ func (c *Client) RequestOpenid4VCICredentialIssuance(ctx context.Context, did st
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestServiceAccessTokenWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestServiceAccessTokenRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) RequestServiceAccessTokenWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestServiceAccessTokenRequestWithBody(c.Server, subjectID, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -720,8 +723,8 @@ func (c *Client) RequestServiceAccessTokenWithBody(ctx context.Context, did stri
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestServiceAccessToken(ctx context.Context, did string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestServiceAccessTokenRequest(c.Server, did, body)
+func (c *Client) RequestServiceAccessToken(ctx context.Context, subjectID string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestServiceAccessTokenRequest(c.Server, subjectID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -732,8 +735,8 @@ func (c *Client) RequestServiceAccessToken(ctx context.Context, did string, body
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestUserAccessTokenWithBody(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestUserAccessTokenRequestWithBody(c.Server, did, contentType, body)
+func (c *Client) RequestUserAccessTokenWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestUserAccessTokenRequestWithBody(c.Server, subjectID, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -744,8 +747,8 @@ func (c *Client) RequestUserAccessTokenWithBody(ctx context.Context, did string,
 	return c.Client.Do(req)
 }
 
-func (c *Client) RequestUserAccessToken(ctx context.Context, did string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestUserAccessTokenRequest(c.Server, did, body)
+func (c *Client) RequestUserAccessToken(ctx context.Context, subjectID string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestUserAccessTokenRequest(c.Server, subjectID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -911,23 +914,26 @@ func NewValidateDPoPProofRequestWithBody(server string, contentType string, body
 }
 
 // NewCreateDPoPProofRequest calls the generic CreateDPoPProof builder with application/json body
-func NewCreateDPoPProofRequest(server string, did string, body CreateDPoPProofJSONRequestBody) (*http.Request, error) {
+func NewCreateDPoPProofRequest(server string, kid string, body CreateDPoPProofJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateDPoPProofRequestWithBody(server, did, "application/json", bodyReader)
+	return NewCreateDPoPProofRequestWithBody(server, kid, "application/json", bodyReader)
 }
 
 // NewCreateDPoPProofRequestWithBody generates requests for CreateDPoPProof with any type of body
-func NewCreateDPoPProofRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateDPoPProofRequestWithBody(server string, kid string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "kid", runtime.ParamLocationPath, kid)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -955,23 +961,26 @@ func NewCreateDPoPProofRequestWithBody(server string, did string, contentType st
 }
 
 // NewRequestOpenid4VCICredentialIssuanceRequest calls the generic RequestOpenid4VCICredentialIssuance builder with application/json body
-func NewRequestOpenid4VCICredentialIssuanceRequest(server string, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody) (*http.Request, error) {
+func NewRequestOpenid4VCICredentialIssuanceRequest(server string, subjectID string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server, did, "application/json", bodyReader)
+	return NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server, subjectID, "application/json", bodyReader)
 }
 
 // NewRequestOpenid4VCICredentialIssuanceRequestWithBody generates requests for RequestOpenid4VCICredentialIssuance with any type of body
-func NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server string, subjectID string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -999,23 +1008,26 @@ func NewRequestOpenid4VCICredentialIssuanceRequestWithBody(server string, did st
 }
 
 // NewRequestServiceAccessTokenRequest calls the generic RequestServiceAccessToken builder with application/json body
-func NewRequestServiceAccessTokenRequest(server string, did string, body RequestServiceAccessTokenJSONRequestBody) (*http.Request, error) {
+func NewRequestServiceAccessTokenRequest(server string, subjectID string, body RequestServiceAccessTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRequestServiceAccessTokenRequestWithBody(server, did, "application/json", bodyReader)
+	return NewRequestServiceAccessTokenRequestWithBody(server, subjectID, "application/json", bodyReader)
 }
 
 // NewRequestServiceAccessTokenRequestWithBody generates requests for RequestServiceAccessToken with any type of body
-func NewRequestServiceAccessTokenRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewRequestServiceAccessTokenRequestWithBody(server string, subjectID string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1043,23 +1055,26 @@ func NewRequestServiceAccessTokenRequestWithBody(server string, did string, cont
 }
 
 // NewRequestUserAccessTokenRequest calls the generic RequestUserAccessToken builder with application/json body
-func NewRequestUserAccessTokenRequest(server string, did string, body RequestUserAccessTokenJSONRequestBody) (*http.Request, error) {
+func NewRequestUserAccessTokenRequest(server string, subjectID string, body RequestUserAccessTokenJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewRequestUserAccessTokenRequestWithBody(server, did, "application/json", bodyReader)
+	return NewRequestUserAccessTokenRequestWithBody(server, subjectID, "application/json", bodyReader)
 }
 
 // NewRequestUserAccessTokenRequestWithBody generates requests for RequestUserAccessToken with any type of body
-func NewRequestUserAccessTokenRequestWithBody(server string, did string, contentType string, body io.Reader) (*http.Request, error) {
+func NewRequestUserAccessTokenRequestWithBody(server string, subjectID string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
-	pathParam0 = did
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "subjectID", runtime.ParamLocationPath, subjectID)
+	if err != nil {
+		return nil, err
+	}
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -1148,24 +1163,24 @@ type ClientWithResponsesInterface interface {
 	ValidateDPoPProofWithResponse(ctx context.Context, body ValidateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*ValidateDPoPProofResponse, error)
 
 	// CreateDPoPProofWithBodyWithResponse request with any body
-	CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+	CreateDPoPProofWithBodyWithResponse(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
 
-	CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
+	CreateDPoPProofWithResponse(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error)
 
 	// RequestOpenid4VCICredentialIssuanceWithBodyWithResponse request with any body
-	RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
+	RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
 
-	RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
+	RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, subjectID string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error)
 
 	// RequestServiceAccessTokenWithBodyWithResponse request with any body
-	RequestServiceAccessTokenWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error)
+	RequestServiceAccessTokenWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error)
 
-	RequestServiceAccessTokenWithResponse(ctx context.Context, did string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error)
+	RequestServiceAccessTokenWithResponse(ctx context.Context, subjectID string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error)
 
 	// RequestUserAccessTokenWithBodyWithResponse request with any body
-	RequestUserAccessTokenWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error)
+	RequestUserAccessTokenWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error)
 
-	RequestUserAccessTokenWithResponse(ctx context.Context, did string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error)
+	RequestUserAccessTokenWithResponse(ctx context.Context, subjectID string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error)
 }
 
 type IntrospectAccessTokenResponse struct {
@@ -1455,16 +1470,16 @@ func (c *ClientWithResponses) ValidateDPoPProofWithResponse(ctx context.Context,
 }
 
 // CreateDPoPProofWithBodyWithResponse request with arbitrary body returning *CreateDPoPProofResponse
-func (c *ClientWithResponses) CreateDPoPProofWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
-	rsp, err := c.CreateDPoPProofWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateDPoPProofWithBodyWithResponse(ctx context.Context, kid string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProofWithBody(ctx, kid, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCreateDPoPProofResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, did string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
-	rsp, err := c.CreateDPoPProof(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, kid string, body CreateDPoPProofJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDPoPProofResponse, error) {
+	rsp, err := c.CreateDPoPProof(ctx, kid, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1472,16 +1487,16 @@ func (c *ClientWithResponses) CreateDPoPProofWithResponse(ctx context.Context, d
 }
 
 // RequestOpenid4VCICredentialIssuanceWithBodyWithResponse request with arbitrary body returning *RequestOpenid4VCICredentialIssuanceResponse
-func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
-	rsp, err := c.RequestOpenid4VCICredentialIssuanceWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
+	rsp, err := c.RequestOpenid4VCICredentialIssuanceWithBody(ctx, subjectID, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseRequestOpenid4VCICredentialIssuanceResponse(rsp)
 }
 
-func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, did string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
-	rsp, err := c.RequestOpenid4VCICredentialIssuance(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithResponse(ctx context.Context, subjectID string, body RequestOpenid4VCICredentialIssuanceJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestOpenid4VCICredentialIssuanceResponse, error) {
+	rsp, err := c.RequestOpenid4VCICredentialIssuance(ctx, subjectID, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1489,16 +1504,16 @@ func (c *ClientWithResponses) RequestOpenid4VCICredentialIssuanceWithResponse(ct
 }
 
 // RequestServiceAccessTokenWithBodyWithResponse request with arbitrary body returning *RequestServiceAccessTokenResponse
-func (c *ClientWithResponses) RequestServiceAccessTokenWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error) {
-	rsp, err := c.RequestServiceAccessTokenWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) RequestServiceAccessTokenWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error) {
+	rsp, err := c.RequestServiceAccessTokenWithBody(ctx, subjectID, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseRequestServiceAccessTokenResponse(rsp)
 }
 
-func (c *ClientWithResponses) RequestServiceAccessTokenWithResponse(ctx context.Context, did string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error) {
-	rsp, err := c.RequestServiceAccessToken(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) RequestServiceAccessTokenWithResponse(ctx context.Context, subjectID string, body RequestServiceAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestServiceAccessTokenResponse, error) {
+	rsp, err := c.RequestServiceAccessToken(ctx, subjectID, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -1506,16 +1521,16 @@ func (c *ClientWithResponses) RequestServiceAccessTokenWithResponse(ctx context.
 }
 
 // RequestUserAccessTokenWithBodyWithResponse request with arbitrary body returning *RequestUserAccessTokenResponse
-func (c *ClientWithResponses) RequestUserAccessTokenWithBodyWithResponse(ctx context.Context, did string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error) {
-	rsp, err := c.RequestUserAccessTokenWithBody(ctx, did, contentType, body, reqEditors...)
+func (c *ClientWithResponses) RequestUserAccessTokenWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error) {
+	rsp, err := c.RequestUserAccessTokenWithBody(ctx, subjectID, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseRequestUserAccessTokenResponse(rsp)
 }
 
-func (c *ClientWithResponses) RequestUserAccessTokenWithResponse(ctx context.Context, did string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error) {
-	rsp, err := c.RequestUserAccessToken(ctx, did, body, reqEditors...)
+func (c *ClientWithResponses) RequestUserAccessTokenWithResponse(ctx context.Context, subjectID string, body RequestUserAccessTokenJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestUserAccessTokenResponse, error) {
+	rsp, err := c.RequestUserAccessToken(ctx, subjectID, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

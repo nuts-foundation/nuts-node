@@ -62,6 +62,7 @@ type vdrTestCtx struct {
 	ctx                 context.Context
 	mockDocumentManager *didsubject.MockDocumentManager
 	mockDocumentOwner   *didsubject.MockDocumentOwner
+	storageEngine       storage.Engine
 }
 
 func newVDRTestCtx(t *testing.T) vdrTestCtx {
@@ -70,7 +71,9 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockAmbassador := didnuts.NewMockAmbassador(ctrl)
 	mockStore := didstore.NewMockStore(ctrl)
 	mockNetwork := network.NewMockTransactions(ctrl)
-	keyStore := nutsCrypto.NewMemoryCryptoInstance()
+	storageEngine := storage.NewTestStorageEngine(t)
+	db := storageEngine.GetSQLDatabase()
+	keyStore := nutsCrypto.NewDatabaseCryptoInstance(db)
 	mockDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
@@ -80,7 +83,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	vdr.documentOwner = mockDocumentOwner
 	vdr.didResolver = resolverRouter
 	vdr.Manager = didsubject.Manager{
-		DB:             testDB(t),
+		DB:             db,
 		MethodManagers: make(map[string]didsubject.MethodManager),
 	}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
@@ -94,6 +97,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		mockDocumentManager: mockDocumentManager,
 		mockDocumentOwner:   mockDocumentOwner,
 		ctx:                 audit.TestContext(),
+		storageEngine:       storageEngine,
 	}
 }
 
@@ -164,11 +168,13 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 owned conflict", func(t *testing.T) {
-			client := nutsCrypto.NewMemoryCryptoInstance()
+			storageEngine := storage.NewTestStorageEngine(t)
+			db := storageEngine.GetSQLDatabase()
+			client := nutsCrypto.NewDatabaseCryptoInstance(db)
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
-			_, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
-			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			_, _, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
+			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storageEngine)
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			didDocument := did.Document{ID: TestDIDA}
@@ -186,23 +192,23 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 owned conflict in controlled document", func(t *testing.T) {
 			// vendor
 			test := newVDRTestCtx(t)
-			keyVendor, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:vendor#keyVendor-1"))
+			_, keyVendor, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:vendor#keyVendor-1"))
 
 			didDocVendor := &did.Document{ID: did.MustParseDID("did:nuts:vendor")}
-			vendorVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyVendor.KID()), ssi.JsonWebKey2020, didDocVendor.ID, keyVendor.Public())
+			vendorVM, err := did.NewVerificationMethod(did.MustParseDIDURL("did:nuts:vendor#keyVendor-1"), ssi.JsonWebKey2020, didDocVendor.ID, keyVendor)
 			require.NoError(t, err)
 			didDocVendor.AddCapabilityInvocation(vendorVM)
 
 			// organization
-			keyOrg, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:org#keyOrg-1"))
+			_, keyOrg, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:org#keyOrg-1"))
 			didDocOrg := &did.Document{ID: did.MustParseDID("did:nuts:org")}
 			didDocOrg.Controller = []did.DID{didDocVendor.ID}
-			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL(keyOrg.KID()), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg.Public())
+			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL("did:nuts:org#keyOrg-1"), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg)
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
 
 			// change vdr to allow for Configure()
-			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, storage.NewTestStorageEngine(t))
+			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, test.storageEngine)
 			tmpResolver := vdr.didResolver
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
@@ -268,11 +274,11 @@ func TestVDR_Configure(t *testing.T) {
 			assert.NotNil(t, md)
 		})
 		t.Run("resolves local DID from database", func(t *testing.T) {
-			instance := NewVDR(nutsCrypto.NewMemoryCryptoInstance(), nil, nil, nil, storageInstance)
+			db := storageInstance.GetSQLDatabase()
+			instance := NewVDR(nutsCrypto.NewDatabaseCryptoInstance(db), nil, nil, nil, storageInstance)
 			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
-			db := storageInstance.GetSQLDatabase()
 			sqlDIDDocumentManager := didsubject.NewDIDDocumentManager(db)
 			sqlDID := orm.DID{
 				ID:      "did:web:example.com",
@@ -357,14 +363,14 @@ func TestVDR_Migrate(t *testing.T) {
 	t.Run("makes documents self-controlled", func(t *testing.T) {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
-		keyStore := nutsCrypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
-		methodID := did.MustParseDIDURL(key.KID())
+		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
+		keyRef, publicKey, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
+		require.NoError(t, err)
+		methodID := did.MustParseDIDURL(keyRef.KID)
 		methodID.ID = TestDIDA.ID
-		vm, _ := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, TestDIDA, key.Public())
+		vm, _ := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, TestDIDA, publicKey)
 		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
 		documentA.AddAssertionMethod(vm)
-		require.NoError(t, err)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()

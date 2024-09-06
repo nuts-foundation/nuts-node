@@ -157,7 +157,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 
 	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
 	db := r.storageInstance.GetSQLDatabase()
-	methodManagers := map[string]didsubject.MethodManager{}
+	methodManagers := make(map[string]didsubject.MethodManager)
 
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
@@ -202,7 +202,12 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
-	r.Manager = didsubject.Manager{DB: db, MethodManagers: methodManagers, PreferredOrder: r.config.DIDMethods}
+	r.Manager = didsubject.Manager{
+		DB:             db,
+		MethodManagers: methodManagers,
+		KeyStore:       r.keyStore,
+		PreferredOrder: r.config.DIDMethods,
+	}
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()

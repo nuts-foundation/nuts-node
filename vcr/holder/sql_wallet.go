@@ -72,17 +72,24 @@ type BuildParams struct {
 	Nonce    string
 }
 
-func (h sqlWallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// get VCs from own wallet
-	credentials, err := h.List(ctx, walletDID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+	credentials := make(map[did.DID][]vc.VerifiableCredential)
+	for _, walletDID := range walletDIDs {
+		creds, err := h.List(ctx, walletDID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
+		}
+		credentials[walletDID] = creds
+		if additionalCredentials != nil {
+			credentials[walletDID] = append(credentials[walletDID], additionalCredentials[walletDID]...)
+		}
 	}
 	return presenter{
 		documentLoader: h.jsonldManager.DocumentLoader(),
 		signer:         h.keyStore,
 		keyResolver:    h.keyResolver,
-	}.buildSubmission(ctx, walletDID, credentials, presentationDefinition, acceptedFormats, params)
+	}.buildSubmission(ctx, credentials, presentationDefinition, acceptedFormats, params)
 }
 
 func (h sqlWallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {

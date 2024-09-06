@@ -188,10 +188,10 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 
 	// Create instances
 	pkiInstance := pki.New()
-	cryptoInstance := crypto.NewCryptoInstance()
+	storageInstance := storage.New()
+	cryptoInstance := crypto.NewCryptoInstance(storageInstance)
 	httpServerInstance := httpEngine.New(shutdownCallback, cryptoInstance)
 	jsonld := jsonld.NewJSONLDInstance()
-	storageInstance := storage.New()
 	didStore := didstore.New(storageInstance.GetProvider(vdr.ModuleName))
 	eventManager := events.NewManager()
 	networkInstance := network.NewNetworkInstance(network.DefaultConfig(), didStore, cryptoInstance, eventManager, storageInstance.GetProvider(network.ModuleName), pkiInstance)
@@ -199,7 +199,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
 	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
@@ -219,7 +219,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 	system.RegisterRoutes(&discoveryAPI.Wrapper{Client: discoveryInstance})
@@ -228,9 +228,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	// Register engines
 	// without dependencies
 	system.RegisterEngine(pkiInstance)
+	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(cryptoInstance)
 	system.RegisterEngine(jsonld)
-	system.RegisterEngine(storageInstance)
 	system.RegisterEngine(statusEngine)
 	system.RegisterEngine(metricsEngine)
 	system.RegisterEngine(eventManager)

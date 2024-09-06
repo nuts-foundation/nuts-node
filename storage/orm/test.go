@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2021 Nuts community
+ * Copyright (C) 2024 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,27 +14,21 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
  */
 
-package crypto
+package orm
 
 import (
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"testing"
 )
 
-// NewEphemeralKey returns a Key for single use.
-func NewEphemeralKey(namingFunc KIDNamingFunc) (Key, error) {
-	keyPair, kid, err := spi.GenerateKeyPairAndKID(namingFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	return &memoryKey{
-		basicKey: basicKey{
-			publicKey: keyPair.Public(),
-			kid:       kid,
-		},
-		privateKey: keyPair,
-	}, nil
+func NewTestDatabase(t *testing.T) *gorm.DB {
+	//logrus.SetLevel(logrus.TraceLevel)
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	db := storageEngine.GetSQLDatabase()
+	return db
 }

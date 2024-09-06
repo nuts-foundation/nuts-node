@@ -87,18 +87,18 @@ func (mr *MockMethodManagerMockRecorder) NewDocument(ctx, keyFlags any) *gomock.
 }
 
 // NewVerificationMethod mocks base method.
-func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyUsage)
+	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyFlags)
 	ret0, _ := ret[0].(*did.VerificationMethod)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NewVerificationMethod indicates an expected call of NewVerificationMethod.
-func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, keyUsage any) *gomock.Call {
+func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, keyFlags any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerificationMethod", reflect.TypeOf((*MockMethodManager)(nil).NewVerificationMethod), ctx, controller, keyUsage)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewVerificationMethod", reflect.TypeOf((*MockMethodManager)(nil).NewVerificationMethod), ctx, controller, keyFlags)
 }
 
 // MockDocumentManager is a mock of DocumentManager interface.
@@ -249,6 +249,21 @@ func (mr *MockSubjectManagerMockRecorder) DeleteService(ctx, subject, serviceID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockSubjectManager)(nil).DeleteService), ctx, subject, serviceID)
 }
 
+// Exists mocks base method.
+func (m *MockSubjectManager) Exists(ctx context.Context, subject string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Exists", ctx, subject)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists.
+func (mr *MockSubjectManagerMockRecorder) Exists(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockSubjectManager)(nil).Exists), ctx, subject)
+}
+
 // FindServices mocks base method.
 func (m *MockSubjectManager) FindServices(ctx context.Context, subject string, serviceType *string) ([]did.Service, error) {
 	m.ctrl.T.Helper()
@@ -265,18 +280,33 @@ func (mr *MockSubjectManagerMockRecorder) FindServices(ctx, subject, serviceType
 }
 
 // List mocks base method.
-func (m *MockSubjectManager) List(ctx context.Context, subject string) ([]did.DID, error) {
+func (m *MockSubjectManager) List(ctx context.Context) (map[string][]did.DID, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, subject)
-	ret0, _ := ret[0].([]did.DID)
+	ret := m.ctrl.Call(m, "List", ctx)
+	ret0, _ := ret[0].(map[string][]did.DID)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockSubjectManagerMockRecorder) List(ctx, subject any) *gomock.Call {
+func (mr *MockSubjectManagerMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSubjectManager)(nil).List), ctx, subject)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSubjectManager)(nil).List), ctx)
+}
+
+// ListDIDs mocks base method.
+func (m *MockSubjectManager) ListDIDs(ctx context.Context, subject string) ([]did.DID, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListDIDs", ctx, subject)
+	ret0, _ := ret[0].([]did.DID)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListDIDs indicates an expected call of ListDIDs.
+func (mr *MockSubjectManagerMockRecorder) ListDIDs(ctx, subject any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDIDs", reflect.TypeOf((*MockSubjectManager)(nil).ListDIDs), ctx, subject)
 }
 
 // UpdateService mocks base method.

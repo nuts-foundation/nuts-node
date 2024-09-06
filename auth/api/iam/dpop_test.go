@@ -47,21 +47,19 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 		Token: accesstoken,
 		Htu:   "https://example.com",
 	}
+	vmId := did.MustParseDIDURL(holderDID.String() + "#key1")
 	requestObject := CreateDPoPProofRequestObject{
 		Body: &requestBody,
-		Did:  webDID.String(),
+		Kid:  vmId.String(),
 	}
 	didDocument := did.Document{ID: holderDID}
-	vmId := did.MustParseDIDURL(webDID.String() + "#key1")
 	key, _ := spi.GenerateKeyPair()
-	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, webDID, key.Public())
+	vm, _ := did.NewVerificationMethod(vmId, ssi.JsonWebKey2020, holderDID, key.Public())
 	didDocument.AddAssertionMethod(vm)
 	dpopToken := dpop.New(*request)
 	dpopToken.GenerateProof(accesstoken)
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).DoAndReturn(func(_ context.Context, token dpop.DPoP, _ string) (string, error) {
 			assert.Equal(t, dpopToken.String(), token.String())
 			return "dpop", nil
@@ -83,7 +81,6 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 	})
 	t.Run("invalid method", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
 		requestBody.Htm = "\\"
 		defer (func() { requestBody.Htm = "GET" })()
 
@@ -109,18 +106,8 @@ func TestWrapper_CreateDPoPProof(t *testing.T) {
 
 		assert.EqualError(t, err, "missing url")
 	})
-	t.Run("did not owned", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(false, nil)
-
-		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
-
-		assert.EqualError(t, err, "DID document not managed by this node")
-	})
 	t.Run("proof error", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), webDID).Return(true, nil)
-		ctx.resolver.EXPECT().Resolve(webDID, gomock.Any()).Return(&didDocument, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(gomock.Any(), gomock.Any(), vmId.String()).Return("dpop", assert.AnError)
 
 		_, err := ctx.client.CreateDPoPProof(context.Background(), requestObject)
@@ -242,8 +229,8 @@ func newSignedTestDPoP() (*dpop.DPoP, *dpop.DPoP, string) {
 	withProof := newTestDPoP()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	_ = withProof.GenerateProof("token")
-	_, _ = withProof.Sign(keyPair, jwa.ES256)
-	_, _ = dpopToken.Sign(keyPair, jwa.ES256)
+	_, _ = withProof.Sign("kid", keyPair, jwa.ES256)
+	_, _ = dpopToken.Sign("kid", keyPair, jwa.ES256)
 	thumbprintBytes, _ := dpopToken.Headers.JWK().Thumbprint(crypto2.SHA256)
 	thumbprint := base64.RawURLEncoding.EncodeToString(thumbprintBytes)
 	return dpopToken, withProof, thumbprint

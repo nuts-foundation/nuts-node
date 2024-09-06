@@ -1,6 +1,6 @@
 # Note: no code is directly generated from this file, it is merged into v2.yaml and then code is generated from the merged file.
 paths:
-  /oauth2/{did}/token:
+  /oauth2/{subjectID}/token:
     post:
       summary: Used by the OAuth2 client (backend, not the browser) to request access- or refresh tokens.
       description: |
@@ -10,15 +10,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that is the subject of the token request
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: the subject of the token request
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843CC
       requestBody:
         content:
           application/x-www-form-urlencoded:
@@ -55,7 +53,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /oauth2/{did}/authorize:
+  /oauth2/{subjectID}/authorize:
     get:
       summary: Used by resource owners (the browser) to initiate the authorization code flow.
       description: Specified by https://datatracker.ietf.org/doc/html/rfc6749#section-3.1
@@ -63,15 +61,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that is the subject of the authorization request
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: the subject of the authorization request
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         # Way to specify dynamic query parameters
         # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
         - in: query
@@ -97,17 +93,15 @@ paths:
               schema:
                 type: string
                 format: uri
-  /oauth2/{did}/request.jwt/{id}:
+  /oauth2/{subjectID}/request.jwt/{id}:
     parameters:
-      - name: did
+      - name: subjectID
         in: path
         required: true
-        description: DID acting as the client for the authorization request
-        content:
-          plain/text:
-            schema:
-              type: string
-              example: did:web:example.com
+        description: Subject acting as the client for the authorization request
+        schema:
+          type: string
+          example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       - name: id
         in: path
         required: true
@@ -159,7 +153,7 @@ paths:
                 "$ref": "#/components/schemas/RequestObjectResponse"
         default:
           $ref: '../common/error_response.yaml'
-  /oauth2/{did}/callback:
+  /oauth2/{subjectID}/callback:
     get:
       summary: The OAuth2 callback endpoint of the client.
       description: |
@@ -172,15 +166,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that is the subject of the callback
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: the subject of the callback
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: code
           in: query
           description: The authorization code received from the authorization server.
@@ -211,7 +203,7 @@ paths:
                 format: uri
         "default":
           $ref: '../common/error_response.yaml'
-  /oauth2/{did}/presentation_definition:
+  /oauth2/{subjectID}/presentation_definition:
     get:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
@@ -223,15 +215,13 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that holds the presentation definition.
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: Subject that holds the presentation definition.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: scope
           in: query
           required: true
@@ -253,7 +243,7 @@ paths:
                 "$ref": "#/components/schemas/PresentationDefinition"
         "default":
           $ref: '../common/error_response.yaml'
-  /oauth2/{did}/response:
+  /oauth2/{subjectID}/response:
     post:
       summary: Used by wallets to post the authorization response or error to.
       description: |
@@ -264,10 +254,10 @@ paths:
       tags:
         - oauth2
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that is the subject of the authorization response
+          description: the subject of the authorization response
           content:
             plain/text:
               schema:
@@ -308,28 +298,28 @@ paths:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
   #  /oauth2/{did}/.well-known/oauth-authorization-server:
   #    $ref: '#/paths/~1.well-known~1oauth-authorization-server~1oauth2~1{did}'
-  /.well-known/oauth-authorization-server/oauth2/{did}:
+  /.well-known/oauth-authorization-server/oauth2/{subjectID}:
     get:
       tags:
         - well-known
-      summary: Get the OAuth2 Authorization Server metadata for the specified DID.
+      summary: Get the OAuth2 Authorization Server metadata for the specified subject.
       description: >
         Specified by https://www.rfc-editor.org/info/rfc8414
         The well-known path is the default specified by https://www.rfc-editor.org/rfc/rfc8414.html#section-3
 
         error returns:
         * 400 - invalid input
-        * 404 - DID not found; possibly be non-existing, deactivated, or not managed by this node
+        * 404 - subject not found; possibly be non-existing, deactivated, or not managed by this node
         * 500 - internal server error
       operationId: OAuthAuthorizationServerMetadata
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: The DID of the metadata subject.
+          description: The metadata subject.
           schema:
             type: string
-            example: did:web:example.com
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK
@@ -339,7 +329,42 @@ paths:
                 "$ref": "#/components/schemas/OAuthAuthorizationServerMetadata"
         default:
           $ref: '../common/error_response.yaml'
-  /oauth2/{did}/oauth-client:
+  /.well-known/openid-configuration/oauth2/{subjectID}:
+    get:
+      tags:
+        - well-known
+      summary: Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
+      description: >
+        Specified by https://openid.net/specs/openid-connect-federation-1_0-29.html#entity-statement
+        And referenced by OpenID4VP (https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-verifier-metadata-managemen) when using entity_id as client_id_scheme
+        
+        error returns:
+        * 400 - invalid input
+        * 404 - Subject not found; possibly be non-existing, deactivated, or not managed by this node
+        * 500 - internal server error
+      operationId: OpenIDConfiguration
+      parameters:
+        - name: subjectID
+          in: path
+          required: true
+          description: The subject identifier part of the client_id.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+      responses:
+        "200":
+          description: OK
+          content:
+            application/entity-statement+jwt:
+              schema:
+                "$ref": "#/components/schemas/OpenIDConfiguration"
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /oauth2/{subjectID}/oauth-client:
     get:
       tags:
         - well-known
@@ -355,15 +380,13 @@ paths:
         * 500 - internal server error
       operationId: OAuthClientMetadata
       parameters:
-        - name: did
+        - name: subjectID
           in: path
           required: true
-          description: DID that serves the metadata
-          content:
-            plain/text:
-              schema:
-                type: string
-                example: did:web:example.com
+          description: Subject that serves the metadata
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       responses:
         "200":
           description: OK
@@ -435,6 +458,11 @@ components:
       description: |
         OAuth2 Client Metadata
         Contain properties from several specifications and may grow over time
+      type: object
+    OpenIDConfiguration:
+      description: |
+          OpenID entity configuration
+          Contain properties from several specifications and may grow over time
       type: object
     PresentationDefinition:
       description: |

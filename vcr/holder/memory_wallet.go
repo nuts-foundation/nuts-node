@@ -58,12 +58,19 @@ func (m memoryWallet) BuildPresentation(ctx context.Context, credentials []vc.Ve
 	}.buildPresentation(ctx, signerDID, credentials, options)
 }
 
-func (m memoryWallet) BuildSubmission(ctx context.Context, walletDID did.DID, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (m memoryWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	wallets := make(map[did.DID][]vc.VerifiableCredential)
+	for _, walletDID := range walletDIDs {
+		wallets[walletDID] = m.credentials[walletDID]
+		if additionalCredentials != nil {
+			wallets[walletDID] = append(wallets[walletDID], additionalCredentials[walletDID]...)
+		}
+	}
 	return presenter{
 		documentLoader: m.documentLoader,
 		signer:         m.signer,
 		keyResolver:    m.keyResolver,
-	}.buildSubmission(ctx, walletDID, m.credentials[walletDID], presentationDefinition, acceptedFormats, params)
+	}.buildSubmission(ctx, wallets, presentationDefinition, acceptedFormats, params)
 }
 
 func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {

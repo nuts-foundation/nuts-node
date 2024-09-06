@@ -34,5 +34,5 @@ func (client *Crypto) SignDPoP(ctx context.Context, token dpop.DPoP, kid string)
 		return "", err
 	}
 
-	return token.Sign(privateKey, alg)
+	return token.Sign(kid, privateKey, alg)
 }

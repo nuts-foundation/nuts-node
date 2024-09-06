@@ -20,7 +20,6 @@ package signature
 
 import (
 	"context"
-	crypt "crypto"
 	"encoding/hex"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -121,11 +120,9 @@ func Test_detachedJWSHeaders(t *testing.T) {
 func TestJsonWebSignature2020_Sign(t *testing.T) {
 	t.Run("it returns the signing result", func(t *testing.T) {
 		doc := []byte("foo")
-		cryptoInstance := crypto.NewMemoryCryptoInstance()
+		cryptoInstance := crypto.NewMemoryCryptoInstance(t)
 		const keyID = "did:nuts:123#abc"
-		cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
-			return keyID, nil
-		})
+		_, _, _ = cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(keyID))
 		sig := JSONWebSignature2020{Signer: cryptoInstance}
 
 		result, err := sig.Sign(audit.TestContext(), doc, keyID)

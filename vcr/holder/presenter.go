@@ -47,14 +47,16 @@ type presenter struct {
 	keyResolver    resolver.KeyResolver
 }
 
-func (p presenter) buildSubmission(ctx context.Context, holderDID did.DID, credentials []vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
+func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
 	acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
 	// If no presentation definition matches, return a 412 "no matching credentials" error
 	builder := presentationDefinition.PresentationSubmissionBuilder()
-	builder.AddWallet(holderDID, credentials)
+	for holderDID, creds := range credentials {
+		builder.AddWallet(holderDID, creds)
+	}
 
 	// Find supported VP format, matching support from:
 	// - what the local Nuts node supports
@@ -80,6 +82,12 @@ func (p presenter) buildSubmission(ctx context.Context, holderDID did.DID, crede
 			return nil, nil, ErrNoCredentials
 		}
 		// add empty sign instruction
+		// TODO: If the verifier doesn't require any credentials, it also can't signal which DID methods it supports/requires?
+		var holderDID did.DID
+		for holder := range credentials {
+			holderDID = holder
+			break
+		}
 		signInstructions = append(signInstructions, pe.SignInstruction{Holder: holderDID})
 		presentationSubmission = pe.PresentationSubmission{
 			Id:            uuid.NewString(),
@@ -88,11 +96,16 @@ func (p presenter) buildSubmission(ctx context.Context, holderDID did.DID, crede
 		}
 	}
 
-	// todo: support multiple wallets
-	holder := holderDID.URI()
-	vp, err := p.buildPresentation(ctx, &holderDID, signInstructions[0].VerifiableCredentials, PresentationOptions{
+	if len(signInstructions) > 1 {
+		// todo: support multiple wallets
+		return nil, nil, errors.New("multiple sign instructions not supported")
+	}
+	signInstruction := signInstructions[0]
+
+	holderDID := signInstruction.Holder.URI()
+	vp, err := p.buildPresentation(ctx, &signInstruction.Holder, signInstruction.VerifiableCredentials, PresentationOptions{
 		Format: format,
-		Holder: &holder,
+		Holder: &holderDID,
 		ProofOptions: proof.ProofOptions{
 			Created:   time.Now(),
 			Challenge: &params.Nonce,
@@ -123,11 +136,11 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 	switch options.Format {
 	case JWTPresentationFormat:
-		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid.String())
+		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid)
 	case "":
 		fallthrough
 	case JSONLDPresentationFormat:
-		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid.String())
+		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid)
 	default:
 		return nil, fmt.Errorf("unsupported presentation proof format: %s", options.Format)
 	}

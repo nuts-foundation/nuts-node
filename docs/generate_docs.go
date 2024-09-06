@@ -61,18 +61,10 @@ func generateCLICommands(system *core.System) {
 	defer writer.Close()
 
 	_, _ = writer.WriteString(".. _nuts-cli-reference:" + newline + newline)
-	writeHeader(writer, "CLI Command Reference", 0)
+	writeHeader(writer, "Server CLI Command Reference", 0)
 
-	_, _ = writer.WriteString("There are 2 types of commands: server command and client commands. " +
-		"Server commands (e.g. ``nuts server``) can only be run on the system where the node is (or will be) running, because they require the node's config. " +
-		"Client commands are used to remotely administer a Nuts node and require the node's API address." + newline + newline)
-
-	// Server commands
-	writeHeader(writer, "Server Commands", 1)
-	_, _ = writer.WriteString("The following options apply to the server commands below:" + newline + newline)
-
-	_, _ = io.WriteString(writer, newline+"::"+newline+newline)
-	writeCommandOptions(writer, cmd.CreateCommand(system).Commands()[0])
+	_, _ = writer.WriteString("Aside from ``nuts server``, there are few other server commands that can be run. They can only be run on the system where the node is (or will be) running, because they require the node's config." + newline)
+	_, _ = writer.WriteString("Refer to the configuration reference for how and what can be configured." + newline + newline)
 
 	err := GenerateCommandDocs(cmd.CreateCommand(system), writer, func(cmd *cobra.Command) bool {
 		return serverCommands.contains(cmd.CommandPath()) && cmd.CommandPath() != "nuts"
@@ -119,7 +111,11 @@ func generateServerOptions(system *core.System) {
 			return strings.HasPrefix(f.Name, "events.")
 		},
 		func(f *pflag.Flag) bool {
-			return strings.HasPrefix(f.Name, "auth.")
+			// Auth engine
+			return strings.HasPrefix(f.Name, "auth.irma") ||
+				strings.HasPrefix(f.Name, "auth.clockskew") ||
+				strings.HasPrefix(f.Name, "auth.contractvalidators") ||
+				strings.HasPrefix(f.Name, "auth.accesstokenlifespan")
 		},
 		func(f *pflag.Flag) bool {
 			return strings.HasPrefix(f.Name, "tls.")
@@ -223,10 +219,27 @@ func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
 		if f.Hidden {
 			return
 		}
-		l = append(l, vals(f.Name, f.DefValue, f.Usage))
+		defValue := normalizeDefaultValue(f)
+		l = append(l, vals(f.Name, defValue, f.Usage))
 	})
 	sort.Sort(l)
-	return [][]rstValue(l)
+	return l
+}
+
+func normalizeDefaultValue(f *pflag.Flag) string {
+	// maps (stringToString) are randomly ordered, so we need to sort them to have consistent output.
+	// Otherwise, everytime the documentation is generated order might change, causing unnecessary diffs.
+	// They are in the form of [key1=value1,key2=value2]
+	defValue := f.DefValue
+	if f.Value.Type() == "stringToString" {
+		value := f.Value.String()
+		value = strings.TrimPrefix(value, "[")
+		value = strings.TrimSuffix(value, "]")
+		values := strings.Split(value, ",")
+		sort.Strings(values)
+		defValue = fmt.Sprintf("[%s]", strings.Join(values, ","))
+	}
+	return defValue
 }
 
 func generateRstTable(tableName, fileName string, values [][]rstValue) {

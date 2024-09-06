@@ -67,12 +67,12 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 }
 
 func TestTokenResponse_Marshalling(t *testing.T) {
-	expected := *NewTokenResponse("1234567", "bearer", 5, "abc").With("c_nonce", "hello")
+	expected := *NewTokenResponse("1234567", "bearer", 5, "abc", "kid").With("c_nonce", "hello")
 
 	t.Run("marshal", func(t *testing.T) {
 		data, err := json.Marshal(expected)
 		require.NoError(t, err)
-		assert.JSONEq(t, `{"access_token":"1234567","expires_in":5,"token_type":"bearer","scope":"abc","c_nonce":"hello"}`, string(data))
+		assert.JSONEq(t, `{"access_token":"1234567","expires_in":5,"token_type":"bearer","scope":"abc","dpop_kid":"kid", "c_nonce":"hello"}`, string(data))
 	})
 	t.Run("unmarshal", func(t *testing.T) {
 		data, _ := json.Marshal(expected)
@@ -89,5 +89,56 @@ func TestTokenResponse_Get(t *testing.T) {
 	t.Run("nil map", func(t *testing.T) {
 		var tr TokenResponse
 		assert.Empty(t, tr.Get("c_nonce"))
+	})
+}
+
+func TestAuthorizationServerMetadata_SupportsClientIDScheme(t *testing.T) {
+	m := AuthorizationServerMetadata{
+		ClientIdSchemesSupported: []string{"did"},
+	}
+	assert.True(t, m.SupportsClientIDScheme("did"))
+	assert.False(t, m.SupportsClientIDScheme("web"))
+}
+
+func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
+	example := `
+{
+	"iss":"https://nuts.nl",
+	"sub": "https://nuts.nl",
+	"iat": 1600000000,
+	"metadata": {
+		"openid_provider": {
+			"authorization_endpoint":"https://nuts.nl/authorize"
+		}
+	},
+	"jwks": {
+		"keys": [
+		  {
+			"alg": "RS256",
+			"e": "AQAB",
+			"key_ops": ["verify"],
+			"kid": "key1",
+			"kty": "RSA",
+			"n": "pnXBOusEANuug6ewezb9J_",
+			"use": "sig"
+		  }
+		]
+	}
+}
+`
+	t.Run("ok", func(t *testing.T) {
+		var c OpenIDConfiguration
+		err := json.Unmarshal([]byte(example), &c)
+		require.NoError(t, err)
+
+		assert.Equal(t, "https://nuts.nl", c.Issuer)
+		assert.Equal(t, "https://nuts.nl", c.Subject)
+		assert.Equal(t, int64(1600000000), c.IssuedAt)
+		assert.Equal(t, "https://nuts.nl/authorize", c.Metadata.OpenIDProvider.AuthorizationEndpoint)
+	})
+	t.Run("key error", func(t *testing.T) {
+		var c OpenIDConfiguration
+		err := json.Unmarshal([]byte(`{"jwks": {"keys": [{"alg": "RS256","n": "."}]}}`), &c)
+		assert.ErrorContains(t, err, "failed to decode key #0")
 	})
 }

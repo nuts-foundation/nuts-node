@@ -21,6 +21,7 @@ package spi
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"testing"
 )
@@ -60,7 +61,7 @@ func TestWrapper_GetPrivateKey(t *testing.T) {
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
 		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
-			_, err := w.GetPrivateKey(ctx, kid)
+			_, err := w.GetPrivateKey(ctx, kid, "")
 			assert.Error(t, err)
 		}
 	})
@@ -70,8 +71,8 @@ func TestWrapper_GetPrivateKey(t *testing.T) {
 		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
-			mockStorage.EXPECT().GetPrivateKey(ctx, kid)
-			_, err := w.GetPrivateKey(ctx, kid)
+			mockStorage.EXPECT().GetPrivateKey(ctx, kid, "1")
+			_, err := w.GetPrivateKey(ctx, kid, "1")
 			assert.NoError(t, err)
 		}
 		ctrl.Finish()
@@ -83,7 +84,7 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
 		w := wrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
-			exists, err := w.PrivateKeyExists(ctx, kid)
+			exists, err := w.PrivateKeyExists(ctx, kid, "")
 			assert.Error(t, err)
 			assert.False(t, exists)
 		}
@@ -94,8 +95,8 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
 		for _, kid := range goodKIDs {
-			mockStorage.EXPECT().PrivateKeyExists(ctx, kid).Return(true, nil)
-			exists, err := w.PrivateKeyExists(ctx, kid)
+			mockStorage.EXPECT().PrivateKeyExists(ctx, kid, "1").Return(true, nil)
+			exists, err := w.PrivateKeyExists(ctx, kid, "1")
 			assert.NoError(t, err)
 			assert.True(t, exists)
 		}
@@ -156,9 +157,10 @@ func TestWrapper_ListPrivateKeys(t *testing.T) {
 		mockStorage := NewMockStorage(ctrl)
 		w := NewValidatedKIDBackendWrapper(mockStorage, KidPattern)
 
-		mockStorage.EXPECT().ListPrivateKeys(ctx).Return([]string{"foo", "bar"})
+		mockStorage.EXPECT().ListPrivateKeys(ctx).Return([]KeyNameVersion{{"foo", "1"}, {"bar", "1"}})
 		keys := w.ListPrivateKeys(ctx)
-		assert.Equal(t, []string{"foo", "bar"}, keys)
+		require.Len(t, keys, 2)
+		assert.Equal(t, KeyNameVersion{"foo", "1"}, keys[0])
 		ctrl.Finish()
 	})
 }

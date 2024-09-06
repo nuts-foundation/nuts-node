@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/glebarez/sqlite"
+	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
@@ -189,10 +190,10 @@ func (e *engine) initSQLDatabase() error {
 	dbType := strings.Split(connectionString, ":")[0]
 	if dbType == "sqlite" {
 		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
-	} else if dbType == "mysql" {
-		// MySQL DSN needs to be without mysql://
-		// See https://github.com/go-sql-driver/mysql#examples
-		connectionString = strings.TrimPrefix(connectionString, "mysql://")
+	} else if dbType == "mysql" || dbType == "azuresql" {
+		// These drivers need their connection string without the driver:// prefix.
+		idx := strings.Index(connectionString, "://")
+		connectionString = connectionString[idx+3:]
 	}
 	db, err := goose.OpenDBWithDriver(dbType, connectionString)
 	if err != nil {
@@ -208,7 +209,10 @@ func (e *engine) initSQLDatabase() error {
 	}
 	// SQL migration files use env variables for substitutions.
 	// TEXT SQL data type is really DB-specific, so we set a default here and override it for a specific database type (MS SQL).
-	_ = os.Setenv("TEXT_TYPE", "TEXT")
+	err = os.Setenv("TEXT_TYPE", "TEXT")
+	if err != nil {
+		return err
+	}
 	defer os.Unsetenv("TEXT_TYPE")
 	switch dbType {
 	case "sqlite":
@@ -227,20 +231,34 @@ func (e *engine) initSQLDatabase() error {
 		}
 		dialect = goose.DialectSQLite3
 	case "mysql":
-		e.sqlDB, _ = gorm.Open(mysql.New(mysql.Config{
+		e.sqlDB, err = gorm.Open(mysql.New(mysql.Config{
 			Conn: db,
 		}), gormConfig)
+		if err != nil {
+			return err
+		}
 		dialect = goose.DialectMySQL
 	case "postgres":
-		e.sqlDB, _ = gorm.Open(postgres.New(postgres.Config{
+		e.sqlDB, err = gorm.Open(postgres.New(postgres.Config{
 			Conn: db,
 		}), gormConfig)
+		if err != nil {
+			return err
+		}
 		dialect = goose.DialectPostgres
+	case "azuresql":
+		fallthrough
 	case "sqlserver":
-		_ = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
-		e.sqlDB, _ = gorm.Open(sqlserver.New(sqlserver.Config{
+		err = os.Setenv("TEXT_TYPE", "VARCHAR(MAX)")
+		if err != nil {
+			return err
+		}
+		e.sqlDB, err = gorm.Open(sqlserver.New(sqlserver.Config{
 			Conn: db,
 		}), gormConfig)
+		if err != nil {
+			return err
+		}
 		dialect = goose.DialectMSSQL
 	default:
 		return errors.New("unsupported SQL database")

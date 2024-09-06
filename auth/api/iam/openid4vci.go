@@ -43,16 +43,20 @@ var timeFunc = time.Now
 const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
+	walletDID, err := did.ParseDID(request.Body.WalletDid)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid wallet DID")
+	}
+	if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
+		return nil, err
+	} else if !owned {
+		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
+	}
+
 	if request.Body == nil {
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
 	}
-	// Parse and check the requester
-	requestHolder, err := r.toOwnedDID(ctx, request.Did)
-	if err != nil {
-		return nil, core.NotFoundError("requester DID: %w", err)
-	}
-
 	// Parse the issuer
 	issuer := request.Body.Issuer
 	if issuer == "" {
@@ -72,6 +76,9 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if len(authzServerMetadata.TokenEndpoint) == 0 {
 		return nil, errors.New("no token_endpoint found")
 	}
+
+	clientID := r.subjectToBaseURL(request.SubjectID)
+
 	// Read and parse the authorization details
 	authorizationDetails := []byte("[]")
 	if len(request.Body.AuthorizationDetails) > 0 {
@@ -82,17 +89,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	redirectUri, err := createOAuth2BaseURL(*requestHolder)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
-	}
-	redirectUri = redirectUri.JoinPath(oauth.CallbackPath)
+	redirectUri := clientID.JoinPath(oauth.CallbackPath)
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
-		ClientFlow:  credentialRequestClientFlow,
-		OwnDID:      requestHolder,
-		RedirectURI: request.Body.RedirectUri,
-		PKCEParams:  pkceParams,
+		AuthorizationServerMetadata: authzServerMetadata,
+		ClientFlow:                  credentialRequestClientFlow,
+		OwnSubject:                  &request.SubjectID,
+		RedirectURI:                 request.Body.RedirectUri,
+		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
 		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
@@ -110,8 +114,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
-		oauth.ClientIDParam:             requestHolder.String(),
-		oauth.ClientIDSchemeParam:       didClientIDScheme,
+		oauth.ClientIDParam:             clientID.String(),
+		oauth.ClientIDSchemeParam:       entityClientIDScheme,
 		oauth.AuthorizationDetailsParam: string(authorizationDetails),
 		oauth.RedirectURIParam:          redirectUri.String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
@@ -128,20 +132,22 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
-	checkURL, err := createOAuth2BaseURL(*oauthSession.OwnDID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create callback URL for verification: %w", err)
-	}
-	checkURL = checkURL.JoinPath(oauth.CallbackPath)
+	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
+	clientID := baseURL.String()
+	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnDID, oauthSession.PKCEParams.Verifier, false)
+	clientDID, err := r.determineClientDID(ctx, *oauthSession.AuthorizationServerMetadata, *oauthSession.OwnSubject)
+	if err != nil {
+		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while determining client ID: %s", err.Error())), appCallbackURI)
+	}
+	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
 	// make proof and collect credential
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
+	proofJWT, err := r.openid4vciProof(ctx, *clientDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
@@ -150,7 +156,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
 	// validate credential
-	// TODO: check that issued credential is bound to DID that requested it (OwnDID)???
+	// TODO: check that issued credential is bound to DID that requested it (OwnSubject)???
 	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), appCallbackURI)
@@ -176,7 +182,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	headers := map[string]interface{}{
 		"typ": jwtTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": kid.String(),           // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	if err != nil {
 		// can't fail or would have failed before
@@ -190,9 +196,9 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	if nonce != "" {
 		claims[oauth.NonceParam] = nonce
 	}
-	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, headers, kid.String())
+	proofJwt, err := r.jwtSigner.SignJWT(ctx, claims, headers, kid)
 	if err != nil {
-		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid.String(), err)
+		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid, err)
 	}
 	return proofJwt, nil
 }

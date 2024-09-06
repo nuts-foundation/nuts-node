@@ -60,7 +60,7 @@ type SessionMiddleware struct {
 	// Store is the session store to use for storing user sessions.
 	Store storage.SessionStore
 	// CookiePath is a function that returns the path for the user session cookie.
-	CookiePath func(tenantDID did.DID) string
+	CookiePath func(subjectID string) string
 }
 
 func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
@@ -68,23 +68,18 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 		if u.Skipper(echoCtx) {
 			return next(echoCtx)
 		}
-		tenantDIDRaw := echoCtx.Param("did")
-		if tenantDIDRaw == "" {
+		subjectID := echoCtx.Param("subjectID")
+		if subjectID == "" {
 			// Indicates misconfiguration
-			return errors.New("missing tenant DID")
+			return errors.New("missing subjectID")
 		}
-		tenantDID, err := did.ParseDID(tenantDIDRaw)
-		if err != nil {
-			return fmt.Errorf("invalid tenant DID: %w", err)
-		}
-
-		sessionID, sessionData, err := u.loadUserSession(echoCtx, *tenantDID)
+		sessionID, sessionData, err := u.loadUserSession(echoCtx, subjectID)
 		if err != nil {
 			// Should only really occur in exceptional circumstances (e.g. cookie survived after intended max age).
 			log.Logger().WithError(err).Info("Invalid user session, a new session will be created")
 		}
 		if sessionData == nil {
-			sessionData, err = createUserSession(*tenantDID, u.TimeOut)
+			sessionData, err = createUserSession(subjectID, u.TimeOut)
 			sessionID = crypto.GenerateNonce()
 			if err := u.Store.Put(sessionID, sessionData); err != nil {
 				return err
@@ -93,7 +88,7 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 				return fmt.Errorf("create user session: %w", err)
 			}
 			// By scoping the cookie to a tenant (DID)-specific path, the user can have a session per tenant DID on the same domain.
-			echoCtx.SetCookie(u.createUserSessionCookie(sessionID, u.CookiePath(*tenantDID)))
+			echoCtx.SetCookie(u.createUserSessionCookie(sessionID, u.CookiePath(subjectID)))
 		}
 		sessionData.Save = func() error {
 			return u.Store.Put(sessionID, sessionData)
@@ -108,7 +103,7 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 // loadUserSession loads the user session given the session ID in the cookie.
 // If there is no session cookie (not yet authenticated, or the session expired), nil is returned.
 // If another, technical error occurs when retrieving the session.
-func (u SessionMiddleware) loadUserSession(cookies CookieReader, tenantDID did.DID) (string, *Session, error) {
+func (u SessionMiddleware) loadUserSession(cookies CookieReader, subjectID string) (string, *Session, error) {
 	cookie, err := cookies.Cookie(userSessionCookieName)
 	if err != nil {
 		// sadly, no cookie for you
@@ -129,13 +124,13 @@ func (u SessionMiddleware) loadUserSession(cookies CookieReader, tenantDID did.D
 		// but this adds less complexity.
 		return "", nil, errors.New("expired session")
 	}
-	if !session.TenantDID.Equals(tenantDID) {
-		return "", nil, fmt.Errorf("session belongs to another tenant (%s)", session.TenantDID)
+	if session.SubjectID != subjectID {
+		return "", nil, fmt.Errorf("session belongs to another tenant (%s)", session.SubjectID)
 	}
 	return sessionID, session, nil
 }
 
-func createUserSession(tenantDID did.DID, timeOut time.Duration) (*Session, error) {
+func createUserSession(subjectID string, timeOut time.Duration) (*Session, error) {
 	userJWK, userDID, err := generateUserSessionJWK()
 	if err != nil {
 		return nil, err
@@ -146,7 +141,7 @@ func createUserSession(tenantDID did.DID, timeOut time.Duration) (*Session, erro
 	}
 	// create user session wallet
 	return &Session{
-		TenantDID: tenantDID,
+		SubjectID: subjectID,
 		Wallet: Wallet{
 			JWK: userJWKBytes,
 			DID: *userDID,
@@ -208,10 +203,10 @@ func generateUserSessionJWK() (jwk.Key, *did.DID, error) {
 type Session struct {
 	// Save is a function that persists the session.
 	Save func() error `json:"-"`
-	// TenantDID is the requesting DID when the user session was created, typically the employer's (of the user) DID.
-	// A session needs to be scoped to the tenant DID, since the session gives access to the tenant's wallet,
-	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the tenant.
-	TenantDID did.DID   `json:"tenantDID"`
+	// SubjectID identifies the requesting subject when the user session was created.
+	// A session needs to be scoped to the subject, since the session gives access to the subject's wallets,
+	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the subject.
+	SubjectID string    `json:"subjectID"`
 	Wallet    Wallet    `json:"wallet"`
 	ExpiresAt time.Time `json:"expiresAt"`
 }

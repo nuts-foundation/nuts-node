@@ -19,7 +19,6 @@
 package proof
 
 import (
-	crypt "crypto"
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -170,10 +169,8 @@ func TestLDProof_Sign(t *testing.T) {
 	kid := "did:nuts:123#abc"
 	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
-	cryptoInstance := crypto.NewMemoryCryptoInstance()
-	key, _ := cryptoInstance.New(audit.TestContext(), func(key crypt.PublicKey) (string, error) {
-		return kid, nil
-	})
+	cryptoInstance := crypto.NewMemoryCryptoInstance(t)
+	_, key, _ := cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(kid))
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
 		expires := now.Add(20 * time.Hour)
@@ -202,7 +199,7 @@ func TestLDProof_Sign(t *testing.T) {
 		assert.Equal(t, domain, *proofToVerify.Domain)
 		assert.Equal(t, challenge, *proofToVerify.Challenge)
 
-		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}, key.Public())
+		err = proofToVerify.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: cryptoInstance}, key)
 		assert.NoError(t, err)
 	})
 
@@ -239,11 +236,8 @@ func TestLDProof_Sign(t *testing.T) {
 
 	t.Run("it handles a signing error", func(t *testing.T) {
 		ldProof := LDProof{}
-		ctrl := gomock.NewController(t)
-		testKey := crypto.NewMockKey(ctrl)
-		testKey.EXPECT().KID().AnyTimes().Return(kid)
 
-		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance()}, testKey.KID())
+		result, err := ldProof.Sign(audit.TestContext(), document, signature.JSONWebSignature2020{ContextLoader: contextLoader, Signer: crypto.NewMemoryCryptoInstance(t)}, "kid")
 
 		assert.EqualError(t, err, "error while signing: private key not found")
 		assert.Nil(t, result)

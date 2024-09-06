@@ -22,7 +22,6 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"reflect"
@@ -43,10 +42,10 @@ type KeyResolver interface {
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
 	ResolveKeyByID(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
-	// ResolveKey looks for a valid key of the given RelationType for the given DID, and returns its ID and the key itself.
+	// ResolveKey looks for a valid key of the given RelationType for the given DID, and returns its ID as string and the public key.
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
-	ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error)
+	ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error)
 }
 
 // NutsKeyResolver is the interface for resolving keys from Nuts DID Documents,
@@ -59,7 +58,7 @@ type NutsKeyResolver interface {
 	ResolvePublicKey(kid string, sourceTransactionsRefs []hash.SHA256Hash) (crypto.PublicKey, error)
 }
 
-var _ KeyResolver = DIDKeyResolver{}
+var _ KeyResolver = (*DIDKeyResolver)(nil)
 
 // DIDKeyResolver implements the DIDKeyResolver interface that uses keys from resolved DIDs.
 type DIDKeyResolver struct {
@@ -117,25 +116,25 @@ func (r DIDKeyResolver) baseUrl(doc *did.Document) (baseUrl *string) {
 	return baseUrl
 }
 
-func (r DIDKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (ssi.URI, crypto.PublicKey, error) {
+func (r DIDKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error) {
 	doc, _, err := r.Resolver.Resolve(id, &ResolveMetadata{
 		ResolveTime: validAt,
 	})
 	if err != nil {
-		return ssi.URI{}, nil, err
+		return "", nil, err
 	}
 	keys, err := resolveRelationships(doc, relationType)
 	if err != nil {
-		return ssi.URI{}, nil, err
+		return "", nil, err
 	}
 	if len(keys) == 0 {
-		return ssi.URI{}, nil, ErrKeyNotFound
+		return "", nil, ErrKeyNotFound
 	}
 	publicKey, err := keys[0].PublicKey()
 	if err != nil {
-		return ssi.URI{}, nil, err
+		return "", nil, err
 	}
-	return keys[0].ID.URI(), publicKey, nil
+	return keys[0].ID.String(), publicKey, nil
 }
 
 func resolveRelationships(doc *did.Document, relationType RelationType) (relationships did.VerificationRelationships, err error) {

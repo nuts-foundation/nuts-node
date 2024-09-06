@@ -41,6 +41,20 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 )
 
+// GenerateJWK a new in-memory key pair and returns it as JWK.
+// It sets the alg field of the JWK.
+func GenerateJWK() (jwk.Key, error) {
+	keyPair, err := spi.GenerateKeyPair()
+	if err != nil {
+		return nil, nil
+	}
+	result, err := jwk.FromRaw(keyPair)
+	if err != nil {
+		return nil, err
+	}
+	return result, result.Set(jwk.AlgorithmKey, jwa.ES256)
+}
+
 // SignJWT creates a JWT from the given claims and signs it with the given key.
 func (client *Crypto) SignJWT(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}, kid string) (string, error) {
 	// copy headers so we don't change the input
@@ -101,7 +115,7 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 
 	keyJWK, err := jwk.FromRaw(privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("keys stored in '%s' do not support JWE decryption", client.storage.Name())
+		return nil, nil, fmt.Errorf("keys stored in '%s' do not support JWE decryption", client.backend.Name())
 	}
 	body, err = jwe.Decrypt([]byte(message), jwe.WithKey(protectedHeaders.Algorithm(), keyJWK))
 	if err != nil {
@@ -308,7 +322,11 @@ func EncryptJWE(payload []byte, protectedHeaders map[string]interface{}, publicK
 }
 
 func (client *Crypto) getPrivateKey(ctx context.Context, kid string) (crypto.Signer, string, error) {
-	privateKey, err := client.storage.GetPrivateKey(ctx, kid)
+	keyRef, err := client.findKeyReferenceByKid(ctx, kid)
+	if err != nil {
+		return nil, "", err
+	}
+	privateKey, err := client.backend.GetPrivateKey(ctx, keyRef.KeyName, keyRef.Version)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
 			return nil, "", ErrPrivateKeyNotFound

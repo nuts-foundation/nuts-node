@@ -23,6 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"path"
@@ -60,6 +61,7 @@ type Auth struct {
 	strictMode        bool
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
+	subjectManager    didsubject.SubjectManager
 }
 
 // Name returns the name of the module.
@@ -77,17 +79,24 @@ func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL
 }
 
+// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
+func (auth *Auth) AuthorizationEndpointEnabled() bool {
+	return auth.config.AuthorizationEndpoint.Enabled
+}
+
 // ContractNotary returns an implementation of the ContractNotary interface.
 func (auth *Auth) ContractNotary() services.ContractNotary {
 	return auth.contractNotary
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, vdrInstance vdr.VDR, vcr vcr.VCR, keyStore crypto.KeyStore, serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
+func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, vcr vcr.VCR, keyStore crypto.KeyStore,
+	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
 		vdrInstance:     vdrInstance,
+		subjectManager:  subjectManager,
 		keyStore:        keyStore,
 		vcr:             vcr,
 		pkiProvider:     pkiProvider,
@@ -108,7 +117,7 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 
 func (auth *Auth) IAMClient() iam.Client {
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.strictMode, auth.httpClientTimeout)
+	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.strictMode, auth.httpClientTimeout)
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server

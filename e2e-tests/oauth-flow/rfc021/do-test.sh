@@ -32,13 +32,15 @@ echo "------------------------------------"
 echo "Registering vendors..."
 echo "------------------------------------"
 # Register Vendor A
-VENDOR_A_DIDDOC=$($db_dc exec nodeA-backend nuts vdr create-did --v2)
-VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .[0].id)
+REQUEST="{\"subject\":\"vendorA\"}"
+VENDOR_A_DIDDOC=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:18081/internal/vdr/v2/subject --header "Content-Type: application/json")
+VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .documents[0].id)
 echo Vendor A DID: $VENDOR_A_DID
 
 # Register Vendor B
-VENDOR_B_DIDDOC=$($db_dc exec nodeB-backend nuts vdr create-did --v2)
-VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .[0].id)
+REQUEST="{\"subject\":\"vendorB\"}"
+VENDOR_B_DIDDOC=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vdr/v2/subject --header "Content-Type: application/json")
+VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .documents[0].id)
 echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
@@ -67,7 +69,8 @@ echo "---------------------------------------"
 REQUEST=$(
 cat << EOF
 {
-  "authorization_server": "https://nodeA/oauth2/${VENDOR_A_DID}",
+  "authorization_server": "https://nodeA/oauth2/vendorA",
+  "client_id": "https://nodeB/oauth2/vendorB",
   "scope": "test",
   "credentials": [
       {
@@ -87,7 +90,7 @@ cat << EOF
 EOF
 )
 # Request access token
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/request-service-access-token -H "Content-Type: application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
   echo "access token stored in ./node-B/accesstoken.txt"
@@ -96,14 +99,15 @@ else
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-
+DPOP_KID=$(echo $RESPONSE | sed -E 's/.*"dpop_kid":"([^"]*).*/\1/')
+DPOP_KID=$(urlencode $DPOP_KID)
 ACCESS_TOKEN=$(cat ./node-B/accesstoken.txt)
 
 echo "------------------------------------"
 echo "Create DPoP header..."
 echo "------------------------------------"
 REQUEST="{\"htm\":\"GET\",\"htu\":\"https://nodeA:443/resource\", \"token\":\"$ACCESS_TOKEN\"}"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$VENDOR_B_DID/dpop -H "Content-Type: application/json")
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/$DPOP_KID/dpop -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "dpop"; then
   echo $RESPONSE | sed -E 's/.*"dpop":"([^"]*).*/\1/' > ./node-B/dpop.txt
   echo "dpop token stored in ./node-B/dpop.txt"

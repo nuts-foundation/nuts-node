@@ -42,8 +42,8 @@ type APIClient struct {
 	httpClient *ClientWithResponses
 }
 
-func (c APIClient) NewPrivateKey(ctx context.Context, namingFunc func(crypto.PublicKey) (string, error)) (crypto.PublicKey, string, error) {
-	return spi.GenerateAndStore(ctx, c, namingFunc)
+func (c APIClient) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, c, keyName)
 }
 
 func (c APIClient) Name() string {
@@ -86,8 +86,8 @@ func NewAPIClient(config Config) (spi.Storage, error) {
 	return &APIClient{httpClient: client}, nil
 }
 
-func (c APIClient) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer, error) {
-	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(kid))
+func (c APIClient) GetPrivateKey(ctx context.Context, keyName string, _ string) (crypto.Signer, error) {
+	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(keyName))
 	if err != nil {
 		return nil, fmt.Errorf("unable to get private key: %w", err)
 	}
@@ -112,8 +112,8 @@ func (c APIClient) GetPrivateKey(ctx context.Context, kid string) (crypto.Signer
 	}
 }
 
-func (c APIClient) PrivateKeyExists(ctx context.Context, kid string) (bool, error) {
-	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(kid))
+func (c APIClient) PrivateKeyExists(ctx context.Context, keyName string, _ string) (bool, error) {
+	response, err := c.httpClient.LookupSecretWithResponse(ctx, url.PathEscape(keyName))
 	if err != nil {
 		return false, err
 	}
@@ -151,8 +151,8 @@ func (c APIClient) SavePrivateKey(ctx context.Context, kid string, key crypto.Pr
 	}
 }
 
-func (c APIClient) DeletePrivateKey(ctx context.Context, kid string) error {
-	response, err := c.httpClient.DeleteSecretWithResponse(ctx, url.PathEscape(kid))
+func (c APIClient) DeletePrivateKey(ctx context.Context, keyName string) error {
+	response, err := c.httpClient.DeleteSecretWithResponse(ctx, url.PathEscape(keyName))
 	if err != nil {
 		return fmt.Errorf("unable to delete private key: %w", err)
 	}
@@ -169,7 +169,7 @@ func (c APIClient) DeletePrivateKey(ctx context.Context, kid string) error {
 	}
 }
 
-func (c APIClient) ListPrivateKeys(ctx context.Context) []string {
+func (c APIClient) ListPrivateKeys(ctx context.Context) []spi.KeyNameVersion {
 	response, err := c.httpClient.ListKeysWithResponse(ctx)
 	if err != nil {
 		return nil
@@ -180,7 +180,11 @@ func (c APIClient) ListPrivateKeys(ctx context.Context) []string {
 			return nil
 		}
 		keys := *response.JSON200
-		return keys
+		result := make([]spi.KeyNameVersion, len(keys))
+		for i := range keys {
+			result[i] = spi.KeyNameVersion{KeyName: keys[i], Version: "1"}
+		}
+		return result
 	default:
 		return nil
 	}

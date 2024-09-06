@@ -42,6 +42,20 @@ func (m *MockAuthenticationServices) EXPECT() *MockAuthenticationServicesMockRec
 	return m.recorder
 }
 
+// AuthorizationEndpointEnabled mocks base method.
+func (m *MockAuthenticationServices) AuthorizationEndpointEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthorizationEndpointEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// AuthorizationEndpointEnabled indicates an expected call of AuthorizationEndpointEnabled.
+func (mr *MockAuthenticationServicesMockRecorder) AuthorizationEndpointEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationEndpointEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).AuthorizationEndpointEnabled))
+}
+
 // AuthzServer mocks base method.
 func (m *MockAuthenticationServices) AuthzServer() oauth.AuthorizationServer {
 	m.ctrl.T.Helper()

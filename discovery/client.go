@@ -30,14 +30,16 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"strings"
 	"time"
 )
 
 // clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.
 // It can refresh registered Verifiable Presentations when they are about to expire.
 type clientRegistrationManager interface {
-	activate(ctx context.Context, serviceID string, subjectDID did.DID) error
-	deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error
+	activate(ctx context.Context, serviceID, subjectID string) error
+	deactivate(ctx context.Context, serviceID, subjectID string) error
 	// refresh checks which Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
 	refresh(ctx context.Context, now time.Time) error
 }
@@ -45,79 +47,123 @@ type clientRegistrationManager interface {
 var _ clientRegistrationManager = &defaultClientRegistrationManager{}
 
 type defaultClientRegistrationManager struct {
-	services map[string]ServiceDefinition
-	store    *sqlStore
-	client   client.HTTPClient
-	vcr      vcr.VCR
+	services       map[string]ServiceDefinition
+	store          *sqlStore
+	client         client.HTTPClient
+	vcr            vcr.VCR
+	subjectManager didsubject.SubjectManager
 }
 
-func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR) *defaultClientRegistrationManager {
-	instance := &defaultClientRegistrationManager{
-		services: services,
-		store:    store,
-		client:   client,
-		vcr:      vcr,
+func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.SubjectManager) *defaultClientRegistrationManager {
+	return &defaultClientRegistrationManager{
+		services:       services,
+		store:          store,
+		client:         client,
+		vcr:            vcr,
+		subjectManager: subjectManager,
 	}
-	return instance
 }
 
-func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID, subjectID string) error {
 	service, serviceExists := r.services[serviceID]
 	if !serviceExists {
 		return ErrServiceNotFound
 	}
-	var asSoonAsPossible time.Time
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &asSoonAsPossible); err != nil {
+	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
+	if err != nil {
 		return err
 	}
-	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, did=%s)", service.ID, subjectDID)
-	err := r.registerPresentation(ctx, subjectDID, service)
-	if err != nil {
-		// failed, will be retried on next scheduled refresh
-		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
+	var asSoonAsPossible time.Time
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, &asSoonAsPossible); err != nil {
+		return err
 	}
-	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, did=%s)", serviceID, subjectDID)
+	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
+
+	var registeredDIDs []string
+	var loopErrs []error
+	for _, subjectDID := range subjectDIDs {
+		err := r.registerPresentation(ctx, subjectDID, service)
+		if err != nil {
+			if !errors.Is(err, errMissingCredential) { // ignore missing credentials
+				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			}
+		} else {
+			registeredDIDs = append(registeredDIDs, subjectDID.String())
+		}
+	}
+	if len(registeredDIDs) == 0 {
+		if len(registeredDIDs) != len(subjectDIDs) && len(loopErrs) == 0 {
+			// all registrations failed on missing credentials. can only be false if using complex presentation definitions
+			loopErrs = append(loopErrs, fmt.Errorf("failed registration for service=%s, subject=%s: %w", serviceID, subjectID, errMissingCredential))
+		}
+		// registration failed for all subjectDIDs, will be retried on next scheduled refresh
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, errors.Join(loopErrs...))
+	}
+	log.Logger().Debugf("Successfully registered Verifiable Presentation on Discovery Service (service=%s, subject=%s, dids=[%s])", serviceID, subjectID, strings.Join(registeredDIDs, ","))
+	if len(loopErrs) != 0 {
+		log.Logger().Infof("Failed registration of Verifiable Presentation on Discovery Service (service=%s, subject=%s): %s", serviceID, subjectID, errors.Join(loopErrs...))
+	}
 
 	// Set presentation to be refreshed before it expires
-	// TODO: When to refresh? For now, we refresh when the registration is about to expire (75% of max age)
-	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.75) * time.Second)
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, &refreshVPAfter); err != nil {
+	// TODO: When to refresh? For now, we refresh when the registration is about at 45% of max age. This means a refresh can fail once without consequence.
+	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.45) * time.Second)
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, &refreshVPAfter); err != nil {
 		return fmt.Errorf("unable to update Verifiable Presentation refresh time: %w", err)
 	}
 	return nil
 }
 
-func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID string, subjectDID did.DID) error {
+func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID, subjectID string) error {
 	// delete DID/service combination from DB, so it won't be registered again
-	err := r.store.updatePresentationRefreshTime(serviceID, subjectDID, nil)
+	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil)
 	if err != nil {
 		return err
 	}
+	// subject is now successfully deactivated for the service, anything after this point is best effort
+	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
+	if err != nil {
+		// this could be a didsubject.ErrSubjectNotFound after the subject has been deactivated
+		// still fail in this case since we no longer have the keys to sign a retraction
+		return err
+	}
 
-	// if the DID has an active registration, retract it
-	presentations, err := r.store.search(serviceID, map[string]string{
-		"credentialSubject.id": subjectDID.String(),
-	})
+	// find all active presentations
+	vps2D, err := r.store.getSubjectVPsOnService(serviceID, subjectDIDs)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
 	}
-	if len(presentations) == 0 {
-		// no registration, nothing to do
-		return nil
-	}
-	// found an active registration, try to delete it from the discovery server
+
+	// retract active registrations for all DIDs
+	// failures are collected and merged into a single error
 	service := r.services[serviceID]
+	var loopErrs []error
+	for did, vps := range vps2D {
+		for _, vp := range vps {
+			if vp.IsType(retractionPresentationType) {
+				// is already retracted
+				continue
+			}
+			err = r.deregisterPresentation(ctx, did, service, vp)
+			if err != nil {
+				loopErrs = append(loopErrs, err)
+			}
+		}
+	}
+	if len(loopErrs) > 0 {
+		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, errors.Join(loopErrs...))
+	}
+
+	return nil
+}
+
+func (r *defaultClientRegistrationManager) deregisterPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, vp vc.VerifiablePresentation) error {
 	presentation, err := r.buildPresentation(ctx, subjectDID, service, nil, map[string]interface{}{
-		"retract_jti": presentations[0].ID.String(),
+		"retract_jti": vp.ID.String(),
 	})
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
+		return err
 	}
-	err = r.client.Register(ctx, service.Endpoint, *presentation)
-	if err != nil {
-		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, err)
-	}
-	return nil
+	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
 func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) error {
@@ -134,11 +180,12 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 		return nil, err
 	}
 	matchingCredentials, _, err := service.PresentationDefinition.Match(credentials)
+	const errStr = "failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w"
 	if err != nil {
-		return nil, fmt.Errorf("failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w", service.ID, subjectDID, err)
+		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
 	if len(matchingCredentials) == 0 && service.PresentationDefinition.CredentialsRequired() {
-		return nil, fmt.Errorf("DID wallet does not have credentials required for registration on Discovery Service (service=%s, did=%s)", service.ID, subjectDID)
+		return nil, fmt.Errorf(errStr, service.ID, subjectDID, errMissingCredential)
 	}
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }
@@ -162,17 +209,32 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 
 func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time.Time) error {
 	log.Logger().Debug("Refreshing own registered Verifiable Presentations on Discovery Services")
-	serviceIDs, dids, err := r.store.getPresentationsToBeRefreshed(now)
+	refreshCandidates, err := r.store.getSubjectsToBeRefreshed(now)
 	if err != nil {
 		return err
 	}
-	var result error = nil
-	for i, serviceID := range serviceIDs {
-		if err := r.activate(ctx, serviceID, dids[i]); err != nil {
-			result = errors.Join(result, fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, did=%s): %w", serviceID, dids[i], err))
+	var loopErrs []error
+	for _, candidate := range refreshCandidates {
+		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID); err != nil {
+			var loopErr error
+			if errors.Is(err, didsubject.ErrSubjectNotFound) {
+				// Subject has probably been deactivated. Remove from service or registration will be retried every refresh interval.
+				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil)
+				if err != nil {
+					loopErr = fmt.Errorf("failed to remove unknown subject (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+				} else {
+					loopErr = fmt.Errorf("removed unknown subject (service=%s, subject=%s)", candidate.ServiceID, candidate.SubjectID)
+				}
+			} else {
+				loopErr = fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+			}
+			loopErrs = append(loopErrs, loopErr)
 		}
 	}
-	return result
+	if len(loopErrs) > 0 {
+		return errors.Join(loopErrs...)
+	}
+	return nil
 }
 
 // clientUpdater is responsible for updating the local copy of Discovery Services

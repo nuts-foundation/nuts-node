@@ -8,28 +8,6 @@ info:
 servers:
   - url: http://localhost:8081
 paths:
-  /internal/vdr/v2/did:
-    get:
-      summary: Lists all locally managed DIDs
-      description: |
-        Lists all locally managed DIDs.
-  
-        error returns:
-        * 500 - An error occurred while processing the request
-      operationId: "listDIDs"
-      tags:
-        - DID
-      responses:
-        "200":
-          description: "List of all locally managed DIDs."
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: string
-        default:
-          $ref: '../common/error_response.yaml'
   /internal/vdr/v2/did/{did}:
     parameters:
       - name: did
@@ -91,6 +69,29 @@ paths:
                 $ref: '#/components/schemas/SubjectCreationResult'
         default:
           $ref: '../common/error_response.yaml'
+    get:
+      summary: Lists all subjects and their DIDs.
+      description: |
+        Lists all subjects.
+
+        error returns:
+        * 500 - An error occurred while processing the request
+      operationId: "listSubjects"
+      tags:
+        - Subject
+      responses:
+        "200":
+          description: "List of all subjects and their DIDs."
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    type: string
+        default:
+          $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}:
     parameters:
       - name: id
@@ -101,7 +102,7 @@ paths:
           plain/text:
             schema:
               type: string
-              example: "tenant-123"
+              example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     get:
       summary: Lists all DIDs for a subject
       description: |
@@ -149,7 +150,7 @@ paths:
           plain/text:
             schema:
               type: string
-              example: "tenant-123"
+              example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     post:
       summary: Adds a service to DID documents of a subject.
       description: |
@@ -276,7 +277,7 @@ paths:
           plain/text:
             schema:
               type: string
-              example: "tenant-123"
+              example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
       - name: serviceId
         in: path
         description: URL encoded ID identifying the service.
@@ -345,7 +346,7 @@ paths:
           plain/text:
             schema:
               type: string
-              example: "tenant-123"
+              example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     post:
       summary: Creates and adds one or more verificationMethods to the DID document.
       description: |

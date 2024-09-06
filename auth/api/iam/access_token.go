@@ -20,8 +20,8 @@ package iam
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"time"
 
@@ -60,7 +60,7 @@ type AccessToken struct {
 }
 
 // createAccessToken is used in both the s2s and openid4vp flows
-func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
+func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
 	credentialMap, err := pexState.credentialMap()
 	if err != nil {
 		return nil, err
@@ -73,9 +73,9 @@ func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime 
 	accessToken := AccessToken{
 		DPoP:                           dpopToken,
 		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuer.String(),
+		Issuer:                         issuerURL,
 		IssuedAt:                       issueTime,
-		ClientId:                       walletDID.String(),
+		ClientId:                       clientID,
 		Expiration:                     issueTime.Add(accessTokenValidity),
 		Scope:                          scope,
 		PresentationSubmissions:        pexState.Submissions,
@@ -91,14 +91,15 @@ func (r Wrapper) createAccessToken(issuer did.DID, walletDID did.DID, issueTime 
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}
 	expiresIn := int(accessTokenValidity.Seconds())
-	tokenType := AccessTokenTypeDPoP
-	if dpopToken == nil {
-		tokenType = AccessTokenTypeBearer
-	}
-	return &oauth.TokenResponse{
+	tokenResponse := oauth.TokenResponse{
 		AccessToken: accessToken.Token,
 		ExpiresIn:   &expiresIn,
 		Scope:       &scope,
-		TokenType:   tokenType,
-	}, nil
+		TokenType:   AccessTokenTypeBearer,
+	}
+	if dpopToken != nil {
+		tokenResponse.TokenType = AccessTokenTypeDPoP
+		tokenResponse.DPoPKid = to.Ptr(dpopToken.Kid)
+	}
+	return &tokenResponse, nil
 }

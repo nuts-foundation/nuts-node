@@ -21,9 +21,9 @@ package oauth
 
 import (
 	"encoding/json"
-	"net/url"
-
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
+	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -32,6 +32,7 @@ import (
 // Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
+	DPoPKid     *string `json:"dpop_kid,omitempty"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
 	Scope       *string `json:"scope,omitempty"`
@@ -56,6 +57,7 @@ func (t *TokenResponse) UnmarshalJSON(data []byte) error {
 	delete(additionalParams, "expires_in")
 	delete(additionalParams, "token_type")
 	delete(additionalParams, "scope")
+	delete(additionalParams, "dpop_kid")
 	*t = TokenResponse(result)
 	if len(additionalParams) > 0 {
 		t.additionalParams = additionalParams
@@ -72,6 +74,7 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 	result["expires_in"] = t.ExpiresIn
 	result["token_type"] = t.TokenType
 	result["scope"] = t.Scope
+	result["dpop_kid"] = t.DPoPKid
 
 	return json.Marshal(result)
 }
@@ -118,6 +121,9 @@ const (
 	// OpenIdCredIssuerWellKnown is the well-known base path for the openID credential issuer metadata as defined in
 	// OpenID4VCI specification
 	OpenIdCredIssuerWellKnown = "/.well-known/openid-credential-issuer"
+	// OpenIdConfigurationWellKnown is the well-known base path for the openID configuration metadata as defined in
+	// OpenID4 federation specification
+	OpenIdConfigurationWellKnown = "/.well-known/openid-configuration"
 )
 
 // oauth parameter keys
@@ -282,6 +288,10 @@ type AuthorizationServerMetadata struct {
 	// If omitted, the default value is `pre-registered` (referring to the client), which is currently not supported.
 	ClientIdSchemesSupported []string `json:"client_id_schemes_supported,omitempty"`
 
+	// DIDMethodsSupported is a JSON array containing a list of the DID Methods (without scheme 'did:') that are supported by the Authorization Server.
+	// Note: this is a custom parameter, not part of the OpenID4VC specifications.
+	DIDMethodsSupported []string `json:"did_methods_supported,omitempty"`
+
 	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
 	DPoPSigningAlgValuesSupported []string `json:"dpop_signing_alg_values_supported,omitempty"`
 
@@ -293,6 +303,16 @@ type AuthorizationServerMetadata struct {
 	// RequestObjectSigningAlgValuesSupported is a JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of OpenID Connect Core 1.0 [OpenID.Core].
 	// These algorithms are used both when the Request Object is passed by value (using the request parameter) and when it is passed by reference (using the request_uri parameter).
 	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
+}
+
+// SupportsClientIDScheme checks if the Authorization Server supports the given client ID scheme.
+func (m AuthorizationServerMetadata) SupportsClientIDScheme(scheme string) bool {
+	for _, method := range m.ClientIdSchemesSupported {
+		if method == scheme {
+			return true
+		}
+	}
+	return false
 }
 
 // OAuthClientMetadata defines the OAuth Client metadata.
@@ -382,4 +402,54 @@ type OpenIDCredentialIssuerMetadata struct {
 	AuthorizationServers []string `json:"authorization_servers,omitempty"`
 	// - Display: a slice of maps where each map represents the display information (optional)
 	Display []map[string]string `json:"display,omitempty"`
+}
+
+// OpenIDConfiguration represents the OpenID configuration
+// It contains the minimal information required for OpenID4VP, the required `jwks` is also omitted
+// see https://openid.net/specs/openid-connect-federation-1_0-29.html#entity-statement
+type OpenIDConfiguration struct {
+	// Issuer: an url representing the issuer of the entity statement
+	// for now we keep it teh same as the subject, eg the subject/tenant
+	Issuer string `json:"iss"`
+	// Subject: an url representing the subject of the entity statement
+	Subject string `json:"sub"`
+	// IssuedAt: the time the entity statement was issued
+	IssuedAt int64 `json:"iat"`
+	// JWKs is the JSON Web Key Set of the entity statement. Contains keys of all DIDs for the subject
+	JWKs jwk.Set `json:"jwks"`
+	// Metadata: the metadata of the entity statement
+	Metadata EntityStatementMetadata `json:"metadata"`
+}
+
+// EntityStatementMetadata represents the metadata of an openID federation entity statement
+// We only use the OpenID provider metadata
+type EntityStatementMetadata struct {
+	// OpenIDProvider: the metadata of the OpenID provider
+	OpenIDProvider AuthorizationServerMetadata `json:"openid_provider"`
+}
+
+// UnmarshalJSON parses the OpenIDConfiguration from JSON
+func (j *OpenIDConfiguration) UnmarshalJSON(bytes []byte) error {
+	claims := make(map[string]interface{})
+	if err := json.Unmarshal(bytes, &claims); err != nil {
+		return err
+	}
+	if issuer, ok := claims["iss"].(string); ok {
+		j.Issuer = issuer
+	}
+	if subject, ok := claims["sub"].(string); ok {
+		j.Subject = subject
+	}
+	if issuedAt, ok := claims["iat"].(float64); ok {
+		j.IssuedAt = int64(issuedAt)
+	}
+
+	metadataJson, _ := json.Marshal(claims["metadata"])
+	if err := json.Unmarshal(metadataJson, &j.Metadata); err != nil {
+		return err
+	}
+	keysAsJson, _ := json.Marshal(claims["jwks"])
+	j.JWKs = jwk.NewSet()
+
+	return json.Unmarshal(keysAsJson, &j.JWKs)
 }

@@ -77,8 +77,8 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	})
 	t.Run("JWT", func(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
-		keyStore := nutsCrypto.NewMemoryCryptoInstance()
-		key, err := keyStore.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
+		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
+		kid, key, err := keyStore.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
 			keyAsJWK, _ := jwk.FromRaw(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
@@ -86,16 +86,16 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		require.NoError(t, err)
 
 		template := testCredential(t)
-		template.Issuer = did.MustParseDIDURL(key.KID()).DID.URI()
+		template.Issuer = did.MustParseDIDURL(kid.KID).DID.URI()
 
 		cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-			return keyStore.SignJWT(ctx, claims, headers, key.KID())
+			return keyStore.SignJWT(ctx, claims, headers, kid.KID)
 		})
 		require.NoError(t, err)
 
 		t.Run("with kid header", func(t *testing.T) {
 			sv, mockKeyResolver := signatureVerifierTestSetup(t)
-			mockKeyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+			mockKeyResolver.EXPECT().ResolveKeyByID(kid.KID, gomock.Any(), resolver.NutsSigningKeyType).Return(key, nil)
 			err = sv.VerifySignature(*cred, nil)
 
 			assert.NoError(t, err)
@@ -104,12 +104,12 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			sv, mockKeyResolver := signatureVerifierTestSetup(t)
 
 			cred, err := vc.CreateJWTVerifiableCredential(audit.TestContext(), template, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
-				return keyStore.SignJWT(ctx, claims, headers, key.KID())
+				return keyStore.SignJWT(ctx, claims, headers, kid.KID)
 			})
 			require.NoError(t, err)
 			cred.Issuer = ssi.MustParseURI("did:example:test")
 
-			mockKeyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(key.Public(), nil)
+			mockKeyResolver.EXPECT().ResolveKeyByID(kid.KID, gomock.Any(), resolver.NutsSigningKeyType).Return(key, nil)
 			err = sv.VerifySignature(*cred, nil)
 
 			assert.ErrorIs(t, err, errVerificationMethodNotOfIssuer)
@@ -117,7 +117,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		t.Run("signature invalid", func(t *testing.T) {
 			sv, mockKeyResolver := signatureVerifierTestSetup(t)
 			realKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			mockKeyResolver.EXPECT().ResolveKeyByID(key.KID(), gomock.Any(), resolver.NutsSigningKeyType).Return(realKey.Public(), nil)
+			mockKeyResolver.EXPECT().ResolveKeyByID(kid.KID, gomock.Any(), resolver.NutsSigningKeyType).Return(realKey.Public(), nil)
 
 			err = sv.VerifySignature(*cred, nil)
 

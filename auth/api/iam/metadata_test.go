@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
@@ -32,14 +31,16 @@ import (
 
 func Test_authorizationServerMetadata(t *testing.T) {
 	presentationDefinitionURISupported := true
-	didExample := did.MustParseDID("did:example:test")
 	baseExpected := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                      "openid4vp:",
-		ClientIdSchemesSupported:                   []string{"did"},
+		AuthorizationEndpoint:                      "https://example.com/oauth2/example/authorize",
+		TokenEndpoint:                              "https://example.com/oauth2/example/token",
+		ClientIdSchemesSupported:                   []string{"entity_id"},
+		DIDMethodsSupported:                        []string{"test"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
-		Issuer:                                     "https://example.com/oauth2/" + didExample.String(),
+		Issuer:                                     "https://example.com/oauth2/example",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
+		PresentationDefinitionEndpoint:             "https://example.com/oauth2/example/presentation_definition",
 		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
 		RequireSignedRequestObject:                 true,
 		ResponseTypesSupported:                     []string{"code", "vp_token"},
@@ -48,23 +49,9 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
-	t.Run("base", func(t *testing.T) {
-		md := authorizationServerMetadata(didExample, test.MustParseURL("https://example.com/oauth2/"+didExample.String()))
-		assert.Equal(t, baseExpected, md)
-	})
-	t.Run("did:web", func(t *testing.T) {
-		didWeb := did.MustParseDID("did:web:example.com:iam:123")
-		oauth2Base := test.MustParseURL("https://example.com/oauth2/did:web:example.com:iam:123")
-
-		webExpected := baseExpected
-		webExpected.Issuer = oauth2Base.String()
-		webExpected.AuthorizationEndpoint = oauth2Base.String() + "/authorize"
-		webExpected.PresentationDefinitionEndpoint = oauth2Base.String() + "/presentation_definition"
-		webExpected.TokenEndpoint = oauth2Base.String() + "/token"
-
-		md := authorizationServerMetadata(didWeb, oauth2Base)
-		assert.Equal(t, webExpected, md)
-	})
+	authServerUrl := test.MustParseURL("https://example.com/oauth2/example")
+	md := authorizationServerMetadata(*authServerUrl, []string{"test"})
+	assert.Equal(t, baseExpected, md)
 }
 
 func Test_clientMetadata(t *testing.T) {
@@ -82,7 +69,7 @@ func Test_clientMetadata(t *testing.T) {
 		SoftwareVersion:         "testVersion",
 		CredentialOfferEndpoint: "",
 		VPFormats:               oauth.DefaultOpenIDSupportedFormats(),
-		ClientIdScheme:          "did",
+		ClientIdScheme:          "entity_id",
 	}
 	assert.Equal(t, expected, clientMetadata(url.URL{}))
 }

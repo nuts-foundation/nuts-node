@@ -192,8 +192,8 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		})
 
 		// set root
-		key, _ := bootstrap.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key1"))
-		rootTx, err := bootstrap.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte("root_tx"), key).WithAttachKey())
+		_, key, _ := bootstrap.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key1"))
+		rootTx, err := bootstrap.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte("root_tx"), "key1").WithAttachKey(key))
 		require.NoError(t, err)
 		require.NoError(t, node1.network.state.Add(context.Background(), rootTx, []byte("root_tx")))
 		expectedDocLogSize := 1
@@ -509,9 +509,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -558,9 +558,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate([]did.DID{node1DID, node2DID})
 		_, err = node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -596,9 +596,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -653,9 +653,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		rand.Shuffle(len(pal), func(i, j int) {
 			pal[i], pal[j] = pal[j], pal[i]
 		})
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate(pal)
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -677,10 +677,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// create some transactions
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
 		for i := 0; i < 10; i++ {
-			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), key).
-				WithAttachKey().
+			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), "key").
+				WithAttachKey(key).
 				WithPrivate([]did.DID{node1DID, node2DID})
 			_, err := node1.network.CreateTransaction(ctx, tpl)
 			require.NoError(t, err)
@@ -722,9 +722,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -768,9 +768,9 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), key).
-			WithAttachKey().
+		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
+			WithAttachKey(key).
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -994,7 +994,7 @@ func resetIntegrationTest(t *testing.T) {
 	receivedTransactions = make(map[string][]dag.Transaction, 0)
 
 	didStore = didstore.NewTestStore(t)
-	keyStore = nutsCrypto.NewMemoryCryptoInstance()
+	keyStore = nutsCrypto.NewMemoryCryptoInstance(t)
 
 	// Write DID Document for node1
 	writeDIDDocument := func(subject string) {
@@ -1002,10 +1002,10 @@ func resetIntegrationTest(t *testing.T) {
 		document := did.Document{ID: nodeDID}
 		kid := did.DIDURL{DID: nodeDID}
 		kid.Fragment = "key-1"
-		key, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
+		_, key, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
 			return kid.String(), nil
 		})
-		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, nodeDID, key.Public())
+		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, nodeDID, key)
 		document.VerificationMethod.Add(verificationMethod)
 		document.KeyAgreement.Add(verificationMethod)
 		document.CapabilityInvocation.Add(verificationMethod)
@@ -1030,8 +1030,8 @@ func resetIntegrationTest(t *testing.T) {
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, sender node, receivers ...string) bool {
-	key, _ := sender.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(uuid.New().String()))
-	expectedTransaction, err := sender.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte(payload), key).WithAttachKey())
+	keyRef, key, _ := sender.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(uuid.New().String()))
+	expectedTransaction, err := sender.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte(payload), keyRef.KID).WithAttachKey(key))
 	if !assert.NoError(t, err) {
 		return false
 	}

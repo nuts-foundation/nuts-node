@@ -77,7 +77,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		tokenResponse := oauth.NewTokenResponse("access-token", "bearer", 0, "").With("c_nonce", nonce)
+		tokenResponse := oauth.NewTokenResponse("access-token", "bearer", 0, "", "").With("c_nonce", nonce)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)
@@ -95,7 +95,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			"nonce": nonce,
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
-		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return(ssi.MustParseURI("key-id"), nil, nil)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
 
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
