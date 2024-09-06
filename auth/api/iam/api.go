@@ -637,28 +637,31 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		}
 	}
 	// resolve DID key
-	signingDID := dids[0]
 	set := jwk.NewSet()
 	var signingKey string
-	kid, key, err := r.keyResolver.ResolveKey(signingDID, nil, resolver.AssertionMethod)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			InternalError: err,
+	for _, currentDID := range dids {
+		kid, key, err := r.keyResolver.ResolveKey(currentDID, nil, resolver.AssertionMethod)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.ServerError,
+				InternalError: err,
+			}
+		}
+		// create JWK and add to set
+		jwkKey, err := jwk.FromRaw(key)
+		if err != nil {
+			return nil, oauth.OAuth2Error{
+				Code:          oauth.ServerError,
+				InternalError: err,
+			}
+		}
+		_ = jwkKey.Set(jwk.KeyIDKey, kid)
+		_ = set.AddKey(jwkKey)
+		// The DID is the preferred DID method (as configured), so take a key of the first DID as signing key
+		if signingKey == "" {
+			signingKey = kid
 		}
 	}
-	// create JWK and add to set
-	jwkKey, err := jwk.FromRaw(key)
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			InternalError: err,
-		}
-	}
-	_ = jwkKey.Set(jwk.KeyIDKey, kid)
-	_ = set.AddKey(jwkKey)
-	signingKey = kid
-
 	// we sign with a JWK, the receiving party can verify with the signature but not if the key corresponds to the DID since the DID method might not be supported.
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
