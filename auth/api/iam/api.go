@@ -628,7 +628,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		if errors.Is(err, didsubject.ErrSubjectNotFound) {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
-				Description: "subject not found",
+				Description: err.Error(),
 			}
 		}
 		return nil, oauth.OAuth2Error{
@@ -636,29 +636,29 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 			InternalError: err,
 		}
 	}
-	// resolve DID keys
+	// resolve DID key
+	signingDID := dids[0]
 	set := jwk.NewSet()
 	var signingKey string
-	for _, currentDID := range dids {
-		kid, key, err := r.keyResolver.ResolveKey(currentDID, nil, resolver.AssertionMethod)
-		if err != nil {
-			return nil, oauth.OAuth2Error{
-				Code:          oauth.ServerError,
-				InternalError: err,
-			}
+	kid, key, err := r.keyResolver.ResolveKey(signingDID, nil, resolver.AssertionMethod)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			InternalError: err,
 		}
-		// create JWK and add to set
-		jwkKey, err := jwk.FromRaw(key)
-		if err != nil {
-			return nil, oauth.OAuth2Error{
-				Code:          oauth.ServerError,
-				InternalError: err,
-			}
-		}
-		_ = jwkKey.Set(jwk.KeyIDKey, kid)
-		_ = set.AddKey(jwkKey)
-		signingKey = kid
 	}
+	// create JWK and add to set
+	jwkKey, err := jwk.FromRaw(key)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			InternalError: err,
+		}
+	}
+	_ = jwkKey.Set(jwk.KeyIDKey, kid)
+	_ = set.AddKey(jwkKey)
+	signingKey = kid
+
 	// we sign with a JWK, the receiving party can verify with the signature but not if the key corresponds to the DID since the DID method might not be supported.
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
