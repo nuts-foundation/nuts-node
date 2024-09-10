@@ -410,7 +410,6 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 		Iat:                     &iat,
 		Exp:                     &exp,
 		Iss:                     &token.Issuer,
-		Sub:                     &token.Issuer,
 		ClientId:                &token.ClientId,
 		Scope:                   &token.Scope,
 		Vps:                     &token.VPToken,
