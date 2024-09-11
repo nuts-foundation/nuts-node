@@ -234,7 +234,7 @@ func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 }
 
 func (s *state) loadState(ctx context.Context) {
-	if err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
+	err := s.db.Read(ctx, func(tx stoabs.ReadTx) error {
 		s.lamportClockHigh.Store(s.graph.getHighestClockValue(tx))
 		if err := s.xorTree.read(tx); err != nil {
 			return fmt.Errorf("failed to read xorTree: %w", err)
@@ -243,10 +243,9 @@ func (s *state) loadState(ctx context.Context) {
 			return fmt.Errorf("failed to read ibltTree: %w", err)
 		}
 		return nil
-	}); err != nil {
-		log.Logger().
-			WithError(err).
-			Errorf("Failed to load the XOR and IBLT trees")
+	})
+	if err != nil {
+		log.Logger().WithError(err).Errorf("Failed to load the XOR and IBLT trees")
 	}
 	log.Logger().Trace("Loaded the XOR and IBLT trees")
 }
@@ -394,6 +393,12 @@ func (s *state) CorrectStateDetected() {
 	s.xorTreeRepair.stateOK()
 }
 
+func (s *state) Configure(_ core.ServerConfig) error {
+	// state must be loaded before any migration takes place
+	s.loadState(context.Background())
+	return nil
+}
+
 func (s *state) Shutdown() error {
 	if s.transactionCount != nil {
 		prometheus.Unregister(s.transactionCount)
@@ -405,8 +410,6 @@ func (s *state) Shutdown() error {
 }
 
 func (s *state) Start() error {
-	s.loadState(context.Background())
-
 	err := s.db.Read(context.Background(), func(tx stoabs.ReadTx) error {
 		currentTXCount := s.graph.getNumberOfTransactions(tx)
 		s.transactionCount.Add(float64(currentTXCount))
