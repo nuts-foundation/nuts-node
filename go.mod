@@ -15,7 +15,7 @@ require (
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault/api v1.14.0
+	github.com/hashicorp/vault/api v1.15.0
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/lestrrat-go/jwx/v2 v2.1.1
@@ -75,7 +75,6 @@ require (
 	github.com/bwesterb/go-exptable v1.0.0 // indirect
 	github.com/bwesterb/go-pow v1.0.0 // indirect
 	github.com/bwesterb/go-xmssmt v1.5.2 // indirect
-	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chromedp/cdproto v0.0.0-20240801214329-3f85d328b335 // indirect
@@ -199,4 +198,7 @@ require (
 	rsc.io/qr v0.2.0 // indirect
 )
 
-require github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+require (
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+)
