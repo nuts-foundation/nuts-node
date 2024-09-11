@@ -347,7 +347,7 @@ func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subje
 	if parameters == nil {
 		parameters = make(map[string]interface{})
 	}
-	parameters[authServerURLField] = m.publicURL.JoinPath("/oauth2/subjectID").String()
+	parameters[authServerURLField] = m.publicURL.JoinPath("/oauth2/", subjectID).String()
 
 	err := m.registrationManager.activate(ctx, serviceID, subjectID, parameters)
 	if err != nil {
