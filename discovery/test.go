@@ -45,8 +45,7 @@ var aliceSubject string
 var aliceDID did.DID
 var vcAlice vc.VerifiableCredential
 var vpAlice vc.VerifiablePresentation
-var aliceAuthCredential vc.VerifiableCredential
-var bobAuthCredential vc.VerifiableCredential
+var aliceDiscoveryCredential vc.VerifiableCredential
 var bobSubject string
 var bobDID did.DID
 var vcBob vc.VerifiableCredential
@@ -135,8 +134,7 @@ func init() {
 	unsupportedDID = did.MustParseDID("did:web:example.com")
 	keyPairs[unsupportedDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
-	aliceAuthCredential = createHolderCredential(aliceDID, defaultRegistrationParams(aliceSubject))
-	bobAuthCredential = createHolderCredential(bobDID, defaultRegistrationParams(bobSubject))
+	aliceDiscoveryCredential = createHolderCredential(aliceDID, defaultRegistrationParams(aliceSubject))
 	vcAlice = createCredential(authorityDID, aliceDID, map[string]interface{}{
 		"person": map[string]interface{}{
 			"givenName":  "Alice",
@@ -145,7 +143,7 @@ func init() {
 	}, nil)
 	vpAlice = createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 		claims[jwt.AudienceKey] = []string{testServiceID}
-	}, vcAlice, aliceAuthCredential)
+	}, vcAlice, aliceDiscoveryCredential)
 	vcBob = createCredential(authorityDID, bobDID, map[string]interface{}{
 		"person": map[string]interface{}{
 			"givenName":  "Bob",

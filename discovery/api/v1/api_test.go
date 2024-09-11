@@ -53,6 +53,24 @@ func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, ActivateServiceForSubject200Response{}, response)
 	})
+	t.Run("ok with params", func(t *testing.T) {
+		test := newMockContext(t)
+		parameters := map[string]interface{}{
+			"foo": "bar",
+		}
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), serviceID, subjectID, parameters).Return(nil)
+
+		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
+			ServiceID: serviceID,
+			SubjectID: subjectID,
+			Body: &ActivateServiceForSubjectJSONRequestBody{
+				RegistrationParameters: &parameters,
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, ActivateServiceForSubject200Response{}, response)
+	})
 	t.Run("ok, but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
@@ -125,6 +143,7 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 			{
 				Presentation: vp,
 				Fields:       nil,
+				Parameters:   map[string]interface{}{"test": "value"},
 			},
 		}
 		test.client.EXPECT().Search(serviceID, expectedQuery).Return(results, nil)
@@ -140,6 +159,7 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 		assert.Equal(t, vp, actual[0].Vp)
 		assert.Equal(t, vp.ID.String(), actual[0].Id)
 		assert.Equal(t, "did:nuts:foo", actual[0].CredentialSubjectId)
+		assert.Equal(t, "value", actual[0].RegistrationParameters["test"])
 	})
 	t.Run("no results", func(t *testing.T) {
 		test := newMockContext(t)

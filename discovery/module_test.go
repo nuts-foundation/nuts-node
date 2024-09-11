@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -472,6 +473,37 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok, with additional params", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		m, testContext := setupModule(t, storageEngine, func(module *Module) {
+			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
+			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
+			module.httpClient = httpClient
+			// disable auto-refresh job to have deterministic assertions
+			module.config.Client.RefreshInterval = 0
+		})
+		// We expect the client to create 1 VP
+		wallet := holder.NewMockWallet(gomock.NewController(t))
+		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
+		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+			// check if two credentials are given
+			// check if the DiscoveryRegistrationCredential is added with a test value
+			assert.Len(t, credentials, 2)
+			subject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
+			_ = credentials[1].UnmarshalCredentialSubject(&subject)
+			assert.Equal(t, "value", subject[0]["test"])
+			return &vpAlice, nil
+		})
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, map[string]interface{}{"test": "value"})
 
 		assert.NoError(t, err)
 	})
