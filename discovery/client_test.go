@@ -49,13 +49,14 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
 		wallet := holder.NewMockWallet(ctrl)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, options holder.PresentationOptions, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
 			// check if two credentials are given
 			// check if the DiscoveryRegistrationCredential is added with an authServerURL
 			assert.Len(t, credentials, 2)
 			subject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
 			_ = credentials[1].UnmarshalCredentialSubject(&subject)
 			assert.Equal(t, "https://example.com/oauth2/alice", subject[0][authServerURLField])
+			assert.Equal(t, aliceDID.String(), options.Holder.String())
 			return &vpAlice, nil
 		})
 		mockVCR := vcr.NewMockVCR(ctrl)

@@ -207,6 +207,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 	nonce := nutsCrypto.GenerateNonce()
 	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
 	expires := time.Now().Add(time.Duration(service.PresentationMaxValidity-1) * time.Second).Truncate(time.Second)
+	holderURI := subjectDID.URI()
 	return r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{
 		ProofOptions: proof.ProofOptions{
 			Created:              time.Now(),
@@ -216,6 +217,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 			AdditionalProperties: additionalProperties,
 		},
 		Format: vc.JWTPresentationProofFormat,
+		Holder: &holderURI,
 	}, &subjectDID, false)
 }
 
