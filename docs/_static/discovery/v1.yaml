@@ -151,6 +151,12 @@ paths:
       operationId: activateServiceForSubject
       tags:
         - discovery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceActivationRequest'
       responses:
         "200":
           description: Activation was successful.
@@ -215,6 +221,7 @@ components:
         - credential_subject_id
         - vp
         - fields
+        - registrationParameters
       properties:
         id:
           type: string
@@ -222,11 +229,33 @@ components:
         credential_subject_id:
           type: string
           description: The ID of the Verifiable Credential subject (holder), typically a DID.
+        registrationParameters:
+          type: object
+          description: |
+            Additional parameters used when activating the service.
+            The authServerURL parameter is always present.
         vp:
           $ref: "#/components/schemas/VerifiablePresentation"
         fields:
           type: object
           description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
+    ServiceActivationRequest:
+      type: object
+      description: Request for service activation.
+      properties:
+        registrationParameters:
+          type: object
+          description: |
+            Additional parameters to use when activating a service. The contents of the object will be placed in the credentialSubject field of a DiscoveryRegistrationCredential.
+            
+            This, for example, allows use cases to require and clients to register specific endpoints.
+            
+            The authServerURL parameter is added automatically.
+          example: [
+            {
+              "some-endpoint-type": "https://example.com/some-endpoint"
+            }
+          ]
     ServiceDefinition:
       type: object
       required:

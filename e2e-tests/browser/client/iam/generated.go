@@ -930,10 +930,7 @@ func NewCreateDPoPProofRequestWithBody(server string, kid string, contentType st
 
 	var pathParam0 string
 
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "kid", runtime.ParamLocationPath, kid)
-	if err != nil {
-		return nil, err
-	}
+	pathParam0 = kid
 
 	serverURL, err := url.Parse(server)
 	if err != nil {

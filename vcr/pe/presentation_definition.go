@@ -368,8 +368,11 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 		type Alias vc.VerifiableCredential
 		credentialAsMap, err = remarshalToMap(Alias(credential))
 	case vc.JSONLDCredentialProofFormat:
+		fallthrough
+	case "": // holder credential
 		credentialAsMap, err = remarshalToMap(credential)
 	}
+
 	if err != nil {
 		return false, nil, err
 	}

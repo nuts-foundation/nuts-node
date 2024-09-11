@@ -94,17 +94,17 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // ActivateServiceForSubject mocks base method.
-func (m *MockClient) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
+func (m *MockClient) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string, parameters map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ActivateServiceForSubject", ctx, serviceID, subjectID)
+	ret := m.ctrl.Call(m, "ActivateServiceForSubject", ctx, serviceID, subjectID, parameters)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ActivateServiceForSubject indicates an expected call of ActivateServiceForSubject.
-func (mr *MockClientMockRecorder) ActivateServiceForSubject(ctx, serviceID, subjectID any) *gomock.Call {
+func (mr *MockClientMockRecorder) ActivateServiceForSubject(ctx, serviceID, subjectID, parameters any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateServiceForSubject", reflect.TypeOf((*MockClient)(nil).ActivateServiceForSubject), ctx, serviceID, subjectID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ActivateServiceForSubject", reflect.TypeOf((*MockClient)(nil).ActivateServiceForSubject), ctx, serviceID, subjectID, parameters)
 }
 
 // DeactivateServiceForSubject mocks base method.

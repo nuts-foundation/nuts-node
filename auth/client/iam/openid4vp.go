@@ -23,9 +23,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/piprate/json-gold/ld"
 	"net/http"
@@ -263,7 +262,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	additionalCredentials := make(map[did.DID][]vc.VerifiableCredential)
 	for _, subjectDID := range subjectDIDs {
 		for _, curr := range credentials {
-			additionalCredentials[subjectDID] = append(additionalCredentials[subjectDID], autoCorrectSelfAttestedCredential(curr, subjectDID))
+			additionalCredentials[subjectDID] = append(additionalCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
 		}
 	}
 	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalCredentials, *presentationDefinition, metadata.VPFormatsSupported, params)
@@ -361,31 +360,4 @@ func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request h
 		return "", "", err
 	}
 	return jwt, keyID, nil
-}
-
-// autoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
-// These are provided through the API, and for convenience we set the required fields, if not already set.
-// It only does this for unsigned credentials.
-func autoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
-	if len(credential.Proof) > 0 {
-		return credential
-	}
-	if credential.ID == nil {
-		credential.ID, _ = ssi.ParseURI(uuid.NewString())
-	}
-	if credential.Issuer.String() == "" {
-		credential.Issuer = requester.URI()
-	}
-	if credential.IssuanceDate.IsZero() {
-		credential.IssuanceDate = time.Now()
-	}
-	var credentialSubject []map[string]interface{}
-	_ = credential.UnmarshalCredentialSubject(&credentialSubject)
-	if len(credentialSubject) == 1 {
-		if _, ok := credentialSubject[0]["id"]; !ok {
-			credentialSubject[0]["id"] = requester.String()
-			credential.CredentialSubject[0] = credentialSubject[0]
-		}
-	}
-	return credential
 }

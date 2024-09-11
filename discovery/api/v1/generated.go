@@ -27,14 +27,31 @@ type SearchResult struct {
 	Fields map[string]interface{} `json:"fields"`
 
 	// Id The ID of the Verifiable Presentation.
-	Id string                 `json:"id"`
-	Vp VerifiablePresentation `json:"vp"`
+	Id string `json:"id"`
+
+	// RegistrationParameters Additional parameters used when activating the service.
+	// The authServerURL parameter is always present.
+	RegistrationParameters map[string]interface{} `json:"registrationParameters"`
+	Vp                     VerifiablePresentation `json:"vp"`
+}
+
+// ServiceActivationRequest Request for service activation.
+type ServiceActivationRequest struct {
+	// RegistrationParameters Additional parameters to use when activating a service. The contents of the object will be placed in the credentialSubject field of a DiscoveryRegistrationCredential.
+	//
+	// This, for example, allows use cases to require and clients to register specific endpoints.
+	//
+	// The authServerURL parameter is added automatically.
+	RegistrationParameters *map[string]interface{} `json:"registrationParameters,omitempty"`
 }
 
 // SearchPresentationsParams defines parameters for SearchPresentations.
 type SearchPresentationsParams struct {
 	Query *map[string]string `form:"query,omitempty" json:"query,omitempty"`
 }
+
+// ActivateServiceForSubjectJSONRequestBody defines body for ActivateServiceForSubject for application/json ContentType.
+type ActivateServiceForSubjectJSONRequestBody = ServiceActivationRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -396,6 +413,7 @@ func (response GetServiceActivationdefaultApplicationProblemPlusJSONResponse) Vi
 type ActivateServiceForSubjectRequestObject struct {
 	ServiceID string `json:"serviceID"`
 	SubjectID string `json:"subjectID"`
+	Body      *ActivateServiceForSubjectJSONRequestBody
 }
 
 type ActivateServiceForSubjectResponseObject interface {
@@ -599,6 +617,12 @@ func (sh *strictHandler) ActivateServiceForSubject(ctx echo.Context, serviceID s
 
 	request.ServiceID = serviceID
 	request.SubjectID = subjectID
+
+	var body ActivateServiceForSubjectJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.ActivateServiceForSubject(ctx.Request().Context(), request.(ActivateServiceForSubjectRequestObject))

@@ -87,9 +87,10 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 	results := make([]SearchResult, 0)
 	for _, searchResult := range searchResults {
 		result := SearchResult{
-			Vp:     searchResult.Presentation,
-			Id:     searchResult.Presentation.ID.String(),
-			Fields: searchResult.Fields,
+			Vp:                     searchResult.Presentation,
+			Id:                     searchResult.Presentation.ID.String(),
+			Fields:                 searchResult.Fields,
+			RegistrationParameters: searchResult.Parameters,
 		}
 		subjectDID, _ := credential.PresentationSigner(searchResult.Presentation)
 		if subjectDID != nil {
@@ -101,7 +102,12 @@ func (w *Wrapper) SearchPresentations(ctx context.Context, request SearchPresent
 }
 
 func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error) {
-	err := w.Client.ActivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
+	var parameters map[string]interface{}
+	if request.Body != nil && request.Body.RegistrationParameters != nil {
+		parameters = *request.Body.RegistrationParameters
+	}
+
+	err := w.Client.ActivateServiceForSubject(ctx, request.ServiceID, request.SubjectID, parameters)
 	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
 		// registration failed, but will be retried
 		return ActivateServiceForSubject202JSONResponse{

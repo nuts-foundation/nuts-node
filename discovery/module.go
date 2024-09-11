@@ -35,6 +35,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -92,6 +93,7 @@ type Module struct {
 	ctx                 context.Context
 	cancel              context.CancelFunc
 	routines            *sync.WaitGroup
+	publicURL           *url.URL
 }
 
 func (m *Module) Configure(serverConfig core.ServerConfig) error {
@@ -106,6 +108,11 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 			return nil
 		}
 		return fmt.Errorf("failed to load discovery defintions: %w", err)
+	}
+
+	m.publicURL, err = serverConfig.ServerURL()
+	if err != nil {
+		return err
 	}
 
 	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
@@ -333,10 +340,16 @@ func forwardedHost(ctx context.Context) string {
 
 // ActivateServiceForSubject is a Discovery Client function that activates a service for a subject.
 // See interface.go for more information.
-func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error {
+func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error {
 	log.Logger().Debugf("Activating service for subject (subject=%s, service=%s)", subjectID, serviceID)
 
-	err := m.registrationManager.activate(ctx, serviceID, subjectID)
+	// create authServerURL and add to parameters
+	if parameters == nil {
+		parameters = make(map[string]interface{})
+	}
+	parameters[authServerURLField] = m.publicURL.JoinPath("/oauth2/subjectID").String()
+
+	err := m.registrationManager.activate(ctx, serviceID, subjectID, parameters)
 	if err != nil {
 		if errors.Is(err, ErrPresentationRegistrationFailed) {
 			log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (subject=%s,service=%s)", subjectID, serviceID)
@@ -449,12 +462,38 @@ func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResu
 			}
 		}
 
+		// extract registrationParameters from VP
+		registrationParameters := extractParameters(matchingVP)
+
 		result = append(result, SearchResult{
 			Presentation: matchingVP,
 			Fields:       fields,
+			Parameters:   registrationParameters,
 		})
 	}
 	return result, nil
+}
+
+func extractParameters(vp vc.VerifiablePresentation) map[string]interface{} {
+	result := make(map[string]interface{})
+	credentials := vp.VerifiableCredential
+	for _, cred := range credentials {
+		if slices.Contains(cred.Type, credential.DiscoveryRegistrationCredentialTypeV1URI()) {
+			credentialSubject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
+			err := cred.UnmarshalCredentialSubject(&credentialSubject)
+			if err != nil {
+				log.Logger().WithError(err).Error("Failed to unmarshal Discovery Registration Credential Subject")
+				continue
+			}
+			if len(credentialSubject) > 0 {
+				result = credentialSubject[0]
+				// remove id
+				delete(result, "id")
+			}
+		}
+	}
+
+	return result
 }
 
 func (m *Module) update() {

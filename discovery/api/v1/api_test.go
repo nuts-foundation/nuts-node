@@ -43,7 +43,7 @@ const (
 func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(nil)
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), serviceID, subjectID, nil).Return(nil)
 
 		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
@@ -55,7 +55,7 @@ func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 	})
 	t.Run("ok, but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
 
 		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
@@ -67,7 +67,7 @@ func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
+		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 
 		_, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
