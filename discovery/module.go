@@ -343,11 +343,13 @@ func forwardedHost(ctx context.Context) string {
 func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error {
 	log.Logger().Debugf("Activating service for subject (subject=%s, service=%s)", subjectID, serviceID)
 
-	// create authServerURL and add to parameters
 	if parameters == nil {
 		parameters = make(map[string]interface{})
 	}
-	parameters[authServerURLField] = m.publicURL.JoinPath("/oauth2/", subjectID).String()
+	// create authServerURL and add to parameters if not present
+	if _, ok := parameters[authServerURLField]; !ok {
+		parameters[authServerURLField] = m.publicURL.JoinPath("/oauth2/", subjectID).String()
+	}
 
 	err := m.registrationManager.activate(ctx, serviceID, subjectID, parameters)
 	if err != nil {
@@ -482,12 +484,15 @@ func extractParameters(vp vc.VerifiablePresentation) map[string]interface{} {
 			credentialSubject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
 			err := cred.UnmarshalCredentialSubject(&credentialSubject)
 			if err != nil {
-				log.Logger().WithError(err).Error("Failed to unmarshal Discovery Registration Credential Subject")
+				// a vp uploaded by another party might contain something we can't unmarshal
+				// without the extracted parameters, this VP will probably be useless anyway.
+				log.Logger().WithError(err).Infof("Failed to unmarshal Discovery Registration Credential Subject (vp.id=%s)", vp.ID)
 				continue
 			}
 			if len(credentialSubject) > 0 {
 				result = credentialSubject[0]
-				// remove id
+				// remove id since it was automatically added by the AutoCorrect function
+				// we only want the parameters that were originally set (+authServerURL)
 				delete(result, "id")
 			}
 		}

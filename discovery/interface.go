@@ -38,6 +38,7 @@ var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable P
 var errMissingCredential = errors.New("missing credential")
 
 // authServerURLField is the field name for the authServerURL in the DiscoveryRegistrationCredential.
+// it is used to resolve authorization server metadata and thus the endpoints for a service entry.
 const authServerURLField = "authServerURL"
 
 // Server defines the API for Discovery Servers.

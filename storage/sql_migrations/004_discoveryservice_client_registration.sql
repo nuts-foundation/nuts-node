@@ -9,6 +9,7 @@ create table discovery_presentation_refresh
     -- subject_id is the subject that should be registered on the Discovery Service.
     subject_id   varchar(370) not null,
     -- parameters contains the registration parameters passed at activation.
+    -- It is a JSON object that maps to map[string]interface{}
     parameters $TEXT_TYPE,
     -- next_refresh is the timestamp (seconds since Unix epoch) when the registration on the
     -- Discovery Service should be refreshed.

@@ -307,8 +307,12 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID str
 		}
 		// Create or update it
 		var bytes []byte
+		var err error
 		if parameters != nil {
-			bytes, _ = json.Marshal(parameters)
+			bytes, err = json.Marshal(parameters)
+			if err != nil {
+				return err
+			}
 		}
 		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: nextRefresh.Unix(), Parameters: bytes}).Error
 	})
