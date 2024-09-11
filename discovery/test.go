@@ -33,6 +33,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -55,25 +56,44 @@ var unsupportedDID did.DID
 var testServiceID = "usecase_v1"
 
 func testDefinitions() map[string]ServiceDefinition {
-	issuerPattern := "did:example:authority"
-	issuerFieldID := "issuer_field"
-	authServerURLFieldID := "auth_server_url_field"
 	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
 			Endpoint: "http://example.com/usecase",
 			PresentationDefinition: pe.PresentationDefinition{
+				Format: &pe.PresentationDefinitionClaimFormatDesignations{
+					"ldp_vc": {
+						"proof_type": []string{
+							"JsonWebSignature2020",
+						},
+					},
+					"ldp_vp": {
+						"proof_type": []string{
+							"JsonWebSignature2020",
+						},
+					},
+					"jwt_vc": {
+						"alg": []string{
+							"ES256",
+						},
+					},
+					"jwt_vp": {
+						"alg": []string{
+							"ES256",
+						},
+					},
+				},
 				InputDescriptors: []*pe.InputDescriptor{
 					{
 						Id: "1",
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{
-									Id:   &issuerFieldID,
+									Id:   to.Ptr("issuer_field"),
 									Path: []string{"$.issuer"},
 									Filter: &pe.Filter{
 										Type:    "string",
-										Pattern: &issuerPattern,
+										Pattern: to.Ptr("did:example:authority"),
 									},
 								},
 							},
@@ -84,10 +104,18 @@ func testDefinitions() map[string]ServiceDefinition {
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{
-									Id:   &authServerURLFieldID,
+									Id:   to.Ptr("auth_server_url_field"),
 									Path: []string{"$.credentialSubject.authServerURL", "$.credentialSubject[0].authServerURL"},
 									Filter: &pe.Filter{
 										Type: "string",
+									},
+								},
+								{
+									Id:   to.Ptr("type_field"),
+									Path: []string{"$.type"},
+									Filter: &pe.Filter{
+										Type:  "string",
+										Const: to.Ptr(credential.DiscoveryRegistrationCredentialType),
 									},
 								},
 							},
