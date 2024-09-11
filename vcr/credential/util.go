@@ -130,6 +130,9 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 	var credentialSubject []map[string]interface{}
 	_ = credential.UnmarshalCredentialSubject(&credentialSubject)
 	if len(credentialSubject) == 1 {
+		if credentialSubject[0] == nil {
+			credentialSubject[0] = make(map[string]interface{})
+		}
 		if _, ok := credentialSubject[0]["id"]; !ok {
 			credentialSubject[0]["id"] = requester.String()
 			credential.CredentialSubject[0] = credentialSubject[0]

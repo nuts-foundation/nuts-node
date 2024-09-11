@@ -287,3 +287,15 @@ func TestPresentationExpirationDate(t *testing.T) {
 		assert.Nil(t, actual)
 	})
 }
+
+func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
+	requestor := did.MustParseDID("did:test:123")
+	credential := vc.VerifiableCredential{
+		CredentialSubject: make([]interface{}, 1),
+	}
+	result := AutoCorrectSelfAttestedCredential(credential, requestor)
+	assert.Equal(t, requestor.URI(), result.Issuer)
+	assert.NotEqual(t, time.Time{}, result.IssuanceDate)
+	assert.NotEqual(t, "", result.ID.String())
+	assert.Equal(t, requestor.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
+}
