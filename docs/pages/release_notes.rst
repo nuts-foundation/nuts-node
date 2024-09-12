@@ -28,13 +28,14 @@ The following new features have been added:
 - Resolving and creating ``did:web`` DID documents (see the VDR v2 API reference for usage).
 - Resolving ``did:jwk`` and ``did:key`` DID documents.
 - Running a Discovery Server and Client (see :ref:`discovery`)
+- Added the VDR v2 API.
 - Added a Verifiable Credential system-wallet, which is used in Presentation Exchanges (e.g. OpenID4VP).
   See the VCR API reference for usage.
 - Added a VCR API operation to list Verifiable Credentials in a local wallet.
 - Added a VCR API operation to delete Verifiable Credentials from a local wallet.
 - Added support in the ``IssueVC`` VCR API operation to issue Verifiable Credentials that don't use the ``nuts.nl`` JSON-LD context.
-- Added support for OpenID4VP (OpenID for Verifiable Presentations)
-- Added support for OpenID4VCI (OpenID for Verifiable Credential Issuance)
+- Added experimental support for OpenID4VP (OpenID for Verifiable Presentations)
+- Added experimental support for OpenID4VCI (OpenID for Verifiable Credential Issuance)
 - Added support for Nuts RFC021, which negotiates an OAuth2 access token for a system through a Presentation Exchange using Verifiable Credentials.
 - Added support for `StatusList2021 <https://www.w3.org/TR/2023/WD-vc-status-list-20230427/>`_ as revocation means for Verifiable Credentials.
 - Added support for storage in SQL databases (PostgreSQL, MySQL, SQLite and Microsoft SQL Server, see :ref:`storage-configuration`) for various features.
@@ -53,6 +54,14 @@ Changes
 - Node can now be run without configuring TLS when the gRPC network isn't used (no bootstrap node configured and no network state), to cater use cases that don't use ``did:nuts``.
 
 The following features have also been changed:
+
+DID management
+==============
+
+You no longer manage changes to DIDs but to Subjects. Each subject has multiple DIDs, one for each enabled DID method.
+You're free to choose an ID for a Subject. This feature enables forwards compatibility with new DID methods.
+DID methods can be enabled and disabled via the ``vdr.didmethods`` config parameter. (Default: ``['web','nuts']``).
+Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID.
 
 HTTP interface
 ==============
@@ -84,6 +93,7 @@ The following features have been deprecated:
   Starting v6, the preferred way to support other key storage backends is to directly implement it in the Nuts node itself.
   This also reduces the complexity of a Nuts node deployment (one service less to configure and deploy).
   Users are recommended to switch to the built-in client of their key storage backend.
+- VDR v1 API.
 
 ************************
 Hazelnut update (v5.4.9)
