@@ -113,7 +113,23 @@ func (h sqlWallet) Put(_ context.Context, credentials ...vc.VerifiableCredential
 }
 
 func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
-	return h.walletStore.list(holderDID)
+	credentials, err := h.walletStore.list(holderDID)
+	if err != nil {
+		return nil, err
+	}
+	// now validate credentials and remove invalid ones
+	validCredentials := make([]vc.VerifiableCredential, 0, len(credentials))
+	for _, credential := range credentials {
+		// we only want to check expiration and revocation status
+		if err = h.verifier.Verify(credential, true, false, nil); err == nil {
+			validCredentials = append(validCredentials, credential)
+		} else if !errors.Is(err, types.ErrCredentialNotValidAtTime) && !errors.Is(err, types.ErrRevoked) {
+			// a possible technical error has occurred that should be logged.
+			log.Logger().WithError(err).WithField(core.LogFieldCredentialID, credential.ID).Warn("unable to verify credential")
+		}
+	}
+
+	return validCredentials, nil
 }
 
 func (h sqlWallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {

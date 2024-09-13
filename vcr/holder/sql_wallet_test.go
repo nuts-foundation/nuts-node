@@ -25,8 +25,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"testing"
@@ -100,7 +102,7 @@ func Test_sqlWallet_Put(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("put 1 credential", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		expected := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), expected)
@@ -113,7 +115,7 @@ func Test_sqlWallet_Put(t *testing.T) {
 	})
 	t.Run("put 2 credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		expected := []vc.VerifiableCredential{
 			createCredential(vdr.TestMethodDIDA.String()),
 			createCredential(vdr.TestMethodDIDB.String()),
@@ -136,7 +138,7 @@ func Test_sqlWallet_Put(t *testing.T) {
 	})
 	t.Run("put 3 credentials, 1 fails", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		expected := []vc.VerifiableCredential{
 			createCredential(vdr.TestMethodDIDA.String()),
 			createCredential(vdr.TestMethodDIDB.String()),
@@ -158,7 +160,7 @@ func Test_sqlWallet_Put(t *testing.T) {
 	})
 	t.Run("duplicate credential", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		expected := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), expected)
@@ -179,7 +181,7 @@ func Test_sqlWallet_List(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("empty", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
 		list, err := sut.List(ctx, vdr.TestDIDA)
 		require.NoError(t, err)
@@ -188,7 +190,7 @@ func Test_sqlWallet_List(t *testing.T) {
 	})
 	t.Run("not empty", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		expected := createCredential(vdr.TestMethodDIDA.String())
 		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
 		require.NoError(t, err)
@@ -198,13 +200,38 @@ func Test_sqlWallet_List(t *testing.T) {
 		require.Len(t, list, 1)
 		assert.Equal(t, expected.ID.String(), list[0].ID.String())
 	})
+	t.Run("expired credential", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrCredentialNotValidAtTime}, nil, storageEngine)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
+		require.NoError(t, err)
+
+		list, err := sut.List(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 0)
+	})
+	t.Run("other error", func(t *testing.T) {
+		captureLogs := audit.CaptureLogs(t, logrus.StandardLogger())
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{err: assert.AnError}, nil, storageEngine)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
+		require.NoError(t, err)
+
+		list, err := sut.List(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 0)
+		require.NotNil(t, captureLogs.Hook.LastEntry())
+		assert.Equal(t, "unable to verify credential", captureLogs.Hook.LastEntry().Message)
+	})
 }
 
 func Test_sqlWallet_Diagnostics(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("empty wallet", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
 		actual := sut.Diagnostics()
 		require.Len(t, actual, 1)
@@ -213,7 +240,7 @@ func Test_sqlWallet_Diagnostics(t *testing.T) {
 	})
 	t.Run("1 credential", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		cred := createCredential(vdr.TestMethodDIDA.String())
 
 		err := sut.Put(context.Background(), cred)
@@ -226,7 +253,7 @@ func Test_sqlWallet_Diagnostics(t *testing.T) {
 	})
 	t.Run("2 credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
 		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
 		require.NoError(t, err)
@@ -279,7 +306,7 @@ func Test_sqlWallet_IsEmpty(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("empty", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
 		empty, err := sut.IsEmpty()
 
@@ -288,7 +315,7 @@ func Test_sqlWallet_IsEmpty(t *testing.T) {
 	})
 	t.Run("2 credentials", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storageEngine)
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
 		err := sut.Put(context.Background(), createCredential(vdr.TestMethodDIDA.String()))
 		require.NoError(t, err)
@@ -305,9 +332,9 @@ func Test_sqlWalletStore_remove(t *testing.T) {
 	require.NoError(t, engine.Start())
 	t.Run("ok", func(t *testing.T) {
 		resetStore(t, engine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storage.NewTestStorageEngine(t))
 
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		// Have 3 credentials in wallet, 2 of the subject wallet, 1 of another wallet
 		credentialToRemove := createCredential(vdr.TestMethodDIDA.String())
@@ -337,7 +364,7 @@ func Test_sqlWalletStore_remove(t *testing.T) {
 	})
 	t.Run("not found", func(t *testing.T) {
 		resetStore(t, engine.GetSQLDatabase())
-		sut := NewSQLWallet(nil, nil, nil, nil, storage.NewTestStorageEngine(t))
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storage.NewTestStorageEngine(t))
 
 		err := sut.Remove(context.Background(), vdr.TestDIDA, ssi.MustParseURI("did:nuts:4tzMaWfpizVKeA8fscC3JTdWBc3asUWWMj5hUFHdWX3H#123"))
 		assert.ErrorIs(t, err, types.ErrNotFound)
@@ -350,4 +377,32 @@ func resetStore(t *testing.T, db *gorm.DB) {
 	for _, tableName := range tableNames {
 		require.NoError(t, db.Exec("DELETE FROM "+tableName).Error)
 	}
+}
+
+type testVerifier struct {
+	err error
+}
+
+func (t testVerifier) Verify(credential vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
+	return t.err
+}
+
+func (t testVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, at *time.Time) error {
+	panic("implement me")
+}
+
+func (t testVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
+	panic("implement me")
+}
+
+func (t testVerifier) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	panic("implement me")
+}
+
+func (t testVerifier) RegisterRevocation(revocation credential.Revocation) error {
+	panic("implement me")
+}
+
+func (t testVerifier) VerifyVP(presentation vc.VerifiablePresentation, verifyVCs bool, allowUntrustedVCs bool, validAt *time.Time) ([]vc.VerifiableCredential, error) {
+	panic("implement me")
 }

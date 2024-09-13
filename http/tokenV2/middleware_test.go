@@ -172,7 +172,7 @@ func TestAuditLogAccessKeyRegistered(t *testing.T) {
 	_, _, authorizedKeys := generateEd25519TestKey(t)
 
 	// Setup audit log capturing
-	capturedAuditLog := audit.CaptureLogs(t)
+	capturedAuditLog := audit.CaptureAuditLogs(t)
 
 	// Create the middleware
 	_, err := New(nil, validHostname, []byte(authorizedKeys))
@@ -215,7 +215,7 @@ func TestAuditLogAccessDenied(t *testing.T) {
 	testCtx := echo.New().NewContext(request, recorder)
 
 	// Setup audit log capturing
-	capturedAuditLog := audit.CaptureLogs(t)
+	capturedAuditLog := audit.CaptureAuditLogs(t)
 
 	// Call the handler, ensuring the appropriate error is returned
 	httpErr := handler(testCtx).(*echo.HTTPError)
@@ -260,7 +260,7 @@ func TestAuditLogAccessGranted(t *testing.T) {
 	testCtx := echo.New().NewContext(request, recorder)
 
 	// Setup audit log capturing
-	capturedAuditLog := audit.CaptureLogs(t)
+	capturedAuditLog := audit.CaptureAuditLogs(t)
 
 	// Call the handler, ensuring no error is returned
 	err = handler(testCtx)

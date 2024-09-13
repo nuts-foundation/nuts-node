@@ -50,7 +50,7 @@ import (
 
 // TestOpenID4VCIHappyFlow tests issuing a VC using OpenID4VCI.
 func TestOpenID4VCIHappyFlow(t *testing.T) {
-	auditLogs := audit.CaptureLogs(t)
+	auditLogs := audit.CaptureAuditLogs(t)
 	ctx := audit.TestContext()
 	_, baseURL, system := node.StartServer(t)
 	vcrService := system.FindEngineByName("vcr").(vcr.VCR)

@@ -167,7 +167,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	validRequest := createRequest(createHeaders(), createClaims(cNonce))
 
 	t.Run("ok", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 		response, err := service.HandleCredentialRequest(ctx, validRequest, accessToken)
 
 		require.NoError(t, err)
