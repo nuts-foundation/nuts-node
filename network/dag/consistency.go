@@ -120,6 +120,10 @@ func (f *xorTreeRepair) checkPage() {
 			if err != nil {
 				return err
 			}
+			err = f.state.xorTree.writeWithoutLock(txn)
+			if err != nil {
+				return err
+			}
 			log.Logger().Warnf("detected XOR tree mismatch for page %d, fixed using recalculated values", f.currentPage)
 		}
 
