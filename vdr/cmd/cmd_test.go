@@ -102,7 +102,7 @@ func TestEngine_Command(t *testing.T) {
 				assert.Equal(t, "/internal/vdr/v2/subject", request.URL.Path)
 				writer.Header().Set("Content-Type", "application/json")
 				writer.WriteHeader(http.StatusOK)
-				bytes, _ := json.Marshal(v2.CreateDID200JSONResponse{Documents: []did.Document{exampleDIDDocument}})
+				bytes, _ := json.Marshal(v2.CreateSubject200JSONResponse{Documents: []did.Document{exampleDIDDocument}})
 				_, _ = writer.Write(bytes)
 			}))
 			cmd.SetArgs([]string{"create-did", "--v2"})

@@ -97,7 +97,7 @@ func createCmd() *cobra.Command {
 				err          error
 			)
 			if useV2 {
-				options := apiv2.CreateDIDOptions{}
+				options := apiv2.CreateSubjectOptions{}
 				if len(args) == 1 {
 					options.Subject = &args[0]
 				}

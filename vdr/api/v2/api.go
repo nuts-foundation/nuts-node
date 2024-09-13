@@ -109,7 +109,7 @@ func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject
 	return GetRootWebDID200JSONResponse(*document), nil
 }
 
-func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+func (w *Wrapper) CreateSubject(ctx context.Context, request CreateSubjectRequestObject) (CreateSubjectResponseObject, error) {
 	options := didsubject.DefaultCreationOptions()
 	if request.Body.Subject != nil {
 		options = options.With(didsubject.SubjectCreationOption{Subject: *request.Body.Subject})
@@ -126,7 +126,7 @@ func (w *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject)
 		return nil, err
 	}
 
-	return CreateDID200JSONResponse(SubjectCreationResult{
+	return CreateSubject200JSONResponse(SubjectCreationResult{
 		Documents: docs,
 		Subject:   subject,
 	}), nil
