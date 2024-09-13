@@ -47,38 +47,38 @@ var didDoc = did.Document{
 	ID: id,
 }
 
-func TestWrapper_CreateDID(t *testing.T) {
+func TestWrapper_CreateSubject(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return([]did.Document{didDoc}, "subject", nil)
 
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &CreateDIDJSONRequestBody{}})
+		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{Body: &CreateSubjectJSONRequestBody{}})
 
 		require.NoError(t, err)
-		assert.Len(t, response.(CreateDID200JSONResponse).Documents, 1)
-		assert.Equal(t, "subject", response.(CreateDID200JSONResponse).Subject)
+		assert.Len(t, response.(CreateSubject200JSONResponse).Documents, 1)
+		assert.Equal(t, "subject", response.(CreateSubject200JSONResponse).Subject)
 	})
 	t.Run("with Subject", func(t *testing.T) {
 		ctx := newMockContext(t)
 		subject := "subject"
 		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject})).Return([]did.Document{didDoc}, "subject", nil)
 
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
-			Body: &CreateDIDJSONRequestBody{
+		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{
+			Body: &CreateSubjectJSONRequestBody{
 				Subject: &subject,
 			},
 		})
 
 		require.NoError(t, err)
-		assert.Len(t, response.(CreateDID200JSONResponse).Documents, 1)
-		assert.Equal(t, "subject", response.(CreateDID200JSONResponse).Subject)
+		assert.Len(t, response.(CreateSubject200JSONResponse).Documents, 1)
+		assert.Equal(t, "subject", response.(CreateSubject200JSONResponse).Subject)
 	})
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.subjectManager.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, "", assert.AnError)
 
-		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{
-			Body: &CreateDIDJSONRequestBody{},
+		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{
+			Body: &CreateSubjectJSONRequestBody{},
 		})
 
 		assert.Error(t, err)

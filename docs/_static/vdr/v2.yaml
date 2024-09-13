@@ -44,13 +44,13 @@ paths:
     post:
       summary: Creates new DID Documents for a subject.
       description: |
-        New DIDs and DID Documents are created. It'll only create new DID Documents for enabled DID methods.
+        New DIDs and DID Documents are created. It will only create new DID Documents for enabled DID methods.
         Each method generates keys and identifiers according to their own specification.
 
         error returns:
         * 400 - Returned in case of malformed DID in the request body
         * 500 - An error occurred while processing the request
-      operationId: "createDID"
+      operationId: "createSubject"
       tags:
         - Subject
       requestBody:
@@ -59,7 +59,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDIDOptions'
+              $ref: '#/components/schemas/CreateSubjectOptions'
       responses:
         "200":
           description: "New DID has been created successfully. Returns the DID document."
@@ -467,7 +467,7 @@ components:
         encryptionKey:
           type: boolean
           description: If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
-    CreateDIDOptions:
+    CreateSubjectOptions:
       type: object
       description: Options for the DID creation.
       properties:

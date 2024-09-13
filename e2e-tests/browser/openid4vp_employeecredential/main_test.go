@@ -122,7 +122,7 @@ func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (str
 
 func createDID(config core.ClientConfig) (string, *did.Document, error) {
 	didClient := didAPI.HTTPClient{ClientConfig: config}
-	subject, docs, err := didClient.Create(didAPI.CreateDIDOptions{})
+	subject, docs, err := didClient.Create(didAPI.CreateSubjectOptions{})
 	if err != nil {
 		return "", nil, err
 	}

@@ -29,8 +29,8 @@ const (
 	String FindServicesParamsEndpointType = "string"
 )
 
-// CreateDIDOptions Options for the DID creation.
-type CreateDIDOptions struct {
+// CreateSubjectOptions Options for the DID creation.
+type CreateSubjectOptions struct {
 	// Keys Options for the key creation.
 	Keys *KeyCreationOptions `json:"keys,omitempty"`
 
@@ -83,8 +83,8 @@ type FindServicesParams struct {
 // FindServicesParamsEndpointType defines parameters for FindServices.
 type FindServicesParamsEndpointType string
 
-// CreateDIDJSONRequestBody defines body for CreateDID for application/json ContentType.
-type CreateDIDJSONRequestBody = CreateDIDOptions
+// CreateSubjectJSONRequestBody defines body for CreateSubject for application/json ContentType.
+type CreateSubjectJSONRequestBody = CreateSubjectOptions
 
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = Service
@@ -180,10 +180,10 @@ type ClientInterface interface {
 	// ListSubjects request
 	ListSubjects(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateDIDWithBody request with any body
-	CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// CreateSubjectWithBody request with any body
+	CreateSubjectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateSubject(ctx context.Context, body CreateSubjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Deactivate request
 	Deactivate(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -261,8 +261,8 @@ func (c *Client) ListSubjects(ctx context.Context, reqEditors ...RequestEditorFn
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDIDRequestWithBody(c.Server, contentType, body)
+func (c *Client) CreateSubjectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSubjectRequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +273,8 @@ func (c *Client) CreateDIDWithBody(ctx context.Context, contentType string, body
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateDID(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateDIDRequest(c.Server, body)
+func (c *Client) CreateSubject(ctx context.Context, body CreateSubjectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateSubjectRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -524,19 +524,19 @@ func NewListSubjectsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewCreateDIDRequest calls the generic CreateDID builder with application/json body
-func NewCreateDIDRequest(server string, body CreateDIDJSONRequestBody) (*http.Request, error) {
+// NewCreateSubjectRequest calls the generic CreateSubject builder with application/json body
+func NewCreateSubjectRequest(server string, body CreateSubjectJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateDIDRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateSubjectRequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewCreateDIDRequestWithBody generates requests for CreateDID with any type of body
-func NewCreateDIDRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewCreateSubjectRequestWithBody generates requests for CreateSubject with any type of body
+func NewCreateSubjectRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -921,10 +921,10 @@ type ClientWithResponsesInterface interface {
 	// ListSubjectsWithResponse request
 	ListSubjectsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListSubjectsResponse, error)
 
-	// CreateDIDWithBodyWithResponse request with any body
-	CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
+	// CreateSubjectWithBodyWithResponse request with any body
+	CreateSubjectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSubjectResponse, error)
 
-	CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error)
+	CreateSubjectWithResponse(ctx context.Context, body CreateSubjectJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSubjectResponse, error)
 
 	// DeactivateWithResponse request
 	DeactivateWithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*DeactivateResponse, error)
@@ -1062,7 +1062,7 @@ func (r ListSubjectsResponse) StatusCode() int {
 	return 0
 }
 
-type CreateDIDResponse struct {
+type CreateSubjectResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *SubjectCreationResult
@@ -1079,7 +1079,7 @@ type CreateDIDResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r CreateDIDResponse) Status() string {
+func (r CreateSubjectResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1087,7 +1087,7 @@ func (r CreateDIDResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r CreateDIDResponse) StatusCode() int {
+func (r CreateSubjectResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -1352,21 +1352,21 @@ func (c *ClientWithResponses) ListSubjectsWithResponse(ctx context.Context, reqE
 	return ParseListSubjectsResponse(rsp)
 }
 
-// CreateDIDWithBodyWithResponse request with arbitrary body returning *CreateDIDResponse
-func (c *ClientWithResponses) CreateDIDWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error) {
-	rsp, err := c.CreateDIDWithBody(ctx, contentType, body, reqEditors...)
+// CreateSubjectWithBodyWithResponse request with arbitrary body returning *CreateSubjectResponse
+func (c *ClientWithResponses) CreateSubjectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateSubjectResponse, error) {
+	rsp, err := c.CreateSubjectWithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateDIDResponse(rsp)
+	return ParseCreateSubjectResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateDIDWithResponse(ctx context.Context, body CreateDIDJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateDIDResponse, error) {
-	rsp, err := c.CreateDID(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateSubjectWithResponse(ctx context.Context, body CreateSubjectJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateSubjectResponse, error) {
+	rsp, err := c.CreateSubject(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseCreateDIDResponse(rsp)
+	return ParseCreateSubjectResponse(rsp)
 }
 
 // DeactivateWithResponse request returning *DeactivateResponse
@@ -1592,15 +1592,15 @@ func ParseListSubjectsResponse(rsp *http.Response) (*ListSubjectsResponse, error
 	return response, nil
 }
 
-// ParseCreateDIDResponse parses an HTTP response from a CreateDIDWithResponse call
-func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
+// ParseCreateSubjectResponse parses an HTTP response from a CreateSubjectWithResponse call
+func ParseCreateSubjectResponse(rsp *http.Response) (*CreateSubjectResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &CreateDIDResponse{
+	response := &CreateSubjectResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -1930,7 +1930,7 @@ type ServerInterface interface {
 	ListSubjects(ctx echo.Context) error
 	// Creates new DID Documents for a subject.
 	// (POST /internal/vdr/v2/subject)
-	CreateDID(ctx echo.Context) error
+	CreateSubject(ctx echo.Context) error
 	// Deactivate all DID Documents for a subject.
 	// (DELETE /internal/vdr/v2/subject/{id})
 	Deactivate(ctx echo.Context, id string) error
@@ -2014,14 +2014,14 @@ func (w *ServerInterfaceWrapper) ListSubjects(ctx echo.Context) error {
 	return err
 }
 
-// CreateDID converts echo context to params.
-func (w *ServerInterfaceWrapper) CreateDID(ctx echo.Context) error {
+// CreateSubject converts echo context to params.
+func (w *ServerInterfaceWrapper) CreateSubject(ctx echo.Context) error {
 	var err error
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.CreateDID(ctx)
+	err = w.Handler.CreateSubject(ctx)
 	return err
 }
 
@@ -2188,7 +2188,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/iam/:id/did.json", wrapper.GetTenantWebDID)
 	router.GET(baseURL+"/internal/vdr/v2/did/:did", wrapper.ResolveDID)
 	router.GET(baseURL+"/internal/vdr/v2/subject", wrapper.ListSubjects)
-	router.POST(baseURL+"/internal/vdr/v2/subject", wrapper.CreateDID)
+	router.POST(baseURL+"/internal/vdr/v2/subject", wrapper.CreateSubject)
 	router.DELETE(baseURL+"/internal/vdr/v2/subject/:id", wrapper.Deactivate)
 	router.GET(baseURL+"/internal/vdr/v2/subject/:id", wrapper.SubjectDIDs)
 	router.GET(baseURL+"/internal/vdr/v2/subject/:id/service", wrapper.FindServices)
@@ -2323,24 +2323,24 @@ func (response ListSubjectsdefaultApplicationProblemPlusJSONResponse) VisitListS
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type CreateDIDRequestObject struct {
-	Body *CreateDIDJSONRequestBody
+type CreateSubjectRequestObject struct {
+	Body *CreateSubjectJSONRequestBody
 }
 
-type CreateDIDResponseObject interface {
-	VisitCreateDIDResponse(w http.ResponseWriter) error
+type CreateSubjectResponseObject interface {
+	VisitCreateSubjectResponse(w http.ResponseWriter) error
 }
 
-type CreateDID200JSONResponse SubjectCreationResult
+type CreateSubject200JSONResponse SubjectCreationResult
 
-func (response CreateDID200JSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
+func (response CreateSubject200JSONResponse) VisitCreateSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type CreateDIDdefaultApplicationProblemPlusJSONResponse struct {
+type CreateSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -2354,7 +2354,7 @@ type CreateDIDdefaultApplicationProblemPlusJSONResponse struct {
 	StatusCode int
 }
 
-func (response CreateDIDdefaultApplicationProblemPlusJSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
+func (response CreateSubjectdefaultApplicationProblemPlusJSONResponse) VisitCreateSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -2647,7 +2647,7 @@ type StrictServerInterface interface {
 	ListSubjects(ctx context.Context, request ListSubjectsRequestObject) (ListSubjectsResponseObject, error)
 	// Creates new DID Documents for a subject.
 	// (POST /internal/vdr/v2/subject)
-	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
+	CreateSubject(ctx context.Context, request CreateSubjectRequestObject) (CreateSubjectResponseObject, error)
 	// Deactivate all DID Documents for a subject.
 	// (DELETE /internal/vdr/v2/subject/{id})
 	Deactivate(ctx context.Context, request DeactivateRequestObject) (DeactivateResponseObject, error)
@@ -2779,29 +2779,29 @@ func (sh *strictHandler) ListSubjects(ctx echo.Context) error {
 	return nil
 }
 
-// CreateDID operation middleware
-func (sh *strictHandler) CreateDID(ctx echo.Context) error {
-	var request CreateDIDRequestObject
+// CreateSubject operation middleware
+func (sh *strictHandler) CreateSubject(ctx echo.Context) error {
+	var request CreateSubjectRequestObject
 
-	var body CreateDIDJSONRequestBody
+	var body CreateSubjectJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
 		return err
 	}
 	request.Body = &body
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.CreateDID(ctx.Request().Context(), request.(CreateDIDRequestObject))
+		return sh.ssi.CreateSubject(ctx.Request().Context(), request.(CreateSubjectRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "CreateDID")
+		handler = middleware(handler, "CreateSubject")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(CreateDIDResponseObject); ok {
-		return validResponse.VisitCreateDIDResponse(ctx.Response())
+	} else if validResponse, ok := response.(CreateSubjectResponseObject); ok {
+		return validResponse.VisitCreateSubjectResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -43,15 +43,15 @@ func (hb HTTPClient) client() ClientInterface {
 
 // Create calls the server and creates a new DID Document
 // It does not parse a custom id but depends on the server to generate one
-func (hb HTTPClient) Create(options CreateDIDOptions) (string, []did.Document, error) {
+func (hb HTTPClient) Create(options CreateSubjectOptions) (string, []did.Document, error) {
 	ctx := context.Background()
 
-	if response, err := hb.client().CreateDID(ctx, options); err != nil {
+	if response, err := hb.client().CreateSubject(ctx, options); err != nil {
 		return "", nil, err
 	} else if err := core.TestResponseCode(http.StatusOK, response); err != nil {
 		return "", nil, err
 	} else {
-		createDIDResponse, err := ParseCreateDIDResponse(response)
+		createDIDResponse, err := ParseCreateSubjectResponse(response)
 		if err != nil {
 			return "", nil, err
 		}

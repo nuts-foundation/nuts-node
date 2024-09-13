@@ -46,7 +46,7 @@ func TestHTTPClient_Create(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusOK, ResponseData: didDocs})
 		c := getClient(s.URL)
-		subject, doc, err := c.Create(CreateDIDOptions{})
+		subject, doc, err := c.Create(CreateSubjectOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, doc)
 		assert.Equal(t, didDocs.Subject, subject)
@@ -55,13 +55,13 @@ func TestHTTPClient_Create(t *testing.T) {
 	t.Run("error - server error", func(t *testing.T) {
 		s := httptest.NewServer(&http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: ""})
 		c := getClient(s.URL)
-		_, _, err := c.Create(CreateDIDOptions{})
+		_, _, err := c.Create(CreateSubjectOptions{})
 		assert.Error(t, err)
 	})
 
 	t.Run("error - wrong address", func(t *testing.T) {
 		c := getClient("not_an_address")
-		_, _, err := c.Create(CreateDIDOptions{})
+		_, _, err := c.Create(CreateSubjectOptions{})
 		assert.Error(t, err)
 	})
 }
