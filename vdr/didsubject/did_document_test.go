@@ -83,9 +83,13 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
+		// rewrite timestamps to make sure docRoot.CreatedAt < doc.UpdatedAt
+		createdAt := time.Now().Add(-2 * time.Second).Unix()
+		docRoot.CreatedAt, docRoot.UpdatedAt = createdAt, createdAt
+		db.Save(&docRoot)
+
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
-		time.Sleep(time.Second) // make sure doc.CreatedAt < doc.UpdatedAt
 
 		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 
