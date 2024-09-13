@@ -20,6 +20,7 @@ package didsubject
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
@@ -57,6 +58,8 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		assert.Equal(t, alice.String(), doc.DID.ID)
 		assert.Equal(t, "alice", doc.DID.Subject)
 		assert.Equal(t, "did:web:example.com:iam:alice", doc.DidID)
+		assert.InDelta(t, time.Now().Unix(), doc.CreatedAt, 1)
+		assert.InDelta(t, time.Now().Unix(), doc.UpdatedAt, 1)
 	})
 	t.Run("with method and services", func(t *testing.T) {
 		tx := transaction(t, db)
@@ -76,18 +79,22 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	t.Run("update", func(t *testing.T) {
 		tx := db.Begin()
 		docManager := NewDIDDocumentManager(tx)
-		_, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
+		docRoot, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 		require.NoError(t, err)
 		require.NoError(t, tx.Commit().Error)
 
 		docManager = NewDIDDocumentManager(transaction(t, db))
 		require.NoError(t, err)
+		time.Sleep(time.Second) // make sure doc.CreatedAt < doc.UpdatedAt
 
 		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 
 		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)
 		require.Len(t, doc.Services, 1)
+		assert.Equal(t, docRoot.CreatedAt, doc.CreatedAt)
+		assert.Less(t, doc.CreatedAt, doc.UpdatedAt)
+		assert.Equal(t, 2, doc.Version)
 	})
 }
 
