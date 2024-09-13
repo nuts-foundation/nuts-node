@@ -594,10 +594,6 @@ components:
           type: string
           description: Contains the DID of the authorizer. Should be equal to 'sub'
           example: did:web:example.com:resource-owner
-        sub:
-          type: string
-          description: Contains the DID of the resource owner
-          example: did:web:example.com:resource-owner
         aud:
           type: string
           description: RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].

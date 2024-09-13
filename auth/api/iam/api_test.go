@@ -760,7 +760,6 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 			Iat:                     to.Ptr(int(tNow.Unix())),
 			Iss:                     to.Ptr("resource-owner"),
 			Scope:                   to.Ptr("test"),
-			Sub:                     to.Ptr("resource-owner"),
 			Vps:                     &[]VerifiablePresentation{presentation},
 			PresentationSubmissions: to.Ptr(presentationSubmissions),
 			PresentationDefinitions: to.Ptr(presentationDefinitions),

@@ -107,10 +107,7 @@ type ExtendedTokenIntrospectionResponse struct {
 	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
 	// Scope granted scopes
-	Scope *string `json:"scope,omitempty"`
-
-	// Sub Contains the DID of the resource owner
-	Sub                  *string                   `json:"sub,omitempty"`
+	Scope                *string                   `json:"scope,omitempty"`
 	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
 	AdditionalProperties map[string]interface{}    `json:"-"`
 }
@@ -420,14 +417,6 @@ func (a *ExtendedTokenIntrospectionResponse) UnmarshalJSON(b []byte) error {
 		delete(object, "scope")
 	}
 
-	if raw, found := object["sub"]; found {
-		err = json.Unmarshal(raw, &a.Sub)
-		if err != nil {
-			return fmt.Errorf("error reading 'sub': %w", err)
-		}
-		delete(object, "sub")
-	}
-
 	if raw, found := object["vps"]; found {
 		err = json.Unmarshal(raw, &a.Vps)
 		if err != nil {
@@ -520,13 +509,6 @@ func (a ExtendedTokenIntrospectionResponse) MarshalJSON() ([]byte, error) {
 		object["scope"], err = json.Marshal(a.Scope)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling 'scope': %w", err)
-		}
-	}
-
-	if a.Sub != nil {
-		object["sub"], err = json.Marshal(a.Sub)
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling 'sub': %w", err)
 		}
 	}
 
