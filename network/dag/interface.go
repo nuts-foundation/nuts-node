@@ -41,6 +41,7 @@ var ErrPayloadNotFound = errors.New("payload not found")
 type State interface {
 	core.Diagnosable
 	core.Migratable
+	core.Configurable
 
 	// WritePayload writes contents for the specified payload, identified by the given hash.
 	// It also calls observers and therefore requires the transaction.

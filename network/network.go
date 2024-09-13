@@ -176,6 +176,11 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.state, err = dag.NewState(dagStore, dag.NewPrevTransactionsVerifier(), dag.NewTransactionSignatureVerifier(nutsKeyResolver)); err != nil {
 		return fmt.Errorf("failed to configure state: %w", err)
 	}
+	// load state
+	err = n.state.Configure(core.ServerConfig{})
+	if err != nil {
+		return err
+	}
 
 	n.strictMode = config.Strictmode
 	n.peerID = transport.PeerID(uuid.New().String())

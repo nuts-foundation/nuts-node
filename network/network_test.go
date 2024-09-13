@@ -357,7 +357,9 @@ func TestNetwork_Configure(t *testing.T) {
 		prov := storage.NewMockProvider(ctrl)
 		ctx.network.storeProvider = prov
 		ctx.network.connectionManager = nil
-		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any())
+		store := stoabs.NewMockKVStore(ctrl)
+		store.EXPECT().Read(gomock.Any(), gomock.Any())
+		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(store, nil)
 		prov.EXPECT().GetKVStore(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed"))
 
 		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
