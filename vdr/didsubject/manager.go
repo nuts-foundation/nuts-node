@@ -34,8 +34,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"gorm.io/gorm"
-	"strings"
 	"regexp"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -54,6 +55,8 @@ type Manager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
 	KeyStore       nutsCrypto.KeyStore
+	// PreferredOrder is the order in which the methods are preferred, which dictates the order in which they are returned.
+	PreferredOrder []string
 }
 
 func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
@@ -69,6 +72,9 @@ func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
 			return nil, fmt.Errorf("invalid DID for subject (subject=%s, did=%s): %w", sqlDID.Subject, sqlDID.ID, err)
 		}
 		result[sqlDID.Subject] = append(result[sqlDID.Subject], *id)
+	}
+	for currentSubject := range result {
+		sortDIDsByMethod(result[currentSubject], r.PreferredOrder)
 	}
 	return result, nil
 }
@@ -87,6 +93,7 @@ func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error)
 		}
 		result[i] = *id
 	}
+	sortDIDsByMethod(result, r.PreferredOrder)
 	return result, nil
 }
 
@@ -193,6 +200,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		docs = append(docs, doc)
 		dids = append(dids, sqlDoc.DID.ID)
 	}
+	sortDIDDocumentsByMethod(docs, r.PreferredOrder)
 	log.Logger().
 		WithField(core.LogFieldDIDSubject, subject).
 		Infof("Created new subject (DIDs: [%s])", strings.Join(dids, ", "))
@@ -588,4 +596,50 @@ func (r *Manager) Rollback(ctx context.Context) {
 	if err != nil {
 		log.Logger().WithError(err).Error("failed to rollback DID documents")
 	}
+}
+
+func sortDIDsByMethod(list []did.DID, methodOrder []string) {
+	sort.Slice(list, func(i, j int) bool {
+		// if the DIDs are the same, use string compare
+		if list[i] == list[j] {
+			return list[i].String() < list[j].String()
+		}
+
+		iOrder := -1
+		jOrder := -1
+		for k, v := range methodOrder {
+			if v == list[i].Method {
+				iOrder = k
+			}
+			if v == list[j].Method {
+				jOrder = k
+			}
+		}
+		// If both are -1, they are not in the preferred methodOrder list, so sort by method for stable methodOrder
+		if iOrder == -1 && jOrder == -1 {
+			return list[i].Method < list[j].Method
+		}
+		return iOrder < jOrder
+	})
+}
+
+// sortDIDDocumentsByMethod sorts a list of DID documents by the methods of their ID, according to the given order.
+func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
+	listOfDIDs := make([]did.DID, len(list))
+	for i, doc := range list {
+		listOfDIDs[i] = doc.ID
+	}
+	sortDIDsByMethod(listOfDIDs, methodOrder)
+	// methodOrder list according to listOfDIDs
+	orderedList := make([]did.Document, len(list))
+	for i, id := range listOfDIDs {
+	inner:
+		for _, doc := range list {
+			if doc.ID == id {
+				orderedList[i] = doc
+				break inner
+			}
+		}
+	}
+	copy(list, orderedList)
 }

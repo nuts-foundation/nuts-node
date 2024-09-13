@@ -628,7 +628,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		if errors.Is(err, didsubject.ErrSubjectNotFound) {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
-				Description: "subject not found",
+				Description: err.Error(),
 			}
 		}
 		return nil, oauth.OAuth2Error{
@@ -636,7 +636,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 			InternalError: err,
 		}
 	}
-	// resolve DID keys
+	// resolve DID key
 	set := jwk.NewSet()
 	var signingKey string
 	for _, currentDID := range dids {
@@ -657,7 +657,10 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 		}
 		_ = jwkKey.Set(jwk.KeyIDKey, kid)
 		_ = set.AddKey(jwkKey)
-		signingKey = kid
+		// The DID is the preferred DID method (as configured), so take a key of the first DID as signing key
+		if signingKey == "" {
+			signingKey = kid
+		}
 	}
 	// we sign with a JWK, the receiving party can verify with the signature but not if the key corresponds to the DID since the DID method might not be supported.
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds

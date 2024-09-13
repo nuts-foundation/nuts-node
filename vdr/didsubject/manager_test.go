@@ -41,9 +41,9 @@ func TestManager_List(t *testing.T) {
 	t.Run("2 subjects with each 2 DIDs", func(t *testing.T) {
 		db := testDB(t)
 		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example1": testMethod{},
-			"example2": testMethod{},
-		}}
+			"example1": testMethod{method: "example1"},
+			"example2": testMethod{method: "example2"},
+		}, PreferredOrder: []string{"example2", "example1"}}
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject1"}))
 		require.NoError(t, err)
 		_, _, err = m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject2"}))
@@ -57,6 +57,13 @@ func TestManager_List(t *testing.T) {
 		assert.Len(t, result["subject1"], 2)
 		assert.Contains(t, result, "subject2")
 		assert.Len(t, result["subject2"], 2)
+
+		t.Run("preferred order", func(t *testing.T) {
+			assert.Equal(t, "example2", result["subject1"][0].Method)
+			assert.Equal(t, "example1", result["subject1"][1].Method)
+			assert.Equal(t, "example2", result["subject2"][0].Method)
+			assert.Equal(t, "example1", result["subject2"][1].Method)
+		})
 	})
 }
 
@@ -64,8 +71,9 @@ func TestManager_ListDIDs(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		db := testDB(t)
 		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
-			"example": testMethod{},
-		}}
+			"example1": testMethod{method: "example1"},
+			"example2": testMethod{method: "example2"},
+		}, PreferredOrder: []string{"example2", "example1"}}
 		opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject"})
 		_, subject, err := m.Create(audit.TestContext(), opts)
 		require.NoError(t, err)
@@ -73,7 +81,11 @@ func TestManager_ListDIDs(t *testing.T) {
 		dids, err := m.ListDIDs(audit.TestContext(), subject)
 
 		require.NoError(t, err)
-		assert.Len(t, dids, 1)
+		assert.Len(t, dids, 2)
+		t.Run("preferred order", func(t *testing.T) {
+			assert.True(t, strings.HasPrefix(dids[0].String(), "did:example2:"))
+			assert.True(t, strings.HasPrefix(dids[1].String(), "did:example1:"))
+		})
 	})
 	t.Run("unknown subject", func(t *testing.T) {
 		db := testDB(t)
@@ -107,7 +119,10 @@ func TestManager_Create(t *testing.T) {
 	})
 	t.Run("multiple methods", func(t *testing.T) {
 		db := testDB(t)
-		m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}, "test": testMethod{}}}
+		m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+			"example": testMethod{},
+			"test":    testMethod{method: "test"},
+		}, PreferredOrder: []string{"test", "example"}}
 
 		documents, _, err := m.Create(audit.TestContext(), DefaultCreationOptions())
 		require.NoError(t, err)
@@ -116,7 +131,7 @@ func TestManager_Create(t *testing.T) {
 		for i, document := range documents {
 			IDs[i] = document.ID.String()
 		}
-		assert.True(t, strings.HasPrefix(IDs[0], "did:example:"))
+		assert.True(t, strings.HasPrefix(IDs[0], "did:test:"))
 		assert.True(t, strings.HasPrefix(IDs[1], "did:example:"))
 
 		// test alsoKnownAs requirements
@@ -168,7 +183,9 @@ func TestManager_Create(t *testing.T) {
 
 func TestManager_Services(t *testing.T) {
 	db := testDB(t)
-	m := Manager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
+	m := Manager{DB: db, MethodManagers: map[string]MethodManager{
+		"example": testMethod{},
+	}}
 	subject := "subject"
 	opts := DefaultCreationOptions().With(SubjectCreationOption{Subject: subject})
 	documents, _, err := m.Create(audit.TestContext(), opts)
@@ -423,10 +440,15 @@ func TestNewIDForService(t *testing.T) {
 type testMethod struct {
 	committed bool
 	error     error
+	method    string
 }
 
 func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
-	id := fmt.Sprintf("did:example:%s", uuid.New().String())
+	method := t.method
+	if method == "" {
+		method = "example"
+	}
+	id := fmt.Sprintf("did:%s:%s", method, uuid.New().String())
 	return &orm.DIDDocument{DID: orm.DID{ID: id}}, t.error
 }
 
@@ -442,4 +464,17 @@ func (t testMethod) Commit(_ context.Context, _ orm.DIDChangeLog) error {
 
 func (t testMethod) IsCommitted(_ context.Context, _ orm.DIDChangeLog) (bool, error) {
 	return t.committed, t.error
+}
+
+func Test_sortDIDDocumentsByMethod(t *testing.T) {
+	documents := []did.Document{
+		{ID: did.MustParseDID("did:example:1")},
+		{ID: did.MustParseDID("did:test:1")},
+	}
+
+	sortDIDDocumentsByMethod(documents, []string{"test", "example"})
+
+	require.Len(t, documents, 2)
+	assert.Equal(t, "did:test:1", documents[0].ID.String())
+	assert.Equal(t, "did:example:1", documents[1].ID.String())
 }

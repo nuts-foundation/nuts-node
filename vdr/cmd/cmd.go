@@ -45,7 +45,8 @@ func FlagSet() *pflag.FlagSet {
 
 	defs := vdr.DefaultConfig()
 
-	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix).")
+	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). "+
+		"It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.")
 	return flagSet
 }
 
