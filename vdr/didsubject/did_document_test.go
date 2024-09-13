@@ -53,7 +53,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, doc)
 
-		assert.Equal(t, 1, doc.Version)
+		assert.Equal(t, 0, doc.Version)
 		assert.Len(t, doc.ID, 36) // uuid v4
 		assert.Equal(t, alice.String(), doc.DID.ID)
 		assert.Equal(t, "alice", doc.DID.Subject)
@@ -98,7 +98,7 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		require.Len(t, doc.Services, 1)
 		assert.Equal(t, docRoot.CreatedAt, doc.CreatedAt)
 		assert.Less(t, doc.CreatedAt, doc.UpdatedAt)
-		assert.Equal(t, 2, doc.Version)
+		assert.Equal(t, 1, doc.Version)
 	})
 }
 

@@ -54,7 +54,7 @@ func NewDIDDocumentManager(tx *gorm.DB) *SqlDIDDocumentManager {
 }
 
 func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DIDDocument, error) {
-	latest := orm.DIDDocument{}
+	latest := orm.DIDDocument{Version: -1} // -1 means no document exists, will be overwritten below if there is a document
 	err := s.tx.Preload("DID").Where("did = ?", did.ID).Order("version desc").First(&latest).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
