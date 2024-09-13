@@ -4,6 +4,16 @@ Release notes
 #############
 
 ************************
+Hazelnut update (v5.4.10)
+************************
+
+Release date: 2024-09-13
+
+- Minor nuts-network stability improvement
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.9...v5.4.10
+
+************************
 Hazelnut update (v5.4.9)
 ************************
 
