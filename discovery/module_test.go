@@ -28,7 +28,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -304,6 +306,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
 	m := New(storageInstance, mockVCR, mockSubjectManager)
 	m.config = DefaultConfig()
+	m.publicURL = test.MustParseURL("https://example.com")
 	require.NoError(t, m.Configure(core.TestServerConfig()))
 	httpClient := client.NewMockHTTPClient(ctrl)
 	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, nil).AnyTimes()
@@ -330,7 +333,18 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 }
 
 func TestModule_Configure(t *testing.T) {
-	serverConfig := core.ServerConfig{}
+	serverConfig := core.ServerConfig{
+		URL: "https://example.com",
+	}
+	t.Run("missing publicURL", func(t *testing.T) {
+		config := Config{
+			Definitions: ServiceDefinitionsConfig{
+				Directory: "test/duplicate_id",
+			},
+		}
+		err := (&Module{config: config}).Configure(core.ServerConfig{})
+		assert.EqualError(t, err, "'url' must be configured")
+	})
 	t.Run("duplicate ID", func(t *testing.T) {
 		config := Config{
 			Definitions: ServiceDefinitionsConfig{
@@ -387,13 +401,18 @@ func TestModule_Search(t *testing.T) {
 		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
 
 		results, err := m.Search(testServiceID, map[string]string{
-			"credentialSubject.id": aliceDID.String(),
+			"credentialSubject.person.givenName": "Alice",
 		})
 		assert.NoError(t, err)
 		expectedJSON, _ := json.Marshal([]SearchResult{
 			{
 				Presentation: vpAlice,
-				Fields:       map[string]interface{}{"issuer_field": authorityDID},
+				Fields: map[string]interface{}{
+					"auth_server_url_field": "https://example.com/oauth2/alice",
+					"issuer_field":          authorityDID,
+					"type_field":            []string{vc.VerifiableCredentialType, credential.DiscoveryRegistrationCredentialType},
+				},
+				Parameters: defaultRegistrationParams(aliceSubject),
 			},
 		})
 		actualJSON, _ := json.Marshal(results)
@@ -454,7 +473,39 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
+
+		assert.NoError(t, err)
+	})
+	t.Run("ok, with additional params", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		m, testContext := setupModule(t, storageEngine, func(module *Module) {
+			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
+			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
+			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
+			module.httpClient = httpClient
+			// disable auto-refresh job to have deterministic assertions
+			module.config.Client.RefreshInterval = 0
+		})
+		// We expect the client to create 1 VP
+		wallet := holder.NewMockWallet(gomock.NewController(t))
+		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
+		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+			// check if two credentials are given
+			// check if the DiscoveryRegistrationCredential is added with a test value
+			assert.Len(t, credentials, 2)
+			subject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
+			_ = credentials[1].UnmarshalCredentialSubject(&subject)
+			assert.Equal(t, "value", subject[0]["test"])
+			assert.Equal(t, "https://example.com/oauth2/alice", subject[0]["authServerURL"])
+			return &vpAlice, nil
+		})
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, map[string]interface{}{"test": "value"})
 
 		assert.NoError(t, err)
 	})
@@ -464,7 +515,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		m, testContext := setupModule(t, storageEngine)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
 
-		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
 		require.EqualError(t, err, "subject not found")
 	})
@@ -477,7 +528,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).Times(2)
 
-		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject)
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 	})
@@ -510,7 +561,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		m, ctx := setupModule(t, storageEngine)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
-		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
@@ -522,7 +573,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		m, testContext := setupModule(t, storageEngine)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
-		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, &next)
+		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
 		_ = m.store.add(testServiceID, vpAlice, 0)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)

@@ -256,7 +256,7 @@ func (v verifier) doVerifyVP(vcVerifier Verifier, presentation vc.VerifiablePres
 
 	// we only support presenter = holder = credential subject.
 	// Check optional holder property (required for self-attesting VCs)
-	if presentation.Holder != nil && presentation.Holder.String() != subjectDID.String() {
+	if subjectDID != nil && presentation.Holder != nil && presentation.Holder.String() != subjectDID.String() {
 		return nil, newVerificationError("presentation holder must equal credential subject")
 	}
 

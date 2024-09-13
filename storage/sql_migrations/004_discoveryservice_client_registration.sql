@@ -1,3 +1,4 @@
+-- +goose ENVSUB ON
 -- +goose Up
 -- discovery_did_registration contains the DIDs that should be registered on the specified Discovery Service(s).
 create table discovery_presentation_refresh
@@ -7,6 +8,9 @@ create table discovery_presentation_refresh
     service_id   varchar(200) not null,
     -- subject_id is the subject that should be registered on the Discovery Service.
     subject_id   varchar(370) not null,
+    -- parameters contains the registration parameters passed at activation.
+    -- It is a JSON object that maps to map[string]interface{}
+    parameters $TEXT_TYPE,
     -- next_refresh is the timestamp (seconds since Unix epoch) when the registration on the
     -- Discovery Service should be refreshed.
     next_refresh integer      not null,

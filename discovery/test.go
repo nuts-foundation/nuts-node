@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -32,6 +33,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"time"
 )
@@ -42,6 +46,7 @@ var aliceSubject string
 var aliceDID did.DID
 var vcAlice vc.VerifiableCredential
 var vpAlice vc.VerifiablePresentation
+var aliceDiscoveryCredential vc.VerifiableCredential
 var bobSubject string
 var bobDID did.DID
 var vcBob vc.VerifiableCredential
@@ -51,24 +56,66 @@ var unsupportedDID did.DID
 var testServiceID = "usecase_v1"
 
 func testDefinitions() map[string]ServiceDefinition {
-	issuerPattern := "did:example:*"
-	issuerFieldID := "issuer_field"
 	return map[string]ServiceDefinition{
 		testServiceID: {
 			ID:       testServiceID,
 			Endpoint: "http://example.com/usecase",
 			PresentationDefinition: pe.PresentationDefinition{
+				Format: &pe.PresentationDefinitionClaimFormatDesignations{
+					"ldp_vc": {
+						"proof_type": []string{
+							"JsonWebSignature2020",
+						},
+					},
+					"ldp_vp": {
+						"proof_type": []string{
+							"JsonWebSignature2020",
+						},
+					},
+					"jwt_vc": {
+						"alg": []string{
+							"ES256",
+						},
+					},
+					"jwt_vp": {
+						"alg": []string{
+							"ES256",
+						},
+					},
+				},
 				InputDescriptors: []*pe.InputDescriptor{
 					{
 						Id: "1",
 						Constraints: &pe.Constraints{
 							Fields: []pe.Field{
 								{
-									Id:   &issuerFieldID,
+									Id:   to.Ptr("issuer_field"),
 									Path: []string{"$.issuer"},
 									Filter: &pe.Filter{
 										Type:    "string",
-										Pattern: &issuerPattern,
+										Pattern: to.Ptr("did:example:authority"),
+									},
+								},
+							},
+						},
+					},
+					{
+						Id: "2",
+						Constraints: &pe.Constraints{
+							Fields: []pe.Field{
+								{
+									Id:   to.Ptr("auth_server_url_field"),
+									Path: []string{"$.credentialSubject.authServerURL", "$.credentialSubject[0].authServerURL"},
+									Filter: &pe.Filter{
+										Type: "string",
+									},
+								},
+								{
+									Id:   to.Ptr("type_field"),
+									Path: []string{"$.type"},
+									Filter: &pe.Filter{
+										Type:  "string",
+										Const: to.Ptr(credential.DiscoveryRegistrationCredentialType),
 									},
 								},
 							},
@@ -115,6 +162,7 @@ func init() {
 	unsupportedDID = did.MustParseDID("did:web:example.com")
 	keyPairs[unsupportedDID.String()], _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
+	aliceDiscoveryCredential = createHolderCredential(aliceDID, defaultRegistrationParams(aliceSubject))
 	vcAlice = createCredential(authorityDID, aliceDID, map[string]interface{}{
 		"person": map[string]interface{}{
 			"givenName":  "Alice",
@@ -123,7 +171,7 @@ func init() {
 	}, nil)
 	vpAlice = createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 		claims[jwt.AudienceKey] = []string{testServiceID}
-	}, vcAlice)
+	}, vcAlice, aliceDiscoveryCredential)
 	vcBob = createCredential(authorityDID, bobDID, map[string]interface{}{
 		"person": map[string]interface{}{
 			"givenName":  "Bob",
@@ -162,6 +210,20 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 		panic(err)
 	}
 	return *result
+}
+
+func createHolderCredential(subjectDID did.DID, credentialSubject map[string]interface{}) vc.VerifiableCredential {
+	c := vc.VerifiableCredential{
+		Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
+		Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
+		CredentialSubject: []interface{}{credentialSubject},
+	}
+	c = credential.AutoCorrectSelfAttestedCredential(c, subjectDID)
+	// serialize/deserialize
+	bytes, _ := json.Marshal(c)
+	result := vc.VerifiableCredential{}
+	_ = json.Unmarshal(bytes, &result)
+	return result
 }
 
 func createPresentation(subjectDID did.DID, credentials ...vc.VerifiableCredential) vc.VerifiablePresentation {
@@ -232,4 +294,10 @@ func signJWT(subjectDID did.DID, claims map[string]interface{}, headers map[stri
 	}
 	bytes, err := jwt.Sign(token, jwt.WithKey(subjectKeyJWK.Algorithm(), subjectKeyJWK, jws.WithProtectedHeaders(hdr)))
 	return string(bytes), err
+}
+
+func defaultRegistrationParams(subject string) map[string]interface{} {
+	return map[string]interface{}{
+		"authServerURL": test.MustParseURL("https://example.com/oauth2/").JoinPath(subject).String(),
+	}
 }

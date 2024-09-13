@@ -708,10 +708,7 @@ func (w *ServerInterfaceWrapper) CreateDPoPProof(ctx echo.Context) error {
 	// ------------- Path parameter "kid" -------------
 	var kid string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "kid", ctx.Param("kid"), &kid, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter kid: %s", err))
-	}
+	kid = ctx.Param("kid")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 

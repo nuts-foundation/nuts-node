@@ -22,12 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -38,7 +40,7 @@ import (
 // clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.
 // It can refresh registered Verifiable Presentations when they are about to expire.
 type clientRegistrationManager interface {
-	activate(ctx context.Context, serviceID, subjectID string) error
+	activate(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error
 	deactivate(ctx context.Context, serviceID, subjectID string) error
 	// refresh checks which Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
 	refresh(ctx context.Context, now time.Time) error
@@ -64,7 +66,7 @@ func newRegistrationManager(services map[string]ServiceDefinition, store *sqlSto
 	}
 }
 
-func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID, subjectID string) error {
+func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error {
 	service, serviceExists := r.services[serviceID]
 	if !serviceExists {
 		return ErrServiceNotFound
@@ -74,7 +76,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 		return err
 	}
 	var asSoonAsPossible time.Time
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, &asSoonAsPossible); err != nil {
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &asSoonAsPossible); err != nil {
 		return err
 	}
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
@@ -82,7 +84,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	var registeredDIDs []string
 	var loopErrs []error
 	for _, subjectDID := range subjectDIDs {
-		err := r.registerPresentation(ctx, subjectDID, service)
+		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
 			if !errors.Is(err, errMissingCredential) { // ignore missing credentials
 				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
@@ -107,7 +109,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	// Set presentation to be refreshed before it expires
 	// TODO: When to refresh? For now, we refresh when the registration is about at 45% of max age. This means a refresh can fail once without consequence.
 	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.45) * time.Second)
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, &refreshVPAfter); err != nil {
+	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &refreshVPAfter); err != nil {
 		return fmt.Errorf("unable to update Verifiable Presentation refresh time: %w", err)
 	}
 	return nil
@@ -115,7 +117,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 
 func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID, subjectID string) error {
 	// delete DID/service combination from DB, so it won't be registered again
-	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil)
+	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -166,19 +168,29 @@ func (r *defaultClientRegistrationManager) deregisterPresentation(ctx context.Co
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) error {
-	presentation, err := r.findCredentialsAndBuildPresentation(ctx, subjectDID, service)
+func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) error {
+	presentation, err := r.findCredentialsAndBuildPresentation(ctx, subjectDID, service, parameters)
 	if err != nil {
 		return err
 	}
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition) (*vc.VerifiablePresentation, error) {
+func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) (*vc.VerifiablePresentation, error) {
 	credentials, err := r.vcr.Wallet().List(ctx, subjectDID)
 	if err != nil {
 		return nil, err
 	}
+	// add registration params as credential
+	if len(parameters) > 0 {
+		registrationCredential := vc.VerifiableCredential{
+			Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
+			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
+			CredentialSubject: []interface{}{parameters},
+		}
+		credentials = append(credentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
+	}
+
 	matchingCredentials, _, err := service.PresentationDefinition.Match(credentials)
 	const errStr = "failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w"
 	if err != nil {
@@ -195,6 +207,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 	nonce := nutsCrypto.GenerateNonce()
 	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
 	expires := time.Now().Add(time.Duration(service.PresentationMaxValidity-1) * time.Second).Truncate(time.Second)
+	holderURI := subjectDID.URI()
 	return r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{
 		ProofOptions: proof.ProofOptions{
 			Created:              time.Now(),
@@ -204,6 +217,7 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 			AdditionalProperties: additionalProperties,
 		},
 		Format: vc.JWTPresentationProofFormat,
+		Holder: &holderURI,
 	}, &subjectDID, false)
 }
 
@@ -215,11 +229,11 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	}
 	var loopErrs []error
 	for _, candidate := range refreshCandidates {
-		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID); err != nil {
+		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
 			var loopErr error
 			if errors.Is(err, didsubject.ErrSubjectNotFound) {
 				// Subject has probably been deactivated. Remove from service or registration will be retried every refresh interval.
-				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil)
+				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, candidate.Parameters, nil)
 				if err != nil {
 					loopErr = fmt.Errorf("failed to remove unknown subject (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
 				} else {

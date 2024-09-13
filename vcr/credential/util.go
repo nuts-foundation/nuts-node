@@ -20,6 +20,8 @@ package credential
 
 import (
 	"errors"
+	"github.com/google/uuid"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"time"
@@ -107,4 +109,34 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 		return nil
 	}
 	return &result
+}
+
+// AutoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
+// These are provided through the API, and for convenience we set the required fields, if not already set.
+// It only does this for unsigned credentials.
+func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
+	if len(credential.Proof) > 0 {
+		return credential
+	}
+	if credential.ID == nil {
+		credential.ID, _ = ssi.ParseURI(uuid.NewString())
+	}
+	if credential.Issuer.String() == "" {
+		credential.Issuer = requester.URI()
+	}
+	if credential.IssuanceDate.IsZero() {
+		credential.IssuanceDate = time.Now().Truncate(time.Second)
+	}
+	var credentialSubject []map[string]interface{}
+	_ = credential.UnmarshalCredentialSubject(&credentialSubject)
+	if len(credentialSubject) == 1 {
+		if credentialSubject[0] == nil {
+			credentialSubject[0] = make(map[string]interface{})
+		}
+		if _, ok := credentialSubject[0]["id"]; !ok {
+			credentialSubject[0]["id"] = requester.String()
+			credential.CredentialSubject[0] = credentialSubject[0]
+		}
+	}
+	return credential
 }

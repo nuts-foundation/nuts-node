@@ -54,6 +54,16 @@ type NutsOrganizationCredentialSubject struct {
 	Organization map[string]string `json:"organization"`
 }
 
+// DiscoveryRegistrationCredentialSubject defines the CredentialSubject struct for the DiscoveryRegistrationCredential
+type DiscoveryRegistrationCredentialSubject map[string]interface{}
+
+// DiscoveryRegistrationCredentialType is the type for a Discovery Registration Credential
+const DiscoveryRegistrationCredentialType = "DiscoveryRegistrationCredential"
+
+func DiscoveryRegistrationCredentialTypeV1URI() ssi.URI {
+	return ssi.MustParseURI(DiscoveryRegistrationCredentialType)
+}
+
 // NutsAuthorizationCredentialSubject defines the CredentialSubject struct for the NutsAuthorizationCredential
 type NutsAuthorizationCredentialSubject struct {
 	// ID contains the DID of the subject

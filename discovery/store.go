@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
@@ -85,6 +86,8 @@ type presentationRefreshRecord struct {
 	SubjectID string `gorm:"primaryKey"`
 	// NextRefresh is the Timestamp (seconds since Unix epoch) when the registration on the Discovery Service should be refreshed.
 	NextRefresh int64
+	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
+	Parameters []byte
 }
 
 // TableName returns the table name for this DTO.
@@ -296,14 +299,22 @@ func (s *sqlStore) removeExpired() (int, error) {
 
 // updatePresentationRefreshTime creates/updates the next refresh time for a Verifiable Presentation on a Discovery Service.
 // If nextRegistration is nil, the entry will be removed from the database.
-func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID string, nextRefresh *time.Time) error {
+func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID string, parameters map[string]interface{}, nextRefresh *time.Time) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if nextRefresh == nil {
 			// Delete registration
 			return tx.Delete(&presentationRefreshRecord{}, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error
 		}
 		// Create or update it
-		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: nextRefresh.Unix()}).Error
+		var bytes []byte
+		var err error
+		if parameters != nil {
+			bytes, err = json.Marshal(parameters)
+			if err != nil {
+				return err
+			}
+		}
+		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: nextRefresh.Unix(), Parameters: bytes}).Error
 	})
 }
 
@@ -321,11 +332,24 @@ func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectID string
 
 // getSubjectsToBeRefreshed returns all registered subject-service combinations that are due for refreshing.
 func (s *sqlStore) getSubjectsToBeRefreshed(now time.Time) ([]refreshCandidate, error) {
-	var candidates []refreshCandidate
+	var candidates []presentationRefreshRecord
 	if err := s.db.Model(&presentationRefreshRecord{}).Find(&candidates, "next_refresh < ?", now.Unix()).Error; err != nil {
 		return nil, err
 	}
-	return candidates, nil
+	result := make([]refreshCandidate, len(candidates))
+	for i, candidate := range candidates {
+		c := refreshCandidate{
+			ServiceID: candidate.ServiceID,
+			SubjectID: candidate.SubjectID,
+		}
+		if len(candidate.Parameters) > 0 {
+			if err := json.Unmarshal(candidate.Parameters, &c.Parameters); err != nil {
+				return nil, err
+			}
+		}
+		result[i] = c
+	}
+	return result, nil
 }
 
 // refreshCandidate is a subset of presentationRefreshRecord
@@ -334,6 +358,8 @@ type refreshCandidate struct {
 	ServiceID string
 	// SubjectID is the presentationRefreshRecord.SubjectID
 	SubjectID string
+	// Parameters is the presentationRefreshRecord.Parameters
+	Parameters map[string]interface{}
 }
 
 func (s *sqlStore) getTimestamp(serviceID string) (int, error) {

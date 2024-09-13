@@ -226,29 +226,36 @@ func Test_sqlStore_getSubjectsToBeRefreshed(t *testing.T) {
 	})
 	t.Run("1 entry, not stale", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, &now))
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &now))
 		candidates, err := c.getSubjectsToBeRefreshed(time.Now().Add(-1 * time.Hour))
 		require.NoError(t, err)
 		assert.Empty(t, candidates)
 	})
-	t.Run("1 entry, stale", func(t *testing.T) {
+	t.Run("1 entry, stale with holderCredential", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, &now))
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &now))
 		candidates, err := c.getSubjectsToBeRefreshed(time.Now().Add(time.Hour))
 		require.NoError(t, err)
-		assert.Equal(t, []refreshCandidate{{testServiceID, aliceSubject}}, candidates)
+		assert.Equal(t, []refreshCandidate{{testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject)}}, candidates)
+	})
+	t.Run("1 entry, stale", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &now))
+		candidates, err := c.getSubjectsToBeRefreshed(time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		assert.Equal(t, []refreshCandidate{{testServiceID, aliceSubject, nil}}, candidates)
 	})
 	t.Run("does not return removed entry", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, &now))
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &now))
 
 		// Assert it's there
 		candidates, err := c.getSubjectsToBeRefreshed(time.Now().Add(time.Hour))
 		require.NoError(t, err)
-		assert.Equal(t, []refreshCandidate{{testServiceID, aliceSubject}}, candidates)
+		assert.Equal(t, []refreshCandidate{{testServiceID, aliceSubject, nil}}, candidates)
 
 		// Remove it
-		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil))
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, nil))
 		candidates, err = c.getSubjectsToBeRefreshed(time.Now().Add(time.Hour))
 		require.NoError(t, err)
 		assert.Empty(t, candidates)
@@ -268,7 +275,7 @@ func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
 	t.Run("entry exists", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		now := time.Now().Truncate(time.Second)
-		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, &now))
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &now))
 		ts, err := c.getPresentationRefreshTime(testServiceID, aliceSubject)
 		require.NoError(t, err)
 		assert.Equal(t, now, *ts)
@@ -280,6 +287,7 @@ func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 	visitor := func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 		claims[jwt.AudienceKey] = []string{testServiceID}
 	}
+
 	vpAlice2 := createPresentationCustom(aliceDID, visitor, vcAlice, vcBob)
 	vpBob2 := createPresentationCustom(bobDID, visitor, vcAlice, vcBob)
 

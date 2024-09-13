@@ -83,6 +83,15 @@
         "@vocab": "schema"
       }
     },
+    "DiscoveryRegistrationCredential": {
+      "@id": "nuts:DiscoveryRegistrationCredential",
+      "@context": {
+        "@version": 1.1,
+        "@propagate": true,
+        "@protected": true,
+        "@vocab": "nuts"
+      }
+    },
     "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
   }
 }

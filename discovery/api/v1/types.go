@@ -28,3 +28,6 @@ type VerifiablePresentation = vc.VerifiablePresentation
 
 // ServiceDefinition is a type alias
 type ServiceDefinition = discovery.ServiceDefinition
+
+// VerifiableCredential is a type alias for the VerifiableCredential from the go-did library.
+type VerifiableCredential = vc.VerifiableCredential

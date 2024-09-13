@@ -294,6 +294,11 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 		return true
 	}
 
+	if credential.Format() == "" {
+		// holder credential
+		return true
+	}
+
 	asMap := map[string]map[string][]string(*format)
 	switch credential.Format() {
 	case vc.JSONLDCredentialProofFormat:
@@ -368,8 +373,11 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 		type Alias vc.VerifiableCredential
 		credentialAsMap, err = remarshalToMap(Alias(credential))
 	case vc.JSONLDCredentialProofFormat:
+		fallthrough
+	case "": // holder credential
 		credentialAsMap, err = remarshalToMap(credential)
 	}
+
 	if err != nil {
 		return false, nil, err
 	}

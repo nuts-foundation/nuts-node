@@ -37,6 +37,10 @@ var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable P
 // errMissingCredential indicates that a VP does not have the credentials required to fulfill the Presentation Definition of a Discovery Service.
 var errMissingCredential = errors.New("missing credential")
 
+// authServerURLField is the field name for the authServerURL in the DiscoveryRegistrationCredential.
+// it is used to resolve authorization server metadata and thus the endpoints for a service entry.
+const authServerURLField = "authServerURL"
+
 // Server defines the API for Discovery Servers.
 type Server interface {
 	// Register registers a presentation on the given Discovery Service.
@@ -58,8 +62,9 @@ type Client interface {
 	// Registration of all DIDs of the subject will be attempted immediately, and automatically refreshed.
 	// If the initial registration for all DIDs fails with ErrPresentationRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
+	// parameters are added as credentialSubject to a DiscoveryRegistrationCredential holder credential.
 	// It returns an error if the service or subject is invalid/unknown.
-	ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string) error
+	ActivateServiceForSubject(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error
 
 	// DeactivateServiceForSubject stops registration of a subject on a Discovery Service.
 	// It also tries to remove all active registrations of the subject from the Discovery Service.
@@ -84,6 +89,8 @@ type SearchResult struct {
 	// The keys are the Input Descriptor IDs mapped to the values from the credential(s) inside the Presentation.
 	// It only includes constraint fields that have an ID.
 	Fields map[string]interface{} `json:"fields"`
+	// Parameters is a map of parameters that were used during registration.
+	Parameters map[string]interface{} `json:"registrationParameters"`
 }
 
 type presentationVerifier func(definition ServiceDefinition, presentation vc.VerifiablePresentation) error
