@@ -63,11 +63,17 @@ func (store *treeStore) write(tx stoabs.WriteTx, transaction Transaction) error 
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 
-	writer := tx.GetShelfWriter(store.bucketName)
-
 	store.tree.Insert(transaction.Ref(), transaction.Clock())
+	return store.writeWithoutLock(tx)
+}
+
+// writeWithoutLock writes all current changes in the treeStore to disk.
+// It is the callers responsibility to prevent race conditions on treeStore. Use treeStore.mutex if needed.
+func (store *treeStore) writeWithoutLock(tx stoabs.WriteTx) error {
 	dirties, orphaned := store.tree.Updates()
 	store.tree.ResetUpdates() // failure after this point results in rollback anyway
+
+	writer := tx.GetShelfWriter(store.bucketName)
 
 	// delete orphaned leaves
 	for _, orphan := range orphaned { // always zero
