@@ -78,6 +78,28 @@ func (e *engine) Name() string {
 	return "Storage"
 }
 
+// CheckHealth performs health checks for the storage engine.
+func (e *engine) CheckHealth() map[string]core.Health {
+	results := make(map[string]core.Health)
+	if e.sqlDB != nil {
+		sqlHealth := core.Health{
+			Status: core.HealthStatusUp,
+		}
+		db, err := e.sqlDB.DB()
+		if err == nil {
+			err = db.Ping()
+		}
+		if err != nil {
+			sqlHealth = core.Health{
+				Status:  core.HealthStatusDown,
+				Details: err.Error(),
+			}
+		}
+		results["sql"] = sqlHealth
+	}
+	return results
+}
+
 func (e *engine) Start() error {
 	return nil
 }

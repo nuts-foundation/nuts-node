@@ -215,6 +215,45 @@ func Test_engine_sqlDatabase(t *testing.T) {
 	})
 }
 
+func TestEngine_CheckHealth(t *testing.T) {
+	setup := func(t *testing.T) *engine {
+		e := New().(*engine)
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		return e
+	}
+	t.Run("no SQL doesn't panic", func(t *testing.T) {
+		assert.Empty(t, new(engine).CheckHealth())
+	})
+	t.Run("ok", func(t *testing.T) {
+		expected := core.Health{Status: core.HealthStatusUp}
+		e := setup(t)
+		health := e.CheckHealth()
+		status, ok := health["sql"]
+		require.True(t, ok)
+		assert.Equal(t, expected, status)
+	})
+	t.Run("fails", func(t *testing.T) {
+		expected := core.Health{
+			Status:  core.HealthStatusDown,
+			Details: "sql: database is closed",
+		}
+		e := setup(t)
+		db, err := e.sqlDB.DB()
+		require.NoError(t, err)
+		require.NoError(t, db.Close())
+
+		health := e.CheckHealth()
+		status, ok := health["sql"]
+		require.True(t, ok)
+		assert.Equal(t, expected, status)
+	})
+}
+
 func Test_engine_redisSessionDatabase(t *testing.T) {
 	t.Run("redis", func(t *testing.T) {
 		redis := miniredis.RunT(t)
