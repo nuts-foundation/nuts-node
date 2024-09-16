@@ -65,12 +65,12 @@ func AssertAuditInfo(t *testing.T, ctx echo.Context, actor, module, operation st
 }
 
 type CapturedLog struct {
-	hook *test.Hook
+	Hook *test.Hook
 }
 
 func (c *CapturedLog) Contains(t *testing.T, eventName string) bool {
 	t.Helper()
-	for _, entry := range c.hook.AllEntries() {
+	for _, entry := range c.Hook.AllEntries() {
 		if entry.Data["event"] == eventName {
 			return true
 		}
@@ -80,7 +80,7 @@ func (c *CapturedLog) Contains(t *testing.T, eventName string) bool {
 
 func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, actor string, message string) {
 	t.Helper()
-	for _, entry := range c.hook.AllEntries() {
+	for _, entry := range c.Hook.AllEntries() {
 		if entry.Data["module"] == module &&
 			entry.Data["event"] == event &&
 			entry.Data["actor"] == actor &&
@@ -98,7 +98,7 @@ func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, 
 	}
 	// If failed, collect log entries for error message
 	var entries []string
-	for _, entry := range c.hook.AllEntries() {
+	for _, entry := range c.Hook.AllEntries() {
 		msg, _ := (&logrus.TextFormatter{}).Format(entry)
 		entries = append(entries, string(msg))
 	}
@@ -107,14 +107,18 @@ func (c *CapturedLog) AssertContains(t *testing.T, module string, event string, 
 		"  found: %v", module, event, message, actor, entries)
 }
 
-func CaptureLogs(t *testing.T) *CapturedLog {
+func CaptureAuditLogs(t *testing.T) *CapturedLog {
+	return CaptureLogs(t, auditLogger())
+}
+
+func CaptureLogs(t *testing.T, logger *logrus.Logger) *CapturedLog {
 	// Reset the hooks to their original state when the test ends
-	oldHooks := auditLogger().Hooks
+	oldHooks := logger.Hooks
 	t.Cleanup(func() {
-		auditLogger().ReplaceHooks(oldHooks)
+		logger.ReplaceHooks(oldHooks)
 	})
 
 	hook := &test.Hook{}
-	auditLogger().AddHook(hook)
-	return &CapturedLog{hook: hook}
+	logger.AddHook(hook)
+	return &CapturedLog{Hook: hook}
 }

@@ -91,7 +91,7 @@ func TestCrypto_New(t *testing.T) {
 	ctx := audit.TestContext()
 
 	t.Run("ok", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
 
@@ -122,7 +122,7 @@ func TestCrypto_New(t *testing.T) {
 
 func TestCrypto_Delete(t *testing.T) {
 	ctx := audit.TestContext()
-	auditLogs := audit.CaptureLogs(t)
+	auditLogs := audit.CaptureAuditLogs(t)
 
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

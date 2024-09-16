@@ -207,7 +207,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		assert.Equal(t, kid, actualKID)
 	})
 	t.Run("writes audit logs", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		_, err := client.SignJWT(audit.TestContext(), map[string]interface{}{"iss": "nuts", "sub": "subject"}, nil, kid)
 
@@ -274,7 +274,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		assert.Equal(t, "nuts", body["iss"])
 	})
 	t.Run("writes audit log", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		_, err := client.SignJWS(audit.TestContext(), []byte{1, 2, 3}, map[string]interface{}{"typ": "JWT"}, kid, false)
 
@@ -380,7 +380,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("writes audit log", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		_, err := client.EncryptJWE(audit.TestContext(), []byte{1, 2, 3}, headers, pubKey)
 
@@ -446,7 +446,7 @@ func TestCrypto_DecryptJWE(t *testing.T) {
 		require.EqualError(t, err, "keys stored in 'test' do not support JWE decryption")
 	})
 	t.Run("writes audit log", func(t *testing.T) {
-		auditLogs := audit.CaptureLogs(t)
+		auditLogs := audit.CaptureAuditLogs(t)
 
 		tokenString, err := EncryptJWE([]byte{1, 2, 3}, map[string]interface{}{"typ": "JWT", "kid": kid}, pubKey)
 		require.NoError(t, err)
