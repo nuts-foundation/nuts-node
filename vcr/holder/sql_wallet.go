@@ -41,9 +41,6 @@ import (
 	"time"
 )
 
-// ErrNoCredentials is returned when no matching credentials are found in the wallet based on a PresentationDefinition
-var ErrNoCredentials = errors.New("no matching credentials")
-
 type sqlWallet struct {
 	keyResolver   resolver.KeyResolver
 	keyStore      crypto.KeyStore

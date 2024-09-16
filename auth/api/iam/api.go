@@ -31,7 +31,6 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/http/cache"
 	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
@@ -202,7 +201,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
 		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
-		holder.ErrNoCredentials:             http.StatusPreconditionFailed,
+		pe.ErrNoCredentials:                 http.StatusPreconditionFailed,
 		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
 	})
 }

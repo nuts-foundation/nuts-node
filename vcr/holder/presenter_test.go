@@ -328,7 +328,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
 
-		assert.Equal(t, ErrNoCredentials, err)
+		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, vp)
 		assert.Nil(t, submission)
 	})

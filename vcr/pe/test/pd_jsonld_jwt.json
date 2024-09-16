@@ -3,6 +3,7 @@
   "input_descriptors": [
     {
       "id": "organization_credential",
+      "name": "organization_credential",
       "constraints": {
         "fields": [
           {

@@ -10,6 +10,7 @@
   "input_descriptors": [
     {
       "id": "as_jsonld",
+      "name": "as_jsonld",
       "group": [
         "vc"
       ],
@@ -47,6 +48,7 @@
     },
     {
       "id": "as_jwt",
+      "name": "as_jwt",
       "group": [
         "vc"
       ],

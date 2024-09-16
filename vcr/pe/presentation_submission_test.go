@@ -590,7 +590,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 
 		credentials, err := PresentationSubmission{}.Validate(toEnvelope(t, []vc.VerifiablePresentation{vp}), definition)
 
-		assert.EqualError(t, err, "presentation submission doesn't match presentation definition")
+		assert.EqualError(t, err, "failed to match presentation definition: missing credentials\nconstraints not matched: no VC for InputDescriptor (1)")
 		assert.Empty(t, credentials)
 	})
 	t.Run("credentials match wrong input descriptors", func(t *testing.T) {

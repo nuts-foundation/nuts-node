@@ -257,7 +257,7 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 	// We don't have a PresentationSubmission, so we can't use Validate().
 	creds, _, err := definition.PresentationDefinition.Match(presentation.VerifiableCredential)
 	if err != nil {
-		return err
+		return fmt.Errorf("verifiable presentation doesn't match required presentation definition: %w", err)
 	}
 	if len(creds) != len(presentation.VerifiableCredential) {
 		return errPresentationDoesNotFulfillDefinition

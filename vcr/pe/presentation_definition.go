@@ -63,7 +63,7 @@ type PresentationContext struct {
 }
 
 // Match matches the VCs against the presentation definition. It returns the matching Verifiable Credentials and their mapping to the Presentation Definition.
-// If the given credentials do not match the presentation definition, no credentials, mapping, or error is returned.
+// If the given credentials do not match the presentation definition, an error is returned.
 // It implements §5 of the Presentation Exchange specification (v2.x.x pre-Draft, 2023-07-29) (https://identity.foundation/presentation-exchange/#presentation-definition)
 // It supports the following:
 // - ldp_vc format
@@ -171,12 +171,22 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 	matchingCredentials := make([]vc.VerifiableCredential, len(candidates))
 	var descriptors []InputDescriptorMappingObject
 	var index int
-	for i, candidate := range candidates {
-		// a constraint is not matched, return early
-		// we do not raise an error here since SubmissionRequirements might specify a "pick" rule
+
+	// select all candidates without a VC
+	descriptorsNotMatched := make([]string, 0)
+	for _, candidate := range candidates {
 		if candidate.VC == nil {
-			return nil, []vc.VerifiableCredential{}, nil
+			descriptorsNotMatched = append(descriptorsNotMatched, fmt.Sprintf("no VC for InputDescriptor (%s)", candidate.InputDescriptor.Id))
 		}
+	}
+	// a constraint is not matched, return early
+	// we do not raise an error here since SubmissionRequirements might specify a "pick" rule
+
+	if len(descriptorsNotMatched) > 0 {
+		return nil, nil, errors.Join(ErrNoCredentials, fmt.Errorf("constraints not matched: %s", strings.Join(descriptorsNotMatched, ", ")))
+	}
+
+	for i, candidate := range candidates {
 		// create the InputDescriptorMappingObject with the relative path
 		mapping := InputDescriptorMappingObject{
 			Id:     candidate.InputDescriptor.Id,
@@ -352,7 +362,10 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 	//   a vc must match the constraint
 	if descriptor.Constraints != nil {
 		matches, _, err := matchConstraint(descriptor.Constraints, credential)
-		return matches, err
+		if err != nil {
+			return false, fmt.Errorf("failed to match constraint for input descriptor '%s' and credential '%s': %w", descriptor.Name, credential.ID, err)
+		}
+		return matches, nil
 	}
 	return true, nil
 }

@@ -871,12 +871,12 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, holder.ErrNoCredentials)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, pe.ErrNoCredentials)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
 		require.Error(t, err)
-		assert.Equal(t, err, holder.ErrNoCredentials)
+		assert.Equal(t, err, pe.ErrNoCredentials)
 		assert.Equal(t, http.StatusPreconditionFailed, statusCodeFrom(err))
 	})
 }

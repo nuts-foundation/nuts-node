@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/stretchr/testify/assert"
@@ -157,7 +158,7 @@ func Test_Module_Register(t *testing.T) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, createCredential(unsupportedDID, unsupportedDID, nil, nil))
 			err := m.Register(ctx, testServiceID, otherVP)
-			require.ErrorContains(t, err, "presentation does not fulfill Presentation ServiceDefinition")
+			assert.ErrorIs(t, err, pe.ErrNoCredentials)
 
 			_, timestamp, _ := m.Get(ctx, testServiceID, 0)
 			assert.Equal(t, 0, timestamp)

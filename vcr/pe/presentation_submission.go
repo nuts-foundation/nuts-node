@@ -114,7 +114,7 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 	selectedVCs, inputDescriptorMappingObjects, err := b.presentationDefinition.Match(allVCs)
 	if err != nil {
-		return presentationSubmission, nil, err
+		return presentationSubmission, nil, fmt.Errorf("failed to match presentation definition: %w", err)
 	}
 
 	// next we need to map the selected VCs to the correct wallet

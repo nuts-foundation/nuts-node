@@ -19,6 +19,7 @@
 package pe
 
 import (
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"slices"
@@ -134,7 +135,7 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 	if submissionRequirement.Rule == "all" {
 		// no empty members allowed
 		if selectableCount != len(list) {
-			return nil, fmt.Errorf("submission requirement (%s) does not have all credentials from the group", submissionRequirement.Name)
+			return nil, errors.Join(ErrNoCredentials, fmt.Errorf("submission requirement (%s) does not have all credentials from the group", submissionRequirement.Name))
 		}
 		for _, member := range list {
 			// shouldn't happen, but prevents a panic
@@ -149,7 +150,7 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 	if submissionRequirement.Count != nil {
 		// not enough matching constraints
 		if selectableCount < *submissionRequirement.Count {
-			return nil, fmt.Errorf("submission requirement (%s) has less credentials (%d) than required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Count)
+			return nil, errors.Join(ErrNoCredentials, fmt.Errorf("submission requirement (%s) has less credentials (%d) than required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Count))
 		}
 		i := 0
 		for _, member := range list {
@@ -167,7 +168,7 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 	// check min and max rules
 	// only check if min requirement is met, max just determines the upper bound for the return
 	if submissionRequirement.Min != nil && selectableCount < *submissionRequirement.Min {
-		return nil, fmt.Errorf("submission requirement (%s) has less matches (%d) than minimal required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Min)
+		return nil, errors.Join(ErrNoCredentials, fmt.Errorf("submission requirement (%s) has less matches (%d) than minimal required (%d)", submissionRequirement.Name, selectableCount, *submissionRequirement.Min))
 	}
 	// take max if both min and max are set
 	index := 0
