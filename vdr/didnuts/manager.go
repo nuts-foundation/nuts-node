@@ -75,7 +75,7 @@ const MethodName = "nuts"
 // CreateDocument creates an empty DID document with baseline properties set.
 func CreateDocument() did.Document {
 	return did.Document{
-		Context: []interface{}{jsonld.JWS2020ContextV1URI(), did.DIDContextV1URI()},
+		Context: []interface{}{did.DIDContextV1URI(), jsonld.JWS2020ContextV1URI()},
 	}
 }
 
