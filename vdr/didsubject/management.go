@@ -37,7 +37,7 @@ var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 type MethodManager interface {
 	// NewDocument generates a new DID document for the given subject.
 	// This is done by the method manager since the DID might depend on method specific rules.
-	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error)
+	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error)
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
 	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.

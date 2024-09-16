@@ -35,7 +35,7 @@ type DIDChangeLog struct {
 	DIDDocumentVersionID string `gorm:"primaryKey;column:did_document_version_id"`
 	Type                 string
 	TransactionID        string      `gorm:"column:transaction_id"`
-	DIDDocumentVersion   DIDDocument `gorm:"foreignKey:DIDDocumentVersionID;references:ID"`
+	DIDDocumentVersion   DidDocument `gorm:"foreignKey:DIDDocumentVersionID;references:ID"`
 }
 
 func (d DIDChangeLog) TableName() string {

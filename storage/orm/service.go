@@ -24,9 +24,8 @@ var _ schema.Tabler = (*Service)(nil)
 
 // Service is the gorm representation of the did_service table
 type Service struct {
-	ID            string `gorm:"primaryKey"`
-	DIDDocumentID string `gorm:"column:did_document_id"`
-	Data          []byte
+	ID   string `gorm:"primaryKey"`
+	Data []byte
 }
 
 func (v Service) TableName() string {

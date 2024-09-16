@@ -72,10 +72,10 @@ func (mr *MockMethodManagerMockRecorder) IsCommitted(ctx, event any) *gomock.Cal
 }
 
 // NewDocument mocks base method.
-func (m *MockMethodManager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+func (m *MockMethodManager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewDocument", ctx, keyFlags)
-	ret0, _ := ret[0].(*orm.DIDDocument)
+	ret0, _ := ret[0].(*orm.DidDocument)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

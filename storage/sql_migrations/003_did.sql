@@ -21,8 +21,7 @@ create table did_document_version
     version int not null,
     raw $TEXT_TYPE, -- make not nil in future PR
     unique (did, version),
-    foreign key (did) references did (id) on delete cascade,
-    unique (did, version)
+    foreign key (did) references did (id) on delete cascade
 );
 
 -- this table is used for the poor-mans 2-phase commit
@@ -49,12 +48,10 @@ create table key_reference
 );
 
 -- this table is used to store the verification methods for locally managed DIDs
-create table did_verificationmethod
+create table did_verification_method
 (
     -- id is the unique id of the verification method as it appears in the DID document using the fully qualified representation.
     id varchar(415) not null primary key,
-    -- did_document_id references the DID document version
-    did_document_id  varchar(36) not null,
     -- key_types is a base64 encoded bitmask of the key types supported by the verification method.
     -- 0x01 - AssertionMethod
     -- 0x02 - Authentication
@@ -67,8 +64,19 @@ create table did_verificationmethod
     weight SMALLINT default 0,
     -- data is a JSON object containing the verification method data, e.g. the public key.
     -- When producing the verificationMethod, data is used as JSON base object and the id and type are added.
-    data $TEXT_TYPE   not null,
-    foreign key (did_document_id) references did_document_version (id) on delete cascade
+    data $TEXT_TYPE   not null
+);
+
+-- this table is used to link unique verification methods to all DID document versions they are used in
+create table did_document_to_verification_method
+(
+    -- did_document_id references the DID document version
+    did_document_id  varchar(36) not null,
+    -- verification_method_id references the verification method
+    verification_method_id  varchar(415) not null,
+    primary key (did_document_id,verification_method_id),
+    foreign key (did_document_id) references did_document_version (id) on delete cascade,
+    foreign key (verification_method_id) references did_verification_method (id) on delete cascade
 );
 
 -- this table is used to store the services for locally managed DIDs
@@ -76,16 +84,25 @@ create table did_service
 (
     -- id is the unique id of the service as it appears in the DID document using the shorthand representation.
     id   varchar(254) not null primary key,
-    -- did_document_id references the DID document version
-    did_document_id  varchar(36) not null,
     -- data is a JSON object containing the service data, e.g. the serviceEndpoint.
     -- When producing the service, data is used as JSON base object and the id and type are added.
-    data $TEXT_TYPE   not null,
-    foreign key (did_document_id) references did_document_version (id) on delete cascade
+    data $TEXT_TYPE   not null
+);
+
+-- this table is used to link unique services to all DID document versions they are used in
+create table did_document_to_service
+(
+    -- did_document_id references the DID document version
+    did_document_id  varchar(36) not null,
+    -- service_id references the DID service
+    service_id  varchar(254) not null,
+    primary key (did_document_id,service_id),
+    foreign key (did_document_id) references did_document_version (id) on delete cascade,
+    foreign key (service_id) references did_service (id) on delete cascade
 );
 
 -- +goose Down
-drop table did_verificationmethod;
+drop table did_verification_method;
 drop table did_service;
 drop table did_change_log;
 drop table did_document_version;

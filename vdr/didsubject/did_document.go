@@ -37,10 +37,10 @@ type DIDDocumentManager interface {
 	// If the DID does not exist yet, it will be created
 	// It adds all verification methods, services, alsoKnownAs to the DID document
 	// Not passing any verification methods will create an empty DID document, deactivation checking should be done by the caller
-	CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DIDDocument, error)
+	CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DidDocument, error)
 	// Latest returns the latest version of a DID document
 	// if notAfter is given, it will return the latest version before that time
-	Latest(did did.DID, notAfter *time.Time) (*orm.DIDDocument, error)
+	Latest(did did.DID, notAfter *time.Time) (*orm.DidDocument, error)
 }
 
 // SqlDIDDocumentManager is the implementation of the DIDDocumentManager interface
@@ -53,28 +53,19 @@ func NewDIDDocumentManager(tx *gorm.DB) *SqlDIDDocumentManager {
 	return &SqlDIDDocumentManager{tx: tx}
 }
 
-func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DIDDocument, error) {
-	latest := orm.DIDDocument{Version: -1} // -1 means no document exists, will be overwritten below if there is a document
+func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DidDocument, error) {
+	latest := orm.DidDocument{Version: -1} // -1 means no document exists, will be overwritten below if there is a document
 	err := s.tx.Preload("DID").Where("did = ?", did.ID).Order("version desc").First(&latest).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
-	version := latest.Version + 1
-	id := uuid.New().String()
-	// update DIDDocumentID for all VMs and services
-	for i := range verificationMethods {
-		verificationMethods[i].DIDDocumentID = id
-	}
-	for i := range services {
-		services[i].DIDDocumentID = id
-	}
-	now := time.Now().Unix()
-	doc := orm.DIDDocument{
-		ID:                  id,
+
+	doc := orm.DidDocument{
+		ID:                  uuid.New().String(),
 		DID:                 did,
 		CreatedAt:           latest.CreatedAt,
-		UpdatedAt:           now,
-		Version:             version,
+		UpdatedAt:           time.Now().Unix(),
+		Version:             latest.Version + 1,
 		VerificationMethods: verificationMethods,
 		Services:            services,
 	}
@@ -87,8 +78,8 @@ func (s *SqlDIDDocumentManager) CreateOrUpdate(did orm.DID, verificationMethods 
 	return &doc, err
 }
 
-func (s *SqlDIDDocumentManager) Latest(did did.DID, resolveTime *time.Time) (*orm.DIDDocument, error) {
-	doc := orm.DIDDocument{}
+func (s *SqlDIDDocumentManager) Latest(did did.DID, resolveTime *time.Time) (*orm.DidDocument, error) {
+	doc := orm.DidDocument{}
 	notAfter := time.Now().Add(time.Hour).Unix()
 	if resolveTime != nil {
 		notAfter = resolveTime.Unix()
