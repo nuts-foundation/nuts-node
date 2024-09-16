@@ -1,0 +1,11 @@
+services:
+  nodeA:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    ports:
+      - "18081:8081"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    volumes:
+      - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
