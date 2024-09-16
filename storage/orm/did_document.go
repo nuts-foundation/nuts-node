@@ -75,7 +75,8 @@ func (sqlDoc DIDDocument) GenerateDIDDocument() (did.Document, error) {
 	document := did.Document{
 		AlsoKnownAs: others,
 		Context: []interface{}{
-			jsonld.JWS2020ContextV1URI(), did.DIDContextV1URI(),
+			did.DIDContextV1URI(),
+			jsonld.JWS2020ContextV1URI(),
 		},
 		ID: *id,
 	}
