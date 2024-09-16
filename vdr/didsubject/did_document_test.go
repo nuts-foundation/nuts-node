@@ -34,12 +34,12 @@ var sqlDidAlice = orm.DID{ID: alice.String(), Subject: "alice"}
 func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 	keyUsageFlag := orm.VerificationMethodKeyType(31)
 	vm := orm.VerificationMethod{
-		ID:       "#1",
+		ID:       "#key-1",
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
 	}
 	service := orm.Service{
-		ID:   "#2",
+		ID:   "#service-1",
 		Data: []byte("{}"),
 	}
 	sqlDidBob := orm.DID{ID: bob.String(), Subject: "bob"}
@@ -74,31 +74,54 @@ func TestSqlDIDDocumentManager_CreateOrUpdate(t *testing.T) {
 		assert.Equal(t, []byte("{}"), doc.VerificationMethods[0].Data)
 		assert.Equal(t, keyUsageFlag, doc.VerificationMethods[0].KeyTypes)
 		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
-
 	})
 	t.Run("update", func(t *testing.T) {
-		tx := db.Begin()
-		docManager := NewDIDDocumentManager(tx)
+		countRows := func(t *testing.T, table interface{}) int {
+			var count int64
+			err := db.Model(table).Count(&count).Error
+			if err != nil {
+				t.Fatal(err)
+			}
+			return int(count)
+		}
+		vm2 := orm.VerificationMethod{
+			ID:       "#key-2",
+			Data:     []byte("{}"),
+			KeyTypes: keyUsageFlag,
+		}
+		service2 := orm.Service{
+			ID:   "#service-2",
+			Data: []byte("{}"),
+		}
+
+		docManager := NewDIDDocumentManager(db)
 		docRoot, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
 		require.NoError(t, err)
-		require.NoError(t, tx.Commit().Error)
 
 		// rewrite timestamps to make sure docRoot.CreatedAt < doc.UpdatedAt
 		createdAt := time.Now().Add(-2 * time.Second).Unix()
 		docRoot.CreatedAt, docRoot.UpdatedAt = createdAt, createdAt
 		db.Save(&docRoot)
 
-		docManager = NewDIDDocumentManager(transaction(t, db))
+		// update service
+		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service2})
 		require.NoError(t, err)
+		require.Len(t, doc.Services, 1)
+		assert.Equal(t, 2, countRows(t, &orm.Service{}))
+		assert.Equal(t, 1, countRows(t, &orm.VerificationMethod{}))
 
-		doc, err := docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm}, []orm.Service{service})
+		// update vm, re-add service1
+		doc, err = docManager.CreateOrUpdate(sqlDidBob, []orm.VerificationMethod{vm2}, []orm.Service{service, service2})
+		require.NoError(t, err)
+		assert.Equal(t, 2, countRows(t, &orm.Service{}))
+		assert.Equal(t, 2, countRows(t, &orm.VerificationMethod{}))
 
 		assert.Len(t, doc.ID, 36) // uuid v4
 		require.Len(t, doc.VerificationMethods, 1)
-		require.Len(t, doc.Services, 1)
+		require.Len(t, doc.Services, 2)
 		assert.Equal(t, docRoot.CreatedAt, doc.CreatedAt)
 		assert.Less(t, doc.CreatedAt, doc.UpdatedAt)
-		assert.Equal(t, 1, doc.Version)
+		assert.Equal(t, 2, doc.Version)
 	})
 }
 
