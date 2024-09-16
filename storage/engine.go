@@ -92,7 +92,7 @@ func (e *engine) CheckHealth() map[string]core.Health {
 		if err != nil {
 			sqlHealth = core.Health{
 				Status:  core.HealthStatusDown,
-				Details: err,
+				Details: err.Error(),
 			}
 		}
 		results["sql"] = sqlHealth
