@@ -332,7 +332,7 @@ func TestManager_Commit(t *testing.T) {
 		data, _ := json.Marshal(document.VerificationMethod[0])
 		return orm.DIDChangeLog{
 			Type: orm.DIDChangeCreated,
-			DIDDocumentVersion: orm.DIDDocument{
+			DIDDocumentVersion: orm.DidDocument{
 				ID: uuid.New().String(),
 				DID: orm.DID{
 					ID:      document.ID.String(),
@@ -418,7 +418,7 @@ func TestManager_IsCommitted(t *testing.T) {
 	vmData, _ := json.Marshal(document.VerificationMethod[0])
 	eventLog := orm.DIDChangeLog{
 		Type: orm.DIDChangeCreated,
-		DIDDocumentVersion: orm.DIDDocument{
+		DIDDocumentVersion: orm.DidDocument{
 			ID: uuid.New().String(),
 			DID: orm.DID{
 				ID:      document.ID.String(),

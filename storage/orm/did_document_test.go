@@ -26,7 +26,7 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 		ID:   "#2",
 		Data: []byte(serviceData),
 	}
-	document := DIDDocument{
+	document := DidDocument{
 		ID:                  "id",
 		DID:                 DID{ID: alice.String(), Aka: []DID{{ID: bob.String()}}},
 		Version:             1,

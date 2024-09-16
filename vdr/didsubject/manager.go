@@ -128,7 +128,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		}
 	}
 
-	sqlDocs := make(map[string]orm.DIDDocument)
+	sqlDocs := make(map[string]orm.DidDocument)
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
 		sqlDIDManager := NewDIDManager(tx)
@@ -251,7 +251,7 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 	services := make([]did.Service, 0)
 
 	serviceIDFragment := NewIDForService(service)
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		// use a generated ID where the fragment equals the hash of the service
 		service.ID = id.URI()
 		service.ID.Fragment = serviceIDFragment
@@ -320,7 +320,7 @@ func (r *Manager) FindServices(_ context.Context, subject string, serviceType *s
 
 // DeleteService removes a service from the DID document identified by subjectDID.
 func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		j := 0
 		for i, s := range current.Services {
 			sID, _ := ssi.ParseURI(s.ID)
@@ -348,7 +348,7 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 
 	// use a generated ID where the fragment equals the hash of the service
 	serviceIDFragment := NewIDForService(service)
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		j := 0
 		for i, s := range current.Services {
 			sID, _ := ssi.ParseURI(s.ID)
@@ -388,7 +388,7 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 
 	verificationMethods := make([]did.VerificationMethod, 0)
 	var vmIDs []string
-	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error) {
+	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		// known limitation
 		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
 			return nil, errors.New("key agreement not supported for did:web")
@@ -464,7 +464,7 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 			// Delete the DID Document versions
 			for _, change := range changes {
 				// will also remove changelog via cascade
-				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DIDDocument{}).Error; err != nil {
+				if err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DidDocument{}).Error; err != nil {
 					return err
 				}
 			}
@@ -491,7 +491,7 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 // applyToDIDDocuments is a helper function that applies an operation to all DID documents of a subject (1 per did method).
 // It uses transactionHelper to perform the operation in a transaction.
 // if the operation returns nil then no changes are made.
-func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *orm.DIDDocument) (*orm.DIDDocument, error)) error {
+func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error)) error {
 	return r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		eventLog := make(map[string]orm.DIDChangeLog)
 		sqlDIDManager := NewDIDManager(tx)
@@ -578,7 +578,7 @@ func (r *Manager) Rollback(ctx context.Context) {
 			// if one failed, delete all document versions for this transaction_id
 			if !committed {
 				for _, change := range versionChanges {
-					err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DIDDocument{}).Error
+					err := tx.Where("id = ?", change.DIDDocumentVersionID).Delete(&orm.DidDocument{}).Error
 					if err != nil {
 						return err
 					}

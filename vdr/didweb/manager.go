@@ -55,7 +55,7 @@ type Manager struct {
 	tenantPath string
 }
 
-func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error) {
 	newDID, _ := did.ParseDID(fmt.Sprintf("%s:%s:%s", m.rootDID.String(), m.tenantPath, uuid.New()))
 	var sqlVerificationMethods []orm.VerificationMethod
 
@@ -75,9 +75,9 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 		}
 	}
 
-	// Create sql.DIDDocument
+	// Create sql.DidDocument
 	now := time.Now().Unix()
-	sqlDoc := orm.DIDDocument{
+	sqlDoc := orm.DidDocument{
 		DID: orm.DID{
 			ID: newDID.String(),
 		},

@@ -18,23 +18,20 @@
 
 package orm
 
-import (
-	"gorm.io/gorm/schema"
-)
+import "gorm.io/gorm/schema"
 
 var _ schema.Tabler = (*VerificationMethod)(nil)
 
 // VerificationMethod is the gorm representation of the did_verificationmethod table
 type VerificationMethod struct {
-	ID            string `gorm:"primaryKey"`
-	DIDDocumentID string `gorm:"column:did_document_id"`
-	KeyTypes      VerificationMethodKeyType
-	Weight        int16
-	Data          []byte
+	ID       string `gorm:"primaryKey"`
+	KeyTypes VerificationMethodKeyType
+	Weight   int16
+	Data     []byte
 }
 
 func (v VerificationMethod) TableName() string {
-	return "did_verificationmethod"
+	return "did_verification_method"
 }
 
 // VerificationMethodKeyType is used to marshal and unmarshal the key type to the DB

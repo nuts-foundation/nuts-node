@@ -314,7 +314,7 @@ func TestManager_rollback(t *testing.T) {
 		ID:      "did:example:123",
 		Subject: "subject",
 	}
-	didDocument := orm.DIDDocument{
+	didDocument := orm.DidDocument{
 		ID:        "1",
 		DidID:     "did:example:123",
 		UpdatedAt: time.Now().Add(-time.Hour).Unix(),
@@ -344,7 +344,7 @@ func TestManager_rollback(t *testing.T) {
 		assert.Len(t, didChangeLog, 0)
 
 		// check removal of  DIDDocument
-		didDocuments := make([]orm.DIDDocument, 0)
+		didDocuments := make([]orm.DidDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 0)
 	})
@@ -365,7 +365,7 @@ func TestManager_rollback(t *testing.T) {
 		assert.Len(t, didChangeLog, 1)
 
 		// check existence of DIDDocument
-		didDocuments := make([]orm.DIDDocument, 0)
+		didDocuments := make([]orm.DidDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 1)
 	})
@@ -386,7 +386,7 @@ func TestManager_rollback(t *testing.T) {
 		assert.Len(t, didChangeLog, 0)
 
 		// check existence of DIDDocument
-		didDocuments := make([]orm.DIDDocument, 0)
+		didDocuments := make([]orm.DidDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 1)
 	})
@@ -398,7 +398,7 @@ func TestManager_rollback(t *testing.T) {
 			ID:      "did:example:321",
 			Subject: "subject",
 		}
-		didDocument2 := orm.DIDDocument{
+		didDocument2 := orm.DidDocument{
 			ID:        "2",
 			DidID:     "did:example:321",
 			UpdatedAt: time.Now().Add(-time.Hour).Unix(),
@@ -420,7 +420,7 @@ func TestManager_rollback(t *testing.T) {
 		assert.Len(t, didChangeLog, 0)
 
 		// check removal of  DIDDocument
-		didDocuments := make([]orm.DIDDocument, 0)
+		didDocuments := make([]orm.DidDocument, 0)
 		require.NoError(t, db.Find(&didDocuments).Error)
 		assert.Len(t, didDocuments, 0)
 	})
@@ -443,13 +443,13 @@ type testMethod struct {
 	method    string
 }
 
-func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
 	method := t.method
 	if method == "" {
 		method = "example"
 	}
 	id := fmt.Sprintf("did:%s:%s", method, uuid.New().String())
-	return &orm.DIDDocument{DID: orm.DID{ID: id}}, t.error
+	return &orm.DidDocument{DID: orm.DID{ID: id}}, t.error
 }
 
 func (t testMethod) NewVerificationMethod(_ context.Context, controller did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {

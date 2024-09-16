@@ -29,7 +29,7 @@ func TestDIDEventLog_DID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		id := did.MustParseDID("did:example:123")
 		didEventLog := DIDChangeLog{
-			DIDDocumentVersion: DIDDocument{
+			DIDDocumentVersion: DidDocument{
 				DID: DID{ID: id.String()},
 			},
 		}
@@ -38,7 +38,7 @@ func TestDIDEventLog_DID(t *testing.T) {
 	})
 	t.Run("malformed DID", func(t *testing.T) {
 		didEventLog := DIDChangeLog{
-			DIDDocumentVersion: DIDDocument{
+			DIDDocumentVersion: DidDocument{
 				DID: DID{ID: "malformed"},
 			},
 		}
@@ -51,7 +51,7 @@ func TestDIDEventLog_Method(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		id := did.MustParseDID("did:example:123")
 		didEventLog := DIDChangeLog{
-			DIDDocumentVersion: DIDDocument{
+			DIDDocumentVersion: DidDocument{
 				DID: DID{ID: id.String()},
 			},
 		}
@@ -60,7 +60,7 @@ func TestDIDEventLog_Method(t *testing.T) {
 	})
 	t.Run("malformed DID", func(t *testing.T) {
 		didEventLog := DIDChangeLog{
-			DIDDocumentVersion: DIDDocument{
+			DIDDocumentVersion: DidDocument{
 				DID: DID{ID: "malformed"},
 			},
 		}

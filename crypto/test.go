@@ -146,7 +146,7 @@ func newKeyReference(t *testing.T, client *Crypto, kid string) (*orm.KeyReferenc
 	ref, publicKey, err := client.New(audit.TestContext(), StringNamingFunc(kid))
 	require.NoError(t, err)
 	DID := orm.DID{ID: "did:test:" + t.Name(), Subject: "subject"}
-	DIDDoc := orm.DIDDocument{
+	DIDDoc := orm.DidDocument{
 		DID: DID,
 		VerificationMethods: []orm.VerificationMethod{
 			{

@@ -252,7 +252,7 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
-func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DIDDocument, error) {
+func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
 	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
 	if err != nil {
 		return nil, err
@@ -272,7 +272,7 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DIDDo
 	}
 	vmAsJson, _ := json.Marshal(verificationMethod)
 	now := time.Now().Unix()
-	sqlDoc := orm.DIDDocument{
+	sqlDoc := orm.DidDocument{
 		DID: orm.DID{
 			ID: keyID.DID.String(),
 		},
