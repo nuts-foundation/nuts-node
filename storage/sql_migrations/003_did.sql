@@ -73,7 +73,7 @@ create table did_document_to_verification_method
     -- did_document_id references the DID document version
     did_document_id  varchar(36) not null,
     -- verification_method_id references the verification method
-    verification_method_id  varchar(36) not null,
+    verification_method_id  varchar(415) not null,
     primary key (did_document_id,verification_method_id),
     foreign key (did_document_id) references did_document_version (id) on delete cascade,
     foreign key (verification_method_id) references did_verification_method (id) on delete cascade
@@ -95,7 +95,7 @@ create table did_document_to_service
     -- did_document_id references the DID document version
     did_document_id  varchar(36) not null,
     -- service_id references the DID service
-    service_id  varchar(36) not null,
+    service_id  varchar(254) not null,
     primary key (did_document_id,service_id),
     foreign key (did_document_id) references did_document_version (id) on delete cascade,
     foreign key (service_id) references did_service (id) on delete cascade
