@@ -47,18 +47,6 @@ create table key_reference
     version varchar(255) not null
 );
 
--- this table is used to link unique verification methods to all DID document versions they are used in
-create table did_document_to_verification_method
-(
-    -- did_document_id references the DID document version
-    did_document_id  varchar(36) not null,
-    -- verification_method_id references the verification method
-    verification_method_id  varchar(36) not null,
-    primary key (did_document_id,verification_method_id),
-    foreign key (did_document_id) references did_document_version (id) on delete cascade,
-    foreign key (verification_method_id) references did_verification_method (id) on delete cascade
-);
-
 -- this table is used to store the verification methods for locally managed DIDs
 create table did_verification_method
 (
@@ -79,16 +67,16 @@ create table did_verification_method
     data $TEXT_TYPE   not null
 );
 
--- this table is used to link unique services to all DID document versions they are used in
-create table did_document_to_service
+-- this table is used to link unique verification methods to all DID document versions they are used in
+create table did_document_to_verification_method
 (
     -- did_document_id references the DID document version
     did_document_id  varchar(36) not null,
-    -- service_id references the DID service
-    service_id  varchar(36) not null,
-    primary key (did_document_id,service_id),
+    -- verification_method_id references the verification method
+    verification_method_id  varchar(36) not null,
+    primary key (did_document_id,verification_method_id),
     foreign key (did_document_id) references did_document_version (id) on delete cascade,
-    foreign key (service_id) references did_service (id) on delete cascade
+    foreign key (verification_method_id) references did_verification_method (id) on delete cascade
 );
 
 -- this table is used to store the services for locally managed DIDs
@@ -99,6 +87,18 @@ create table did_service
     -- data is a JSON object containing the service data, e.g. the serviceEndpoint.
     -- When producing the service, data is used as JSON base object and the id and type are added.
     data $TEXT_TYPE   not null
+);
+
+-- this table is used to link unique services to all DID document versions they are used in
+create table did_document_to_service
+(
+    -- did_document_id references the DID document version
+    did_document_id  varchar(36) not null,
+    -- service_id references the DID service
+    service_id  varchar(36) not null,
+    primary key (did_document_id,service_id),
+    foreign key (did_document_id) references did_document_version (id) on delete cascade,
+    foreign key (service_id) references did_service (id) on delete cascade
 );
 
 -- +goose Down
