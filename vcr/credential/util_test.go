@@ -299,3 +299,68 @@ func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 	assert.NotEqual(t, "", result.ID.String())
 	assert.Equal(t, requestor.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
 }
+
+func TestFilterOnDIDMethod(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("did:test:123"),
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("no match on issuer", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("did:test:123"),
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"other"})
+
+		assert.Len(t, result, 0)
+	})
+	t.Run("no match on credentialSubject", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"other"})
+
+		assert.Len(t, result, 0)
+	})
+	t.Run("issuer not a DID", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("client_id"),
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("credentialSubject not a did", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("client_id")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+}

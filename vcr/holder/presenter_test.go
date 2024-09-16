@@ -19,6 +19,7 @@
 package holder
 
 import (
+	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -314,7 +315,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
@@ -326,11 +327,21 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, vp)
 		assert.Nil(t, submission)
+	})
+	t.Run("error - no matching credentials due to DID method mismatch", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+
+		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
+		_ = w.Put(context.Background(), credentials[nutsWalletDID]...)
+
+		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+
+		assert.Equal(t, ErrNoCredentials, err)
 	})
 	t.Run("ok - empty presentation", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -340,7 +351,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		keyResolver.EXPECT().ResolveKey(webWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, vpFormats, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.Nil(t, err)
 		assert.NotNil(t, vp)

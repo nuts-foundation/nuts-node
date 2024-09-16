@@ -27,8 +27,10 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/piprate/json-gold/ld"
+	"golang.org/x/exp/maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -229,7 +231,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	useDPoP bool, credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	useDPoP bool, additionalCredentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
@@ -252,6 +254,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	params := holder.BuildParams{
 		Audience: authServerURL,
 		Expires:  time.Now().Add(time.Second * 5),
+		Format:   metadata.VPFormatsSupported,
 		Nonce:    nutsCrypto.GenerateNonce(),
 	}
 
@@ -259,13 +262,32 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	if err != nil {
 		return nil, err
 	}
-	additionalCredentials := make(map[did.DID][]vc.VerifiableCredential)
-	for _, subjectDID := range subjectDIDs {
-		for _, curr := range credentials {
-			additionalCredentials[subjectDID] = append(additionalCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
+
+	// in the s2s flow we use the metadata to determine the DID methods supported by the verifier
+	// filter walletDIDs on the DID methods supported by the verifier
+	j := 0
+	allMethods := map[string]struct{}{}
+	for i, d := range subjectDIDs {
+		allMethods[d.Method] = struct{}{}
+		if slices.Contains(metadata.DIDMethodsSupported, d.Method) {
+			subjectDIDs[j] = subjectDIDs[i]
+			j++
 		}
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalCredentials, *presentationDefinition, metadata.VPFormatsSupported, params)
+	subjectDIDs = subjectDIDs[:j]
+
+	if len(subjectDIDs) == 0 {
+		return nil, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, maps.Keys(allMethods))
+	}
+
+	// each additional credential can be used by each DID
+	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
+	for _, subjectDID := range subjectDIDs {
+		for _, curr := range additionalCredentials {
+			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
+		}
+	}
+	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, *presentationDefinition, params)
 	if err != nil {
 		return nil, err
 	}

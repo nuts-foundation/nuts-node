@@ -199,3 +199,5 @@ require (
 	modernc.org/sqlite v1.32.0 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
+
+require golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
