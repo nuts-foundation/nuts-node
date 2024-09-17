@@ -145,6 +145,10 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 // FilterOnDIDMethod filters the credentials based on the DID method of the issuer and credentialSubject.
 // credentials are only removed if there's a false match. Nil fields are ignored.
 func FilterOnDIDMethod(credentials []vc.VerifiableCredential, didMethods []string) []vc.VerifiableCredential {
+	// todo: for OpenID4vp there's currently no metadata that passes DID methods to the wallet.
+	if len(didMethods) == 0 {
+		return credentials
+	}
 	var result []vc.VerifiableCredential
 outer:
 	for _, credential := range credentials {
