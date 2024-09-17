@@ -226,7 +226,7 @@ func TestMatch(t *testing.T) {
 
 				vcs, mappingObjects, err := definitions().JWT.Match([]vc.VerifiableCredential{*jwtCredential})
 
-				assert.NoError(t, err)
+				assert.EqualError(t, err, "missing credentials\nconstraints not matched: no VC for InputDescriptor (as_jwt)")
 				assert.Empty(t, vcs)
 				assert.Empty(t, mappingObjects)
 			})
@@ -256,7 +256,7 @@ func TestMatch(t *testing.T) {
 
 			vcs, mappingObjects, err := presentationDefinition.Match([]vc.VerifiableCredential{jsonldVC})
 
-			require.NoError(t, err)
+			require.EqualError(t, err, "missing credentials\nconstraints not matched: no VC for InputDescriptor (organization_credential)")
 			assert.Len(t, vcs, 0)
 			assert.Len(t, mappingObjects, 0)
 		})
@@ -317,7 +317,7 @@ func TestMatch(t *testing.T) {
 				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
-				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
+				assert.EqualError(t, err, "missing credentials\nsubmission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
 			})
 		})
 		t.Run("Pick min max", func(t *testing.T) {
@@ -338,7 +338,7 @@ func TestMatch(t *testing.T) {
 				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
-				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
+				assert.EqualError(t, err, "missing credentials\nsubmission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
 			})
 		})
 		t.Run("Pick 1 per group", func(t *testing.T) {
@@ -394,7 +394,7 @@ func TestMatch(t *testing.T) {
 				t.Run("no match", func(t *testing.T) {
 					vcs, _, err := presentationDefinition.Match([]vc.VerifiableCredential{vc1, vc3})
 
-					require.Error(t, err)
+					assert.EqualError(t, err, "missing credentials\nsubmission requirement (Pick 1 matcher) has less credentials (0) than required (1)")
 					assert.Len(t, vcs, 0)
 				})
 			})
@@ -417,7 +417,7 @@ func TestMatch(t *testing.T) {
 				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
-				assert.EqualError(t, err, "submission requirement (All from nested) does not have all credentials from the group")
+				assert.EqualError(t, err, "missing credentials\nsubmission requirement (All from nested) does not have all credentials from the group")
 			})
 		})
 		t.Run("Pick min max from nested", func(t *testing.T) {
@@ -438,7 +438,7 @@ func TestMatch(t *testing.T) {
 				_, _, err := presentationDefinition.Match([]vc.VerifiableCredential{})
 
 				require.Error(t, err)
-				assert.EqualError(t, err, "submission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
+				assert.EqualError(t, err, "missing credentials\nsubmission requirement (Pick 1 matcher) has less matches (0) than minimal required (1)")
 			})
 		})
 	})

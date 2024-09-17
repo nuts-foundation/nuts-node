@@ -269,10 +269,6 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	if err != nil {
 		return nil, err
 	}
-	if vp == nil {
-		// No DID has the right credentials to present
-		return nil, holder.ErrNoCredentials
-	}
 	subjectDID, err := did.ParseDID(vp.Holder.String())
 	if err != nil {
 		return nil, err

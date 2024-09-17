@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"strings"
@@ -86,8 +87,11 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
-			if !errors.Is(err, errMissingCredential) { // ignore missing credentials
+			if !errors.Is(err, pe.ErrNoCredentials) { // ignore missing credentials
 				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			} else {
+				// trace logging for missing credentials
+				log.Logger().Tracef("Missing credentials for Discovery Service (service=%s, subject=%s, did=%s): %s", service.ID, subjectID, subjectDID, err.Error())
 			}
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
@@ -96,7 +100,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	if len(registeredDIDs) == 0 {
 		if len(registeredDIDs) != len(subjectDIDs) && len(loopErrs) == 0 {
 			// all registrations failed on missing credentials. can only be false if using complex presentation definitions
-			loopErrs = append(loopErrs, fmt.Errorf("failed registration for service=%s, subject=%s: %w", serviceID, subjectID, errMissingCredential))
+			loopErrs = append(loopErrs, fmt.Errorf("failed registration for service=%s, subject=%s: %w", serviceID, subjectID, pe.ErrNoCredentials))
 		}
 		// registration failed for all subjectDIDs, will be retried on next scheduled refresh
 		return fmt.Errorf("%w: %w", ErrPresentationRegistrationFailed, errors.Join(loopErrs...))
@@ -195,9 +199,6 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 	const errStr = "failed to match Discovery Service's Presentation Definition (service=%s, did=%s): %w"
 	if err != nil {
 		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
-	}
-	if len(matchingCredentials) == 0 && service.PresentationDefinition.CredentialsRequired() {
-		return nil, fmt.Errorf(errStr, service.ID, subjectDID, errMissingCredential)
 	}
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }

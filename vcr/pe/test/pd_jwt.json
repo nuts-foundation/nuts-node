@@ -3,6 +3,7 @@
   "input_descriptors": [
     {
       "id": "as_jwt",
+      "name": "as_jwt",
       "constraints": {
         "fields": [
           {

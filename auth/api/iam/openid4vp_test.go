@@ -34,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -354,8 +353,8 @@ func TestWrapper_handleAuthorizeRequestFromVerifier(t *testing.T) {
 		putState(ctx, "state", authzCodeSession)
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/iam/verifier").Return(&clientMetadata, nil)
 		ctx.iamClient.EXPECT().PresentationDefinition(gomock.Any(), pdEndpoint).Return(&pe.PresentationDefinition{}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, holder.ErrNoCredentials)
-		expectPostError(t, ctx, oauth.InvalidRequest, "wallet does not contain the required credentials (PD ID: , wallet: did:web:example.com:iam:holder)", responseURI, "state")
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{holderDID}, nil, pe.PresentationDefinition{}, clientMetadata.VPFormats, gomock.Any()).Return(nil, nil, pe.ErrNoCredentials)
+		expectPostError(t, ctx, oauth.InvalidRequest, "wallet could not fulfill requirements (PD ID: , wallet: did:web:example.com:iam:holder): missing credentials", responseURI, "state")
 
 		_, err := ctx.client.handleAuthorizeRequestFromVerifier(httpRequestCtx, holderSubjectID, params, pe.WalletOwnerOrganization)
 

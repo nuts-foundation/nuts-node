@@ -19,6 +19,10 @@
 // Package pe stands for Presentation Exchange which includes Presentation Definition and Presentation Submission
 package pe
 
+import "errors"
+
+var ErrNoCredentials = errors.New("missing credentials")
+
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
 

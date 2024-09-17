@@ -77,10 +77,6 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 		return nil, nil, fmt.Errorf("failed to build presentation submission: %w", err)
 	}
 	if signInstructions.Empty() {
-		// we'll allow empty if no credentials are required
-		if presentationDefinition.CredentialsRequired() {
-			return nil, nil, ErrNoCredentials
-		}
 		// add empty sign instruction
 		// TODO: If the verifier doesn't require any credentials, it also can't signal which DID methods it supports/requires?
 		var holderDID did.DID

@@ -3,6 +3,7 @@
   "input_descriptors": [
     {
       "id": "as_jsonld",
+      "name": "as_jsonld",
       "constraints": {
         "fields": [
           {

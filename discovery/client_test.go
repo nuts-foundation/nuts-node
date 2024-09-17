@@ -104,7 +104,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
-		require.ErrorIs(t, err, errMissingCredential)
+		require.ErrorIs(t, err, pe.ErrNoCredentials)
 	})
 	t.Run("subject with 2 DIDs, one registers and other fails", func(t *testing.T) {
 		subjectDIDs := []did.DID{aliceDID, bobDID}
