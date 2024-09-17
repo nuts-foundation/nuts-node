@@ -54,6 +54,7 @@ var vpBob vc.VerifiablePresentation
 var unsupportedDID did.DID
 
 var testServiceID = "usecase_v1"
+var unsupportedServiceID = "unsupported"
 
 func testDefinitions() map[string]ServiceDefinition {
 	return map[string]ServiceDefinition{
@@ -144,6 +145,12 @@ func testDefinitions() map[string]ServiceDefinition {
 					},
 				},
 			},
+			PresentationMaxValidity: int((24 * time.Hour).Seconds()),
+		},
+		unsupportedServiceID: {
+			ID:                      "unsupported",
+			DIDMethods:              []string{"unsupported"},
+			Endpoint:                "http://example.com/unsupported",
 			PresentationMaxValidity: int((24 * time.Hour).Seconds()),
 		},
 	}

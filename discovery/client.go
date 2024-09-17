@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"slices"
 	"strings"
 	"time"
 )
@@ -76,6 +77,21 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	if err != nil {
 		return err
 	}
+	// filter DIDs on DID methods supported by the service
+	if len(service.DIDMethods) > 0 {
+		j := 0
+		for i, did := range subjectDIDs {
+			if slices.Contains(service.DIDMethods, did.Method) {
+				subjectDIDs[j] = subjectDIDs[i]
+				j++
+			}
+		}
+		subjectDIDs = subjectDIDs[:j]
+	}
+	if len(subjectDIDs) == 0 {
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+	}
+
 	var asSoonAsPossible time.Time
 	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &asSoonAsPossible); err != nil {
 		return err
@@ -120,6 +136,10 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 }
 
 func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID, subjectID string) error {
+	service, serviceExists := r.services[serviceID]
+	if !serviceExists {
+		return ErrServiceNotFound
+	}
 	// delete DID/service combination from DB, so it won't be registered again
 	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil, nil)
 	if err != nil {
@@ -133,6 +153,22 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 		return err
 	}
 
+	// filter DIDs on DID methods supported by the service
+	if len(service.DIDMethods) > 0 {
+		j := 0
+		for i, did := range subjectDIDs {
+			if slices.Contains(service.DIDMethods, did.Method) {
+				subjectDIDs[j] = subjectDIDs[i]
+				j++
+			}
+		}
+		subjectDIDs = subjectDIDs[:j]
+	}
+	if len(subjectDIDs) == 0 {
+		// if this means we can't deactivate a previously registered subject because the DID methods have changed, then we rely on the refresh interval to clean up.
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+	}
+
 	// find all active presentations
 	vps2D, err := r.store.getSubjectVPsOnService(serviceID, subjectDIDs)
 	if err != nil {
@@ -141,7 +177,6 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 
 	// retract active registrations for all DIDs
 	// failures are collected and merged into a single error
-	service := r.services[serviceID]
 	var loopErrs []error
 	for did, vps := range vps2D {
 		for _, vp := range vps {
@@ -232,7 +267,13 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	for _, candidate := range refreshCandidates {
 		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
 			var loopErr error
-			if errors.Is(err, didsubject.ErrSubjectNotFound) {
+			if errors.Is(err, ErrDIDMethodsNotSupported) {
+				// DID method no longer supported, remove
+				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil, nil)
+				if err != nil {
+					loopErr = fmt.Errorf("failed to remove subject with unsupported DID method (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+				}
+			} else if errors.Is(err, didsubject.ErrSubjectNotFound) {
 				// Subject has probably been deactivated. Remove from service or registration will be retried every refresh interval.
 				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, candidate.Parameters, nil)
 				if err != nil {
