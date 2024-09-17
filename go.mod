@@ -1,6 +1,6 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.22
+go 1.23
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.14.0
@@ -199,5 +199,3 @@ require (
 	modernc.org/sqlite v1.32.0 // indirect
 	rsc.io/qr v0.2.0 // indirect
 )
-
-require golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8

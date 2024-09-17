@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/piprate/json-gold/ld"
-	"golang.org/x/exp/maps"
+	"maps"
 	"net/http"
 	"net/url"
 	"slices"
@@ -278,7 +278,11 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	subjectDIDs = subjectDIDs[:j]
 
 	if len(subjectDIDs) == 0 {
-		return nil, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, maps.Keys(allMethods))
+		availableMethods := make([]string, 0, len(allMethods))
+		for key := range maps.Keys(allMethods) {
+			availableMethods = append(availableMethods, key)
+		}
+		return nil, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, availableMethods)
 	}
 
 	// each additional credential can be used by each DID
