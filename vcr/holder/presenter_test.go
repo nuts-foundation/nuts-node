@@ -336,12 +336,12 @@ func TestPresenter_buildSubmission(t *testing.T) {
 	t.Run("error - no matching credentials due to DID method mismatch", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 
-		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
+		w := NewSQLWallet(nil, keyStore, testVerifier{}, jsonldManager, storageEngine)
 		_ = w.Put(context.Background(), credentials[nutsWalletDID]...)
 
 		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
-		assert.Equal(t, ErrNoCredentials, err)
+		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 	})
 	t.Run("ok - empty presentation", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
