@@ -252,10 +252,11 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	}
 
 	params := holder.BuildParams{
-		Audience: authServerURL,
-		Expires:  time.Now().Add(time.Second * 5),
-		Format:   metadata.VPFormatsSupported,
-		Nonce:    nutsCrypto.GenerateNonce(),
+		Audience:   authServerURL,
+		DIDMethods: metadata.DIDMethodsSupported,
+		Expires:    time.Now().Add(time.Second * 5),
+		Format:     metadata.VPFormatsSupported,
+		Nonce:      nutsCrypto.GenerateNonce(),
 	}
 
 	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
