@@ -299,3 +299,107 @@ func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 	assert.NotEqual(t, "", result.ID.String())
 	assert.Equal(t, requestor.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
 }
+
+func TestFilterOnDIDMethod(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("did:test:123"),
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("no match on issuer", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("did:test:123"),
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"other"})
+
+		assert.Len(t, result, 0)
+	})
+	t.Run("no match on credentialSubject", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"other"})
+
+		assert.Len(t, result, 0)
+	})
+	t.Run("issuer not a DID", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				Issuer: ssi.MustParseURI("client_id"),
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("credentialSubject not a did", func(t *testing.T) {
+		credentials := []vc.VerifiableCredential{
+			{
+				CredentialSubject: []interface{}{
+					map[string]interface{}{"id": ssi.MustParseURI("client_id")},
+				},
+			},
+		}
+
+		result := FilterOnDIDMethod(credentials, []string{"test"})
+
+		assert.Len(t, result, 1)
+	})
+	bug := `
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://nuts.nl/credentials/v1",
+    "https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"
+  ],
+  "credentialSubject": {
+    "id": "did:web:nodeB:iam:f17d021a-f0e6-4ed9-a22a-e4447f1720ba",
+    "organization": {
+      "city": "Caretown",
+      "name": "Caresoft B.V."
+    }
+  },
+  "id": "did:web:nodeB:iam:f17d021a-f0e6-4ed9-a22a-e4447f1720ba#36b83620-13b2-4fbf-a57a-618731839a6f",
+  "issuanceDate": "2024-09-17T06:44:57.97676521Z",
+  "issuer": "did:web:nodeB:iam:f17d021a-f0e6-4ed9-a22a-e4447f1720ba",
+  "proof": {
+    "created": "2024-09-17T06:44:57.97676521Z",
+    "jws": "eyJhbGciOiJFUzI1NiIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il0sImtpZCI6ImRpZDp3ZWI6bm9kZUI6aWFtOmYxN2QwMjFhLWYwZTYtNGVkOS1hMjJhLWU0NDQ3ZjE3MjBiYSM3YTExZTIxZi05ZWYwLTQ5NTctOTM4Zi0xZTUyZTE5NTc1M2QifQ..4t6XiCFkvl3swZkpN63xvRUcTwMj5uUP2wVpkAmQXg33Jaou6JEgi_gwnygTK1C_bfwaqa6X7cMvT5Fm0cwTEA",
+    "proofPurpose": "assertionMethod",
+    "type": "JsonWebSignature2020",
+    "verificationMethod": "did:web:nodeB:iam:f17d021a-f0e6-4ed9-a22a-e4447f1720ba#7a11e21f-9ef0-4957-938f-1e52e195753d"
+  },
+  "type": [
+    "NutsOrganizationCredential",
+    "VerifiableCredential"
+  ]
+}
+`
+	t.Run("foo", func(t *testing.T) {
+		c := vc.VerifiableCredential{}
+		_ = c.UnmarshalJSON([]byte(bug))
+		credentials := []vc.VerifiableCredential{c}
+
+		result := FilterOnDIDMethod(credentials, []string{"web"})
+
+		assert.Len(t, result, 1)
+	})
+}

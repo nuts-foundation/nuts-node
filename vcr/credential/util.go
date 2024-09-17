@@ -24,6 +24,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"slices"
 	"time"
 )
 
@@ -139,4 +140,42 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 		}
 	}
 	return credential
+}
+
+// FilterOnDIDMethod filters the credentials based on the DID method of the issuer and credentialSubject.
+// credentials are only removed if there's a false match. Nil fields are ignored.
+func FilterOnDIDMethod(credentials []vc.VerifiableCredential, didMethods []string) []vc.VerifiableCredential {
+	// todo: for OpenID4vp there's currently no metadata that passes DID methods to the wallet.
+	if len(didMethods) == 0 {
+		return credentials
+	}
+	var result []vc.VerifiableCredential
+outer:
+	for _, credential := range credentials {
+		// check issuer
+		issuerDID, err := did.ParseDID(credential.Issuer.String())
+		if err == nil {
+			if !slices.Contains(didMethods, issuerDID.Method) {
+				continue
+			}
+		}
+		bl := make([]BaseCredentialSubject, 0)
+		err = credential.UnmarshalCredentialSubject(&bl)
+		if err != nil {
+			continue
+		}
+		for _, b := range bl {
+			if b.ID != "" {
+				// check credentialSubject
+				subjectDID, err := did.ParseDID(b.ID)
+				if err == nil {
+					if !slices.Contains(didMethods, subjectDID.Method) {
+						continue outer
+					}
+				}
+			}
+		}
+		result = append(result, credential)
+	}
+	return result
 }

@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -62,31 +63,40 @@ func NewSQLWallet(
 	}
 }
 
-// BuildParams contains the parameters that will be included in the signature of the verifiable presentation
+// BuildParams contains the parameters that will be used for building the verifiable presentation
+// this includes both parameters for the proof and general requirements.
 type BuildParams struct {
+	// Audience is used to fill the audience field in the proof
 	Audience string
-	Expires  time.Time
-	Nonce    string
+	// DIDMethods is a list of DID methods that the verifier supports for presentation/credential validation
+	DIDMethods []string
+	// Expires is the expiration time of the presentation
+	Expires time.Time
+	// Format is a map of format designations that the verifier supports for the presentation
+	Format map[string]map[string][]string
+	// Nonce is used to fill the nonce/challenge field in the proof
+	Nonce string
 }
 
-func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
-	// get VCs from own wallet
-	credentials := make(map[did.DID][]vc.VerifiableCredential)
+func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	if credentials == nil {
+		credentials = make(map[did.DID][]vc.VerifiableCredential)
+	}
+
+	// get VCs from own wallet(s)
 	for _, walletDID := range walletDIDs {
 		creds, err := h.List(ctx, walletDID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to retrieve wallet credentials: %w", err)
 		}
-		credentials[walletDID] = creds
-		if additionalCredentials != nil {
-			credentials[walletDID] = append(credentials[walletDID], additionalCredentials[walletDID]...)
-		}
+		// check if the issuer/credentialSubject is in the list of verifier DID methods.
+		credentials[walletDID] = append(credentials[walletDID], credential.FilterOnDIDMethod(creds, params.DIDMethods)...)
 	}
 	return presenter{
 		documentLoader: h.jsonldManager.DocumentLoader(),
 		signer:         h.keyStore,
 		keyResolver:    h.keyResolver,
-	}.buildSubmission(ctx, credentials, presentationDefinition, acceptedFormats, params)
+	}.buildSubmission(ctx, credentials, presentationDefinition, params)
 }
 
 func (h sqlWallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {

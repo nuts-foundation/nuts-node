@@ -285,10 +285,10 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, subject
 	// at this point in the flow it would be possible to ask the user to confirm the credentials to use
 
 	// all params checked, delegate responsibility to the holder
-	// todo expiration
 	buildParams := holder.BuildParams{
 		Audience: params.get(oauth.ClientIDParam),
 		Expires:  time.Now().Add(15 * time.Minute),
+		Format:   metadata.VPFormats,
 		Nonce:    nonce,
 	}
 
@@ -314,7 +314,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, subject
 			map[did.DID][]vc.VerifiableCredential{userSession.Wallet.DID: userSession.Wallet.Credentials},
 		)
 	}
-	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, nil, *presentationDefinition, metadata.VPFormats, buildParams)
+	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, nil, *presentationDefinition, buildParams)
 	if err != nil {
 		if errors.Is(err, pe.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: fmt.Sprintf("wallet could not fulfill requirements (PD ID: %s, wallet: %s): %s", presentationDefinition.Id, walletDID, err.Error())}, responseURI, state)

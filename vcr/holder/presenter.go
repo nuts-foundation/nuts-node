@@ -48,7 +48,7 @@ type presenter struct {
 }
 
 func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
-	acceptedFormats map[string]map[string][]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
@@ -63,7 +63,7 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	// - the presentation definition "claimed format designation" (optional)
 	// - the verifier's metadata (optional)
 	formatCandidates := credential.OpenIDSupportedFormats(oauth.DefaultOpenIDSupportedFormats())
-	formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(acceptedFormats))
+	formatCandidates = formatCandidates.Match(credential.OpenIDSupportedFormats(params.Format))
 	if presentationDefinition.Format != nil {
 		formatCandidates = formatCandidates.Match(credential.DIFClaimFormats(*presentationDefinition.Format))
 	}
