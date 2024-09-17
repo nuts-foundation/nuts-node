@@ -156,11 +156,6 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 			sqlDocs[method] = *sqlDoc
 		}
 
-		alsoKnownAs := make([]orm.DID, 0)
-		for _, sqlDoc := range sqlDocs {
-			alsoKnownAs = append(alsoKnownAs, sqlDoc.DID)
-		}
-
 		// then store all docs in the sql db with matching events
 		changes := make(map[string]orm.DIDChangeLog)
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
@@ -170,7 +165,6 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 			sqlDID := orm.DID{
 				ID:      sqlDoc.DID.ID,
 				Subject: subject,
-				Aka:     alsoKnownAs,
 			}
 			createdDoc, err := sqlDIDDocumentManager.CreateOrUpdate(sqlDID, sqlDoc.VerificationMethods, nil)
 			if err != nil {

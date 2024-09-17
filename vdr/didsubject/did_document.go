@@ -84,7 +84,7 @@ func (s *SqlDIDDocumentManager) Latest(did did.DID, resolveTime *time.Time) (*or
 	if resolveTime != nil {
 		notAfter = resolveTime.Unix()
 	}
-	err := s.tx.Preload("DID").Preload("DID.Aka").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", did.String(), notAfter).Order("version desc").First(&doc).Error
+	err := s.tx.Preload("DID").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", did.String(), notAfter).Order("version desc").First(&doc).Error
 	if err != nil {
 		return nil, err
 	}

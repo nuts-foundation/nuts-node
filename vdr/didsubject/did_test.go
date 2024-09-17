@@ -93,16 +93,6 @@ func TestSqlDIDManager_Find(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, did)
 	})
-	t.Run("loads aliases", func(t *testing.T) {
-		_, err := manager.Add("alice", bob)
-		require.NoError(t, err)
-
-		did, err := manager.Find(alice)
-		require.NoError(t, err)
-
-		require.Len(t, did.Aka, 2)
-
-	})
 }
 
 func TestSqlDIDManager_FindBySubject(t *testing.T) {
@@ -125,8 +115,6 @@ func TestSqlDIDManager_FindBySubject(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, dids, 2)
-		a := dids[0]
-		require.Len(t, a.Aka, 2)
 	})
 }
 
