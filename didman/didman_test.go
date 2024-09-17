@@ -963,11 +963,23 @@ func TestGenerateIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID := ssi.MustParseURI(fmt.Sprintf("%s#D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy", vdr.TestDIDA.String()))
 
-	id := generateIDForService(testDIDA, did.Service{
-		Type:            "type",
-		ServiceEndpoint: u.String(),
+	t.Run("ok", func(t *testing.T) {
+		id := generateIDForService(testDIDA, did.Service{
+			Type:            "type",
+			ServiceEndpoint: u.String(),
+		})
+		assert.Equal(t, expectedID, id)
 	})
-	assert.Equal(t, expectedID, id)
+	t.Run("id is ignored", func(t *testing.T) {
+		service := did.Service{
+			ID:              ssi.MustParseURI("ID-is-ignored"),
+			Type:            "type",
+			ServiceEndpoint: u.String(),
+		}
+		id := generateIDForService(testDIDA, service)
+		assert.Equal(t, expectedID, id)
+		assert.Equal(t, "ID-is-ignored", service.ID.String(), "input service should not change")
+	})
 }
 
 type mockContext struct {

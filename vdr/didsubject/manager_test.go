@@ -21,6 +21,7 @@ package didsubject
 import (
 	"context"
 	"fmt"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"net/url"
 	"strings"
@@ -430,11 +431,23 @@ func TestNewIDForService(t *testing.T) {
 	u, _ := url.Parse("https://api.example.com/v1")
 	expectedID := "D4eNCVjdtGaeHYMdjsdYHpTQmiwXtQKJmE9QSwwsKKzy"
 
-	id := NewIDForService(did.Service{
-		Type:            "type",
-		ServiceEndpoint: u.String(),
+	t.Run("ok", func(t *testing.T) {
+		id := NewIDForService(did.Service{
+			Type:            "type",
+			ServiceEndpoint: u.String(),
+		})
+		assert.Equal(t, expectedID, id)
 	})
-	assert.Equal(t, expectedID, id)
+	t.Run("id is ignored", func(t *testing.T) {
+		service := did.Service{
+			ID:              ssi.MustParseURI("ID-is-ignored"),
+			Type:            "type",
+			ServiceEndpoint: u.String(),
+		}
+		id := NewIDForService(service)
+		assert.Equal(t, expectedID, id)
+		assert.Equal(t, "ID-is-ignored", service.ID.String(), "input service should not change")
+	})
 }
 
 type testMethod struct {

@@ -54,7 +54,7 @@ paths:
       tags:
         - Subject
       requestBody:
-        description: Options for the DID creation. keys.assertionKey settings are ignored.
+        description: Options for the subject creation. keys.assertionKey settings are ignored.
         required: false
         content:
           application/json:
@@ -62,7 +62,7 @@ paths:
               $ref: '#/components/schemas/CreateSubjectOptions'
       responses:
         "200":
-          description: "New DID has been created successfully. Returns the DID document."
+          description: "New subject has been created successfully. Returns the DID documents and subject."
           content:
             application/json:
               schema:
@@ -129,15 +129,15 @@ paths:
       description: |
 
         error returns:
-          * 400 - the DID param was malformed
-          * 404 - Corresponding DID document could not be found
+          * 400 - the subject param was malformed
+          * 404 - Corresponding subject could not be found
           * 500 - An error occurred while processing the request
       operationId: "deactivate"
       tags:
         - Subject
       responses:
         "204":
-          description: DID document has been deactivated.
+          description: DID documents have been deactivated.
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/service:
@@ -154,12 +154,12 @@ paths:
     post:
       summary: Adds a service to DID documents of a subject.
       description: |
-        It adds the given service to the DID Documents of a subject. The ID is always generated.
-        Duplicate services are ignored.
+        It adds the given service to the DID Documents of a subject after generating a Service ID.
+        Duplicate services registrations (same type and serviceEndpoint) are ignored.
 
         error returns:
         * 400 - Returned in case of malformed DID or service
-        * 404 - If the subject has no DIDs
+        * 404 - Subject could not be found
         * 500 - An error occurred while processing the request
       operationId: createService
       tags:
@@ -170,7 +170,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Service'
+              $ref: '#/components/schemas/ServiceRequest'
       responses:
         "200":
           description: "New service has been added successfully. Returns a service per DID Document."
@@ -183,7 +183,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     get:
-      summary: "Find services of a DID subject"
+      summary: "Find services of a subject"
       parameters:
         - name: type
           in: query
@@ -212,12 +212,12 @@ paths:
               - object
               - array
       description: |
-        Find services for a DID subject. All DID documents of the subject have the same services.
+        Find services for a subject. All DID documents of the subject have the same services.
         It returns the services that match specified filter parameters.
 
         error returns:
         * 400 - Returned in case of malformed DID.
-        * 404 - DID document could not be found
+        * 404 - Subject could not be found
         * 500 - An error occurred while processing the request
       operationId: "findServices"
       tags:
@@ -286,17 +286,22 @@ paths:
           plain/text:
             schema:
               type: string
-        example:
-          - "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
-          - "#3106f751-59e3-440f-b57b-39a96a2da6c6"
+        examples:
+          long-form:
+            value: "did:web:example.com:iam:013c6fda-73e8-45ee-9220-48652dba854b#3106f751-59e3-440f-b57b-39a96a2da6c6"
+            summary: Long form of a service.ID starting with a DID
+          short-form:
+            value: "#3106f751-59e3-440f-b57b-39a96a2da6c6"
+            summary: "Short form of a service.ID containing only the fragment. Must include the # prefix."
     delete:
-      summary: Delete a specific service
+      summary: Delete a specific service from the subject
       description: |
-        Removes the service from the DID Documents. Matching is done on the fragment of the id.
+        Removes the service from all DID Documents in the subject. Matching is done on the fragment of the id.
         No cascading will happen for references to the service. 
 
         error returns:
-        * 404 - Corresponding DID document or verification method could not be found
+        * 400 - Returned in case of malformed subject or service ID
+        * 404 - Corresponding subject or service could not be found
         * 500 - An error occurred while processing the request
       tags:
         - Subject
@@ -306,14 +311,14 @@ paths:
           description: The service was successfully deleted
         default:
           $ref: '../common/error_response.yaml'
-    put:
-      summary: Updates a service for DID documents.
+    post:
+      summary: Updates a service for the subject
       description: |
-        It updates the given service in DID Documents.
+        It replaces the given service in all DID Documents of the subject by deleting the current service and adding the provided service with a newly generated ID.
 
         error returns:
-        * 400 - Returned in case of malformed DID or service
-        * 404 - Corresponding DID document could not be found
+        * 400 - Returned in case of malformed subject or service ID
+        * 404 - Corresponding subject or service could not be found
         * 500 - An error occurred while processing the request
       tags:
         - Subject
@@ -324,7 +329,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Service'
+              $ref: '#/components/schemas/ServiceRequest'
       responses:
         "200":
           description: "Service has been updated successfully. Returns the service."
@@ -348,12 +353,12 @@ paths:
               type: string
               example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     post:
-      summary: Creates and adds one or more verificationMethods to the DID document.
+      summary: Creates and adds one or more verificationMethods to each DID document in the subject.
       description: |
         Based on the keyCreationOptions, it will add an RSA key for encryption usage and an EC key for signing and authentication.
 
         error returns:
-        * 404 - Corresponding DID document could not be found
+        * 404 - Corresponding subject could not be found
         * 500 - An error occurred while processing the request
       operationId: addVerificationMethod
       tags:
@@ -463,13 +468,13 @@ components:
       properties:
         assertionKey:
           type: boolean
-          description: If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
+          description: If true, an EC keypair is generated and added to the DID Documents as a assertion, authentication, capability invocation and capability delegation method.
         encryptionKey:
           type: boolean
-          description: If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
+          description: If true, an RSA keypair is generated and added to the DID Documents as a key agreement method.
     CreateSubjectOptions:
       type: object
-      description: Options for the DID creation.
+      description: Options for the subject creation.
       properties:
         subject:
           type: string
@@ -484,6 +489,18 @@ components:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerificationMethod'
     Service:
       $ref: '../common/ssi_types.yaml#/components/schemas/Service'
+    ServiceRequest: # copy of Service minus ID field
+      type: object
+      description: A service supported by a DID subject.
+      required:
+        - type
+        - serviceEndpoint
+      properties:
+        type:
+          description: The type of the endpoint.
+          type: string
+        serviceEndpoint:
+          description: Either a URI or a complex object.
     DIDResolutionResult:
       required:
         - document
@@ -495,7 +512,7 @@ components:
           $ref: '#/components/schemas/DIDDocumentMetadata'
     SubjectCreationResult:
       type: object
-      description: Result of a DID creation request. Contains the subject and any created DID Documents.
+      description: Result of a subject creation request. Contains the subject and any created DID Documents.
       required:
         - subject
         - documents
