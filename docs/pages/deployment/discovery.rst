@@ -37,7 +37,7 @@ Registration
 
 To register a subject on a Discovery Service, the subject must be activated for the service.
 The Nuts node will then register a Verifiable Presentation for all subject DIDs on the service, and periodically refresh it.
-E.g., for service ``coffeecorner`` and subject ``example`` (``did:web:example.com``, ``did:nuts:ec6d1834-11e0-48a4-b3f6-934268c7b870``):
+E.g., for service ``coffeecorner`` and subject ``example``:
 
 .. code-block:: text
 
@@ -47,7 +47,7 @@ The DID's wallet must contain the Verifiable Credential(s) that are required by 
 otherwise registration will fail. If the wallet does not contain the credentials,
 the Nuts node will retry registration periodically for all DIDs of a subject.
 
-Optionally, a POST body can be sent which contains `RegistrationParameters`:
+Optionally, a POST body can be provided with registration parameters, e.g.:
 
 .. code-block:: json
 
@@ -55,6 +55,7 @@ Optionally, a POST body can be sent which contains `RegistrationParameters`:
       "registrationParameters": {
         "endpoint": "https://api.example.com",
         "contact": "alice@example.com"
+      }
     }
 
 This can be used to provide additional information. All registration parameters are returned by the search API.
@@ -142,9 +143,12 @@ Service definitions
       }
     }
 
+
 A service definition consists of:
 - ``id``: the unique identifier of the service
 - ``did_methods``: the DID methods that are allowed (optional)
 - ``endpoint``: the URL of the service
 - ``presentation_max_validity``: the maximum validity of the Verifiable Presentation in seconds
 - ``presentation_definition``: the presentation definition that specifies the required Verifiable Credentials (see `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_)
+
+For details see `Nuts RFC022 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc022-discovery-service>`_.

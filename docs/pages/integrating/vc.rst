@@ -72,20 +72,9 @@ Will be expanded by the node to:
 
 There are three parameters that can be passed:
 - `format` (optional): The format of the VC. Can be ``ldp_vc`` or ``jwt_vc``. Default is ``ldp_vc``.
-- `publishToNetwork` (optional): Whether the VC should be published on the network. Default is ``true``.
-- `visibility` (optional): The visibility of the VC. Can be ``public`` or ``private``. Default is ``private``.
-- `withStatusList2021Revocation` (optional): Whether the VC should be issued with a status list 2021 revocation. Default is ``false``.
-
-These defaults are set based on the V5 defaults. This works for the did:nuts method but might not work for other methods.
-The preferred way in V6 is to pass the following parameters:
-- `publishToNetwork`: ``false``
-- `withStatusList2021Revocation`: ``true``
-
-The `visibility` parameter is ignored when `publishToNetwork` is set to false.
-
-Other things to note:
-- ``publishToNetwork:true`` will not work with ``withStatusList2021Revocation:true``.
-- ``publishToNetwork:true`` will not work with when the ``nuts`` did method is disabled.
+- `publishToNetwork` (did:nuts only, optional): Whether the VC should be published on the network. Default is ``true``.
+- `visibility` (did:nuts only, optional): The visibility of the VC. Can be ``public`` or ``private``. Default is ``private``.
+- `withStatusList2021Revocation` (no did:nuts, optional): Whether the VC should be issued with a status list 2021 revocation. Default is ``false``.
 
 .. _searching-vcs:
 

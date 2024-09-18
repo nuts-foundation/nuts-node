@@ -27,6 +27,6 @@ Then, you add a new key which generates a new key pair in your crypto storage an
 
 .. code-block:: shell
 
-    POST /internal/vdr/v2/did/{subject}/verificationmethod
+    POST /internal/vdr/v2/{subject}/verificationmethod
 
-When successful, it returns the verification method(s) that were added to the DID document.
+When successful, it returns the verification method(s) that were added to the DID document(s).
