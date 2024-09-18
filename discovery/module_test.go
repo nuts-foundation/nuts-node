@@ -153,8 +153,7 @@ func Test_Module_Register(t *testing.T) {
 		t.Run("not conform to Presentation Definition", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 
-			// Presentation Definition only allows did:example DIDs
-			otherVP := createPresentationCustom(unsupportedDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+			otherVP := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, createCredential(unsupportedDID, unsupportedDID, nil, nil))
 			err := m.Register(ctx, testServiceID, otherVP)

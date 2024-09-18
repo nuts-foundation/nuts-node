@@ -59,8 +59,9 @@ var unsupportedServiceID = "unsupported"
 func testDefinitions() map[string]ServiceDefinition {
 	return map[string]ServiceDefinition{
 		testServiceID: {
-			ID:       testServiceID,
-			Endpoint: "http://example.com/usecase",
+			ID:         testServiceID,
+			DIDMethods: []string{"example"},
+			Endpoint:   "http://example.com/usecase",
 			PresentationDefinition: pe.PresentationDefinition{
 				Format: &pe.PresentationDefinitionClaimFormatDesignations{
 					"ldp_vc": {
