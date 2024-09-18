@@ -557,7 +557,7 @@ func TestModule_Services(t *testing.T) {
 		services := (&Module{
 			allDefinitions: testDefinitions(),
 		}).Services()
-		assert.Len(t, services, 2)
+		assert.Len(t, services, 3)
 	})
 }
 

@@ -472,6 +472,7 @@ func Test_clientUpdater_update(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
 		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, errors.New("test"))
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
 		err := updater.update(context.Background())
