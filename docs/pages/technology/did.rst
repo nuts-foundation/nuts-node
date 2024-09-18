@@ -22,25 +22,10 @@ Nuts DID Documents
 DIDs are backed by a *DID Document*. It defines the public keys, who can alter the document and any services related to the DID.
 Nuts DID documents are automatically propagated through the network when they are created.
 When DID documents are created, the DID **always** represents the public key fingerprint of the associated key.
-A DID document is always created with a new key, the holder of the key can delegate the control to another DID.
-
-Verification Method
-===================
-
-All public keys within a Nuts DID Document are listed under **verificationMethod**.
-
-Assertion Method
-================
-
-Keys referenced from the **assertionMethod** section are used to sign JWTs in the OAuth flow and for issuing *Verifiable Credentials*.
-
-Authentication Method
-=====================
-
-Keys referenced from the **authentication** section are used to change the DID document and sign network transactions.
+A DID document is always created with a new key. Signing keys are are added to the `authentication`, `assertionMethod`, `capabilityInvocation` and `capabilityDelegation` sections.
+Encryption keys are added to the `keyAgreement` section.
 
 Services
 ========
 
-The **services** section is used to list service endpoints. There are some endpoints that are shared amongst all services, like the **oauth** service.
-But most service endpoints will be coming from specific `Bolts <https://nuts-foundation.gitbook.io/bolts/>`_.
+The **services** section is used to list service endpoints. Although still available, the preferred way is to register services via :ref:`discovery`.

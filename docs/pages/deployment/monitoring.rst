@@ -84,7 +84,8 @@ Basic diagnostics
 
 .. note::
 
-    this page is intended to be read by humans, not machines
+    this page is intended to be read by humans, not machines.
+    all but the ``status`` entry are related to V5 functionality (gRPC network, VDRv1 and VCRv1 APIs).
 
 Returns the status of the various services in ``yaml`` format:
 

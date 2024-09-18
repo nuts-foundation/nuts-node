@@ -35,17 +35,30 @@ If multiple query parameters are specified, all of them must match a single Veri
 Registration
 ============
 
-To register a DID on a Discovery Service, the DID must be activated for the service.
-The Nuts node will then register a Verifiable Presentation of the DID on the service, and periodically refresh it.
-E.g., for service ``coffeecorner`` and DID ``did:web:example.com``:
+To register a subject on a Discovery Service, the subject must be activated for the service.
+The Nuts node will then register a Verifiable Presentation for all subject DIDs on the service, and periodically refresh it.
+E.g., for service ``coffeecorner`` and subject ``example`` (``did:web:example.com``, ``did:nuts:ec6d1834-11e0-48a4-b3f6-934268c7b870``):
 
 .. code-block:: text
 
-    POST /internal/discovery/v1/coffeecorner/did:web:example.com
+    POST /internal/discovery/v1/coffeecorner/example
 
 The DID's wallet must contain the Verifiable Credential(s) that are required by the service definition,
 otherwise registration will fail. If the wallet does not contain the credentials,
-the Nuts node will retry registration periodically.
+the Nuts node will retry registration periodically for all DIDs of a subject.
+
+Optionally, a POST body can be sent which contains `RegistrationParameters`:
+
+.. code-block:: json
+
+    {
+      "registrationParameters": {
+        "endpoint": "https://api.example.com",
+        "contact": "alice@example.com"
+    }
+
+This can be used to provide additional information. All registration parameters are returned by the search API.
+The ``authServerURL`` is added automatically by the Nuts node. It's constructed as ``https://<config.url>/oauth2/<subject_id>``.
 
 Servers
 *******
@@ -69,3 +82,69 @@ The endpoint for a Discovery Service MUST be in the following form (unless mappe
     https://<host>/discovery/<service_id>
 
 Where ``<service_id>`` is the ID of the service, e.g.: ``/discovery/coffeecorner``.
+
+Service definitions
+*******************
+
+.. code-block:: json
+
+   {
+      "id": "coffeecorner",
+      "did_methods": ["web", "nuts"],
+      "endpoint": "https://example.com/discovery/coffeecorner",
+      "presentation_max_validity": 36000,
+      "presentation_definition": {
+        "id": "coffeecorner2024",
+        "format": {
+          "ldp_vc": {
+            "proof_type": [
+              "JsonWebSignature2020"
+            ]
+          },
+          "jwt_vp": {
+            "alg": ["ES256"]
+          }
+        },
+        "input_descriptors": [
+          {
+            "id": "NutsOrganizationCredential",
+            "constraints": {
+              "fields": [
+                {
+                  "path": [
+                    "$.type"
+                  ],
+                  "filter": {
+                    "type": "string",
+                    "const": "NutsOrganizationCredential"
+                  }
+                },
+                {
+                  "path": [
+                    "$.credentialSubject.organization.name"
+                  ],
+                  "filter": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "path": [
+                    "$.credentialSubject.organization.city"
+                  ],
+                  "filter": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+
+A service definition consists of:
+- ``id``: the unique identifier of the service
+- ``did_methods``: the DID methods that are allowed (optional)
+- ``endpoint``: the URL of the service
+- ``presentation_max_validity``: the maximum validity of the Verifiable Presentation in seconds
+- ``presentation_definition``: the presentation definition that specifies the required Verifiable Credentials (see `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_)
