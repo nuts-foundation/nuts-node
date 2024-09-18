@@ -153,8 +153,7 @@ func Test_Module_Register(t *testing.T) {
 		t.Run("not conform to Presentation Definition", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 
-			// Presentation Definition only allows did:example DIDs
-			otherVP := createPresentationCustom(unsupportedDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+			otherVP := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 				claims[jwt.AudienceKey] = []string{testServiceID}
 			}, createCredential(unsupportedDID, unsupportedDID, nil, nil))
 			err := m.Register(ctx, testServiceID, otherVP)
@@ -162,6 +161,20 @@ func Test_Module_Register(t *testing.T) {
 
 			_, timestamp, _ := m.Get(ctx, testServiceID, 0)
 			assert.Equal(t, 0, timestamp)
+		})
+		t.Run("unsupported DID method", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine, func(module *Module) {
+				module.serverDefinitions[unsupportedServiceID] = ServiceDefinition{
+					ID:         unsupportedServiceID,
+					DIDMethods: []string{"unsupported"},
+				}
+			})
+			otherVP := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+				claims[jwt.AudienceKey] = []string{unsupportedServiceID}
+			}, vcAlice, aliceDiscoveryCredential)
+
+			err := m.Register(ctx, unsupportedServiceID, otherVP)
+			assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
 		})
 		t.Run("cycle detected", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine, func(module *Module) {
@@ -312,6 +325,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	httpClient := client.NewMockHTTPClient(ctrl)
 	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, nil).AnyTimes()
 	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(nil, 0, nil).AnyTimes()
 	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
@@ -542,7 +556,7 @@ func TestModule_Services(t *testing.T) {
 		services := (&Module{
 			allDefinitions: testDefinitions(),
 		}).Services()
-		assert.Len(t, services, 2)
+		assert.Len(t, services, 3)
 	})
 }
 

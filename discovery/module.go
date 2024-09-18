@@ -216,11 +216,16 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 	if time.Until(expiration) > time.Duration(definition.PresentationMaxValidity)*time.Second {
 		return errors.Join(ErrInvalidPresentation, fmt.Errorf("presentation is valid for too long (max %s)", time.Duration(definition.PresentationMaxValidity)*time.Second))
 	}
-	// Check if the presentation already exists
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
 	}
+	// Check if the issuer uses a supported DID method
+	if len(definition.DIDMethods) > 0 && !slices.Contains(definition.DIDMethods, credentialSubjectID.Method) {
+		return errors.Join(ErrInvalidPresentation, ErrDIDMethodsNotSupported)
+	}
+
+	// Check if the presentation already exists
 	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
 	if err != nil {
 		return err

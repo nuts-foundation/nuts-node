@@ -89,6 +89,16 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		assert.ErrorContains(t, err, "invoker error")
 	})
+	t.Run("DID method not supported", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		manager := newRegistrationManager(testDefinitions(), nil, nil, nil, mockSubjectManager)
+
+		err := manager.activate(audit.TestContext(), unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
+
+		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+	})
 	t.Run("no matching credentials", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		invoker := client.NewMockHTTPClient(ctrl)
@@ -239,6 +249,17 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+	t.Run("DID method not supported", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		manager := newRegistrationManager(testDefinitions(), store, nil, nil, mockSubjectManager)
+
+		err := manager.deactivate(audit.TestContext(), unsupportedServiceID, aliceSubject)
+
+		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+	})
 	t.Run("deregistering from Discovery Service fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		invoker := client.NewMockHTTPClient(ctrl)
@@ -349,6 +370,25 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
 	})
+
+	t.Run("deactivate unsupported DID method", func(t *testing.T) {
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		invoker := client.NewMockHTTPClient(ctrl)
+		mockVCR := vcr.NewMockVCR(ctrl)
+		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		_ = store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+
+		err := manager.refresh(audit.TestContext(), time.Now())
+
+		// refresh clears the registration
+		require.NoError(t, err)
+		refreshTime, err := store.getPresentationRefreshTime(unsupportedServiceID, aliceSubject)
+		assert.NoError(t, err)
+		assert.Nil(t, refreshTime)
+	})
 }
 
 func Test_clientUpdater_updateService(t *testing.T) {
@@ -432,6 +472,7 @@ func Test_clientUpdater_update(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
 		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, errors.New("test"))
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
 		err := updater.update(context.Background())

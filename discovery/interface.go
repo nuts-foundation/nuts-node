@@ -34,6 +34,8 @@ var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 // ErrPresentationRegistrationFailed indicates registration of a presentation on a remote Discovery Service failed.
 var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable Presentation on remote Discovery Service failed")
 
+var ErrDIDMethodsNotSupported = errors.New("DID methods not supported")
+
 // authServerURLField is the field name for the authServerURL in the DiscoveryRegistrationCredential.
 // it is used to resolve authorization server metadata and thus the endpoints for a service entry.
 const authServerURLField = "authServerURL"

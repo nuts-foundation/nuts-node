@@ -12,6 +12,7 @@ The parties implementing that use case then configure their Nuts nodes with the 
 The service definition is a JSON document agreed upon (and loaded) by all parties that specifies:
 
 - which Verifiable Credentials are required for the service,
+- which DID methods are allowed (blank for all),
 - where the Discovery Service is hosted, and
 - how often the Verifiable Presentations must be updated.
 
