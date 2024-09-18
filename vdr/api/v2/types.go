@@ -33,3 +33,6 @@ type VerificationMethod = did.VerificationMethod
 
 // Service is an alias
 type Service = did.Service
+
+// ServiceRequest API definition does not contain an ID, but we alias did.Service here for simplicity
+type ServiceRequest = did.Service

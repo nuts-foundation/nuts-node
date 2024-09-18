@@ -528,7 +528,9 @@ func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, opera
 // NewIDForService generates a unique ID for a service based on the service data.
 // This is compatible with all DID methods.
 func NewIDForService(service did.Service) string {
-	bytes, _ := json.Marshal(service)
+	serviceWithoutID := service
+	serviceWithoutID.ID = ssi.URI{}
+	bytes, _ := json.Marshal(serviceWithoutID)
 	// go-did earlier unmarshaled/marshaled the service endpoint to a map[string]interface{} ("NormalizeDocument()"), which changes the order of the keys.
 	// To retain the same hash given as before go-did v0.10.0, we need to mimic this behavior.
 	var raw map[string]interface{}

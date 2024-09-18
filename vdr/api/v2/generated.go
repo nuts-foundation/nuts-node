@@ -29,7 +29,7 @@ const (
 	String FindServicesParamsEndpointType = "string"
 )
 
-// CreateSubjectOptions Options for the DID creation.
+// CreateSubjectOptions Options for the subject creation.
 type CreateSubjectOptions struct {
 	// Keys Options for the key creation.
 	Keys *KeyCreationOptions `json:"keys,omitempty"`
@@ -49,14 +49,14 @@ type DIDResolutionResult struct {
 
 // KeyCreationOptions Options for the key creation.
 type KeyCreationOptions struct {
-	// AssertionKey If true, an EC keypair is generated and added to the DID Document as a assertion, authentication, capability invocation and capability delegation method.
+	// AssertionKey If true, an EC keypair is generated and added to the DID Documents as a assertion, authentication, capability invocation and capability delegation method.
 	AssertionKey bool `json:"assertionKey"`
 
-	// EncryptionKey If true, an RSA keypair is generated and added to the DID Document as a key agreement method.
+	// EncryptionKey If true, an RSA keypair is generated and added to the DID Documents as a key agreement method.
 	EncryptionKey bool `json:"encryptionKey"`
 }
 
-// SubjectCreationResult Result of a DID creation request. Contains the subject and any created DID Documents.
+// SubjectCreationResult Result of a subject creation request. Contains the subject and any created DID Documents.
 type SubjectCreationResult struct {
 	Documents []DIDDocument `json:"documents"`
 
@@ -87,10 +87,10 @@ type FindServicesParamsEndpointType string
 type CreateSubjectJSONRequestBody = CreateSubjectOptions
 
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
-type CreateServiceJSONRequestBody = Service
+type CreateServiceJSONRequestBody = ServiceRequest
 
 // UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
-type UpdateServiceJSONRequestBody = Service
+type UpdateServiceJSONRequestBody = ServiceRequest
 
 // AddVerificationMethodJSONRequestBody defines body for AddVerificationMethod for application/json ContentType.
 type AddVerificationMethodJSONRequestBody = KeyCreationOptions
@@ -812,7 +812,7 @@ func NewUpdateServiceRequestWithBody(server string, id string, serviceId string,
 		return nil, err
 	}
 
-	req, err := http.NewRequest("PUT", queryURL.String(), body)
+	req, err := http.NewRequest("POST", queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -1937,19 +1937,19 @@ type ServerInterface interface {
 	// Lists all DIDs for a subject
 	// (GET /internal/vdr/v2/subject/{id})
 	SubjectDIDs(ctx echo.Context, id string) error
-	// Find services of a DID subject
+	// Find services of a subject
 	// (GET /internal/vdr/v2/subject/{id}/service)
 	FindServices(ctx echo.Context, id string, params FindServicesParams) error
 	// Adds a service to DID documents of a subject.
 	// (POST /internal/vdr/v2/subject/{id}/service)
 	CreateService(ctx echo.Context, id string) error
-	// Delete a specific service
+	// Delete a specific service from the subject
 	// (DELETE /internal/vdr/v2/subject/{id}/service/{serviceId})
 	DeleteService(ctx echo.Context, id string, serviceId string) error
-	// Updates a service for DID documents.
-	// (PUT /internal/vdr/v2/subject/{id}/service/{serviceId})
+	// Updates a service for the subject
+	// (POST /internal/vdr/v2/subject/{id}/service/{serviceId})
 	UpdateService(ctx echo.Context, id string, serviceId string) error
-	// Creates and adds one or more verificationMethods to the DID document.
+	// Creates and adds one or more verificationMethods to each DID document in the subject.
 	// (POST /internal/vdr/v2/subject/{id}/verificationmethod)
 	AddVerificationMethod(ctx echo.Context, id string) error
 }
@@ -2194,7 +2194,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/vdr/v2/subject/:id/service", wrapper.FindServices)
 	router.POST(baseURL+"/internal/vdr/v2/subject/:id/service", wrapper.CreateService)
 	router.DELETE(baseURL+"/internal/vdr/v2/subject/:id/service/:serviceId", wrapper.DeleteService)
-	router.PUT(baseURL+"/internal/vdr/v2/subject/:id/service/:serviceId", wrapper.UpdateService)
+	router.POST(baseURL+"/internal/vdr/v2/subject/:id/service/:serviceId", wrapper.UpdateService)
 	router.POST(baseURL+"/internal/vdr/v2/subject/:id/verificationmethod", wrapper.AddVerificationMethod)
 
 }
@@ -2654,19 +2654,19 @@ type StrictServerInterface interface {
 	// Lists all DIDs for a subject
 	// (GET /internal/vdr/v2/subject/{id})
 	SubjectDIDs(ctx context.Context, request SubjectDIDsRequestObject) (SubjectDIDsResponseObject, error)
-	// Find services of a DID subject
+	// Find services of a subject
 	// (GET /internal/vdr/v2/subject/{id}/service)
 	FindServices(ctx context.Context, request FindServicesRequestObject) (FindServicesResponseObject, error)
 	// Adds a service to DID documents of a subject.
 	// (POST /internal/vdr/v2/subject/{id}/service)
 	CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error)
-	// Delete a specific service
+	// Delete a specific service from the subject
 	// (DELETE /internal/vdr/v2/subject/{id}/service/{serviceId})
 	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
-	// Updates a service for DID documents.
-	// (PUT /internal/vdr/v2/subject/{id}/service/{serviceId})
+	// Updates a service for the subject
+	// (POST /internal/vdr/v2/subject/{id}/service/{serviceId})
 	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
-	// Creates and adds one or more verificationMethods to the DID document.
+	// Creates and adds one or more verificationMethods to each DID document in the subject.
 	// (POST /internal/vdr/v2/subject/{id}/verificationmethod)
 	AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error)
 }
