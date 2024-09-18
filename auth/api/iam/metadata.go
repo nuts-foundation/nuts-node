@@ -31,14 +31,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(issuerURL url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 		DIDMethodsSupported:                        supportedDIDMethods,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
 		GrantTypesSupported:                        grantTypesSupported,
-		Issuer:                                     issuerURL.String(),
+		Issuer:                                     "https://self-issued.me/v2",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         to.Ptr(true),
 		RequireSignedRequestObject:                 true,
@@ -49,9 +49,12 @@ func authorizationServerMetadata(issuerURL url.URL, supportedDIDMethods []string
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 
-	metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
-	metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
-	metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
+	if issuerURL != nil {
+		metadata.Issuer = issuerURL.String()
+		metadata.AuthorizationEndpoint = issuerURL.JoinPath("authorize").String()
+		metadata.PresentationDefinitionEndpoint = issuerURL.JoinPath("presentation_definition").String()
+		metadata.TokenEndpoint = issuerURL.JoinPath("token").String()
+	}
 	return *metadata
 }
 
@@ -87,10 +90,11 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 
 func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods []string) oauth.OpenIDConfiguration {
 	return oauth.OpenIDConfiguration{
-		Issuer:   issuerURL.String(),
-		IssuedAt: time.Now().Unix(),
-		Subject:  issuerURL.String(),
-		JWKs:     jwkSet,
-		Metadata: oauth.EntityStatementMetadata{OpenIDProvider: authorizationServerMetadata(issuerURL, supportedDIDMethods)},
+		Issuer:     issuerURL.String(),
+		IssuedAt:   time.Now().Unix(),
+		Expiration: time.Now().Add(time.Hour).Unix(), // just a number, data is retrieved runtime. Value must be larger than clock skew to prevent technical problems.
+		Subject:    issuerURL.String(),
+		JWKs:       jwkSet,
+		Metadata:   oauth.EntityStatementMetadata{OpenIDProvider: authorizationServerMetadata(&issuerURL, supportedDIDMethods)},
 	}
 }

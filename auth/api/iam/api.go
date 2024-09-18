@@ -600,7 +600,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(clientID, r.vdr.SupportedMethods())
+	md := authorizationServerMetadata(&clientID, r.vdr.SupportedMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -895,13 +895,7 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 }
 
 func (r Wrapper) subjectToBaseURL(subject string) url.URL {
-	u := &url.URL{}
-	publicURL := r.auth.PublicURL()
-	if publicURL == nil {
-		panic("publicURL is nil")
-	}
-	u = publicURL.JoinPath("oauth2", subject)
-	return *u
+	return *r.auth.PublicURL().JoinPath("oauth2", subject)
 }
 
 // subjectExists checks whether the given subject is known on the local node.
