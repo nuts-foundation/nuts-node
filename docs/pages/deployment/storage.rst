@@ -62,6 +62,7 @@ typically an Azure Managed Identity. Refer to the `Azure SDK for Go documentatio
 
 - To store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
 - Keys created through this storage backend are marked as non-exportable.
+- Azure Key Vault storage can't be used for encrypting ``did:nuts`` private credentials or for data encryption.
 
 HashiCorp Vault
 ===============
