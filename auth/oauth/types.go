@@ -415,6 +415,8 @@ type OpenIDConfiguration struct {
 	Subject string `json:"sub"`
 	// IssuedAt: the time the entity statement was issued
 	IssuedAt int64 `json:"iat"`
+	// Expiration: the time after which the entity statement may no longer be processed
+	Expiration int64 `json:"exp"`
 	// JWKs is the JSON Web Key Set of the entity statement. Contains keys of all DIDs for the subject
 	JWKs jwk.Set `json:"jwks"`
 	// Metadata: the metadata of the entity statement
@@ -442,6 +444,9 @@ func (j *OpenIDConfiguration) UnmarshalJSON(bytes []byte) error {
 	}
 	if issuedAt, ok := claims["iat"].(float64); ok {
 		j.IssuedAt = int64(issuedAt)
+	}
+	if expiration, ok := claims["exp"].(float64); ok {
+		j.Expiration = int64(expiration)
 	}
 
 	metadataJson, _ := json.Marshal(claims["metadata"])

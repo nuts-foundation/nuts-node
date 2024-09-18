@@ -50,7 +50,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	authServerUrl := test.MustParseURL("https://example.com/oauth2/example")
-	md := authorizationServerMetadata(*authServerUrl, []string{"test"})
+	md := authorizationServerMetadata(authServerUrl, []string{"test"})
 	assert.Equal(t, baseExpected, md)
 }
 
