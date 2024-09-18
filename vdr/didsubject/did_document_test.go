@@ -152,20 +152,4 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		assert.Equal(t, gorm.ErrRecordNotFound, err)
 		assert.Nil(t, latest)
 	})
-	t.Run("contains alsoKnownAs", func(t *testing.T) {
-		sqlDidBob := orm.DID{ID: bob.String(), Subject: "bob", Aka: []orm.DID{sqlDidAlice}}
-		_, err := docManager.CreateOrUpdate(sqlDidBob, nil, nil)
-		require.NoError(t, err)
-
-		latest, err := docManager.Latest(bob, nil)
-		require.NoError(t, err)
-
-		// in DID
-		assert.Len(t, latest.DID.Aka, 2)
-
-		// in did document (from Raw)
-		didDoc, err := latest.ToDIDDocument()
-		require.NoError(t, err)
-		assert.Len(t, didDoc.AlsoKnownAs, 1)
-	})
 }

@@ -28,7 +28,7 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 	}
 	document := DidDocument{
 		ID:                  "id",
-		DID:                 DID{ID: alice.String(), Aka: []DID{{ID: bob.String()}}},
+		DID:                 DID{ID: alice.String()},
 		Version:             1,
 		VerificationMethods: []VerificationMethod{vm},
 		Services:            []Service{service},
@@ -43,5 +43,4 @@ func TestDIDDocument_ToDIDDocument(t *testing.T) {
 	require.Len(t, didDoc.Service, 1)
 	assert.Equal(t, "#1", didDoc.VerificationMethod[0].ID.String())
 	assert.Equal(t, "#2", didDoc.Service[0].ID.String())
-	assert.Len(t, didDoc.AlsoKnownAs, 1)
 }

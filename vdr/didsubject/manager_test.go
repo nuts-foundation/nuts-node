@@ -133,10 +133,6 @@ func TestManager_Create(t *testing.T) {
 		}
 		assert.True(t, strings.HasPrefix(IDs[0], "did:test:"))
 		assert.True(t, strings.HasPrefix(IDs[1], "did:example:"))
-
-		// test alsoKnownAs requirements
-		document := documents[0]
-		assert.Len(t, document.AlsoKnownAs, 1)
 	})
 	t.Run("with unknown option", func(t *testing.T) {
 		db := testDB(t)
@@ -254,23 +250,12 @@ func TestManager_AddVerificationMethod(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, documents, 2)
-	document := documents[0]
 
 	t.Run("ok", func(t *testing.T) {
 		vms, err := m.AddVerificationMethod(audit.TestContext(), subject, orm.AssertionKeyUsage())
 
 		require.NoError(t, err)
 		require.Len(t, vms, 2)
-		t.Run("update keeps alsoKnownAs", func(t *testing.T) {
-			sqlDocumentManager := NewDIDDocumentManager(db)
-
-			latest, err := sqlDocumentManager.Latest(did.MustParseDID(document.ID.String()), nil)
-			require.NoError(t, err)
-			didDocument, err := latest.ToDIDDocument()
-
-			require.NoError(t, err)
-			assert.Len(t, didDocument.AlsoKnownAs, 1)
-		})
 	})
 }
 

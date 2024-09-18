@@ -20,7 +20,6 @@ package orm
 
 import (
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"gorm.io/gorm/schema"
@@ -62,18 +61,7 @@ func (sqlDoc DidDocument) ToDIDDocument() (did.Document, error) {
 
 func (sqlDoc DidDocument) GenerateDIDDocument() (did.Document, error) {
 	id, _ := did.ParseDID(sqlDoc.DID.ID)
-	others := make([]ssi.URI, 0)
-	for _, alias := range sqlDoc.DID.Aka {
-		uri, err := ssi.ParseURI(alias.ID)
-		if err != nil {
-			return did.Document{}, err
-		}
-		if id.String() != uri.String() {
-			others = append(others, *uri)
-		}
-	}
 	document := did.Document{
-		AlsoKnownAs: others,
 		Context: []interface{}{
 			did.DIDContextV1URI(),
 			jsonld.JWS2020ContextV1URI(),
