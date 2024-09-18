@@ -161,7 +161,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 		sqlDIDDocumentManager := NewDIDDocumentManager(tx)
 		transactionId := uuid.New().String()
 		for method, sqlDoc := range sqlDocs {
-			// overwrite sql.DID from returned document because we have the subject and alsoKnownAs here
+			// overwrite sql.DID from returned document because we have the subject here
 			sqlDID := orm.DID{
 				ID:      sqlDoc.DID.ID,
 				Subject: subject,

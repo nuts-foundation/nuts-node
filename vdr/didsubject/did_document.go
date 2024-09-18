@@ -35,7 +35,7 @@ var _ DIDDocumentManager = (*SqlDIDDocumentManager)(nil)
 type DIDDocumentManager interface {
 	// CreateOrUpdate adds a new version of a DID document, starts at 1
 	// If the DID does not exist yet, it will be created
-	// It adds all verification methods, services, alsoKnownAs to the DID document
+	// It adds all verification methods and services to the DID document
 	// Not passing any verification methods will create an empty DID document, deactivation checking should be done by the caller
 	CreateOrUpdate(did orm.DID, verificationMethods []orm.VerificationMethod, services []orm.Service) (*orm.DidDocument, error)
 	// Latest returns the latest version of a DID document
