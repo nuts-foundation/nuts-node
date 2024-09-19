@@ -140,8 +140,7 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 	sqlDocs := make(map[string]orm.DidDocument)
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
-		sqlDIDManager := NewDIDManager(tx)
-		_, err := sqlDIDManager.FindBySubject(subject)
+		_, err := NewDIDManager(tx).FindBySubject(subject)
 		if errors.Is(err, ErrSubjectNotFound) {
 			// this is ok, doesn't exist yet
 		} else if err != nil {
@@ -647,4 +646,52 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 		}
 	}
 	copy(list, orderedList)
+}
+
+func (r *Manager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+	latestDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
+	var latestSQLVersion int
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		latestSQLVersion = -1
+	} else if err != nil {
+		return err
+	} else {
+		latestSQLVersion = latestDocument.Version
+	}
+
+	history, err := getHistory(id, latestSQLVersion)
+	if err != nil {
+		return err
+	}
+
+	// convert history to orm objects
+	documentVersions := make([]orm.DidDocument, len(history))
+	for i, entry := range history {
+		documentVersions[i], err = entry.ToORMDocument()
+		if err != nil {
+			return err
+		}
+	}
+
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if latestSQLVersion == -1 {
+			// add subject to did table
+			subject := orm.DID{
+				ID:      id.String(),
+				Subject: id.String(),
+			}
+			err = tx.Create(&subject).Error
+			if err != nil {
+				return err
+			}
+		}
+		// add document history
+		for _, doc := range documentVersions {
+			err = tx.Create(&doc).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

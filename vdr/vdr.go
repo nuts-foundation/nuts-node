@@ -164,17 +164,19 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 
-	// Methods we can produce from the Nuts node
-	// did:nuts
-	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
-	r.nutsDocumentManager = nutsManager
-	methodManagers = map[string]didsubject.MethodManager{}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{
 			newCachingDocumentOwner(DBDocumentOwner{DB: db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		},
 	}
+
+	// Methods we can produce from the Nuts node
+	methodManagers = map[string]didsubject.MethodManager{}
+
+	// did:nuts
+	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
+	r.nutsDocumentManager = nutsManager
 	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
 		methodManagers[didnuts.MethodName] = nutsManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
@@ -361,7 +363,23 @@ func (r *Module) Migrate() error {
 	if err != nil {
 		return err
 	}
-	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate")
+
+	// only migrate if did:nuts is activated on the node
+	if _, ok := r.MethodManagers[didnuts.MethodName]; ok {
+		// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
+		r.migrateRemoveControllerFromDIDNuts(owned)
+		err = r.migrateHistoryOwnedDIDNuts(owned)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// migrateRemoveControllerFromDIDNuts removes the controller from all did:nuts identifiers under own control.
+// This ignores any DIDs that are not did:nuts.
+func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_remove_did_nuts_controller")
 	// resolve the DID Document if the did starts with did:nuts
 	for _, did := range owned {
 		if did.Method == didnuts.MethodName {
@@ -373,6 +391,7 @@ func (r *Module) Migrate() error {
 				continue
 			}
 			if len(doc.Controller) > 0 {
+				log.Logger().Debugf("Migrating did:nuts controller for %s", did)
 				doc.Controller = nil
 
 				if len(doc.VerificationMethod) == 0 {
@@ -394,6 +413,21 @@ func (r *Module) Migrate() error {
 					}
 				}
 			}
+		}
+	}
+}
+
+func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) error {
+	// TODO: filter errors. One corrupt DID history will break the migration of all that follow.
+	//auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_did_nuts_history")
+	// resolve the DID Document if the did starts with did:nuts
+	for _, did := range owned {
+		if did.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		err := r.Manager.MigrateNutsHistory(did, r.store.HistorySinceVersion)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

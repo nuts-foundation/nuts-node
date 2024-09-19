@@ -20,6 +20,9 @@ package orm
 
 import (
 	"encoding/json"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"gorm.io/gorm/schema"
@@ -101,4 +104,65 @@ func (sqlDoc DidDocument) GenerateDIDDocument() (did.Document, error) {
 	}
 
 	return document, nil
+}
+
+// MigrationDocument is used to convert a did.Document + metadata to a DidDocument
+type MigrationDocument struct {
+	// Raw contains the did.Document in bytes. For did:nuts this is must be equal to the payload in the network transaction.
+	Raw     []byte
+	Created time.Time
+	Updated time.Time
+	Version int
+}
+
+// ToORMDocument converts the Raw document to a DidDocument. DID.Subject is set equal to DID.ID.
+func (migration MigrationDocument) ToORMDocument() (DidDocument, error) {
+	doc := new(did.Document)
+	err := json.Unmarshal(migration.Raw, doc)
+	if err != nil {
+		return DidDocument{}, err
+	}
+
+	// generate DB documentID
+	documentID := uuid.New().String()
+
+	// convert []did.VerificationMethod to []VerificationMethod
+	vms := make([]VerificationMethod, len(doc.VerificationMethod))
+	for i, vm := range doc.VerificationMethod {
+		vmAsJson, _ := json.Marshal(*vm)
+		vms[i] = VerificationMethod{
+			ID:       vm.ID.String(),
+			KeyTypes: VerificationMethodKeyType(verificationMethodToKeyFlags(*doc, vm)),
+			Data:     vmAsJson,
+		}
+	}
+
+	// convert []did.Service to []Service
+	services := make([]Service, len(doc.Service))
+	for i, service := range doc.Service {
+		asJson, _ := json.Marshal(service)
+		services[i] = Service{
+			ID:   service.ID.String(),
+			Data: asJson,
+		}
+	}
+
+	// DID
+	subjectDID := DID{
+		ID:      doc.ID.String(),
+		Subject: doc.ID.String(),
+	}
+
+	// return document
+	return DidDocument{
+		ID:                  documentID,
+		DidID:               doc.ID.String(),
+		DID:                 subjectDID,
+		CreatedAt:           migration.Created.Unix(),
+		UpdatedAt:           migration.Updated.Unix(),
+		Version:             migration.Version,
+		VerificationMethods: vms,
+		Services:            services,
+		Raw:                 string(migration.Raw),
+	}, nil
 }

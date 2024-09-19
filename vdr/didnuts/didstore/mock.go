@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
+	orm "github.com/nuts-foundation/nuts-node/storage/orm"
 	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -96,6 +97,21 @@ func (m *MockStore) DocumentCount() (uint, error) {
 func (mr *MockStoreMockRecorder) DocumentCount() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DocumentCount", reflect.TypeOf((*MockStore)(nil).DocumentCount))
+}
+
+// HistorySinceVersion mocks base method.
+func (m *MockStore) HistorySinceVersion(id did.DID, version int) ([]orm.MigrationDocument, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HistorySinceVersion", id, version)
+	ret0, _ := ret[0].([]orm.MigrationDocument)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// HistorySinceVersion indicates an expected call of HistorySinceVersion.
+func (mr *MockStoreMockRecorder) HistorySinceVersion(id, version any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HistorySinceVersion", reflect.TypeOf((*MockStore)(nil).HistorySinceVersion), id, version)
 }
 
 // Iterate mocks base method.
