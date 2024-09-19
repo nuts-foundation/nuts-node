@@ -235,12 +235,20 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, error) {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the last Timestamp.
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where(serviceRecord{ID: serviceID}).
-		Find(&service).
-		Error; err != nil {
-		return nil, err
+	// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
+	if tx.Dialector.Name() == "sqlserver" {
+		if err := tx.Raw("SELECT * FROM discovery_service WITH (UPDLOCK, ROWLOCK) WHERE id = ?", serviceID).Scan(&service).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where(serviceRecord{ID: serviceID}).
+			Find(&service).
+			Error; err != nil {
+			return nil, err
+		}
 	}
+
 	service.ID = serviceID
 	service.LastLamportTimestamp = service.LastLamportTimestamp + 1
 
@@ -254,11 +262,17 @@ func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, erro
 func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) error {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the last Timestamp.
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where(serviceRecord{ID: serviceID}).
-		Find(&service).
-		Error; err != nil {
-		return err
+	if tx.Dialector.Name() == "sqlserver" {
+		if err := tx.Raw("SELECT * FROM discovery_service WITH (UPDLOCK, ROWLOCK) WHERE id = ?", serviceID).Scan(&service).Error; err != nil {
+			return err
+		}
+	} else {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where(serviceRecord{ID: serviceID}).
+			Find(&service).
+			Error; err != nil {
+			return err
+		}
 	}
 	service.ID = serviceID
 	service.LastLamportTimestamp = timestamp

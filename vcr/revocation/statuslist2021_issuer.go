@@ -166,9 +166,15 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	err = cs.db.Transaction(func(tx *gorm.DB) error {
 		// lock credentialRecord row for statusListCredentialURL since it will be updated.
 		// Revoke does the same to guarantee the DB always contains all revocations.
-		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-			Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
-			Error
+		if tx.Dialector.Name() == "sqlserver" {
+			err = tx.Raw("SELECT * FROM status_list_entry WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
+				Scan(new(credentialRecord)).
+				Error
+		} else {
+			err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+				Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
+				Error
+		}
 		if err != nil {
 			return err
 		}
@@ -296,11 +302,17 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 			//    DESC OFFSET 0 ROW FETCH NEXT 1 ROWS ONLY FOR UPDATE
 			// Causes: "FOR UPDATE clause allowed only for DECLARE CURSOR"
 			var pages []credentialIssuerRecord
-			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-				Where(credentialIssuerRecord{Issuer: issuer.String()}).
-				Find(&pages).
-				Error
-
+			var err error
+			if tx.Dialector.Name() == "sqlserver" {
+				err = tx.Raw("SELECT * FROM status_list WITH (UPDLOCK, ROWLOCK) WHERE issuer = ?", issuer.String()).
+					Scan(&pages).
+					Error
+			} else {
+				err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+					Where(credentialIssuerRecord{Issuer: issuer.String()}).
+					Find(&pages).
+					Error
+			}
 			if err != nil {
 				return err
 			}
