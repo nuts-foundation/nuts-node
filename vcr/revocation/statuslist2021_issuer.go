@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -296,7 +297,6 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 			// Causes: "FOR UPDATE clause allowed only for DECLARE CURSOR"
 			var pages []credentialIssuerRecord
 			err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-				Order("page").
 				Where("issuer = ?", issuer.String()).
 				Find(&pages).
 				Error
@@ -313,7 +313,10 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 					Page:            0,
 				}
 			} else {
-				// get last page
+				// get last page, order by page first
+				slices.SortFunc(pages, func(i, j credentialIssuerRecord) int {
+					return i.Page - j.Page
+				})
 				credentialIssuer = &pages[len(pages)-1]
 			}
 
