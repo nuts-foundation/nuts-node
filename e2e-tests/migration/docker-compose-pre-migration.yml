@@ -1,0 +1,30 @@
+services:
+  nodeA:
+    image: nutsfoundation/nuts-node:v5.4.10
+    container_name: nodeA
+    ports: # use v6 ports to minimize changes
+      - "18081:1323"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+    volumes:
+      - "./nuts-v5.yaml:/opt/nuts/nuts.yaml"
+      - "./nodeA/data:/opt/nuts/data"
+      - "../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nodeB:
+    image: nutsfoundation/nuts-node:v5.4.10
+    container_name: nodeB
+    ports:
+      - "28081:1323"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_BOOTSTRAPNODES: "nodeA:5555"
+    volumes:
+      - "./nuts-v5.yaml:/opt/nuts/nuts.yaml"
+      - "./nodeB/data:/opt/nuts/data"
+      - "../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
