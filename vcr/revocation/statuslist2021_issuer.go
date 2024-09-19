@@ -287,22 +287,34 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 	credentialIssuer := new(credentialIssuerRecord)
 	for {
 		err := cs.db.Transaction(func(tx *gorm.DB) error {
-			// lock issuer's last page; iff it exists
+			// Find issuer's last page; if it exists. Lock all pages.
+			// Previously, we locked issuer's last page, but this lead to a query MS SQL Server didn't like:
+			//  SELECT * FROM "status_list"
+			//    WHERE issuer = 'did:web:nodeB:iam:c95142f3-f5c9-464a-b82f-5969e3c5daf6'
+			//    ORDER BY page,"status_list"."subject_id"
+			//    DESC OFFSET 0 ROW FETCH NEXT 1 ROWS ONLY FOR UPDATE
+			// Causes: "FOR UPDATE clause allowed only for DECLARE CURSOR"
+			var pages []credentialIssuerRecord
 			err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 				Order("page").
-				Last(credentialIssuer, "issuer = ?", issuer.String()).
+				Where("issuer = ?", issuer.String()).
+				Find(&pages).
 				Error
-			if err != nil {
-				if !errors.Is(err, gorm.ErrRecordNotFound) {
-					return err
-				}
 
+			if err != nil {
+				return err
+			}
+
+			if len(pages) == 0 {
 				// first time issuer; prepare to create a new Page / StatusListCredential
 				credentialIssuer = &credentialIssuerRecord{
 					Issuer:          issuer.String(),
 					LastIssuedIndex: maxBitstringIndex, // this will be incremented to move to page 1
 					Page:            0,
 				}
+			} else {
+				// get last page
+				credentialIssuer = &pages[len(pages)-1]
 			}
 
 			// next index
