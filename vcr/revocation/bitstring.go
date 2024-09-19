@@ -36,19 +36,25 @@ const maxBitstringIndex = defaultBitstringLengthInBytes*8 - 1
 var _ sql.Scanner = (*bitstring)(nil)
 var _ driver.Valuer = (*bitstring)(nil)
 
-// bitstring is not thread-safe
+// bitstring is not thread-safe.
+// It implements the sql.Scanner and driver.Valuer interfaces, so we can store it in a text column, in compressed form.
+// It makes validation slightly more expensive, but makes SQL storages less complex (since we don't have to support BLOBs for multiple databases).
+// See https://gorm.io/docs/data_types.html for an explanation for (un)marshalling is done in GORM.
 type bitstring []byte
 
-func (bs *bitstring) Value() (driver.Value, error) {
-	return compress(*bs)
+func (bs bitstring) Value() (driver.Value, error) {
+	if bs == nil {
+		return nil, nil
+	}
+	return compress(bs)
 }
 
 func (bs *bitstring) Scan(value any) error {
 	asString, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("bitstring unmarshal from DB: expected string, got %T", value)
+		return fmt.Errorf("bitstring unmarshal from DB: expected []uint8, got %T", value)
 	}
-	expanded, err := expand(asString)
+	expanded, err := expand(string(asString))
 	if err != nil {
 		return fmt.Errorf("bitstring unmarshal from DB, unable to expand: %w", err)
 	}
