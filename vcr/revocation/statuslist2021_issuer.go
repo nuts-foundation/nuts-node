@@ -296,8 +296,8 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 			//    DESC OFFSET 0 ROW FETCH NEXT 1 ROWS ONLY FOR UPDATE
 			// Causes: "FOR UPDATE clause allowed only for DECLARE CURSOR"
 			var pages []credentialIssuerRecord
-			err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-				Where("issuer = ?", issuer.String()).
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where(credentialIssuerRecord{Issuer: issuer.String()}).
 				Find(&pages).
 				Error
 
