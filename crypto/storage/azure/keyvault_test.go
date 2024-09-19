@@ -27,6 +27,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"net/http"
 	"os"
 	"testing"
@@ -332,5 +333,18 @@ func TestIntegrationTest(t *testing.T) {
 			err := store.DeletePrivateKey(ctx, "does-not-exist")
 			assert.ErrorIs(t, err, spi.ErrNotFound)
 		})
+	})
+}
+
+func Test_createCredential(t *testing.T) {
+	t.Run("Managed Identity", func(t *testing.T) {
+		cred, err := createCredential(ManagedIdentityCredentialType)
+		require.NoError(t, err)
+		require.IsType(t, &azidentity.ManagedIdentityCredential{}, cred)
+	})
+	t.Run("Default Credential", func(t *testing.T) {
+		cred, err := createCredential(DefaultChainCredentialType)
+		require.NoError(t, err)
+		require.IsType(t, &azidentity.DefaultAzureCredential{}, cred)
 	})
 }
