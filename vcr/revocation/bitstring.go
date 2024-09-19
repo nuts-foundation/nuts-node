@@ -21,8 +21,11 @@ package revocation
 import (
 	"bytes"
 	"compress/gzip"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/base64"
 	"errors"
+	"fmt"
 )
 
 var ErrIndexNotInBitstring = errors.New("index not in status list")
@@ -30,8 +33,28 @@ var ErrIndexNotInBitstring = errors.New("index not in status list")
 const defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
 const maxBitstringIndex = defaultBitstringLengthInBytes*8 - 1
 
+var _ sql.Scanner = (*bitstring)(nil)
+var _ driver.Valuer = (*bitstring)(nil)
+
 // bitstring is not thread-safe
 type bitstring []byte
+
+func (bs *bitstring) Value() (driver.Value, error) {
+	return compress(*bs)
+}
+
+func (bs *bitstring) Scan(value any) error {
+	asString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("bitstring unmarshal from DB: expected string, got %T", value)
+	}
+	expanded, err := expand(asString)
+	if err != nil {
+		return fmt.Errorf("bitstring unmarshal from DB, unable to expand: %w", err)
+	}
+	*bs = expanded
+	return nil
+}
 
 // newBitstring creates a new bitstring with 16kB entries initialized to 0.
 func newBitstring() *bitstring {
