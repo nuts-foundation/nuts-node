@@ -549,10 +549,10 @@ type ServerInterface interface {
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
 	// Handle some of the validation of a DPoP proof as specified by RFC9449.
-	// (POST /internal/auth/v2/dpop_validate)
+	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx echo.Context) error
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
-	// (POST /internal/auth/v2/{kid}/dpop)
+	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx echo.Context, kid string) error
 	// EXPERIMENTAL Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
@@ -1021,8 +1021,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect", wrapper.IntrospectAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/accesstoken/introspect_extended", wrapper.IntrospectAccessTokenExtended)
 	router.GET(baseURL+"/internal/auth/v2/accesstoken/:sessionID", wrapper.RetrieveAccessToken)
-	router.POST(baseURL+"/internal/auth/v2/dpop_validate", wrapper.ValidateDPoPProof)
-	router.POST(baseURL+"/internal/auth/v2/:kid/dpop", wrapper.CreateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/dpop/validate", wrapper.ValidateDPoPProof)
+	router.POST(baseURL+"/internal/auth/v2/dpop/:kid", wrapper.CreateDPoPProof)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-user-access-token", wrapper.RequestUserAccessToken)
@@ -1754,10 +1754,10 @@ type StrictServerInterface interface {
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
 	// Handle some of the validation of a DPoP proof as specified by RFC9449.
-	// (POST /internal/auth/v2/dpop_validate)
+	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
-	// (POST /internal/auth/v2/{kid}/dpop)
+	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
 	// EXPERIMENTAL Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
