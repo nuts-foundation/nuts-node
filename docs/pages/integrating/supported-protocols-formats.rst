@@ -4,6 +4,7 @@ Supported Protocols and Formats
 ===============================
 
 This page documents which cryptographic algorithms, key types and SSI formats and protocols are supported.
+Various protocols have a draft status and success on using them may vary.
 
 Cryptographic Algorithms
 ************************

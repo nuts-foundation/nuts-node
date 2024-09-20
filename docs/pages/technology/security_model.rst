@@ -18,7 +18,7 @@ It focuses on:
 
 It does not cover interactions between Nuts nodes and systems specified by the `Nuts specifications <https://nuts-foundation.gitbook.io/drafts/>`_;
 these are covered in the Nuts Start Architecture or respective RFCs.
-It also does not cover interactions specified by Nuts use cases: security should be addressed in the respective Bolt specification.
+It also does not cover interactions specified by Nuts use cases.
 
 Threat Model
 ************
@@ -35,15 +35,6 @@ The following are part of the threat model:
    - Implemented by:
       - Storing keys in a secure storage (e.g. Hashicorp Vault).
       - Not allowing private keys to be exported, only to be created and used (signing/encrypting).
-- Protecting against eavesdropping and tampering of network traffic between Nuts nodes.
-   - Implemented by:
-      - Using TLS for all network traffic.
-      - Signing network transactions.
-      - Only exchanging private transactions with authorized nodes, part of that transaction.
-- Protecting against eavesdropping and tampering of external network traffic between API clients and Nuts node.
-   - Implemented by:
-      - Providing documentation on how to configure TLS for external traffic.
-      - Only connecting to external interfaces over TLS.
 - Protecting against repudiation.
    - Administrative actions, data alterations and usage of private keys must be accountable.
    - Implemented by:
@@ -80,25 +71,18 @@ A typical Nuts Node deployment consists of various parts:
 
 - External API clients:
    - Remote client application
-   - IRMA mobile app
 - Internal API clients:
    - Client application and administrative system
    - Monitoring system
-- Reverse proxy for HTTP and gRPC traffic (terminates TLS)
+- Reverse proxy for HTTPS (terminates TLS)
 - Nuts Node
 - Data stores:
-   - Network data
+   - SQL database
    - Private key storage
 
-External actors are remote Nuts nodes, remote applications and IRMA mobile devices.
-Remote Nuts nodes and remote applications require a trusted TLS client certificate,
-which makes an attack complex: you need to either steal an organizations certificate (very hard),
-or buy a certificate using your own name (accountable, expensive, and time-consuming, depending on the certificate).
-Then, when the attacker is identified, the certificate can be banned and the legal entity (holder of the certificate) could be held accountable.
-
-The IRMA mobile app is different; it does not get authenticated, so attacks can come from anywhere/anyone.
-Since there are no authentication credentials that can be revoked, attackers can only be stopped by blocking IP addresses or other typical (D)DoS mitigation techniques.
-
+External actors are remote Nuts nodes and remote applications.
+The Nuts node depends on a correct reverse proxy configuration to protect against external threats.
+All endpoints that are published by the node always use HTTPS.
 The Nuts node itself does not protect against DoS attacks; the proxy infrastructure routing external traffic to the node will have to protect against this.
 
 Internal threats

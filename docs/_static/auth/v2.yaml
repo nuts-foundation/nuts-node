@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Auth v2 API (experimental)
-  version: 0.0.0
+  version: 2.0.0
 servers:
   - url: http://localhost:8081
     description: For internal-facing endpoints.
@@ -175,7 +175,7 @@ paths:
       operationId: createDPoPProof
       summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
       tags:
-        - oauth2
+        - auth
       parameters:
         - name: kid
           in: path
@@ -217,7 +217,7 @@ paths:
         * The ath field in the DPoP proof matches the hash of the access token
         * The jti field in the DPoP proof is unique
       tags:
-        - oauth2
+        - auth
       requestBody:
         required: true
         content:

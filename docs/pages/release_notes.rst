@@ -52,6 +52,7 @@ Changes
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
 - Node can now be run without configuring TLS when the gRPC network isn't used (no bootstrap node configured and no network state), to cater use cases that don't use ``did:nuts``.
+- Crypto backends store keys under a key name and are linked to the kid via the ``key_reference`` SQL table.
 
 The following features have also been changed:
 

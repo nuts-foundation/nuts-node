@@ -63,24 +63,6 @@ To describe error responses, the specific responses need to be added to the API 
 Paths
 *****
 
-The API paths are designed so different security schemes can be setup easily.
-
-API paths follow the following pattern:
-
-.. code-block:: text
-
-    /<context>/<engine>/<version>/<action>
-
-All paths start with a security ``<context>``:
+The API paths are designed so it's clear which APIs are to be blocked for external traffic.
 
 - ``/internal/**`` These APIs are meant to be behind a firewall and should only be available to the internal infrastructure.
-  All DID Document manipulation APIs fall under this category.
-- ``/n2n/**`` These APIs must be available to other nodes from the network.
-  This means they must be protected with the required client certificate as specified by `RFC011 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc011-verifiable-credential>`_.
-  The creation of an access token is one example of such an API.
-- ``/public/**`` These APIs must be publicly available on a valid domain. No security must be configured other than a server certificate.
-  These APIs are used by mobile devices.
-
-After the context, the ``<engine>`` is expected. An engine defines a logical unit of functionality.
-Each engine has its own OAS file. Then as discussed earlier, the ``<version>`` is expected.
-The last part is the ``<action>``, this part can be freely chosen in a RESTful manor.
