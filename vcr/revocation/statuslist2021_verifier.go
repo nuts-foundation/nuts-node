@@ -90,7 +90,7 @@ func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) err
 			// can't happen, checked during validation of credentialToVerify
 			return err
 		}
-		revoked, err := sList.Expanded.bit(index)
+		revoked, err := sList.Bitstring.bit(index)
 		if err != nil {
 			return err
 		}
@@ -165,7 +165,7 @@ func (cs *StatusList2021) update(statusListCredential string) (*credentialRecord
 	sl := credentialRecord{
 		SubjectID:     statusListCredential,
 		StatusPurpose: credSubject.StatusPurpose,
-		Expanded:      expanded,
+		Bitstring:     expanded,
 		//Created:              time.Now(), // set by gorm when stored
 		Expires: expiresPtr,
 		Raw:     cred.Raw(),

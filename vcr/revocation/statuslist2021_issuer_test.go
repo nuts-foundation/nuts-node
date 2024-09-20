@@ -217,7 +217,7 @@ func TestStatusList2021_Revoke(t *testing.T) {
 		// confirm statuslist entry not revoked in credential
 		credRecord, err := s.loadCredential(entry.StatusListCredential)
 		require.NoError(t, err)
-		set, _ := credRecord.Expanded.bit(statusListIndex)
+		set, _ := credRecord.Bitstring.bit(statusListIndex)
 		assert.False(t, set)
 		credentialID := bobDID.URI() // not alice
 		require.NoError(t, s.Revoke(context.Background(), credentialID, entry))
@@ -233,7 +233,7 @@ func TestStatusList2021_Revoke(t *testing.T) {
 		// confirm statuslist credential is updated
 		credRecord, err = s.loadCredential(entry.StatusListCredential)
 		require.NoError(t, err)
-		set, _ = credRecord.Expanded.bit(statusListIndex)
+		set, _ = credRecord.Bitstring.bit(statusListIndex)
 		assert.True(t, set)
 	})
 	t.Run("error - signing key not found", func(t *testing.T) {
