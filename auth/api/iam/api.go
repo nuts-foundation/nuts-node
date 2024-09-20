@@ -53,7 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -179,6 +178,7 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 
 func (r Wrapper) strictMiddleware(ctx echo.Context, request interface{}, operationID string, f StrictHandlerFunc) (interface{}, error) {
 	middleware(ctx, operationID)
+	ctx.Set(core.StatusCodeResolverContextKey, r)
 	return f(ctx, request)
 }
 
@@ -199,7 +199,6 @@ func middleware(ctx echo.Context, operationID string) {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (r Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		vcrTypes.ErrNotFound:                http.StatusNotFound,
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		pe.ErrNoCredentials:                 http.StatusPreconditionFailed,
 		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
