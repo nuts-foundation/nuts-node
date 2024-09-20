@@ -80,6 +80,14 @@ else
   exitWithDockerLogs 1
 fi
 
+if echo $RESPONSE | grep -q "authServerURL"; then
+  echo "Authorization server URL found"
+else
+  echo "FAILED: Could not find authServerURL" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
 echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"

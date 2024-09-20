@@ -220,9 +220,9 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 	if err != nil {
 		return nil, err
 	}
-	// add registration params as credential
+	var registrationCredential vc.VerifiableCredential
 	if len(parameters) > 0 {
-		registrationCredential := vc.VerifiableCredential{
+		registrationCredential = vc.VerifiableCredential{
 			Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
 			CredentialSubject: []interface{}{parameters},
@@ -235,6 +235,19 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 	if err != nil {
 		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
+
+	// add registration params as credential if not already done so by the Presentation Definition
+	var found bool
+	for _, cred := range matchingCredentials {
+		if cred.ID == registrationCredential.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		matchingCredentials = append(matchingCredentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
+	}
+
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }
 
