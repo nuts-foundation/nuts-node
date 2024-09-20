@@ -77,7 +77,7 @@ type credentialRecord struct {
 	SubjectID string `gorm:"primaryKey"`
 	// StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	StatusPurpose string
-	// Bitstring is the compressed StatusList2021 bitstring
+	// Bitstring is the expanded StatusList2021 bitstring
 	Bitstring bitstring
 	// CreatedAt is the UNIX timestamp this credentialRecord was generated
 	CreatedAt int64 `gorm:"autoCreateTime"`
