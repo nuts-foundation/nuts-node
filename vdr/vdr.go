@@ -127,7 +127,7 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
 	// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
-	m.migrations = map[string]migration{
+	m.migrations = map[string]migration{ // key will be printed as description of the migration
 		"remove controller": m.migrateRemoveControllerFromDIDNuts,
 		"document history":  m.migrateHistoryOwnedDIDNuts,
 	}
@@ -387,36 +387,39 @@ func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
 	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_remove_did_nuts_controller")
 	// resolve the DID Document if the did starts with did:nuts
 	for _, did := range owned {
-		if did.Method == didnuts.MethodName {
-			doc, _, err := r.Resolve(did, nil)
-			if err != nil {
-				if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
-					log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-				}
-				continue
+		if did.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		doc, _, err := r.Resolve(did, nil)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
 			}
-			if len(doc.Controller) > 0 {
-				log.Logger().Debugf("Migrating did:nuts controller for %s", did)
-				doc.Controller = nil
+			continue
+		}
+		if len(doc.Controller) == 0 { // has no controller
+			continue
+		}
 
-				if len(doc.VerificationMethod) == 0 {
-					log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
-					continue
-				}
+		// try to remove controller
+		doc.Controller = nil
 
-				if len(doc.CapabilityInvocation) == 0 {
-					// add all keys as capabilityInvocation keys
-					for _, vm := range doc.VerificationMethod {
-						doc.CapabilityInvocation.Add(vm)
-					}
-				}
+		if len(doc.VerificationMethod) == 0 {
+			log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
+			continue
+		}
 
-				err = r.nutsDocumentManager.Update(auditContext, did, *doc)
-				if err != nil {
-					if !(errors.Is(err, resolver.ErrKeyNotFound)) {
-						log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-					}
-				}
+		if len(doc.CapabilityInvocation) == 0 {
+			// add all keys as capabilityInvocation keys
+			for _, vm := range doc.VerificationMethod {
+				doc.CapabilityInvocation.Add(vm)
+			}
+		}
+
+		err = r.nutsDocumentManager.Update(auditContext, did, *doc)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrKeyNotFound)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
 			}
 		}
 	}
