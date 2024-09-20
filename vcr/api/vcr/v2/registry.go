@@ -67,7 +67,7 @@ func (w *Wrapper) SearchVCs(ctx context.Context, request SearchVCsRequestObject)
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
 		documentAsJson, _ := json.MarshalIndent(document, "", " ")
-		log.Logger().Debugf("Bitstring JSON-LD search query:\n%s", string(documentAsJson))
+		log.Logger().Debugf("Expanded JSON-LD search query:\n%s", string(documentAsJson))
 	}
 
 	searchTerms := flatten(document, nil)
