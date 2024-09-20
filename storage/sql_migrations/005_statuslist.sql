@@ -8,8 +8,8 @@ create table status_list_credential
     subject_id      varchar(500)    not null    primary key,
     -- StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
     status_purpose  varchar(25)     not null,
-    -- expanded StatusList2021 bitstring
-    expanded        $TEXT_TYPE      not null,
+    -- bitstring contains the compressed StatusList2021 bitstring
+    bitstring       $TEXT_TYPE      not null,
     -- created is the seconds since Unix Epoch when this credentialRecord was generated
     created_at      integer         not null,
     -- expires is the seconds since Unix Epoch when the credential expires, only present if set.

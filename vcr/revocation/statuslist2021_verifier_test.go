@@ -233,7 +233,7 @@ func TestStatusList2021_update(t *testing.T) {
 		assert.NotNil(t, sl.Raw)
 		assert.Equal(t, ts.URL, sl.SubjectID)
 		assert.Equal(t, "revocation", sl.StatusPurpose)
-		assert.NotEmpty(t, sl.Expanded)
+		assert.NotEmpty(t, sl.Bitstring)
 		assert.InDelta(t, sl.CreatedAt, time.Now().Unix(), 2) // allow 2 sec difference on slow CI
 		assert.NotNil(t, sl.Expires)
 		slDB, err := cs.loadCredential(entry.StatusListCredential)

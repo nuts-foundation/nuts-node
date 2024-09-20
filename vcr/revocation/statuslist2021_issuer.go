@@ -78,8 +78,8 @@ type credentialRecord struct {
 	SubjectID string `gorm:"primaryKey"`
 	// StatusPurpose is the purpose listed in the StatusList2021Credential.credentialSubject
 	StatusPurpose string
-	// Expanded StatusList2021 bitstring
-	Expanded bitstring
+	// Bitstring is the expanded StatusList2021 bitstring
+	Bitstring bitstring
 	// CreatedAt is the UNIX timestamp this credentialRecord was generated
 	CreatedAt int64 `gorm:"autoCreateTime"`
 	// Expires is the UNIX timestamp the StatusList2021Credential expires. May be missing in external StatusList2021Credentials
@@ -250,7 +250,7 @@ func (cs *StatusList2021) updateCredential(ctx context.Context, issuerRecord *cr
 	credRecord := &credentialRecord{
 		SubjectID:     credSubject.ID,
 		StatusPurpose: credSubject.StatusPurpose,
-		Expanded:      *expanded,
+		Bitstring:     *expanded,
 		Expires:       &expires,
 		Raw:           statusListCredential.Raw(),
 	}

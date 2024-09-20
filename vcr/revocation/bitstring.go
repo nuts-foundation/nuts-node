@@ -21,8 +21,11 @@ package revocation
 import (
 	"bytes"
 	"compress/gzip"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/base64"
 	"errors"
+	"fmt"
 )
 
 var ErrIndexNotInBitstring = errors.New("index not in status list")
@@ -30,8 +33,38 @@ var ErrIndexNotInBitstring = errors.New("index not in status list")
 const defaultBitstringLengthInBytes = 16 * 1024 // *8 = herd privacy of 16kB or 131072 bit
 const maxBitstringIndex = defaultBitstringLengthInBytes*8 - 1
 
-// bitstring is not thread-safe
+var _ sql.Scanner = (*bitstring)(nil)
+var _ driver.Valuer = (*bitstring)(nil)
+
+// bitstring is not thread-safe.
+// It implements the sql.Scanner and driver.Valuer interfaces, so we can store it in a text column, in compressed form.
+// It makes validation slightly more expensive, but makes SQL storages less complex (since we don't have to support BLOBs for multiple databases).
+// See https://gorm.io/docs/data_types.html for an explanation for (un)marshalling is done in GORM.
 type bitstring []byte
+
+func (bs bitstring) Value() (driver.Value, error) {
+	if bs == nil {
+		return nil, nil
+	}
+	return compress(bs)
+}
+
+func (bs *bitstring) Scan(value any) error {
+	if value == nil {
+		*bs = nil
+		return nil
+	}
+	asString, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("bitstring unmarshal from DB: expected []uint8, got %T", value)
+	}
+	expanded, err := expand(asString)
+	if err != nil {
+		return fmt.Errorf("bitstring unmarshal from DB, unable to expand: %w", err)
+	}
+	*bs = expanded
+	return nil
+}
 
 // newBitstring creates a new bitstring with 16kB entries initialized to 0.
 func newBitstring() *bitstring {
