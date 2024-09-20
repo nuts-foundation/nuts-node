@@ -65,8 +65,8 @@ func TestDIDDocument_FromDIDDocument(t *testing.T) {
 		ID:   "#service",
 		Data: []byte(`{"id":"#service"}`),
 	}
-	didDoc, err := DIDDocument{
-		DID:                 DID{ID: alice.String(), Aka: []DID{{ID: bob.String()}}},
+	didDoc, err := DidDocument{
+		DID:                 DID{ID: alice.String()},
 		VerificationMethods: vms,
 		Services:            []Service{service},
 		CreatedAt:           created.Unix(),
@@ -95,7 +95,6 @@ func TestDIDDocument_FromDIDDocument(t *testing.T) {
 
 	// Services
 	require.Len(t, result.Services, 1)
-	service.DIDDocumentID = result.ID
 	assert.Equal(t, service, result.Services[0])
 
 	// VerificationMethods

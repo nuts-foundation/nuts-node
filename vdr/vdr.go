@@ -77,6 +77,8 @@ type Module struct {
 	keyStore         crypto.KeyStore
 	storageInstance  storage.Engine
 	eventManager     events.Event
+	// migrations are registered functions to simplify testing
+	migrations map[string]migration
 
 	// new style DID management
 	didsubject.Manager
@@ -124,6 +126,11 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
+	// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
+	m.migrations = map[string]migration{
+		"remove controller": m.migrateRemoveControllerFromDIDNuts,
+		"document history":  m.migrateHistoryOwnedDIDNuts,
+	}
 	return m
 }
 
@@ -365,12 +372,10 @@ func (r *Module) Migrate() error {
 	}
 
 	// only migrate if did:nuts is activated on the node
-	if _, ok := r.MethodManagers[didnuts.MethodName]; ok {
-		// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
-		r.migrateRemoveControllerFromDIDNuts(owned)
-		err = r.migrateHistoryOwnedDIDNuts(owned)
-		if err != nil {
-			return err
+	if slices.Contains(r.SupportedMethods(), "nuts") {
+		for name, migrate := range r.migrations {
+			log.Logger().Infof("Running did:nuts migration: '%s'", name)
+			migrate(owned)
 		}
 	}
 	return nil
@@ -417,8 +422,7 @@ func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
 	}
 }
 
-func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) error {
-	// TODO: filter errors. One corrupt DID history will break the migration of all that follow.
+func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
 	//auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_did_nuts_history")
 	// resolve the DID Document if the did starts with did:nuts
 	for _, did := range owned {
@@ -427,8 +431,9 @@ func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) error {
 		}
 		err := r.Manager.MigrateNutsHistory(did, r.store.HistorySinceVersion)
 		if err != nil {
-			return err
+			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", did)
 		}
 	}
-	return nil
 }
+
+type migration func(owned []did.DID)

@@ -86,6 +86,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		DB:             db,
 		MethodManagers: make(map[string]didsubject.MethodManager),
 	}
+	vdr.config = DefaultConfig()
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
@@ -347,10 +348,15 @@ func TestVDR_Migrate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, msg, expected)
 	}
-
-	t.Run("ignores self-controlled documents", func(t *testing.T) {
+	controllerMigrationSetup := func(t *testing.T) vdrTestCtx {
 		t.Cleanup(func() { hook.Reset() })
 		ctx := newVDRTestCtx(t)
+		ctx.vdr.migrations = map[string]migration{"remove controller": ctx.vdr.migrateRemoveControllerFromDIDNuts}
+		return ctx
+	}
+
+	t.Run("ignores self-controlled documents", func(t *testing.T) {
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{ID: TestDIDA}, nil, nil)
 
@@ -361,8 +367,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assert.Nil(t, hook.LastEntry())
 	})
 	t.Run("makes documents self-controlled", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
 		keyRef, publicKey, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
 		require.NoError(t, err)
@@ -383,8 +388,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assert.Nil(t, hook.LastEntry())
 	})
 	t.Run("deactivated is ignored", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
 
@@ -395,8 +399,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assert.Nil(t, hook.LastEntry())
 	})
 	t.Run("no active controller is ignored", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, nil, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&did.Document{ID: TestDIDB}, nil, nil)
@@ -408,8 +411,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assert.Nil(t, hook.LastEntry())
 	})
 	t.Run("error is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, assert.AnError)
 
@@ -420,8 +422,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assertLog(t, "assert.AnError general error for testing")
 	})
 	t.Run("no verification method is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{Controller: []did.DID{TestDIDB}}, nil, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil)
@@ -432,8 +433,7 @@ func TestVDR_Migrate(t *testing.T) {
 		assertLog(t, "No verification method found in owned DID document")
 	})
 	t.Run("update error is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
+		ctx := controllerMigrationSetup(t)
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
 		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
