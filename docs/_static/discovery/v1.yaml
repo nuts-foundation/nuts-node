@@ -251,11 +251,10 @@ components:
             This, for example, allows use cases to require and clients to register specific endpoints.
             
             The authServerURL parameter is added automatically.
-          example: [
+          example: |
             {
               "some-endpoint-type": "https://example.com/some-endpoint"
             }
-          ]
     ServiceDefinition:
       type: object
       required:
