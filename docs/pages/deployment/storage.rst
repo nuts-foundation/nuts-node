@@ -57,12 +57,17 @@ If you want to use filesystem in strict mode, you have to set it explicitly, oth
 Microsoft Azure Key Vault
 =========================
 
-This storage backend uses Microsoft Azure's Key Vault. It authenticates to the Azure Key Vault at the configured URL using the default credential,
-typically an Azure Managed Identity. Refer to the `Azure SDK for Go documentation <https://github.com/Azure/azure-sdk-for-go/wiki/Set-up-Your-Environment-for-Authentication>`_ for more information.
+This storage backend uses Microsoft Azure's Key Vault. The following rules apply:
 
 - To store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
 - Keys created through this storage backend are marked as non-exportable.
 - Azure Key Vault storage can't be used for encrypting ``did:nuts`` private credentials or for data encryption.
+
+The following credential options are available for authentication:
+- ``managed_identity``: authenticate using ManagedIdentity credential (recommended, because default credential often times out when deployed in Azure).
+- ``default``: authenticate using the DefaultChain credential.
+At least the ``AZURE_TENANT_ID`` and ``AZURE_CLIENT_ID`` (for user assigned identities) need to be set in the environment.
+Refer to the `Azure SDK for Go documentation <https://github.com/Azure/azure-sdk-for-go/wiki/Set-up-Your-Environment-for-Authentication>`_ for more information.
 
 HashiCorp Vault
 ===============
