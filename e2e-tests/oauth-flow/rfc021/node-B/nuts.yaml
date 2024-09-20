@@ -12,6 +12,9 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
+discovery:
+  definitions:
+    directory: /nuts/discovery
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem
