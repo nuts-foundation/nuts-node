@@ -554,13 +554,13 @@ type ServerInterface interface {
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
 	// (POST /internal/auth/v2/{kid}/dpop)
 	CreateDPoPProof(ctx echo.Context, kid string) error
-	// Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, subjectID string) error
-	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
 	// Used by resource owners (the browser) to initiate the authorization code flow.
@@ -1759,13 +1759,13 @@ type StrictServerInterface interface {
 	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
 	// (POST /internal/auth/v2/{kid}/dpop)
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
-	// Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Start the Oid4VCI authorization flow.
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
-	// Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// Used by resource owners (the browser) to initiate the authorization code flow.

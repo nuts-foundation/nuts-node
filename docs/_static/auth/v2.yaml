@@ -1,12 +1,9 @@
 openapi: 3.0.0
 info:
-  title: Auth v2 API (experimental)
+  title: Auth v2 API
   version: 2.0.0
 servers:
   - url: http://localhost:8081
-    description: For internal-facing endpoints.
-  - url: http://localhost:8080
-    description: For public-facing endpoints.
 paths:
   /internal/auth/v2/{subjectID}/request-service-access-token:
     post:
@@ -48,8 +45,9 @@ paths:
   /internal/auth/v2/{subjectID}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
-      summary: Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+      summary: EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
       description: |
+        This API is still EXPERIMENTAL.  
         Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
         The user must be authorized by the calling system and provided in the preauthorized_user field.
         The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
@@ -83,6 +81,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectResponseWithID'
+        default:
+          $ref: '../common/error_response.yaml'
+  /internal/auth/v2/{subjectID}/request-credential:
+    post:
+      operationId: requestOpenid4VCICredentialIssuance
+      summary: EXPERIMENTAL Start the Oid4VCI authorization flow.
+      description: |
+        This API is still EXPERIMENTAL.  
+        Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
+
+        error returns:
+        * 400 - one of the parameters has the wrong format or an OAuth error occurred
+        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
+        * 412 - the organization wallet does not contain the correct credentials
+      tags:
+        - auth
+      parameters:
+        - name: subjectID
+          in: path
+          required: true
+          description: Subject ID of the wallet owner at this node.
+          schema:
+            type: string
+            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - issuer
+                - authorization_details
+                - redirect_uri
+                - wallet_did
+              properties:
+                wallet_did:
+                  type: string
+                  description: The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+                  example: did:web:example.com
+                issuer:
+                  type: string
+                  description: |
+                    The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
+                    used to locate the OAuth2 Authorization Server metadata.
+                  example: did:web:issuer.example.com
+                authorization_details:
+                  type: array
+                  items:
+                    type: object
+                    description: |
+                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain.
+                      See the RFC9396/OpenID4VCI for the format of an authorization_details object, and consult the Credential Issuer for requestable credentials.
+                  example: |
+                    [
+                      {
+                        "type": "openid_credential",
+                        "credential_configuration_id": "UniversityDegreeCredential"
+                      }
+                    ]
+                redirect_uri:
+                  type: string
+                  description: |
+                    The URL to which the user-agent will be redirected after the authorization request.
+                  example: https://my-xis.example.com/callback
+      responses:
+        '200':
+          description: |
+            Successful request. Responds with a redirect_uri for the user and a session_id for correlation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectResponse'
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/{sessionID}:
@@ -231,77 +301,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DPoPValidateResponse"
-        default:
-          $ref: '../common/error_response.yaml'
-  /internal/auth/v2/{subjectID}/request-credential:
-    post:
-      operationId: requestOpenid4VCICredentialIssuance
-      summary: Start the Oid4VCI authorization flow.
-      description: |
-        Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
-        * 412 - the organization wallet does not contain the correct credentials
-      tags:
-        - auth
-      parameters:
-        - name: subjectID
-          in: path
-          required: true
-          description: Subject ID of the wallet owner at this node.
-          schema:
-            type: string
-            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              required:
-                - issuer
-                - authorization_details
-                - redirect_uri
-                - wallet_did
-              properties:
-                wallet_did:
-                  type: string
-                  description: The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
-                  example: did:web:example.com
-                issuer:
-                  type: string
-                  description: |
-                    The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
-                    used to locate the OAuth2 Authorization Server metadata.
-                  example: did:web:issuer.example.com
-                authorization_details:
-                  type: array
-                  items:
-                    type: object
-                    description: |
-                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain.
-                      See the RFC9396/OpenID4VCI for the format of an authorization_details object, and consult the Credential Issuer for requestable credentials.
-                  example: |
-                    [
-                      {
-                        "type": "openid_credential",
-                        "credential_configuration_id": "UniversityDegreeCredential"
-                      }
-                    ]
-                redirect_uri:
-                  type: string
-                  description: |
-                    The URL to which the user-agent will be redirected after the authorization request.
-                  example: https://my-xis.example.com/callback
-      responses:
-        '200':
-          description: |
-            Successful request. Responds with a redirect_uri for the user and a session_id for correlation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RedirectResponse'
         default:
           $ref: '../common/error_response.yaml'
 components:
