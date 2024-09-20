@@ -50,11 +50,15 @@ func (bs bitstring) Value() (driver.Value, error) {
 }
 
 func (bs *bitstring) Scan(value any) error {
+	if value == nil {
+		*bs = nil
+		return nil
+	}
 	asString, ok := value.(string)
 	if !ok {
 		return fmt.Errorf("bitstring unmarshal from DB: expected []uint8, got %T", value)
 	}
-	expanded, err := expand(string(asString))
+	expanded, err := expand(asString)
 	if err != nil {
 		return fmt.Errorf("bitstring unmarshal from DB, unable to expand: %w", err)
 	}

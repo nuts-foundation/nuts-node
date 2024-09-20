@@ -19,11 +19,78 @@
 package revocation
 
 import (
+	"database/sql"
+	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math/rand"
 	"testing"
 )
+
+func TestBitstring_Marshalling(t *testing.T) {
+	db, err := sql.Open(sqlite.DriverName, ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec("CREATE TABLE test (bs TEXT)")
+	require.NoError(t, err)
+
+	cleanup := func(t *testing.T) {
+		t.Cleanup(func() {
+			db.Exec("DELETE FROM test")
+		})
+	}
+
+	t.Run("retrieve", func(t *testing.T) {
+		cleanup(t)
+		expected := bitstring([]byte{1, 2, 3})
+		compressed, _ := compress(expected)
+		_, err := db.Exec("INSERT INTO test (bs) VALUES (?)", compressed)
+		require.NoError(t, err)
+
+		var actual bitstring
+		err = db.QueryRow("SELECT bs FROM test").Scan(&actual)
+		require.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("retrieve invalid compressed bitstring", func(t *testing.T) {
+		cleanup(t)
+		_, err := db.Exec("INSERT INTO test (bs) VALUES (?)", "Hello, World!") // not valid base64
+		require.NoError(t, err)
+
+		var actual bitstring
+		err = db.QueryRow("SELECT bs FROM test").Scan(&actual)
+		require.ErrorContains(t, err, "bitstring unmarshal from DB, unable to expand: illegal base64 data")
+		assert.Empty(t, actual)
+	})
+	t.Run("retrieve nil", func(t *testing.T) {
+		cleanup(t)
+		_, err := db.Exec("INSERT INTO test (bs) VALUES (?)", nil)
+		require.NoError(t, err)
+
+		var actual = bitstring([]byte{1, 2, 3}) // overwritten with empty value
+		err = db.QueryRow("SELECT bs FROM test").Scan(&actual)
+		require.NoError(t, err)
+		assert.Empty(t, actual)
+	})
+	t.Run("store", func(t *testing.T) {
+		cleanup(t)
+		uncompressed := bitstring([]byte{1, 2, 3})
+		expected, _ := compress(uncompressed)
+		_, err := db.Exec("INSERT INTO test (bs) VALUES (?)", uncompressed)
+		require.NoError(t, err)
+
+		var actual string
+		err = db.QueryRow("SELECT bs FROM test").Scan(&actual)
+		require.NoError(t, err)
+		assert.Equal(t, expected, actual)
+	})
+	t.Run("store nil", func(t *testing.T) {
+		cleanup(t)
+		_, err := db.Exec("INSERT INTO test (bs) VALUES (?)", bitstring(nil))
+		require.NoError(t, err)
+	})
+}
 
 func TestBitstring_Bit(t *testing.T) {
 	bs := bitstring{33} // 33 => 00100001
