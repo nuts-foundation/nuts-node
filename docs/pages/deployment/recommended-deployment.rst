@@ -184,6 +184,7 @@ Below is a list of items that should be addressed when running a node in product
       - The public ``/n2n`` and ``/public`` endpoints on HTTP ``:8080``. See the v5 documentation for deployments still using ``did:nuts``.
    - Make sure internal HTTP endpoints (``:8081``) are not available from the outside.
    - Consider protecting ``/internal`` with API authentication.
+   - consult general security considerations in the :ref:`security-considerations` section.
 - Availability
    - Consider (D)DoS detection and protection for the ``/oauth2`` HTTP endpoints.
 

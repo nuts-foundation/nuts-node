@@ -1,4 +1,4 @@
-.. _security-considerations::
+.. _security-considerations:
 
 Security Considerations
 #######################
