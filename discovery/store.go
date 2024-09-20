@@ -233,7 +233,7 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 
 // incrementTimestamp increments the last_timestamp of the given service.
 func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, error) {
-	service, err := s.findServiceById(tx, serviceID)
+	service, err := s.findAndLockService(tx, serviceID)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +248,7 @@ func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, erro
 
 // setTimestamp sets the last_timestamp of the given service.
 func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) error {
-	service, err := s.findServiceById(tx, serviceID)
+	service, err := s.findAndLockService(tx, serviceID)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,9 @@ func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) er
 	return tx.Save(service).Error
 }
 
-func (s *sqlStore) findServiceById(tx *gorm.DB, serviceID string) (serviceRecord, error) {
+// findAndLockService finds a service by ID and locks it, preventing concurrent updates to the same list.
+// This is required for atomically processing updates from the Discovery Server.
+func (s *sqlStore) findAndLockService(tx *gorm.DB, serviceID string) (serviceRecord, error) {
 	var service serviceRecord
 	// Lock (SELECT FOR UPDATE) discovery_service row to prevent concurrent updates to the same list, which could mess up the last Timestamp.
 	// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
