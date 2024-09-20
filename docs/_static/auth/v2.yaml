@@ -240,7 +240,7 @@ paths:
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
             Note: introspection of an invalid or malformed token returns a 200 where with field 'active'=false
-  /internal/auth/v2/{kid}/dpop:
+  /internal/auth/v2/dpop/{kid}:
     post:
       operationId: createDPoPProof
       summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
@@ -272,7 +272,7 @@ paths:
                 $ref: "#/components/schemas/DPoPResponse"
         '401':
           description: This is returned when an OAuth2 Client is unauthorized to talk to the DPoP endpoint.
-  /internal/auth/v2/dpop_validate:
+  /internal/auth/v2/dpop/validate:
     post:
       operationId: validateDPoPProof
       summary: Handle some of the validation of a DPoP proof as specified by RFC9449.
