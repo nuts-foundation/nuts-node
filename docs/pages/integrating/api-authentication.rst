@@ -17,7 +17,7 @@ an explanation about the failure.
 
 Configuration
 -------------
-Authentication can be enabled by setting ``http.internal.auth.type`` (see example above) to ``token_v2``.
+Authentication can be enabled by setting ``http.internal.auth.type`` (see example below) to ``token_v2``.
 Endpoints under ``/internal`` will then require a JWT signed by an authorized key.
 
 Authorized (public) keys are specified in an ``authorized_keys`` file configured by the ``http.internal.auth.type.authorizedkeyspath`` parameter.

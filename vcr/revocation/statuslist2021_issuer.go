@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -165,9 +166,17 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	err = cs.db.Transaction(func(tx *gorm.DB) error {
 		// lock credentialRecord row for statusListCredentialURL since it will be updated.
 		// Revoke does the same to guarantee the DB always contains all revocations.
-		err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-			Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
-			Error
+		// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
+		// See https://github.com/nuts-foundation/nuts-node/issues/3393
+		if tx.Dialector.Name() == "sqlserver" {
+			err = tx.Raw("SELECT * FROM status_list_entry WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
+				Scan(new(credentialRecord)).
+				Error
+		} else {
+			err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+				Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
+				Error
+		}
 		if err != nil {
 			return err
 		}
@@ -287,11 +296,32 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 	credentialIssuer := new(credentialIssuerRecord)
 	for {
 		err := cs.db.Transaction(func(tx *gorm.DB) error {
-			// lock issuer's last page; iff it exists
-			err := tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-				Order("page").
-				Last(credentialIssuer, "issuer = ?", issuer.String()).
-				Error
+			// Find issuer's last page; if it exists. Lock all pages.
+			// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
+			// See https://github.com/nuts-foundation/nuts-node/issues/3393
+			if tx.Dialector.Name() == "sqlserver" {
+				var pages []credentialIssuerRecord
+				if err = tx.Raw("SELECT * FROM status_list WITH (UPDLOCK, ROWLOCK) WHERE issuer = ?", issuer.String()).
+					Scan(&pages).
+					Error; err != nil {
+					return err
+				}
+				if len(pages) == 0 {
+					// mimic non-SQL Server behavior
+					err = gorm.ErrRecordNotFound
+				} else {
+					// get last page, order by page first
+					slices.SortFunc(pages, func(i, j credentialIssuerRecord) int {
+						return i.Page - j.Page
+					})
+					credentialIssuer = &pages[len(pages)-1]
+				}
+			} else {
+				err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+					Order("page").
+					Last(credentialIssuer, "issuer = ?", issuer.String()).
+					Error
+			}
 			if err != nil {
 				if !errors.Is(err, gorm.ErrRecordNotFound) {
 					return err

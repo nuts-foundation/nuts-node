@@ -50,8 +50,8 @@ Start the service:
     If your use case makes use of ``did:nuts`` DIDs, you also need to export port ``5555``, which is used for gRPC traffic by the Nuts network,
     and add a volume mount for data on ``/nuts/data`` (see below).
 
-You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/status/diagnostics``. It should
-display diagnostic information about the state of the node.
+You can test whether your Nuts Node is running properly by visiting ``http://localhost:8081/health``. It should
+display health information about the state of the node.
 
 User
 ****

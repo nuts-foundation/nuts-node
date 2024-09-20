@@ -7,12 +7,12 @@ The Nuts node supports different backends for storage. This page describes the p
 
 .. note::
 
-    This page does not describe how to configure storage when using ``did:nuts`` DIDs and/or the Nuts gRPC network,
+    This page does not describe how to configure storage when using ``did:nuts`` DIDs and the Nuts gRPC network,
     which require specific storage configuration. If your use case require these features, refer to the v5 documentation for configuration storage.
 
 The Nuts node uses two types of storage:
 
-- SQL database for storing (``did:web``) DID documents and Verifiable Credentials.
+- SQL database for storing DID documents and Verifiable Credentials.
 - Private key storage for securely storing cryptographic private keys.
 
 The Nuts node does not backup your data, remember to backup the data in these storages regularly.
@@ -57,12 +57,17 @@ If you want to use filesystem in strict mode, you have to set it explicitly, oth
 Microsoft Azure Key Vault
 =========================
 
-This storage backend uses Microsoft Azure's Key Vault. It authenticates to the Azure Key Vault at the configured URL using the default credential,
-typically an Azure Managed Identity. Refer to the `Azure SDK for Go documentation <https://github.com/Azure/azure-sdk-for-go/wiki/Set-up-Your-Environment-for-Authentication>`_ for more information.
+This storage backend uses Microsoft Azure's Key Vault. The following rules apply:
 
-- Azure Key Vault storage can't be used for nodes that produce ``did:nuts`` DIDs or for data encryption.
 - To store private keys in an Azure Key Vault HSM, set ``crypto.azurekv.hsm`` to ``true``.
 - Keys created through this storage backend are marked as non-exportable.
+- Azure Key Vault storage can't be used for encrypting ``did:nuts`` private credentials or for data encryption.
+
+The following credential options are available for authentication:
+- ``managed_identity``: authenticate using ManagedIdentity credential (recommended, because default credential often times out when deployed in Azure).
+- ``default``: authenticate using the DefaultChain credential.
+At least the ``AZURE_TENANT_ID`` and ``AZURE_CLIENT_ID`` (for user assigned identities) need to be set in the environment.
+Refer to the `Azure SDK for Go documentation <https://github.com/Azure/azure-sdk-for-go/wiki/Set-up-Your-Environment-for-Authentication>`_ for more information.
 
 HashiCorp Vault
 ===============
@@ -72,7 +77,7 @@ The path prefix defaults to ``kv`` and can be configured using the ``crypto.vaul
 There needs to be a KV Secrets Engine (v1) enabled under this prefix path.
 
 All private keys are stored under the path ``<prefix>/nuts-private-keys/*``.
-Each key is stored under the kid, resulting in a full key path like ``kv/nuts-private-keys/did:nuts:123#abc``.
+Each key is stored under a UUID, resulting in a full key path like ``kv/nuts-private-keys/bfedb25f-a218-4687-9acf-29a263ed4c50`` (old keys are stored under the kid).
 A Vault token must be provided by either configuring it using the config ``crypto.vault.token`` or setting the VAULT_TOKEN environment variable.
 The token must have a vault policy which has READ and WRITES rights on the path. In addition it needs to READ the token information "auth/token/lookup-self" which should be part of the default policy.
 

@@ -27,3 +27,5 @@ The following fields are always available:
 - ``level``: the level of the log message, e.g. ``info`` or ``error``
 - ``time``: the timestamp of the log message, e.g. ``2023-01-14T07:34:16+01:00``
 - ``msg``: the actual log message
+
+Operations that manipulate or use private keys directly will generate a log with ``level`` set to ``audit``.

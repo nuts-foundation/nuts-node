@@ -5,10 +5,8 @@ Key rotation procedure
 
 To minimize the impact of stolen/leaked keys, private keys should be rotated at a regular, scheduled interval.
 This applies to any private key used for a longer period of time.
-The node aids this procedure by supporting operations to add and remove keys from DID documents.
-
-Removal of old keys from the DID document should only be done if there are no verifiable credentials still active.
-To ensure this, all verifiable credentials should set a validity period.
+The node aids this procedure by supporting operations to add to DID documents.
+Removal of keys is currently not supported. Newer keys are automatically used for cryptographic operations.
 
 Procedure
 *********
@@ -16,7 +14,6 @@ Procedure
 The procedure to rotate a key is two fold. The two procedures can be performed independently.
 
 Given a period of time, eg. every month when issuing a lot of credentials or every year when issuing only a few, a new key should be added to the DID document.
-To remove old keys from the DID document, you need to ensure that all verifiable credentials have expired.
 
 .. note::
 
@@ -30,17 +27,6 @@ Then, you add a new key which generates a new key pair in your crypto storage an
 
 .. code-block:: shell
 
-    POST /internal/vdr/v2/did/{did}/verificationmethod
+    POST /internal/vdr/v2/subject/{id}/verificationmethod
 
-When successful, it returns the verification method that was added to the DID document.
-
-2. Remove a key
-===============
-
-To remove a key from the DID document.
-
-.. code-block:: shell
-
-    DELETE /internal/vdr/v2/did/{did}/verificationmethod/{kid}
-
-When successful, it returns with a ``204`` tatus code
+When successful, it returns the verification method(s) that were added to the DID document(s).

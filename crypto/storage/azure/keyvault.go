@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -69,7 +70,16 @@ func createCredential(credentialType string) (azcore.TokenCredential, error) {
 	case DefaultChainCredentialType:
 		return azidentity.NewDefaultAzureCredential(nil)
 	case ManagedIdentityCredentialType:
-		return azidentity.NewManagedIdentityCredential(nil)
+		opts := &azidentity.ManagedIdentityCredentialOptions{
+			ClientOptions: azcore.ClientOptions{},
+		}
+		// For UserAssignedManagedIdentity, client ID needs to be explicitly set.
+		// Taken from github.com/!azure/azure-sdk-for-go/sdk/azidentity@v1.7.0/default_azure_credential.go:100
+		if ID, ok := os.LookupEnv("AZURE_CLIENT_ID"); ok {
+			log.Logger().Debug("Azure: configuring UserAssignedManagedIdentity (using AZURE_CLIENT_ID) for Azure Key Vault client.")
+			opts.ID = azidentity.ClientID(ID)
+		}
+		return azidentity.NewManagedIdentityCredential(opts)
 	default:
 		return nil, fmt.Errorf("unsupported Azure Key Vault credential type: %s", credentialType)
 	}

@@ -33,7 +33,9 @@ Calling `/internal/vcr/v2/issuer/vc` with
                 "city": "IJbergen"
             }
         },
-        "visibility": "public"
+        "visibility": "public",
+        "format": "ldp_vc",
+        "publishToNetwork": false
     }
 
 Will be expanded by the node to:
@@ -68,10 +70,11 @@ Will be expanded by the node to:
       ]
     }
 
-The `visibility` property indicates the contents of the VC are published on the network, so it can be read by everyone.
-
-By default, the node will create credentials in JSON-LD format.
-You can specify the format by passing the `format` parameter (``jwt_vc`` or ``ldp_vc``).
+There are three parameters that can be passed:
+- `format` (optional): The format of the VC. Can be ``ldp_vc`` or ``jwt_vc``. Default is ``ldp_vc``.
+- `publishToNetwork` (did:nuts only, optional): Whether the VC should be published on the network. Default is ``true``.
+- `visibility` (did:nuts only, optional): The visibility of the VC. Can be ``public`` or ``private``. Default is ``private``.
+- `withStatusList2021Revocation` (no did:nuts, optional): Whether the VC should be issued with a status list 2021 revocation. Default is ``false``.
 
 .. _searching-vcs:
 
