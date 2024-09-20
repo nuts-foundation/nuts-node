@@ -307,7 +307,7 @@ func Test_Module_Get(t *testing.T) {
 
 type mockContext struct {
 	ctrl           *gomock.Controller
-	subjectManager *didsubject.MockSubjectManager
+	subjectManager *didsubject.MockManager
 	verifier       *verifier.MockVerifier
 }
 
@@ -317,7 +317,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	mockVerifier := verifier.NewMockVerifier(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
+	mockSubjectManager := didsubject.NewMockManager(ctrl)
 	m := New(storageInstance, mockVCR, mockSubjectManager)
 	m.config = DefaultConfig()
 	m.publicURL = test.MustParseURL("https://example.com")

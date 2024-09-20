@@ -458,7 +458,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 	ctrl := gomock.NewController(t)
 	jwtSigner := crypto.NewMockJWTSigner(ctrl)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
-	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
 	wallet := holder.NewMockWallet(ctrl)
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
@@ -492,7 +492,7 @@ type clientTestContext struct {
 	jwtSigner      *crypto.MockJWTSigner
 	keyResolver    *resolver.MockKeyResolver
 	wallet         *holder.MockWallet
-	subjectManager *didsubject.MockSubjectManager
+	subjectManager *didsubject.MockManager
 }
 
 type clientServerTestContext struct {

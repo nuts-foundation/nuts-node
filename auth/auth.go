@@ -61,7 +61,7 @@ type Auth struct {
 	strictMode        bool
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
-	subjectManager    didsubject.SubjectManager
+	subjectManager    didsubject.Manager
 }
 
 // Name returns the name of the module.
@@ -90,7 +90,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 }
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
-func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, vcr vcr.VCR, keyStore crypto.KeyStore,
+func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubject.Manager, vcr vcr.VCR, keyStore crypto.KeyStore,
 	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
 	return &Auth{
 		config:          config,

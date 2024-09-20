@@ -55,7 +55,7 @@ const ModuleName = "VDR"
 var _ VDR = (*Module)(nil)
 var _ core.Named = (*Module)(nil)
 var _ core.Configurable = (*Module)(nil)
-var _ didsubject.SubjectManager = (*Module)(nil)
+var _ didsubject.Manager = (*Module)(nil)
 
 // Module implements VDR, which stands for the Verifiable Data Registry. It is the public entrypoint to work with W3C DID documents.
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
@@ -202,12 +202,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
-	r.Manager = didsubject.Manager{
-		DB:             db,
-		MethodManagers: methodManagers,
-		KeyStore:       r.keyStore,
-		PreferredOrder: r.config.DIDMethods,
-	}
+	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.config.DIDMethods)
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()

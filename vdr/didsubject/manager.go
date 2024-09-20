@@ -49,9 +49,9 @@ var ErrSubjectNotFound = errors.New("subject not found")
 // subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
 var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
 
-var _ SubjectManager = (*Manager)(nil)
+var _ Manager = (*SqlManager)(nil)
 
-type Manager struct {
+type SqlManager struct {
 	DB             *gorm.DB
 	MethodManagers map[string]MethodManager
 	KeyStore       nutsCrypto.KeyStore
@@ -59,7 +59,16 @@ type Manager struct {
 	PreferredOrder []string
 }
 
-func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
+func New(db *gorm.DB, methodManagers map[string]MethodManager, keyStore nutsCrypto.KeyStore, preferredOrder []string) *SqlManager {
+	return &SqlManager{
+		DB:             db,
+		MethodManagers: methodManagers,
+		KeyStore:       keyStore,
+		PreferredOrder: preferredOrder,
+	}
+}
+
+func (r *SqlManager) List(_ context.Context) (map[string][]did.DID, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	dids, err := sqlDIDManager.All()
 	if err != nil {
@@ -79,7 +88,7 @@ func (r *Manager) List(_ context.Context) (map[string][]did.DID, error) {
 	return result, nil
 }
 
-func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error) {
+func (r *SqlManager) ListDIDs(_ context.Context, subject string) ([]did.DID, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	dids, err := sqlDIDManager.FindBySubject(subject)
 	if err != nil {
@@ -97,13 +106,13 @@ func (r *Manager) ListDIDs(_ context.Context, subject string) ([]did.DID, error)
 	return result, nil
 }
 
-func (r *Manager) Exists(_ context.Context, subject string) (bool, error) {
+func (r *SqlManager) Exists(_ context.Context, subject string) (bool, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	return sqlDIDManager.SubjectExists(subject)
 }
 
 // Create generates new DID Documents
-func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error) {
+func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error) {
 	log.Logger().Debug("Creating new DID Documents.")
 
 	// defaults
@@ -201,7 +210,7 @@ func (r *Manager) Create(ctx context.Context, options CreationOptions) ([]did.Do
 	return docs, subject, nil
 }
 
-func (r *Manager) Deactivate(ctx context.Context, subject string) error {
+func (r *SqlManager) Deactivate(ctx context.Context, subject string) error {
 	log.Logger().
 		WithField(core.LogFieldDIDSubject, subject).
 		Debug("Deactivating DID Documents")
@@ -241,7 +250,7 @@ func (r *Manager) Deactivate(ctx context.Context, subject string) error {
 }
 
 // CreateService creates a new service in the DID document identified by subjectDID.
-func (r *Manager) CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error) {
+func (r *SqlManager) CreateService(ctx context.Context, subject string, service did.Service) ([]did.Service, error) {
 	services := make([]did.Service, 0)
 
 	serviceIDFragment := NewIDForService(service)
@@ -279,7 +288,7 @@ func (r *Manager) CreateService(ctx context.Context, subject string, service did
 	return services, nil
 }
 
-func (r *Manager) FindServices(_ context.Context, subject string, serviceType *string) ([]did.Service, error) {
+func (r *SqlManager) FindServices(_ context.Context, subject string, serviceType *string) ([]did.Service, error) {
 	sqlDIDManager := NewDIDManager(r.DB)
 	dids, err := sqlDIDManager.FindBySubject(subject)
 	if err != nil {
@@ -313,7 +322,7 @@ func (r *Manager) FindServices(_ context.Context, subject string, serviceType *s
 }
 
 // DeleteService removes a service from the DID document identified by subjectDID.
-func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
+func (r *SqlManager) DeleteService(ctx context.Context, subject string, serviceID ssi.URI) error {
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		j := 0
 		for i, s := range current.Services {
@@ -337,7 +346,7 @@ func (r *Manager) DeleteService(ctx context.Context, subject string, serviceID s
 	return nil
 }
 
-func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID ssi.URI, service did.Service) ([]did.Service, error) {
+func (r *SqlManager) UpdateService(ctx context.Context, subject string, serviceID ssi.URI, service did.Service) ([]did.Service, error) {
 	services := make([]did.Service, 0)
 
 	// use a generated ID where the fragment equals the hash of the service
@@ -377,7 +386,7 @@ func (r *Manager) UpdateService(ctx context.Context, subject string, serviceID s
 	return services, nil
 }
 
-func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error) {
+func (r *SqlManager) AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error) {
 	log.Logger().Debug("Creating new VerificationMethods.")
 
 	verificationMethods := make([]did.VerificationMethod, 0)
@@ -419,7 +428,7 @@ func (r *Manager) AddVerificationMethod(ctx context.Context, subject string, key
 }
 
 // transactionHelper is a helper function that starts a transaction, performs an operation, and emits an event.
-func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error)) error {
+func (r *SqlManager) transactionHelper(ctx context.Context, operation func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error)) error {
 	var changes map[string]orm.DIDChangeLog
 	if err := r.DB.Transaction(func(tx *gorm.DB) error {
 		var operationErr error
@@ -485,7 +494,7 @@ func (r *Manager) transactionHelper(ctx context.Context, operation func(tx *gorm
 // applyToDIDDocuments is a helper function that applies an operation to all DID documents of a subject (1 per did method).
 // It uses transactionHelper to perform the operation in a transaction.
 // if the operation returns nil then no changes are made.
-func (r *Manager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error)) error {
+func (r *SqlManager) applyToDIDDocuments(ctx context.Context, subject string, operation func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error)) error {
 	return r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		eventLog := make(map[string]orm.DIDChangeLog)
 		sqlDIDManager := NewDIDManager(tx)
@@ -544,7 +553,7 @@ func NewIDForService(service did.Service) string {
 // Any entry that's still there is considered not committed and will be rolled back.
 // All DID Document versions that are part of the same transaction_id will be deleted.
 // This works because did:web is always committed and did:nuts might not be. So the DB state actually only depends on the result of the did:nuts network operation result.
-func (r *Manager) Rollback(ctx context.Context) {
+func (r *SqlManager) Rollback(ctx context.Context) {
 	updatedAt := time.Now().Add(-time.Minute).Unix()
 	err := r.DB.Transaction(func(tx *gorm.DB) error {
 		changes := make([]orm.DIDChangeLog, 0)

@@ -460,7 +460,7 @@ type mockContext struct {
 	vdr                 *vdr.MockVDR
 	didResolver         *resolver.MockDIDResolver
 	nutsDocumentManager *didsubject.MockDocumentManager
-	subjectManager      *didsubject.MockSubjectManager
+	subjectManager      *didsubject.MockManager
 	client              *Wrapper
 	requestCtx          context.Context
 }
@@ -473,7 +473,7 @@ func newMockContext(t *testing.T) mockContext {
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	nutsDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	vdr.EXPECT().NutsDocumentManager().Return(nutsDocumentManager).AnyTimes()
-	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
 	client := &Wrapper{VDR: vdr, SubjectManager: subjectManager}
 	requestCtx := audit.TestContext()
 

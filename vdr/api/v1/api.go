@@ -43,7 +43,7 @@ var _ core.ErrorStatusCodeResolver = (*Wrapper)(nil)
 // Wrapper is needed to connect the implementation to the echo ServiceWrapper
 type Wrapper struct {
 	VDR            vdr.VDR
-	SubjectManager didsubject.SubjectManager
+	SubjectManager didsubject.Manager
 }
 
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.

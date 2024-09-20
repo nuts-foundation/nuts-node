@@ -100,12 +100,12 @@ type Wrapper struct {
 	vdr            vdr.VDR
 	jwtSigner      nutsCrypto.JWTSigner
 	keyResolver    resolver.KeyResolver
-	subjectManager didsubject.SubjectManager
+	subjectManager didsubject.Manager
 	jar            JAR
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.SubjectManager, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.Manager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 
 	templates := template.New("oauth2 templates")

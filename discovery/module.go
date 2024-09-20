@@ -67,7 +67,7 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.SubjectManager) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.Manager) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
@@ -88,7 +88,7 @@ type Module struct {
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
-	subjectManager      didsubject.SubjectManager
+	subjectManager      didsubject.Manager
 	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
