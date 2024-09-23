@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"regexp"
 	"sort"
@@ -649,14 +650,23 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 }
 
 func (r *Manager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
-	latestDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
-	var latestSQLVersion int
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		latestSQLVersion = -1
-	} else if err != nil {
-		return err
+	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
+	latestSQLVersion := -1 // -1 is new DID
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) { // not a new DID
+			return err
+		}
 	} else {
-		latestSQLVersion = latestDocument.Version
+		// don't try to migrate deactivated documents
+		latestDIDDocument, err := latestORMDocument.ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(latestDIDDocument) {
+			return nil
+		}
+		// set latest version
+		latestSQLVersion = latestORMDocument.Version
 	}
 
 	history, err := getHistory(id, latestSQLVersion)
@@ -670,6 +680,16 @@ func (r *Manager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sin
 		documentVersions[i], err = entry.ToORMDocument()
 		if err != nil {
 			return err
+		}
+
+		// break if this version deactivates the document
+		didDocument, err := documentVersions[i].ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(didDocument) {
+			documentVersions = documentVersions[:i+1]
+			break
 		}
 	}
 
