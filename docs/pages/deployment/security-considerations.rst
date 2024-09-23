@@ -55,4 +55,5 @@ When using ``did:web``, you should consider the following:
 
 - Protect your domain from takeover. Make sure it's locked for a year after cancelling the domain.
 - Monitor calls to ``**/did.json`` on the domain and make sure they are handled by the Nuts Node.
-- Use Hashicorp Vault or Microsoft Azure Key Vault to store the private keys.
+- Using Hashicorp Vault or Microsoft Azure Key Vault to store the private keys is even more important when using ``did:web``.
+- Use DNS over HTTPS and enable DNSSEC.
