@@ -20,6 +20,7 @@ Nuts documentation
     :caption: Deployment & Configuration:
     :glob:
 
+    pages/deployment/domain.rst
     pages/deployment/configuration.rst
     pages/deployment/recommended-deployment.rst
     pages/deployment/docker.rst
