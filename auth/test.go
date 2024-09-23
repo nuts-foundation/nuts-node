@@ -44,6 +44,6 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	pkiMock.EXPECT().CreateTLSConfig(gomock.Any()).AnyTimes()
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
-	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
 	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock)
 }

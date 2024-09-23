@@ -73,9 +73,9 @@ type DocumentManager interface {
 	RemoveVerificationMethod(ctx context.Context, id did.DID, keyID did.DIDURL) error
 }
 
-// SubjectManager abstracts DID Document management away from the API caller.
+// Manager abstracts DID Document management away from the API caller.
 // It manages DIDs for a DID subject.
-type SubjectManager interface {
+type Manager interface {
 	// Create creates a new DID document for each method and returns them.
 	// The DID subject is also returned
 	Create(ctx context.Context, options CreationOptions) ([]did.Document, string, error)
@@ -115,6 +115,12 @@ type SubjectManager interface {
 	// It returns an ErrNotFound when the subject could not be found.
 	// It returns an ErrDeactivated when the subject has the deactivated state.
 	AddVerificationMethod(ctx context.Context, subject string, keyUsage orm.DIDKeyFlags) ([]did.VerificationMethod, error)
+
+	// Rollback queries the did_change_log table for all changes that are older than 1 minute.
+	// Any entry that's still there is considered not committed and will be rolled back.
+	// All DID Document versions that are part of the same transaction_id will be deleted.
+	// This works because did:web is always committed and did:nuts might not be. So the DB state actually only depends on the result of the did:nuts network operation result.
+	Rollback(ctx context.Context)
 }
 
 // SubjectCreationOption links all create DIDs to the DID Subject

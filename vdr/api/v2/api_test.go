@@ -586,7 +586,7 @@ func TestWrapper_Routes(t *testing.T) {
 type mockContext struct {
 	ctrl           *gomock.Controller
 	vdr            *vdr.MockVDR
-	subjectManager *didsubject.MockSubjectManager
+	subjectManager *didsubject.MockManager
 	didResolver    *resolver.MockDIDResolver
 	documentOwner  *didsubject.MockDocumentOwner
 	client         *Wrapper
@@ -598,7 +598,7 @@ func newMockContext(t *testing.T) mockContext {
 	ctrl := gomock.NewController(t)
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	vdr := vdr.NewMockVDR(ctrl)
-	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
 	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	vdr.EXPECT().Resolver().Return(didResolver).AnyTimes()
 	vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()

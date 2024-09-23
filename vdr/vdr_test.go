@@ -82,7 +82,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	vdr.nutsDocumentManager = mockDocumentManager
 	vdr.documentOwner = mockDocumentOwner
 	vdr.didResolver = resolverRouter
-	vdr.Manager = didsubject.Manager{
+	vdr.Manager = &didsubject.SqlManager{
 		DB:             db,
 		MethodManagers: make(map[string]didsubject.MethodManager),
 	}

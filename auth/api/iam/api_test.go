@@ -1400,7 +1400,7 @@ type testCtx struct {
 	vcIssuer       *issuer.MockIssuer
 	vcVerifier     *verifier.MockVerifier
 	wallet         *holder.MockWallet
-	subjectManager *didsubject.MockSubjectManager
+	subjectManager *didsubject.MockManager
 	jar            *MockJAR
 }
 
@@ -1421,7 +1421,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	iamClient := iam.NewMockClient(ctrl)
 	mockVDR := vdr.NewMockVDR(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
-	subjectManager := didsubject.NewMockSubjectManager(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
 	jwtSigner := cryptoNuts.NewMockJWTSigner(ctrl)

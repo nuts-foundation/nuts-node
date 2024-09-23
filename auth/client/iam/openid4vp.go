@@ -55,11 +55,11 @@ type OpenID4VPClient struct {
 	strictMode       bool
 	wallet           holder.Wallet
 	ldDocumentLoader ld.DocumentLoader
-	subjectManager   didsubject.SubjectManager
+	subjectManager   didsubject.Manager
 }
 
 // NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.SubjectManager, jwtSigner nutsCrypto.JWTSigner,
+func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
 	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{

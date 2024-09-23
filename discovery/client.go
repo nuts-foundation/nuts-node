@@ -55,10 +55,10 @@ type defaultClientRegistrationManager struct {
 	store          *sqlStore
 	client         client.HTTPClient
 	vcr            vcr.VCR
-	subjectManager didsubject.SubjectManager
+	subjectManager didsubject.Manager
 }
 
-func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.SubjectManager) *defaultClientRegistrationManager {
+func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.Manager) *defaultClientRegistrationManager {
 	return &defaultClientRegistrationManager{
 		services:       services,
 		store:          store,

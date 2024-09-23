@@ -245,7 +245,7 @@ func testCredential() vc.VerifiableCredential {
 }
 
 func registerDID(t *testing.T, system *core.System) did.DID {
-	vdrService := system.FindEngineByName("vdr").(didsubject.SubjectManager)
+	vdrService := system.FindEngineByName("vdr").(didsubject.Manager)
 	ctx := audit.TestContext()
 	didDocument, _, err := vdrService.Create(ctx, didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}))
 	require.NoError(t, err)
@@ -254,7 +254,7 @@ func registerDID(t *testing.T, system *core.System) did.DID {
 }
 
 func registerBaseURL(t *testing.T, httpServerURL string, system *core.System, id did.DID) {
-	subjectManager := system.FindEngineByName("vdr").(didsubject.SubjectManager)
+	subjectManager := system.FindEngineByName("vdr").(didsubject.Manager)
 	baseURL, _ := url.Parse(httpServerURL)
 	_, err := subjectManager.CreateService(audit.TestContext(), id.String(), did.Service{Type: resolver.BaseURLServiceType, ServiceEndpoint: baseURL.String()})
 	require.NoError(t, err)
