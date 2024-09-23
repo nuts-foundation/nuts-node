@@ -13,6 +13,7 @@ Nuts documentation
     pages/integrating/api-authentication.rst
     pages/integrating/vc.rst
     pages/integrating/supported-protocols-formats.rst
+    pages/integrating/version-incompatibilities.rst
     pages/release_notes.rst
 
 .. toctree::

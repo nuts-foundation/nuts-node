@@ -46,3 +46,14 @@ Key rotation
 
 It's important to have a key rotation policy in place. The Nuts node uses keys for various signing operations.
 These operations are numerous and therefore keys should be rotated regularly.
+
+Using did:web
+*************
+
+The ``did:web`` method allows for easier integration with existing web infrastructure. However, it's also less secure and vulnerable to domain takeover.
+When using ``did:web``, you should consider the following:
+
+- Protect your domain from takeover. Make sure it's locked for a year after cancelling the domain.
+- Monitor calls to ``**/did.json`` on the domain and make sure they are handled by the Nuts Node.
+- Using Hashicorp Vault or Microsoft Azure Key Vault to store the private keys is even more important when using ``did:web``.
+- Use DNS over HTTPS and enable DNSSEC.
