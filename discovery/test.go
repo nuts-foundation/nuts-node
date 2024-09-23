@@ -101,28 +101,6 @@ func testDefinitions() map[string]ServiceDefinition {
 							},
 						},
 					},
-					{
-						Id: "2",
-						Constraints: &pe.Constraints{
-							Fields: []pe.Field{
-								{
-									Id:   to.Ptr("auth_server_url_field"),
-									Path: []string{"$.credentialSubject.authServerURL", "$.credentialSubject[0].authServerURL"},
-									Filter: &pe.Filter{
-										Type: "string",
-									},
-								},
-								{
-									Id:   to.Ptr("type_field"),
-									Path: []string{"$.type"},
-									Filter: &pe.Filter{
-										Type:  "string",
-										Const: to.Ptr(credential.DiscoveryRegistrationCredentialType),
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 			PresentationMaxValidity: int((24 * time.Hour).Seconds()),

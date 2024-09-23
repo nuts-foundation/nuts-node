@@ -423,9 +423,7 @@ func TestModule_Search(t *testing.T) {
 			{
 				Presentation: vpAlice,
 				Fields: map[string]interface{}{
-					"auth_server_url_field": "https://example.com/oauth2/alice",
-					"issuer_field":          authorityDID,
-					"type_field":            []string{vc.VerifiableCredentialType, credential.DiscoveryRegistrationCredentialType},
+					"issuer_field": authorityDID,
 				},
 				Parameters: defaultRegistrationParams(aliceSubject),
 			},

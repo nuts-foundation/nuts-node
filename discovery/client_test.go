@@ -156,7 +156,11 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		mockVCR := vcr.NewMockVCR(ctrl)
 		wallet := holder.NewMockWallet(ctrl)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), []vc.VerifiableCredential{}, gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+			// expect registration credential
+			assert.Len(t, credentials, 1)
+			return &vpAlice, nil
+		})
 		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
 		mockSubjectManager := didsubject.NewMockSubjectManager(ctrl)
 		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
