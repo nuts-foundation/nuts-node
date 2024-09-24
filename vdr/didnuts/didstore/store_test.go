@@ -205,6 +205,41 @@ func TestStore_Add(t *testing.T) {
 			require.NoError(t, err)
 		})
 	})
+
+	t.Run("once deactivated is always deactivated", func(t *testing.T) {
+		store := NewTestStore(t)
+
+		deactivate := create
+		deactivate.Controller = nil
+		deactivate.VerificationMethod = nil
+		txDeactivate := newTestTransaction(deactivate, txCreate.Ref)
+		update := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{{ID: ssi.MustParseURI("service")}}}
+		txUpdate := newTestTransaction(update, txDeactivate.Ref)
+
+		require.NoError(t, store.Add(create, txCreate))
+		require.NoError(t, store.Add(deactivate, txDeactivate))
+		require.NoError(t, store.Add(update, txUpdate))
+
+		t.Run("metadata ok", func(t *testing.T) {
+			err := store.db.ReadShelf(context.Background(), metadataShelf, func(reader stoabs.Reader) error {
+				for i := range []int{0, 1, 2} {
+					metaBytes, err := reader.Get(stoabs.BytesKey(fmt.Sprintf("%s%d", testDID.String(), i)))
+					if err != nil {
+						return err
+					}
+					metadata := documentMetadata{}
+					err = json.Unmarshal(metaBytes, &metadata)
+					if err != nil {
+						return err
+					}
+					assert.Equal(t, i > 0, metadata.Deactivated, "document version %d", i)
+				}
+				return nil
+			})
+			require.NoError(t, err)
+		})
+
+	})
 }
 
 func TestStore_Resolve(t *testing.T) {

@@ -191,6 +191,9 @@ func applyEvent(tx stoabs.WriteTx, latestMetadata *documentMetadata, nextEvent e
 	if err != nil {
 		return nil, nil, fmt.Errorf("read document failed: %w", err)
 	}
+	// create nextMetadata based on this event and some defaults.
+	// For the initial DID document this does not change. (latestMetadata = nil)
+	// For DID updates, applyDocument will make changes.
 	nextMetadata := documentMetadata{
 		Created:             nextEvent.SigningTime,
 		Updated:             nextEvent.SigningTime,
@@ -231,6 +234,7 @@ func applyDocument(tx stoabs.ReadTx, currentMeta *documentMetadata, newDoc did.D
 	newMeta.Version = currentMeta.Version + 1
 	newMeta.Created = currentMeta.Created
 	newMeta.PreviousHash = &currentMeta.Hash
+	newMeta.Deactivated = newMeta.Deactivated || currentMeta.Deactivated // once deactivated is always deactivated
 
 	unconsumed := map[string]struct{}{}
 outer:
@@ -268,7 +272,6 @@ outer:
 	newDocBytes, _ := json.Marshal(newDoc)
 
 	newMeta.Hash = hash.SHA256Sum(newDocBytes)
-	newMeta.Deactivated = isDeactivated(newDoc)
 
 	return newDoc, newMeta, nil
 }
