@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"strings"
@@ -55,6 +56,7 @@ var _ StrictServerInterface = (*Wrapper)(nil)
 type Wrapper struct {
 	ContextManager jsonld.JSONLD
 	VCR            vcr.VCR
+	SubjectManager didsubject.Manager
 }
 
 // Routes registers the handler to the echo router
@@ -77,13 +79,14 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		vcrTypes.ErrNotFound:        http.StatusNotFound,
-		resolver.ErrServiceNotFound: http.StatusPreconditionFailed,
-		vcrTypes.ErrRevoked:         http.StatusConflict,
-		resolver.ErrNotFound:        http.StatusBadRequest,
-		resolver.ErrKeyNotFound:     http.StatusBadRequest,
-		did.ErrInvalidDID:           http.StatusBadRequest,
-		vcrTypes.ErrStatusNotFound:  http.StatusBadRequest,
+		vcrTypes.ErrNotFound:          http.StatusNotFound,
+		resolver.ErrServiceNotFound:   http.StatusPreconditionFailed,
+		vcrTypes.ErrRevoked:           http.StatusConflict,
+		resolver.ErrNotFound:          http.StatusBadRequest,
+		resolver.ErrKeyNotFound:       http.StatusBadRequest,
+		did.ErrInvalidDID:             http.StatusBadRequest,
+		vcrTypes.ErrStatusNotFound:    http.StatusBadRequest,
+		didsubject.ErrSubjectNotFound: http.StatusNotFound,
 	})
 }
 
@@ -395,14 +398,42 @@ func (w *Wrapper) VerifyVP(ctx context.Context, request VerifyVPRequestObject) (
 }
 
 func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error) {
-	// the actual holder is ignored for now, since we only support a single wallet...
-	_, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid holder DID: %w", err)
-	}
 	if request.Body == nil {
 		return nil, core.InvalidInputError("missing credential in body")
 	}
+
+	// get DIDs for holder
+	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	// get credentialSubject.ID for credential
+	credentialSubject, err := credential.ResolveSubjectDID(*request.Body)
+	if err != nil {
+		return nil, core.InvalidInputError("invalid credentialSubject.ID: %w", err)
+	}
+
+	// check if the credentialSubject.ID is in the list of DIDs
+	found := false
+	for _, did := range dids {
+		if did.Equals(*credentialSubject) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, core.InvalidInputError("subject does not own DID specified by credentialSubject.ID")
+	}
+
+	// validate credential
+	if err = w.VCR.Verifier().Verify(*request.Body, true, true, nil); err != nil {
+		if errors.Is(err, verifier.VerificationError{}) {
+			return nil, core.InvalidInputError(err.Error())
+		}
+		return nil, err
+	}
+
 	err = w.VCR.Wallet().Put(ctx, *request.Body)
 	if err != nil {
 		return nil, err
@@ -411,14 +442,21 @@ func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (Load
 }
 
 func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error) {
-	holderDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid holder DID: %w", err)
-	}
-	credentials, err := w.VCR.Wallet().List(ctx, *holderDID)
+	// get DIDs for holder
+	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
+
+	credentials := make([]vc.VerifiableCredential, 0)
+	for _, did := range dids {
+		creds, err := w.VCR.Wallet().List(ctx, did)
+		if err != nil {
+			return nil, err
+		}
+		credentials = append(credentials, creds...)
+	}
+
 	return GetCredentialsInWallet200JSONResponse(credentials), nil
 }
 
