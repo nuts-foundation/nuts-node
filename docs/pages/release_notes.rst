@@ -97,6 +97,16 @@ The following features have been deprecated:
 - VDR v1 API.
 
 ************************
+Hazelnut update (v5.4.11)
+************************
+
+Release date: 2024-09-24
+
+- Fixed an issue where the deactivated status of a DID document could be resolved incorrectly
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.10...v5.4.11
+
+************************
 Hazelnut update (v5.4.10)
 ************************
 
