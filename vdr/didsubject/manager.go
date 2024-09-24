@@ -649,7 +649,7 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 	copy(list, orderedList)
 }
 
-func (r *Manager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+func (r *SqlManager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
 	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
 	latestSQLVersion := -1 // -1 is new DID
 	if err != nil {
