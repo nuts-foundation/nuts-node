@@ -36,7 +36,7 @@ else
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $RESPONSE | curl --insecure -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${DID}/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $RESPONSE | curl --insecure -s -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/${SUBJECT}/vc -H "Content-Type:application/json")
 if [[ $RESPONSE -eq "" ]]; then
   echo "VC stored in wallet"
 else

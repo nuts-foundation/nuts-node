@@ -26,7 +26,7 @@ import (
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
 )
 
-func IssueOrganizationCredential(organization *did.Document, name, city string, clientConfig core.ClientConfig) error {
+func IssueOrganizationCredential(subject string, organization *did.Document, name, city string, clientConfig core.ClientConfig) error {
 	vcrClient := vcrAPI.HTTPClient{ClientConfig: clientConfig}
 	request := vcrAPI.IssueVCRequest{
 		Issuer: organization.ID.String(),
@@ -56,7 +56,7 @@ func IssueOrganizationCredential(organization *did.Document, name, city string, 
 	}
 	if organization.ID.Method == "web" {
 		// Need to load it into tbe wallet
-		return vcrClient.LoadVC(organization.ID, *issuedCredential)
+		return vcrClient.LoadVC(subject, *issuedCredential)
 	}
 	return nil
 }

@@ -52,14 +52,14 @@ func Test_LoginWithSelfSignedMeans(t *testing.T) {
 	require.NoError(t, err)
 	err = registerCompoundService(verifyingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(verifyingOrganization, "Verifying Organization", "Testland", apps.NodeClientConfig)
+	err = browser.IssueOrganizationCredential("", verifyingOrganization, "Verifying Organization", "Testland", apps.NodeClientConfig)
 	require.NoError(t, err)
 
 	issuingOrganization, err := createDID()
 	require.NoError(t, err)
 	err = registerCompoundService(issuingOrganization.ID, purposeOfUse)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(issuingOrganization, "Issuing Organization", "Testland", apps.NodeClientConfig)
+	err = browser.IssueOrganizationCredential("", issuingOrganization, "Issuing Organization", "Testland", apps.NodeClientConfig)
 	require.NoError(t, err)
 
 	selfSigned := apps.SelfSigned{
