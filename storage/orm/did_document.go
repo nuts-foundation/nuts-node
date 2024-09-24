@@ -116,7 +116,7 @@ type MigrationDocument struct {
 }
 
 // ToORMDocument converts the Raw document to a DidDocument. DID.Subject is set equal to DID.ID.
-func (migration MigrationDocument) ToORMDocument() (DidDocument, error) {
+func (migration MigrationDocument) ToORMDocument(subject string) (DidDocument, error) {
 	doc := new(did.Document)
 	err := json.Unmarshal(migration.Raw, doc)
 	if err != nil {
@@ -150,7 +150,7 @@ func (migration MigrationDocument) ToORMDocument() (DidDocument, error) {
 	// DID
 	subjectDID := DID{
 		ID:      doc.ID.String(),
-		Subject: doc.ID.String(),
+		Subject: subject,
 	}
 
 	// return document

@@ -649,7 +649,7 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 	copy(list, orderedList)
 }
 
-func (r *SqlManager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
 	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
 	latestSQLVersion := -1 // -1 is new DID
 	if err != nil {
@@ -677,7 +677,7 @@ func (r *SqlManager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, 
 	// convert history to orm objects
 	documentVersions := make([]orm.DidDocument, len(history))
 	for i, entry := range history {
-		documentVersions[i], err = entry.ToORMDocument()
+		documentVersions[i], err = entry.ToORMDocument(subject)
 		if err != nil {
 			return err
 		}
@@ -696,11 +696,11 @@ func (r *SqlManager) MigrateNutsHistory(id did.DID, getHistory func(id did.DID, 
 	return r.DB.Transaction(func(tx *gorm.DB) error {
 		if latestSQLVersion == -1 {
 			// add subject to did table
-			subject := orm.DID{
+			DID := orm.DID{
 				ID:      id.String(),
-				Subject: id.String(),
+				Subject: subject,
 			}
-			err = tx.Create(&subject).Error
+			err = tx.Create(&DID).Error
 			if err != nil {
 				return err
 			}

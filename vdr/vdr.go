@@ -428,13 +428,17 @@ func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
 func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
 	//auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_did_nuts_history")
 	// resolve the DID Document if the did starts with did:nuts
-	for _, did := range owned {
-		if did.Method != didnuts.MethodName { // skip non did:nuts
+	migrator, ok := r.Manager.(didsubject.DocumentMigration)
+	if !ok { // mocks in tests
+		return
+	}
+	for _, id := range owned {
+		if id.Method != didnuts.MethodName { // skip non did:nuts
 			continue
 		}
-		err := r.Manager.MigrateNutsHistory(did, r.store.HistorySinceVersion)
+		err := migrator.MigrateDIDHistoryToSQL(id, id.String(), r.store.HistorySinceVersion)
 		if err != nil {
-			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", did)
+			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", id)
 		}
 	}
 }

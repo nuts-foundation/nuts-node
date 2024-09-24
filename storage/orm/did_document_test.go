@@ -81,7 +81,7 @@ func TestDIDDocument_FromDIDDocument(t *testing.T) {
 		Created: created,
 		Updated: updated,
 		Raw:     docRaw,
-	}.ToORMDocument()
+	}.ToORMDocument("test-subject")
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, result.ID)
@@ -91,7 +91,10 @@ func TestDIDDocument_FromDIDDocument(t *testing.T) {
 	assert.Equal(t, version, result.Version)
 
 	// DID
-	// TODO
+	assert.Equal(t, DID{
+		ID:      alice.String(),
+		Subject: "test-subject",
+	}, result.DID)
 
 	// Services
 	require.Len(t, result.Services, 1)

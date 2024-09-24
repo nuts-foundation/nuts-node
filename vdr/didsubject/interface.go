@@ -123,6 +123,12 @@ type Manager interface {
 	Rollback(ctx context.Context)
 }
 
+type DocumentMigration interface {
+	// MigrateDIDHistoryToSQL is used to migrate the history of a DID to SQL.
+	// getHistory retrieves the history of the DID since the requested version.
+	MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error
+}
+
 // SubjectCreationOption links all create DIDs to the DID Subject
 type SubjectCreationOption struct {
 	Subject string
