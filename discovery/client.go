@@ -123,6 +123,10 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &refreshVPAfter); err != nil {
 		return fmt.Errorf("unable to update Verifiable Presentation refresh time: %w", err)
 	}
+	// clear any previous presentationRefreshErrors here so it's triggered by both the refresh and API call
+	if err := r.store.setPresentationRefreshError(serviceID, subjectID, nil); err != nil {
+		return fmt.Errorf("unable to clear previous presentationRefreshError: %w", err)
+	}
 	return nil
 }
 
@@ -287,13 +291,13 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 				}
 			} else {
 				loopErr = fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+				if err := r.store.setPresentationRefreshError(candidate.ServiceID, candidate.SubjectID, loopErr); err != nil {
+					loopErr = fmt.Errorf("failed to set refresh error for Verifiable Presentation (service=%s, subject=%s): %w. Original error: %w", candidate.ServiceID, candidate.SubjectID, err, loopErr)
+				}
 			}
 			loopErrs = append(loopErrs, loopErr)
 		}
-		// update DB with error for this candidate. If it succeeds, the call below will also remove a previous error from the DB
-		if err := r.store.setPresentationRefreshError(candidate.ServiceID, candidate.SubjectID, loopErr); err != nil {
-			loopErrs = append(loopErrs, err)
-		}
+		// activate clears any presentationRefreshErrors
 	}
 	if len(loopErrs) > 0 {
 		return errors.Join(loopErrs...)
