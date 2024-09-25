@@ -15,6 +15,7 @@ docker compose down
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
+docker compose up --wait nodeA-backend nodeA
 docker compose up --wait nodeB-backend nodeB
 
 echo "------------------------------------"
@@ -49,8 +50,7 @@ echo "---------------------------------------"
 echo "Registering care organization on Discovery Service..."
 echo "---------------------------------------"
 curl --insecure -s -X POST http://localhost:28081/internal/discovery/v1/dev:eOverdracht2023/${SUBJECT}
-# Start Discovery Server
-docker compose up --wait nodeA-backend nodeA
+
 # Registration refresh interval is 500ms, wait some to make sure the registration is refreshed
 sleep 2
 
