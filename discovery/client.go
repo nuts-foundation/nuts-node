@@ -269,8 +269,8 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	}
 	var loopErrs []error
 	for _, candidate := range refreshCandidates {
+		var loopErr error
 		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
-			var loopErr error
 			if errors.Is(err, ErrDIDMethodsNotSupported) {
 				// DID method no longer supported, remove
 				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil, nil)
@@ -289,6 +289,10 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 				loopErr = fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
 			}
 			loopErrs = append(loopErrs, loopErr)
+		}
+		// update DB with error for this candidate. If it succeeds, the call below will also remove a previous error from the DB
+		if err := r.store.setPresentationRefreshError(candidate.ServiceID, candidate.SubjectID, loopErr); err != nil {
+			loopErrs = append(loopErrs, err)
 		}
 	}
 	if len(loopErrs) > 0 {

@@ -24,6 +24,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -42,9 +43,12 @@ type Wrapper struct {
 
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
-	case errors.Is(err, discovery.ErrServiceNotFound):return http.StatusNotFound
-	case errors.Is(err, didsubject.ErrSubjectNotFound):return http.StatusNotFound
-	case errors.Is(err, discovery.ErrPresentationRegistrationFailed):return http.StatusPreconditionFailed
+	case errors.Is(err, discovery.ErrServiceNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, didsubject.ErrSubjectNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, discovery.ErrPresentationRegistrationFailed):
+		return http.StatusPreconditionFailed
 	default:
 		return http.StatusInternalServerError
 	}
@@ -132,8 +136,17 @@ func (w *Wrapper) GetServiceActivation(ctx context.Context, request GetServiceAc
 	if err != nil {
 		return nil, err
 	}
-	return GetServiceActivation200JSONResponse{
+	response := GetServiceActivation200JSONResponse{
 		Activated: activated,
+		Status:    ServiceStatusActive,
 		Vp:        &presentations,
-	}, nil
+	}
+	if refreshError := w.Client.GetServiceRefreshError(ctx, request.ServiceID, request.SubjectID); refreshError != nil {
+		if !errors.As(refreshError, &discovery.RegistrationRefreshError{}) {
+			return nil, refreshError
+		}
+		response.Status = ServiceStatusError
+		response.Error = to.Ptr(refreshError.Error())
+	}
+	return response, nil
 }

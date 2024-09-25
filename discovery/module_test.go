@@ -596,3 +596,23 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		assert.NotNil(t, presentation)
 	})
 }
+
+func TestModule_GetServiceRefreshError(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Run("no error", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+
+		err := m.GetServiceRefreshError(context.Background(), testServiceID, aliceSubject)
+
+		assert.NoError(t, err)
+	})
+	t.Run("error", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
+		_ = m.store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
+
+		err := m.GetServiceRefreshError(context.Background(), testServiceID, aliceSubject)
+
+		assert.ErrorContains(t, err, assert.AnError.Error())
+	})
+}

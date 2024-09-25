@@ -137,6 +137,20 @@ func (mr *MockClientMockRecorder) GetServiceActivation(ctx, serviceID, subjectID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceActivation", reflect.TypeOf((*MockClient)(nil).GetServiceActivation), ctx, serviceID, subjectID)
 }
 
+// GetServiceRefreshError mocks base method.
+func (m *MockClient) GetServiceRefreshError(ctx context.Context, serviceID, subjectID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetServiceRefreshError", ctx, serviceID, subjectID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetServiceRefreshError indicates an expected call of GetServiceRefreshError.
+func (mr *MockClientMockRecorder) GetServiceRefreshError(ctx, serviceID, subjectID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetServiceRefreshError", reflect.TypeOf((*MockClient)(nil).GetServiceRefreshError), ctx, serviceID, subjectID)
+}
+
 // Search mocks base method.
 func (m *MockClient) Search(serviceID string, query map[string]string) ([]SearchResult, error) {
 	m.ctrl.T.Helper()

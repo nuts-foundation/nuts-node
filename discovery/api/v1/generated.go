@@ -377,6 +377,12 @@ type GetServiceActivation200JSONResponse struct {
 	// Activated Whether the Discovery Service is activated for the given subject
 	Activated bool `json:"activated"`
 
+	// Error Error message if status is "error".
+	Error *string `json:"error,omitempty"`
+
+	// Status Status of the activation. "active" or "error".
+	Status GetServiceActivation200JSONResponseStatus `json:"status"`
+
 	// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
 	// The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
 	Vp *[]VerifiablePresentation `json:"vp,omitempty"`

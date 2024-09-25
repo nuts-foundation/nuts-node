@@ -77,6 +77,10 @@ type Client interface {
 	// The boolean indicates whether the subject is activated on the Discovery Service (ActivateServiceForSubject() has been called).
 	// It also returns the Verifiable Presentations for all DIDs of the subject that are registered on the Discovery Service, if any.
 	GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error)
+
+	// GetServiceRefreshError returns the error that occurred during the last refresh of the service.
+	// The time of the last refresh is added in the error message.
+	GetServiceRefreshError(ctx context.Context, serviceID, subjectID string) error
 }
 
 // SearchResult is a single result of a search operation.
@@ -95,3 +99,12 @@ type presentationVerifier func(definition ServiceDefinition, presentation vc.Ver
 
 // XForwardedHostContextKey is the context key for the X-Forwarded-Host header.
 type XForwardedHostContextKey struct{}
+
+// RegistrationRefreshError is returned from GetServiceRefreshError.
+type RegistrationRefreshError struct {
+	Underlying error
+}
+
+func (r RegistrationRefreshError) Error() string {
+	return r.Underlying.Error()
+}

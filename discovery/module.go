@@ -431,6 +431,21 @@ func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID 
 	return true, results, nil
 }
 
+func (m *Module) GetServiceRefreshError(_ context.Context, serviceID, subjectID string) error {
+	refreshError, err := m.store.getPresentationRefreshError(serviceID, subjectID)
+	if err != nil {
+		// db error
+		return err
+	}
+	if refreshError == nil {
+		return nil
+	}
+	// format a readable time using RFC3339
+	lastOccurrence := time.Unix(refreshError.LastOccurrence, 0)
+	readableTime := lastOccurrence.Format(time.RFC3339)
+	return RegistrationRefreshError{fmt.Errorf("[%s] %s", readableTime, refreshError.Error)}
+}
+
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {

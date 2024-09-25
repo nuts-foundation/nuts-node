@@ -95,6 +95,23 @@ func (l presentationRefreshRecord) TableName() string {
 	return "discovery_presentation_refresh"
 }
 
+// presentationRefreshError is a record of a failed refresh attempt.
+type presentationRefreshError struct {
+	// ServiceID refers to the entry record in discovery_service
+	ServiceID string `gorm:"primaryKey"`
+	// SubjectID is the ID of the subject that should be registered on the service.
+	SubjectID string `gorm:"primaryKey"`
+	// Error is the error message that occurred during the refresh attempt.
+	Error string
+	// LastOccurrence is the timestamp of the last occurrence of this error.
+	LastOccurrence int64
+}
+
+// TableName returns the table name for this DTO.
+func (l presentationRefreshError) TableName() string {
+	return "discovery_presentation_error"
+}
+
 type sqlStore struct {
 	db *gorm.DB
 }
@@ -364,6 +381,39 @@ func (s *sqlStore) getSubjectsToBeRefreshed(now time.Time) ([]refreshCandidate, 
 		result[i] = c
 	}
 	return result, nil
+}
+
+func (s *sqlStore) getPresentationRefreshError(serviceID string, subjectID string) (*presentationRefreshError, error) {
+	var row presentationRefreshError
+	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+		return nil, err
+	}
+	if row.LastOccurrence == 0 {
+		return nil, nil
+	}
+	return &row, nil
+}
+
+func (s *sqlStore) setPresentationRefreshError(serviceID string, subjectID string, refreshErr error) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&presentationRefreshError{}, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+			return err
+		}
+
+		if refreshErr == nil {
+			// a delete
+			return nil
+		}
+
+		row := presentationRefreshError{
+			ServiceID:      serviceID,
+			SubjectID:      subjectID,
+			Error:          refreshErr.Error(),
+			LastOccurrence: time.Now().Unix(),
+		}
+
+		return tx.Save(&row).Error
+	})
 }
 
 // refreshCandidate is a subset of presentationRefreshRecord

@@ -282,6 +282,34 @@ func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
 	})
 }
 
+func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+
+	t.Run("store", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+
+		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
+
+		// Check if the error is stored
+		refreshError, err := c.getPresentationRefreshError(testServiceID, aliceSubject)
+
+		require.NoError(t, err)
+		assert.Equal(t, refreshError.Error, assert.AnError.Error())
+		assert.True(t, refreshError.LastOccurrence > time.Now().Add(-1*time.Second).Unix())
+	})
+	t.Run("delete", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
+		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, nil))
+
+		refreshError, err := c.getPresentationRefreshError(testServiceID, aliceSubject)
+
+		require.NoError(t, err)
+		assert.Nil(t, refreshError)
+	})
+}
+
 func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 	// create VPs that have credentials for both Alice and Bob
 	visitor := func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
