@@ -42,10 +42,9 @@ type Wrapper struct {
 
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	switch {
-	case errors.Is(err, discovery.ErrServiceNotFound):
-		return http.StatusNotFound
-	case errors.Is(err, didsubject.ErrSubjectNotFound):
-		return http.StatusNotFound
+	case errors.Is(err, discovery.ErrServiceNotFound):return http.StatusNotFound
+	case errors.Is(err, didsubject.ErrSubjectNotFound):return http.StatusNotFound
+	case errors.Is(err, discovery.ErrPresentationRegistrationFailed):return http.StatusPreconditionFailed
 	default:
 		return http.StatusInternalServerError
 	}
@@ -108,12 +107,6 @@ func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request Activat
 	}
 
 	err := w.Client.ActivateServiceForSubject(ctx, request.ServiceID, request.SubjectID, parameters)
-	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
-		// registration failed, but will be retried
-		return ActivateServiceForSubject202JSONResponse{
-			Reason: err.Error(),
-		}, nil
-	}
 	if err != nil {
 		// other error
 		return nil, err
@@ -123,12 +116,6 @@ func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request Activat
 
 func (w *Wrapper) DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error) {
 	err := w.Client.DeactivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
-	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
-		// deactivation succeeded, but not all Verifiable Presentation couldn't be removed from remote Discovery Server.
-		return DeactivateServiceForSubject202JSONResponse{
-			Reason: err.Error(),
-		}, nil
-	}
 	if err != nil {
 		return nil, err
 	}

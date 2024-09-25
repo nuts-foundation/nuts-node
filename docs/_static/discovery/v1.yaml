@@ -148,6 +148,7 @@ paths:
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or subject.
+        * 412 - precondition failed: subject doesn't have the required certificates.
       operationId: activateServiceForSubject
       tags:
         - discovery
@@ -160,19 +161,10 @@ paths:
       responses:
         "200":
           description: Activation was successful.
-        "202":
-          description: Activation was successful, but registration of the Verifiable Presentation failed (but will be automatically re-attempted later).
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - reason
-                properties:
-                  reason:
-                    type: string
-                    description: Description of why registration failed.
+
         "400":
+          $ref: "../common/error_response.yaml"
+        "412":
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"

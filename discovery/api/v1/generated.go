@@ -428,18 +428,6 @@ func (response ActivateServiceForSubject200Response) VisitActivateServiceForSubj
 	return nil
 }
 
-type ActivateServiceForSubject202JSONResponse struct {
-	// Reason Description of why registration failed.
-	Reason string `json:"reason"`
-}
-
-func (response ActivateServiceForSubject202JSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(202)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type ActivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem.
 	Detail string `json:"detail"`
@@ -454,6 +442,24 @@ type ActivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
 func (response ActivateServiceForSubject400ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ActivateServiceForSubject412ApplicationProblemPlusJSONResponse struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
+func (response ActivateServiceForSubject412ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
 
 	return json.NewEncoder(w).Encode(response)
 }

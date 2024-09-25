@@ -71,17 +71,16 @@ func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, ActivateServiceForSubject200Response{}, response)
 	})
-	t.Run("ok, but registration failed", func(t *testing.T) {
+	t.Run("but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
 
-		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
+		_, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
 			SubjectID: subjectID,
 		})
 
-		assert.NoError(t, err)
-		assert.IsType(t, ActivateServiceForSubject202JSONResponse{}, response)
+		assert.ErrorIs(t, err, discovery.ErrPresentationRegistrationFailed)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)

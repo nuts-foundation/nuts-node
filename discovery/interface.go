@@ -59,7 +59,6 @@ type Client interface {
 
 	// ActivateServiceForSubject causes a subject to be registered for a Discovery Service.
 	// Registration of all DIDs of the subject will be attempted immediately, and automatically refreshed.
-	// If the initial registration for all DIDs fails with ErrPresentationRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
 	// parameters are added as credentialSubject to a DiscoveryRegistrationCredential holder credential.
 	// It returns an error if the service or subject is invalid/unknown.

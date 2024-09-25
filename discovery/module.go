@@ -379,9 +379,6 @@ func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subje
 
 	err := m.registrationManager.activate(ctx, serviceID, subjectID, parameters)
 	if err != nil {
-		if errors.Is(err, ErrPresentationRegistrationFailed) {
-			log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (subject=%s,service=%s)", subjectID, serviceID)
-		}
 		return err
 	}
 

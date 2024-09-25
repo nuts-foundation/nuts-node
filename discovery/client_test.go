@@ -90,6 +90,12 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		assert.ErrorContains(t, err, "invoker error")
+
+		// check no refresh records are added
+		refreshTime, err := store.getPresentationRefreshTime(testServiceID, aliceSubject)
+
+		require.NoError(t, err)
+		assert.Nil(t, refreshTime)
 	})
 	t.Run("DID method not supported", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

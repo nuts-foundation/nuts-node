@@ -92,10 +92,6 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
 	}
 
-	asSoonAsPossible := time.Now().Add(-10 * time.Second) // could be whatever, as long as it's a bit in the past to avoid issues with some weird clock skew scenarios when running a cluster
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &asSoonAsPossible); err != nil {
-		return err
-	}
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
 
 	var registeredDIDs []string
@@ -103,12 +99,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
-			if !errors.Is(err, pe.ErrNoCredentials) { // ignore missing credentials
-				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
-			} else {
-				// trace logging for missing credentials
-				log.Logger().Tracef("Missing credentials for Discovery Service (service=%s, subject=%s, did=%s): %s", service.ID, subjectID, subjectDID, err.Error())
-			}
+			loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
 		}

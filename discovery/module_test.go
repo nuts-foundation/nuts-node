@@ -539,7 +539,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		wallet := holder.NewMockWallet(gomock.NewController(t))
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
-		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).Times(2)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
