@@ -21,6 +21,7 @@
 package migration
 
 import (
+	"encoding/json"
 	did "github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -74,6 +75,9 @@ func Test_Migrations(t *testing.T) {
 		assert.Equal(t, 3, doc.Version)
 		assert.Len(t, doc.Services, 2)
 		assert.Len(t, doc.VerificationMethods, 1)
+		didDoc := new(did.Document)
+		require.NoError(t, json.Unmarshal([]byte(doc.Raw), didDoc))
+		assert.Empty(t, didDoc.Controller)
 	})
 	t.Run("org2", func(t *testing.T) {
 		// versions for did:nuts:
@@ -109,5 +113,8 @@ func Test_Migrations(t *testing.T) {
 		assert.Equal(t, 4, doc.Version)
 		assert.Len(t, doc.Services, 2)
 		assert.Len(t, doc.VerificationMethods, 2)
+		didDoc := new(did.Document)
+		require.NoError(t, json.Unmarshal([]byte(doc.Raw), didDoc))
+		assert.Empty(t, didDoc.Controller)
 	})
 }

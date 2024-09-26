@@ -378,9 +378,8 @@ func (r *Module) Migrate() error {
 }
 
 func (r *Module) allMigrations() map[string]migration {
-	// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
 	return map[string]migration{ // key will be printed as description of the migration
-		"remove controller": r.migrateRemoveControllerFromDIDNuts,
+		"remove controller": r.migrateRemoveControllerFromDIDNuts, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
 		"document history":  r.migrateHistoryOwnedDIDNuts,
 	}
 }
