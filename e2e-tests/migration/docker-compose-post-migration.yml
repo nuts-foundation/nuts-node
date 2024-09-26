@@ -14,7 +14,7 @@ services:
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB:
-    image: nutsfoundation/nuts-node:v5.4.11
+    image: nutsfoundation/nuts-node:v5.4.11 # must be v5.4.11+ for bugfixes. sync with docker-compose-post-migration.yml
     container_name: nodeB
     ports:
       - "28081:1323"

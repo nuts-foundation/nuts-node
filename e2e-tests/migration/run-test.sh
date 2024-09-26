@@ -2,6 +2,10 @@
 source ../util.sh
 USER=$UID
 
+#########################################################
+# THE ORDER OF TRANSACTIONS IS SIGNIFICANT, DONT CHANGE #
+#########################################################
+
 # createOrg creates a DID under the control of another DID
 # Args:     controller DID
 # Returns:  the created DID
@@ -113,6 +117,7 @@ echo "------------------------------------"
 echo "Syncing right branch..."
 echo "------------------------------------"
 docker compose -f docker-compose-pre-migration.yml up --wait nodeB
+# sync left and right branch through nodeB to create document conflicts on all DIDs
 
 # Wait for NodeB to contain 12 transactions
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 12 10
@@ -122,6 +127,8 @@ echo "Fix some DID document conflicts..."
 echo "------------------------------------"
 addVerificationMethodV1 "$VENDOR_DID"
 addServiceV1 "http://org3" "service2" "$ORG3_DID"
+# ORG1 is in conflicted state
+# ORG2 is conflicted but deactivated
 
 # Wait for NodeB to contain 14 transactions
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 14 10
@@ -131,17 +138,24 @@ echo "Upgrade nodeA to v6..."
 echo "------------------------------------"
 docker compose -f docker-compose-pre-migration.yml down
 docker compose -f docker-compose-post-migration.yml up --wait nodeA nodeB
+# controller migration: +2 transactions: remove controllers from ORG1 and ORG3
 
 # Wait for NodeB to contain 16 transactions
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 16 10
 
 echo "------------------------------------"
-echo "Verifying migration results..."
-echo "------------------------------------"
-# TODO
-
-
-echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose -f docker-compose-post-migration.yml stop
+
+echo "------------------------------------"
+echo "Verifying migration results..."
+echo "------------------------------------"
+# all 'waitForTXCount' calls have confirmed the didstore is (likely to be) in the correct state. Now check SQL store.
+# TODO
+
+VENDOR_DID=$VENDOR_DID ORG1_DID=$ORG1_DID ORG2_DID=$ORG2_DID ORG3_DID=$ORG3_DID go test -v --tags=e2e_tests -count=1 .
+if [ $? -ne 0 ]; then
+	echo "ERROR: test failure"
+	exit 1
+fi
