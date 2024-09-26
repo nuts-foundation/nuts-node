@@ -67,7 +67,7 @@ fi
 echo "Registering vendor B on Discovery Service..."
 REQUEST="{\"registrationParameters\":{\"key\":\"value\"}}"
 RESPONSE=$(echo $REQUEST | curl -s -o /dev/null -w "%{http_code}" -X POST --data-binary @- http://localhost:28081/internal/discovery/v1/e2e-test/vendorB)
-if echo $RESPONSE == "200"; then
+if [ $RESPONSE -eq 200 ]; then
   echo "Vendor B registered on Discovery Service"
 else
   echo "FAILED: Could not register vendor B on Discovery Service" 1>&2
