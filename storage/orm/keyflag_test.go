@@ -19,6 +19,7 @@
 package orm
 
 import (
+	"github.com/nuts-foundation/go-did/did"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,5 +54,45 @@ func TestKeyUsage_Is(t *testing.T) {
 				assert.False(t, value.Is(other))
 			}
 		}
+	})
+}
+
+func Test_verificationMethodToKeyFlags(t *testing.T) {
+	vr1 := did.VerificationRelationship{VerificationMethod: &did.VerificationMethod{
+		ID: did.MustParseDIDURL("did:method:something#key-1"),
+	}}
+	vr2 := did.VerificationRelationship{VerificationMethod: &did.VerificationMethod{
+		ID: did.MustParseDIDURL("did:method:something#key-2"),
+	}}
+	t.Run("single-key", func(t *testing.T) {
+		t.Run("AssertionMethod", func(t *testing.T) {
+			doc := did.Document{AssertionMethod: did.VerificationRelationships{vr1}}
+			assert.Equal(t, AssertionMethodUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		})
+		t.Run("Authentication", func(t *testing.T) {
+			doc := did.Document{Authentication: did.VerificationRelationships{vr1}}
+			assert.Equal(t, AuthenticationUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		})
+		t.Run("CapabilityDelegation", func(t *testing.T) {
+			doc := did.Document{CapabilityDelegation: did.VerificationRelationships{vr1}}
+			assert.Equal(t, CapabilityDelegationUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		})
+		t.Run("CapabilityInvocation", func(t *testing.T) {
+			doc := did.Document{CapabilityInvocation: did.VerificationRelationships{vr1}}
+			assert.Equal(t, CapabilityInvocationUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		})
+		t.Run("KeyAgreement", func(t *testing.T) {
+			doc := did.Document{KeyAgreement: did.VerificationRelationships{vr1}}
+			assert.Equal(t, KeyAgreementUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		})
+	})
+	t.Run("multi-key", func(t *testing.T) {
+		doc := did.Document{
+			AssertionMethod:      did.VerificationRelationships{vr1},
+			CapabilityInvocation: did.VerificationRelationships{vr1, vr2},
+			KeyAgreement:         did.VerificationRelationships{vr2},
+		}
+		assert.Equal(t, AssertionMethodUsage|CapabilityInvocationUsage, verificationMethodToKeyFlags(doc, vr1.VerificationMethod))
+		assert.Equal(t, CapabilityInvocationUsage|KeyAgreementUsage, verificationMethodToKeyFlags(doc, vr2.VerificationMethod))
 	})
 }

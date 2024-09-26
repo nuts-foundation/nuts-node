@@ -21,6 +21,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -70,6 +71,7 @@ func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	t.Cleanup(func() {
 		_ = result.Shutdown()
 	})
+	fmt.Printf("Created test storage engine in %s\n", dir)
 	return result
 }
 

@@ -650,14 +650,15 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 }
 
 func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+	latestSQLVersion := -1 // -1 means it's a new DID
 	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
-	latestSQLVersion := -1 // -1 is new DID
 	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) { // not a new DID
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		// new DID, don't update latestSQLVersion
 	} else {
-		// don't try to migrate deactivated documents
+		// don't migrate DID documents past their deactivation
 		latestDIDDocument, err := latestORMDocument.ToDIDDocument()
 		if err != nil {
 			return err
@@ -665,13 +666,18 @@ func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHisto
 		if resolver.IsDeactivated(latestDIDDocument) {
 			return nil
 		}
-		// set latest version
+		// set latestSQLVersion
 		latestSQLVersion = latestORMDocument.Version
 	}
 
-	history, err := getHistory(id, latestSQLVersion)
+	// get all new document updates
+	// NOTE: this assumes updates are only appended to the end. This breaks if the history of a document is altered.
+	history, err := getHistory(id, latestSQLVersion+1)
 	if err != nil {
 		return err
+	}
+	if len(history) == 0 {
+		return nil
 	}
 
 	// convert history to orm objects

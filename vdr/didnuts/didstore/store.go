@@ -354,24 +354,29 @@ func latestNonDeactivatedRequested(resolveMetadata *resolver.ResolveMetadata) bo
 }
 
 func (tl *store) HistorySinceVersion(id did.DID, version int) ([]orm.MigrationDocument, error) {
+	if version < 0 {
+		return nil, errors.New("negative version")
+	}
 	var history []orm.MigrationDocument
 	txErr := tl.db.Read(context.TODO(), func(tx stoabs.ReadTx) error {
 		el, err := readEventList(tx, id)
 		if err != nil {
 			return err
 		}
+		if len(el.Events) == 0 {
+			return storage.ErrNotFound
+		}
 		highestDIDStoreVersion := len(el.Events) - 1
 
 		// return if no changes
-		if version >= highestDIDStoreVersion {
-			// can only be larger if using VDR v2 API and DAG is not yet synced
+		if version > highestDIDStoreVersion {
 			return nil
 		}
 
 		created := el.Events[0].SigningTime
 		documentReader := tx.GetShelfReader(documentShelf)
-		history = make([]orm.MigrationDocument, 0, highestDIDStoreVersion-version)
-		for v := version + 1; v <= highestDIDStoreVersion; v++ {
+		history = make([]orm.MigrationDocument, 0, highestDIDStoreVersion-version+1)
+		for v := version; v <= highestDIDStoreVersion; v++ {
 			payloadHash := el.Events[v].PayloadHash
 			documentBytes, err := documentReader.Get(stoabs.NewHashKey(payloadHash))
 			if err != nil {

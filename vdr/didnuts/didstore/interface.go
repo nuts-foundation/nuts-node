@@ -43,11 +43,10 @@ type Store interface {
 	// It returns vdr.ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata.
 	// It returns vdr.ErrDeactivated if no metadata is given and the latest version of the DID Document is deactivated.
 	Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error)
-	// HistorySinceVersion returns all versions of the DID Document since the specified version.
+	// HistorySinceVersion returns all versions of the DID Document since the specified version (including version).
 	// The slice is empty when version is the most recent version of the DID Document.
-	// This function exists to migrate the history of owned DIDs from key-value storage to SQL storage.
-	// Historic updates on DID Documents will result in version mismatches between the 2 databases.
-	// The history contains all DID Documents as they were published, which differs from Resolve that produces a merger of conflicted documents.
+	// The history contains DID Documents as they were published, which differs from Resolve that produces a merge of conflicted documents.
+	// DEPRECATED: This function exists to migrate the history of owned DIDs from key-value storage to SQL storage.
 	HistorySinceVersion(id did.DID, version int) ([]orm.MigrationDocument, error)
 }
 

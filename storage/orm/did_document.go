@@ -115,7 +115,7 @@ type MigrationDocument struct {
 	Version int
 }
 
-// ToORMDocument converts the Raw document to a DidDocument. DID.Subject is set equal to DID.ID.
+// ToORMDocument converts the Raw document to a DidDocument. Generates a new DidDocument.ID
 func (migration MigrationDocument) ToORMDocument(subject string) (DidDocument, error) {
 	doc := new(did.Document)
 	err := json.Unmarshal(migration.Raw, doc)

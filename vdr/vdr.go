@@ -126,11 +126,7 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
-	// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
-	m.migrations = map[string]migration{ // key will be printed as description of the migration
-		"remove controller": m.migrateRemoveControllerFromDIDNuts,
-		"document history":  m.migrateHistoryOwnedDIDNuts,
-	}
+	m.migrations = m.allMigrations()
 	return m
 }
 
@@ -381,6 +377,14 @@ func (r *Module) Migrate() error {
 	return nil
 }
 
+func (r *Module) allMigrations() map[string]migration {
+	// TODO: sort out ordering of migrations. SQL does not register Controllers, so controller migration needs to use latest version on DAG/VDRv1
+	return map[string]migration{ // key will be printed as description of the migration
+		"remove controller": r.migrateRemoveControllerFromDIDNuts,
+		"document history":  r.migrateHistoryOwnedDIDNuts,
+	}
+}
+
 // migrateRemoveControllerFromDIDNuts removes the controller from all did:nuts identifiers under own control.
 // This ignores any DIDs that are not did:nuts.
 func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
@@ -425,22 +429,20 @@ func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
 	}
 }
 
+// migrateHistoryOwnedDIDNuts migrates did:nuts DIDs from the VDR key-value storage to SQL storage
+// This ignores any DIDs that are not did:nuts.
 func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
-	//auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_did_nuts_history")
-	// resolve the DID Document if the did starts with did:nuts
-	migrator, ok := r.Manager.(didsubject.DocumentMigration)
-	if !ok { // mocks in tests
-		return
-	}
 	for _, id := range owned {
 		if id.Method != didnuts.MethodName { // skip non did:nuts
 			continue
 		}
-		err := migrator.MigrateDIDHistoryToSQL(id, id.String(), r.store.HistorySinceVersion)
+		err := r.Manager.(didsubject.DocumentMigration).MigrateDIDHistoryToSQL(id, id.String(), r.store.HistorySinceVersion)
 		if err != nil {
 			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", id)
 		}
 	}
 }
 
+// migration is the signature each migration function in Module.migrations uses
+// there is no error return, if something is fatal the function should panic
 type migration func(owned []did.DID)
