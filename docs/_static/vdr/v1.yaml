@@ -1,9 +1,10 @@
-openapi: "3.0.0"
+openapi: "3.1.0"
 info:
   title: Nuts Verifiable Data Registry API spec
   description: API specification for the Verifiable Data Registry
   version: 1.0.0
   license:
+    identifier:	GPL-3.0-or-later
     name: GPLv3
 servers:
   - url: http://localhost:8081

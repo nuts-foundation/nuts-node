@@ -1,9 +1,10 @@
-openapi: "3.0.0"
+openapi: "3.1.0"
 info:
   title: Nuts Discovery Server API spec
   description: API specification for Discovery Servers as specified by the Nuts specification.
   version: 1.0.0
   license:
+    identifier:	GPL-3.0-or-later
     name: GPLv3
 paths:
   /discovery/{serviceID}:
