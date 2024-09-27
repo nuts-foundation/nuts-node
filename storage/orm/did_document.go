@@ -106,7 +106,8 @@ func (sqlDoc DidDocument) GenerateDIDDocument() (did.Document, error) {
 	return document, nil
 }
 
-// MigrationDocument is used to convert a did.Document + metadata to a DidDocument
+// MigrationDocument is used to convert a did.Document + metadata to a DidDocument.
+// DEPRECATED: only intended to migrate owned did:nuts to SQL storage.
 type MigrationDocument struct {
 	// Raw contains the did.Document in bytes. For did:nuts this is must be equal to the payload in the network transaction.
 	Raw     []byte

@@ -152,7 +152,6 @@ echo "------------------------------------"
 echo "Verifying migration results..."
 echo "------------------------------------"
 # all 'waitForTXCount' calls have confirmed the didstore is (likely to be) in the correct state. Now check SQL store.
-# TODO
 
 VENDOR_DID=$VENDOR_DID ORG1_DID=$ORG1_DID ORG2_DID=$ORG2_DID ORG3_DID=$ORG3_DID go test -v --tags=e2e_tests -count=1 .
 if [ $? -ne 0 ]; then
