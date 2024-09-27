@@ -23,7 +23,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"io"
@@ -93,10 +92,10 @@ func (hb HTTPClient) Untrusted(credentialType string) ([]string, error) {
 }
 
 // LoadVC loads the given Verifiable Credential into the holder's wallet.
-func (hb HTTPClient) LoadVC(holder did.DID, credential vc.VerifiableCredential) error {
+func (hb HTTPClient) LoadVC(holderSubjectID string, credential vc.VerifiableCredential) error {
 	ctx := context.Background()
 
-	httpResponse, err := hb.client().LoadVC(ctx, holder.String(), credential)
+	httpResponse, err := hb.client().LoadVC(ctx, holderSubjectID, credential)
 	if err != nil {
 		return err
 	} else if err := core.TestResponseCode(http.StatusNoContent, httpResponse); err != nil {

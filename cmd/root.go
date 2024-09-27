@@ -211,7 +211,7 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
-	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld})
+	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&openid4vciAPI.Wrapper{
 		VCR: credentialInstance,
 		VDR: vdrInstance,

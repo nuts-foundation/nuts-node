@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"
@@ -47,7 +48,7 @@ import (
 
 var holderDID = did.MustParseDID("did:web:example.com:iam:123")
 var credentialID = ssi.MustParseURI("did:web:example.com:iam:456#1")
-var testVC = vc.VerifiableCredential{ID: &credentialID}
+var testVC = vc.VerifiableCredential{ID: &credentialID, CredentialSubject: []interface{}{map[string]interface{}{"ID": holderDID.String()}}}
 
 func TestWrapper_IssueVC(t *testing.T) {
 
@@ -735,61 +736,94 @@ func parsedTimeStr(t time.Time) (time.Time, string) {
 }
 
 func TestWrapper_LoadVC(t *testing.T) {
-	t.Run("test integration with vcr", func(t *testing.T) {
-		t.Run("successful load", func(t *testing.T) {
-			testContext := newMockContext(t)
-			testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(nil)
+	subjectID := "holder"
+	t.Run("successful load", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockVerifier.EXPECT().Verify(gomock.Any(), true, true, nil).Return(nil)
+		testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(nil)
 
-			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID.String(), Body: &testVC})
+		response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &testVC})
 
-			assert.NoError(t, err)
-			assert.IsType(t, response, LoadVC204Response{})
-		})
-
-		t.Run("vcr returns an error", func(t *testing.T) {
-			testContext := newMockContext(t)
-			testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(assert.AnError)
-
-			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: holderDID.String(), Body: &testVC})
-
-			assert.Empty(t, response)
-			assert.EqualError(t, err, assert.AnError.Error())
-		})
+		assert.NoError(t, err)
+		assert.IsType(t, response, LoadVC204Response{})
 	})
+	t.Run("no DIDs for subject", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 
-	t.Run("param check", func(t *testing.T) {
-		t.Run("invalid credential id format", func(t *testing.T) {
-			testContext := newMockContext(t)
+		_, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &testVC})
 
-			response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{Did: "%%"})
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("verification failed", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockVerifier.EXPECT().Verify(gomock.Any(), true, true, nil).Return(verifier.VerificationError{})
 
-			assert.Empty(t, response)
-			assert.EqualError(t, err, "invalid holder DID: invalid DID")
-		})
+		_, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &testVC})
+
+		httpErr, ok := err.(core.HTTPStatusCodeError)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusBadRequest, httpErr.StatusCode())
+	})
+	t.Run("missing body", func(t *testing.T) {
+		testContext := newMockContext(t)
+
+		_, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID})
+
+		assert.EqualError(t, err, "missing credential in body")
+	})
+	t.Run("invalid credentialSubject.ID", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+
+		_, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &vc.VerifiableCredential{ID: &credentialID}})
+
+		assert.EqualError(t, err, "invalid credentialSubject.ID: unable to get subject DID from VC: there must be at least 1 credentialSubject")
+	})
+	t.Run("subject <> credentialSubject.ID mismatch", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{did.MustParseDID("did:test:unknown")}, nil)
+
+		_, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &testVC})
+
+		assert.EqualError(t, err, "subject does not own DID specified by credentialSubject.ID")
+	})
+	t.Run("wallet error", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockVerifier.EXPECT().Verify(gomock.Any(), true, true, nil).Return(nil)
+		testContext.mockWallet.EXPECT().Put(gomock.Any(), testVC).Return(assert.AnError)
+
+		response, err := testContext.client.LoadVC(testContext.requestCtx, LoadVCRequestObject{SubjectID: subjectID, Body: &testVC})
+
+		assert.Empty(t, response)
+		assert.EqualError(t, err, assert.AnError.Error())
 	})
 }
 
 func TestWrapper_GetCredentialsInWallet(t *testing.T) {
+	subjectID := "holder"
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
 		testContext.mockWallet.EXPECT().List(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
 
 		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
-			Did: holderDID.String(),
+			SubjectID: subjectID,
 		})
 
 		assert.NoError(t, err)
 		assert.Equal(t, GetCredentialsInWallet200JSONResponse([]vc.VerifiableCredential{testVC}), response)
 	})
-	t.Run("invalid DID", func(t *testing.T) {
+	t.Run("subject not found", func(t *testing.T) {
 		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 
-		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
-			Did: "%%",
-		})
+		_, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{SubjectID: subjectID})
 
-		assert.Empty(t, response)
-		assert.EqualError(t, err, "invalid holder DID: invalid DID")
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
 	})
 }
 
@@ -1225,13 +1259,14 @@ func TestWrapper_Untrusted(t *testing.T) {
 }
 
 type mockContext struct {
-	ctrl         *gomock.Controller
-	mockIssuer   *issuer.MockIssuer
-	mockWallet   *holder.MockWallet
-	mockVerifier *verifier.MockVerifier
-	vcr          *vcr.MockVCR
-	client       *Wrapper
-	requestCtx   context.Context
+	ctrl               *gomock.Controller
+	mockIssuer         *issuer.MockIssuer
+	mockSubjectManager *didsubject.MockManager
+	mockVerifier       *verifier.MockVerifier
+	mockWallet         *holder.MockWallet
+	vcr                *vcr.MockVCR
+	client             *Wrapper
+	requestCtx         context.Context
 }
 
 func newMockContext(t *testing.T) mockContext {
@@ -1241,20 +1276,22 @@ func newMockContext(t *testing.T) mockContext {
 	mockIssuer := issuer.NewMockIssuer(ctrl)
 	mockWallet := holder.NewMockWallet(ctrl)
 	mockVerifier := verifier.NewMockVerifier(ctrl)
+	mockSubjectManager := didsubject.NewMockManager(ctrl)
 	mockVcr.EXPECT().Issuer().Return(mockIssuer).AnyTimes()
 	mockVcr.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	mockVcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
-	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t)}
+	client := &Wrapper{VCR: mockVcr, ContextManager: jsonld.NewTestJSONLDManager(t), SubjectManager: mockSubjectManager}
 
 	requestCtx := audit.TestContext()
 
 	return mockContext{
-		ctrl:         ctrl,
-		mockIssuer:   mockIssuer,
-		mockWallet:   mockWallet,
-		mockVerifier: mockVerifier,
-		vcr:          mockVcr,
-		client:       client,
-		requestCtx:   requestCtx,
+		ctrl:               ctrl,
+		mockIssuer:         mockIssuer,
+		mockSubjectManager: mockSubjectManager,
+		mockVerifier:       mockVerifier,
+		mockWallet:         mockWallet,
+		vcr:                mockVcr,
+		client:             client,
+		requestCtx:         requestCtx,
 	}
 }

@@ -108,7 +108,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 func setupNode(t testing.TB, ctx context.Context, config core.ClientConfig) (string, did.DID, OpenID4VP) {
 	subject, didDoc, err := createDID(config)
 	require.NoError(t, err)
-	err = browser.IssueOrganizationCredential(didDoc, fmt.Sprintf("%s Organization", didDoc.ID.String()), "Testland", config)
+	err = browser.IssueOrganizationCredential(subject, didDoc, fmt.Sprintf("%s Organization", didDoc.ID.String()), "Testland", config)
 	require.NoError(t, err)
 
 	iamClientB, err := iamAPI.NewClient(config.GetAddress())
