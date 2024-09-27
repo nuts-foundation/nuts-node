@@ -39,6 +39,8 @@ import (
 	"time"
 )
 
+var nextRefresh = time.Now().Add(-1 * time.Hour)
+
 func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
@@ -346,12 +348,12 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
 
 		// Alice
-		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
 		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
 		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		// Bob
-		_ = store.updatePresentationRefreshTime(testServiceID, bobSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+		_ = store.updatePresentationRefreshTime(testServiceID, bobSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
 		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), bobSubject).Return([]did.DID{bobDID}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
 		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
@@ -368,7 +370,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		mockSubjectManager := didsubject.NewMockManager(ctrl)
 		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &time.Time{})
+		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &nextRefresh)
 
 		err := manager.refresh(audit.TestContext(), time.Now())
 
@@ -383,7 +385,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		mockSubjectManager := didsubject.NewMockManager(ctrl)
 		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		_ = store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+		_ = store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
 
 		err := manager.refresh(audit.TestContext(), time.Now())
 

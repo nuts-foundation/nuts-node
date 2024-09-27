@@ -92,7 +92,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
 	}
 
-	var asSoonAsPossible time.Time
+	asSoonAsPossible := time.Now().Add(-10 * time.Second) // could be whatever, as long as it's a bit in the past to avoid issues with some weird clock skew scenarios when running a cluster
 	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &asSoonAsPossible); err != nil {
 		return err
 	}

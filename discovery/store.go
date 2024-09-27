@@ -85,7 +85,7 @@ type presentationRefreshRecord struct {
 	// SubjectID is the ID of the subject that should be registered on the service.
 	SubjectID string `gorm:"primaryKey"`
 	// NextRefresh is the Timestamp (seconds since Unix epoch) when the registration on the Discovery Service should be refreshed.
-	NextRefresh int64
+	NextRefresh int
 	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
 	Parameters []byte
 }
@@ -328,7 +328,7 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID str
 				return err
 			}
 		}
-		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: nextRefresh.Unix(), Parameters: bytes}).Error
+		return tx.Save(presentationRefreshRecord{SubjectID: subjectID, ServiceID: serviceID, NextRefresh: int(nextRefresh.Unix()), Parameters: bytes}).Error
 	})
 }
 
@@ -340,7 +340,7 @@ func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectID string
 	if row.NextRefresh == 0 {
 		return nil, nil
 	}
-	result := time.Unix(row.NextRefresh, 0)
+	result := time.Unix(int64(row.NextRefresh), 0)
 	return &result, nil
 }
 
