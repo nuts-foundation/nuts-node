@@ -54,7 +54,7 @@ import (
 // testCtx contains the controller and mocks needed fot testing the Manipulator
 type vdrTestCtx struct {
 	ctrl                *gomock.Controller
-	vdr                 Module
+	vdr                 *Module
 	mockStore           *didstore.MockStore
 	mockNetwork         *network.MockTransactions
 	keyStore            nutsCrypto.KeyStore
@@ -90,7 +90,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
-		vdr:                 *vdr,
+		vdr:                 vdr,
 		mockAmbassador:      mockAmbassador,
 		mockStore:           mockStore,
 		mockNetwork:         mockNetwork,
@@ -354,7 +354,7 @@ func TestVDR_Migrate(t *testing.T) {
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{testDIDWeb}, nil)
 		err := ctx.vdr.Migrate()
 		assert.NoError(t, err)
-		assert.Len(t, ctx.vdr.migrations, 2) // confirm its running allMigrations() that currently is only did:nuts
+		assert.Len(t, ctx.vdr.migrations, 3) // confirm its running allMigrations() that currently is only did:nuts
 	})
 	t.Run("controller migration", func(t *testing.T) {
 		controllerMigrationSetup := func(t *testing.T) vdrTestCtx {
@@ -471,6 +471,37 @@ func TestVDR_Migrate(t *testing.T) {
 
 			assert.NoError(t, err)
 			assertLog(t, "assert.AnError general error for testing")
+		})
+	})
+
+	t.Run("add did:web to subject", func(t *testing.T) {
+		didwebMigrationSetup := func(t *testing.T) vdrTestCtx {
+			t.Cleanup(func() { hook.Reset() })
+			ctx := newVDRTestCtx(t)
+			ctx.vdr.migrations = map[string]migration{"add did:web to subject": ctx.vdr.migrateAddDIDWebToOwnedDIDNuts}
+			return ctx
+		}
+		t.Run("web not in supported methods", func(t *testing.T) {
+			logrus.StandardLogger().Level = logrus.InfoLevel
+			defer func() { logrus.StandardLogger().Level = logrus.WarnLevel }()
+			ctx := didwebMigrationSetup(t)
+			ctx.vdr.migrations = map[string]migration{"add did:web to subject": ctx.vdr.migrateAddDIDWebToOwnedDIDNuts}
+			ctx.vdr.config.DIDMethods = []string{"nuts"}
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			assertLog(t, "did:web not in supported did methods. Abort migration.")
+		})
+		t.Run("logs error", func(t *testing.T) {
+			ctx := didwebMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+
+			err := ctx.vdr.Migrate()
+
+			assert.NoError(t, err)
+			assertLog(t, "Failed to add a did:web DID for did:nuts:") // test sql store does not contain TestDIDA
 		})
 	})
 }

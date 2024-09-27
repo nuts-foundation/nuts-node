@@ -377,10 +377,15 @@ func (r *Module) Migrate() error {
 	return nil
 }
 
+// migration is the signature each migration function in Module.migrations uses
+// there is no error return, if something is fatal the function should panic
+type migration func(owned []did.DID)
+
 func (r *Module) allMigrations() map[string]migration {
 	return map[string]migration{ // key will be printed as description of the migration
-		"remove controller": r.migrateRemoveControllerFromDIDNuts, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
-		"document history":  r.migrateHistoryOwnedDIDNuts,
+		"remove controller":      r.migrateRemoveControllerFromDIDNuts, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
+		"document history":       r.migrateHistoryOwnedDIDNuts,
+		"add did:web to subject": r.migrateAddDIDWebToOwnedDIDNuts, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
 	}
 }
 
@@ -442,6 +447,19 @@ func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
 	}
 }
 
-// migration is the signature each migration function in Module.migrations uses
-// there is no error return, if something is fatal the function should panic
-type migration func(owned []did.DID)
+func (r *Module) migrateAddDIDWebToOwnedDIDNuts(owned []did.DID) {
+	if !slices.Contains(r.SupportedMethods(), "web") {
+		log.Logger().Info("did:web not in supported did methods. Abort migration.")
+		return
+	}
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_add_did:web_to_did:nuts")
+	for _, id := range owned {
+		if id.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		err := r.Manager.(didsubject.DocumentMigration).MigrateAddWebToNuts(auditContext, id)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to add a did:web DID for %s", id)
+		}
+	}
+}
