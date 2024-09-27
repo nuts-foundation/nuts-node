@@ -6,7 +6,7 @@ info:
     It allows the three roles, issuer, holder and verifier to issue, revoke, search, present and verify credentials.
   version: 2.0.0
   license:
-    identifier:	GPL-3.0-or-later
+    identifier: GPL-3.0-or-later
     name: GPLv3
 servers:
   - url: http://localhost:8081
