@@ -76,11 +76,9 @@ type Client interface {
 	// GetServiceActivation returns the activation status of a subject on a Discovery Service.
 	// The boolean indicates whether the subject is activated on the Discovery Service (ActivateServiceForSubject() has been called).
 	// It also returns the Verifiable Presentations for all DIDs of the subject that are registered on the Discovery Service, if any.
+	// It returns a refreshRecordError if the last refresh of the service failed (activation status and VPs are still returned).
+	// The time of the last error is added in the error message.
 	GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error)
-
-	// GetServiceRefreshError returns the error that occurred during the last refresh of the service.
-	// The time of the last refresh is added in the error message.
-	GetServiceRefreshError(ctx context.Context, serviceID, subjectID string) error
 }
 
 // SearchResult is a single result of a search operation.

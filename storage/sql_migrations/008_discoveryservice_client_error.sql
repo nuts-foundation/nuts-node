@@ -13,7 +13,7 @@ create table discovery_presentation_error
     -- last_occurrence is the timestamp (seconds since Unix epoch) when the registration last failed.
     last_occurrence integer      not null,
     primary key (service_id, subject_id),
-    constraint fk_discovery_presentation_error_service foreign key (service_id) references discovery_service (id) on delete cascade
+    constraint fk_discovery_presentation_error_service foreign key (service_id, subject_id) references discovery_presentation_refresh (service_id, subject_id) on delete cascade
 );
 
 -- +goose Down

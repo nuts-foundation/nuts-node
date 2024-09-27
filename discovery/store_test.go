@@ -22,6 +22,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -268,7 +269,7 @@ func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
 
 	t.Run("no entry", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		ts, err := c.getPresentationRefreshTime(testServiceID, aliceSubject)
+		ts, err := c.getPresentationRefreshRecord(testServiceID, aliceSubject)
 		require.NoError(t, err)
 		assert.Nil(t, ts)
 	})
@@ -276,9 +277,20 @@ func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		now := time.Now().Truncate(time.Second)
 		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &now))
-		ts, err := c.getPresentationRefreshTime(testServiceID, aliceSubject)
+		ts, err := c.getPresentationRefreshRecord(testServiceID, aliceSubject)
 		require.NoError(t, err)
-		assert.Equal(t, now, *ts)
+		require.NotNil(t, ts)
+		assert.Equal(t, now.Unix(), ts.NextRefresh)
+
+		t.Run("error is preloaded", func(t *testing.T) {
+			require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
+
+			ts, err := c.getPresentationRefreshRecord(testServiceID, aliceSubject)
+
+			require.NoError(t, err)
+			require.NotNil(t, ts)
+			assert.Equal(t, assert.AnError.Error(), ts.PresentationRefreshError.Error)
+		})
 	})
 }
 
@@ -289,6 +301,7 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 	t.Run("store", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, to.Ptr(time.Now().Add(time.Second))))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
 
 		// Check if the error is stored
@@ -296,10 +309,11 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, refreshError.Error, assert.AnError.Error())
-		assert.True(t, refreshError.LastOccurrence > time.Now().Add(-1*time.Second).Unix())
+		assert.True(t, refreshError.LastOccurrence > int(time.Now().Add(-1*time.Second).Unix()))
 	})
 	t.Run("delete", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, to.Ptr(time.Now().Add(time.Second))))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, nil))
 

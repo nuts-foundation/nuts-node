@@ -92,10 +92,10 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		assert.ErrorContains(t, err, "invoker error")
 
 		// check no refresh records are added
-		refreshTime, err := store.getPresentationRefreshTime(testServiceID, aliceSubject)
+		record, err := store.getPresentationRefreshRecord(testServiceID, aliceSubject)
 
 		require.NoError(t, err)
-		assert.Nil(t, refreshTime)
+		assert.Nil(t, record)
 	})
 	t.Run("DID method not supported", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -402,9 +402,9 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		// refresh clears the registration
 		require.NoError(t, err)
-		refreshTime, err := store.getPresentationRefreshTime(unsupportedServiceID, aliceSubject)
+		record, err := store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
 		assert.NoError(t, err)
-		assert.Nil(t, refreshTime)
+		assert.Nil(t, record)
 	})
 	t.Run("remove presentationRefreshError on success", func(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())

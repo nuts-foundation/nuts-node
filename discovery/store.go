@@ -88,6 +88,8 @@ type presentationRefreshRecord struct {
 	NextRefresh int
 	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
 	Parameters []byte
+	// PresentationRefreshError is the error message that occurred during the refresh attempt.
+	PresentationRefreshError presentationRefreshError `gorm:"foreignKey:ServiceID,SubjectID"`
 }
 
 // TableName returns the table name for this DTO.
@@ -104,7 +106,7 @@ type presentationRefreshError struct {
 	// Error is the error message that occurred during the refresh attempt.
 	Error string
 	// LastOccurrence is the timestamp of the last occurrence of this error.
-	LastOccurrence int64
+	LastOccurrence int
 }
 
 // TableName returns the table name for this DTO.
@@ -349,16 +351,15 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID str
 	})
 }
 
-func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectID string) (*time.Time, error) {
+func (s *sqlStore) getPresentationRefreshRecord(serviceID string, subjectID string) (*presentationRefreshRecord, error) {
 	var row presentationRefreshRecord
-	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+	if err := s.db.Preload("PresentationRefreshError").Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
 		return nil, err
 	}
 	if row.NextRefresh == 0 {
 		return nil, nil
 	}
-	result := time.Unix(int64(row.NextRefresh), 0)
-	return &result, nil
+	return &row, nil
 }
 
 // getSubjectsToBeRefreshed returns all registered subject-service combinations that are due for refreshing.
@@ -409,7 +410,7 @@ func (s *sqlStore) setPresentationRefreshError(serviceID string, subjectID strin
 			ServiceID:      serviceID,
 			SubjectID:      subjectID,
 			Error:          refreshErr.Error(),
-			LastOccurrence: time.Now().Unix(),
+			LastOccurrence: int(time.Now().Unix()), //32bit supports stops at 03:14:07 on Tuesday, 19 January 2038
 		}
 
 		return tx.Save(&row).Error

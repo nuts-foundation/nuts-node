@@ -584,7 +584,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	})
 	t.Run("activated, with VP", func(t *testing.T) {
 		m, testContext := setupModule(t, storageEngine)
-		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).AnyTimes()
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
 		_ = m.store.add(testServiceID, vpAlice, 0)
@@ -594,25 +594,15 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, activated)
 		assert.NotNil(t, presentation)
-	})
-}
 
-func TestModule_GetServiceRefreshError(t *testing.T) {
-	storageEngine := storage.NewTestStorageEngine(t)
-	require.NoError(t, storageEngine.Start())
-	t.Run("no error", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
+		t.Run("with refresh error", func(t *testing.T) {
+			_ = m.store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
 
-		err := m.GetServiceRefreshError(context.Background(), testServiceID, aliceSubject)
+			activated, _, err = m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
-		assert.NoError(t, err)
-	})
-	t.Run("error", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
-		_ = m.store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
-
-		err := m.GetServiceRefreshError(context.Background(), testServiceID, aliceSubject)
-
-		assert.ErrorContains(t, err, assert.AnError.Error())
+			require.Error(t, err)
+			assert.True(t, activated)
+			assert.ErrorAs(t, err, &RegistrationRefreshError{})
+		})
 	})
 }

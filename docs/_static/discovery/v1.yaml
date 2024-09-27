@@ -159,7 +159,7 @@ paths:
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or subject.
-        * 412 - precondition failed: subject doesn't have the required certificates.
+        * 412 - precondition failed: subject doesn't have the required credentials.
       operationId: activateServiceForSubject
       tags:
         - discovery

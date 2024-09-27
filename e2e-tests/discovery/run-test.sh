@@ -15,8 +15,7 @@ docker compose down
 echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
-docker compose up --wait nodeA-backend nodeA
-docker compose up --wait nodeB-backend nodeB
+docker compose up --wait nodeA-backend nodeA nodeB-backend nodeB
 
 echo "------------------------------------"
 echo "Registering care organization..."
