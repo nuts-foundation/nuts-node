@@ -4,7 +4,7 @@ info:
   description: API specification for DID management helper APIs. The goal of this API is to help administrative interfaces to manage DIDs.
   version: 1.0.0
   license:
-    identifier:	GPL-3.0-or-later
+    identifier: GPL-3.0-or-later
     name: GPLv3
 servers:
   - url: http://localhost:8081

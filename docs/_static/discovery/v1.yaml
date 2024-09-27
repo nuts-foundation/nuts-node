@@ -4,7 +4,7 @@ info:
   description: API specification for Discovery Services available within Nuts node
   version: 1.0.0
   license:
-    identifier:	GPL-3.0-or-later
+    identifier: GPL-3.0-or-later
     name: GPLv3
 servers:
   - url: http://localhost:8081

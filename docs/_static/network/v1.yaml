@@ -4,7 +4,7 @@ info:
   description: API specification for RPC services available at the nuts-network
   version: 1.0.0
   license:
-    identifier:	GPL-3.0-or-later
+    identifier: GPL-3.0-or-later
     name: GPLv3
 servers:
   - url: http://localhost:8081
