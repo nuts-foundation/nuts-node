@@ -511,7 +511,7 @@ paths:
       description: |
         If a VerifiableCredential is not directly issued to the wallet through e.g. OpenID4VCI, this API allows to add it to a wallet.
         The subject identifier of the holder has to be provided in the path.
-        The credentialSubject.id must equal to a DID of the holder, the signature must be valid and the credential must not be expired.
+        The credentialSubject.id must equal to a DID of the holder, the signature must be valid and the credential must not be expired or revoked.
 
         error returns:
         * 400 - Invalid credential
