@@ -46,7 +46,6 @@ paths:
           additionalProperties:
             type: string
         style: form
-        explode: true
     get:
       summary: Searches for presentations registered on the Discovery Service.
       description: |
