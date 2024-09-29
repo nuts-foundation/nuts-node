@@ -22,7 +22,7 @@ discovery:
     directory: /nuts/discovery
   server:
     ids: e2e-test
-vdr:
-  didmethods:
-    - web
+#vdr:
+#  didmethods:
+#    - web
 
