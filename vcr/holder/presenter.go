@@ -72,31 +72,10 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	if format == "" {
 		return nil, nil, errors.New("requester, verifier (authorization server metadata) and presentation definition don't share a supported VP format")
 	}
-	presentationSubmission, signInstructions, err := builder.Build(format)
+	presentationSubmission, signInstruction, err := builder.Build(format)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build presentation submission: %w", err)
+		return nil, nil, err
 	}
-	if signInstructions.Empty() {
-		// add empty sign instruction
-		// TODO: If the verifier doesn't require any credentials, it also can't signal which DID methods it supports/requires?
-		var holderDID did.DID
-		for holder := range credentials {
-			holderDID = holder
-			break
-		}
-		signInstructions = append(signInstructions, pe.SignInstruction{Holder: holderDID})
-		presentationSubmission = pe.PresentationSubmission{
-			Id:            uuid.NewString(),
-			DefinitionId:  presentationDefinition.Id,
-			DescriptorMap: make([]pe.InputDescriptorMappingObject, 0),
-		}
-	}
-
-	if len(signInstructions) > 1 {
-		// todo: support multiple wallets
-		return nil, nil, errors.New("multiple sign instructions not supported")
-	}
-	signInstruction := signInstructions[0]
 
 	holderDID := signInstruction.Holder.URI()
 	vp, err := p.buildPresentation(ctx, &signInstruction.Holder, signInstruction.VerifiableCredentials, PresentationOptions{

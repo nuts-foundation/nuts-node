@@ -33,7 +33,7 @@ type PresentationSubmission struct {
 	// DefinitionId is the id of the presentation definition that this submission is for
 	DefinitionId string `json:"definition_id"`
 	// DescriptorMap is a list of mappings from input descriptors to VCs
-	DescriptorMap []InputDescriptorMappingObject `json:"descriptor_map"`
+	DescriptorMap []InputDescriptorMappingObject `json:"descriptor_map,omitempty"`
 }
 
 // InputDescriptorMappingObject
