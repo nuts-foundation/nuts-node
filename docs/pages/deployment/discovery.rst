@@ -44,9 +44,8 @@ E.g., for service ``coffeecorner`` and subject ``example``:
 
     POST /internal/discovery/v1/coffeecorner/example
 
-The DID's wallet must contain the Verifiable Credential(s) that are required by the service definition,
-otherwise registration will fail. If the wallet does not contain the credentials,
-the Nuts node will retry registration periodically for all DIDs of a subject.
+The wallet must contain the Verifiable Credential(s) that are required by the service definition,
+otherwise registration will fail immediately.
 
 Optionally, a POST body can be provided with registration parameters, e.g.:
 
@@ -61,6 +60,24 @@ Optionally, a POST body can be provided with registration parameters, e.g.:
 
 This can be used to provide additional information. All registration parameters are returned by the search API.
 The ``authServerURL`` is added automatically by the Nuts node. It's constructed as ``https://<config.url>/oauth2/<subject_id>``.
+
+Once registered, future refreshes will be done automatically by the Nuts node. These refreshes could fail because of various reasons.
+You can check the status of the refreshes by querying the service, e.g.:
+
+.. code-block:: text
+
+    GET /internal/discovery/v1/coffeecorner/example
+
+The result contains a ``status`` field that indicates the status of the registration (``active`` or ``error``) . If the refresh fails, the ``error`` field contains the error message.
+
+.. code-block:: json
+
+    {
+      "activated": true,
+      "status": "error",
+      "error": "error message",
+      "vp": [...]
+    }
 
 Servers
 *******

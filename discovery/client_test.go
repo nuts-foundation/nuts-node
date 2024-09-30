@@ -90,6 +90,12 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		assert.ErrorContains(t, err, "invoker error")
+
+		// check no refresh records are added
+		record, err := store.getPresentationRefreshRecord(testServiceID, aliceSubject)
+
+		require.NoError(t, err)
+		assert.Nil(t, record)
 	})
 	t.Run("DID method not supported", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -360,7 +366,13 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		err := manager.refresh(audit.TestContext(), time.Now())
 
-		assert.EqualError(t, err, "failed to refresh Verifiable Presentation (service=usecase_v1, subject=bob): registration of Verifiable Presentation on remote Discovery Service failed: did:example:bob: remote error")
+		errStr := "failed to refresh Verifiable Presentation (service=usecase_v1, subject=bob): registration of Verifiable Presentation on remote Discovery Service failed: did:example:bob: remote error"
+		assert.EqualError(t, err, errStr)
+
+		// check for presentationRefreshError
+		refreshError, err := store.getPresentationRefreshError(testServiceID, bobSubject)
+		require.NoError(t, err)
+		assert.Contains(t, refreshError.Error, errStr)
 	})
 	t.Run("deactivate unknown subject", func(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
@@ -376,7 +388,6 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
 	})
-
 	t.Run("deactivate unsupported DID method", func(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
@@ -391,9 +402,38 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		// refresh clears the registration
 		require.NoError(t, err)
-		refreshTime, err := store.getPresentationRefreshTime(unsupportedServiceID, aliceSubject)
+		record, err := store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
 		assert.NoError(t, err)
-		assert.Nil(t, refreshTime)
+		assert.Nil(t, record)
+	})
+	t.Run("remove presentationRefreshError on success", func(t *testing.T) {
+		store := setupStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		invoker := client.NewMockHTTPClient(ctrl)
+		gomock.InOrder(
+			invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()),
+		)
+		wallet := holder.NewMockWallet(ctrl)
+		mockVCR := vcr.NewMockVCR(ctrl)
+		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
+		mockSubjectManager := didsubject.NewMockManager(ctrl)
+		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+
+		// Alice
+		_ = store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
+		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
+		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
+
+		err := manager.refresh(audit.TestContext(), time.Now())
+
+		require.NoError(t, err)
+
+		// check for presentationRefreshError
+		refreshError, err := store.getPresentationRefreshError(testServiceID, aliceSubject)
+		require.NoError(t, err)
+		assert.Nil(t, refreshError)
 	})
 }
 

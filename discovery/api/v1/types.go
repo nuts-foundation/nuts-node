@@ -31,3 +31,13 @@ type ServiceDefinition = discovery.ServiceDefinition
 
 // VerifiableCredential is a type alias for the VerifiableCredential from the go-did library.
 type VerifiableCredential = vc.VerifiableCredential
+
+// GetServiceActivation200JSONResponseStatus is a type alias for string, generated from an enum.
+type GetServiceActivation200JSONResponseStatus string
+
+const (
+	// ServiceStatusActive is the status for an active service.
+	ServiceStatusActive = "active"
+	// ServiceStatusError is the status for an inactive service.
+	ServiceStatusError = "error"
+)

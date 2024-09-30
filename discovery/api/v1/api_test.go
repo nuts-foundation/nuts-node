@@ -71,17 +71,16 @@ func TestWrapper_ActivateServiceForSubject(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, ActivateServiceForSubject200Response{}, response)
 	})
-	t.Run("ok, but registration failed", func(t *testing.T) {
+	t.Run("but registration failed", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().ActivateServiceForSubject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(discovery.ErrPresentationRegistrationFailed)
 
-		response, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
+		_, err := test.wrapper.ActivateServiceForSubject(nil, ActivateServiceForSubjectRequestObject{
 			ServiceID: serviceID,
 			SubjectID: subjectID,
 		})
 
-		assert.NoError(t, err)
-		assert.IsType(t, ActivateServiceForSubject202JSONResponse{}, response)
+		assert.ErrorIs(t, err, discovery.ErrPresentationRegistrationFailed)
 	})
 	t.Run("other error", func(t *testing.T) {
 		test := newMockContext(t)
@@ -200,6 +199,24 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 		assert.NoError(t, err)
 		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
 		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
+		assert.Equal(t, ServiceStatusActive, string(response.(GetServiceActivation200JSONResponse).Status))
+		assert.Nil(t, response.(GetServiceActivation200JSONResponse).Error)
+		assert.Empty(t, response.(GetServiceActivation200JSONResponse).Vp)
+	})
+	t.Run("refresh failed", func(t *testing.T) {
+		test := newMockContext(t)
+		test.client.EXPECT().GetServiceActivation(gomock.Any(), serviceID, subjectID).Return(true, nil, discovery.RegistrationRefreshError{Underlying: assert.AnError})
+
+		response, err := test.wrapper.GetServiceActivation(nil, GetServiceActivationRequestObject{
+			SubjectID: subjectID,
+			ServiceID: serviceID,
+		})
+
+		assert.NoError(t, err)
+		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
+		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
+		assert.Equal(t, ServiceStatusError, string(response.(GetServiceActivation200JSONResponse).Status))
+		assert.NotNil(t, response.(GetServiceActivation200JSONResponse).Error)
 		assert.Empty(t, response.(GetServiceActivation200JSONResponse).Vp)
 	})
 	t.Run("error", func(t *testing.T) {

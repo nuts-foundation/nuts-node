@@ -107,7 +107,8 @@ paths:
       summary: Retrieves the activation status of a subject on a Discovery Service.
       description: |
         An API provided by the Discovery Client,
-        used to check whether the client is managing the given subject on the specified Discovery Service (service has been activated for the subject).
+        used to check whether the client is managing the given subject on the specified Discovery Service (service has been activated for the subject)
+        and the status of the activation. A refresh could have failed.
         It will return true after successfully calling the activateServiceForSubject API, and false after calling the deactivateServiceForSubject API.
         It also returns the active Verifiable Presentations, if any.
       operationId: getServiceActivation
@@ -122,10 +123,20 @@ paths:
                 type: object
                 required:
                   - activated
+                  - status
                 properties:
                   activated:
                     type: boolean
                     description: Whether the Discovery Service is activated for the given subject
+                  status:
+                    type: string
+                    description: Status of the activation. "active" or "error".
+                    enum:
+                      - active
+                      - error
+                  error:
+                    type: string
+                    description: Error message if status is "error".
                   vp:
                     description: |
                       List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
@@ -148,6 +159,7 @@ paths:
         
         error returns:
         * 400 - incorrect input: invalid/unknown service or subject.
+        * 412 - precondition failed: subject doesn't have the required credentials.
       operationId: activateServiceForSubject
       tags:
         - discovery
@@ -160,19 +172,10 @@ paths:
       responses:
         "200":
           description: Activation was successful.
-        "202":
-          description: Activation was successful, but registration of the Verifiable Presentation failed (but will be automatically re-attempted later).
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - reason
-                properties:
-                  reason:
-                    type: string
-                    description: Description of why registration failed.
+
         "400":
+          $ref: "../common/error_response.yaml"
+        "412":
           $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"

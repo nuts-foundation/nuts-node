@@ -59,7 +59,6 @@ type Client interface {
 
 	// ActivateServiceForSubject causes a subject to be registered for a Discovery Service.
 	// Registration of all DIDs of the subject will be attempted immediately, and automatically refreshed.
-	// If the initial registration for all DIDs fails with ErrPresentationRegistrationFailed, registration will be retried.
 	// If the function is called again for the same service/DID combination, it will try to refresh the registration.
 	// parameters are added as credentialSubject to a DiscoveryRegistrationCredential holder credential.
 	// It returns an error if the service or subject is invalid/unknown.
@@ -77,6 +76,8 @@ type Client interface {
 	// GetServiceActivation returns the activation status of a subject on a Discovery Service.
 	// The boolean indicates whether the subject is activated on the Discovery Service (ActivateServiceForSubject() has been called).
 	// It also returns the Verifiable Presentations for all DIDs of the subject that are registered on the Discovery Service, if any.
+	// It returns a refreshRecordError if the last refresh of the service failed (activation status and VPs are still returned).
+	// The time of the last error is added in the error message.
 	GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error)
 }
 
@@ -96,3 +97,12 @@ type presentationVerifier func(definition ServiceDefinition, presentation vc.Ver
 
 // XForwardedHostContextKey is the context key for the X-Forwarded-Host header.
 type XForwardedHostContextKey struct{}
+
+// RegistrationRefreshError is returned from GetServiceRefreshError.
+type RegistrationRefreshError struct {
+	Underlying error
+}
+
+func (r RegistrationRefreshError) Error() string {
+	return r.Underlying.Error()
+}

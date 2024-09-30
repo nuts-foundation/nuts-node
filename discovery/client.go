@@ -92,10 +92,6 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
 	}
 
-	asSoonAsPossible := time.Now().Add(-10 * time.Second) // could be whatever, as long as it's a bit in the past to avoid issues with some weird clock skew scenarios when running a cluster
-	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &asSoonAsPossible); err != nil {
-		return err
-	}
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
 
 	var registeredDIDs []string
@@ -103,12 +99,7 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
-			if !errors.Is(err, pe.ErrNoCredentials) { // ignore missing credentials
-				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
-			} else {
-				// trace logging for missing credentials
-				log.Logger().Tracef("Missing credentials for Discovery Service (service=%s, subject=%s, did=%s): %s", service.ID, subjectID, subjectDID, err.Error())
-			}
+			loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
 		}
@@ -131,6 +122,10 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	refreshVPAfter := time.Now().Add(time.Duration(float64(service.PresentationMaxValidity)*0.45) * time.Second)
 	if err := r.store.updatePresentationRefreshTime(serviceID, subjectID, parameters, &refreshVPAfter); err != nil {
 		return fmt.Errorf("unable to update Verifiable Presentation refresh time: %w", err)
+	}
+	// clear any previous presentationRefreshErrors here so it's triggered by both the refresh and API call
+	if err := r.store.setPresentationRefreshError(serviceID, subjectID, nil); err != nil {
+		return fmt.Errorf("unable to clear previous presentationRefreshError: %w", err)
 	}
 	return nil
 }
@@ -278,8 +273,8 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	}
 	var loopErrs []error
 	for _, candidate := range refreshCandidates {
+		var loopErr error
 		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
-			var loopErr error
 			if errors.Is(err, ErrDIDMethodsNotSupported) {
 				// DID method no longer supported, remove
 				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil, nil)
@@ -296,9 +291,13 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 				}
 			} else {
 				loopErr = fmt.Errorf("failed to refresh Verifiable Presentation (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+				if err := r.store.setPresentationRefreshError(candidate.ServiceID, candidate.SubjectID, loopErr); err != nil {
+					loopErr = fmt.Errorf("failed to set refresh error for Verifiable Presentation (service=%s, subject=%s): %w. Original error: %w", candidate.ServiceID, candidate.SubjectID, err, loopErr)
+				}
 			}
 			loopErrs = append(loopErrs, loopErr)
 		}
+		// activate clears any presentationRefreshErrors
 	}
 	if len(loopErrs) > 0 {
 		return errors.Join(loopErrs...)

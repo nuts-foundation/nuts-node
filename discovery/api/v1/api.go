@@ -24,6 +24,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/discovery"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -46,6 +47,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		return http.StatusNotFound
 	case errors.Is(err, didsubject.ErrSubjectNotFound):
 		return http.StatusNotFound
+	case errors.Is(err, discovery.ErrPresentationRegistrationFailed):
+		return http.StatusPreconditionFailed
 	default:
 		return http.StatusInternalServerError
 	}
@@ -108,12 +111,6 @@ func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request Activat
 	}
 
 	err := w.Client.ActivateServiceForSubject(ctx, request.ServiceID, request.SubjectID, parameters)
-	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
-		// registration failed, but will be retried
-		return ActivateServiceForSubject202JSONResponse{
-			Reason: err.Error(),
-		}, nil
-	}
 	if err != nil {
 		// other error
 		return nil, err
@@ -123,12 +120,6 @@ func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request Activat
 
 func (w *Wrapper) DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error) {
 	err := w.Client.DeactivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
-	if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
-		// deactivation succeeded, but not all Verifiable Presentation couldn't be removed from remote Discovery Server.
-		return DeactivateServiceForSubject202JSONResponse{
-			Reason: err.Error(),
-		}, nil
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -141,12 +132,19 @@ func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (Ge
 }
 
 func (w *Wrapper) GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error) {
+	response := GetServiceActivation200JSONResponse{
+		Status: ServiceStatusActive,
+	}
 	activated, presentations, err := w.Client.GetServiceActivation(ctx, request.ServiceID, request.SubjectID)
 	if err != nil {
-		return nil, err
+		if !errors.As(err, &discovery.RegistrationRefreshError{}) {
+			return nil, err
+		}
+		response.Status = ServiceStatusError
+		response.Error = to.Ptr(err.Error())
 	}
-	return GetServiceActivation200JSONResponse{
-		Activated: activated,
-		Vp:        &presentations,
-	}, nil
+	response.Activated = activated
+	response.Vp = &presentations
+
+	return response, nil
 }

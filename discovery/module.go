@@ -379,9 +379,6 @@ func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subje
 
 	err := m.registrationManager.activate(ctx, serviceID, subjectID, parameters)
 	if err != nil {
-		if errors.Is(err, ErrPresentationRegistrationFailed) {
-			log.Logger().WithError(err).Warnf("Presentation registration failed, will be retried later (subject=%s,service=%s)", subjectID, serviceID)
-		}
 		return err
 	}
 
@@ -408,11 +405,11 @@ func (m *Module) Services() []ServiceDefinition {
 // GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a subject.
 // See interface.go for more information.
 func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
-	refreshTime, err := m.store.getPresentationRefreshTime(serviceID, subjectID)
+	refreshRecord, err := m.store.getPresentationRefreshRecord(serviceID, subjectID)
 	if err != nil {
 		return false, nil, err
 	}
-	if refreshTime == nil {
+	if refreshRecord == nil {
 		return false, nil, nil
 	}
 	// subject is activated for service
@@ -431,7 +428,16 @@ func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID 
 	for _, vps := range vps2D {
 		results = append(results, vps...)
 	}
-	return true, results, nil
+
+	// check if the last refresh didn't result in an error
+	if refreshRecord.PresentationRefreshError.Error != "" {
+		// format a readable time using RFC3339
+		lastOccurrence := time.Unix(int64(refreshRecord.PresentationRefreshError.LastOccurrence), 0)
+		readableTime := lastOccurrence.Format(time.RFC3339)
+		err = RegistrationRefreshError{fmt.Errorf("[%s] %s", readableTime, refreshRecord.PresentationRefreshError.Error)}
+	}
+
+	return true, results, err
 }
 
 func loadDefinitions(directory string) (map[string]ServiceDefinition, error) {

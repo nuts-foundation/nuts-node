@@ -88,11 +88,30 @@ type presentationRefreshRecord struct {
 	NextRefresh int
 	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
 	Parameters []byte
+	// PresentationRefreshError is the error message that occurred during the refresh attempt.
+	PresentationRefreshError presentationRefreshError `gorm:"foreignKey:ServiceID,SubjectID"`
 }
 
 // TableName returns the table name for this DTO.
 func (l presentationRefreshRecord) TableName() string {
 	return "discovery_presentation_refresh"
+}
+
+// presentationRefreshError is a record of a failed refresh attempt.
+type presentationRefreshError struct {
+	// ServiceID refers to the entry record in discovery_service
+	ServiceID string `gorm:"primaryKey"`
+	// SubjectID is the ID of the subject that should be registered on the service.
+	SubjectID string `gorm:"primaryKey"`
+	// Error is the error message that occurred during the refresh attempt.
+	Error string
+	// LastOccurrence is the timestamp of the last occurrence of this error.
+	LastOccurrence int
+}
+
+// TableName returns the table name for this DTO.
+func (l presentationRefreshError) TableName() string {
+	return "discovery_presentation_error"
 }
 
 type sqlStore struct {
@@ -332,16 +351,15 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID str
 	})
 }
 
-func (s *sqlStore) getPresentationRefreshTime(serviceID string, subjectID string) (*time.Time, error) {
+func (s *sqlStore) getPresentationRefreshRecord(serviceID string, subjectID string) (*presentationRefreshRecord, error) {
 	var row presentationRefreshRecord
-	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+	if err := s.db.Preload("PresentationRefreshError").Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
 		return nil, err
 	}
 	if row.NextRefresh == 0 {
 		return nil, nil
 	}
-	result := time.Unix(int64(row.NextRefresh), 0)
-	return &result, nil
+	return &row, nil
 }
 
 // getSubjectsToBeRefreshed returns all registered subject-service combinations that are due for refreshing.
@@ -364,6 +382,39 @@ func (s *sqlStore) getSubjectsToBeRefreshed(now time.Time) ([]refreshCandidate, 
 		result[i] = c
 	}
 	return result, nil
+}
+
+func (s *sqlStore) getPresentationRefreshError(serviceID string, subjectID string) (*presentationRefreshError, error) {
+	var row presentationRefreshError
+	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+		return nil, err
+	}
+	if row.LastOccurrence == 0 {
+		return nil, nil
+	}
+	return &row, nil
+}
+
+func (s *sqlStore) setPresentationRefreshError(serviceID string, subjectID string, refreshErr error) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&presentationRefreshError{}, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+			return err
+		}
+
+		if refreshErr == nil {
+			// a delete
+			return nil
+		}
+
+		row := presentationRefreshError{
+			ServiceID:      serviceID,
+			SubjectID:      subjectID,
+			Error:          refreshErr.Error(),
+			LastOccurrence: int(time.Now().Unix()), //32bit supports stops at 03:14:07 on Tuesday, 19 January 2038
+		}
+
+		return tx.Save(&row).Error
+	})
 }
 
 // refreshCandidate is a subset of presentationRefreshRecord
