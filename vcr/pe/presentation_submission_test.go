@@ -55,6 +55,28 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 
 	t.Run("ldp_vp", func(t *testing.T) {
 
+		t.Run("1 presentation without credentials", func(t *testing.T) {
+			expectedJSON := `
+		{
+		 "id": "for-test",
+		 "definition_id": "empty"
+		}`
+			presentationDefinition := PresentationDefinition{}
+			_ = json.Unmarshal([]byte(test.Empty), &presentationDefinition)
+			builder := presentationDefinition.PresentationSubmissionBuilder()
+			builder.AddWallet(holder1, []vc.VerifiableCredential{})
+
+			submission, signInstruction, err := builder.Build("ldp_vp")
+
+			require.NoError(t, err)
+			assert.Len(t, signInstruction.VerifiableCredentials, 0)
+			require.Len(t, submission.DescriptorMap, 0)
+
+			submission.Id = "for-test" // easier assertion
+			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
+			assert.JSONEq(t, expectedJSON, string(actualJSON))
+		})
+
 		t.Run("1 presentation with 1 credential", func(t *testing.T) {
 			expectedJSON := `
 		{
@@ -73,11 +95,10 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 			builder := presentationDefinition.PresentationSubmissionBuilder()
 			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
-			submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstruction, err := builder.Build("ldp_vp")
 
 			require.NoError(t, err)
-			require.NotNil(t, signInstructions)
-			assert.Len(t, signInstructions, 1)
+			assert.Len(t, signInstruction.VerifiableCredentials, 1)
 			require.Len(t, submission.DescriptorMap, 1)
 			assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
 
@@ -109,62 +130,15 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 			builder := presentationDefinition.PresentationSubmissionBuilder()
 			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
-			submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstruction, err := builder.Build("ldp_vp")
 
 			require.NoError(t, err)
-			require.NotNil(t, signInstructions)
-			assert.Len(t, signInstructions, 1)
+			assert.Len(t, signInstruction.VerifiableCredentials, 2)
 			require.Len(t, submission.DescriptorMap, 2)
 
 			submission.Id = "for-test" // easier assertion
 			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
 			println(string(actualJSON))
-			assert.JSONEq(t, expectedJSON, string(actualJSON))
-		})
-		t.Run("2 presentations", func(t *testing.T) {
-			expectedJSON := `
-{
-  "id": "for-test",
-  "definition_id": "",
-  "descriptor_map": [
-    {
-      "format": "ldp_vp",
-      "id": "Match ID=1",
-      "path": "$[0]",
-      "path_nested": {
-        "format": "ldp_vc",
-        "id": "Match ID=1",
-        "path": "$.verifiableCredential"
-      }
-    },
-    {
-      "format": "ldp_vp",
-      "id": "Match ID=2",
-      "path": "$[1]",
-      "path_nested": {
-        "format": "ldp_vc",
-        "id": "Match ID=2",
-        "path": "$.verifiableCredential"
-      }
-    }
-  ]
-}
-`
-			presentationDefinition := PresentationDefinition{}
-			_ = json.Unmarshal([]byte(test.All), &presentationDefinition)
-			builder := presentationDefinition.PresentationSubmissionBuilder()
-			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1})
-			builder.AddWallet(holder2, []vc.VerifiableCredential{vc2})
-
-			submission, signInstructions, err := builder.Build("ldp_vp")
-
-			require.NoError(t, err)
-			require.NotNil(t, signInstructions)
-			assert.Len(t, signInstructions, 2)
-			assert.Len(t, submission.DescriptorMap, 2)
-
-			submission.Id = "for-test" // easier assertion
-			actualJSON, _ := json.MarshalIndent(submission, "", "  ")
 			assert.JSONEq(t, expectedJSON, string(actualJSON))
 		})
 		t.Run("2 wallets, but 1 VP", func(t *testing.T) {
@@ -191,11 +165,10 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 			builder.AddWallet(holder2, []vc.VerifiableCredential{vc3})
 
-			submission, signInstructions, err := builder.Build("ldp_vp")
+			submission, signInstruction, err := builder.Build("ldp_vp")
 
 			require.NoError(t, err)
-			require.NotNil(t, signInstructions)
-			assert.Len(t, signInstructions, 1)
+			assert.Len(t, signInstruction.VerifiableCredentials, 2)
 			assert.Len(t, submission.DescriptorMap, 2)
 
 			submission.Id = "for-test" // easier assertion
@@ -210,11 +183,11 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 			builder := presentationDefinition.PresentationSubmissionBuilder()
 			builder.AddWallet(holder1, []vc.VerifiableCredential{vc1, vc2})
 
-			submission, signInstructions, err := builder.Build("jwt_vp")
+			submission, signInstruction, err := builder.Build("jwt_vp")
 
 			require.NoError(t, err)
-			require.NotNil(t, signInstructions)
-			assert.Len(t, signInstructions, 1)
+			assert.Len(t, signInstruction.VerifiableCredentials, 1)
+			assert.Equal(t, holder1, signInstruction.Holder)
 			require.Len(t, submission.DescriptorMap, 1)
 			assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
 		})
@@ -491,82 +464,6 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 		require.Len(t, credentials, 1)
 		assert.Equal(t, vcID.String(), credentials["1"].ID.String())
 	})
-	t.Run("ok - 2 presentations", func(t *testing.T) {
-		constant1 := vcID.String()
-		secondVCID := ssi.MustParseURI("did:example:123#second-vc")
-		constant2 := secondVCID.String()
-		secondVP := vc.VerifiablePresentation{
-			VerifiableCredential: []vc.VerifiableCredential{
-				{ID: &secondVCID},
-			},
-			Proof: []interface{}{
-				proof.LDProof{VerificationMethod: vcID},
-			},
-		}
-		definition := PresentationDefinition{
-			InputDescriptors: []*InputDescriptor{
-				{
-					Id: "1",
-					Constraints: &Constraints{
-						Fields: []Field{
-							{
-								Path: []string{"$.id"},
-								Filter: &Filter{
-									Type:  "string",
-									Const: &constant1,
-								},
-							},
-						},
-					},
-				},
-				{
-					Id: "2",
-					Constraints: &Constraints{
-						Fields: []Field{
-							{
-								Path: []string{"$.id"},
-								Filter: &Filter{
-									Type:  "string",
-									Const: &constant2,
-								},
-							},
-						},
-					},
-				},
-			},
-		}
-		submission := PresentationSubmission{
-			DescriptorMap: []InputDescriptorMappingObject{
-				{
-					Id:     "1",
-					Path:   "$[0]",
-					Format: "ldp_vp",
-					PathNested: &InputDescriptorMappingObject{
-						Id:     "1",
-						Path:   "$.verifiableCredential",
-						Format: "ldp_vc",
-					},
-				},
-				{
-					Id:     "2",
-					Path:   "$[1]",
-					Format: "ldp_vp",
-					PathNested: &InputDescriptorMappingObject{
-						Id:     "2",
-						Path:   "$.verifiableCredential",
-						Format: "ldp_vc",
-					},
-				},
-			},
-		}
-
-		credentials, err := submission.Validate(toEnvelope(t, []vc.VerifiablePresentation{vp, secondVP}), definition)
-
-		require.NoError(t, err)
-		require.Len(t, credentials, 2)
-		assert.Equal(t, vcID.String(), credentials["1"].ID.String())
-		assert.Equal(t, secondVCID.String(), credentials["2"].ID.String())
-	})
 	t.Run("submission mappings don't match definition input descriptors", func(t *testing.T) {
 		constant := "incorrect ID"
 		definition := PresentationDefinition{
@@ -590,7 +487,7 @@ func TestPresentationSubmission_Validate(t *testing.T) {
 
 		credentials, err := PresentationSubmission{}.Validate(toEnvelope(t, []vc.VerifiablePresentation{vp}), definition)
 
-		assert.EqualError(t, err, "failed to match presentation definition: missing credentials\nconstraints not matched: no VC for InputDescriptor (1)")
+		assert.EqualError(t, err, "failed to match presentation definition for did:example:123: missing credentials\nconstraints not matched: no VC for InputDescriptor (1)")
 		assert.Empty(t, credentials)
 	})
 	t.Run("credentials match wrong input descriptors", func(t *testing.T) {

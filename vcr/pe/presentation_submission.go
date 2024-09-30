@@ -100,88 +100,54 @@ func (signInstructions SignInstructions) Empty() bool {
 
 // Build creates a PresentationSubmission from the added wallets.
 // The VP format is determined by the given format.
-func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmission, SignInstructions, error) {
-	presentationSubmission := PresentationSubmission{
-		Id:           uuid.New().String(),
-		DefinitionId: b.presentationDefinition.Id,
-	}
+func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmission, SignInstruction, error) {
+	// we try to match per wallet
+	var loopErrs []error
+	var selectedVCs []vc.VerifiableCredential
+	var inputDescriptorMappingObjects []InputDescriptorMappingObject
+	var selectedDID *did.DID
 
-	// first we need to select the VCs from all wallets that match the presentation definition
-	allVCs := make([]vc.VerifiableCredential, 0)
-	for _, vcs := range b.wallets {
-		allVCs = append(allVCs, vcs...)
-	}
-
-	selectedVCs, inputDescriptorMappingObjects, err := b.presentationDefinition.Match(allVCs)
-	if err != nil {
-		return presentationSubmission, nil, fmt.Errorf("failed to match presentation definition: %w", err)
-	}
-
-	// next we need to map the selected VCs to the correct wallet
-	// loop over all selected VCs and find the wallet that contains the VC
-	signInstructions := make([]SignInstruction, len(b.wallets))
-	walletCredentialIndex := map[did.DID]int{}
-	for j := range selectedVCs {
-		for i, walletVCs := range b.wallets {
-			for _, walletVC := range walletVCs {
-				// do a JSON equality check
-				if selectedVCs[j].Raw() == walletVC.Raw() {
-					signInstructions[i].Holder = b.holders[i]
-					signInstructions[i].VerifiableCredentials = append(signInstructions[i].VerifiableCredentials, selectedVCs[j])
-					// remap the path to the correct wallet index
-					mapping := inputDescriptorMappingObjects[j]
-					mapping.Format = selectedVCs[j].Format()
-					mapping.Path = fmt.Sprintf("$.verifiableCredential[%d]", walletCredentialIndex[b.holders[i]])
-					signInstructions[i].Mappings = append(signInstructions[i].Mappings, mapping)
-					walletCredentialIndex[b.holders[i]]++
-				}
-			}
+	for i, walletVCs := range b.wallets {
+		vcs, mappingObjects, err := b.presentationDefinition.Match(walletVCs)
+		if err == nil {
+			selectedVCs = vcs
+			inputDescriptorMappingObjects = mappingObjects
+			selectedDID = &b.holders[i]
+			break
 		}
+		loopErrs = append(loopErrs, fmt.Errorf("failed to match presentation definition for %s: %w", b.holders[i].String(), err))
 	}
 
-	// filter out empty sign instructions
-	nonEmptySignInstructions := make([]SignInstruction, 0)
-	for _, signInstruction := range signInstructions {
-		if !signInstruction.Empty() {
-			nonEmptySignInstructions = append(nonEmptySignInstructions, signInstruction)
+	if selectedDID == nil {
+		if b.presentationDefinition.CredentialsRequired() {
+			return PresentationSubmission{}, SignInstruction{}, errors.Join(loopErrs...)
 		}
+		// add empty sign instruction
+		return PresentationSubmission{Id: uuid.New().String(), DefinitionId: b.presentationDefinition.Id}, SignInstruction{Holder: b.holders[0]}, nil
+	}
+
+	signInstruction := SignInstruction{
+		Holder:                *selectedDID,
+		VerifiableCredentials: selectedVCs,
+		Mappings:              inputDescriptorMappingObjects,
 	}
 
 	// the verifiableCredential property in Verifiable Presentations can be a single VC or an array of VCs when represented in JSON.
 	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we might need to fix the mapping paths.
 
 	// todo the check below actually depends on the format of the credential and not the format of the VP
-	for _, signInstruction := range nonEmptySignInstructions {
-		if len(signInstruction.Mappings) == 1 {
-			signInstruction.Mappings[0].Path = "$.verifiableCredential"
-		}
+	if len(signInstruction.Mappings) == 1 {
+		signInstruction.Mappings[0].Path = "$.verifiableCredential"
 	}
 
-	index := 0
-	// last we create the descriptor map for the presentation submission
-	// If there's only one sign instruction the Path will be $.
-	// If there are multiple sign instructions (each yielding a VP) the Path will be $[0], $[1], etc.
-	for _, signInstruction := range nonEmptySignInstructions {
-		if len(signInstruction.Mappings) > 0 {
-			for _, inputDescriptorMapping := range signInstruction.Mappings {
-				// If we have multiple VPs in the resulting submission, wrap each in a nested descriptor map (see path_nested in PEX specification).
-				if len(nonEmptySignInstructions) > 1 {
-					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, InputDescriptorMappingObject{
-						Id:         inputDescriptorMapping.Id,
-						Format:     format,
-						Path:       fmt.Sprintf("$[%d]", index),
-						PathNested: &inputDescriptorMapping,
-					})
-				} else {
-					// Just 1 VP, no nesting needed
-					presentationSubmission.DescriptorMap = append(presentationSubmission.DescriptorMap, inputDescriptorMapping)
-				}
-			}
-			index++
-		}
+	// Just 1 VP, no nesting needed
+	presentationSubmission := PresentationSubmission{
+		Id:            uuid.New().String(),
+		DefinitionId:  b.presentationDefinition.Id,
+		DescriptorMap: inputDescriptorMappingObjects,
 	}
 
-	return presentationSubmission, nonEmptySignInstructions, nil
+	return presentationSubmission, signInstruction, nil
 }
 
 // Resolve returns a map where each of the input descriptors is mapped to the corresponding VerifiableCredential.
@@ -264,9 +230,16 @@ func (s PresentationSubmission) Validate(envelope Envelope, definition Presentat
 	if err != nil {
 		return nil, fmt.Errorf("resolve credentials from presentation submission: %w", err)
 	}
+	if len(envelope.Presentations) == 0 {
+		if definition.CredentialsRequired() {
+			return nil, errors.New("presentation submission doesn't match presentation definition")
+		}
+		// empty is OK. No need to Build
+		return map[string]vc.VerifiableCredential{}, nil
+	}
 
-	// Create a new presentation submission: the submission being validated should have the same input descriptor mapping.
 	submissionBuilder := definition.PresentationSubmissionBuilder()
+	// Create a new presentation submission: the submission being validated should have the same input descriptor mapping.
 	for _, presentation := range envelope.Presentations {
 		signer, err := credential.PresentationSigner(presentation)
 		if err != nil {
@@ -274,19 +247,14 @@ func (s PresentationSubmission) Validate(envelope Envelope, definition Presentat
 		}
 		submissionBuilder.AddWallet(*signer, presentation.VerifiableCredential)
 	}
-	_, signInstructions, err := submissionBuilder.Build("")
+	_, signInstruction, err := submissionBuilder.Build("")
 	if err != nil {
 		return nil, err
 	}
-	if len(signInstructions) == 0 && definition.CredentialsRequired() {
-		return nil, errors.New("presentation submission doesn't match presentation definition")
-	}
 	// Build a input descriptor -> credential map for comparison
 	expectedCredentials := make(map[string]vc.VerifiableCredential)
-	for _, signInstruction := range signInstructions {
-		for i, mapping := range signInstruction.Mappings {
-			expectedCredentials[mapping.Id] = signInstruction.VerifiableCredentials[i]
-		}
+	for i, mapping := range signInstruction.Mappings {
+		expectedCredentials[mapping.Id] = signInstruction.VerifiableCredentials[i]
 	}
 	if len(actualCredentials) != len(expectedCredentials) {
 		return nil, fmt.Errorf("expected %d credentials, got %d", len(expectedCredentials), len(actualCredentials))

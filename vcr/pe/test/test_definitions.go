@@ -18,6 +18,59 @@
 
 package test
 
+const Empty = `
+{
+  "id": "empty",
+  "submission_requirements": [
+    {
+      "name": "Pick 0 matcher",
+      "rule": "pick",
+      "min": 0,
+      "max": 1,
+      "from": "A"
+    }
+  ],
+  "input_descriptors": [
+	{
+      "id": "Match ID=1",
+	  "name": "Pick 1",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "1"
+			}
+		  }
+		]
+	  }
+    },
+    {
+      "id": "Match ID=2",
+	  "name": "Pick 2",
+      "group": ["A"],
+	  "constraints": {
+		"fields": [
+		  {
+			"path": [
+			  "$.id"
+			],
+			"filter": {
+			  "type": "string",
+			  "const": "2"
+			}
+		  }
+		]
+	  }
+    }	
+  ]
+}
+`
+
 const PickOne = `
 {
   "submission_requirements": [
