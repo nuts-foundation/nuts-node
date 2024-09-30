@@ -280,7 +280,7 @@ func Test_sqlStore_getPresentationRefreshTime(t *testing.T) {
 		ts, err := c.getPresentationRefreshRecord(testServiceID, aliceSubject)
 		require.NoError(t, err)
 		require.NotNil(t, ts)
-		assert.Equal(t, now.Unix(), ts.NextRefresh)
+		assert.Equal(t, int(now.Unix()), ts.NextRefresh)
 
 		t.Run("error is preloaded", func(t *testing.T) {
 			require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
