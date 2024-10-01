@@ -66,6 +66,8 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		didsubject.ErrKeyAgreementNotSupported: http.StatusBadRequest,
 		didsubject.ErrSubjectValidation:        http.StatusBadRequest,
 		resolver.ErrDeactivated:                http.StatusConflict,
+		did.ErrInvalidService:                  http.StatusBadRequest,
+		resolver.ErrDuplicateService:           http.StatusConflict,
 	})
 }
 
