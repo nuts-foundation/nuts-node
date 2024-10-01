@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"regexp"
 	"sort"
@@ -134,8 +135,7 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 	sqlDocs := make(map[string]orm.DidDocument)
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
-		sqlDIDManager := NewDIDManager(tx)
-		_, err := sqlDIDManager.FindBySubject(subject)
+		_, err := NewDIDManager(tx).FindBySubject(subject)
 		if errors.Is(err, ErrSubjectNotFound) {
 			// this is ok, doesn't exist yet
 		} else if err != nil {
@@ -647,4 +647,77 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 		}
 	}
 	copy(list, orderedList)
+}
+
+func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+	latestSQLVersion := -1 // -1 means it's a new DID
+	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		// new DID, don't update latestSQLVersion
+	} else {
+		// don't migrate DID documents past their deactivation
+		latestDIDDocument, err := latestORMDocument.ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(latestDIDDocument) {
+			return nil
+		}
+		// set latestSQLVersion
+		latestSQLVersion = latestORMDocument.Version
+	}
+
+	// get all new document updates
+	// NOTE: this assumes updates are only appended to the end. This breaks if the history of a document is altered.
+	history, err := getHistory(id, latestSQLVersion+1)
+	if err != nil {
+		return err
+	}
+	if len(history) == 0 {
+		return nil
+	}
+
+	// convert history to orm objects
+	documentVersions := make([]orm.DidDocument, len(history))
+	for i, entry := range history {
+		documentVersions[i], err = entry.ToORMDocument(subject)
+		if err != nil {
+			return err
+		}
+
+		// break if this version deactivates the document
+		didDocument, err := documentVersions[i].ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(didDocument) {
+			documentVersions = documentVersions[:i+1]
+			break
+		}
+	}
+
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if latestSQLVersion == -1 {
+			// add subject to did table
+			DID := orm.DID{
+				ID:      id.String(),
+				Subject: subject,
+			}
+			err = tx.Create(&DID).Error
+			if err != nil {
+				return err
+			}
+		}
+		// add document history
+		for _, doc := range documentVersions {
+			err = tx.Create(&doc).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

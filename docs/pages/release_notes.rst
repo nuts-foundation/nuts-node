@@ -17,6 +17,7 @@ Breaking changes
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 - Docker image tags have been changed: previously version tags had were prefixed with ``v`` (e.g., ``v5.0.0``), this prefix has been dropped to better adhere to industry standards.
 - The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
+- Managed ``did:nuts`` DIDs are migrated to the new SQL storage. Unresolved DID document conflicts may contain an incorrect state after migrating to v6. See ``/status/diagnostics`` if you own any DIDs with a document conflict; use ``/internal/vdr/v1/did/conflicted`` to find the specific DIDs.
 - Removed legacy API authentication tokens.
 
 ============

@@ -18,6 +18,8 @@
 
 package orm
 
+import "github.com/nuts-foundation/go-did/did"
+
 // DIDKeyFlags is a bitmask used for specifying for what purposes a key in a DID document can be used (a.k.a. Verification Method relationships).
 type DIDKeyFlags uint
 
@@ -45,4 +47,25 @@ func AssertionKeyUsage() DIDKeyFlags {
 
 func EncryptionKeyUsage() DIDKeyFlags {
 	return KeyAgreementUsage
+}
+
+// verificationMethodToKeyFlags creates DIDKeyFlags for a did.VerificationMethod based on its usage in the did.Document.
+func verificationMethodToKeyFlags(document did.Document, vm *did.VerificationMethod) DIDKeyFlags {
+	var flags DIDKeyFlags
+	if document.Authentication.FindByID(vm.ID) != nil {
+		flags |= AuthenticationUsage
+	}
+	if document.AssertionMethod.FindByID(vm.ID) != nil {
+		flags |= AssertionMethodUsage
+	}
+	if document.CapabilityDelegation.FindByID(vm.ID) != nil {
+		flags |= CapabilityDelegationUsage
+	}
+	if document.CapabilityInvocation.FindByID(vm.ID) != nil {
+		flags |= CapabilityInvocationUsage
+	}
+	if document.KeyAgreement.FindByID(vm.ID) != nil {
+		flags |= KeyAgreementUsage
+	}
+	return flags
 }

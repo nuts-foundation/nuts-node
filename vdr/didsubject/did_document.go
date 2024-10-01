@@ -88,5 +88,5 @@ func (s *SqlDIDDocumentManager) Latest(did did.DID, resolveTime *time.Time) (*or
 	if err != nil {
 		return nil, err
 	}
-	return &doc, err
+	return &doc, nil
 }

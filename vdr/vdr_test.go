@@ -86,6 +86,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		DB:             db,
 		MethodManagers: make(map[string]didsubject.MethodManager),
 	}
+	vdr.config = DefaultConfig()
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
@@ -347,103 +348,130 @@ func TestVDR_Migrate(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, msg, expected)
 	}
-
-	t.Run("ignores self-controlled documents", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
+	t.Run("ignores non did:nuts", func(t *testing.T) {
 		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{ID: TestDIDA}, nil, nil)
-
+		testDIDWeb := did.MustParseDID("did:web:example.com")
+		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{testDIDWeb}, nil)
 		err := ctx.vdr.Migrate()
-
-		require.NoError(t, err)
-		// empty logs means all ok.
-		assert.Nil(t, hook.LastEntry())
+		assert.NoError(t, err)
+		assert.Len(t, ctx.vdr.migrations, 2) // confirm its running allMigrations() that currently is only did:nuts
 	})
-	t.Run("makes documents self-controlled", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-		keyRef, publicKey, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
-		require.NoError(t, err)
-		methodID := did.MustParseDIDURL(keyRef.KID)
-		methodID.ID = TestDIDA.ID
-		vm, _ := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, TestDIDA, publicKey)
-		documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
-		documentA.AddAssertionMethod(vm)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(nil)
+	t.Run("controller migration", func(t *testing.T) {
+		controllerMigrationSetup := func(t *testing.T) vdrTestCtx {
+			t.Cleanup(func() { hook.Reset() })
+			ctx := newVDRTestCtx(t)
+			ctx.vdr.migrations = map[string]migration{"remove controller": ctx.vdr.migrateRemoveControllerFromDIDNuts}
+			return ctx
+		}
+		t.Run("ignores self-controlled documents", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{ID: TestDIDA}, nil, nil)
 
-		err = ctx.vdr.Migrate()
+			err := ctx.vdr.Migrate()
 
-		require.NoError(t, err)
-		// empty logs means all ok.
-		assert.Nil(t, hook.LastEntry())
+			require.NoError(t, err)
+			// empty logs means all ok.
+			assert.Nil(t, hook.LastEntry())
+		})
+		t.Run("makes documents self-controlled", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
+			keyRef, publicKey, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
+			require.NoError(t, err)
+			methodID := did.MustParseDIDURL(keyRef.KID)
+			methodID.ID = TestDIDA.ID
+			vm, _ := did.NewVerificationMethod(methodID, ssi.JsonWebKey2020, TestDIDA, publicKey)
+			documentA := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: TestDIDA, Controller: []did.DID{TestDIDB}}
+			documentA.AddAssertionMethod(vm)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
+			ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+			ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(nil)
+
+			err = ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			// empty logs means all ok.
+			assert.Nil(t, hook.LastEntry())
+		})
+		t.Run("deactivated is ignored", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			// empty logs means all ok.
+			assert.Nil(t, hook.LastEntry())
+		})
+		t.Run("no active controller is ignored", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, nil, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&did.Document{ID: TestDIDB}, nil, nil)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			// empty logs means all ok.
+			assert.Nil(t, hook.LastEntry())
+		})
+		t.Run("error is logged", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, assert.AnError)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			assertLog(t, "Could not update owned DID document, continuing with next document")
+			assertLog(t, "assert.AnError general error for testing")
+		})
+		t.Run("no verification method is logged", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{Controller: []did.DID{TestDIDB}}, nil, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			assertLog(t, "No verification method found in owned DID document")
+		})
+		t.Run("update error is logged", func(t *testing.T) {
+			ctx := controllerMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
+			ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
+			ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(assert.AnError)
+
+			err := ctx.vdr.Migrate()
+
+			require.NoError(t, err)
+			assertLog(t, "Could not update owned DID document, continuing with next document")
+			assertLog(t, "assert.AnError general error for testing")
+		})
 	})
-	t.Run("deactivated is ignored", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
 
-		err := ctx.vdr.Migrate()
+	t.Run("history migration", func(t *testing.T) {
+		historyMigrationSetup := func(t *testing.T) vdrTestCtx {
+			t.Cleanup(func() { hook.Reset() })
+			ctx := newVDRTestCtx(t)
+			ctx.vdr.migrations = map[string]migration{"history migration": ctx.vdr.migrateHistoryOwnedDIDNuts}
+			return ctx
+		}
+		t.Run("logs error", func(t *testing.T) {
+			ctx := historyMigrationSetup(t)
+			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
+			ctx.mockStore.EXPECT().HistorySinceVersion(TestDIDA, 0).Return(nil, assert.AnError).AnyTimes()
 
-		require.NoError(t, err)
-		// empty logs means all ok.
-		assert.Nil(t, hook.LastEntry())
-	})
-	t.Run("no active controller is ignored", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, nil, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&did.Document{ID: TestDIDB}, nil, nil)
+			err := ctx.vdr.Migrate()
 
-		err := ctx.vdr.Migrate()
-
-		require.NoError(t, err)
-		// empty logs means all ok.
-		assert.Nil(t, hook.LastEntry())
-	})
-	t.Run("error is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(nil, nil, assert.AnError)
-
-		err := ctx.vdr.Migrate()
-
-		require.NoError(t, err)
-		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "assert.AnError general error for testing")
-	})
-	t.Run("no verification method is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&did.Document{Controller: []did.DID{TestDIDB}}, nil, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil)
-
-		err := ctx.vdr.Migrate()
-
-		require.NoError(t, err)
-		assertLog(t, "No verification method found in owned DID document")
-	})
-	t.Run("update error is logged", func(t *testing.T) {
-		t.Cleanup(func() { hook.Reset() })
-		ctx := newVDRTestCtx(t)
-		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
-		ctx.mockStore.EXPECT().Resolve(TestDIDA, gomock.Any()).Return(&documentA, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockStore.EXPECT().Resolve(TestDIDB, gomock.Any()).Return(&documentB, &resolver.DocumentMetadata{}, nil).AnyTimes()
-		ctx.mockDocumentManager.EXPECT().Update(gomock.Any(), TestDIDA, gomock.Any()).Return(assert.AnError)
-
-		err := ctx.vdr.Migrate()
-
-		require.NoError(t, err)
-		assertLog(t, "Could not update owned DID document, continuing with next document")
-		assertLog(t, "assert.AnError general error for testing")
+			assert.NoError(t, err)
+			assertLog(t, "assert.AnError general error for testing")
+		})
 	})
 }
 

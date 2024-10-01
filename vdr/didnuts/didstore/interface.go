@@ -20,6 +20,7 @@ package didstore
 
 import (
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -42,6 +43,11 @@ type Store interface {
 	// It returns vdr.ErrNotFound if there are no corresponding DID documents or when the DID Documents are disjoint with the provided ResolveMetadata.
 	// It returns vdr.ErrDeactivated if no metadata is given and the latest version of the DID Document is deactivated.
 	Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error)
+	// HistorySinceVersion returns all versions of the DID Document since the specified version (including version).
+	// The slice is empty when version is the most recent version of the DID Document.
+	// The history contains DID Documents as they were published, which differs from Resolve that produces a merge of conflicted documents.
+	// DEPRECATED: This function exists to migrate the history of owned DIDs from key-value storage to SQL storage.
+	HistorySinceVersion(id did.DID, version int) ([]orm.MigrationDocument, error)
 }
 
 // Transaction is an alias to the didstore.event. Internally to the didstore it's an event based on a transaction.

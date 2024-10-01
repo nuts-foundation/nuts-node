@@ -77,6 +77,8 @@ type Module struct {
 	keyStore         crypto.KeyStore
 	storageInstance  storage.Engine
 	eventManager     events.Event
+	// migrations are registered functions to simplify testing
+	migrations map[string]migration
 
 	// new style DID management
 	didsubject.Manager
@@ -124,6 +126,7 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
+	m.migrations = m.allMigrations()
 	return m
 }
 
@@ -164,17 +167,19 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 
-	// Methods we can produce from the Nuts node
-	// did:nuts
-	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
-	r.nutsDocumentManager = nutsManager
-	methodManagers = map[string]didsubject.MethodManager{}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{
 			newCachingDocumentOwner(DBDocumentOwner{DB: db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		},
 	}
+
+	// Methods we can produce from the Nuts node
+	methodManagers = map[string]didsubject.MethodManager{}
+
+	// did:nuts
+	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
+	r.nutsDocumentManager = nutsManager
 	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
 		methodManagers[didnuts.MethodName] = nutsManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
@@ -361,40 +366,82 @@ func (r *Module) Migrate() error {
 	if err != nil {
 		return err
 	}
-	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate")
-	// resolve the DID Document if the did starts with did:nuts
-	for _, did := range owned {
-		if did.Method == didnuts.MethodName {
-			doc, _, err := r.Resolve(did, nil)
-			if err != nil {
-				if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
-					log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-				}
-				continue
-			}
-			if len(doc.Controller) > 0 {
-				doc.Controller = nil
 
-				if len(doc.VerificationMethod) == 0 {
-					log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
-					continue
-				}
-
-				if len(doc.CapabilityInvocation) == 0 {
-					// add all keys as capabilityInvocation keys
-					for _, vm := range doc.VerificationMethod {
-						doc.CapabilityInvocation.Add(vm)
-					}
-				}
-
-				err = r.nutsDocumentManager.Update(auditContext, did, *doc)
-				if err != nil {
-					if !(errors.Is(err, resolver.ErrKeyNotFound)) {
-						log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-					}
-				}
-			}
+	// only migrate if did:nuts is activated on the node
+	if slices.Contains(r.SupportedMethods(), "nuts") {
+		for name, migrate := range r.migrations {
+			log.Logger().Infof("Running did:nuts migration: '%s'", name)
+			migrate(owned)
 		}
 	}
 	return nil
 }
+
+func (r *Module) allMigrations() map[string]migration {
+	return map[string]migration{ // key will be printed as description of the migration
+		"remove controller": r.migrateRemoveControllerFromDIDNuts, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
+		"document history":  r.migrateHistoryOwnedDIDNuts,
+	}
+}
+
+// migrateRemoveControllerFromDIDNuts removes the controller from all did:nuts identifiers under own control.
+// This ignores any DIDs that are not did:nuts.
+func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_remove_did_nuts_controller")
+	// resolve the DID Document if the did starts with did:nuts
+	for _, did := range owned {
+		if did.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		doc, _, err := r.Resolve(did, nil)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+			}
+			continue
+		}
+		if len(doc.Controller) == 0 { // has no controller
+			continue
+		}
+
+		// try to remove controller
+		doc.Controller = nil
+
+		if len(doc.VerificationMethod) == 0 {
+			log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
+			continue
+		}
+
+		if len(doc.CapabilityInvocation) == 0 {
+			// add all keys as capabilityInvocation keys
+			for _, vm := range doc.VerificationMethod {
+				doc.CapabilityInvocation.Add(vm)
+			}
+		}
+
+		err = r.nutsDocumentManager.Update(auditContext, did, *doc)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrKeyNotFound)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+			}
+		}
+	}
+}
+
+// migrateHistoryOwnedDIDNuts migrates did:nuts DIDs from the VDR key-value storage to SQL storage
+// This ignores any DIDs that are not did:nuts.
+func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
+	for _, id := range owned {
+		if id.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		err := r.Manager.(didsubject.DocumentMigration).MigrateDIDHistoryToSQL(id, id.String(), r.store.HistorySinceVersion)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", id)
+		}
+	}
+}
+
+// migration is the signature each migration function in Module.migrations uses
+// there is no error return, if something is fatal the function should panic
+type migration func(owned []did.DID)

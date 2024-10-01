@@ -135,6 +135,14 @@ type Manager interface {
 	Rollback(ctx context.Context)
 }
 
+// DocumentMigration is used to migrate DID document versions to the SQL DB. This should only be used for DID documents managed by this node.
+type DocumentMigration interface {
+	// MigrateDIDHistoryToSQL is used to migrate the history of a DID Document to SQL.
+	// It adds all versions of a DID Document up to a deactivated version. Any changes after a deactivation are not migrated.
+	// getHistory retrieves the history of the DID since the requested version.
+	MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error
+}
+
 // SubjectCreationOption links all create DIDs to the DID Subject
 type SubjectCreationOption struct {
 	Subject string
