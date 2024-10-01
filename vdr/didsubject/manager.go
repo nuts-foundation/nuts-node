@@ -40,12 +40,6 @@ import (
 	"time"
 )
 
-// ErrSubjectAlreadyExists is returned when a subject already exists.
-var ErrSubjectAlreadyExists = errors.New("subject already exists")
-
-// ErrSubjectNotFound is returned when a subject is not found.
-var ErrSubjectNotFound = errors.New("subject not found")
-
 // subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
 var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
 
@@ -125,7 +119,7 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 		switch opt := option.(type) {
 		case SubjectCreationOption:
 			if !subjectPattern.MatchString(opt.Subject) {
-				return nil, "", fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String())
+				return nil, "", errors.Join(ErrSubjectValidation, fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String()))
 			}
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
@@ -133,7 +127,7 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 		case NutsLegacyNamingOption:
 			nutsLegacy = true
 		default:
-			return nil, "", fmt.Errorf("unknown option: %T", option)
+			return nil, "", errors.Join(ErrSubjectValidation, fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
@@ -153,6 +147,12 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
+			// known limitation, check is also done within the manager, but at this point we can return a known error for the API
+			// requires update to nutsCrypto module
+			if keyFlags.Is(orm.KeyAgreementUsage) && method == "web" {
+				return nil, ErrKeyAgreementNotSupported
+			}
+
 			// save tx in context to pass all the way down to KeyStore
 			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
 			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
@@ -394,8 +394,8 @@ func (r *SqlManager) AddVerificationMethod(ctx context.Context, subject string, 
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		// known limitation
 		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
-			return nil, errors.New("key agreement not supported for did:web")
-			// todo requires update to nutsCrypto module
+			return nil, ErrKeyAgreementNotSupported
+			// requires update to nutsCrypto module
 			//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
 			//	return verificationMethodID.String(), nil
 			//})
