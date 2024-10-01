@@ -401,7 +401,7 @@ func (w Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAc
 		introspectionResponse.AssuranceLevel = &level
 	}
 
-	if claims.Credentials != nil && len(claims.Credentials) > 0 {
+	if len(claims.Credentials) > 0 {
 		introspectionResponse.Vcs = &claims.Credentials
 
 		var resolvedVCs []VerifiableCredential

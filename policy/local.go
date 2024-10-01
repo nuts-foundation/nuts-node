@@ -41,8 +41,7 @@ func New() *LocalPDP {
 // It loads a file with the mapping from oauth scope to PEX Policy.
 // It allows access when the requester can present a submission according to the Presentation Definition.
 type LocalPDP struct {
-	backend PDPBackend
-	config  Config
+	config Config
 	// mapping holds the oauth scope to PEX Policy mapping
 	mapping map[string]validatingWalletOwnerMapping
 }
