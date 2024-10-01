@@ -57,10 +57,13 @@ function waitForDiagnostic {
   echo ""
 }
 
+# exitWithDockerLogs prints the logs of the containers and exits with a specified exit code
+# Args:   exit code; docker compose file to use for the logs (default: docker-compose.yml)
 function exitWithDockerLogs {
   EXIT_CODE=$1
-  docker compose logs
-  docker compose down
+  COMPOSE_FILE="${2:-docker-compose.yml}"
+  docker compose -f $COMPOSE_FILE logs
+  docker compose -f $COMPOSE_FILE stop
   exit $EXIT_CODE
 }
 

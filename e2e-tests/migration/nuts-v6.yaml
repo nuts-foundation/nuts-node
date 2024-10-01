@@ -1,0 +1,15 @@
+verbosity: debug
+strictmode: false
+#url: http://nodeA:1323 # set in as env variable
+tls:
+  truststorefile: "/nuts/config/truststore.pem"
+  certfile: "/nuts/config/certificate-and-key.pem"
+  certkeyfile: "/nuts/config/certificate-and-key.pem"
+auth:
+  contractvalidators:
+    - dummy
+goldenhammer:
+  enabled: false
+http:
+  internal:
+    address: :8081
