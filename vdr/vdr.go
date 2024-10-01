@@ -78,7 +78,7 @@ type Module struct {
 	storageInstance  storage.Engine
 	eventManager     events.Event
 	// migrations are registered functions to simplify testing
-	migrations map[string]migration
+	migrations []migration
 
 	// new style DID management
 	didsubject.Manager
@@ -369,9 +369,9 @@ func (r *Module) Migrate() error {
 
 	// only migrate if did:nuts is activated on the node
 	if slices.Contains(r.SupportedMethods(), "nuts") {
-		for name, migrate := range r.migrations {
-			log.Logger().Infof("Running did:nuts migration: '%s'", name)
-			migrate(owned)
+		for _, m := range r.migrations {
+			log.Logger().Infof("Running did:nuts migration: '%s'", m.name)
+			m.migrate(owned)
 		}
 	}
 	return nil
@@ -379,13 +379,18 @@ func (r *Module) Migrate() error {
 
 // migration is the signature each migration function in Module.migrations uses
 // there is no error return, if something is fatal the function should panic
-type migration func(owned []did.DID)
+type migrationFn func(owned []did.DID)
 
-func (r *Module) allMigrations() map[string]migration {
-	return map[string]migration{ // key will be printed as description of the migration
-		"remove controller":      r.migrateRemoveControllerFromDIDNuts, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
-		"document history":       r.migrateHistoryOwnedDIDNuts,
-		"add did:web to subject": r.migrateAddDIDWebToOwnedDIDNuts, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
+type migration struct {
+	migrate migrationFn
+	name    string
+}
+
+func (r *Module) allMigrations() []migration {
+	return []migration{ // key will be printed as description of the migration
+		{r.migrateRemoveControllerFromDIDNuts, "remove controller"}, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
+		{r.migrateHistoryOwnedDIDNuts, "document history"},
+		{r.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
 	}
 }
 

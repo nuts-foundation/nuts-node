@@ -360,7 +360,7 @@ func TestVDR_Migrate(t *testing.T) {
 		controllerMigrationSetup := func(t *testing.T) vdrTestCtx {
 			t.Cleanup(func() { hook.Reset() })
 			ctx := newVDRTestCtx(t)
-			ctx.vdr.migrations = map[string]migration{"remove controller": ctx.vdr.migrateRemoveControllerFromDIDNuts}
+			ctx.vdr.migrations = []migration{{ctx.vdr.migrateRemoveControllerFromDIDNuts, "remove controller"}}
 			return ctx
 		}
 		t.Run("ignores self-controlled documents", func(t *testing.T) {
@@ -459,7 +459,7 @@ func TestVDR_Migrate(t *testing.T) {
 		historyMigrationSetup := func(t *testing.T) vdrTestCtx {
 			t.Cleanup(func() { hook.Reset() })
 			ctx := newVDRTestCtx(t)
-			ctx.vdr.migrations = map[string]migration{"history migration": ctx.vdr.migrateHistoryOwnedDIDNuts}
+			ctx.vdr.migrations = []migration{{ctx.vdr.migrateHistoryOwnedDIDNuts, "history migration"}}
 			return ctx
 		}
 		t.Run("logs error", func(t *testing.T) {
@@ -478,14 +478,14 @@ func TestVDR_Migrate(t *testing.T) {
 		didwebMigrationSetup := func(t *testing.T) vdrTestCtx {
 			t.Cleanup(func() { hook.Reset() })
 			ctx := newVDRTestCtx(t)
-			ctx.vdr.migrations = map[string]migration{"add did:web to subject": ctx.vdr.migrateAddDIDWebToOwnedDIDNuts}
+			ctx.vdr.migrations = []migration{{ctx.vdr.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}}
 			return ctx
 		}
 		t.Run("web not in supported methods", func(t *testing.T) {
 			logrus.StandardLogger().Level = logrus.InfoLevel
 			defer func() { logrus.StandardLogger().Level = logrus.WarnLevel }()
 			ctx := didwebMigrationSetup(t)
-			ctx.vdr.migrations = map[string]migration{"add did:web to subject": ctx.vdr.migrateAddDIDWebToOwnedDIDNuts}
+			ctx.vdr.migrations = []migration{{ctx.vdr.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}}
 			ctx.vdr.config.DIDMethods = []string{"nuts"}
 			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 
