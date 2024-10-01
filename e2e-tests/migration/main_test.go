@@ -22,24 +22,32 @@ package migration
 
 import (
 	"encoding/json"
-	did "github.com/nuts-foundation/go-did/did"
-	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
-	"time"
-
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
+	"strings"
+	"testing"
 )
+
+type manager struct {
+	DID *didsubject.SqlDIDManager
+	DOC *didsubject.SqlDIDDocumentManager
+}
 
 func Test_Migrations(t *testing.T) {
 	db := storage.NewTestStorageEngineInDir(t, "./nodeA/data").GetSQLDatabase()
+	man := &manager{
+		DID: didsubject.NewDIDManager(db),
+		DOC: didsubject.NewDIDDocumentManager(db),
+	}
 
-	DIDs, err := didsubject.NewDIDManager(db).All()
+	DIDs, err := man.DID.All()
 	require.NoError(t, err)
-	require.Len(t, DIDs, 4)
+	require.Len(t, DIDs, 7) // 4 did:nuts, 3 did:web
 
 	t.Run("vendor", func(t *testing.T) {
 		// versions for did:nuts:
@@ -51,13 +59,15 @@ func Test_Migrations(t *testing.T) {
 		//
 		// total 4 versions in SQL; latest has 2 services and 2 VMs
 		id := did.MustParseDID(os.Getenv("VENDOR_DID"))
-		var doc orm.DidDocument
-		err = db.Preload("DID").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", id.String(), time.Now()).Order("version desc").First(&doc).Error
+		doc, err := man.DOC.Latest(id, nil)
 		require.NoError(t, err)
 
 		assert.Equal(t, 3, doc.Version)
 		assert.Len(t, doc.Services, 2)
 		assert.Len(t, doc.VerificationMethods, 2)
+
+		// migration: add did:web
+		EqualServices(t, man, doc)
 	})
 	t.Run("org1", func(t *testing.T) {
 		// versions for did:nuts:
@@ -68,8 +78,7 @@ func Test_Migrations(t *testing.T) {
 		//
 		// total 4 versions in SQL; latest one has no controller, 2 services, and 1 VM
 		id := did.MustParseDID(os.Getenv("ORG1_DID"))
-		var doc orm.DidDocument
-		err = db.Preload("DID").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", id.String(), time.Now()).Order("version desc").First(&doc).Error
+		doc, err := man.DOC.Latest(id, nil)
 		require.NoError(t, err)
 
 		assert.Equal(t, 3, doc.Version)
@@ -78,6 +87,9 @@ func Test_Migrations(t *testing.T) {
 		didDoc := new(did.Document)
 		require.NoError(t, json.Unmarshal([]byte(doc.Raw), didDoc))
 		assert.Empty(t, didDoc.Controller)
+
+		// migration: add did:web
+		EqualServices(t, man, doc)
 	})
 	t.Run("org2", func(t *testing.T) {
 		// versions for did:nuts:
@@ -88,13 +100,17 @@ func Test_Migrations(t *testing.T) {
 		//
 		// total 2 versions in SQL, migration stopped at LC5; no controller, 0 service, 0 VM
 		id := did.MustParseDID(os.Getenv("ORG2_DID"))
-		var doc orm.DidDocument
-		err = db.Preload("DID").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", id.String(), time.Now()).Order("version desc").First(&doc).Error
+		doc, err := man.DOC.Latest(id, nil)
 		require.NoError(t, err)
 
 		assert.Equal(t, 1, doc.Version)
 		assert.Len(t, doc.Services, 0)
 		assert.Len(t, doc.VerificationMethods, 0)
+
+		// deactivated; has no did:web
+		dids, err := man.DID.FindBySubject(doc.DID.Subject) // migrated documents have subject == did:nuts:...
+		require.NoError(t, err)
+		assert.Len(t, dids, 1)
 	})
 	t.Run("org3", func(t *testing.T) {
 		// versions for did:nuts:
@@ -102,12 +118,11 @@ func Test_Migrations(t *testing.T) {
 		// - LC7: add service1
 		// - LC7: add verification method, conflicts with above
 		// - LC9: add service2, solves conflict
-		// migration removes controller, total 5 versions in SQL
+		// migration removes controller
 		//
 		// total 5 versions in SQL; no controller, 2 services, 2 VMs
 		id := did.MustParseDID(os.Getenv("ORG3_DID"))
-		var doc orm.DidDocument
-		err = db.Preload("DID").Preload("Services").Preload("VerificationMethods").Where("did = ? AND updated_at <= ?", id.String(), time.Now()).Order("version desc").First(&doc).Error
+		doc, err := man.DOC.Latest(id, nil)
 		require.NoError(t, err)
 
 		assert.Equal(t, 4, doc.Version)
@@ -116,5 +131,28 @@ func Test_Migrations(t *testing.T) {
 		didDoc := new(did.Document)
 		require.NoError(t, json.Unmarshal([]byte(doc.Raw), didDoc))
 		assert.Empty(t, didDoc.Controller)
+
+		// migration: add did:web
+		EqualServices(t, man, doc)
 	})
+}
+
+func EqualServices(t *testing.T, man *manager, nutsDoc *orm.DidDocument) {
+	didWebPrefix := "did:web:nodeA%3A8080"
+
+	dids, err := man.DID.FindBySubject(nutsDoc.DID.Subject) // migrated documents have subject == did:nuts:...
+	require.NoError(t, err)
+	assert.Len(t, dids, 2)
+	var webDoc *orm.DidDocument
+	for _, id := range dids {
+		if strings.HasPrefix(id.ID, "did:web:") {
+			webDoc, err = man.DOC.Latest(did.MustParseDID(id.ID), nil)
+			require.NoError(t, err)
+		}
+	}
+	assert.Equal(t, 0, webDoc.Version)
+	assert.Equal(t, len(nutsDoc.Services), len(webDoc.Services))
+	for _, service := range webDoc.Services {
+		assert.True(t, strings.HasPrefix(service.ID, didWebPrefix))
+	}
 }

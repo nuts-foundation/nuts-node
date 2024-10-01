@@ -721,3 +721,74 @@ func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHisto
 		return nil
 	})
 }
+
+func (r *SqlManager) MigrateAddWebToNuts(ctx context.Context, id did.DID) error {
+	// get subject
+	// TODO: this should only run on migrations, so could use 'subject = id.String()'
+	var subject string
+	err := r.DB.Model(new(orm.DID)).Where("id = ?", id.String()).Select("subject").First(&subject).Error
+	if err != nil {
+		return err
+	}
+
+	// check if subject has a did:web
+	subjectDIDs, err := r.ListDIDs(ctx, subject)
+	for _, subjectDID := range subjectDIDs {
+		if subjectDID.Method == "web" {
+			// already has a did:web
+			return nil
+		}
+	}
+
+	// get latest did:nuts document
+	sqlDIDDocumentManager := NewDIDDocumentManager(r.DB)
+	nutsDoc, err := sqlDIDDocumentManager.Latest(id, nil)
+	if err != nil {
+		return err
+	}
+
+	// don't add did:web if did:nuts is deactivated
+	nutsDidDoc, err := nutsDoc.ToDIDDocument()
+	if err != nil {
+		return err
+	}
+	if resolver.IsDeactivated(nutsDidDoc) {
+		return nil
+	}
+
+	// create a did:web for this subject
+	webDoc, err := r.MethodManagers["web"].NewDocument(ctx, orm.AssertionKeyUsage())
+	if err != nil {
+		return err
+	}
+	// add subject
+	webDID := orm.DID{
+		ID:      webDoc.DID.ID,
+		Subject: subject,
+	}
+	// rename services. only the DID part of the service.ID needs to be updates
+	webDoc.Services = make([]orm.Service, len(nutsDoc.Services))
+	for i, ormService := range nutsDoc.Services {
+		service := new(did.Service)
+		err = json.Unmarshal(ormService.Data, service)
+		if err != nil {
+			return err
+		}
+		service.ID = ssi.MustParseURI(webDID.ID + "#" + service.ID.Fragment)
+		rawService, err := json.Marshal(service)
+		if err != nil {
+			return err
+		}
+		webDoc.Services[i] = orm.Service{
+			ID:   service.ID.String(),
+			Data: rawService,
+		}
+	}
+	// store did:web
+	_, err = sqlDIDDocumentManager.CreateOrUpdate(webDID, webDoc.VerificationMethods, webDoc.Services)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

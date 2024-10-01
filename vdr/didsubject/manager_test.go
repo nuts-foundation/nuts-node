@@ -448,9 +448,13 @@ type testMethod struct {
 	committed bool
 	error     error
 	method    string
+	document  *orm.DidDocument
 }
 
 func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
+	if t.document != nil {
+		return t.document, nil
+	}
 	method := t.method
 	if method == "" {
 		method = "example"
@@ -508,6 +512,7 @@ func TestSqlManager_MigrateDIDHistoryToSQL(t *testing.T) {
 	ormMigrateUpdate := orm.MigrationDocument{Raw: rawDocUpdate, Created: created, Updated: created.Add(2 * time.Second), Version: 1}
 	ormMigrateDeactivate := orm.MigrationDocument{Raw: rawDocDeactivate, Created: created, Updated: created.Add(2 * time.Second), Version: 1}
 	ormDocNew, err := ormMigrateNew.ToORMDocument(subject)
+	require.NoError(t, err)
 	ormDocUpdate, _ := ormMigrateUpdate.ToORMDocument(subject)
 	ormDocDeactivate, _ := ormMigrateDeactivate.ToORMDocument(subject)
 	equal := func(t *testing.T, o1, o2 orm.DidDocument) {
@@ -593,4 +598,124 @@ func TestSqlManager_MigrateDIDHistoryToSQL(t *testing.T) {
 		})
 		assert.EqualError(t, err, "test")
 	})
+}
+
+func TestSqlManager_MigrateAddWebToNuts(t *testing.T) {
+	didNuts := did.MustParseDID("did:nuts:test")
+	didWeb := did.MustParseDID("did:web:example.com")
+	nutsDoc := generateTestORMDoc(t, didNuts, didNuts.String(), true)
+	webDoc := generateTestORMDoc(t, didWeb, didNuts.String(), false) // don't add service to check it gets migrated properly
+
+	var err error
+	auditContext := audit.Context(context.Background(), "system", "VDR", "migrate_add_did:web_to_did:nuts")
+
+	t.Run("ok", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nutsDoc.VerificationMethods, nutsDoc.Services)
+		require.NoError(t, err)
+		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+			"web": testMethod{document: &webDoc},
+		}, PreferredOrder: []string{"web"}}
+
+		// create did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 2)
+		assert.Equal(t, didNuts.String(), dids[0].ID)
+		assert.Equal(t, didWeb.String(), dids[1].ID)
+
+		docNuts, err := NewDIDDocumentManager(db).Latest(didNuts, nil)
+		require.NoError(t, err)
+		docWeb, err := NewDIDDocumentManager(db).Latest(didWeb, nil)
+		require.NoError(t, err)
+		assert.Equal(t, len(docNuts.Services), len(docWeb.Services))
+		assert.Equal(t, didWeb.String()+"#service-1", docWeb.Services[0].ID)
+	})
+	t.Run("ok - already has did:web", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nutsDoc.VerificationMethods, nutsDoc.Services)
+		require.NoError(t, err)
+		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+			"web": testMethod{document: &webDoc},
+		}, PreferredOrder: []string{"web"}}
+
+		// migration 1; create did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 2)
+
+		// migration 2; already has a did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids2, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids2, 2)
+		assert.Equal(t, dids, dids2)
+	})
+	t.Run("ok - deactivated", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nil, nil)
+		require.NoError(t, err)
+		m := SqlManager{DB: db}
+
+		// migrate is a noop
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 1)
+		assert.Equal(t, didNuts.String(), dids[0].ID)
+	})
+	t.Run("error - did not found", func(t *testing.T) {
+		db := testDB(t)
+		m := SqlManager{DB: db}
+
+		// empty db
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	})
+	t.Run("error - doc not found", func(t *testing.T) {
+		db := testDB(t)
+		storage.AddDIDtoSQLDB(t, db, didNuts) // only add did, not the doc
+		m := SqlManager{DB: db}
+
+		// migrate is a noop
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	})
+}
+
+func generateTestORMDoc(t *testing.T, id did.DID, subject string, addService bool) orm.DidDocument {
+	// verification method
+	vmID := did.MustParseDIDURL(id.String() + "#key-1")
+	key, _ := spi.GenerateKeyPair()
+	vm, err := did.NewVerificationMethod(vmID, ssi.JsonWebKey2020, id, key.Public())
+	require.NoError(t, err)
+	// service
+	var service did.Service
+	if addService {
+		service = did.Service{
+			ID:              ssi.MustParseURI(id.String() + "#service-1"),
+			Type:            "test",
+			ServiceEndpoint: "https://example.com",
+		}
+	}
+	// generate and parse document
+	didDoc := did.Document{ID: id, VerificationMethod: did.VerificationMethods{vm}, CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: vm}}, Service: []did.Service{service}}
+	rawDoc, err := json.Marshal(didDoc)
+	require.NoError(t, err)
+	now := time.Now()
+	ormDoc, err := orm.MigrationDocument{Raw: rawDoc, Created: now, Updated: now, Version: 0}.ToORMDocument(subject)
+	require.NoError(t, err)
+	return ormDoc
 }

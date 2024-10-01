@@ -141,6 +141,9 @@ type DocumentMigration interface {
 	// It adds all versions of a DID Document up to a deactivated version. Any changes after a deactivation are not migrated.
 	// getHistory retrieves the history of the DID since the requested version.
 	MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error
+	// MigrateAddWebToNuts checks if the provided did:nuts DID adds a did:web DID under the same subject if does not already have one.
+	// It does not check that id is a did:nuts DID
+	MigrateAddWebToNuts(ctx context.Context, id did.DID) error
 }
 
 // SubjectCreationOption links all create DIDs to the DID Subject
