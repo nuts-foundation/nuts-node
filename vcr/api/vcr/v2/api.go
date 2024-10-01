@@ -429,7 +429,7 @@ func (w *Wrapper) LoadVC(ctx context.Context, request LoadVCRequestObject) (Load
 	// validate credential
 	if err = w.VCR.Verifier().Verify(*request.Body, true, true, nil); err != nil {
 		if errors.Is(err, verifier.VerificationError{}) {
-			return nil, core.InvalidInputError(err.Error())
+			return nil, core.InvalidInputError("%w", err)
 		}
 		return nil, err
 	}
