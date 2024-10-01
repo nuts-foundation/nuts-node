@@ -1,0 +1,32 @@
+services:
+  nodeA:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    container_name: nodeA
+    user: &usr "$USER:$USER"
+    ports:
+      - "18081:8081"
+    environment:
+      NUTS_URL: "http://nodeA:8080"
+    volumes:
+      - "./nuts-v6.yaml:/nuts/config/nuts.yaml"
+      - "./nodeA/data:/nuts/data"
+      - "../tls-certs/nodeA-certificate.pem:/nuts/config/certificate-and-key.pem:ro"
+      - "../tls-certs/truststore.pem:/nuts/config/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nodeB:
+    image: nutsfoundation/nuts-node:v5.4.11 # must be v5.4.11+ for bugfixes. sync with docker-compose-post-migration.yml
+    container_name: nodeB
+    user: *usr
+    ports:
+      - "28081:1323"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_BOOTSTRAPNODES: "nodeA:5555"
+    volumes:
+      - "./nuts-v5.yaml:/opt/nuts/nuts.yaml"
+      - "./nodeB/data:/opt/nuts/data"
+      - "../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
