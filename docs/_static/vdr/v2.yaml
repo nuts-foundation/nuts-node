@@ -131,6 +131,7 @@ paths:
         error returns:
           * 400 - the subject param was malformed
           * 404 - Corresponding subject could not be found
+          * 409 - The subject is already deactivated
           * 500 - An error occurred while processing the request
       operationId: "deactivate"
       tags:

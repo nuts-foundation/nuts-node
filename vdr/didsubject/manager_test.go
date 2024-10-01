@@ -141,7 +141,9 @@ func TestManager_Create(t *testing.T) {
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 
-		require.EqualError(t, err, "unknown option: string")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrSubjectValidation)
+		assert.ErrorContains(t, err, "unknown option: string")
 	})
 	t.Run("already exists", func(t *testing.T) {
 		db := testDB(t)
@@ -163,7 +165,9 @@ func TestManager_Create(t *testing.T) {
 
 			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: ""}))
 
-			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrSubjectValidation)
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
 		})
 		t.Run("contains illegal character (space)", func(t *testing.T) {
 			db := testDB(t)
@@ -173,7 +177,9 @@ func TestManager_Create(t *testing.T) {
 
 			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject with space"}))
 
-			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrSubjectValidation)
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
 		})
 	})
 }

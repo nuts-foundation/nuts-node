@@ -56,13 +56,16 @@ type Wrapper struct {
 // ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
 func (w *Wrapper) ResolveStatusCode(err error) int {
 	return core.ResolveStatusCode(err, map[error]int{
-		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
-		didsubject.ErrSubjectAlreadyExists:  http.StatusConflict,
-		resolver.ErrNotFound:                http.StatusNotFound,
-		resolver.ErrDIDNotManagedByThisNode: http.StatusForbidden,
-		did.ErrInvalidDID:                   http.StatusBadRequest,
-		didsubject.ErrInvalidService:        http.StatusBadRequest,
-		didsubject.ErrUnsupportedDIDMethod:  http.StatusBadRequest,
+		didsubject.ErrSubjectNotFound:          http.StatusNotFound,
+		didsubject.ErrSubjectAlreadyExists:     http.StatusConflict,
+		resolver.ErrNotFound:                   http.StatusNotFound,
+		resolver.ErrDIDNotManagedByThisNode:    http.StatusForbidden,
+		did.ErrInvalidDID:                      http.StatusBadRequest,
+		didsubject.ErrInvalidService:           http.StatusBadRequest,
+		didsubject.ErrUnsupportedDIDMethod:     http.StatusBadRequest,
+		didsubject.ErrKeyAgreementNotSupported: http.StatusBadRequest,
+		didsubject.ErrSubjectValidation:        http.StatusBadRequest,
+		resolver.ErrDeactivated:                http.StatusConflict,
 	})
 }
 
@@ -121,7 +124,6 @@ func (w *Wrapper) CreateSubject(ctx context.Context, request CreateSubjectReques
 	}
 
 	docs, subject, err := w.SubjectManager.Create(ctx, options)
-	// if this operation leads to an error, it may return a 500
 	if err != nil {
 		return nil, err
 	}
