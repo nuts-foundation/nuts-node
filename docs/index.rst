@@ -23,6 +23,7 @@ Nuts documentation
 
     pages/deployment/domain.rst
     pages/deployment/configuration.rst
+    pages/deployment/migration.rst
     pages/deployment/recommended-deployment.rst
     pages/deployment/docker.rst
     pages/deployment/storage.rst
