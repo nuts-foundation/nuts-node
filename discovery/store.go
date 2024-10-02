@@ -384,17 +384,6 @@ func (s *sqlStore) getSubjectsToBeRefreshed(now time.Time) ([]refreshCandidate, 
 	return result, nil
 }
 
-func (s *sqlStore) getPresentationRefreshError(serviceID string, subjectID string) (*presentationRefreshError, error) {
-	var row presentationRefreshError
-	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
-		return nil, err
-	}
-	if row.LastOccurrence == 0 {
-		return nil, nil
-	}
-	return &row, nil
-}
-
 func (s *sqlStore) setPresentationRefreshError(serviceID string, subjectID string, refreshErr error) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&presentationRefreshError{}, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {

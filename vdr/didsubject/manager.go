@@ -733,6 +733,9 @@ func (r *SqlManager) MigrateAddWebToNuts(ctx context.Context, id did.DID) error 
 
 	// check if subject has a did:web
 	subjectDIDs, err := r.ListDIDs(ctx, subject)
+	if err != nil {
+		return err
+	}
 	for _, subjectDID := range subjectDIDs {
 		if subjectDID.Method == "web" {
 			// already has a did:web

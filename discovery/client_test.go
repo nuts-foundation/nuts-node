@@ -370,8 +370,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		assert.EqualError(t, err, errStr)
 
 		// check for presentationRefreshError
-		refreshError, err := store.getPresentationRefreshError(testServiceID, bobSubject)
-		require.NoError(t, err)
+		refreshError := getPresentationRefreshError(t, store.db, testServiceID, bobSubject)
 		assert.Contains(t, refreshError.Error, errStr)
 	})
 	t.Run("deactivate unknown subject", func(t *testing.T) {
@@ -431,8 +430,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 		require.NoError(t, err)
 
 		// check for presentationRefreshError
-		refreshError, err := store.getPresentationRefreshError(testServiceID, aliceSubject)
-		require.NoError(t, err)
+		refreshError := getPresentationRefreshError(t, store.db, testServiceID, aliceSubject)
 		assert.Nil(t, refreshError)
 	})
 }

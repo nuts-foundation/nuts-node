@@ -364,16 +364,6 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) walletWithExtraCredentials(ctx context.Context, subject did.DID, credentials []vc.VerifiableCredential) (holder.Wallet, error) {
-	walletCredentials, err := c.wallet.List(ctx, subject)
-	if err != nil {
-		return nil, err
-	}
-	return holder.NewMemoryWallet(c.ldDocumentLoader, c.keyResolver, c.jwtSigner, map[did.DID][]vc.VerifiableCredential{
-		subject: append(walletCredentials, credentials...),
-	}), nil
-}
-
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {
 	// find the key to sign the DPoP token with
 	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
