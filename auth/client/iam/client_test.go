@@ -78,6 +78,17 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "GET", handler.Request.Method)
 		assert.Equal(t, "/.well-known/oauth-authorization-server/iam/123", handler.Request.URL.Path)
 	})
+	t.Run("error - server error changes status code to 502", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
+
+		require.Error(t, err)
+		httpErr, ok := err.(core.HttpError)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusBadGateway, httpErr.StatusCode)
+	})
 }
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {

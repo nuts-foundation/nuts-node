@@ -14,9 +14,10 @@ paths:
         It'll initiate a s2s (RFC021) flow.
 
         error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
+        * 400 - one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
+        * 412 - the organization wallet does not contain the correct credentials or doesn't support the right DID methods
+        * 502 - the authorizer returned an error
+        * 503 - the authorizer could not be reached
       tags:
         - auth
       parameters:
