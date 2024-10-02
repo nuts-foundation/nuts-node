@@ -305,9 +305,8 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
 
 		// Check if the error is stored
-		refreshError, err := c.getPresentationRefreshError(testServiceID, aliceSubject)
+		refreshError := getPresentationRefreshError(t, c.db, testServiceID, aliceSubject)
 
-		require.NoError(t, err)
 		assert.Equal(t, refreshError.Error, assert.AnError.Error())
 		assert.True(t, refreshError.LastOccurrence > int(time.Now().Add(-1*time.Second).Unix()))
 	})
@@ -317,9 +316,8 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, nil))
 
-		refreshError, err := c.getPresentationRefreshError(testServiceID, aliceSubject)
+		refreshError := getPresentationRefreshError(t, c.db, testServiceID, aliceSubject)
 
-		require.NoError(t, err)
 		assert.Nil(t, refreshError)
 	})
 }
@@ -369,4 +367,14 @@ func resetStore(t *testing.T, db *gorm.DB) {
 	for _, tableName := range tableNames {
 		require.NoError(t, db.Exec("DELETE FROM "+tableName).Error)
 	}
+}
+
+func getPresentationRefreshError(t *testing.T, db *gorm.DB, serviceID string, subjectID string) *presentationRefreshError {
+	var row presentationRefreshError
+	err := db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error
+	require.NoError(t, err)
+	if row.LastOccurrence == 0 {
+		return nil
+	}
+	return &row
 }
