@@ -1,4 +1,5 @@
 url: http://node-b
+didmethods: ["nuts"]
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -19,6 +20,3 @@ network:
   bootstrapnodes: nodeA-backend:5555
   v2:
     gossipinterval: 400
-vdr:
-  didmethods:
-    - nuts
