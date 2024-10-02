@@ -6,4 +6,4 @@ http:
     address: :8081
 auth:
   contractvalidators:
-    - selfsigned
+    - employeeid

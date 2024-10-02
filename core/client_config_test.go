@@ -20,7 +20,7 @@
 package core
 
 import (
-	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/v2"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"

@@ -20,7 +20,7 @@
 package core
 
 import (
-	"github.com/knadh/koanf"
+	"github.com/knadh/koanf/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
