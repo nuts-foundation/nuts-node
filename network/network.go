@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -71,6 +72,7 @@ var defaultBBoltOptions = bbolt.DefaultOptions
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
+	disabled          bool // node is running without did:nuts support
 	config            Config
 	certificate       tls.Certificate
 	trustStore        *core.TrustStore
@@ -96,6 +98,9 @@ type Network struct {
 
 // CheckHealth performs health checks for the network engine.
 func (n *Network) CheckHealth() map[string]core.Health {
+	if n.disabled {
+		return nil
+	}
 	results := make(map[string]core.Health)
 	if n.certificate.Leaf != nil {
 		results[healthTLS] = n.checkNodeTLSHealth()
@@ -134,6 +139,9 @@ func (n *Network) checkNodeTLSHealth() core.Health {
 }
 
 func (n *Network) Migrate() error {
+	if n.disabled {
+		return nil
+	}
 	return n.state.Migrate()
 }
 
@@ -167,6 +175,10 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
+	if !slices.Contains(config.DIDMethods, "nuts") {
+		n.disabled = true
+		return nil
+	}
 	var err error
 	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
@@ -269,11 +281,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
-				if len(n.config.BootstrapNodes) == 0 && n.assumeNewNode {
-					log.Logger().Info("It appears the gRPC network will not be used (no bootstrap nodes and an empty network state), so disabled TLS is accepted even with strict mode enabled.")
-				} else {
-					return errors.New("disabling TLS in strict mode is not allowed")
-				}
+				return errors.New("disabling TLS in strict mode is not allowed")
 			}
 			authenticator = grpc.NewDummyAuthenticator(nil)
 		}
@@ -363,6 +371,9 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
+	if n.disabled {
+		return nil
+	}
 	startTime := time.Now()
 	n.startTime.Store(&startTime)
 
@@ -743,6 +754,9 @@ func (n *Network) calculateLamportClock(ctx context.Context, prevs []hash.SHA256
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
+	if n.disabled {
+		return nil
+	}
 	// Stop protocols and connection manager
 	for _, prot := range n.protocols {
 		prot.Stop()
@@ -758,6 +772,9 @@ func (n *Network) Shutdown() error {
 
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
+	if n.disabled {
+		return nil
+	}
 	var results = make([]core.DiagnosticResult, 0)
 	// Connection manager and protocols
 	results = append(results, core.DiagnosticResultMap{Title: "connections", Items: n.connectionManager.Diagnostics()})
@@ -778,6 +795,9 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+	if n.disabled {
+		return nil
+	}
 	result := make(map[transport.PeerID]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
@@ -793,6 +813,9 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (n *Network) AddressBook() []transport.Contact {
+	if n.disabled {
+		return nil
+	}
 	return n.connectionManager.Contacts()
 }
 
@@ -802,6 +825,9 @@ type ReprocessReport struct {
 }
 
 func (n *Network) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
+	if n.disabled {
+		return nil, errors.New("did:nuts is not supported, network layer is disabled")
+	}
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	_, js, err := n.eventPublisher.Pool().Acquire(ctx)
