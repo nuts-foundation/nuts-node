@@ -64,6 +64,7 @@ You no longer manage changes to DIDs but to Subjects. Each subject has multiple 
 You're free to choose an ID for a Subject. This feature enables forwards compatibility with new DID methods.
 DID methods can be enabled and disabled via the ``vdr.didmethods`` config parameter. (Default: ``['web','nuts']``).
 Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID.
+See :ref:`nuts-node-migrations` for more information.
 
 HTTP interface
 ==============
@@ -95,7 +96,10 @@ The following features have been deprecated:
   Starting v6, the preferred way to support other key storage backends is to directly implement it in the Nuts node itself.
   This also reduces the complexity of a Nuts node deployment (one service less to configure and deploy).
   Users are recommended to switch to the built-in client of their key storage backend.
-- VDR v1 API.
+- Auth v1 API, replaced by Auth v2
+- DIDMan v1 API, to be removed
+- Network v1 API, to be removed
+- VDR v1 API, replaced by VDR v2
 
 ************************
 Hazelnut update (v5.4.11)
