@@ -53,7 +53,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -98,7 +97,6 @@ type Wrapper struct {
 	storageEngine  storage.Engine
 	jsonldManager  jsonld.JSONLD
 	vcr            vcr.VCR
-	vdr            vdr.VDR
 	jwtSigner      nutsCrypto.JWTSigner
 	keyResolver    resolver.KeyResolver
 	subjectManager didsubject.Manager
@@ -106,7 +104,7 @@ type Wrapper struct {
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.Manager, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, didKeyResolver resolver.DIDKeyResolver, subjectManager didsubject.Manager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 
 	templates := template.New("oauth2 templates")
@@ -114,21 +112,19 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	keyResolver := resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}
 	return &Wrapper{
 		auth:           authInstance,
 		policyBackend:  policyBackend,
 		storageEngine:  storageEngine,
 		vcr:            vcrInstance,
-		vdr:            vdrInstance,
 		subjectManager: subjectManager,
 		jsonldManager:  jsonldManager,
 		jwtSigner:      jwtSigner,
-		keyResolver:    keyResolver,
+		keyResolver:    didKeyResolver,
 		jar: jar{
 			auth:        authInstance,
 			jwtSigner:   jwtSigner,
-			keyResolver: keyResolver,
+			keyResolver: didKeyResolver,
 		},
 	}
 }
@@ -603,7 +599,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(&clientID, r.vdr.SupportedMethods())
+	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -667,7 +663,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
 	issuerURL := r.subjectToBaseURL(request.SubjectID)
-	configuration := openIDConfiguration(issuerURL, set, r.vdr.SupportedMethods())
+	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)

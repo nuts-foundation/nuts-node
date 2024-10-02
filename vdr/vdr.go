@@ -61,12 +61,12 @@ var _ didsubject.Manager = (*Module)(nil)
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type Module struct {
-	config            Config
-	publicURL         *url.URL
-	store             didnutsStore.Store
-	network           network.Transactions
-	networkAmbassador didnuts.Ambassador
-	documentOwner     didsubject.DocumentOwner
+	supportedDIDMethods []string
+	publicURL           *url.URL
+	store               didnutsStore.Store
+	network             network.Transactions
+	networkAmbassador   didnuts.Ambassador
+	documentOwner       didsubject.DocumentOwner
 	// nutsDocumentManager is used to manage did:nuts DID Documents
 	// Deprecated: used by v1 api
 	nutsDocumentManager didsubject.DocumentManager
@@ -109,10 +109,6 @@ func (r *Module) Resolver() resolver.DIDResolver {
 	return r.didResolver
 }
 
-func (r *Module) SupportedMethods() []string {
-	return r.config.DIDMethods
-}
-
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
@@ -134,22 +130,19 @@ func (r *Module) Name() string {
 	return ModuleName
 }
 
-func (r *Module) Config() interface{} {
-	return &r.config
-}
-
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
+	r.supportedDIDMethods = config.DIDMethods
 	var err error
 	if r.publicURL, err = config.ServerURL(); err != nil {
 		return err
 	}
 	// at least one method should be configured
-	if len(r.config.DIDMethods) == 0 {
+	if len(r.supportedDIDMethods) == 0 {
 		return errors.New("at least one DID method should be configured")
 	}
 	// check if all configured methods are supported
-	for _, method := range r.config.DIDMethods {
+	for _, method := range r.supportedDIDMethods {
 		switch method {
 		case didnuts.MethodName, didweb.MethodName:
 			continue
@@ -179,7 +172,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// did:nuts
 	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
 	r.nutsDocumentManager = nutsManager
-	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
+	if slices.Contains(r.supportedDIDMethods, didnuts.MethodName) {
 		methodManagers[didnuts.MethodName] = nutsManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	}
@@ -201,12 +194,12 @@ func (r *Module) Configure(config core.ServerConfig) error {
 			didweb.NewResolver(),
 		},
 	}
-	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
+	if slices.Contains(r.supportedDIDMethods, didweb.MethodName) {
 		methodManagers[didweb.MethodName] = webManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
-	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.config.DIDMethods)
+	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.supportedDIDMethods)
 
 	// Initiate the routines for auto-updating the data.
 	return r.networkAmbassador.Configure()
@@ -367,7 +360,7 @@ func (r *Module) Migrate() error {
 	}
 
 	// only migrate if did:nuts is activated on the node
-	if slices.Contains(r.SupportedMethods(), "nuts") {
+	if slices.Contains(r.supportedDIDMethods, "nuts") {
 		for _, m := range r.migrations {
 			log.Logger().Infof("Running did:nuts migration: '%s'", m.name)
 			m.migrate(owned)
@@ -452,7 +445,7 @@ func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
 }
 
 func (r *Module) migrateAddDIDWebToOwnedDIDNuts(owned []did.DID) {
-	if !slices.Contains(r.SupportedMethods(), "web") {
+	if !slices.Contains(r.supportedDIDMethods, "web") {
 		log.Logger().Info("did:web not in supported did methods. Abort migration.")
 		return
 	}

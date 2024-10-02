@@ -255,6 +255,7 @@ func setup(t *testing.T) testContext {
 		config.Strictmode = false
 		config.Verbosity = "trace"
 		config.Datadir = testDir
+		config.DIDMethods = []string{"nuts"}
 	})
 
 	// Configure the logger:
@@ -297,7 +298,6 @@ func setup(t *testing.T) testContext {
 		pkiValidator,
 	)
 	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
-	vdr.Config().(*Config).DIDMethods = []string{"nuts"}
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))

@@ -42,4 +42,6 @@ type AuthenticationServices interface {
 	PublicURL() *url.URL
 	// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
 	AuthorizationEndpointEnabled() bool
+	// SupportedDIDMethods list the DID methods configured for the nuts node in preferred order.
+	SupportedDIDMethods() []string
 }

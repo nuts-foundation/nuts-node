@@ -125,3 +125,17 @@ func (mr *MockAuthenticationServicesMockRecorder) RelyingParty() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RelyingParty", reflect.TypeOf((*MockAuthenticationServices)(nil).RelyingParty))
 }
+
+// SupportedDIDMethods mocks base method.
+func (m *MockAuthenticationServices) SupportedDIDMethods() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SupportedDIDMethods")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// SupportedDIDMethods indicates an expected call of SupportedDIDMethods.
+func (mr *MockAuthenticationServicesMockRecorder) SupportedDIDMethods() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SupportedDIDMethods", reflect.TypeOf((*MockAuthenticationServices)(nil).SupportedDIDMethods))
+}

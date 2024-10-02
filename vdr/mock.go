@@ -128,17 +128,3 @@ func (mr *MockVDRMockRecorder) Resolver() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Resolver", reflect.TypeOf((*MockVDR)(nil).Resolver))
 }
-
-// SupportedMethods mocks base method.
-func (m *MockVDR) SupportedMethods() []string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SupportedMethods")
-	ret0, _ := ret[0].([]string)
-	return ret0
-}
-
-// SupportedMethods indicates an expected call of SupportedMethods.
-func (mr *MockVDRMockRecorder) SupportedMethods() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SupportedMethods", reflect.TypeOf((*MockVDR)(nil).SupportedMethods))
-}
