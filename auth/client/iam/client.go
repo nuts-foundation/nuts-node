@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -39,6 +40,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
+
+// ErrInvalidClientCall is returned when the node makes a http call as client based on wrong information passed by the client.
+var ErrInvalidClientCall = errors.New("invalid client call")
+
+// ErrBadGateway is returned when the node makes a http call as client and the upstream returns an unexpected result.
+var ErrBadGateway = errors.New("upstream returned unexpected result")
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
@@ -63,7 +70,14 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	}
 	var metadata oauth.AuthorizationServerMetadata
 	if err = hb.doGet(ctx, metadataURL.String(), &metadata); err != nil {
-		return nil, err
+		// if this is a core.HttpError and the status code >= 500 then we want the caller to receive a 502 Bad Gateway
+		// we do this by changing the status code of the error
+		// any other error should result in a 400 Bad Request
+		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode >= 500 {
+			httpErr.StatusCode = http.StatusBadGateway
+			return nil, httpErr
+		}
+		return nil, errors.Join(ErrInvalidClientCall, err)
 	}
 	return &metadata, err
 }
@@ -93,6 +107,16 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 		return nil, err
 	}
 	var presentationDefinition pe.PresentationDefinition
+	err = hb.doRequest(ctx, request, &presentationDefinition)
+	if err != nil {
+		// a 404 (defined by scope) should result in a 400 for the client
+		// any other error should result in a 502 Bad Gateway
+		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode == 404 {
+			return nil, errors.Join(ErrInvalidClientCall, err)
+		}
+		return nil, errors.Join(ErrBadGateway, err)
+	}
+
 	return &presentationDefinition, hb.doRequest(ctx, request, &presentationDefinition)
 }
 

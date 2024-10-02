@@ -336,6 +336,43 @@ func (mr *MockManagerMockRecorder) UpdateService(ctx, subject, serviceID, servic
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockManager)(nil).UpdateService), ctx, subject, serviceID, service)
 }
 
+// MockDocumentMigration is a mock of DocumentMigration interface.
+type MockDocumentMigration struct {
+	ctrl     *gomock.Controller
+	recorder *MockDocumentMigrationMockRecorder
+}
+
+// MockDocumentMigrationMockRecorder is the mock recorder for MockDocumentMigration.
+type MockDocumentMigrationMockRecorder struct {
+	mock *MockDocumentMigration
+}
+
+// NewMockDocumentMigration creates a new mock instance.
+func NewMockDocumentMigration(ctrl *gomock.Controller) *MockDocumentMigration {
+	mock := &MockDocumentMigration{ctrl: ctrl}
+	mock.recorder = &MockDocumentMigrationMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDocumentMigration) EXPECT() *MockDocumentMigrationMockRecorder {
+	return m.recorder
+}
+
+// MigrateDIDHistoryToSQL mocks base method.
+func (m *MockDocumentMigration) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(did.DID, int) ([]orm.MigrationDocument, error)) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MigrateDIDHistoryToSQL", id, subject, getHistory)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MigrateDIDHistoryToSQL indicates an expected call of MigrateDIDHistoryToSQL.
+func (mr *MockDocumentMigrationMockRecorder) MigrateDIDHistoryToSQL(id, subject, getHistory any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MigrateDIDHistoryToSQL", reflect.TypeOf((*MockDocumentMigration)(nil).MigrateDIDHistoryToSQL), id, subject, getHistory)
+}
+
 // MockCreationOptions is a mock of CreationOptions interface.
 type MockCreationOptions struct {
 	ctrl     *gomock.Controller
