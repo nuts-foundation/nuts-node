@@ -22,6 +22,7 @@ package iam
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -45,6 +46,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
+
+// ErrPreconditionFailed is returned when a precondition is not met.
+var ErrPreconditionFailed = errors.New("precondition failed")
 
 var _ Client = (*OpenID4VPClient)(nil)
 
@@ -282,7 +286,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		for key := range maps.Keys(allMethods) {
 			availableMethods = append(availableMethods, key)
 		}
-		return nil, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, availableMethods)
+		return nil, errors.Join(ErrPreconditionFailed, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, availableMethods))
 	}
 
 	// each additional credential can be used by each DID
@@ -320,7 +324,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		}
 		dpopHeader, dpopKid, err = c.dpop(ctx, *subjectDID, *request)
 		if err != nil {
-			return nil, fmt.Errorf("failed tocreate DPoP header: %w", err)
+			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
 		}
 	}
 

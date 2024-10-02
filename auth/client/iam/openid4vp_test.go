@@ -230,7 +230,8 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 		_, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.tlsServer.URL)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
+		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
 	})
 }
 
@@ -275,7 +276,9 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
-		assert.EqualError(t, err, "did method mismatch, requested: [other], available: [test]")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrPreconditionFailed)
+		assert.ErrorContains(t, err, "did method mismatch, requested: [other], available: [test]")
 		assert.Nil(t, response)
 	})
 	t.Run("with additional credentials", func(t *testing.T) {
@@ -357,8 +360,9 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve presentation definition: server returned HTTP 404 (expected: 200)")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
+		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
 	})
 	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -366,8 +370,9 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve remote OAuth Authorization Server metadata: server returned HTTP 404 (expected: 200)")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
+		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -379,8 +384,9 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
-		assert.Error(t, err)
-		assert.EqualError(t, err, "failed to retrieve presentation definition: unable to unmarshal response: unexpected end of JSON input")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBadGateway)
+		assert.ErrorContains(t, err, "unable to unmarshal response: unexpected end of JSON input")
 	})
 	t.Run("error - failed to build vp", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)

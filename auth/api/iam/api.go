@@ -27,33 +27,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/http/cache"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
+	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/http/cache"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -202,6 +203,9 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		pe.ErrNoCredentials:                 http.StatusPreconditionFailed,
 		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
+		iamclient.ErrInvalidClientCall:      http.StatusBadRequest,
+		iamclient.ErrBadGateway:             http.StatusBadGateway,
+		iamclient.ErrPreconditionFailed:     http.StatusPreconditionFailed,
 	})
 }
 
