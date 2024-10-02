@@ -10,14 +10,14 @@ Nuts node v6 runs several migrations on startup for DID documents that are manag
 3. Add a ``did:web`` document with the same services to the same ``subject``.
 
 **Migration: convert did:nuts to self-control**
-Requires ``vdr.didmethods`` to contain ``nuts``.
+Requires ``didmethods`` to contain ``nuts``.
 
 Previously, DID documents could either by under self-control or under control of another DID as was recommended for vendor and care organisation, respectively.
 In the new situation a user manages ``subject``s, and the node manages all DIDs under the ``subject``.
 To reduce complexity and allow future adoption of other did methods, all documents will be under self-control from v6.
 
 **Migration: convert did:nuts to subject**
-Requires ``vdr.didmethods`` to contain ``nuts``.
+Requires ``didmethods`` to contain ``nuts``.
 
 All owned ``did:nuts`` DID documents will be migrated to the new SQL storage.
 This migration includes all historic document updates as published upto a potential deactivation of the document.
@@ -28,10 +28,10 @@ See ``/status/diagnostics`` if you own any DIDs with a document conflict. If so,
 .. note::
 
     The document migration will run on every restart of the node, meaning that any updates made using the VDR V1 API will be migrated on the next restart.
-    However, any changes made via the V1 API wil NOT propagate to other DID documents under the same ``subject``, so you MUST set ``vdr.didmethods = ["nuts"]`` to use the V1 API.
+    However, any changes made via the V1 API wil NOT propagate to other DID documents under the same ``subject``, so you MUST set ``didmethods = ["nuts"]`` to use the V1 API.
 
 **Migration: add did:web to subjects**
-Requires ``vdr.didmethods`` to contain ``web`` and ``nuts`` (default).
+Requires ``didmethods`` to contain ``web`` and ``nuts`` (default).
 
 This migration adds a new ``did:web`` DID Document to owned subjects that do not already have one.
 All services from the ``did:nuts`` DID Document are copied to the new document.
