@@ -109,10 +109,10 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	var presentationDefinition pe.PresentationDefinition
 	err = hb.doRequest(ctx, request, &presentationDefinition)
 	if err != nil {
-		// a 404 (defined by scope) should result in a 400 for the client
+		// any OAuth error should be passed
 		// any other error should result in a 502 Bad Gateway
-		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode == 404 {
-			return nil, errors.Join(ErrInvalidClientCall, err)
+		if oauthErr, ok := err.(oauth.OAuth2Error); ok {
+			return nil, oauthErr
 		}
 		return nil, errors.Join(ErrBadGateway, err)
 	}
@@ -397,6 +397,9 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
 		rse := httpErr.(core.HttpError)
 		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
+			return oauthErr
+		}
+		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidRequest); ok {
 			return oauthErr
 		}
 		return httpErr

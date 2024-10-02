@@ -1526,22 +1526,13 @@ func (response PresentationDefinition200JSONResponse) VisitPresentationDefinitio
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PresentationDefinitiondefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+type PresentationDefinitiondefaultJSONResponse struct {
+	Body       ErrorResponse
 	StatusCode int
 }
 
-func (response PresentationDefinitiondefaultApplicationProblemPlusJSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
+func (response PresentationDefinitiondefaultJSONResponse) VisitPresentationDefinitionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(response.StatusCode)
 
 	return json.NewEncoder(w).Encode(response.Body)

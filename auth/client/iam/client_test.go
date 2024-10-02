@@ -109,6 +109,28 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
 	})
+	t.Run("error - generic error results in 502", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
+		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
+
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBadGateway)
+	})
+	t.Run("error - oauth error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
+		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
+
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
+
+		require.Error(t, err)
+		oauthErr, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok)
+		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+	})
 }
 
 func TestHTTPClient_AccessToken(t *testing.T) {
