@@ -16,7 +16,11 @@ require (
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.15.0
-	github.com/knadh/koanf v1.5.0
+	github.com/knadh/koanf/parsers/yaml v0.1.0
+	github.com/knadh/koanf/providers/env v1.0.0
+	github.com/knadh/koanf/providers/file v1.1.0
+	github.com/knadh/koanf/providers/posflag v0.1.0
+	github.com/knadh/koanf/providers/structs v0.1.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/lestrrat-go/jwx/v2 v2.1.1
 	github.com/magiconair/properties v1.8.7
@@ -87,7 +91,7 @@ require (
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/eknkc/basex v1.0.1 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
-	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fxamacker/cbor v1.5.1 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-chi/chi/v5 v5.0.10 // indirect
@@ -124,9 +128,9 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
+	github.com/knadh/koanf/maps v0.1.1 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.2 // indirect
@@ -198,4 +202,9 @@ require (
 	modernc.org/memory v1.8.0 // indirect
 	modernc.org/sqlite v1.32.0 // indirect
 	rsc.io/qr v0.2.0 // indirect
+)
+
+require (
+	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1 // indirect
+	github.com/knadh/koanf/v2 v2.1.1 // indirect
 )

@@ -21,13 +21,13 @@ package core
 
 import (
 	"fmt"
+	"github.com/knadh/koanf/v2"
 	"github.com/spf13/cobra"
 	"os"
 	"path"
 	"strings"
 	"time"
 
-	"github.com/knadh/koanf"
 	"github.com/spf13/pflag"
 )
 
