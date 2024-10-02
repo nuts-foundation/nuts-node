@@ -208,9 +208,8 @@ paths:
       summary: Used by relying parties to obtain a presentation definition for desired scopes as specified by Nuts RFC021.
       description: |
         The presentation definition (specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/) is a JSON object that describes the desired verifiable credentials and presentation formats.
-        A presentation definition is matched against a wallet. If verifiable credentials matching the definition are found, 
-        a presentation can created together with a presentation submission.
-        The API returns an array of definitions, one per scope/backend combination if applicable.
+        
+        It returns OAuth2 errors as specified by https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2, specifically: invalid_request and invalid_scope.
       operationId: presentationDefinition
       tags:
         - oauth2
@@ -241,8 +240,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PresentationDefinition"
-        "default":
-          $ref: '../common/error_response.yaml'
+        default:
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /oauth2/{subjectID}/response:
     post:
       summary: Used by wallets to post the authorization response or error to.

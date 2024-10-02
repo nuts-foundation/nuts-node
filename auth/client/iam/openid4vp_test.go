@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	test2 "github.com/nuts-foundation/nuts-node/test"
@@ -356,13 +357,19 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("error - failed to get presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.presentationDefinition = nil
+		ctx.presentationDefinition = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusBadRequest)
+			bytes, _ := json.Marshal(oauth.OAuth2Error{Code: oauth.InvalidScope})
+			_, _ = writer.Write(bytes)
+			return
+		}
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.True(t, errors.As(err, &oauth.OAuth2Error{}))
+		assert.ErrorContains(t, err, string(oauth.InvalidScope))
 	})
 	t.Run("error - failed to get authorization server metadata", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
