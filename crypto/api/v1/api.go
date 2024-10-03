@@ -194,7 +194,10 @@ func (w *Wrapper) resolvePublicKey(id *did.DIDURL) (key crypt.PublicKey, keyID s
 	if id.Fragment != "" {
 		// Assume it is a keyId
 		now := time.Now()
-		key, err = w.K.ResolveKeyByID(id.String(), &now, resolver.KeyAgreement)
+		metadata := &resolver.ResolveMetadata{
+			ResolveTime: &now,
+		}
+		key, err = w.K.ResolveKeyByID(id.String(), metadata, resolver.KeyAgreement)
 		if err != nil {
 			return nil, "", err
 		}

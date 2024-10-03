@@ -27,6 +27,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"slices"
 	"sync"
@@ -45,6 +46,7 @@ import (
 	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -77,6 +79,7 @@ type Module struct {
 	keyStore         crypto.KeyStore
 	storageInstance  storage.Engine
 	eventManager     events.Event
+	pkiValidator     pki.Validator
 
 	// new style DID management
 	didsubject.Manager
@@ -113,7 +116,7 @@ func (r *Module) SupportedMethods() []string {
 
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
-	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine) *Module {
+	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine, pkiValidator pki.Validator) *Module {
 	m := &Module{
 		didResolver:     &resolver.DIDResolverRouter{},
 		network:         networkClient,
@@ -121,6 +124,7 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 		store:           didStore,
 		keyStore:        cryptoClient,
 		storageInstance: storageInstance,
+		pkiValidator:    pkiValidator,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -161,6 +165,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didx509.MethodName, didx509.NewResolver(r.pkiValidator))
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 

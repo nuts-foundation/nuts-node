@@ -41,7 +41,7 @@ type KeyResolver interface {
 	// ResolveKeyByID looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
-	ResolveKeyByID(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error)
+	ResolveKeyByID(keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error)
 	// ResolveKey looks for a valid key of the given RelationType for the given DID, and returns its ID as string and the public key.
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
@@ -65,14 +65,12 @@ type DIDKeyResolver struct {
 	Resolver DIDResolver
 }
 
-func (r DIDKeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error) {
+func (r DIDKeyResolver) ResolveKeyByID(keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error) {
 	holder, err := GetDIDFromURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
 	}
-	doc, _, err := r.Resolver.Resolve(holder, &ResolveMetadata{
-		ResolveTime: validAt,
-	})
+	doc, _, err := r.Resolver.Resolve(holder, metadata)
 	if err != nil {
 		return nil, err
 	}

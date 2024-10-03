@@ -59,18 +59,18 @@ func (mr *MockKeyResolverMockRecorder) ResolveKey(id, validAt, relationType any)
 }
 
 // ResolveKeyByID mocks base method.
-func (m *MockKeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType RelationType) (crypto.PublicKey, error) {
+func (m *MockKeyResolver) ResolveKeyByID(keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ResolveKeyByID", keyID, validAt, relationType)
+	ret := m.ctrl.Call(m, "ResolveKeyByID", keyID, metadata, relationType)
 	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ResolveKeyByID indicates an expected call of ResolveKeyByID.
-func (mr *MockKeyResolverMockRecorder) ResolveKeyByID(keyID, validAt, relationType any) *gomock.Call {
+func (mr *MockKeyResolverMockRecorder) ResolveKeyByID(keyID, metadata, relationType any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveKeyByID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveKeyByID), keyID, validAt, relationType)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveKeyByID", reflect.TypeOf((*MockKeyResolver)(nil).ResolveKeyByID), keyID, metadata, relationType)
 }
 
 // MockNutsKeyResolver is a mock of NutsKeyResolver interface.

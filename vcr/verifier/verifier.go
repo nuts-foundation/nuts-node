@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
@@ -161,7 +162,21 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check signature
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
-		_, _, err := v.didResolver.Resolve(*issuerDID, &resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
+		if issuerDID.Method == "x509" {
+			rawJwt := credentialToVerify.Raw()
+			if rawJwt != "" {
+				message, _ := jws.ParseString(rawJwt)
+				if message != nil && len(message.Signatures()) > 0 {
+					headers := message.Signatures()[0].ProtectedHeaders()
+					metadata.X509CertThumbprint = headers.X509CertThumbprint()
+					metadata.X509CertChain = headers.X509CertChain()
+					metadata.X509CertThumbprintS256 = headers.X509CertThumbprintS256()
+				}
+
+			}
+		}
+		_, _, err := v.didResolver.Resolve(*issuerDID, &metadata)
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}
@@ -219,8 +234,10 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	if vmIssuer != revocation.Issuer.String() {
 		return errVerificationMethodNotOfIssuer
 	}
-
-	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType)
+	metadata := &resolver.ResolveMetadata{
+		ResolveTime: &revocation.Date,
+	}
+	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}

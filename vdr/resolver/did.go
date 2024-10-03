@@ -20,6 +20,7 @@ package resolver
 
 import (
 	"errors"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"sync"
@@ -139,6 +140,12 @@ type ResolveMetadata struct {
 	SourceTransaction *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
+	// JWT x5c Header
+	X509CertChain *cert.Chain
+	// JWT x5t Header
+	X509CertThumbprint string
+	// JWT x5t#S256 Header
+	X509CertThumbprintS256 string
 }
 
 var _ DIDResolver = &DIDResolverRouter{}

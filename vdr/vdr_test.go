@@ -34,6 +34,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
@@ -77,7 +78,8 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 	mockDocumentManager := didsubject.NewMockDocumentManager(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	resolverRouter := &resolver.DIDResolverRouter{}
-	vdr := NewVDR(keyStore, mockNetwork, mockStore, nil, nil)
+	pkiMock := pki.NewMockValidator(ctrl)
+	vdr := NewVDR(keyStore, mockNetwork, mockStore, nil, nil, pkiMock)
 	vdr.networkAmbassador = mockAmbassador
 	vdr.nutsDocumentManager = mockDocumentManager
 	vdr.documentOwner = mockDocumentOwner
@@ -102,7 +104,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 }
 
 func TestNewVDR(t *testing.T) {
-	vdr := NewVDR(nil, nil, nil, nil, nil)
+	vdr := NewVDR(nil, nil, nil, nil, nil, nil)
 	assert.IsType(t, &Module{}, vdr)
 }
 
@@ -145,7 +147,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 	t.Run("diagnostics", func(t *testing.T) {
 		t.Run("ok - no conflicts/no documents", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			results := vdr.Diagnostics()
 
@@ -155,7 +157,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
 			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
@@ -174,7 +176,9 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
 			_, _, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
-			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storageEngine)
+			ctrl := gomock.NewController(t)
+			pkiMock := pki.NewMockValidator(ctrl)
+			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storageEngine, pkiMock)
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			didDocument := did.Document{ID: TestDIDA}
@@ -206,9 +210,11 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL("did:nuts:org#keyOrg-1"), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg)
 			require.NoError(t, err)
 			didDocOrg.AddCapabilityInvocation(orgVM)
+			ctrl := gomock.NewController(t)
+			pkiMock := pki.NewMockValidator(ctrl)
 
 			// change vdr to allow for Configure()
-			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, test.storageEngine)
+			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, test.storageEngine, pkiMock)
 			tmpResolver := vdr.didResolver
 			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
@@ -226,7 +232,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 	})
 	t.Run("list", func(t *testing.T) {
 		t.Run("ok - no conflicts", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			docs, meta, err := vdr.ConflictedDocuments()
 
@@ -236,7 +242,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		})
 
 		t.Run("ok - 1 conflict", func(t *testing.T) {
-			vdr := NewVDR(nil, nil, nil, nil, nil)
+			vdr := NewVDR(nil, nil, nil, nil, nil, nil)
 			vdr.store = didstore.NewTestStore(t)
 			didDocument := did.Document{ID: TestDIDA}
 			_ = vdr.store.Add(didDocument, didstore.TestTransaction(didDocument))
@@ -252,6 +258,8 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 
 func TestVDR_Configure(t *testing.T) {
 	storageInstance := storage.NewTestStorageEngine(t)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
 	t.Run("it can resolve using did:web", func(t *testing.T) {
 		t.Run("not in database", func(t *testing.T) {
 			client.DefaultCachingTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
@@ -261,8 +269,7 @@ func TestVDR_Configure(t *testing.T) {
 					Body:       io.NopCloser(strings.NewReader(`{"id": "did:web:example.com"}`)),
 				}, nil
 			})
-
-			instance := NewVDR(nil, nil, nil, nil, storageInstance)
+			instance := NewVDR(nil, nil, nil, nil, storageInstance, pkiMock)
 			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
 			require.NoError(t, err)
@@ -275,7 +282,9 @@ func TestVDR_Configure(t *testing.T) {
 		})
 		t.Run("resolves local DID from database", func(t *testing.T) {
 			db := storageInstance.GetSQLDatabase()
-			instance := NewVDR(nutsCrypto.NewDatabaseCryptoInstance(db), nil, nil, nil, storageInstance)
+			ctrl := gomock.NewController(t)
+			pkiMock := pki.NewMockValidator(ctrl)
+			instance := NewVDR(nutsCrypto.NewDatabaseCryptoInstance(db), nil, nil, nil, storageInstance, pkiMock)
 			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
 			require.NoError(t, err)
@@ -304,7 +313,7 @@ func TestVDR_Configure(t *testing.T) {
 		inputDID, err := did.ParseDID(inputDIDString)
 		require.NoError(t, err)
 
-		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance := NewVDR(nil, nil, nil, nil, storageInstance, pkiMock)
 		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
@@ -319,7 +328,7 @@ func TestVDR_Configure(t *testing.T) {
 		assert.Equal(t, "P-256", doc.VerificationMethod[0].PublicKeyJwk["crv"])
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
-		instance := NewVDR(nil, nil, nil, nil, storageInstance)
+		instance := NewVDR(nil, nil, nil, nil, storageInstance, pkiMock)
 		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
