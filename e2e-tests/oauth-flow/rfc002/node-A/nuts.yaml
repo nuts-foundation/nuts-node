@@ -1,5 +1,5 @@
 url: http://node-A
-didmethods: ["web"]
+didmethods: ["nuts"]
 verbosity: debug
 strictmode: false
 internalratelimiter: false
