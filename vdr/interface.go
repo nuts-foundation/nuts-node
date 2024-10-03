@@ -37,8 +37,6 @@ type VDR interface {
 	ResolveManaged(id did.DID) (*did.Document, error)
 	// Resolver returns the resolver for getting the DID document for a DID.
 	Resolver() resolver.DIDResolver
-	// SupportedMethods returns the activated DID methods.
-	SupportedMethods() []string
 	// ConflictedDocuments returns the DID Document and metadata of all documents with a conflict.
 	ConflictedDocuments() ([]did.Document, []resolver.DocumentMetadata, error)
 	// PublicURL returns the public URL of the Nuts node, which is used as base URL for web-based DIDs.

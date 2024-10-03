@@ -62,7 +62,7 @@ DID management
 
 You no longer manage changes to DIDs but to Subjects. Each subject has multiple DIDs, one for each enabled DID method.
 You're free to choose an ID for a Subject. This feature enables forwards compatibility with new DID methods.
-DID methods can be enabled and disabled via the ``vdr.didmethods`` config parameter. (Default: ``['web','nuts']``).
+DID methods can be enabled and disabled via the ``didmethods`` config parameter. (Default: ``['web','nuts']``).
 Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID.
 See :ref:`nuts-node-migrations` for more information.
 

@@ -30,25 +30,12 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr"
 	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
 	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
-
-// FlagSet contains flags relevant for the VDR instance
-func FlagSet() *pflag.FlagSet {
-	flagSet := pflag.NewFlagSet("vdr", pflag.ContinueOnError)
-
-	defs := vdr.DefaultConfig()
-
-	flagSet.StringSlice("vdr.didmethods", defs.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). "+
-		"It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.")
-	return flagSet
-}
 
 // Cmd contains sub-commands for the remote client
 func Cmd() *cobra.Command {

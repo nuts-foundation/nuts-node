@@ -61,11 +61,12 @@ type TestContext struct {
 var _ pkg2.AuthenticationServices = &mockAuthClient{}
 
 type mockAuthClient struct {
-	ctrl           *gomock.Controller
-	authzServer    *oauth.MockAuthorizationServer
-	contractNotary *services.MockContractNotary
-	iamClient      *iam.MockClient
-	relyingParty   *oauth.MockRelyingParty
+	ctrl                *gomock.Controller
+	authzServer         *oauth.MockAuthorizationServer
+	contractNotary      *services.MockContractNotary
+	iamClient           *iam.MockClient
+	relyingParty        *oauth.MockRelyingParty
+	supportedDIDMethods []string
 }
 
 func (m *mockAuthClient) AuthorizationEndpointEnabled() bool {
@@ -92,6 +93,10 @@ func (m *mockAuthClient) PublicURL() *url.URL {
 	return nil
 }
 
+func (m *mockAuthClient) SupportedDIDMethods() []string {
+	return m.supportedDIDMethods
+}
+
 func createContext(t *testing.T) *TestContext {
 	t.Helper()
 	ctrl := gomock.NewController(t)
@@ -102,11 +107,12 @@ func createContext(t *testing.T) *TestContext {
 	iamClient := iam.NewMockClient(ctrl)
 
 	authMock := &mockAuthClient{
-		ctrl:           ctrl,
-		contractNotary: contractNotary,
-		authzServer:    authzServer,
-		relyingParty:   relyingParty,
-		iamClient:      iamClient,
+		ctrl:                ctrl,
+		contractNotary:      contractNotary,
+		authzServer:         authzServer,
+		relyingParty:        relyingParty,
+		iamClient:           iamClient,
+		supportedDIDMethods: []string{"web", "nuts"},
 	}
 
 	requestCtx := audit.TestContext()

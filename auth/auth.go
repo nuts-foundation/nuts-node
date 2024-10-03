@@ -46,22 +46,23 @@ var _ AuthenticationServices = (*Auth)(nil)
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config            Config
-	jsonldManager     jsonld.JSONLD
-	authzServer       oauth.AuthorizationServer
-	relyingParty      oauth.RelyingParty
-	contractNotary    services.ContractNotary
-	serviceResolver   didman.CompoundServiceResolver
-	keyStore          crypto.KeyStore
-	vcr               vcr.VCR
-	pkiProvider       pki.Provider
-	shutdownFunc      func()
-	vdrInstance       vdr.VDR
-	publicURL         *url.URL
-	strictMode        bool
-	httpClientTimeout time.Duration
-	tlsConfig         *tls.Config
-	subjectManager    didsubject.Manager
+	config              Config
+	jsonldManager       jsonld.JSONLD
+	authzServer         oauth.AuthorizationServer
+	relyingParty        oauth.RelyingParty
+	contractNotary      services.ContractNotary
+	serviceResolver     didman.CompoundServiceResolver
+	keyStore            crypto.KeyStore
+	vcr                 vcr.VCR
+	pkiProvider         pki.Provider
+	shutdownFunc        func()
+	vdrInstance         vdr.VDR
+	publicURL           *url.URL
+	strictMode          bool
+	httpClientTimeout   time.Duration
+	tlsConfig           *tls.Config
+	subjectManager      didsubject.Manager
+	supportedDIDMethods []string
 }
 
 // Name returns the name of the module.
@@ -136,6 +137,8 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
+	auth.supportedDIDMethods = config.DIDMethods
+
 	auth.contractNotary = notary.NewNotary(notary.Config{
 		PublicURL:             auth.publicURL.String(),
 		IrmaConfigPath:        path.Join(config.Datadir, "irma"),
@@ -173,6 +176,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	}
 
 	return nil
+}
+
+func (auth *Auth) SupportedDIDMethods() []string {
+	return auth.supportedDIDMethods
 }
 
 // Start starts the Auth engine (Noop)

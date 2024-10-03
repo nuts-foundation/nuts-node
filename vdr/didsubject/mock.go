@@ -359,6 +359,20 @@ func (m *MockDocumentMigration) EXPECT() *MockDocumentMigrationMockRecorder {
 	return m.recorder
 }
 
+// MigrateAddWebToNuts mocks base method.
+func (m *MockDocumentMigration) MigrateAddWebToNuts(ctx context.Context, id did.DID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MigrateAddWebToNuts", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MigrateAddWebToNuts indicates an expected call of MigrateAddWebToNuts.
+func (mr *MockDocumentMigrationMockRecorder) MigrateAddWebToNuts(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MigrateAddWebToNuts", reflect.TypeOf((*MockDocumentMigration)(nil).MigrateAddWebToNuts), ctx, id)
+}
+
 // MigrateDIDHistoryToSQL mocks base method.
 func (m *MockDocumentMigration) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(did.DID, int) ([]orm.MigrationDocument, error)) error {
 	m.ctrl.T.Helper()

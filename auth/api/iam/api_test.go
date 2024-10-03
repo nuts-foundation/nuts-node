@@ -1419,7 +1419,6 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	vcIssuer := issuer.NewMockIssuer(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	iamClient := iam.NewMockClient(ctrl)
-	mockVDR := vdr.NewMockVDR(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	subjectManager := didsubject.NewMockManager(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
@@ -1430,14 +1429,12 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
+	authnServices.EXPECT().SupportedDIDMethods().Return([]string{"web"}).AnyTimes()
 	mockVCR.EXPECT().Issuer().Return(vcIssuer).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
 	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
-	mockVDR.EXPECT().Resolver().Return(mockResolver).AnyTimes()
-	mockVDR.EXPECT().DocumentOwner().Return(mockDocumentOwner).AnyTimes()
-	mockVDR.EXPECT().SupportedMethods().Return([]string{"web"}).AnyTimes()
 
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
@@ -1449,7 +1446,6 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 
 	client := &Wrapper{
 		auth:           authnServices,
-		vdr:            mockVDR,
 		subjectManager: subjectManager,
 		vcr:            mockVCR,
 		storageEngine:  storageEngine,
@@ -1466,7 +1462,6 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		vcIssuer:       vcIssuer,
 		vcVerifier:     vcVerifier,
 		resolver:       mockResolver,
-		vdr:            mockVDR,
 		documentOwner:  mockDocumentOwner,
 		subjectManager: subjectManager,
 		iamClient:      iamClient,

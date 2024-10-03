@@ -206,20 +206,18 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	policyInstance := policy.New()
 
 	// Register HTTP routes
+	didKeyResolver := resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}
 	system.RegisterRoutes(&core.LandingPage{})
-	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}})
+	system.RegisterRoutes(&cryptoAPI.Wrapper{C: cryptoInstance, K: didKeyResolver})
 	system.RegisterRoutes(&networkAPI.Wrapper{Service: networkInstance})
 	system.RegisterRoutes(&vdrAPI.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&vdrAPIv2.Wrapper{VDR: vdrInstance, SubjectManager: vdrInstance})
 	system.RegisterRoutes(&vcrAPI.Wrapper{VCR: credentialInstance, ContextManager: jsonld, SubjectManager: vdrInstance})
-	system.RegisterRoutes(&openid4vciAPI.Wrapper{
-		VCR: credentialInstance,
-		VDR: vdrInstance,
-	})
+	system.RegisterRoutes(&openid4vciAPI.Wrapper{VCR: credentialInstance, VDR: vdrInstance})
 	system.RegisterRoutes(statusEngine.(core.Routable))
 	system.RegisterRoutes(metricsEngine.(core.Routable))
 	system.RegisterRoutes(&authAPIv1.Wrapper{Auth: authInstance, CredentialResolver: credentialInstance})
-	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, vdrInstance, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
+	system.RegisterRoutes(authIAMAPI.New(authInstance, credentialInstance, didKeyResolver, vdrInstance, storageInstance, policyInstance, cryptoInstance, jsonld))
 	system.RegisterRoutes(&authMeansAPI.Wrapper{Auth: authInstance})
 	system.RegisterRoutes(&didmanAPI.Wrapper{Didman: didmanInstance})
 	system.RegisterRoutes(&discoveryAPI.Wrapper{Client: discoveryInstance})
@@ -334,7 +332,6 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(httpCmd.FlagSet())
 	set.AddFlagSet(storageCmd.FlagSet())
 	set.AddFlagSet(networkCmd.FlagSet())
-	set.AddFlagSet(vdrCmd.FlagSet())
 	set.AddFlagSet(vcrCmd.FlagSet())
 	set.AddFlagSet(jsonld.FlagSet())
 	set.AddFlagSet(authCmd.FlagSet())

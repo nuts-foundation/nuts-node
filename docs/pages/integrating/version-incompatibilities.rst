@@ -11,8 +11,8 @@ There's also a config parameter that allows you to limit the DID methods in use.
 Not all combinations of API usage and DID methods are supported.
 There are basically two options.
 
-1. Keep using the VDR V1 API (for now) and set ``vdr.didmethods`` to ``["nuts"]``.
-2. Use the VDR V2 API and set ``vdr.didmethods`` to include other methods or leave blank for default setting.
+1. Keep using the VDR V1 API (for now) and set ``didmethods`` to ``["nuts"]``.
+2. Use the VDR V2 API and set ``didmethods`` to include other methods or leave blank for default setting.
 
 Do not use the VDR V1 and VDR V2 API at the same time. This will lead to unexpected behavior.
 Once you use the VDR V2 API, you cannot go back to the VDR V1 API. The VDR V1 API has also been marked as deprecated.

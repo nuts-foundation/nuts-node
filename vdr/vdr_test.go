@@ -86,7 +86,7 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 		DB:             db,
 		MethodManagers: make(map[string]didsubject.MethodManager),
 	}
-	vdr.config = DefaultConfig()
+	vdr.supportedDIDMethods = []string{"web", "nuts"}
 	resolverRouter.Register(didnuts.MethodName, &didnuts.Resolver{Store: mockStore})
 	return vdrTestCtx{
 		ctrl:                ctrl,
@@ -176,7 +176,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			keyID.Fragment = "1"
 			_, _, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storageEngine)
-			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			didDocument := did.Document{ID: TestDIDA}
 
@@ -211,7 +210,6 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			// change vdr to allow for Configure()
 			vdr := NewVDR(test.keyStore, nil, didstore.NewTestStore(t), nil, test.storageEngine)
 			tmpResolver := vdr.didResolver
-			vdr.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 			_ = vdr.Configure(core.TestServerConfig())
 			vdr.didResolver = tmpResolver
 
@@ -264,8 +262,7 @@ func TestVDR_Configure(t *testing.T) {
 			})
 
 			instance := NewVDR(nil, nil, nil, nil, storageInstance)
-			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
-			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl"})
+			err := instance.Configure(core.ServerConfig{URL: "https://nuts.nl", DIDMethods: []string{"web", "nuts"}})
 			require.NoError(t, err)
 
 			doc, md, err := instance.Resolver().Resolve(did.MustParseDID("did:web:example.com"), nil)
@@ -277,8 +274,7 @@ func TestVDR_Configure(t *testing.T) {
 		t.Run("resolves local DID from database", func(t *testing.T) {
 			db := storageInstance.GetSQLDatabase()
 			instance := NewVDR(nutsCrypto.NewDatabaseCryptoInstance(db), nil, nil, nil, storageInstance)
-			instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
-			err := instance.Configure(core.ServerConfig{URL: "https://example.com"})
+			err := instance.Configure(core.ServerConfig{URL: "https://example.com", DIDMethods: []string{"web", "nuts"}})
 			require.NoError(t, err)
 			sqlDIDDocumentManager := didsubject.NewDIDDocumentManager(db)
 			sqlDID := orm.DID{
@@ -306,7 +302,6 @@ func TestVDR_Configure(t *testing.T) {
 		require.NoError(t, err)
 
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err = instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
@@ -321,7 +316,6 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:key", func(t *testing.T) {
 		instance := NewVDR(nil, nil, nil, nil, storageInstance)
-		instance.Config().(*Config).DIDMethods = []string{"web", "nuts"}
 		err := instance.Configure(core.TestServerConfig())
 		require.NoError(t, err)
 
@@ -486,7 +480,7 @@ func TestVDR_Migrate(t *testing.T) {
 			defer func() { logrus.StandardLogger().Level = logrus.WarnLevel }()
 			ctx := didwebMigrationSetup(t)
 			ctx.vdr.migrations = []migration{{ctx.vdr.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}}
-			ctx.vdr.config.DIDMethods = []string{"nuts"}
+			ctx.vdr.supportedDIDMethods = []string{"nuts"}
 			ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{TestDIDA}, nil)
 
 			err := ctx.vdr.Migrate()
