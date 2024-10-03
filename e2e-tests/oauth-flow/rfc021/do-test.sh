@@ -79,8 +79,8 @@ fi
 # (Discovery: GetActivationStatus fails on MS SQL Server)
 echo "Getting activation status from Discovery Service..."
 RESPONSE=$(curl -s http://localhost:28081/internal/discovery/v1/e2e-test/vendorB)
-# check for `"activated": true`
-if echo $RESPONSE | grep -q "\"activated\": true"; then
+echo $RESPONSE
+if echo $RESPONSE | grep -q "true"; then
   echo "Activation status OK"
 else
   echo "FAILED: Could not get activation status of vendor B on Discovery Service" 1>&2

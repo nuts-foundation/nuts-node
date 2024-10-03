@@ -121,6 +121,7 @@ func (cs *StatusList2021) isManaged(subjectID string) bool {
 	var exists bool
 	cs.db.Model(new(credentialIssuerRecord)).
 		Select("count(*) > 0").
+		Group("subject_id").
 		Where("subject_id = ?", subjectID).
 		First(&exists)
 	return exists
@@ -423,6 +424,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		err = tx.Model(new(credentialRecord)).
 			Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
 			Select("count(*) > 0").
+			Group("subject_id").
 			Where("subject_id = ?", entry.StatusListCredential).
 			First(new(bool)).
 			Error
