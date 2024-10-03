@@ -89,7 +89,7 @@ type presentationRefreshRecord struct {
 	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
 	Parameters []byte
 	// PresentationRefreshError is the error message that occurred during the refresh attempt.
-	PresentationRefreshError presentationRefreshError `gorm:"foreignKey:ServiceID,SubjectID"`
+	PresentationRefreshError presentationRefreshError `gorm:"-"`
 }
 
 // TableName returns the table name for this DTO.
@@ -353,11 +353,15 @@ func (s *sqlStore) updatePresentationRefreshTime(serviceID string, subjectID str
 
 func (s *sqlStore) getPresentationRefreshRecord(serviceID string, subjectID string) (*presentationRefreshRecord, error) {
 	var row presentationRefreshRecord
-	if err := s.db.Preload("PresentationRefreshError").Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+	if err := s.db.Find(&row, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
 		return nil, err
 	}
 	if row.NextRefresh == 0 {
 		return nil, nil
+	}
+	// Load presentationRefreshError
+	if err := s.db.Find(&row.PresentationRefreshError, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
+		return nil, err
 	}
 	return &row, nil
 }
