@@ -359,7 +359,8 @@ func (s *sqlStore) getPresentationRefreshRecord(serviceID string, subjectID stri
 	if row.NextRefresh == 0 {
 		return nil, nil
 	}
-	// Load presentationRefreshError
+	// Load presentationRefreshError using a spearate query instead of using GORM's Preload, which fails on MS SQL Server if it spans multiple columns
+	// See https://github.com/nuts-foundation/nuts-node/issues/3442
 	if err := s.db.Find(&row.PresentationRefreshError, "service_id = ? AND subject_id = ?", serviceID, subjectID).Error; err != nil {
 		return nil, err
 	}
