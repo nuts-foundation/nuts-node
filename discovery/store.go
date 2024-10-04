@@ -89,6 +89,8 @@ type presentationRefreshRecord struct {
 	// Parameters is a serialized JSON object containing parameters that should be used when registering the subject on the service.
 	Parameters []byte
 	// PresentationRefreshError is the error message that occurred during the refresh attempt.
+	// It's loaded using a spearate query instead of using GORM's Preload, which fails on MS SQL Server if it spans multiple columns
+	// See https://github.com/nuts-foundation/nuts-node/issues/3442
 	PresentationRefreshError presentationRefreshError `gorm:"-"`
 }
 
