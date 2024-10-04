@@ -86,6 +86,20 @@ func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
 }
 
+// Disabled mocks base method.
+func (m *MockTransactions) Disabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Disabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Disabled indicates an expected call of Disabled.
+func (mr *MockTransactionsMockRecorder) Disabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Disabled", reflect.TypeOf((*MockTransactions)(nil).Disabled))
+}
+
 // DiscoverServices mocks base method.
 func (m *MockTransactions) DiscoverServices(updatedDID did.DID) {
 	m.ctrl.T.Helper()

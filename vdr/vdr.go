@@ -151,7 +151,10 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		}
 	}
 
-	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	// only create ambassador when did:nuts is enabled
+	if slices.Contains(r.supportedDIDMethods, "nuts") {
+		r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	}
 	db := r.storageInstance.GetSQLDatabase()
 
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
@@ -202,10 +205,17 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.supportedDIDMethods)
 
 	// Initiate the routines for auto-updating the data.
-	return r.networkAmbassador.Configure()
+	if r.networkAmbassador != nil {
+		return r.networkAmbassador.Configure()
+	}
+	return nil
 }
 
 func (r *Module) Start() error {
+	// nothing to start if did:nuts is disabled
+	if r.networkAmbassador == nil {
+		return nil
+	}
 	err := r.networkAmbassador.Start()
 	if err != nil {
 		return err

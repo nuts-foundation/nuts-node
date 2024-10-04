@@ -25,6 +25,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/network/log"
+	"net/http"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -42,10 +43,19 @@ type Wrapper struct {
 
 func (a *Wrapper) Routes(router core.EchoRouter) {
 	RegisterHandlers(router, NewStrictHandler(a, []StrictMiddlewareFunc{
+		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc { // fast fail if did:nuts is disabled
+			return func(ctx echo.Context, args interface{}) (interface{}, error) {
+				if a.Service.Disabled() {
+					return nil, network.ErrDIDNutsDisabled
+				}
+				return f(ctx, args)
+			}
+		},
 		func(f StrictHandlerFunc, operationID string) StrictHandlerFunc {
 			return func(ctx echo.Context, request interface{}) (response interface{}, err error) {
 				ctx.Set(core.OperationIDContextKey, operationID)
 				ctx.Set(core.ModuleNameContextKey, network.ModuleName)
+				ctx.Set(core.StatusCodeResolverContextKey, a)
 				return f(ctx, request)
 			}
 		},
@@ -53,6 +63,13 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 			return audit.StrictMiddleware(f, network.ModuleName, operationID)
 		},
 	}))
+}
+
+// ResolveStatusCode maps errors returned by this API to specific HTTP status codes.
+func (a *Wrapper) ResolveStatusCode(err error) int {
+	return core.ResolveStatusCode(err, map[error]int{
+		network.ErrDIDNutsDisabled: http.StatusBadRequest,
+	})
 }
 
 // ListTransactions lists all transactions
