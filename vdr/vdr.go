@@ -382,7 +382,8 @@ func (r *Module) allMigrations() []migration {
 	return []migration{ // key will be printed as description of the migration
 		{r.migrateRemoveControllerFromDIDNuts, "remove controller"}, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
 		{r.migrateHistoryOwnedDIDNuts, "document history"},
-		{r.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
+		// Disable migration until we have a fix for: https://github.com/nuts-foundation/nuts-node/issues/3444
+		//{r.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
 	}
 }
 
