@@ -99,7 +99,12 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
-			loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			if !errors.Is(err, pe.ErrNoCredentials) { // ignore missing credentials
+				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			} else {
+				// trace logging for missing credentials
+				log.Logger().Tracef("Missing credentials for Discovery Service (service=%s, subject=%s, did=%s): %s", service.ID, subjectID, subjectDID, err.Error())
+			}
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
 		}
