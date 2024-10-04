@@ -348,7 +348,7 @@ func TestVDR_Migrate(t *testing.T) {
 		ctx.mockDocumentOwner.EXPECT().ListOwned(gomock.Any()).Return([]did.DID{testDIDWeb}, nil)
 		err := ctx.vdr.Migrate()
 		assert.NoError(t, err)
-		assert.Len(t, ctx.vdr.migrations, 3) // confirm its running allMigrations() that currently is only did:nuts
+		assert.Len(t, ctx.vdr.migrations, 2) // confirm its running allMigrations() that currently is only did:nuts
 	})
 	t.Run("controller migration", func(t *testing.T) {
 		controllerMigrationSetup := func(t *testing.T) vdrTestCtx {
