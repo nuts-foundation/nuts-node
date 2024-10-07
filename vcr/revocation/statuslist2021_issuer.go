@@ -118,13 +118,13 @@ func (cs *StatusList2021) loadCredential(subjectID string) (*credentialRecord, e
 // isManaged returns true if the StatusList2021Credential is issued by this node.
 // returns false on db errors, or if the StatusList2021Credential does not exist.
 func (cs *StatusList2021) isManaged(subjectID string) bool {
-	var exists bool
+	var count int
 	cs.db.Model(new(credentialIssuerRecord)).
-		Select("count(*) > 0").
+		Select("count(*)").
 		Group("subject_id").
 		Where("subject_id = ?", subjectID).
-		First(&exists)
-	return exists
+		Find(&count)
+	return count > 0
 }
 
 func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, page int) (*vc.VerifiableCredential, error) {
@@ -426,7 +426,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 			Select("count(*) > 0").
 			Group("subject_id").
 			Where("subject_id = ?", entry.StatusListCredential).
-			First(new(bool)).
+			Find(new([]bool)).
 			Error
 		if err != nil {
 			return err
