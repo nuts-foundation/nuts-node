@@ -209,6 +209,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TokenIntrospectionResponse"
+        '400':
+          description: No token received. Possibly due to wrong Content-Type.
         '401':
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.
@@ -237,6 +239,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExtendedTokenIntrospectionResponse"
+        '400':
+          description: No token received. Possibly due to wrong Content-Type.
         '401':
           description: |
             This is returned when an OAuth2 Client is unauthorized to talk to the introspection endpoint.

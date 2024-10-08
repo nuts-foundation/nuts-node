@@ -337,6 +337,9 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
 func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
 	input := request.Body.Token
+	if input == "" {
+		return nil, core.InvalidInputError("missing token")
+	}
 	response, err := r.introspectAccessToken(input)
 	if err != nil {
 		return nil, err
@@ -365,9 +368,9 @@ func (r Wrapper) IntrospectAccessTokenExtended(_ context.Context, request Intros
 func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectionResponse, error) {
 	// Validate token
 	if input == "" {
-		// Return 200 + 'Active = false' when token is invalid or malformed
-		log.Logger().Debug("IntrospectAccessToken: missing token")
-		return nil, nil
+		// `token` is REQUIRED per RFC7662
+		// The input is also empty when using the wrong Content-Type
+		return nil, core.InvalidInputError("missing token")
 	}
 
 	token := AccessToken{}
