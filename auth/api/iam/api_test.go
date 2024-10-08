@@ -626,21 +626,24 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	ctx := newTestClient(t)
 	dpopToken, _, thumbprint := newSignedTestDPoP()
 
+	req := http.Request{Header: map[string][]string{"Content-Type": {"application/x-www-form-urlencoded"}}}
+	reqCtx := context.WithValue(context.Background(), httpRequestContextKey{}, &req)
+
 	// validate all fields are there after introspection
 	t.Run("error - no token provided", func(t *testing.T) {
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: ""}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: ""}})
 		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
 	t.Run("error - other store error", func(t *testing.T) {
 		// token is invalid JSON
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("err", "{"))
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "err"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "err"}})
 		assert.ErrorContains(t, err, "json: cannot unmarshal")
 		assert.Nil(t, res)
 	})
 	t.Run("error - does not exist", func(t *testing.T) {
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "does not exist"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "does not exist"}})
 		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
@@ -648,7 +651,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		token := AccessToken{Expiration: time.Now().Add(-time.Second)}
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
 		require.NoError(t, err)
 		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
@@ -670,7 +673,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		token := okToken
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
 		require.NoError(t, err)
 		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
@@ -684,7 +687,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		token := okToken
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
-		res, err := ctx.client.IntrospectAccessTokenExtended(context.Background(), IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessTokenExtended(reqCtx, IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
 		require.NoError(t, err)
 		tokenResponse, ok := res.(IntrospectAccessTokenExtended200JSONResponse)
@@ -703,7 +706,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
 		require.NoError(t, err)
 		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
@@ -719,7 +722,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		}
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("token", token))
 
-		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "token"}})
 
 		require.EqualError(t, err, "IntrospectAccessToken: InputDescriptorConstraintIdMap contains reserved claim name: iss")
 		require.Nil(t, res)
@@ -767,12 +770,25 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		res, err := ctx.client.IntrospectAccessTokenExtended(context.Background(), IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: token.Token}})
+		res, err := ctx.client.IntrospectAccessTokenExtended(reqCtx, IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: token.Token}})
 
 		require.NoError(t, err)
 		tokenResponse, err := json.Marshal(res)
 		assert.NoError(t, err)
 		assert.JSONEq(t, string(expectedResponse), string(tokenResponse))
+	})
+	t.Run("error - wrong Content-Type header", func(t *testing.T) {
+		req := http.Request{Header: map[string][]string{"Content-Type": {"something-else"}}}
+		reqCtx := context.WithValue(context.Background(), httpRequestContextKey{}, &req)
+		expectedErr := core.Error(http.StatusUnsupportedMediaType, "Content-Type MUST be set to application/x-www-form-urlencoded")
+
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "not-empty"}})
+		assert.ErrorIs(t, err, expectedErr)
+		assert.Nil(t, res)
+
+		resExt, err := ctx.client.IntrospectAccessTokenExtended(reqCtx, IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: "not-empty"}})
+		assert.ErrorIs(t, err, expectedErr)
+		assert.Nil(t, resExt)
 	})
 }
 
