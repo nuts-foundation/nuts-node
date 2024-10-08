@@ -229,13 +229,14 @@ func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.Verifiab
 // Wildcard matching is supported by prefixing or suffixing the value with an asterisk (*).
 // It returns the presentations which contain credentials that match the given query.
 func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
+	// first only select columns also used in group by clause
+	// if the query is empty, there's no need to do a join
 	stmt := s.db.Model(&presentationRecord{}).
-		Where("service_id = ?", serviceID).
-		Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
-	stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
-	// prevent duplicates
-	// GROUP BY `discovery_presentation`.`service_id`, `discovery_presentation`.`credential_subject_id`
-	stmt = stmt.Group("discovery_presentation.service_id, discovery_presentation.credential_subject_id")
+		Where("service_id = ?", serviceID)
+	if len(query) > 0 {
+		stmt = stmt.Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
+		stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
+	}
 
 	var matches []presentationRecord
 	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {
