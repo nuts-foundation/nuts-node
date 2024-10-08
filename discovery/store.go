@@ -233,6 +233,9 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 		Where("service_id = ?", serviceID).
 		Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
 	stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
+	// prevent duplicates
+	// GROUP BY `discovery_presentation`.`service_id`, `discovery_presentation`.`credential_subject_id`
+	stmt = stmt.Group("discovery_presentation.service_id, discovery_presentation.credential_subject_id")
 
 	var matches []presentationRecord
 	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {

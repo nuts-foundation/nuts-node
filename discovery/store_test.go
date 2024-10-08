@@ -196,6 +196,18 @@ func Test_sqlStore_search(t *testing.T) {
 		require.Len(t, actualVPs, 1)
 		assert.Equal(t, vpAlice.ID.String(), actualVPs[0].ID.String())
 	})
+	t.Run("find all", func(t *testing.T) {
+		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		for _, vp := range vps {
+			err := c.add(testServiceID, vp, 0)
+			require.NoError(t, err)
+		}
+
+		actualVPs, err := c.search(testServiceID, map[string]string{})
+		require.NoError(t, err)
+		require.Len(t, actualVPs, 2)
+	})
 	t.Run("not found", func(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
