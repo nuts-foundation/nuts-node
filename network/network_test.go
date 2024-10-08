@@ -261,14 +261,13 @@ func TestNetwork_Configure(t *testing.T) {
 
 		assert.EqualError(t, err, "disabling TLS in strict mode is not allowed")
 	})
-	t.Run("ok - TLS disabled in strict mode, with empty node", func(t *testing.T) {
+	t.Run("ok - network disabled if not in supported"+
+		" DIDMethods", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
-		ctx.protocol.EXPECT().Configure(gomock.Any())
-		ctx.network.connectionManager = nil
 
 		err := ctx.network.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
-			config.Datadir = io.TestDirectory(t)
+			config.DIDMethods = []string{"web"}
 		}))
 
 		require.NoError(t, err)
