@@ -629,8 +629,8 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 	// validate all fields are there after introspection
 	t.Run("error - no token provided", func(t *testing.T) {
 		res, err := ctx.client.IntrospectAccessToken(context.Background(), IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: ""}})
-		assert.ErrorIs(t, err, core.InvalidInputError("missing token"))
-		assert.Nil(t, res)
+		require.NoError(t, err)
+		assert.Equal(t, res, IntrospectAccessToken200JSONResponse{})
 	})
 	t.Run("error - other store error", func(t *testing.T) {
 		// token is invalid JSON

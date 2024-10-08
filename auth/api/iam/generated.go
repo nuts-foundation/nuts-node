@@ -1132,14 +1132,6 @@ func (response IntrospectAccessToken200JSONResponse) VisitIntrospectAccessTokenR
 	return json.NewEncoder(w).Encode(response)
 }
 
-type IntrospectAccessToken400Response struct {
-}
-
-func (response IntrospectAccessToken400Response) VisitIntrospectAccessTokenResponse(w http.ResponseWriter) error {
-	w.WriteHeader(400)
-	return nil
-}
-
 type IntrospectAccessToken401Response struct {
 }
 
@@ -1163,14 +1155,6 @@ func (response IntrospectAccessTokenExtended200JSONResponse) VisitIntrospectAcce
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
-}
-
-type IntrospectAccessTokenExtended400Response struct {
-}
-
-func (response IntrospectAccessTokenExtended400Response) VisitIntrospectAccessTokenExtendedResponse(w http.ResponseWriter) error {
-	w.WriteHeader(400)
-	return nil
 }
 
 type IntrospectAccessTokenExtended401Response struct {
