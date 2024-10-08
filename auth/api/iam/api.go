@@ -30,6 +30,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -335,7 +336,11 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 }
 
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
-func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	headers := ctx.Value(httpRequestContextKey{}).(*http.Request).Header
+	if !slices.Contains(headers["Content-Type"], "application/x-www-form-urlencoded") {
+		return nil, core.Error(http.StatusUnsupportedMediaType, "Content-Type MUST be set to application/x-www-form-urlencoded")
+	}
 	input := request.Body.Token
 	response, err := r.introspectAccessToken(input)
 	if err != nil {
@@ -351,7 +356,11 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 
 // IntrospectAccessTokenExtended allows the resource server (XIS/EHR) to introspect details of an access token issued by this node.
 // It returns the same information as IntrospectAccessToken, but with additional information.
-func (r Wrapper) IntrospectAccessTokenExtended(_ context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error) {
+func (r Wrapper) IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error) {
+	headers := ctx.Value(httpRequestContextKey{}).(*http.Request).Header
+	if !slices.Contains(headers["Content-Type"], "application/x-www-form-urlencoded") {
+		return nil, core.Error(http.StatusUnsupportedMediaType, "Content-Type MUST be set to application/x-www-form-urlencoded")
+	}
 	input := request.Body.Token
 	response, err := r.introspectAccessToken(input)
 	if err != nil {
@@ -366,7 +375,7 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// Validate token
 	if input == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
-		log.Logger().Debug("IntrospectAccessToken: missing token")
+		log.Logger().Warn("IntrospectAccessToken: missing token")
 		return nil, nil
 	}
 
