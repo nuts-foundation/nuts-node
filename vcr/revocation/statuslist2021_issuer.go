@@ -170,7 +170,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 		// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
 		// See https://github.com/nuts-foundation/nuts-node/issues/3393
 		if tx.Dialector.Name() == "sqlserver" {
-			err = tx.Raw("SELECT * FROM status_list_entry WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
+			err = tx.Raw("SELECT * FROM status_list_credential WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
 				Scan(new(credentialRecord)).
 				Error
 		} else {
@@ -423,10 +423,9 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		// lock relevant credentialRecord. It was created when the first entry was issued for this StatusList2021Credential.
 		err = tx.Model(new(credentialRecord)).
 			Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-			Select("count(*) > 0").
-			Group("subject_id").
+			Select("subject_id").
 			Where("subject_id = ?", entry.StatusListCredential).
-			Find(new([]bool)).
+			Find(new([]string)).
 			Error
 		if err != nil {
 			return err
