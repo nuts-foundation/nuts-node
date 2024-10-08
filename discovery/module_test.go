@@ -405,6 +405,15 @@ func TestModule_Configure(t *testing.T) {
 		_, err := loadDefinitions(config.Definitions.Directory)
 		assert.ErrorContains(t, err, "unable to read definitions directory 'test/non_existent'")
 	})
+	t.Run("missing definitions directory", func(t *testing.T) {
+		config := Config{}
+		m := &Module{config: config}
+		err := m.Configure(serverConfig)
+
+		require.NoError(t, err)
+		assert.NotNil(t, m.publicURL)
+		assert.NotNil(t, m.httpClient)
+	})
 }
 
 func TestModule_Search(t *testing.T) {

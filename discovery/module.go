@@ -97,6 +97,19 @@ type Module struct {
 }
 
 func (m *Module) Configure(serverConfig core.ServerConfig) error {
+	var err error
+	m.publicURL, err = serverConfig.ServerURL()
+	if err != nil {
+		return err
+	}
+
+	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
+
+	return m.loadDefinitions()
+
+}
+
+func (m *Module) loadDefinitions() error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
@@ -108,11 +121,6 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 			return nil
 		}
 		return fmt.Errorf("failed to load discovery defintions: %w", err)
-	}
-
-	m.publicURL, err = serverConfig.ServerURL()
-	if err != nil {
-		return err
 	}
 
 	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
@@ -131,7 +139,6 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
-	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
 	return nil
 }
 
