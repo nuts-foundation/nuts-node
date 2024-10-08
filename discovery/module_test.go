@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -309,6 +310,7 @@ type mockContext struct {
 	ctrl           *gomock.Controller
 	subjectManager *didsubject.MockManager
 	verifier       *verifier.MockVerifier
+	didResolver    *resolver.MockDIDResolver
 }
 
 func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(module *Module)) (*Module, mockContext) {
@@ -318,7 +320,8 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	mockVCR := vcr.NewMockVCR(ctrl)
 	mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 	mockSubjectManager := didsubject.NewMockManager(ctrl)
-	m := New(storageInstance, mockVCR, mockSubjectManager)
+	mockDIDResolver := resolver.NewMockDIDResolver(ctrl)
+	m := New(storageInstance, mockVCR, mockSubjectManager, mockDIDResolver)
 	m.config = DefaultConfig()
 	m.publicURL = test.MustParseURL("https://example.com")
 	require.NoError(t, m.Configure(core.TestServerConfig()))
@@ -344,6 +347,7 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 		ctrl:           ctrl,
 		verifier:       mockVerifier,
 		subjectManager: mockSubjectManager,
+		didResolver:    mockDIDResolver,
 	}
 }
 
@@ -485,6 +489,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(&vpAlice, nil)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
@@ -517,6 +522,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 			return &vpAlice, nil
 		})
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, map[string]interface{}{"test": "value"})
 
@@ -532,6 +538,17 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 
 		require.EqualError(t, err, "subject not found")
 	})
+	t.Run("deactivated", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		require.NoError(t, storageEngine.Start())
+		m, testContext := setupModule(t, storageEngine)
+		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
+
+		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
 	t.Run("ok, but couldn't register presentation -> maps to ErrRegistrationFailed", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
@@ -540,6 +557,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 		m.vcrInstance.(*vcr.MockVCR).EXPECT().Wallet().Return(wallet).MinTimes(1)
 		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, errors.New("failed")).MinTimes(1)
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		testContext.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 

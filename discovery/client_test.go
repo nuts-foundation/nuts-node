@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -41,17 +42,53 @@ import (
 
 var nextRefresh = time.Now().Add(-1 * time.Hour)
 
+type testContext struct {
+	ctrl           *gomock.Controller
+	didResolver    *resolver.MockDIDResolver
+	invoker        *client.MockHTTPClient
+	vcr            *vcr.MockVCR
+	wallet         *holder.MockWallet
+	subjectManager *didsubject.MockManager
+	store          *sqlStore
+	manager        *defaultClientRegistrationManager
+}
+
+func newTestContext(t *testing.T) testContext {
+	t.Helper()
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	ctrl := gomock.NewController(t)
+	didResolver := resolver.NewMockDIDResolver(ctrl)
+	invoker := client.NewMockHTTPClient(ctrl)
+	vcr := vcr.NewMockVCR(ctrl)
+	wallet := holder.NewMockWallet(ctrl)
+	subjectManager := didsubject.NewMockManager(ctrl)
+	store := setupStore(t, storageEngine.GetSQLDatabase())
+	manager := newRegistrationManager(testDefinitions(), store, invoker, vcr, subjectManager, didResolver)
+	vcr.EXPECT().Wallet().Return(wallet).AnyTimes()
+
+	return testContext{
+		ctrl:           ctrl,
+		didResolver:    didResolver,
+		invoker:        invoker,
+		vcr:            vcr,
+		wallet:         wallet,
+		subjectManager: subjectManager,
+		store:          store,
+		manager:        manager,
+	}
+}
+
 func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 
 	t.Run("immediate registration", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, options holder.PresentationOptions, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+		ctx := newTestContext(t)
+		ctx.invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, options holder.PresentationOptions, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
 			// check if two credentials are given
 			// check if the DiscoveryRegistrationCredential is added with an authServerURL
 			assert.Len(t, credentials, 2)
@@ -61,89 +98,65 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 			assert.Equal(t, aliceDID.String(), options.Holder.String())
 			return &vpAlice, nil
 		})
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
 		assert.NoError(t, err)
 	})
 	t.Run("registration fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("invoker error"))
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("invoker error"))
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		assert.ErrorContains(t, err, "invoker error")
 
 		// check no refresh records are added
-		record, err := store.getPresentationRefreshRecord(testServiceID, aliceSubject)
+		record, err := ctx.store.getPresentationRefreshRecord(testServiceID, aliceSubject)
 
 		require.NoError(t, err)
 		assert.Nil(t, record)
 	})
 	t.Run("DID method not supported", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		manager := newRegistrationManager(testDefinitions(), nil, nil, nil, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.activate(audit.TestContext(), unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
+		err := ctx.manager.activate(audit.TestContext(), unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
 		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
 	})
 	t.Run("no matching credentials", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorIs(t, err, pe.ErrNoCredentials)
 	})
 	t.Run("subject with 2 DIDs, one registers and other fails", func(t *testing.T) {
+		ctx := newTestContext(t)
 		subjectDIDs := []did.DID{aliceDID, bobDID}
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
-		wallet := holder.NewMockWallet(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(subjectDIDs, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.didResolver.EXPECT().Resolve(bobDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(subjectDIDs, nil)
 
 		// aliceDID registers
-		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
 		// bobDID has no credentials, so builds no presentation
-		wallet.EXPECT().List(gomock.Any(), bobDID).Return(nil, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), bobDID).Return(nil, nil)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
 		assert.NoError(t, err)
 	})
@@ -158,48 +171,34 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 				PresentationMaxValidity: int((24 * time.Hour).Seconds()),
 			},
 		}
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
+		ctx := newTestContext(t)
+		ctx.invoker.EXPECT().Register(gomock.Any(), "http://example.com/usecase", vpAlice)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
 			// expect registration credential
 			assert.Len(t, credentials, 1)
 			return &vpAlice, nil
 		})
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(emptyDefinition, store, invoker, mockVCR, mockSubjectManager)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		ctx.manager = newRegistrationManager(emptyDefinition, ctx.store, ctx.invoker, ctx.vcr, ctx.subjectManager, ctx.didResolver)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
 
 		assert.NoError(t, err)
 	})
 	t.Run("unknown service", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, nil)
+		ctx := newTestContext(t)
 
-		err := manager.activate(audit.TestContext(), "unknown", aliceSubject, nil)
+		err := ctx.manager.activate(audit.TestContext(), "unknown", aliceSubject, nil)
 
 		assert.EqualError(t, err, "discovery service not found")
 	})
 	t.Run("unknown subject", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 
-		err := manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
+		err := ctx.manager.activate(audit.TestContext(), testServiceID, aliceSubject, nil)
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
 	})
@@ -210,114 +209,74 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 
 	t.Run("not registered", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
 	t.Run("registered", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		require.NoError(t, store.add(testServiceID, vpAlice, 1))
+		ctx := newTestContext(t)
+		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
 	t.Run("already deactivated", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(holder.NewMockWallet(ctrl)).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
 		vpAliceDeactivated := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
 			claims[jwt.AudienceKey] = []string{testServiceID}
 			claims["retract_jti"] = vpAlice.ID.String()
 			vp.Type = append(vp.Type, retractionPresentationType)
 		}, vcAlice)
-		require.NoError(t, store.add(testServiceID, vpAliceDeactivated, 1))
+		require.NoError(t, ctx.store.add(testServiceID, vpAliceDeactivated, 1))
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
 	t.Run("DID method not supported", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, nil, nil, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
-		err := manager.deactivate(audit.TestContext(), unsupportedServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), unsupportedServiceID, aliceSubject)
 
 		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
 	})
 	t.Run("deregistering from Discovery Service fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error"))
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		require.NoError(t, store.add(testServiceID, vpAlice, 1))
+		ctx := newTestContext(t)
+		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error"))
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "remote error")
 	})
 	t.Run("building presentation fails", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		wallet := holder.NewMockWallet(ctrl)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(nil, assert.AnError)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		require.NoError(t, store.add(testServiceID, vpAlice, 1))
+		ctx := newTestContext(t)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(nil, assert.AnError)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.ErrorIs(t, err, assert.AnError)
 	})
 	t.Run("unknown subject", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
 
-		err := manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
 	})
@@ -328,109 +287,95 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 
 	t.Run("no registrations", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx := newTestContext(t)
 
-		err := manager.refresh(audit.TestContext(), time.Now())
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
 		require.NoError(t, err)
 	})
 	t.Run("2 VPs to refresh, first one fails, second one succeeds", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
+		ctx := newTestContext(t)
 		gomock.InOrder(
-			invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()),
-			invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error")),
+			ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()),
+			ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error")),
 		)
-		wallet := holder.NewMockWallet(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		gomock.InOrder(
+			ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil),
+			ctx.didResolver.EXPECT().Resolve(bobDID, gomock.Any()).Return(nil, nil, nil),
+		)
 
 		// Alice
-		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
-		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		_ = ctx.store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
 		// Bob
-		_ = store.updatePresentationRefreshTime(testServiceID, bobSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), bobSubject).Return([]did.DID{bobDID}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
-		wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
+		_ = ctx.store.updatePresentationRefreshTime(testServiceID, bobSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), bobSubject).Return([]did.DID{bobDID}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &bobDID, false).Return(&vpBob, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), bobDID).Return([]vc.VerifiableCredential{vcBob}, nil)
 
-		err := manager.refresh(audit.TestContext(), time.Now())
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
 		errStr := "failed to refresh Verifiable Presentation (service=usecase_v1, subject=bob): registration of Verifiable Presentation on remote Discovery Service failed: did:example:bob: remote error"
 		assert.EqualError(t, err, errStr)
 
 		// check for presentationRefreshError
-		refreshError := getPresentationRefreshError(t, store.db, testServiceID, bobSubject)
+		refreshError := getPresentationRefreshError(t, ctx.store.db, testServiceID, bobSubject)
 		assert.Contains(t, refreshError.Error, errStr)
 	})
 	t.Run("deactivate unknown subject", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &nextRefresh)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return(nil, didsubject.ErrSubjectNotFound)
+		_ = ctx.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &nextRefresh)
 
-		err := manager.refresh(audit.TestContext(), time.Now())
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
+
+		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
+	})
+	t.Run("deactivate deactivated DID", func(t *testing.T) {
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
+		_ = ctx.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &nextRefresh)
+
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
 		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
 	})
 	t.Run("deactivate unsupported DID method", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
-		_ = store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
+		ctx := newTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		_ = ctx.store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
 
-		err := manager.refresh(audit.TestContext(), time.Now())
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
 		// refresh clears the registration
 		require.NoError(t, err)
-		record, err := store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
+		record, err := ctx.store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
 		assert.NoError(t, err)
 		assert.Nil(t, record)
 	})
 	t.Run("remove presentationRefreshError on success", func(t *testing.T) {
-		store := setupStore(t, storageEngine.GetSQLDatabase())
-		ctrl := gomock.NewController(t)
-		invoker := client.NewMockHTTPClient(ctrl)
+		ctx := newTestContext(t)
 		gomock.InOrder(
-			invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()),
+			ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()),
 		)
-		wallet := holder.NewMockWallet(ctrl)
-		mockVCR := vcr.NewMockVCR(ctrl)
-		mockVCR.EXPECT().Wallet().Return(wallet).AnyTimes()
-		mockSubjectManager := didsubject.NewMockManager(ctrl)
-		manager := newRegistrationManager(testDefinitions(), store, invoker, mockVCR, mockSubjectManager)
+		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
 
 		// Alice
-		_ = store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
-		_ = store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
-		mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
-		wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
+		_ = ctx.store.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError)
+		_ = ctx.store.updatePresentationRefreshTime(testServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &time.Time{})
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), &aliceDID, false).Return(&vpAlice, nil)
+		ctx.wallet.EXPECT().List(gomock.Any(), aliceDID).Return([]vc.VerifiableCredential{vcAlice}, nil)
 
-		err := manager.refresh(audit.TestContext(), time.Now())
+		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
 		require.NoError(t, err)
 
 		// check for presentationRefreshError
-		refreshError := getPresentationRefreshError(t, store.db, testServiceID, aliceSubject)
+		refreshError := getPresentationRefreshError(t, ctx.store.db, testServiceID, aliceSubject)
 		assert.Nil(t, refreshError)
 	})
 }

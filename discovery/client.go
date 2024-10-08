@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"slices"
 	"strings"
 	"time"
@@ -56,15 +57,17 @@ type defaultClientRegistrationManager struct {
 	client         client.HTTPClient
 	vcr            vcr.VCR
 	subjectManager didsubject.Manager
+	didResolver    resolver.DIDResolver
 }
 
-func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.Manager) *defaultClientRegistrationManager {
+func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.Manager, didResolver resolver.DIDResolver) *defaultClientRegistrationManager {
 	return &defaultClientRegistrationManager{
 		services:       services,
 		store:          store,
 		client:         client,
 		vcr:            vcr,
 		subjectManager: subjectManager,
+		didResolver:    didResolver,
 	}
 }
 
@@ -87,9 +90,26 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 			}
 		}
 		subjectDIDs = subjectDIDs[:j]
+
+		if len(subjectDIDs) == 0 {
+			return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		}
 	}
+
+	// and filter by deactivated status
+	j := 0
+	for i, did := range subjectDIDs {
+		_, _, err := r.didResolver.Resolve(did, nil)
+		// any temporary error, like db errors should not cause a deregister action, only ErrDeactivated
+		if err == nil || !errors.Is(err, resolver.ErrDeactivated) {
+			subjectDIDs[j] = subjectDIDs[i]
+			j++
+		}
+	}
+	subjectDIDs = subjectDIDs[:j]
+
 	if len(subjectDIDs) == 0 {
-		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, didsubject.ErrSubjectNotFound, subjectID)
 	}
 
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
