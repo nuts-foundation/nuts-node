@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"os"
 	"path"
@@ -67,11 +68,12 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.Manager) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.Manager, didResolver resolver.DIDResolver) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
 		subjectManager:  subjectManager,
+		didResolver:     didResolver,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -89,6 +91,7 @@ type Module struct {
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
 	subjectManager      didsubject.Manager
+	didResolver         resolver.DIDResolver
 	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -149,7 +152,7 @@ func (m *Module) Start() error {
 		return err
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
-	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager)
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager, m.didResolver)
 	if m.config.Client.RefreshInterval > 0 {
 		m.routines.Add(1)
 		go func() {
