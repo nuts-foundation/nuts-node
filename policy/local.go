@@ -61,6 +61,8 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 				return fmt.Errorf("failed to load policy from directory: %w", err)
 			}
 		}
+	}
+	if b.config.Directory != "" {
 		if err := b.loadFromDirectory(b.config.Directory); err != nil {
 			return fmt.Errorf("failed to load policy from directory: %w", err)
 		}

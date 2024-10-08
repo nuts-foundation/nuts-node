@@ -522,7 +522,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 			subject := make([]credential.DiscoveryRegistrationCredentialSubject, 0)
 			_ = credentials[1].UnmarshalCredentialSubject(&subject)
 			assert.Equal(t, "value", subject[0]["test"])
-			assert.Equal(t, "https://example.com/oauth2/alice", subject[0]["authServerURL"])
+			assert.Equal(t, "https://nuts.nl/oauth2/alice", subject[0]["authServerURL"])
 			return &vpAlice, nil
 		})
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
