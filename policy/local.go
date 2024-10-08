@@ -51,7 +51,6 @@ func (b *LocalPDP) Name() string {
 }
 
 func (b *LocalPDP) Configure(_ core.ServerConfig) error {
-	// check if directory exists
 	if b.config.Directory != "" {
 		_, err := os.Stat(b.config.Directory)
 		if err != nil {
