@@ -769,26 +769,8 @@ func (r *SqlManager) MigrateAddWebToNuts(ctx context.Context, id did.DID) error 
 		ID:      webDoc.DID.ID,
 		Subject: subject,
 	}
-	// rename services. only the DID part of the service.ID needs to be updates
-	webDoc.Services = make([]orm.Service, len(nutsDoc.Services))
-	for i, ormService := range nutsDoc.Services {
-		service := new(did.Service)
-		err = json.Unmarshal(ormService.Data, service)
-		if err != nil {
-			return err
-		}
-		service.ID = ssi.MustParseURI(webDID.ID + "#" + service.ID.Fragment)
-		rawService, err := json.Marshal(service)
-		if err != nil {
-			return err
-		}
-		webDoc.Services[i] = orm.Service{
-			ID:   service.ID.String(),
-			Data: rawService,
-		}
-	}
-	// store did:web
-	_, err = sqlDIDDocumentManager.CreateOrUpdate(webDID, webDoc.VerificationMethods, webDoc.Services)
+	// store did:web; don't migrate services
+	_, err = sqlDIDDocumentManager.CreateOrUpdate(webDID, webDoc.VerificationMethods, nil)
 	if err != nil {
 		return err
 	}

@@ -627,12 +627,10 @@ func TestSqlManager_MigrateAddWebToNuts(t *testing.T) {
 		assert.Equal(t, didNuts.String(), dids[0].ID)
 		assert.Equal(t, didWeb.String(), dids[1].ID)
 
-		docNuts, err := NewDIDDocumentManager(db).Latest(didNuts, nil)
 		require.NoError(t, err)
 		docWeb, err := NewDIDDocumentManager(db).Latest(didWeb, nil)
 		require.NoError(t, err)
-		assert.Equal(t, len(docNuts.Services), len(docWeb.Services))
-		assert.Equal(t, didWeb.String()+"#service-1", docWeb.Services[0].ID)
+		assert.Len(t, docWeb.Services, 0)
 	})
 	t.Run("ok - already has did:web", func(t *testing.T) {
 		db := testDB(t)

@@ -47,7 +47,7 @@ func Test_Migrations(t *testing.T) {
 
 	DIDs, err := man.DID.All()
 	require.NoError(t, err)
-	require.Len(t, DIDs, 4) // 4 did:nuts, 3 did:web
+	require.Len(t, DIDs, 7) // 4 did:nuts, 3 did:web
 
 	t.Run("vendor", func(t *testing.T) {
 		// versions for did:nuts:
@@ -67,7 +67,7 @@ func Test_Migrations(t *testing.T) {
 		assert.Len(t, doc.VerificationMethods, 2)
 
 		// migration: add did:web
-		EqualServices(t, man, doc)
+		hasDIDWeb(t, man, doc)
 	})
 	t.Run("org1", func(t *testing.T) {
 		// versions for did:nuts:
@@ -89,7 +89,7 @@ func Test_Migrations(t *testing.T) {
 		assert.Empty(t, didDoc.Controller)
 
 		// migration: add did:web
-		EqualServices(t, man, doc)
+		hasDIDWeb(t, man, doc)
 	})
 	t.Run("org2", func(t *testing.T) {
 		// versions for did:nuts:
@@ -133,14 +133,11 @@ func Test_Migrations(t *testing.T) {
 		assert.Empty(t, didDoc.Controller)
 
 		// migration: add did:web
-		EqualServices(t, man, doc)
+		hasDIDWeb(t, man, doc)
 	})
 }
 
-func EqualServices(t *testing.T, man *manager, nutsDoc *orm.DidDocument) {
-	return // disable until there is a fix for https://github.com/nuts-foundation/nuts-node/issues/3444
-	didWebPrefix := "did:web:nodeA%3A8080"
-
+func hasDIDWeb(t *testing.T, man *manager, nutsDoc *orm.DidDocument) {
 	dids, err := man.DID.FindBySubject(nutsDoc.DID.Subject) // migrated documents have subject == did:nuts:...
 	require.NoError(t, err)
 	assert.Len(t, dids, 2)
@@ -152,8 +149,4 @@ func EqualServices(t *testing.T, man *manager, nutsDoc *orm.DidDocument) {
 		}
 	}
 	assert.Equal(t, 0, webDoc.Version)
-	assert.Equal(t, len(nutsDoc.Services), len(webDoc.Services))
-	for _, service := range webDoc.Services {
-		assert.True(t, strings.HasPrefix(service.ID, didWebPrefix))
-	}
 }
