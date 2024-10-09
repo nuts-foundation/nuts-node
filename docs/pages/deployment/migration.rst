@@ -7,7 +7,7 @@ Nuts node v6 runs several migrations on startup for DID documents that are manag
 
 1. Remove controllers and add self-control to ``did:nuts`` documents,
 2. Import ``did:nuts`` documents into the new SQL database under a ``subject`` with the same name, and
-3. Add a ``did:web`` document with the same services to the same ``subject``.
+3. Add a ``did:web`` document to the same ``subject``.
 
 **Migration: convert did:nuts to self-control**
 Requires ``didmethods`` to contain ``nuts``.
@@ -34,6 +34,5 @@ See ``/status/diagnostics`` if you own any DIDs with a document conflict. If so,
 Requires ``didmethods`` to contain ``web`` and ``nuts`` (default).
 
 This migration adds a new ``did:web`` DID Document to owned subjects that do not already have one.
-All services from the ``did:nuts`` DID Document are copied to the new document.
 A new verification method is created for the document and added to all verification relationships except KeyAgreement.
 This means did:web cannot be used for encryption (yet).

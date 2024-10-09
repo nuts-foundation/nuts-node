@@ -19,6 +19,7 @@ Breaking changes
 - The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
 - Managed ``did:nuts`` DIDs are migrated to the new SQL storage. Unresolved DID document conflicts may contain an incorrect state after migrating to v6. See ``/status/diagnostics`` if you own any DIDs with a document conflict; use ``/internal/vdr/v1/did/conflicted`` to find the specific DIDs.
 - Removed legacy API authentication tokens.
+- See caveats in :ref:`version-incompatibilities`.
 
 ============
 New Features
@@ -52,7 +53,7 @@ Changes
 - Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
-- Node can now be run without configuring TLS when the gRPC network isn't used (no bootstrap node configured and no network state), to cater use cases that don't use ``did:nuts``.
+- Node can now be run without configuring TLS when the gRPC network isn't used (``didmethods`` does not contain ``nuts``), to cater use cases that don't use ``did:nuts``.
 - Crypto backends store keys under a key name and are linked to the kid via the ``key_reference`` SQL table.
 
 The following features have also been changed:
@@ -63,7 +64,7 @@ DID management
 You no longer manage changes to DIDs but to Subjects. Each subject has multiple DIDs, one for each enabled DID method.
 You're free to choose an ID for a Subject. This feature enables forwards compatibility with new DID methods.
 DID methods can be enabled and disabled via the ``didmethods`` config parameter. (Default: ``['web','nuts']``).
-Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID.
+Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID together with a new ``did:web`` DID.
 See :ref:`nuts-node-migrations` for more information.
 
 HTTP interface
