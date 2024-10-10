@@ -119,7 +119,8 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		dataDir := io.TestDirectory(t)
 		require.NoError(t, os.Remove(dataDir))
 		e := New()
-		err := e.Configure(core.ServerConfig{Datadir: dataDir})
+		e.(*engine).datadir = dataDir
+		err := e.(*engine).initSQLDatabase()
 		assert.ErrorContains(t, err, "unable to open database file")
 	})
 	t.Run("sqlite is restricted to 1 connection", func(t *testing.T) {
