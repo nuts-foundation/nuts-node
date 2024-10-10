@@ -488,29 +488,6 @@ func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request Remove
 	return RemoveCredentialFromWallet204Response{}, nil
 }
 
-func (w *Wrapper) removeCredentialFromWallet(ctx context.Context, credentialIDStr string, subjectDIDs ...did.DID) error {
-	credentialID, err := ssi.ParseURI(credentialIDStr)
-	if err != nil {
-		return core.InvalidInputError("invalid credential ID: %w", err)
-	}
-	var deleted bool
-	for _, subjectDID := range subjectDIDs {
-		err = w.VCR.Wallet().Remove(ctx, subjectDID, *credentialID)
-		if err != nil {
-			if errors.Is(err, vcrTypes.ErrNotFound) {
-				// only return vcrTypes.ErrNotFound if true for all subjectDIDs (deleted=false)
-				continue
-			}
-			return err
-		}
-		deleted = true
-	}
-	if !deleted {
-		return vcrTypes.ErrNotFound
-	}
-	return nil
-}
-
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
 func (w *Wrapper) TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error) {
 	if err := changeTrust(*request.Body, w.VCR.Trust); err != nil {
