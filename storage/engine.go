@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -147,6 +148,12 @@ func (e *engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
+	err := confirmWriteAccess(e.datadir)
+	if err != nil {
+		return err
+	}
+
+	// KV-storage
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
@@ -163,10 +170,12 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	}
 	e.databases = append(e.databases, bboltDB)
 
+	// SQL storage
 	if err := e.initSQLDatabase(); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
+	// session storage
 	redisConfig := e.config.Session.Redis
 	if redisConfig.isConfigured() {
 		redisDB, err := createRedisDatabase(redisConfig)
@@ -365,6 +374,33 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 		p.engine.stores[key] = store
 	}
 	return store, err
+}
+
+func confirmWriteAccess(datadir string) error {
+	// Make sure the data directory exists
+	err := os.MkdirAll(path.Dir(datadir+string(os.PathSeparator)), 0644)
+	if err != nil {
+		// log error: "unable to create datadir (dir=./data): mkdir ./data: read-only file system"
+		return err
+	}
+	filename := filepath.Join(datadir, "rw-access-test-file")
+	// open/create file with read-write permission
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		// log error: "unable to configure Storage: open data/rw-access-test-file: read-only file system"
+		return err
+	}
+	// cleanup
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+	// removing the file could cause issues if it was a pre-existing user file
+	err = os.Remove(filename)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type logrusInfoLogWriter struct {
