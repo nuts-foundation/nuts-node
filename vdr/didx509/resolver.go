@@ -1,20 +1,13 @@
 package didx509
 
 import (
-	"bytes"
-	"crypto/sha1"
-	"crypto/sha256"
-	"crypto/sha512"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"golang.org/x/crypto/sha3"
 	"slices"
 	"strings"
 )
@@ -27,6 +20,10 @@ var (
 	ErrWrongLocality           = errors.New("query does not match the subject Locality")
 	ErrWrongOrganization       = errors.New("query does not match the subject Organization")
 	ErrWrongOrganizationalUnit = errors.New("query does not match the subject OrganizationalUnit")
+	ErrWrongSanOtherName       = errors.New("the SAN otherName does not match the query")
+	ErrWrongSanDns             = errors.New("the SAN DNS does not match the query")
+	ErrWrongSanEmailAddresses  = errors.New("the SAN EmailAddresses does not match the query")
+	ErrWrongSanIPAddresses     = errors.New("the SAN IPAddresses does not match the query")
 )
 
 var _ resolver.DIDResolver = &Resolver{}
@@ -49,6 +46,7 @@ type X509DidReference struct {
 	PolicyValue string
 }
 
+// Resolve resolves a DID document given its identifier and corresponding metadata.
 func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
@@ -65,12 +63,12 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if err != nil {
 		return nil, nil, err
 	}
-	_, err = FindCertificateByHash(chain, ref.RootCertRef, ref.Method)
+	_, err = findCertificateByHash(chain, ref.RootCertRef, ref.Method)
 	if err != nil {
 		err := fmt.Errorf("unable to find root cert: %s in chain: %v", ref.RootCertRef, err)
 		return nil, nil, err
 	}
-	validationCert, err := FindCertificateByHash(chain, metadata.X509CertThumbprint, "sha1")
+	validationCert, err := findCertificateByHash(chain, metadata.X509CertThumbprint, "sha1")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,6 +89,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	return document, &resolver.DocumentMetadata{}, err
 }
 
+// validatePolicy validates a certificate against a given X509DidReference and its policy.
 func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 
 	switch ref.PolicyName {
@@ -113,25 +112,67 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 					return ErrWrongCN
 				}
 			case "L":
-				if slices.Contains(subject.Locality, value) {
+				if !slices.Contains(subject.Locality, value) {
 					return ErrWrongLocality
 				}
 			case "O":
-				if slices.Contains(subject.Organization, value) {
+				if !slices.Contains(subject.Organization, value) {
 					return ErrWrongOrganization
 				}
 			case "OU":
-				if slices.Contains(subject.OrganizationalUnit, value) {
+				if !slices.Contains(subject.OrganizationalUnit, value) {
 					return ErrWrongOrganizationalUnit
 				}
 			}
 		}
+	case "san":
+		keyValue := strings.Split(ref.PolicyValue, ":")
+		if len(keyValue)%2 != 0 {
+			return errors.New("san selector does not have 2 parts")
+		}
+		for i := 0; i < len(keyValue); i = i + 2 {
+			key := keyValue[i]
+			value := keyValue[i+1]
+			switch key {
+			case "otherName":
+				nameValue, err := findOtherNameValue(cert)
+				if err != nil {
+					return err
+				}
+				if nameValue != value {
+					return ErrWrongSanOtherName
+				}
+			case "dns":
+				if len(cert.DNSNames) > 0 && !slices.Contains(cert.DNSNames, value) {
+					return ErrWrongSanDns
+				}
+			case "email":
+				if len(cert.EmailAddresses) > 0 && !slices.Contains(cert.EmailAddresses, value) {
+					return ErrWrongSanEmailAddresses
+				}
+			case "ip":
+				if len(cert.IPAddresses) > 0 {
+					ok := false
+					for _, ip := range cert.IPAddresses {
+						if ip.String() == value {
+							ok = true
+							break
+						}
+					}
+					if !ok {
+						return ErrWrongSanIPAddresses
+					}
 
+				}
+			}
+
+		}
 	}
 
 	return nil
 }
 
+// createDidDocument generates a new DID Document based on the provided DID identifier and validation certificate.
 func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Document, error) {
 	verificationMethod, err := did.NewVerificationMethod(did.DIDURL{DID: id}, ssi.JsonWebKey2020, id, validationCert.PublicKey)
 	if err != nil {
@@ -146,48 +187,13 @@ func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Docum
 		VerificationMethod: did.VerificationMethods{verificationMethod},
 	}
 	document.AddAssertionMethod(verificationMethod)
-	document.AddAssertionMethod(verificationMethod)
+	document.AddCapabilityDelegation(verificationMethod)
+	document.AddCapabilityInvocation(verificationMethod)
 	document.AddKeyAgreement(verificationMethod)
 	return document, nil
 }
 
-func FindCertificateByHash(chain []*x509.Certificate, targetHashString, alg string) (*x509.Certificate, error) {
-	targetHash, err := base64.RawURLEncoding.DecodeString(targetHashString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64url hash: %v", err)
-	}
-
-	for _, cert := range chain {
-		certHash, err := hash(cert.Raw, alg)
-		if err != nil {
-			return nil, err
-		}
-		if bytes.Equal(targetHash, certHash) {
-			return cert, nil
-		}
-	}
-
-	return nil, fmt.Errorf("cannot find a certificate with algorithm: %s hash: %s", alg, targetHashString)
-}
-
-func hash(data []byte, alg string) ([]byte, error) {
-	switch alg {
-	case "sha1":
-		sum := sha1.Sum(data)
-		return sum[:], nil
-	case "sha256":
-		sum := sha256.Sum256(data)
-		return sum[:], nil
-	case "sha384":
-		sum := sha3.Sum384(data)
-		return sum[:], nil
-	case "sha512":
-		sum := sha512.Sum512(data)
-		return sum[:], nil
-	}
-	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
-}
-
+// parseX509Did parses a DID (Decentralized Identifier) in the x509 format and returns a corresponding X509DidReference.
 func parseX509Did(id did.DID) (*X509DidReference, error) {
 	ref := X509DidReference{}
 	fullDidString := id.ID
@@ -217,23 +223,4 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 	}
 
 	return &ref, nil
-}
-
-func parseChain(metadata *resolver.ResolveMetadata) ([]*x509.Certificate, error) {
-	chain := make([]*x509.Certificate, metadata.X509CertChain.Len())
-	for i := range metadata.X509CertChain.Len() {
-		certBytes, has := metadata.X509CertChain.Get(i)
-		if has {
-			pemBlock, _ := pem.Decode(certBytes)
-			if pemBlock.Type != "CERTIFICATE" {
-				return nil, fmt.Errorf("invalid PEM block type: %s", pemBlock.Type)
-			}
-			certificate, err := x509.ParseCertificate(pemBlock.Bytes)
-			if err != nil {
-				return nil, err
-			}
-			chain[i] = certificate
-		}
-	}
-	return chain, nil
 }
