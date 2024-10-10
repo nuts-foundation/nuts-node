@@ -461,28 +461,31 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
-	holderDID, err := did.ParseDID(request.Did)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid holder DID: %w", err)
-	}
-	err = w.removeCredentialFromWallet(ctx, request.Id, *holderDID)
-	if err != nil {
-		return nil, err
-	}
-	return RemoveCredentialFromWallet204Response{}, nil
-}
-
-func (w *Wrapper) RemoveCredentialFromSubjectWallet(ctx context.Context, request RemoveCredentialFromSubjectWalletRequestObject) (RemoveCredentialFromSubjectWalletResponseObject, error) {
 	// get DIDs for holder
 	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
 	}
-	err = w.removeCredentialFromWallet(ctx, request.Id, dids...)
+	credentialID, err := ssi.ParseURI(request.Id)
 	if err != nil {
-		return nil, err
+		return nil, core.InvalidInputError("invalid credential ID: %w", err)
 	}
-	return RemoveCredentialFromSubjectWallet204Response{}, nil
+	var deleted bool
+	for _, subjectDID := range dids {
+		err = w.VCR.Wallet().Remove(ctx, subjectDID, *credentialID)
+		if err != nil {
+			if errors.Is(err, vcrTypes.ErrNotFound) {
+				// only return vcrTypes.ErrNotFound if true for all subjectDIDs (deleted=false)
+				continue
+			}
+			return nil, err
+		}
+		deleted = true
+	}
+	if !deleted {
+		return nil, vcrTypes.ErrNotFound
+	}
+	return RemoveCredentialFromWallet204Response{}, nil
 }
 
 func (w *Wrapper) removeCredentialFromWallet(ctx context.Context, credentialIDStr string, subjectDIDs ...did.DID) error {

@@ -482,9 +482,6 @@ type ClientInterface interface {
 
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RemoveCredentialFromWallet request
-	RemoveCredentialFromWallet(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// GetCredentialsInWallet request
 	GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -493,8 +490,8 @@ type ClientInterface interface {
 
 	LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RemoveCredentialFromSubjectWallet request
-	RemoveCredentialFromSubjectWallet(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// RemoveCredentialFromWallet request
+	RemoveCredentialFromWallet(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// IssueVCWithBody request with any body
 	IssueVCWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -566,18 +563,6 @@ func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, req
 	return c.Client.Do(req)
 }
 
-func (c *Client) RemoveCredentialFromWallet(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRemoveCredentialFromWalletRequest(c.Server, did, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetCredentialsInWalletRequest(c.Server, subjectID)
 	if err != nil {
@@ -614,8 +599,8 @@ func (c *Client) LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRe
 	return c.Client.Do(req)
 }
 
-func (c *Client) RemoveCredentialFromSubjectWallet(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRemoveCredentialFromSubjectWalletRequest(c.Server, subjectID, id)
+func (c *Client) RemoveCredentialFromWallet(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveCredentialFromWalletRequest(c.Server, subjectID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -870,44 +855,6 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 	return req, nil
 }
 
-// NewRemoveCredentialFromWalletRequest generates requests for RemoveCredentialFromWallet
-func NewRemoveCredentialFromWalletRequest(server string, did string, id string) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0 = did
-
-	var pathParam1 string
-
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc/%s", pathParam0, pathParam1)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("DELETE", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewGetCredentialsInWalletRequest generates requests for GetCredentialsInWallet
 func NewGetCredentialsInWalletRequest(server string, subjectID string) (*http.Request, error) {
 	var err error
@@ -983,8 +930,8 @@ func NewLoadVCRequestWithBody(server string, subjectID string, contentType strin
 	return req, nil
 }
 
-// NewRemoveCredentialFromSubjectWalletRequest generates requests for RemoveCredentialFromSubjectWallet
-func NewRemoveCredentialFromSubjectWalletRequest(server string, subjectID string, id string) (*http.Request, error) {
+// NewRemoveCredentialFromWalletRequest generates requests for RemoveCredentialFromWallet
+func NewRemoveCredentialFromWalletRequest(server string, subjectID string, id string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -1518,9 +1465,6 @@ type ClientWithResponsesInterface interface {
 
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
-	// RemoveCredentialFromWalletWithResponse request
-	RemoveCredentialFromWalletWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error)
-
 	// GetCredentialsInWalletWithResponse request
 	GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
 
@@ -1529,8 +1473,8 @@ type ClientWithResponsesInterface interface {
 
 	LoadVCWithResponse(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
 
-	// RemoveCredentialFromSubjectWalletWithResponse request
-	RemoveCredentialFromSubjectWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromSubjectWalletResponse, error)
+	// RemoveCredentialFromWalletWithResponse request
+	RemoveCredentialFromWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error)
 
 	// IssueVCWithBodyWithResponse request with any body
 	IssueVCWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*IssueVCResponse, error)
@@ -1610,37 +1554,6 @@ func (r CreateVPResponse) StatusCode() int {
 	return 0
 }
 
-type RemoveCredentialFromWalletResponse struct {
-	Body                          []byte
-	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-}
-
-// Status returns HTTPResponse.Status
-func (r RemoveCredentialFromWalletResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RemoveCredentialFromWalletResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type GetCredentialsInWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
@@ -1704,7 +1617,7 @@ func (r LoadVCResponse) StatusCode() int {
 	return 0
 }
 
-type RemoveCredentialFromSubjectWalletResponse struct {
+type RemoveCredentialFromWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	ApplicationproblemJSONDefault *struct {
@@ -1720,7 +1633,7 @@ type RemoveCredentialFromSubjectWalletResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r RemoveCredentialFromSubjectWalletResponse) Status() string {
+func (r RemoveCredentialFromWalletResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -1728,7 +1641,7 @@ func (r RemoveCredentialFromSubjectWalletResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r RemoveCredentialFromSubjectWalletResponse) StatusCode() int {
+func (r RemoveCredentialFromWalletResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2102,15 +2015,6 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 	return ParseCreateVPResponse(rsp)
 }
 
-// RemoveCredentialFromWalletWithResponse request returning *RemoveCredentialFromWalletResponse
-func (c *ClientWithResponses) RemoveCredentialFromWalletWithResponse(ctx context.Context, did string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error) {
-	rsp, err := c.RemoveCredentialFromWallet(ctx, did, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRemoveCredentialFromWalletResponse(rsp)
-}
-
 // GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
 func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
 	rsp, err := c.GetCredentialsInWallet(ctx, subjectID, reqEditors...)
@@ -2137,13 +2041,13 @@ func (c *ClientWithResponses) LoadVCWithResponse(ctx context.Context, subjectID 
 	return ParseLoadVCResponse(rsp)
 }
 
-// RemoveCredentialFromSubjectWalletWithResponse request returning *RemoveCredentialFromSubjectWalletResponse
-func (c *ClientWithResponses) RemoveCredentialFromSubjectWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromSubjectWalletResponse, error) {
-	rsp, err := c.RemoveCredentialFromSubjectWallet(ctx, subjectID, id, reqEditors...)
+// RemoveCredentialFromWalletWithResponse request returning *RemoveCredentialFromWalletResponse
+func (c *ClientWithResponses) RemoveCredentialFromWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error) {
+	rsp, err := c.RemoveCredentialFromWallet(ctx, subjectID, id, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseRemoveCredentialFromSubjectWalletResponse(rsp)
+	return ParseRemoveCredentialFromWalletResponse(rsp)
 }
 
 // IssueVCWithBodyWithResponse request with arbitrary body returning *IssueVCResponse
@@ -2335,41 +2239,6 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 	return response, nil
 }
 
-// ParseRemoveCredentialFromWalletResponse parses an HTTP response from a RemoveCredentialFromWalletWithResponse call
-func ParseRemoveCredentialFromWalletResponse(rsp *http.Response) (*RemoveCredentialFromWalletResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RemoveCredentialFromWalletResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSONDefault = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseGetCredentialsInWalletResponse parses an HTTP response from a GetCredentialsInWalletWithResponse call
 func ParseGetCredentialsInWalletResponse(rsp *http.Response) (*GetCredentialsInWalletResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -2447,15 +2316,15 @@ func ParseLoadVCResponse(rsp *http.Response) (*LoadVCResponse, error) {
 	return response, nil
 }
 
-// ParseRemoveCredentialFromSubjectWalletResponse parses an HTTP response from a RemoveCredentialFromSubjectWalletWithResponse call
-func ParseRemoveCredentialFromSubjectWalletResponse(rsp *http.Response) (*RemoveCredentialFromSubjectWalletResponse, error) {
+// ParseRemoveCredentialFromWalletResponse parses an HTTP response from a RemoveCredentialFromWalletWithResponse call
+func ParseRemoveCredentialFromWalletResponse(rsp *http.Response) (*RemoveCredentialFromWalletResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &RemoveCredentialFromSubjectWalletResponse{
+	response := &RemoveCredentialFromWalletResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -2935,9 +2804,6 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// Remove a VerifiableCredential from the holders wallet.
-	// (DELETE /internal/vcr/v2/holder/{did}/vc/{id})
-	RemoveCredentialFromWallet(ctx echo.Context, did string, id string) error
 	// List all Verifiable Credentials in the holder's wallet.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
@@ -2946,7 +2812,7 @@ type ServerInterface interface {
 	LoadVC(ctx echo.Context, subjectID string) error
 	// Remove a VerifiableCredential from the holders wallet.
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
-	RemoveCredentialFromSubjectWallet(ctx echo.Context, subjectID string, id string) error
+	RemoveCredentialFromWallet(ctx echo.Context, subjectID string, id string) error
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
@@ -2998,29 +2864,6 @@ func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 	return err
 }
 
-// RemoveCredentialFromWallet converts echo context to params.
-func (w *ServerInterfaceWrapper) RemoveCredentialFromWallet(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	did = ctx.Param("did")
-
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RemoveCredentialFromWallet(ctx, did, id)
-	return err
-}
-
 // GetCredentialsInWallet converts echo context to params.
 func (w *ServerInterfaceWrapper) GetCredentialsInWallet(ctx echo.Context) error {
 	var err error
@@ -3051,8 +2894,8 @@ func (w *ServerInterfaceWrapper) LoadVC(ctx echo.Context) error {
 	return err
 }
 
-// RemoveCredentialFromSubjectWallet converts echo context to params.
-func (w *ServerInterfaceWrapper) RemoveCredentialFromSubjectWallet(ctx echo.Context) error {
+// RemoveCredentialFromWallet converts echo context to params.
+func (w *ServerInterfaceWrapper) RemoveCredentialFromWallet(ctx echo.Context) error {
 	var err error
 	// ------------- Path parameter "subjectID" -------------
 	var subjectID string
@@ -3070,7 +2913,7 @@ func (w *ServerInterfaceWrapper) RemoveCredentialFromSubjectWallet(ctx echo.Cont
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RemoveCredentialFromSubjectWallet(ctx, subjectID, id)
+	err = w.Handler.RemoveCredentialFromWallet(ctx, subjectID, id)
 	return err
 }
 
@@ -3275,10 +3118,9 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
-	router.DELETE(baseURL+"/internal/vcr/v2/holder/:did/vc/:id", wrapper.RemoveCredentialFromWallet)
 	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.GetCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.LoadVC)
-	router.DELETE(baseURL+"/internal/vcr/v2/holder/:subjectID/vc/:id", wrapper.RemoveCredentialFromSubjectWallet)
+	router.DELETE(baseURL+"/internal/vcr/v2/holder/:subjectID/vc/:id", wrapper.RemoveCredentialFromWallet)
 	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
 	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
 	router.DELETE(baseURL+"/internal/vcr/v2/issuer/vc/:id", wrapper.RevokeVC)
@@ -3325,44 +3167,6 @@ type CreateVPdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response CreateVPdefaultApplicationProblemPlusJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
-type RemoveCredentialFromWalletRequestObject struct {
-	Did string `json:"did"`
-	Id  string `json:"id"`
-}
-
-type RemoveCredentialFromWalletResponseObject interface {
-	VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error
-}
-
-type RemoveCredentialFromWallet204Response struct {
-}
-
-func (response RemoveCredentialFromWallet204Response) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
-}
-
-type RemoveCredentialFromWalletdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response RemoveCredentialFromWalletdefaultApplicationProblemPlusJSONResponse) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -3445,24 +3249,24 @@ func (response LoadVCdefaultApplicationProblemPlusJSONResponse) VisitLoadVCRespo
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type RemoveCredentialFromSubjectWalletRequestObject struct {
+type RemoveCredentialFromWalletRequestObject struct {
 	SubjectID string `json:"subjectID"`
 	Id        string `json:"id"`
 }
 
-type RemoveCredentialFromSubjectWalletResponseObject interface {
-	VisitRemoveCredentialFromSubjectWalletResponse(w http.ResponseWriter) error
+type RemoveCredentialFromWalletResponseObject interface {
+	VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error
 }
 
-type RemoveCredentialFromSubjectWallet204Response struct {
+type RemoveCredentialFromWallet204Response struct {
 }
 
-func (response RemoveCredentialFromSubjectWallet204Response) VisitRemoveCredentialFromSubjectWalletResponse(w http.ResponseWriter) error {
+func (response RemoveCredentialFromWallet204Response) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
 }
 
-type RemoveCredentialFromSubjectWalletdefaultApplicationProblemPlusJSONResponse struct {
+type RemoveCredentialFromWalletdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
 		Detail string `json:"detail"`
@@ -3476,7 +3280,7 @@ type RemoveCredentialFromSubjectWalletdefaultApplicationProblemPlusJSONResponse 
 	StatusCode int
 }
 
-func (response RemoveCredentialFromSubjectWalletdefaultApplicationProblemPlusJSONResponse) VisitRemoveCredentialFromSubjectWalletResponse(w http.ResponseWriter) error {
+func (response RemoveCredentialFromWalletdefaultApplicationProblemPlusJSONResponse) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -3912,9 +3716,6 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// Remove a VerifiableCredential from the holders wallet.
-	// (DELETE /internal/vcr/v2/holder/{did}/vc/{id})
-	RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error)
 	// List all Verifiable Credentials in the holder's wallet.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
@@ -3923,7 +3724,7 @@ type StrictServerInterface interface {
 	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
 	// Remove a VerifiableCredential from the holders wallet.
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
-	RemoveCredentialFromSubjectWallet(ctx context.Context, request RemoveCredentialFromSubjectWalletRequestObject) (RemoveCredentialFromSubjectWalletResponseObject, error)
+	RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error)
 	// Issues a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error)
@@ -4000,32 +3801,6 @@ func (sh *strictHandler) CreateVP(ctx echo.Context) error {
 	return nil
 }
 
-// RemoveCredentialFromWallet operation middleware
-func (sh *strictHandler) RemoveCredentialFromWallet(ctx echo.Context, did string, id string) error {
-	var request RemoveCredentialFromWalletRequestObject
-
-	request.Did = did
-	request.Id = id
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RemoveCredentialFromWallet(ctx.Request().Context(), request.(RemoveCredentialFromWalletRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RemoveCredentialFromWallet")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(RemoveCredentialFromWalletResponseObject); ok {
-		return validResponse.VisitRemoveCredentialFromWalletResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
 // GetCredentialsInWallet operation middleware
 func (sh *strictHandler) GetCredentialsInWallet(ctx echo.Context, subjectID string) error {
 	var request GetCredentialsInWalletRequestObject
@@ -4082,26 +3857,26 @@ func (sh *strictHandler) LoadVC(ctx echo.Context, subjectID string) error {
 	return nil
 }
 
-// RemoveCredentialFromSubjectWallet operation middleware
-func (sh *strictHandler) RemoveCredentialFromSubjectWallet(ctx echo.Context, subjectID string, id string) error {
-	var request RemoveCredentialFromSubjectWalletRequestObject
+// RemoveCredentialFromWallet operation middleware
+func (sh *strictHandler) RemoveCredentialFromWallet(ctx echo.Context, subjectID string, id string) error {
+	var request RemoveCredentialFromWalletRequestObject
 
 	request.SubjectID = subjectID
 	request.Id = id
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RemoveCredentialFromSubjectWallet(ctx.Request().Context(), request.(RemoveCredentialFromSubjectWalletRequestObject))
+		return sh.ssi.RemoveCredentialFromWallet(ctx.Request().Context(), request.(RemoveCredentialFromWalletRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RemoveCredentialFromSubjectWallet")
+		handler = middleware(handler, "RemoveCredentialFromWallet")
 	}
 
 	response, err := handler(ctx, request)
 
 	if err != nil {
 		return err
-	} else if validResponse, ok := response.(RemoveCredentialFromSubjectWalletResponseObject); ok {
-		return validResponse.VisitRemoveCredentialFromSubjectWalletResponse(ctx.Response())
+	} else if validResponse, ok := response.(RemoveCredentialFromWalletResponseObject); ok {
+		return validResponse.VisitRemoveCredentialFromWalletResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

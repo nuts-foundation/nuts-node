@@ -828,33 +828,6 @@ func TestWrapper_GetCredentialsInWallet(t *testing.T) {
 	})
 }
 
-func TestWrapper_RemoveCredentialFromWallet(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		testContext := newMockContext(t)
-		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(nil)
-
-		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
-			Did: holderDID.String(),
-			Id:  credentialID.String(),
-		})
-
-		assert.NoError(t, err)
-		assert.Equal(t, RemoveCredentialFromWallet204Response{}, response)
-	})
-	t.Run("error", func(t *testing.T) {
-		testContext := newMockContext(t)
-		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(assert.AnError)
-
-		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
-			Did: holderDID.String(),
-			Id:  credentialID.String(),
-		})
-
-		assert.Empty(t, response)
-		assert.ErrorIs(t, err, assert.AnError)
-	})
-}
-
 func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 	didNuts := did.MustParseDID("did:nuts:123")
 	didWeb := did.MustParseDID("did:web:example.com")
@@ -865,20 +838,20 @@ func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didNuts, credentialID).Return(nil)
 		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didWeb, credentialID).Return(types.ErrNotFound) // only exists on 1 DID
 
-		response, err := testContext.client.RemoveCredentialFromSubjectWallet(testContext.requestCtx, RemoveCredentialFromSubjectWalletRequestObject{
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
 			SubjectID: subject,
 			Id:        credentialID.String(),
 		})
 
 		assert.NoError(t, err)
-		assert.Equal(t, RemoveCredentialFromSubjectWallet204Response{}, response)
+		assert.Equal(t, RemoveCredentialFromWallet204Response{}, response)
 	})
 	t.Run("error - credential not found", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return([]did.DID{didNuts, didWeb}, nil)
 		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, gomock.AnyOf(didNuts, didWeb), credentialID).Return(types.ErrNotFound).Times(2)
 
-		response, err := testContext.client.RemoveCredentialFromSubjectWallet(testContext.requestCtx, RemoveCredentialFromSubjectWalletRequestObject{
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
 			SubjectID: subject,
 			Id:        credentialID.String(),
 		})
@@ -890,13 +863,26 @@ func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return(nil, didsubject.ErrSubjectNotFound)
 
-		response, err := testContext.client.RemoveCredentialFromSubjectWallet(testContext.requestCtx, RemoveCredentialFromSubjectWalletRequestObject{
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
 			SubjectID: subject,
 			Id:        credentialID.String(),
 		})
 
 		assert.Empty(t, response)
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("error - general error", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return([]did.DID{didNuts, didWeb}, nil)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didNuts, credentialID).Return(assert.AnError)
+
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
+			SubjectID: subject,
+			Id:        credentialID.String(),
+		})
+
+		assert.Empty(t, response)
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 
