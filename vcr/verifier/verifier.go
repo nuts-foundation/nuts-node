@@ -176,7 +176,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 
 			}
 		}
-		_, _, err := v.didResolver.Resolve(*issuerDID, &metadata)
+		_, _, err = v.didResolver.Resolve(*issuerDID, &metadata)
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}
