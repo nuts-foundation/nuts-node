@@ -378,7 +378,7 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 
 func confirmWriteAccess(datadir string) error {
 	// Make sure the data directory exists
-	err := os.MkdirAll(path.Dir(datadir+string(os.PathSeparator)), 0644)
+	err := os.MkdirAll(path.Dir(datadir+string(os.PathSeparator)), os.ModePerm)
 	if err != nil {
 		// log error: "unable to create datadir (dir=./data): mkdir ./data: read-only file system"
 		return err
