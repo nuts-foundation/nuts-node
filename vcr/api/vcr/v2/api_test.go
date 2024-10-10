@@ -23,8 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 	"testing"
 	"time"
@@ -41,6 +40,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -827,26 +828,57 @@ func TestWrapper_GetCredentialsInWallet(t *testing.T) {
 	})
 }
 
-func TestWrapper_RemoveCredentialFromWallet(t *testing.T) {
+func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
+	didNuts := did.MustParseDID("did:nuts:123")
+	didWeb := did.MustParseDID("did:web:example.com")
+	subject := "subbie"
 	t.Run("ok", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(nil)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return([]did.DID{didNuts, didWeb}, nil)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didNuts, credentialID).Return(nil)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didWeb, credentialID).Return(types.ErrNotFound) // only exists on 1 DID
 
 		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
-			Did: holderDID.String(),
-			Id:  credentialID.String(),
+			SubjectID: subject,
+			Id:        credentialID.String(),
 		})
 
 		assert.NoError(t, err)
 		assert.Equal(t, RemoveCredentialFromWallet204Response{}, response)
 	})
-	t.Run("error", func(t *testing.T) {
+	t.Run("error - credential not found", func(t *testing.T) {
 		testContext := newMockContext(t)
-		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, holderDID, credentialID).Return(assert.AnError)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return([]did.DID{didNuts, didWeb}, nil)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, gomock.AnyOf(didNuts, didWeb), credentialID).Return(types.ErrNotFound).Times(2)
 
 		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
-			Did: holderDID.String(),
-			Id:  credentialID.String(),
+			SubjectID: subject,
+			Id:        credentialID.String(),
+		})
+
+		assert.Empty(t, response)
+		assert.ErrorIs(t, err, types.ErrNotFound)
+	})
+	t.Run("error - subject not found", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return(nil, didsubject.ErrSubjectNotFound)
+
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
+			SubjectID: subject,
+			Id:        credentialID.String(),
+		})
+
+		assert.Empty(t, response)
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("error - general error", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subject).Return([]did.DID{didNuts, didWeb}, nil)
+		testContext.mockWallet.EXPECT().Remove(testContext.requestCtx, didNuts, credentialID).Return(assert.AnError)
+
+		response, err := testContext.client.RemoveCredentialFromWallet(testContext.requestCtx, RemoveCredentialFromWalletRequestObject{
+			SubjectID: subject,
+			Id:        credentialID.String(),
 		})
 
 		assert.Empty(t, response)

@@ -23,15 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"strings"
 	"time"
@@ -40,9 +31,18 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
 var clockFn = func() time.Time {
@@ -461,20 +461,31 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
-	holderDID, err := did.ParseDID(request.Did)
+	// get DIDs for holder
+	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
 	if err != nil {
-		return nil, core.InvalidInputError("invalid holder DID: %w", err)
+		return nil, err
 	}
 	credentialID, err := ssi.ParseURI(request.Id)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid credential ID: %w", err)
 	}
-	err = w.VCR.Wallet().Remove(ctx, *holderDID, *credentialID)
-	if err != nil {
-		return nil, err
+	var deleted bool
+	for _, subjectDID := range dids {
+		err = w.VCR.Wallet().Remove(ctx, subjectDID, *credentialID)
+		if err != nil {
+			if errors.Is(err, vcrTypes.ErrNotFound) {
+				// only return vcrTypes.ErrNotFound if true for all subjectDIDs (deleted=false)
+				continue
+			}
+			return nil, err
+		}
+		deleted = true
+	}
+	if !deleted {
+		return nil, vcrTypes.ErrNotFound
 	}
 	return RemoveCredentialFromWallet204Response{}, nil
-
 }
 
 // TrustIssuer handles API request to start trusting an issuer of a Verifiable Credential.
