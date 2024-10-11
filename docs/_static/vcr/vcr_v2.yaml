@@ -530,17 +530,17 @@ paths:
           description: The credential will not be altered in any way, so no need to return it.
         default:
           $ref: '../common/error_response.yaml'
-  /internal/vcr/v2/holder/{did}/vc/{id}:
+  /internal/vcr/v2/holder/{subjectID}/vc/{id}:
     parameters:
-      - name: did
+      - name: subjectID
         in: path
-        description: URL encoded DID.
+        description: Subject ID of the wallet owner at this node.
         required: true
         content:
           plain/text:
             schema:
               type: string
-              example: did:web:example.com
+              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
       - name: id
         in: path
         description: URL encoded VC ID.
@@ -552,15 +552,15 @@ paths:
       description: |
         Remove a VerifiableCredential from the holders wallet. After removal the holder can't present the credential any more.
         It does not revoke the credential or inform the credential issuer that the wallet removed the wallet.
-        
+
 
         error returns:
         * 400 - Invalid credential
-        * 404 - Credential not found
+        * 404 - Credential or subject not found
         * 500 - An error occurred while processing the request
       operationId: removeCredentialFromWallet
       tags:
-          - credential
+        - credential
       responses:
         "204":
           description: Credential has been removed from the wallet.
