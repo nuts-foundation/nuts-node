@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"gorm.io/gorm"
+	"os"
 	"testing"
 	"time"
 )
@@ -648,4 +649,14 @@ func TestModule_GetServiceActivation(t *testing.T) {
 			assert.ErrorAs(t, err, &RegistrationRefreshError{})
 		})
 	})
+}
+
+func checkWriteAccess(dir string) bool {
+	info, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+
+	// Check if the directory is writable by the current user
+	return info.Mode().Perm()&(1<<(uint(7))) != 0
 }
