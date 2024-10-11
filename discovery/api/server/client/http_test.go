@@ -56,7 +56,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 		err := client.Register(context.Background(), server.URL, vp)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
-		assert.ErrorContains(t, err, "server returned HTTP 400")
+		assert.ErrorContains(t, err, "server returned HTTP status code 400")
 		assert.ErrorContains(t, err, "missing credentials: could not resolve DID")
 	})
 	t.Run("non-ok other", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		_, _, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
-		assert.ErrorContains(t, err, "server returned HTTP 500")
+		assert.ErrorContains(t, err, "server returned HTTP status code 500")
 		assert.ErrorContains(t, err, "internal server error: db not found")
 	})
 	t.Run("server does not return JSON", func(t *testing.T) {

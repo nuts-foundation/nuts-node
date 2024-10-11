@@ -109,5 +109,5 @@ func problemResponseToError(httpErr core.HttpError) string {
 	if err := json.Unmarshal(httpErr.ResponseBody, &problemDetails); err != nil {
 		return fmt.Sprintf("%s: %s", httpErr.Error(), httpErr.ResponseBody)
 	}
-	return fmt.Sprintf("server returned HTTP %d: %s: %s", problemDetails.Status, problemDetails.Title, problemDetails.Description)
+	return fmt.Sprintf("server returned HTTP status code %d: %s: %s", problemDetails.Status, problemDetails.Title, problemDetails.Description)
 }
