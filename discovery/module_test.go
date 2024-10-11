@@ -199,7 +199,10 @@ func Test_Module_Register(t *testing.T) {
 			claims[jwt.AudienceKey] = []string{testServiceID}
 		})
 		t.Run("ok", func(t *testing.T) {
-			m, testContext := setupModule(t, storageEngine)
+			m, testContext := setupModule(t, storageEngine, func(module *Module) {
+				// disable updater
+				module.config.Client.RefreshInterval = 0
+			})
 			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
 
 			err := m.Register(ctx, testServiceID, vpAlice)

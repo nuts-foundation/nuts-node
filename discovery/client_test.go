@@ -387,7 +387,6 @@ func Test_clientUpdater_updateService(t *testing.T) {
 	require.NoError(t, err)
 	ctx := context.Background()
 	serviceDefinition := testDefinitions()[testServiceID]
-	seed := "seed"
 
 	t.Run("no updates", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -395,7 +394,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 0).Return(map[string]vc.VerifiablePresentation{}, seed, 0, nil)
+		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 0).Return(map[string]vc.VerifiablePresentation{}, testSeed, 0, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -407,7 +406,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, seed, 1, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, testSeed, 1, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -424,7 +423,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 			return nil
 		}, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, seed, 2, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, testSeed, 2, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -445,11 +444,31 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		require.NoError(t, err)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 1).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, seed, 1, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 1).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, testSeed, 1, nil)
 
 		err = updater.updateService(ctx, testDefinitions()[testServiceID])
 
 		require.NoError(t, err)
+	})
+	t.Run("seed change wipes entries", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+		store.add(testServiceID, vpAlice, testSeed, 0)
+
+		exists, err := store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		require.True(t, exists)
+
+		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 1).Return(map[string]vc.VerifiablePresentation{}, "other", 0, nil)
+
+		err = updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+		exists, err = store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		require.False(t, exists)
 	})
 }
 

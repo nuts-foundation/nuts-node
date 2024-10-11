@@ -47,6 +47,7 @@ func TestWrapper_GetPresentations(t *testing.T) {
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
 		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
+		assert.Equal(t, seed, response.(GetPresentations200JSONResponse).Seed)
 	})
 	t.Run("with timestamp", func(t *testing.T) {
 		givenTimestamp := 1

@@ -76,6 +76,27 @@ func Test_sqlStore_add(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("seed", func(t *testing.T) {
+		t.Run("passing seed updates last_seed", func(t *testing.T) {
+			m := setupStore(t, storageEngine.GetSQLDatabase())
+			require.NoError(t, m.add(testServiceID, createPresentation(aliceDID), testSeed, 0))
+
+			_, seed, _, err := m.get(testServiceID, 0)
+
+			require.NoError(t, err)
+			assert.Equal(t, testSeed, seed)
+		})
+		t.Run("generated seed", func(t *testing.T) {
+			m := setupStore(t, storageEngine.GetSQLDatabase())
+			require.NoError(t, m.add(testServiceID, createPresentation(aliceDID), "", 0))
+
+			_, seed, _, err := m.get(testServiceID, 0)
+
+			require.NoError(t, err)
+			assert.Len(t, seed, 36) // uuid v4
+		})
+	})
+
 	t.Run("passing timestamp updates last_timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 		err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 1)
