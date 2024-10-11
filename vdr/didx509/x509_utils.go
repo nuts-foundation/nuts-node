@@ -113,6 +113,9 @@ func parseChain(metadata *resolver.ResolveMetadata) ([]*x509.Certificate, error)
 		certBytes, has := metadata.X509CertChain.Get(i)
 		if has {
 			pemBlock, _ := pem.Decode(certBytes)
+			if pemBlock == nil {
+				return nil, fmt.Errorf("invalid PEM block")
+			}
 			if pemBlock.Type != "CERTIFICATE" {
 				return nil, fmt.Errorf("invalid PEM block type: %s", pemBlock.Type)
 			}
@@ -144,11 +147,11 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString, alg stri
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find a certificate with algorithm: %s hash: %s", alg, targetHashString)
+	return nil, fmt.Errorf("cannot find a certificate with alg: %s hash: %s", alg, targetHashString)
 }
 
 // hash computes and returns the hash of the given data using the specified algorithm.
-// Supported algorithms are: "sha1", "sha256", "sha384", "sha512".
+// Supported algorithms are: "sha1", "sha256Sum", "sha384", "sha512".
 // Returns the computed hash as a byte slice and an error if the algorithm is unsupported.
 // The error is nil if the hash is computed successfully.
 func hash(data []byte, alg string) ([]byte, error) {

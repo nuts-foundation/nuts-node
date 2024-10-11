@@ -24,6 +24,10 @@ var (
 	ErrWrongSanDns             = errors.New("the SAN DNS does not match the query")
 	ErrWrongSanEmailAddresses  = errors.New("the SAN EmailAddresses does not match the query")
 	ErrWrongSanIPAddresses     = errors.New("the SAN IPAddresses does not match the query")
+	ErrDidMalformed            = errors.New("did:x509 is malformed")
+	ErrDidVersion              = errors.New("did:x509 does not have version 0")
+	ErrDidSanMalformed         = errors.New("did:x509 policy is malformed")
+	ErrX509ChainMissing        = errors.New("x509 rootCert chain is missing")
 )
 
 var _ resolver.DIDResolver = &Resolver{}
@@ -57,7 +61,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 
 	if metadata.X509CertChain == nil {
-		return nil, nil, errors.New("x509 rootCert chain is nil")
+		return nil, nil, ErrX509ChainMissing
 	}
 	chain, err := parseChain(metadata)
 	if err != nil {
@@ -65,12 +69,14 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 	_, err = findCertificateByHash(chain, ref.RootCertRef, ref.Method)
 	if err != nil {
-		err := fmt.Errorf("unable to find root cert: %s in chain: %v", ref.RootCertRef, err)
 		return nil, nil, err
 	}
 	validationCert, err := findCertificateByHash(chain, metadata.X509CertThumbprint, "sha1")
 	if err != nil {
-		return nil, nil, err
+		validationCert, err = findCertificateByHash(chain, metadata.X509CertThumbprintS256, "sha256")
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	err = validatePolicy(ref, validationCert)
@@ -96,7 +102,7 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	case "subject":
 		keyValue := strings.Split(ref.PolicyValue, ":")
 		if len(keyValue)%2 != 0 {
-			return errors.New("subject selector does not have 2 parts")
+			return ErrDidSanMalformed
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
 			subject := cert.Subject
@@ -128,7 +134,7 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	case "san":
 		keyValue := strings.Split(ref.PolicyValue, ":")
 		if len(keyValue)%2 != 0 {
-			return errors.New("san selector does not have 2 parts")
+			return ErrDidSanMalformed
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
 			key := keyValue[i]
@@ -208,11 +214,11 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 	}
 	didParts := strings.Split(didString, ":")
 	if len(didParts) != 3 {
-		return nil, errors.New("did:key does not have 3 parts")
+		return nil, ErrDidMalformed
 	}
 
 	if didParts[0] != "0" {
-		return nil, errors.New("did:x509 does not have 0 as the version number")
+		return nil, ErrDidVersion
 	}
 	ref.Method = didParts[1]
 	ref.RootCertRef = didParts[2]
