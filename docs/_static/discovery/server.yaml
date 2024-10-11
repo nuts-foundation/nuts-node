@@ -76,9 +76,13 @@ components:
     PresentationsResponse:
       type: object
       required:
+        - seed
         - timestamp
         - entries
       properties:
+        seed:
+          description: unique value for the combination of serviceID and a server instance.
+          type: string
         timestamp:
           description: highest timestamp of the returned presentations, should be used as the timestamp for the next query
           type: integer

@@ -39,6 +39,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"gorm.io/gorm"
 	"testing"
 	"time"
 )
@@ -65,9 +66,16 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(ctx, testServiceID, vpAlice)
 			require.NoError(t, err)
 
-			_, timestamp, err := m.Get(ctx, testServiceID, 0)
+			_, seed, timestamp, err := m.Get(ctx, testServiceID, 0)
 			require.NoError(t, err)
 			assert.Equal(t, 1, timestamp)
+			assert.NotEmpty(t, seed)
+
+			t.Run("already exists", func(t *testing.T) {
+				err = m.Register(ctx, testServiceID, vpAlice)
+
+				assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
+			})
 		})
 		t.Run("not a server", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine, func(module *Module) {
@@ -76,7 +84,7 @@ func Test_Module_Register(t *testing.T) {
 					Endpoint: "https://example.com/someother",
 				}
 				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
-				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, testSeed, 0, nil).AnyTimes()
 				mockhttpclient.EXPECT().Register(gomock.Any(), "https://example.com/someother", vpAlice).Return(nil)
 			})
 
@@ -91,18 +99,9 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(ctx, testServiceID, vpAlice)
 			require.EqualError(t, err, "presentation is invalid for registration\npresentation verification failed: failed")
 
-			_, timestamp, err := m.Get(ctx, testServiceID, 0)
+			_, _, timestamp, err := m.Get(ctx, testServiceID, 0)
 			require.NoError(t, err)
 			assert.Equal(t, 0, timestamp)
-		})
-		t.Run("already exists", func(t *testing.T) {
-			m, testContext := setupModule(t, storageEngine)
-			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any())
-
-			err := m.Register(ctx, testServiceID, vpAlice)
-			assert.NoError(t, err)
-			err = m.Register(ctx, testServiceID, vpAlice)
-			assert.ErrorIs(t, err, ErrPresentationAlreadyExists)
 		})
 		t.Run("valid for too long", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine, func(module *Module) {
@@ -160,7 +159,7 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(ctx, testServiceID, otherVP)
 			assert.ErrorIs(t, err, pe.ErrNoCredentials)
 
-			_, timestamp, _ := m.Get(ctx, testServiceID, 0)
+			_, _, timestamp, _ := m.Get(ctx, testServiceID, 0)
 			assert.Equal(t, 0, timestamp)
 		})
 		t.Run("unsupported DID method", func(t *testing.T) {
@@ -184,7 +183,7 @@ func Test_Module_Register(t *testing.T) {
 					Endpoint: "https://example.com/someother",
 				}
 				mockhttpclient := module.httpClient.(*client.MockHTTPClient)
-				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+				mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", gomock.Any()).Return(nil, testSeed, 0, nil).AnyTimes()
 			})
 			ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
 
@@ -260,18 +259,18 @@ func Test_Module_Get(t *testing.T) {
 	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
-		presentations, timestamp, err := m.Get(ctx, testServiceID, 0)
+		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+		presentations, seed, timestamp, err := m.Get(ctx, testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
 		assert.Equal(t, 1, timestamp)
-	})
-	t.Run("ok - retrieve delta", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
-		presentations, _, err := m.Get(ctx, testServiceID, 0)
-		require.NoError(t, err)
-		require.Len(t, presentations, 1)
+		assert.NotEmpty(t, seed)
+
+		t.Run("ok - retrieve delta", func(t *testing.T) {
+			presentations, _, _, err := m.Get(ctx, testServiceID, 1)
+			require.NoError(t, err)
+			require.Len(t, presentations, 0)
+		})
 	})
 	t.Run("not a server for this service ID, call forwarded", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine, func(module *Module) {
@@ -280,14 +279,15 @@ func Test_Module_Get(t *testing.T) {
 				Endpoint: "https://example.com/someother",
 			}
 			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
-			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, 1, nil).AnyTimes()
+			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, "otherSeed", 1, nil).AnyTimes()
 		})
 
-		presentations, timestamp, err := m.Get(ctx, "someother", 0)
+		presentations, seed, timestamp, err := m.Get(ctx, "someother", 0)
 
 		require.NoError(t, err)
 		assert.Equal(t, 1, timestamp)
 		assert.Len(t, presentations, 1)
+		assert.Equal(t, "otherSeed", seed)
 	})
 	t.Run("not a server for this service ID, call forwarded, cycle detected", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine, func(module *Module) {
@@ -296,11 +296,11 @@ func Test_Module_Get(t *testing.T) {
 				Endpoint: "https://example.com/someother",
 			}
 			mockhttpclient := module.httpClient.(*client.MockHTTPClient)
-			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(nil, 0, nil).AnyTimes()
+			mockhttpclient.EXPECT().Get(gomock.Any(), "https://example.com/someother", 0).Return(nil, "", 0, nil).AnyTimes()
 		})
 		ctx := context.WithValue(ctx, XForwardedHostContextKey{}, "https://example.com")
 
-		_, _, err := m.Get(ctx, "someother", 0)
+		_, _, _, err := m.Get(ctx, "someother", 0)
 
 		assert.ErrorIs(t, err, errCyclicForwardingDetected)
 	})
@@ -325,10 +325,23 @@ func setupModule(t *testing.T, storageInstance storage.Engine, visitors ...func(
 	m.config = DefaultConfig()
 	m.publicURL = test.MustParseURL("https://example.com")
 	require.NoError(t, m.Configure(core.TestServerConfig()))
+
 	httpClient := client.NewMockHTTPClient(ctrl)
-	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, nil).AnyTimes()
-	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(nil, 0, nil).AnyTimes()
-	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(nil, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, testSeed, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(nil, testSeed, 0, nil).AnyTimes()
+	httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(nil, testSeed, 0, nil).AnyTimes()
+	// set seed in DB otherwise behaviour is unpredictable due to background processes
+	if m.store != nil {
+		require.NoError(t, m.store.db.Transaction(func(tx *gorm.DB) error {
+			service := serviceRecord{
+				ID:                   testServiceID,
+				Seed:                 testSeed,
+				LastLamportTimestamp: 0,
+			}
+			return tx.Save(&service).Error
+		}))
+	}
+
 	m.httpClient = httpClient
 	m.allDefinitions = testDefinitions()
 	m.serverDefinitions = map[string]ServiceDefinition{
@@ -426,7 +439,7 @@ func TestModule_Search(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 
-		require.NoError(t, m.store.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
 
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.person.givenName": "Alice",
@@ -461,7 +474,7 @@ func TestModule_update(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// Get() should be called at least twice (times the number of Service Definitions), once for the initial run on startup, then again after the refresh interval
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).MinTimes(2 * len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil).MinTimes(2 * len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 		time.Sleep(10 * time.Millisecond)
@@ -473,7 +486,7 @@ func TestModule_update(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			// update causes call to HttpClient.Get(), once for each Service Definition
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil).Times(len(module.allDefinitions))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil).Times(len(module.allDefinitions))
 			module.httpClient = httpClient
 		})
 	})
@@ -487,7 +500,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil)
 			module.httpClient = httpClient
 			// disable auto-refresh job to have deterministic assertions
 			module.config.Client.RefreshInterval = 0
@@ -511,7 +524,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
 			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
 			httpClient.EXPECT().Register(gomock.Any(), gomock.Any(), vpAlice).Return(nil)
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, 0, nil)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil)
 			module.httpClient = httpClient
 			// disable auto-refresh job to have deterministic assertions
 			module.config.Client.RefreshInterval = 0
@@ -614,7 +627,7 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).AnyTimes()
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
-		_ = m.store.add(testServiceID, vpAlice, 0)
+		_ = m.store.add(testServiceID, vpAlice, testSeed, 0)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 

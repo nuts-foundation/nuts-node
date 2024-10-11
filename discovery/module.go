@@ -203,7 +203,7 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 		return err
 	}
 
-	return m.store.add(serviceID, presentation, 0)
+	return m.store.add(serviceID, presentation, "", 0)
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
@@ -327,18 +327,18 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 
 // Get is a Discovery Server function that retrieves the presentations for the given service, starting at timestamp+1.
 // See interface.go for more information.
-func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
+func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, string, int, error) {
 	_, exists := m.serverDefinitions[serviceID]
 	if !exists {
 		// forward to configured server
 		service, exists := m.allDefinitions[serviceID]
 		if !exists {
-			return nil, 0, ErrServiceNotFound
+			return nil, "", 0, ErrServiceNotFound
 		}
 
 		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
 		if cycleDetected(context, service) {
-			return nil, 0, errCyclicForwardingDetected
+			return nil, "", 0, errCyclicForwardingDetected
 		}
 
 		log.Logger().Infof("Forwarding Get request to configured server (service=%s)", serviceID)

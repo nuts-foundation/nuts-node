@@ -45,21 +45,21 @@ func Test_sqlStore_exists(t *testing.T) {
 	})
 	t.Run("non-empty list, no match (other subject and ID)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpBob, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, no match (other list)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
 		exists, err := m.exists("other", aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, match", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.True(t, exists)
@@ -72,13 +72,13 @@ func Test_sqlStore_add(t *testing.T) {
 
 	t.Run("no credentials in presentation", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.add(testServiceID, createPresentation(aliceDID), 0)
+		err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 0)
 		assert.NoError(t, err)
 	})
 
 	t.Run("passing timestamp updates last_timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.add(testServiceID, createPresentation(aliceDID), 1)
+		err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 1)
 		require.NoError(t, err)
 
 		timestamp, err := m.getTimestamp(testServiceID)
@@ -91,8 +91,8 @@ func Test_sqlStore_add(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 
 		secondVP := createPresentation(aliceDID, vcAlice)
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
-		require.NoError(t, m.add(testServiceID, secondVP, 0))
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, m.add(testServiceID, secondVP, testSeed, 0))
 
 		// First VP should not exist
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
@@ -112,42 +112,44 @@ func Test_sqlStore_get(t *testing.T) {
 
 	t.Run("empty list, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		presentations, seed, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Empty(t, presentations)
 		assert.Equal(t, 0, timestamp)
+		assert.Empty(t, seed)
 	})
 	t.Run("1 entry, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		presentations, seed, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
 		assert.Equal(t, 1, timestamp)
+		assert.Equal(t, testSeed, seed)
 	})
 	t.Run("2 entries, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, 0))
-		presentations, timestamp, err := m.get(testServiceID, 0)
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		presentations, _, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, presentations)
 		assert.Equal(t, 2, timestamp)
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, 0))
-		presentations, timestamp, err := m.get(testServiceID, 1)
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		presentations, _, timestamp, err := m.get(testServiceID, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"2": vpBob}, presentations)
 		assert.Equal(t, 2, timestamp)
 	})
 	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, 0))
-		presentations, timestamp, err := m.get(testServiceID, 2)
+		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		presentations, _, timestamp, err := m.get(testServiceID, 2)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{}, presentations)
 		assert.Equal(t, 2, timestamp)
@@ -159,7 +161,7 @@ func Test_sqlStore_get(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), 0)
+				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), testSeed, 0)
 				require.NoError(t, err)
 			}()
 		}
@@ -185,7 +187,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, 0)
+			err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 
@@ -200,7 +202,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, 0)
+			err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 
@@ -212,7 +214,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, 0)
+			err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 		actualVPs, err := c.search(testServiceID, map[string]string{
@@ -350,8 +352,8 @@ func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 		_ = storageEngine.Shutdown()
 	})
 	c := setupStore(t, storageEngine.GetSQLDatabase())
-	require.NoError(t, c.add(testServiceID, vpAlice2, 0))
-	require.NoError(t, c.add(testServiceID, vpBob2, 0))
+	require.NoError(t, c.add(testServiceID, vpAlice2, testSeed, 0))
+	require.NoError(t, c.add(testServiceID, vpBob2, testSeed, 0))
 
 	t.Run("ok - single", func(t *testing.T) {
 		vps, err := c.getSubjectVPsOnService(testServiceID, []did.DID{aliceDID})
@@ -362,6 +364,36 @@ func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 		vps, err := c.getSubjectVPsOnService(testServiceID, []did.DID{aliceDID, unsupportedDID, bobDID})
 		require.NoError(t, err)
 		assert.Equal(t, map[did.DID][]vc.VerifiablePresentation{aliceDID: {vpAlice2}, unsupportedDID: {}, unsupportedDID: nil, bobDID: {vpBob2}}, vps)
+	})
+}
+
+func Test_sqlStore_wipeOnSeedChange(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	t.Run("empty database", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		err := c.wipeOnSeedChange(testServiceID, "other")
+		require.NoError(t, err)
+	})
+	t.Run("1 entry wiped, 1 remains", func(t *testing.T) {
+		c := setupStore(t, storageEngine.GetSQLDatabase())
+		require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, c.add("other", vpAlice, testSeed, 0))
+
+		err := c.wipeOnSeedChange(testServiceID, "other")
+		require.NoError(t, err)
+
+		vps, err := c.search(testServiceID, map[string]string{})
+		require.NoError(t, err)
+		require.Len(t, vps, 0)
+		vps, err = c.search("other", map[string]string{})
+		require.NoError(t, err)
+		require.Len(t, vps, 1)
 	})
 }
 

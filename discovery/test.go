@@ -40,6 +40,8 @@ import (
 	"time"
 )
 
+const testSeed = "1234567890"
+
 var keyPairs map[string]*ecdsa.PrivateKey
 var authorityDID did.DID
 var aliceSubject string

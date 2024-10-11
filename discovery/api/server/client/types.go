@@ -24,6 +24,8 @@ import "github.com/nuts-foundation/go-did/vc"
 type PresentationsResponse struct {
 	// Entries contains mappings from timestamp (as string) to a VerifiablePresentation.
 	Entries map[string]vc.VerifiablePresentation `json:"entries"`
+	// Seed is a unique value for the combination of serviceID and a server instance.
+	Seed string `json:"seed"`
 	// Timestamp is the timestamp of the latest entry. It's not a unix timestamp but a Lamport Clock.
 	Timestamp int `json:"timestamp"`
 }
