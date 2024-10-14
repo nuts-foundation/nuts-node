@@ -215,8 +215,16 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 	if exists {
 		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
 	}
-	_, err = m.store.add(serviceID, presentation, "", 0)
-	return err
+	record, err := m.store.add(serviceID, presentation, "", 0)
+	if err != nil {
+		return err
+	}
+	// also update validated flag since validation is already done
+	if err = m.store.updateValidated([]presentationRecord{*record}); err != nil {
+		log.Logger().WithError(err).Errorf("failed to update validated flag for presentation (id: %s)", record.ID)
+	}
+
+	return nil
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
