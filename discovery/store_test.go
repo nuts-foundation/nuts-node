@@ -200,7 +200,7 @@ func Test_sqlStore_search(t *testing.T) {
 
 	t.Run("empty database", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		actualVPs, err := c.search(testServiceID, map[string]string{})
+		actualVPs, err := c.search(testServiceID, map[string]string{}, true)
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 0)
 	})
@@ -214,7 +214,7 @@ func Test_sqlStore_search(t *testing.T) {
 
 		actualVPs, err := c.search(testServiceID, map[string]string{
 			"credentialSubject.person.givenName": "Alice",
-		})
+		}, true)
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 1)
 		assert.Equal(t, vpAlice.ID.String(), actualVPs[0].ID.String())
@@ -227,9 +227,15 @@ func Test_sqlStore_search(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		actualVPs, err := c.search(testServiceID, map[string]string{})
+		actualVPs, err := c.search(testServiceID, map[string]string{}, true)
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 2)
+
+		t.Run("validated", func(t *testing.T) {
+			actualVPs, err = c.search(testServiceID, map[string]string{}, false)
+			require.NoError(t, err)
+			require.Len(t, actualVPs, 0)
+		})
 	})
 	t.Run("not found", func(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
@@ -240,7 +246,7 @@ func Test_sqlStore_search(t *testing.T) {
 		}
 		actualVPs, err := c.search(testServiceID, map[string]string{
 			"credentialSubject.person.givenName": "Charlie",
-		})
+		}, true)
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 0)
 	})
@@ -345,7 +351,7 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 		assert.Equal(t, refreshError.Error, assert.AnError.Error())
 		assert.True(t, refreshError.LastOccurrence > int(time.Now().Add(-1*time.Second).Unix()))
 	})
-	t.Run("delete", func(t *testing.T) {
+	t.Run("deletePresentationRecord", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, to.Ptr(time.Now().Add(time.Second))))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
@@ -409,13 +415,64 @@ func Test_sqlStore_wipeOnSeedChange(t *testing.T) {
 		err := c.wipeOnSeedChange(testServiceID, "other")
 		require.NoError(t, err)
 
-		vps, err := c.search(testServiceID, map[string]string{})
+		vps, err := c.search(testServiceID, map[string]string{}, true)
 		require.NoError(t, err)
 		require.Len(t, vps, 0)
-		vps, err = c.search("other", map[string]string{})
+		vps, err = c.search("other", map[string]string{}, true)
 		require.NoError(t, err)
 		require.Len(t, vps, 1)
 	})
+}
+
+func Test_sqlStore_updateValidated(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	c := setupStore(t, storageEngine.GetSQLDatabase())
+	require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
+
+	result, err := c.allPresentations(true)
+	require.NoError(t, err)
+	assert.Len(t, result, 0)
+	result, err = c.allPresentations(false)
+	require.NoError(t, err)
+	assert.Len(t, result, 1)
+
+	t.Run("validated", func(t *testing.T) {
+		err = c.updateValidated(result)
+		require.NoError(t, err)
+
+		result, err = c.allPresentations(false)
+		require.NoError(t, err)
+		assert.Len(t, result, 0)
+		result, err = c.allPresentations(true)
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+}
+
+func Test_sqlStore_delete(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() {
+		_ = storageEngine.Shutdown()
+	})
+
+	c := setupStore(t, storageEngine.GetSQLDatabase())
+	require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
+	presentations, _ := c.allPresentations(false)
+	require.Len(t, presentations, 1)
+
+	err := c.deletePresentationRecord(presentations[0].ID)
+
+	require.NoError(t, err)
+
+	result, err := c.allPresentations(false)
+	require.NoError(t, err)
+	assert.Len(t, result, 0)
 }
 
 func setupStore(t *testing.T, db *gorm.DB) *sqlStore {
@@ -427,7 +484,7 @@ func setupStore(t *testing.T, db *gorm.DB) *sqlStore {
 }
 
 func resetStore(t *testing.T, db *gorm.DB) {
-	// related tables are emptied due to on-delete-cascade clause
+	// related tables are emptied due to on-deletePresentationRecord-cascade clause
 	tableNames := []string{"discovery_service", "discovery_presentation", "discovery_credential", "credential", "credential_prop"}
 	for _, tableName := range tableNames {
 		require.NoError(t, db.Exec("DELETE FROM "+tableName).Error)

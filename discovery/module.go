@@ -152,7 +152,7 @@ func (m *Module) Start() error {
 		return err
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
-	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager, m.didResolver)
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager, m.didResolver, m.verifyRegistration)
 	if m.config.Client.RefreshInterval > 0 {
 		m.routines.Add(1)
 		go func() {
@@ -203,6 +203,18 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 		return err
 	}
 
+	// Check if the presentation already exists
+	credentialSubjectID, err := credential.PresentationSigner(presentation)
+	if err != nil {
+		return err
+	}
+	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
+	if err != nil {
+		return err
+	}
+	if exists {
+		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
+	}
 	return m.store.add(serviceID, presentation, "", 0)
 }
 
@@ -235,15 +247,7 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 		return errors.Join(ErrInvalidPresentation, ErrDIDMethodsNotSupported)
 	}
 
-	// Check if the presentation already exists
-	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
-	if err != nil {
-		return err
-	}
-	if exists {
-		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
-	}
-	// Depending on the presentation type, we need to validate different properties before storing it.
+	// Depending on the presentation type, we need to updateValidated different properties before storing it.
 	if presentation.IsType(retractionPresentationType) {
 		err = m.validateRetraction(definition.ID, presentation)
 	} else {
@@ -484,7 +488,7 @@ func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResu
 	if !exists {
 		return nil, ErrServiceNotFound
 	}
-	matchingVPs, err := m.store.search(serviceID, query)
+	matchingVPs, err := m.store.search(serviceID, query, false)
 	if err != nil {
 		return nil, err
 	}
@@ -556,6 +560,16 @@ func (m *Module) update() {
 		err = m.clientUpdater.update(m.ctx)
 		if err != nil {
 			log.Logger().WithError(err).Errorf("Failed to load latest Verifiable Presentations from Discovery Service")
+		}
+		// updateValidated all presentations not yet validated
+		err = m.registrationManager.validate()
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to validate presentations")
+		}
+		// purge list
+		err = m.registrationManager.removeRevoked()
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to remove revoked presentations")
 		}
 	}
 	do()

@@ -61,8 +61,10 @@ func Test_Module_Register(t *testing.T) {
 
 	t.Run("registration", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
-			m, testContext := setupModule(t, storageEngine)
-			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
+			m, testContext := setupModule(t, storageEngine, func(module *Module) {
+				module.config.Client.RefreshInterval = 0
+			})
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
 
 			err := m.Register(ctx, testServiceID, vpAlice)
 			require.NoError(t, err)
@@ -262,7 +264,9 @@ func Test_Module_Get(t *testing.T) {
 	require.NoError(t, storageEngine.Start())
 	ctx := context.Background()
 	t.Run("ok", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
+		m, _ := setupModule(t, storageEngine, func(module *Module) {
+			module.config.Client.RefreshInterval = 0
+		})
 		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
 		presentations, seed, timestamp, err := m.Get(ctx, testServiceID, 0)
 		assert.NoError(t, err)
@@ -441,9 +445,12 @@ func TestModule_Search(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("ok", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
-
+		m, ctx := setupModule(t, storageEngine, func(module *Module) {
+			module.config.Client.RefreshInterval = 0
+		})
+		ctx.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
 		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+		require.NoError(t, m.registrationManager.validate())
 
 		results, err := m.Search(testServiceID, map[string]string{
 			"credentialSubject.person.givenName": "Alice",
@@ -471,29 +478,56 @@ func TestModule_Search(t *testing.T) {
 func TestModule_update(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
-	t.Run("Start() initiates update", func(t *testing.T) {
-		_, _ = setupModule(t, storageEngine, func(module *Module) {
-			// we want to assert the job runs, so make it run very often to make the test faster
-			module.config.Client.RefreshInterval = 1 * time.Millisecond
-			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
-			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
-			// Get() should be called at least twice (times the number of Service Definitions), once for the initial run on startup, then again after the refresh interval
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil).MinTimes(2 * len(module.allDefinitions))
-			module.httpClient = httpClient
+
+	tests := []struct {
+		name                  string
+		refreshInterval       time.Duration
+		expectedHTTPCalls     int
+		expectedVerifyVPCalls int
+	}{
+		{
+			name:                  "Start() initiates update",
+			refreshInterval:       time.Millisecond,
+			expectedHTTPCalls:     2,
+			expectedVerifyVPCalls: 4,
+		},
+		{
+			name:                  "update() runs on node startup",
+			refreshInterval:       time.Hour,
+			expectedHTTPCalls:     1,
+			expectedVerifyVPCalls: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetStore(t, storageEngine.GetSQLDatabase())
+			ctrl := gomock.NewController(t)
+			mockVerifier := verifier.NewMockVerifier(ctrl)
+			mockVCR := vcr.NewMockVCR(ctrl)
+			mockVCR.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
+			m := New(storageEngine, mockVCR, nil, nil)
+			m.config = DefaultConfig()
+			m.publicURL = test.MustParseURL("https://example.com")
+			m.config.Client.RefreshInterval = tt.refreshInterval
+			require.NoError(t, m.Configure(core.TestServerConfig()))
+
+			m.allDefinitions = testDefinitions()
+			httpClient := client.NewMockHTTPClient(ctrl)
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, testSeed, 0, nil).MinTimes(tt.expectedHTTPCalls * len(m.allDefinitions))
+			m.httpClient = httpClient
+			m.store, _ = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions)
+			mockVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).MinTimes(tt.expectedVerifyVPCalls)
+			require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+
+			require.NoError(t, m.Start())
+			time.Sleep(10 * time.Millisecond)
+
+			t.Cleanup(func() {
+				_ = m.Shutdown()
+			})
 		})
-		time.Sleep(10 * time.Millisecond)
-	})
-	t.Run("update() runs on node startup", func(t *testing.T) {
-		_, _ = setupModule(t, storageEngine, func(module *Module) {
-			// we want to assert the job immediately executes on node startup, even if the refresh interval hasn't passed
-			module.config.Client.RefreshInterval = time.Hour
-			// overwrite httpClient mock for custom behavior assertions (we want to know how often HttpClient.Get() was called)
-			httpClient := client.NewMockHTTPClient(gomock.NewController(t))
-			// update causes call to HttpClient.Get(), once for each Service Definition
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, "", 0, nil).Times(len(module.allDefinitions))
-			module.httpClient = httpClient
-		})
-	})
+	}
 }
 
 func TestModule_ActivateServiceForSubject(t *testing.T) {
@@ -627,7 +661,9 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, with VP", func(t *testing.T) {
-		m, testContext := setupModule(t, storageEngine)
+		m, testContext := setupModule(t, storageEngine, func(module *Module) {
+			module.config.Client.RefreshInterval = 0
+		})
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).AnyTimes()
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
