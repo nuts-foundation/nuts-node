@@ -49,13 +49,25 @@ func TestHTTPInvoker_Register(t *testing.T) {
 		assert.Equal(t, "application/json", handler.Request.Header.Get("Content-Type"))
 		assert.Equal(t, vpData, handler.RequestData)
 	})
-	t.Run("non-ok", func(t *testing.T) {
-		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusInternalServerError})
+	t.Run("non-ok with problem details", func(t *testing.T) {
+		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusBadRequest, ResponseData: `{"title":"missing credentials", "status":400, "detail":"could not resolve DID"}`})
 		client := New(false, time.Minute, server.TLS)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
+		assert.ErrorContains(t, err, "server returned HTTP status code 400")
+		assert.ErrorContains(t, err, "missing credentials: could not resolve DID")
+	})
+	t.Run("non-ok other", func(t *testing.T) {
+		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusNotFound, ResponseData: `not found`})
+		client := New(false, time.Minute, server.TLS)
+
+		err := client.Register(context.Background(), server.URL, vp)
+
+		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
+		assert.ErrorContains(t, err, "server returned HTTP 404")
+		assert.ErrorContains(t, err, "not found")
 	})
 }
 
@@ -116,13 +128,15 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		assert.True(t, strings.HasPrefix(capturedRequest.Header.Get("X-Forwarded-Host"), "127.0.0.1"))
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
-		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError}
+		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError, ResponseData: `{"title":"internal server error", "status":500, "detail":"db not found"}`}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
 		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
+		assert.ErrorContains(t, err, "server returned HTTP status code 500")
+		assert.ErrorContains(t, err, "internal server error: db not found")
 	})
 	t.Run("server does not return JSON", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
