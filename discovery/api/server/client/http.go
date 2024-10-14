@@ -85,7 +85,7 @@ func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, t
 	defer httpResponse.Body.Close()
 	if err := core.TestResponseCode(200, httpResponse); err != nil {
 		httpErr := err.(core.HttpError) // TestResponseCodeWithLog always returns an HttpError
-		return nil, 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
+		return nil, "", 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
 	}
 	responseData, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
