@@ -32,28 +32,39 @@ const headerXForwardedFor = "X-Forwarded-For"
 
 // ipInterceptor tries to extract the IP from the X-Forwarded-For header and sets this as the peers address.
 // No address is set if the header is unavailable.
-func ipInterceptor(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	addr := addrFrom(extractIPFromXFFHeader(serverStream))
-	if addr == nil {
-		// Exit without change if there is no X-Forwarded-For in the http header,
-		// or if no IP could be extracted from the header.
-		// This will default to the IP found in lvl 4 header.
-		return handler(srv, serverStream)
+func ipInterceptor(ipHeader string) grpc.StreamServerInterceptor {
+	var extractIPHeader func(serverStream grpc.ServerStream) string
+	switch ipHeader {
+	case headerXForwardedFor:
+		extractIPHeader = extractIPFromXFFHeader
+	case "":
+		extractIPHeader = extractPeerIP
+	default:
+		extractIPHeader = extractIPFromCustomHeader(ipHeader)
 	}
+	return func(srv interface{}, serverStream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		addr := addrFrom(extractIPHeader(serverStream))
+		if addr == nil {
+			// Exit without change if there is no X-Forwarded-For in the http header,
+			// or if no IP could be extracted from the header.
+			// This will default to the IP found in lvl 4 header.
+			return handler(srv, serverStream)
+		}
 
-	peerInfo, _ := peer.FromContext(serverStream.Context())
-	if peerInfo == nil {
-		peerInfo = &peer.Peer{}
+		peerInfo, _ := peer.FromContext(serverStream.Context())
+		if peerInfo == nil {
+			peerInfo = &peer.Peer{}
+		}
+		peerInfo.Addr = addr
+		ctx := peer.NewContext(serverStream.Context(), peerInfo)
+		return handler(srv, &wrappedServerStream{ctx: ctx, ServerStream: serverStream})
 	}
-	peerInfo.Addr = addr
-	ctx := peer.NewContext(serverStream.Context(), peerInfo)
-	return handler(srv, &wrappedServerStream{ctx: ctx, ServerStream: serverStream})
 }
 
 // extractIPFromXFFHeader tries to retrieve the address from X-Forward-For header. Returns an empty string if non found.
 // Implementation is based on echo.ExtractIPFromXFFHeader().
 func extractIPFromXFFHeader(serverStream grpc.ServerStream) string {
-	ipUnknown := ""
+	ipUnknown := extractPeerIP(serverStream)
 	md, ok := metadata.FromIncomingContext(serverStream.Context())
 	if !ok {
 		return ipUnknown
@@ -96,4 +107,32 @@ func addrFrom(ip string) net.Addr {
 
 func isInternal(ip net.IP) bool {
 	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsPrivate()
+}
+
+// extractIPFromCustomHeader extracts an IP address from any custom header.
+// If the header is missing or contains an invalid IP, the extractor tries to return the IP in the peer.Peer.
+// This is an altered version of echo.ExtractIPFromRealIPHeader() that does not check for trusted IPs.
+func extractIPFromCustomHeader(ipHeader string) func(serverStream grpc.ServerStream) string {
+	return func(serverStream grpc.ServerStream) string {
+		directIP := extractPeerIP(serverStream)
+		md, ok := metadata.FromIncomingContext(serverStream.Context())
+		if !ok {
+			return directIP
+		}
+		header := md.Get(ipHeader)
+		if len(header) == 0 {
+			return directIP
+		}
+
+		return strings.Join(header, ",")
+	}
+}
+
+// extractPeerID returns the peer.Peer's Addr if available in the serverStream.Context
+func extractPeerIP(serverStream grpc.ServerStream) string {
+	peer, ok := peer.FromContext(serverStream.Context())
+	if !ok {
+		return ""
+	}
+	return peer.Addr.String()
 }

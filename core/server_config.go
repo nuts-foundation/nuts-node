@@ -68,7 +68,15 @@ type ServerConfig struct {
 	// LegacyTLS exists to detect usage of deprecated network.{truststorefile,certkeyfile,certfile} parameters.
 	// This can be removed in v6.1+ (can't skip minors in migration). See https://github.com/nuts-foundation/nuts-node/issues/2909
 	LegacyTLS TLSConfig `koanf:"network"`
+	// HTTP exists to expose http.clientipheader to the nuts-network layer.
+	// This header should contaisn the client IP address for logging. Can be removed together with the nuts-network
+	HTTP      HTTPConfig `koanf:"http"`
 	configMap *koanf.Koanf
+}
+
+// Config is the top-level config struct for HTTP interfaces.
+type HTTPConfig struct {
+	ClientIPHeaderName string `koanf:"clientipheader"`
 }
 
 // HTTPClientConfig contains settings for HTTP clients.

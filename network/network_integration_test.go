@@ -901,6 +901,7 @@ func TestNetworkIntegration_TLSOffloading(t *testing.T) {
 			node1 := startNode(t, "node1", testDirectory, func(serverCfg *core.ServerConfig, cfg *Config) {
 				serverCfg.TLS.Offload = core.OffloadIncomingTLS
 				serverCfg.TLS.ClientCertHeaderName = "client-cert"
+				serverCfg.HTTP.ClientIPHeaderName = "X-Forwarded-For"
 			})
 
 			// Create client (node2) that connects to server node

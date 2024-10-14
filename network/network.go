@@ -295,6 +295,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 
+		grpcOpts = append(grpcOpts, grpc.WithClientIPHeader(config.HTTP.ClientIPHeaderName))
 		connectionManCfg, err := grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...)
 		if err != nil {
 			return err

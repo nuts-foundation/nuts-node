@@ -72,7 +72,7 @@ type MultiEcho struct {
 // results in an error being returned.
 // If address wasn't used for another bind and thus leads to creating a new Echo server, it returns true.
 // If an existing Echo server is returned, it returns false.
-func (c *MultiEcho) Bind(path string, address string, creatorFn func() (EchoServer, error)) error {
+func (c *MultiEcho) Bind(path string, address string, creatorFn func(ipHeader string) (EchoServer, error), ipHeader string) error {
 	if len(address) == 0 {
 		return errors.New("empty address")
 	}
@@ -86,7 +86,7 @@ func (c *MultiEcho) Bind(path string, address string, creatorFn func() (EchoServ
 	}
 	c.binds[path] = address
 	if _, addressBound := c.interfaces[address]; !addressBound {
-		server, err := creatorFn()
+		server, err := creatorFn(ipHeader)
 		if err != nil {
 			return err
 		}

@@ -76,6 +76,13 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pki
 	}
 }
 
+func WithClientIPHeader(clientIPHeaderName string) ConfigOption {
+	return func(config *Config) error {
+		config.clientIPHeaderName = clientIPHeaderName
+		return nil
+	}
+}
+
 // WithTLSOffloading enables TLS for outgoing connections, but is offloaded for incoming connections.
 // It MUST be used in conjunction, but after with WithTLS.
 func WithTLSOffloading(clientCertHeaderName string) ConfigOption {
@@ -121,6 +128,8 @@ type Config struct {
 	pkiValidator pki.Validator
 	// clientCertHeaderName specifies the name of the HTTP header that contains the client certificate, if TLS is offloaded.
 	clientCertHeaderName string
+	// clientIPHeaderName specifies the name of the HTTP header that contains the client IP address.
+	clientIPHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.
 	connectionTimeout time.Duration
 	// listener holds a function to create the net.Listener that is used for inbound connections.

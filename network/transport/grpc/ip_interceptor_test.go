@@ -79,12 +79,15 @@ func Test_ipInterceptor(t *testing.T) {
 		}
 
 		for _, tc := range tests {
+			ran := false
 			serverStream.ctx = contextWithMD(strings.Join(tc.xffIPs, ","))
-			_ = ipInterceptor(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+			_ = ipInterceptor(headerXForwardedFor)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				peerInfo, success = peer.FromContext(wrappedStream.Context())
+				ran = true
 				return nil
 			})
 
+			require.True(t, ran, "test logic was not executed")
 			if success {
 				assert.Equal(t, tc.expected.String(), peerInfo.Addr.String())
 			} else {
@@ -93,20 +96,26 @@ func Test_ipInterceptor(t *testing.T) {
 		}
 	})
 	t.Run("no XXF header", func(t *testing.T) {
+		ran := false
 		serverStream.ctx = metadata.NewIncomingContext(context.Background(), metadata.New(map[string]string{}))
-		_ = ipInterceptor(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+		_ = ipInterceptor(headerXForwardedFor)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 			peerInfo, success = peer.FromContext(wrappedStream.Context())
+			ran = true
 			return nil
 		})
+		require.True(t, ran, "test logic was not executed")
 		assert.False(t, success)
 		assert.Nil(t, peerInfo)
 	})
 	t.Run("no metadata in context", func(t *testing.T) {
+		ran := false
 		serverStream.ctx = context.Background()
-		_ = ipInterceptor(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+		_ = ipInterceptor(headerXForwardedFor)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 			peerInfo, success = peer.FromContext(wrappedStream.Context())
+			ran = true
 			return nil
 		})
+		require.True(t, ran, "test logic was not executed")
 		assert.False(t, success)
 		assert.Nil(t, peerInfo)
 	})

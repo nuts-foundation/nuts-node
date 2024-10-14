@@ -35,6 +35,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("http.internal.auth.audience", defs.Internal.Auth.Audience, "Expected audience for JWT tokens (default: hostname)")
 	flags.String("http.internal.auth.authorizedkeyspath", defs.Internal.Auth.AuthorizedKeysPath, "Path to an authorized_keys file for trusted JWT signers")
 	flags.String("http.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata). When debug vebosity is set the authorization headers are also logged when the request is fully logged.", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
+	flags.String("http.clientipheader", defs.ClientIPHeaderName, "Case-sensitive HTTP Header that contains the client IP used for audit logs. Supports X-Forwarded-For, X-Real-IP, and custom headers. For custom headers the audit log value will be the exact value of the header.")
 	flags.Int("http.cache.maxbytes", defs.ResponseCacheSize, "HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.")
 
 	return flags
