@@ -385,7 +385,7 @@ func (r *defaultClientRegistrationManager) removeRevoked() error {
 			continue
 		}
 		_, err = r.vcr.Verifier().VerifyVP(*verifiablePresentation, true, true, nil)
-		if !errors.Is(err, types.ErrRevoked) {
+		if err != nil && !errors.Is(err, types.ErrRevoked) {
 			log.Logger().WithError(err).Warnf(errMsg, presentation.ID)
 			continue
 		}
