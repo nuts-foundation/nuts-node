@@ -367,16 +367,21 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 	log.Logger().
 		WithField("discoveryService", service.ID).
 		Tracef("Checking for new Verifiable Presentations from Discovery Service (timestamp: %d)", currentTimestamp)
-	presentations, serverTimestamp, err := u.client.Get(ctx, service.Endpoint, currentTimestamp)
+	presentations, seed, serverTimestamp, err := u.client.Get(ctx, service.Endpoint, currentTimestamp)
 	if err != nil {
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
+	}
+	// check testSeed in store, wipe if it's different. Done by the store for transaction safety.
+	err = u.store.wipeOnSeedChange(service.ID, seed)
+	if err != nil {
+		return fmt.Errorf("failed to wipe on testSeed change (service=%s, testSeed=%s): %w", service.ID, seed, err)
 	}
 	for _, presentation := range presentations {
 		if err := u.verifier(service, presentation); err != nil {
 			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
 			continue
 		}
-		if err := u.store.add(service.ID, presentation, serverTimestamp); err != nil {
+		if err := u.store.add(service.ID, presentation, seed, serverTimestamp); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
 		}
 		log.Logger().

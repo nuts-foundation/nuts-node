@@ -38,6 +38,7 @@ import (
 
 type serviceRecord struct {
 	ID                   string `gorm:"primaryKey"`
+	Seed                 string
 	LastLamportTimestamp int
 }
 
@@ -135,7 +136,7 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition) (*
 
 // add adds a presentation to the list of presentations.
 // If the given timestamp is 0, the server will assign a timestamp.
-func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, timestamp int) error {
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, seed string, timestamp int) error {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
 		return err
@@ -146,13 +147,16 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		if timestamp == 0 {
 			var newTs *int
-			newTs, err = s.incrementTimestamp(tx, serviceID)
+			if len(seed) == 0 { // default for server
+				seed = uuid.NewString()
+			}
+			newTs, err = s.incrementTimestamp(tx, serviceID, seed)
 			if err != nil {
 				return err
 			}
 			timestamp = *newTs
 		} else {
-			err = s.setTimestamp(tx, serviceID, timestamp)
+			err = s.setTimestamp(tx, serviceID, seed, timestamp)
 			if err != nil {
 				return err
 			}
@@ -202,26 +206,26 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 
 // get returns all presentations, registered on the given service, starting after the given timestamp.
 // It also returns the latest timestamp of the returned presentations.
-func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
+func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, string, int, error) {
 	var service serviceRecord
 	if err := s.db.Find(&service, "id = ?", serviceID).Error; err != nil {
-		return nil, 0, fmt.Errorf("query service '%s': %w", serviceID, err)
+		return nil, "", 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
 
 	var rows []presentationRecord
 	err := s.db.Order("lamport_timestamp ASC").Find(&rows, "service_id = ? AND lamport_timestamp > ?", serviceID, startAfter).Error
 	if err != nil {
-		return nil, 0, fmt.Errorf("query service '%s': %w", serviceID, err)
+		return nil, "", 0, fmt.Errorf("query service '%s': %w", serviceID, err)
 	}
 	presentations := make(map[string]vc.VerifiablePresentation, len(rows))
 	for _, row := range rows {
 		presentation, err := vc.ParseVerifiablePresentation(row.PresentationRaw)
 		if err != nil {
-			return nil, 0, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
+			return nil, "", 0, fmt.Errorf("parse presentation '%s' of service '%s': %w", row.PresentationID, serviceID, err)
 		}
 		presentations[fmt.Sprintf("%d", row.LamportTimestamp)] = *presentation
 	}
-	return presentations, service.LastLamportTimestamp, nil
+	return presentations, service.Seed, service.LastLamportTimestamp, nil
 }
 
 // search searches for presentations, registered on the given service, matching the given query.
@@ -256,14 +260,17 @@ func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.Verif
 	return results, nil
 }
 
-// incrementTimestamp increments the last_timestamp of the given service.
-func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, error) {
+// incrementTimestamp increments the last_timestamp of the given service. USed by server.
+func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string, seed string) (*int, error) {
 	service, err := s.findAndLockService(tx, serviceID)
 	if err != nil {
 		return nil, err
 	}
 	service.ID = serviceID
 	service.LastLamportTimestamp = service.LastLamportTimestamp + 1
+	if len(service.Seed) == 0 { // first time this service is used, generate a new testSeed
+		service.Seed = seed
+	}
 
 	if err := tx.Save(service).Error; err != nil {
 		return nil, err
@@ -271,14 +278,15 @@ func (s *sqlStore) incrementTimestamp(tx *gorm.DB, serviceID string) (*int, erro
 	return &service.LastLamportTimestamp, nil
 }
 
-// setTimestamp sets the last_timestamp of the given service.
-func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, timestamp int) error {
+// setTimestamp sets the last_timestamp of the given service. Used by clients.
+func (s *sqlStore) setTimestamp(tx *gorm.DB, serviceID string, seed string, timestamp int) error {
 	service, err := s.findAndLockService(tx, serviceID)
 	if err != nil {
 		return err
 	}
 	service.ID = serviceID
 	service.LastLamportTimestamp = timestamp
+	service.Seed = seed
 	return tx.Save(service).Error
 }
 
@@ -495,4 +503,31 @@ func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DI
 		result[did] = signerToVPs[did]
 	}
 	return result, nil
+}
+
+// wipeOnSeedChange wipes the store on a testSeed change.
+func (s *sqlStore) wipeOnSeedChange(serviceID string, seed string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		// get the service
+		service, err := s.findAndLockService(tx, serviceID)
+		if err != nil {
+			return err
+		}
+		if service.Seed != seed && len(service.Seed) > 0 {
+			log.Logger().
+				WithField("serviceID", serviceID).
+				Warnf("Seed changed, wiping store (old: %s, new: %s)", service.Seed, seed)
+
+			// wipe the store
+			if err = tx.Where("service_id = ?", serviceID).Delete(&presentationRecord{}).Error; err != nil {
+				return err
+			}
+
+			// reset the testSeed and timestamp
+			service.Seed = seed
+			service.LastLamportTimestamp = 0
+			return tx.Save(service).Error
+		}
+		return nil
+	})
 }

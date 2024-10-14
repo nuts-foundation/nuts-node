@@ -71,31 +71,31 @@ func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL stri
 	return nil
 }
 
-func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, timestamp int) (map[string]vc.VerifiablePresentation, int, error) {
+func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, timestamp int) (map[string]vc.VerifiablePresentation, string, int, error) {
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, serviceEndpointURL, nil)
 	httpRequest.URL.RawQuery = url.Values{"timestamp": []string{fmt.Sprintf("%d", timestamp)}}.Encode()
 	if err != nil {
-		return nil, 0, err
+		return nil, "", 0, err
 	}
 	httpRequest.Header.Set("X-Forwarded-Host", httpRequest.Host) // prevent cycles
 	httpResponse, err := h.client.Do(httpRequest)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, "", 0, fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	defer httpResponse.Body.Close()
 	if err := core.TestResponseCode(200, httpResponse); err != nil {
 		httpErr := err.(core.HttpError) // TestResponseCodeWithLog always returns an HttpError
-		return nil, 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
+		return nil, "", 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
 	}
 	responseData, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to read response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, "", 0, fmt.Errorf("failed to read response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	var result PresentationsResponse
 	if err := json.Unmarshal(responseData, &result); err != nil {
-		return nil, 0, fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
+		return nil, "", 0, fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
-	return result.Entries, result.Timestamp, nil
+	return result.Entries, result.Seed, result.Timestamp, nil
 }
 
 // problemResponseToError converts a Problem Details response to an error.

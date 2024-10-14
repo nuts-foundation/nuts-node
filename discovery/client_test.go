@@ -221,7 +221,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
 
 		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
@@ -236,7 +236,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 			claims["retract_jti"] = vpAlice.ID.String()
 			vp.Type = append(vp.Type, retractionPresentationType)
 		}, vcAlice)
-		require.NoError(t, ctx.store.add(testServiceID, vpAliceDeactivated, 1))
+		require.NoError(t, ctx.store.add(testServiceID, vpAliceDeactivated, testSeed, 1))
 
 		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
@@ -255,7 +255,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error"))
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
 
 		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
@@ -266,7 +266,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx := newTestContext(t)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(nil, assert.AnError)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, 1))
+		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
 
 		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
@@ -394,7 +394,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 0).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
+		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 0).Return(map[string]vc.VerifiablePresentation{}, testSeed, 0, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -406,7 +406,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		httpClient := client.NewMockHTTPClient(ctrl)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, 1, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, testSeed, 1, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -423,7 +423,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 			return nil
 		}, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, 2, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 0).Return(map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, testSeed, 2, nil)
 
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
@@ -440,28 +440,49 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		httpClient := client.NewMockHTTPClient(ctrl)
-		err := store.setTimestamp(store.db, testServiceID, 1)
+		err := store.setTimestamp(store.db, testServiceID, testSeed, 1)
 		require.NoError(t, err)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
-		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 1).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, 1, nil)
+		httpClient.EXPECT().Get(ctx, serviceDefinition.Endpoint, 1).Return(map[string]vc.VerifiablePresentation{"1": vpAlice}, testSeed, 1, nil)
 
 		err = updater.updateService(ctx, testDefinitions()[testServiceID])
 
 		require.NoError(t, err)
 	})
+	t.Run("seed change wipes entries", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		httpClient := client.NewMockHTTPClient(ctrl)
+		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
+		store.add(testServiceID, vpAlice, testSeed, 0)
+
+		exists, err := store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		require.True(t, exists)
+
+		httpClient.EXPECT().Get(ctx, testDefinitions()[testServiceID].Endpoint, 1).Return(map[string]vc.VerifiablePresentation{}, "other", 0, nil)
+
+		err = updater.updateService(ctx, testDefinitions()[testServiceID])
+
+		require.NoError(t, err)
+		exists, err = store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
+		require.NoError(t, err)
+		require.False(t, exists)
+	})
 }
 
 func Test_clientUpdater_update(t *testing.T) {
+	seed := "seed"
 	t.Run("proceeds when service update fails", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		httpClient := client.NewMockHTTPClient(ctrl)
-		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
-		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, 0, errors.New("test"))
-		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil)
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/usecase", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, seed, 0, nil)
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/other", gomock.Any()).Return(nil, "", 0, errors.New("test"))
+		httpClient.EXPECT().Get(gomock.Any(), "http://example.com/unsupported", gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, seed, 0, nil)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
 		err := updater.update(context.Background())
@@ -474,7 +495,7 @@ func Test_clientUpdater_update(t *testing.T) {
 		store := setupStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)
 		httpClient := client.NewMockHTTPClient(ctrl)
-		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, 0, nil).MinTimes(2)
+		httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(map[string]vc.VerifiablePresentation{}, seed, 0, nil).MinTimes(2)
 		updater := newClientUpdater(testDefinitions(), store, alwaysOkVerifier, httpClient)
 
 		err := updater.update(context.Background())

@@ -79,29 +79,32 @@ func TestHTTPInvoker_Get(t *testing.T) {
 	t.Run("no timestamp from client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = map[string]interface{}{
+			"seed":      "seed",
 			"entries":   map[string]interface{}{"1": vp},
 			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		presentations, timestamp, err := client.Get(context.Background(), server.URL, 0)
+		presentations, seed, timestamp, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
 		assert.Equal(t, "0", handler.RequestQuery.Get("timestamp"))
 		assert.Equal(t, 1, timestamp)
+		assert.Equal(t, "seed", seed)
 	})
 	t.Run("timestamp provided by client", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = map[string]interface{}{
+			"seed":      "seed",
 			"entries":   map[string]interface{}{"1": vp},
 			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		presentations, timestamp, err := client.Get(context.Background(), server.URL, 1)
+		presentations, _, timestamp, err := client.Get(context.Background(), server.URL, 1)
 
 		assert.NoError(t, err)
 		assert.Len(t, presentations, 1)
@@ -119,7 +122,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(handler))
 		client := New(false, time.Minute, server.TLS)
 
-		_, _, err := client.Get(context.Background(), server.URL, 0)
+		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
 		require.NoError(t, err)
 		assert.True(t, strings.HasPrefix(capturedRequest.Header.Get("X-Forwarded-Host"), "127.0.0.1"))
@@ -129,7 +132,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		_, _, err := client.Get(context.Background(), server.URL, 0)
+		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
 		assert.ErrorContains(t, err, "server returned HTTP status code 500")
@@ -141,7 +144,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		server := httptest.NewServer(handler)
 		client := New(false, time.Minute, server.TLS)
 
-		_, _, err := client.Get(context.Background(), server.URL, 0)
+		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.ErrorContains(t, err, "failed to unmarshal response from remote Discovery Service")
 	})
