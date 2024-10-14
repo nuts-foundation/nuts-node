@@ -45,21 +45,24 @@ func Test_sqlStore_exists(t *testing.T) {
 	})
 	t.Run("non-empty list, no match (other subject and ID)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		_, err := m.add(testServiceID, vpBob, testSeed, 0)
+		require.NoError(t, err)
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, no match (other list)", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
 		exists, err := m.exists("other", aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.False(t, exists)
 	})
 	t.Run("non-empty list, match", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		assert.NoError(t, err)
 		assert.True(t, exists)
@@ -72,14 +75,15 @@ func Test_sqlStore_add(t *testing.T) {
 
 	t.Run("no credentials in presentation", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 0)
+		_, err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 0)
 		assert.NoError(t, err)
 	})
 
 	t.Run("seed", func(t *testing.T) {
 		t.Run("passing seed updates last_seed", func(t *testing.T) {
 			m := setupStore(t, storageEngine.GetSQLDatabase())
-			require.NoError(t, m.add(testServiceID, createPresentation(aliceDID), testSeed, 0))
+			_, err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 0)
+			require.NoError(t, err)
 
 			_, seed, _, err := m.get(testServiceID, 0)
 
@@ -88,7 +92,8 @@ func Test_sqlStore_add(t *testing.T) {
 		})
 		t.Run("generated seed", func(t *testing.T) {
 			m := setupStore(t, storageEngine.GetSQLDatabase())
-			require.NoError(t, m.add(testServiceID, createPresentation(aliceDID), "", 0))
+			_, err := m.add(testServiceID, createPresentation(aliceDID), "", 0)
+			require.NoError(t, err)
 
 			_, seed, _, err := m.get(testServiceID, 0)
 
@@ -99,7 +104,7 @@ func Test_sqlStore_add(t *testing.T) {
 
 	t.Run("passing timestamp updates last_timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 1)
+		_, err := m.add(testServiceID, createPresentation(aliceDID), testSeed, 1)
 		require.NoError(t, err)
 
 		timestamp, err := m.getTimestamp(testServiceID)
@@ -112,8 +117,10 @@ func Test_sqlStore_add(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
 
 		secondVP := createPresentation(aliceDID, vcAlice)
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
-		require.NoError(t, m.add(testServiceID, secondVP, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
+		_, err = m.add(testServiceID, secondVP, testSeed, 0)
+		require.NoError(t, err)
 
 		// First VP should not exist
 		exists, err := m.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
@@ -141,7 +148,8 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("1 entry, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
 		presentations, seed, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
@@ -150,8 +158,10 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, 0 timestamp", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
+		_, err = m.add(testServiceID, vpBob, testSeed, 0)
+		require.NoError(t, err)
 		presentations, _, timestamp, err := m.get(testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice, "2": vpBob}, presentations)
@@ -159,8 +169,10 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, start after first", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
+		_, err = m.add(testServiceID, vpBob, testSeed, 0)
+		require.NoError(t, err)
 		presentations, _, timestamp, err := m.get(testServiceID, 1)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"2": vpBob}, presentations)
@@ -168,8 +180,9 @@ func Test_sqlStore_get(t *testing.T) {
 	})
 	t.Run("2 entries, start at end", func(t *testing.T) {
 		m := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, m.add(testServiceID, vpAlice, testSeed, 0))
-		require.NoError(t, m.add(testServiceID, vpBob, testSeed, 0))
+		_, err := m.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
+		_, err = m.add(testServiceID, vpBob, testSeed, 0)
 		presentations, _, timestamp, err := m.get(testServiceID, 2)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{}, presentations)
@@ -182,7 +195,7 @@ func Test_sqlStore_get(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), testSeed, 0)
+				_, err := c.add(testServiceID, createPresentation(aliceDID, vcAlice), testSeed, 0)
 				require.NoError(t, err)
 			}()
 		}
@@ -208,7 +221,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, testSeed, 0)
+			_, err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 
@@ -223,7 +236,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, testSeed, 0)
+			_, err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 
@@ -241,7 +254,7 @@ func Test_sqlStore_search(t *testing.T) {
 		vps := []vc.VerifiablePresentation{vpAlice, vpBob}
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 		for _, vp := range vps {
-			err := c.add(testServiceID, vp, testSeed, 0)
+			_, err := c.add(testServiceID, vp, testSeed, 0)
 			require.NoError(t, err)
 		}
 		actualVPs, err := c.search(testServiceID, map[string]string{
@@ -379,8 +392,10 @@ func Test_sqlStore_getSubjectVPsOnService(t *testing.T) {
 		_ = storageEngine.Shutdown()
 	})
 	c := setupStore(t, storageEngine.GetSQLDatabase())
-	require.NoError(t, c.add(testServiceID, vpAlice2, testSeed, 0))
-	require.NoError(t, c.add(testServiceID, vpBob2, testSeed, 0))
+	_, err := c.add(testServiceID, vpAlice2, testSeed, 0)
+	require.NoError(t, err)
+	_, err = c.add(testServiceID, vpBob2, testSeed, 0)
+	require.NoError(t, err)
 
 	t.Run("ok - single", func(t *testing.T) {
 		vps, err := c.getSubjectVPsOnService(testServiceID, []did.DID{aliceDID})
@@ -409,10 +424,12 @@ func Test_sqlStore_wipeOnSeedChange(t *testing.T) {
 	})
 	t.Run("1 entry wiped, 1 remains", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
-		require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
-		require.NoError(t, c.add("other", vpAlice, testSeed, 0))
+		_, err := c.add(testServiceID, vpAlice, testSeed, 0)
+		require.NoError(t, err)
+		_, err = c.add("other", vpAlice, testSeed, 0)
+		require.NoError(t, err)
 
-		err := c.wipeOnSeedChange(testServiceID, "other")
+		err = c.wipeOnSeedChange(testServiceID, "other")
 		require.NoError(t, err)
 
 		vps, err := c.search(testServiceID, map[string]string{}, true)
@@ -432,7 +449,8 @@ func Test_sqlStore_updateValidated(t *testing.T) {
 	})
 
 	c := setupStore(t, storageEngine.GetSQLDatabase())
-	require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
+	_, err := c.add(testServiceID, vpAlice, testSeed, 0)
+	require.NoError(t, err)
 
 	result, err := c.allPresentations(true)
 	require.NoError(t, err)
@@ -462,11 +480,12 @@ func Test_sqlStore_delete(t *testing.T) {
 	})
 
 	c := setupStore(t, storageEngine.GetSQLDatabase())
-	require.NoError(t, c.add(testServiceID, vpAlice, testSeed, 0))
+	_, err := c.add(testServiceID, vpAlice, testSeed, 0)
+	require.NoError(t, err)
 	presentations, _ := c.allPresentations(false)
 	require.Len(t, presentations, 1)
 
-	err := c.deletePresentationRecord(presentations[0].ID)
+	err = c.deletePresentationRecord(presentations[0].ID)
 
 	require.NoError(t, err)
 

@@ -463,9 +463,17 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 		// it won't be returned in a search if invalid
 		// the validator will set the validated flag to true when it's valid
 		// it'll also remove it from the store if it's invalidated later
-		if err := u.store.add(service.ID, presentation, seed, serverTimestamp); err != nil {
+		if record, err := u.store.add(service.ID, presentation, seed, serverTimestamp); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
+		} else if err = u.verifier(service, presentation); err == nil {
+			// valid, immediately activate
+			if err = u.store.updateValidated([]presentationRecord{*record}); err != nil {
+				return fmt.Errorf("failed to update validated flag (service=%s, id=%s): %w", service.ID, presentation.ID, err)
+			}
+		} else {
+			log.Logger().WithError(err).Infof("failed to verify added presentation (service=%s, id=%s)", service.ID, presentation.ID)
 		}
+
 		log.Logger().
 			WithField("discoveryService", service.ID).
 			WithField("presentationID", presentation.ID).

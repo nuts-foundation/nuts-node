@@ -267,7 +267,8 @@ func Test_Module_Get(t *testing.T) {
 		m, _ := setupModule(t, storageEngine, func(module *Module) {
 			module.config.Client.RefreshInterval = 0
 		})
-		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+		_, err := m.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 		presentations, seed, timestamp, err := m.Get(ctx, testServiceID, 0)
 		assert.NoError(t, err)
 		assert.Equal(t, map[string]vc.VerifiablePresentation{"1": vpAlice}, presentations)
@@ -449,7 +450,8 @@ func TestModule_Search(t *testing.T) {
 			module.config.Client.RefreshInterval = 0
 		})
 		ctx.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
-		require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+		_, err := m.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 		require.NoError(t, m.registrationManager.validate())
 
 		results, err := m.Search(testServiceID, map[string]string{
@@ -518,7 +520,8 @@ func TestModule_update(t *testing.T) {
 			m.httpClient = httpClient
 			m.store, _ = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions)
 			mockVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).MinTimes(tt.expectedVerifyVPCalls)
-			require.NoError(t, m.store.add(testServiceID, vpAlice, testSeed, 0))
+			_, err := m.store.add(testServiceID, vpAlice, testSeed, 1)
+			require.NoError(t, err)
 
 			require.NoError(t, m.Start())
 			time.Sleep(10 * time.Millisecond)
@@ -667,7 +670,8 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		testContext.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil).AnyTimes()
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
-		_ = m.store.add(testServiceID, vpAlice, testSeed, 0)
+		_, err := m.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 

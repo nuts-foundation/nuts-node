@@ -223,9 +223,10 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
+		_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 
-		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err = ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
@@ -238,9 +239,10 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 			claims["retract_jti"] = vpAlice.ID.String()
 			vp.Type = append(vp.Type, retractionPresentationType)
 		}, vcAlice)
-		require.NoError(t, ctx.store.add(testServiceID, vpAliceDeactivated, testSeed, 1))
+		_, err := ctx.store.add(testServiceID, vpAliceDeactivated, testSeed, 1)
+		require.NoError(t, err)
 
-		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err = ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.NoError(t, err)
 	})
@@ -257,9 +259,10 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("remote error"))
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
+		_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 
-		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err = ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		require.ErrorIs(t, err, ErrPresentationRegistrationFailed)
 		require.ErrorContains(t, err, "remote error")
@@ -268,9 +271,10 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx := newTestContext(t)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(nil, assert.AnError)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 1))
+		_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
+		require.NoError(t, err)
 
-		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
+		err = ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -419,10 +423,11 @@ func Test_defaultClientRegistrationManager_validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newTestContext(t)
-			require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 0))
+			_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
+			require.NoError(t, err)
 			manager := tt.setupManager(ctx)
 
-			err := manager.validate()
+			err = manager.validate()
 			require.NoError(t, err)
 
 			presentations, err := ctx.store.allPresentations(true)
@@ -461,14 +466,15 @@ func Test_defaultClientRegistrationManager_removeRevoked(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := newTestContext(t)
-			require.NoError(t, ctx.store.add(testServiceID, vpAlice, testSeed, 0))
+			_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
+			require.NoError(t, err)
 			require.NoError(t, ctx.manager.validate())
 
 			mockVerifier := verifier.NewMockVerifier(ctx.ctrl)
 			ctx.vcr.EXPECT().Verifier().Return(mockVerifier).AnyTimes()
 			mockVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Return(nil, tt.verifyVPError)
 
-			err := ctx.manager.removeRevoked()
+			err = ctx.manager.removeRevoked()
 			require.NoError(t, err)
 
 			presentations, err := ctx.store.allPresentations(true)
@@ -514,7 +520,7 @@ func Test_clientUpdater_updateService(t *testing.T) {
 			require.NoError(t, updater.updateService(ctx, testDefinitions()[testServiceID]))
 
 			// check count
-			presentation, err := updater.store.allPresentations(false)
+			presentation, err := updater.store.allPresentations(true)
 
 			require.NoError(t, err)
 			assert.Len(t, presentation, 1)
@@ -536,13 +542,16 @@ func Test_clientUpdater_updateService(t *testing.T) {
 		err := updater.updateService(ctx, testDefinitions()[testServiceID])
 
 		require.NoError(t, err)
-		// Bob's VP should exist, Alice's not
+		// Both should exist, 1 should be validated immediately
 		exists, err := store.exists(testServiceID, bobDID.String(), vpBob.ID.String())
 		require.NoError(t, err)
 		require.True(t, exists)
 		exists, err = store.exists(testServiceID, aliceDID.String(), vpAlice.ID.String())
 		require.NoError(t, err)
 		require.True(t, exists)
+		validated, err := store.allPresentations(true)
+		require.NoError(t, err)
+		require.Len(t, validated, 1)
 	})
 	t.Run("pass timestamp", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())

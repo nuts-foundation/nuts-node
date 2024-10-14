@@ -164,15 +164,16 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition) (*
 
 // add adds a presentation to the list of presentations.
 // If the given timestamp is 0, the server will assign a timestamp.
-func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, seed string, timestamp int) error {
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, seed string, timestamp int) (*presentationRecord, error) {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.prune(); err != nil {
-		return err
+		return nil, err
 	}
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	var newPresentation *presentationRecord
+	return newPresentation, s.db.Transaction(func(tx *gorm.DB) error {
 		if timestamp == 0 {
 			var newTs *int
 			if len(seed) == 0 { // default for server
@@ -195,15 +196,16 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 			return err
 		}
 
-		return storePresentation(tx, serviceID, timestamp, presentation)
+		newPresentation, err = storePresentation(tx, serviceID, timestamp, presentation)
+		return err
 	})
 }
 
 // storePresentation creates a presentationRecord from a VerifiablePresentation and stores it, with its credentials, in the database.
-func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentation vc.VerifiablePresentation) error {
+func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newPresentation := presentationRecord{
@@ -220,7 +222,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 	for _, verifiableCredential := range presentation.VerifiableCredential {
 		cred, err := credentialStore.Store(tx, verifiableCredential)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		newPresentation.Credentials = append(newPresentation.Credentials, credentialRecord{
 			ID:             uuid.NewString(),
@@ -229,7 +231,8 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		})
 	}
 
-	return tx.Create(&newPresentation).Error
+	err = tx.Create(&newPresentation).Error
+	return &newPresentation, err
 }
 
 // get returns all presentations, registered on the given service, starting after the given timestamp.

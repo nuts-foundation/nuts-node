@@ -215,7 +215,8 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 	if exists {
 		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
 	}
-	return m.store.add(serviceID, presentation, "", 0)
+	_, err = m.store.add(serviceID, presentation, "", 0)
+	return err
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
