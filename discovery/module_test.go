@@ -41,6 +41,8 @@ import (
 	"go.uber.org/mock/gomock"
 	"gorm.io/gorm"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -513,18 +515,39 @@ func TestModule_update(t *testing.T) {
 			m.publicURL = test.MustParseURL("https://example.com")
 			m.config.Client.RefreshInterval = tt.refreshInterval
 			require.NoError(t, m.Configure(core.TestServerConfig()))
-
 			m.allDefinitions = testDefinitions()
 			httpClient := client.NewMockHTTPClient(ctrl)
-			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, testSeed, 0, nil).MinTimes(tt.expectedHTTPCalls * len(m.allDefinitions))
+			httpWg := sync.WaitGroup{}
+			httpWg.Add(tt.expectedHTTPCalls * len(m.allDefinitions))
+			httpCounter := atomic.Int64{}
+			httpCounter.Add(int64(tt.expectedHTTPCalls * len(m.allDefinitions)))
+			httpClient.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, _, _ interface{}) (map[string]vc.VerifiablePresentation, string, int, error) {
+				if httpCounter.Load() != int64(0) {
+					httpWg.Done()
+					httpCounter.Add(int64(-1))
+				}
+				return nil, testSeed, 0, nil
+			}).MinTimes(tt.expectedHTTPCalls * len(m.allDefinitions))
 			m.httpClient = httpClient
 			m.store, _ = newSQLStore(m.storageInstance.GetSQLDatabase(), m.allDefinitions)
-			mockVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).MinTimes(tt.expectedVerifyVPCalls)
+			vpWg := sync.WaitGroup{}
+			vpWg.Add(tt.expectedVerifyVPCalls)
+			vpCounter := atomic.Int64{}
+			vpCounter.Add(int64(tt.expectedVerifyVPCalls))
+			mockVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).DoAndReturn(func(_, _, _, _ interface{}) ([]vc.VerifiableCredential, error) {
+				if vpCounter.Load() != int64(0) {
+					vpWg.Done()
+					vpCounter.Add(int64(-1))
+				}
+				return nil, nil
+			}).MinTimes(tt.expectedVerifyVPCalls)
 			_, err := m.store.add(testServiceID, vpAlice, testSeed, 1)
 			require.NoError(t, err)
 
 			require.NoError(t, m.Start())
-			time.Sleep(10 * time.Millisecond)
+
+			vpWg.Wait()
+			httpWg.Wait()
 
 			t.Cleanup(func() {
 				_ = m.Shutdown()
