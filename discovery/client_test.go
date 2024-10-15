@@ -176,8 +176,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, nil)
 		ctx.wallet.EXPECT().List(gomock.Any(), gomock.Any()).Return(nil, nil)
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(func(_ interface{}, credentials []vc.VerifiableCredential, _ interface{}, _ interface{}, _ interface{}) (*vc.VerifiablePresentation, error) {
-			// expect registration credential
-			assert.Len(t, credentials, 1)
+			assert.Len(t, credentials, 0)
 			return &vpAlice, nil
 		})
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)

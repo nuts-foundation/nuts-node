@@ -453,6 +453,7 @@ func TestModule_Search(t *testing.T) {
 			{
 				Presentation: vpAlice,
 				Fields: map[string]interface{}{
+					"auth_server_url":"https://example.com/oauth2/alice",
 					"issuer_field": authorityDID,
 				},
 				Parameters: defaultRegistrationParams(aliceSubject),
