@@ -167,7 +167,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 	if !serviceExists {
 		return ErrServiceNotFound
 	}
-	// deletePresentationRecord DID/service combination from DB, so it won't be registered again
+	// delete DID/service combination from DB, so it won't be registered again
 	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil, nil)
 	if err != nil {
 		return err
