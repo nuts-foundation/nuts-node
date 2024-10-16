@@ -34,12 +34,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
+	"github.com/nuts-foundation/nuts-node/storage/sqlite"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 	_ "modernc.org/sqlite"
@@ -256,9 +256,9 @@ func (e *engine) initSQLDatabase() error {
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
 		db.SetMaxOpenConns(1)
-		e.sqlDB, err = gorm.Open(sqlite.New(sqlite.Config{
+		e.sqlDB, err = gorm.Open(sqlite.Dialector{
 			Conn: db,
-		}), gormConfig)
+		}, gormConfig)
 		if err != nil {
 			return err
 		}
