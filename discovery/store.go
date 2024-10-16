@@ -479,7 +479,7 @@ func (s *sqlStore) setPresentationRefreshError(serviceID string, subjectID strin
 		}
 
 		if refreshErr == nil {
-			// a deletePresentationRecord
+			// a delete
 			return nil
 		}
 
