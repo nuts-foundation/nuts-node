@@ -151,7 +151,7 @@ func Test_ipInterceptor(t *testing.T) {
 			assert.False(t, success)
 			assert.Nil(t, peerInfo)
 		})
-		t.Run("empty header", func(t *testing.T) {
+		t.Run("invalid input on custom header", func(t *testing.T) {
 			ran := false
 			md := metadata.New(map[string]string{header: strings.Join([]string{expectedIP, expectedIP}, ",")})
 			serverStream.ctx = metadata.NewIncomingContext(context.Background(), md)
