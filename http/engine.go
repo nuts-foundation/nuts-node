@@ -116,7 +116,7 @@ func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {
 	case echo.HeaderXForwardedFor:
 		echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
 	case "":
-		echoServer.IPExtractor = echo.ExtractIPDirect() // use request IP if there is no header
+		echoServer.IPExtractor = echo.ExtractIPDirect() // sensible fallback; use source address from IPv4/IPv6 packet header if there is no HTTP header.
 	default:
 		echoServer.IPExtractor = extractIPFromCustomHeader(ipHeader)
 	}

@@ -76,6 +76,7 @@ func WithTLS(clientCertificate tls.Certificate, trustStore *core.TrustStore, pki
 	}
 }
 
+// WithClientIPHeader sets the HTTP header that is used to extract the client IP.
 func WithClientIPHeader(clientIPHeaderName string) ConfigOption {
 	return func(config *Config) error {
 		config.clientIPHeaderName = clientIPHeaderName

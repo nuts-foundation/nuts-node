@@ -61,6 +61,7 @@ func Test_ipInterceptor(t *testing.T) {
 			IP:   ipAddr.AsSlice(),
 			Zone: ipAddr.Zone(),
 		}
+		ipv6 = "[" + ipv6 + "]" // trims brackets from ipv6
 		internalXFFAddr, _ := net.ResolveIPAddr("ip", internalIPs[0])
 		peerNoAddres := net.Addr(nil)
 
@@ -118,5 +119,51 @@ func Test_ipInterceptor(t *testing.T) {
 		require.True(t, ran, "test logic was not executed")
 		assert.False(t, success)
 		assert.Nil(t, peerInfo)
+	})
+	t.Run("custom header", func(t *testing.T) {
+		header := "X-Custom-Header"
+		expectedIP := "1.2.3.4"
+		t.Run("ok", func(t *testing.T) {
+			ran := false
+			md := metadata.New(map[string]string{header: expectedIP})
+			serverStream.ctx = metadata.NewIncomingContext(context.Background(), md)
+			_ = ipInterceptor(header)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+				peerInfo, success = peer.FromContext(wrappedStream.Context())
+				ran = true
+				return nil
+			})
+
+			require.True(t, ran, "test logic was not executed")
+			assert.True(t, success)
+			assert.Equal(t, expectedIP, peerInfo.Addr.String())
+		})
+		t.Run("empty header", func(t *testing.T) {
+			ran := false
+			md := metadata.New(map[string]string{header: ""})
+			serverStream.ctx = metadata.NewIncomingContext(context.Background(), md)
+			_ = ipInterceptor(header)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+				peerInfo, success = peer.FromContext(wrappedStream.Context())
+				ran = true
+				return nil
+			})
+
+			require.True(t, ran, "test logic was not executed")
+			assert.False(t, success)
+			assert.Nil(t, peerInfo)
+		})
+		t.Run("empty header", func(t *testing.T) {
+			ran := false
+			md := metadata.New(map[string]string{header: strings.Join([]string{expectedIP, expectedIP}, ",")})
+			serverStream.ctx = metadata.NewIncomingContext(context.Background(), md)
+			_ = ipInterceptor(header)(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
+				peerInfo, success = peer.FromContext(wrappedStream.Context())
+				ran = true
+				return nil
+			})
+
+			require.True(t, ran, "test logic was not executed")
+			assert.False(t, success)
+			assert.Nil(t, peerInfo)
+		})
 	})
 }

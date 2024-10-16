@@ -38,7 +38,9 @@ func ipInterceptor(ipHeader string) grpc.StreamServerInterceptor {
 	case headerXForwardedFor:
 		extractIPHeader = extractIPFromXFFHeader
 	case "":
-		extractIPHeader = extractPeerIP
+		extractIPHeader = func(_ grpc.ServerStream) string {
+			return ""
+		}
 	default:
 		extractIPHeader = extractIPFromCustomHeader(ipHeader)
 	}
@@ -64,7 +66,7 @@ func ipInterceptor(ipHeader string) grpc.StreamServerInterceptor {
 // extractIPFromXFFHeader tries to retrieve the address from X-Forward-For header. Returns an empty string if non found.
 // Implementation is based on echo.ExtractIPFromXFFHeader().
 func extractIPFromXFFHeader(serverStream grpc.ServerStream) string {
-	ipUnknown := extractPeerIP(serverStream)
+	ipUnknown := ""
 	md, ok := metadata.FromIncomingContext(serverStream.Context())
 	if !ok {
 		return ipUnknown
@@ -75,7 +77,7 @@ func extractIPFromXFFHeader(serverStream grpc.ServerStream) string {
 	}
 	ips := strings.Split(strings.Join(xffs, ","), ",")
 	for i := len(ips) - 1; i >= 0; i-- {
-		ip := net.ParseIP(strings.TrimSpace(ips[i]))
+		ip := net.ParseIP(trimIP(ips[i]))
 		if ip == nil {
 			// Unable to parse IP; cannot trust entire records
 			return ipUnknown
@@ -110,29 +112,26 @@ func isInternal(ip net.IP) bool {
 }
 
 // extractIPFromCustomHeader extracts an IP address from any custom header.
-// If the header is missing or contains an invalid IP, the extractor tries to return the IP in the peer.Peer.
 // This is an altered version of echo.ExtractIPFromRealIPHeader() that does not check for trusted IPs.
 func extractIPFromCustomHeader(ipHeader string) func(serverStream grpc.ServerStream) string {
 	return func(serverStream grpc.ServerStream) string {
-		directIP := extractPeerIP(serverStream)
+		ipUnknown := ""
 		md, ok := metadata.FromIncomingContext(serverStream.Context())
 		if !ok {
-			return directIP
+			return ipUnknown
 		}
 		header := md.Get(ipHeader)
-		if len(header) == 0 {
-			return directIP
+		if len(header) != 1 {
+			return ipUnknown
 		}
-
-		return strings.Join(header, ",")
+		return trimIP(header[0])
 	}
 }
 
-// extractPeerID returns the peer.Peer's Addr if available in the serverStream.Context
-func extractPeerIP(serverStream grpc.ServerStream) string {
-	peer, ok := peer.FromContext(serverStream.Context())
-	if !ok {
-		return ""
-	}
-	return peer.Addr.String()
+func trimIP(ip string) string {
+	ip = strings.TrimSpace(ip)
+	// trim brackets from IPv6
+	ip = strings.TrimPrefix(ip, "[")
+	ip = strings.TrimSuffix(ip, "]")
+	return ip
 }
