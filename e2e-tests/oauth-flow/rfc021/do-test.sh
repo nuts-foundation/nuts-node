@@ -71,7 +71,7 @@ echo "Status list credential: $STATUS_LIST_CREDENTIAL"
 # Get status list credential
 RESPONSE=$($db_dc exec nodeB-backend curl -s -k $STATUS_LIST_CREDENTIAL)
 # Check response HTTP 200 OK
-if [ $? -eq 0 ]; then
+if  echo $RESPONSE | grep -q "\"id\":\"$STATUS_LIST_CREDENTIAL\"" ; then
   echo "Status list credential retrieved"
 else
   echo "FAILED: Could not retrieve status list credential" 1>&2
@@ -191,6 +191,33 @@ if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
   echo "FAILED: Could not get resource from node-A" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+echo "------------------------------------"
+echo "Revoking credential..."
+echo "------------------------------------"
+# revoke credential
+VENDOR_B_CREDENTIAL_ID=$(echo $VENDOR_B_CREDENTIAL | jq -r .id)
+echo $VENDOR_B_CREDENTIAL_ID
+RESPONSE=$(curl -s -X DELETE "http://localhost:28081/internal/vcr/v2/issuer/vc/${VENDOR_B_CREDENTIAL_ID//#/%23}")
+if [ -z "${RESPONSE}" ]; then
+  echo "VendorB NutsOrganizationCredential revoked"
+else
+  echo "FAILED: NutsOrganizationCredential not revoked" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+echo "------------------------------------"
+echo "Retrieving data fails..."
+echo "------------------------------------"
+RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP")
+if [ "${RESPONSE}" == "Unauthorized" ]; then
+  echo "Access denied!"
+else
+  echo "FAILED: Retrieved data with revoked credential" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi

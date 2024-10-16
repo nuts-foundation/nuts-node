@@ -166,18 +166,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	var cred *vc.VerifiableCredential // is nil, so if this panics outside this method the var name is probably shadowed in the db.Transaction.
 	err = cs.db.Transaction(func(tx *gorm.DB) error {
 		// lock credentialRecord row for statusListCredentialURL since it will be updated.
-		// Revoke does the same to guarantee the DB always contains all revocations.
-		// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
-		// See https://github.com/nuts-foundation/nuts-node/issues/3393
-		if tx.Dialector.Name() == "sqlserver" {
-			err = tx.Raw("SELECT * FROM status_list_credential WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
-				Scan(new(credentialRecord)).
-				Error
-		} else {
-			err = tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-				Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
-				Error
-		}
+		err = lockCredentialRecord(tx, statusListCredentialURL)
 		if err != nil {
 			return err
 		}
@@ -421,12 +410,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 
 	return cs.db.Transaction(func(tx *gorm.DB) error {
 		// lock relevant credentialRecord. It was created when the first entry was issued for this StatusList2021Credential.
-		err = tx.Model(new(credentialRecord)).
-			Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
-			Select("subject_id").
-			Where("subject_id = ?", entry.StatusListCredential).
-			Find(new([]string)).
-			Error
+		err = lockCredentialRecord(tx, entry.StatusListCredential)
 		if err != nil {
 			return err
 		}
@@ -477,4 +461,17 @@ func (cs *StatusList2021) statusListURL(issuer did.DID, page int) string {
 	// https://example.com/statuslist/<did>/page
 	result, _ := url.Parse(cs.baseURL)
 	return result.JoinPath("statuslist", issuer.String(), strconv.Itoa(page)).String()
+}
+
+func lockCredentialRecord(tx *gorm.DB, statusListCredentialURL string) error {
+	// Microsoft SQL server does not support the locking clause, so we have to use a raw query instead.
+	// See https://github.com/nuts-foundation/nuts-node/issues/3393
+	if tx.Dialector.Name() == "sqlserver" {
+		return tx.Raw("SELECT * FROM status_list_credential WITH (UPDLOCK, ROWLOCK) WHERE subject_id = ?", statusListCredentialURL).
+			Scan(new(credentialRecord)).
+			Error
+	}
+	return tx.Clauses(clause.Locking{Strength: clause.LockingStrengthUpdate}).
+		Find(new(credentialRecord), "subject_id = ?", statusListCredentialURL).
+		Error
 }
