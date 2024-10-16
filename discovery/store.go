@@ -19,6 +19,7 @@
 package discovery
 
 import (
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,6 +49,8 @@ func (s serviceRecord) TableName() string {
 
 var _ schema.Tabler = (*presentationRecord)(nil)
 
+type SQLBool bool
+
 type presentationRecord struct {
 	ID                     string `gorm:"primaryKey"`
 	ServiceID              string
@@ -56,11 +59,36 @@ type presentationRecord struct {
 	PresentationID         string
 	PresentationRaw        string
 	PresentationExpiration int64
+	Validated              SQLBool
 	Credentials            []credentialRecord `gorm:"foreignKey:PresentationID;references:ID"`
 }
 
 func (s presentationRecord) TableName() string {
 	return "discovery_presentation"
+}
+
+func (b *SQLBool) Scan(value interface{}) error {
+	*b = false
+	if value != nil {
+		switch v := value.(type) {
+		case int64:
+			if v != 0 {
+				*b = true
+			}
+		}
+	}
+	return nil
+}
+
+func (b SQLBool) Value() (driver.Value, error) {
+	if b {
+		return int64(1), nil
+	}
+	return int64(0), nil
+}
+
+func (b SQLBool) Bool() bool {
+	return bool(b)
 }
 
 // credentialRecord is a Verifiable Credential, part of a presentation (entry) on a use case list.
@@ -136,15 +164,16 @@ func newSQLStore(db *gorm.DB, clientDefinitions map[string]ServiceDefinition) (*
 
 // add adds a presentation to the list of presentations.
 // If the given timestamp is 0, the server will assign a timestamp.
-func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, seed string, timestamp int) error {
+func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation, seed string, timestamp int) (*presentationRecord, error) {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.prune(); err != nil {
-		return err
+		return nil, err
 	}
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	var newPresentation *presentationRecord
+	return newPresentation, s.db.Transaction(func(tx *gorm.DB) error {
 		if timestamp == 0 {
 			var newTs *int
 			if len(seed) == 0 { // default for server
@@ -167,15 +196,16 @@ func (s *sqlStore) add(serviceID string, presentation vc.VerifiablePresentation,
 			return err
 		}
 
-		return storePresentation(tx, serviceID, timestamp, presentation)
+		newPresentation, err = storePresentation(tx, serviceID, timestamp, presentation)
+		return err
 	})
 }
 
 // storePresentation creates a presentationRecord from a VerifiablePresentation and stores it, with its credentials, in the database.
-func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentation vc.VerifiablePresentation) error {
+func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentation vc.VerifiablePresentation) (*presentationRecord, error) {
 	credentialSubjectID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newPresentation := presentationRecord{
@@ -192,7 +222,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 	for _, verifiableCredential := range presentation.VerifiableCredential {
 		cred, err := credentialStore.Store(tx, verifiableCredential)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		newPresentation.Credentials = append(newPresentation.Credentials, credentialRecord{
 			ID:             uuid.NewString(),
@@ -201,7 +231,8 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		})
 	}
 
-	return tx.Create(&newPresentation).Error
+	err = tx.Create(&newPresentation).Error
+	return &newPresentation, err
 }
 
 // get returns all presentations, registered on the given service, starting after the given timestamp.
@@ -232,11 +263,14 @@ func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.Verifiab
 // The query is a map of JSON paths and expected string values, matched against the presentation's credentials.
 // Wildcard matching is supported by prefixing or suffixing the value with an asterisk (*).
 // It returns the presentations which contain credentials that match the given query.
-func (s *sqlStore) search(serviceID string, query map[string]string) ([]vc.VerifiablePresentation, error) {
+func (s *sqlStore) search(serviceID string, query map[string]string, allowUnvalidated bool) ([]vc.VerifiablePresentation, error) {
 	// first only select columns also used in group by clause
 	// if the query is empty, there's no need to do a join
 	stmt := s.db.Model(&presentationRecord{}).
 		Where("service_id = ?", serviceID)
+	if !allowUnvalidated {
+		stmt = stmt.Where("validated != 0")
+	}
 	if len(query) > 0 {
 		stmt = stmt.Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
 		stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
@@ -342,6 +376,41 @@ func (s *sqlStore) removeExpired() (int, error) {
 		return 0, fmt.Errorf("prune presentations: %w", result.Error)
 	}
 	return int(result.RowsAffected), nil
+}
+
+// allPresentations returns all presentations, the validated param can be used to select validated or unvalidated presentations
+func (s *sqlStore) allPresentations(validated bool) ([]presentationRecord, error) {
+	result := make([]presentationRecord, 0)
+	stmt := s.db
+	if validated {
+		stmt = stmt.Where("validated != 0")
+	} else {
+		stmt = stmt.Where("validated = 0")
+	}
+	err := stmt.Find(&result).Error
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// updateValidated sets the validated flag for the given presentations
+func (s *sqlStore) updateValidated(records []presentationRecord) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		for _, record := range records {
+			if err := tx.Model(&presentationRecord{}).Where("id = ?", record.ID).Update("validated", true).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// deletePresentationRecord removes a presentationRecord from the store based on its ID
+func (s *sqlStore) deletePresentationRecord(id string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Delete(&presentationRecord{}, "id = ?", id).Error
+	})
 }
 
 // updatePresentationRefreshTime creates/updates the next refresh time for a Verifiable Presentation on a Discovery Service.
@@ -466,7 +535,7 @@ func (s *sqlStore) getSubjectVPsOnService(serviceID string, subjectDIDs []did.DI
 	for _, subjectDID := range subjectDIDs {
 		loopVPs, err := s.search(serviceID, map[string]string{
 			"credentialSubject.id": subjectDID.String(),
-		})
+		}, true)
 		if err != nil {
 			return nil, err
 		}
