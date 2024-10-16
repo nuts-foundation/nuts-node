@@ -20,7 +20,7 @@ package revocation
 
 import (
 	"database/sql"
-	"github.com/nuts-foundation/nuts-node/storage/sqlite"
+	"github.com/nuts-foundation/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"math/rand"

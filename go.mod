@@ -33,6 +33,7 @@ require (
 	github.com/nuts-foundation/go-did v0.14.0
 	github.com/nuts-foundation/go-leia/v4 v4.0.3
 	github.com/nuts-foundation/go-stoabs v1.10.0
+	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
@@ -196,13 +197,14 @@ require (
 	gorm.io/gorm v1.25.12
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect
-	modernc.org/sqlite v1.33.0
+	modernc.org/sqlite v1.33.1
 	rsc.io/qr v0.2.0 // indirect
 )
 
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
+	modernc.org/libc v1.55.3 // indirect
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )

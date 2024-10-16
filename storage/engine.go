@@ -34,7 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
-	"github.com/nuts-foundation/nuts-node/storage/sqlite"
+	"github.com/nuts-foundation/sqlite"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
