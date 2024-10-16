@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -40,8 +39,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	_ "modernc.org/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -255,8 +256,9 @@ func (e *engine) initSQLDatabase() error {
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
 		db.SetMaxOpenConns(1)
-		dialector := sqlite.Dialector{Conn: db}
-		e.sqlDB, err = gorm.Open(dialector, gormConfig)
+		e.sqlDB, err = gorm.Open(sqlite.New(sqlite.Config{
+			Conn: db,
+		}), gormConfig)
 		if err != nil {
 			return err
 		}
