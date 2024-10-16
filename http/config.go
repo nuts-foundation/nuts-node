@@ -28,7 +28,8 @@ func DefaultConfig() Config {
 		Public: PublicConfig{
 			Address: ":8080",
 		},
-		ResponseCacheSize: 10 * 1024 * 1024, // 10mb
+		ResponseCacheSize:  10 * 1024 * 1024, // 10mb
+		ClientIPHeaderName: "X-Forwarded-For",
 	}
 }
 
@@ -39,7 +40,8 @@ type Config struct {
 	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
 	// ResponseCacheSize is the maximum number of bytes cached by HTTP clients.
-	ResponseCacheSize int `koanf:"cache.maxbytes"`
+	ResponseCacheSize  int    `koanf:"cache.maxbytes"`
+	ClientIPHeaderName string `koanf:"clientipheader"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.

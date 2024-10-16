@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -79,12 +80,12 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 	h.server = NewMultiEcho()
 	// Public endpoints
-	if err := h.server.Bind(RootPath, h.config.Public.Address, h.createEchoServer); err != nil {
+	if err := h.server.Bind(RootPath, h.config.Public.Address, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
 		return err
 	}
 	// Internal endpoints
 	for _, httpPath := range []string{"/internal", "/status", "/health", "/metrics"} {
-		if err := h.server.Bind(httpPath, h.config.Internal.Address, h.createEchoServer); err != nil {
+		if err := h.server.Bind(httpPath, h.config.Internal.Address, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
 			return err
 		}
 	}
@@ -102,7 +103,7 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	}
 }
 
-func (h *Engine) createEchoServer() (EchoServer, error) {
+func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
@@ -110,8 +111,15 @@ func (h *Engine) createEchoServer() (EchoServer, error) {
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = core.CreateHTTPErrorHandler()
 
-	// Reverse proxies must set the X-Forwarded-For header to the original client IP.
-	echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
+	// Extract original client IP from configured header.
+	switch ipHeader {
+	case echo.HeaderXForwardedFor:
+		echoServer.IPExtractor = echo.ExtractIPFromXFFHeader()
+	case "":
+		echoServer.IPExtractor = echo.ExtractIPDirect() // sensible fallback; use source address from IPv4/IPv6 packet header if there is no HTTP header.
+	default:
+		echoServer.IPExtractor = extractIPFromCustomHeader(ipHeader)
+	}
 
 	return &echoAdapter{
 		startFn:    echoServer.Start,
@@ -252,4 +260,26 @@ func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, con
 	}
 
 	return nil
+}
+
+// extractIPFromCustomHeader extracts an IP address from any custom header.
+// If the header is missing or contains an invalid IP, the extractor returns the ip from the request.
+// This is an altered version of echo.ExtractIPFromRealIPHeader() that does not check for trusted IPs.
+func extractIPFromCustomHeader(ipHeader string) echo.IPExtractor {
+	extractIP := echo.ExtractIPDirect()
+	return func(req *http.Request) string {
+		directIP := extractIP(req) // source address from IPv4/IPv6 packet header
+		realIP := req.Header.Get(ipHeader)
+		if realIP == "" {
+			return directIP
+		}
+
+		realIP = strings.TrimPrefix(realIP, "[")
+		realIP = strings.TrimSuffix(realIP, "]")
+		if rIP := net.ParseIP(realIP); rIP != nil {
+			return realIP
+		}
+
+		return directIP
+	}
 }

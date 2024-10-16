@@ -185,7 +185,7 @@ func newGrpcServer(config Config) (*grpc.Server, error) {
 	}
 
 	// Chain interceptors. ipInterceptor is added last, so it processes the stream first.
-	serverInterceptors = append(serverInterceptors, ipInterceptor)
+	serverInterceptors = append(serverInterceptors, ipInterceptor(config.clientIPHeaderName))
 	serverOpts = append(serverOpts, grpc.ChainStreamInterceptor(serverInterceptors...))
 
 	// Create gRPC server for inbound connectionList and associate it with the protocols
