@@ -263,18 +263,6 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
 
-	// add registration params as credential if not already done so by the Presentation Definition
-	var found bool
-	for _, cred := range matchingCredentials {
-		if cred.ID == registrationCredential.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		matchingCredentials = append(matchingCredentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
-	}
-
 	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
 }
 

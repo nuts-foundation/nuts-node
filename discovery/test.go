@@ -102,6 +102,16 @@ func testDefinitions() map[string]ServiceDefinition {
 								},
 							},
 						},
+					}, {
+						Id: "2",
+						Constraints: &pe.Constraints{
+							Fields: []pe.Field{
+								{
+									Id:   to.Ptr("auth_server_url"),
+									Path: []string{"$.credentialSubject.authServerURL"},
+								},
+							},
+						},
 					},
 				},
 			},

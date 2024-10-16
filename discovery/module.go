@@ -289,26 +289,6 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 		return fmt.Errorf("verifiable presentation doesn't match required presentation definition: %w", err)
 	}
 	if len(creds) != len(presentation.VerifiableCredential) {
-		// it could be the case that the VP contains a registration credential and the matching credentials do not.
-		// only return errPresentationDoesNotFulfillDefinition if both contain the registration credential or neither do.
-		vpContainsRegistrationCredential := false
-		for _, cred := range presentation.VerifiableCredential {
-			if slices.Contains(cred.Type, credential.DiscoveryRegistrationCredentialTypeV1URI()) {
-				vpContainsRegistrationCredential = true
-				break
-			}
-		}
-		matchingContainsRegistrationCredential := false
-		for _, cred := range creds {
-			if slices.Contains(cred.Type, credential.DiscoveryRegistrationCredentialTypeV1URI()) {
-				matchingContainsRegistrationCredential = true
-				break
-			}
-		}
-		if vpContainsRegistrationCredential && !matchingContainsRegistrationCredential && len(presentation.VerifiableCredential)-len(creds) == 1 {
-			return nil
-		}
-
 		return errPresentationDoesNotFulfillDefinition
 	}
 	return nil
