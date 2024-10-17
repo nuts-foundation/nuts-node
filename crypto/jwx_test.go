@@ -281,6 +281,24 @@ func TestCrypto_SignJWS(t *testing.T) {
 		require.NoError(t, err)
 		auditLogs.AssertContains(t, ModuleName, "SignJWS", audit.TestActor, "Signing a JWS with key: kid")
 	})
+	t.Run("writes audit log for jwk", func(t *testing.T) {
+		auditLogs := audit.CaptureAuditLogs(t)
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
+		hdrs := map[string]interface{}{
+			"kid": kid,
+			"jwk": publicKeyAsJWK,
+		}
+
+		signature, err := SignJWS(audit.TestContext(), []byte{1, 2, 3}, hdrs, key, false)
+
+		require.NoError(t, err)
+		auditLogs.AssertContains(t, ModuleName, "SignJWS", audit.TestActor, "Signing a JWS with key: kid")
+		// kid is not in headers
+		msg, err := jws.Parse([]byte(signature))
+		assert.Empty(t, msg.Signatures()[0].ProtectedHeaders().KeyID())
+	})
 
 	t.Run("returns error for not found", func(t *testing.T) {
 		payload, _ := json.Marshal(map[string]interface{}{"iss": "nuts"})
