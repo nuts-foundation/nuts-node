@@ -227,6 +227,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 func (r *defaultClientRegistrationManager) deregisterPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, vp vc.VerifiablePresentation) error {
 	presentation, err := r.buildPresentation(ctx, subjectDID, service, nil, map[string]interface{}{
 		"retract_jti": vp.ID.String(),
+		"type":        []ssi.URI{vc.VerifiablePresentationTypeV1URI(), retractionPresentationType}, // this overrides the default 'type' so must include all types
 	})
 	if err != nil {
 		return err

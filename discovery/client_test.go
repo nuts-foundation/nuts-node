@@ -20,6 +20,7 @@ package discovery
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -220,7 +221,13 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 	t.Run("registered", func(t *testing.T) {
 		ctx := newTestContext(t)
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
-		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).Return(&vpAlice, nil)
+		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(
+			func(ctx context.Context, credentials []vc.VerifiableCredential, options holder.PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
+				bs, err := json.Marshal(options.ProofOptions.AdditionalProperties["type"])
+				require.NoError(t, err)
+				assert.Contains(t, string(bs), retractionPresentationType.String())
+				return &vpAlice, nil // not a revocation VP
+			})
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		_, err := ctx.store.add(testServiceID, vpAlice, testSeed, 1)
 		require.NoError(t, err)

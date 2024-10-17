@@ -295,11 +295,15 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 }
 
 func (m *Module) validateRetraction(serviceID string, presentation vc.VerifiablePresentation) error {
-	// Presentation might be a retraction (deletion of an earlier credentialRecord) must contain no credentials, and refer to the VP being retracted by ID.
-	// If those conditions aren't met, we don't need to register the retraction.
+	// RFC022 §3.4:it MUST specify RetractedVerifiablePresentation as type, in addition to the VerifiablePresentation.
+	// presentation.IsType(retractionPresentationType) // satisfied by the switch one level up
+
+	// RFC022 §3.4: it MUST NOT contain any credentials.
 	if len(presentation.VerifiableCredential) > 0 {
 		return errRetractionContainsCredentials
 	}
+
+	// RFC022 §3.4: it MUST contain a retract_jti JWT claim, containing the jti of the presentation to retract.
 	// Check that the retraction refers to an existing presentation.
 	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
 	retractJTIRaw, _ := presentation.JWT().Get("retract_jti")
