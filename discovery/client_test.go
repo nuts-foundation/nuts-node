@@ -20,7 +20,6 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -223,9 +222,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		ctx.invoker.EXPECT().Register(gomock.Any(), gomock.Any(), gomock.Any())
 		ctx.wallet.EXPECT().BuildPresentation(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), false).DoAndReturn(
 			func(ctx context.Context, credentials []vc.VerifiableCredential, options holder.PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {
-				bs, err := json.Marshal(options.ProofOptions.AdditionalProperties["type"])
-				require.NoError(t, err)
-				assert.Contains(t, string(bs), retractionPresentationType.String())
+				assert.Equal(t, options.AdditionalTypes[0], retractionPresentationType)
 				return &vpAlice, nil // not a revocation VP
 			})
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
