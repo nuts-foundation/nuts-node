@@ -592,16 +592,16 @@ components:
           $ref: '#/components/schemas/cnf'
         iss:
           type: string
-          description: Contains the DID of the authorizer. Should be equal to 'sub'
-          example: did:web:example.com:resource-owner
+          description: Issuer URL of the authorizer.
+          example: https://example.com/oauth2/authorizer
         aud:
           type: string
           description: RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
           example: "https://target_token_endpoint"
         client_id:
           type: string
-          description: The client (DID) the access token was issued to
-          example: did:web:example.com:client
+          description: The client identity the access token was issued to. Since the Verifiable Presentation is used to grant access, the client_id reflects the client_id in the access token request.
+          example: https://example.com/oauth2/client
         exp:
           type: integer
           description: Expiration date in seconds since UNIX epoch
