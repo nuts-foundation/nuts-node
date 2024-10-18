@@ -600,7 +600,7 @@ components:
           example: "https://target_token_endpoint"
         client_id:
           type: string
-          description: The client identity the access token was issued to. Since the verifiable presentation is used to grant access, the client_id is just a reflection of the client_id in the access token request.
+          description: The client identity the access token was issued to. Since the Verifiable Presentation is used to grant access, the client_id reflects the client_id in the access token request.
           example: https://example.com/oauth2/client
         exp:
           type: integer
