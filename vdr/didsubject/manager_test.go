@@ -170,7 +170,17 @@ func TestManager_Create(t *testing.T) {
 
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrSubjectValidation)
-			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9._-]+$)")
+		})
+		t.Run("contains allowed characters", func(t *testing.T) {
+			db := testDB(t)
+			m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			}}
+
+			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject_with-special.characters"}))
+
+			assert.NoError(t, err)
 		})
 		t.Run("contains illegal character (space)", func(t *testing.T) {
 			db := testDB(t)
@@ -182,7 +192,7 @@ func TestManager_Create(t *testing.T) {
 
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrSubjectValidation)
-			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9._-]+$)")
 		})
 	})
 }
