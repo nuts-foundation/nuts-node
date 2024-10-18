@@ -61,12 +61,11 @@ func TestCrypto_Exists(t *testing.T) {
 }
 
 func TestCrypto_Migrate(t *testing.T) {
-	backend := NewMemoryStorage()
-	db := orm.NewTestDatabase(t)
-	client := &Crypto{backend: backend, db: db}
-
+	keypair, _ := spi.GenerateKeyPair()
 	t.Run("ok - 1 key migrated", func(t *testing.T) {
-		keypair, _ := spi.GenerateKeyPair()
+		backend := NewMemoryStorage()
+		db := orm.NewTestDatabase(t)
+		client := &Crypto{backend: backend, db: db}
 		err := backend.SavePrivateKey(context.Background(), "test", keypair)
 		require.NoError(t, err)
 
@@ -80,8 +79,25 @@ func TestCrypto_Migrate(t *testing.T) {
 
 		t.Run("ok - already exists", func(t *testing.T) {
 			err = client.Migrate()
+
 			assert.NoError(t, err)
 		})
+	})
+	t.Run("don't migrate new keys", func(t *testing.T) {
+		backend := NewMemoryStorage()
+		db := orm.NewTestDatabase(t)
+		client := &Crypto{backend: backend, db: db}
+		err := backend.SavePrivateKey(context.Background(), "some-uuid", keypair)
+		require.NoError(t, err)
+
+		err = db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1"}).Error
+		require.NoError(t, err)
+
+		err = client.Migrate()
+		require.NoError(t, err)
+
+		keys := client.List(context.Background())
+		require.Len(t, keys, 1)
 	})
 }
 
