@@ -42,7 +42,7 @@ import (
 )
 
 // subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
-var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
+var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var _ Manager = (*SqlManager)(nil)
 
