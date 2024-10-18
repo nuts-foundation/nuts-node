@@ -227,7 +227,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 func (r *defaultClientRegistrationManager) deregisterPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, vp vc.VerifiablePresentation) error {
 	presentation, err := r.buildPresentation(ctx, subjectDID, service, nil, map[string]interface{}{
 		"retract_jti": vp.ID.String(),
-	})
+	}, &retractionPresentationType)
 	if err != nil {
 		return err
 	}
@@ -263,15 +263,18 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
 
-	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
+	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil, nil)
 }
 
-func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition,
-	credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}) (*vc.VerifiablePresentation, error) {
+func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}, additionalVPType *ssi.URI) (*vc.VerifiablePresentation, error) {
 	nonce := nutsCrypto.GenerateNonce()
 	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
 	expires := time.Now().Add(time.Duration(service.PresentationMaxValidity-1) * time.Second).Truncate(time.Second)
 	holderURI := subjectDID.URI()
+	var additionalVPTypes []ssi.URI
+	if additionalVPType != nil {
+		additionalVPTypes = append(additionalVPTypes, *additionalVPType)
+	}
 	return r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{
 		ProofOptions: proof.ProofOptions{
 			Created:              time.Now(),
@@ -280,8 +283,9 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 			Nonce:                &nonce,
 			AdditionalProperties: additionalProperties,
 		},
-		Format: vc.JWTPresentationProofFormat,
-		Holder: &holderURI,
+		AdditionalTypes: additionalVPTypes,
+		Format:          vc.JWTPresentationProofFormat,
+		Holder:          &holderURI,
 	}, &subjectDID, false)
 }
 
