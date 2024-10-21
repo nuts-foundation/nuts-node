@@ -19,6 +19,13 @@ D(D)oS Protection
 *****************
 
 Consider implementing (D)DoS protection on the application layer for all public endpoints.
+Monitor and og the following metrics:
+
+- Number of requests per second
+- Number of requests from a single IP address
+- Amount of non-20x responses
+
+Any outliers should be investigated.
 
 Maximum client body size for public-facing POST APIs
 ****************************************************
@@ -32,6 +39,7 @@ The following public APIs accept POST requests:
 - ``/oauth2/{subjectID}/response``
 
 To prevent malicious uploads, you MUST limit the size of the requests.
+As a safeguard, the Nuts node will also limit the size of request bodies.
 
 For example, Nginx has a configuration directive to limit the size of the request body:
 
