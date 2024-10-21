@@ -22,12 +22,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -35,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	strictHttp "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -110,12 +110,7 @@ func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantTok
 	if s.strictMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
 		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
 	}
-	httpClient := &http.Client{}
-	if s.httpClientTLS != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: s.httpClientTLS,
-		}
-	}
+	httpClient := strictHttp.NewWithTLSConfig(s.httpClientTimeout, s.httpClientTLS)
 	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)

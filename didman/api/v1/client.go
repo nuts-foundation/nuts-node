@@ -32,7 +32,7 @@ type HTTPClient struct {
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig, hb.TokenGenerator)))
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateInternalHTTPClient(hb.ClientConfig, hb.TokenGenerator)))
 	if err != nil {
 		panic(err)
 	}

@@ -81,13 +81,10 @@ func TestOpenID4VCIHappyFlow(t *testing.T) {
 }
 
 func TestOpenID4VCIConnectionReuse(t *testing.T) {
-	// default http.Transport has MaxConnsPerHost=100,
-	// but we need to adjust it to something lower, so we can assert connection reuse
-	const maxConnsPerHost = 2
+	// Our safe http Transport has MaxConnsPerHost = 5
 	// for 2 http.Transport instance (one for issuer, one for wallet),
-	// so we expect max maxConnsPerHost*2 connections in total.
-	const maxExpectedConnCount = maxConnsPerHost * 2
-	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
+	// so we expect max 10 connections in total.
+	const maxExpectedConnCount = 10
 
 	ctx := audit.TestContext()
 	_, baseURL, system := node.StartServer(t)
@@ -117,7 +114,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 		},
 	}
 
-	const numCreds = 10
+	const numCreds = 12
 	errChan := make(chan error, numCreds)
 	wg := sync.WaitGroup{}
 	for i := 0; i < numCreds; i++ {
@@ -149,7 +146,7 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	}
 	assert.Empty(t, errs, "error issuing credential")
 	for host, v := range newConns {
-		assert.LessOrEqualf(t, v, maxExpectedConnCount, "number of created HTTP connections should be at most %d for host %s", maxConnsPerHost, host)
+		assert.LessOrEqualf(t, v, maxExpectedConnCount, "number of created HTTP connections should be at most %d for host %s", 5, host)
 	}
 }
 

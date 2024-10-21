@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	safeHttp "github.com/nuts-foundation/nuts-node/http/client"
 )
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
@@ -82,7 +83,7 @@ func NewAPIClient(config Config) (spi.Storage, error) {
 	if _, err := url.ParseRequestURI(config.Address); err != nil {
 		return nil, err
 	}
-	client, _ := NewClientWithResponses(config.Address, WithHTTPClient(&http.Client{Timeout: config.Timeout}))
+	client, _ := NewClientWithResponses(config.Address, WithHTTPClient(safeHttp.New(config.Timeout)))
 	return &APIClient{httpClient: client}, nil
 }
 

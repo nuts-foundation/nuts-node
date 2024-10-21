@@ -129,7 +129,7 @@ func (hb HTTPClient) Reprocess(contentType string) error {
 }
 
 func (hb HTTPClient) client() ClientInterface {
-	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateHTTPClient(hb.ClientConfig, hb.TokenGenerator)))
+	response, err := NewClientWithResponses(hb.GetAddress(), WithHTTPClient(core.MustCreateInternalHTTPClient(hb.ClientConfig, hb.TokenGenerator)))
 	if err != nil {
 		panic(err)
 	}

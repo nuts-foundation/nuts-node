@@ -99,7 +99,7 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	client.StrictMode = serverConfig.Strictmode
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
-		client.DefaultCachingTransport = client.NewCachingTransport(http.DefaultTransport, h.config.ResponseCacheSize)
+		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)
 	}
 }
 

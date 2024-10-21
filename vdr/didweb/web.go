@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"io"
 	"mime"
 	"net/http"
 	"time"
@@ -37,16 +38,13 @@ var _ resolver.DIDResolver = (*Resolver)(nil)
 
 // Resolver is a DID resolver for the did:web method.
 type Resolver struct {
-	HttpClient *http.Client
+	HttpClient core.HTTPRequestDoer
 }
 
 // NewResolver creates a new did:web Resolver with default TLS configuration.
 func NewResolver() *Resolver {
 	return &Resolver{
-		HttpClient: &http.Client{
-			Transport: client.DefaultCachingTransport,
-			Timeout:   5 * time.Second,
-		},
+		HttpClient: client.NewWithCache(5 * time.Second),
 	}
 }
 
@@ -68,11 +66,14 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	targetURL := baseURL.String()
 
 	// TODO: Support DNS over HTTPS (DOH), https://www.rfc-editor.org/rfc/rfc8484
-	httpResponse, err := w.HttpClient.Get(targetURL)
+	request, err := http.NewRequest(http.MethodGet, targetURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	httpResponse, err := w.HttpClient.Do(request)
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:web HTTP error: %w", err)
 	}
-	defer httpResponse.Body.Close()
 	if !(httpResponse.StatusCode >= 200 && httpResponse.StatusCode < 300) {
 		return nil, nil, fmt.Errorf("did:web non-ok HTTP status: %s", httpResponse.Status)
 	}
@@ -98,7 +99,7 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	}
 
 	// Read document
-	data, err := core.LimitedReadAll(httpResponse.Body)
+	data, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:web HTTP response read error: %w", err)
 	}

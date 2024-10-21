@@ -20,7 +20,6 @@ package didweb
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/http/client"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -55,10 +54,6 @@ const didDocTemplate = `
 func TestResolver_NewResolver(t *testing.T) {
 	resolver := NewResolver()
 	assert.NotNil(t, resolver.HttpClient)
-
-	t.Run("it uses cached transport", func(t *testing.T) {
-		assert.Same(t, client.DefaultCachingTransport, resolver.HttpClient.Transport)
-	})
 }
 
 func TestResolver_Resolve(t *testing.T) {
