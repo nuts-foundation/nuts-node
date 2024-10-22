@@ -40,7 +40,7 @@ func init() {
 	SafeHttpTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
 	// to prevent slow responses from public clients to have significant impact (default was unlimited)
 	SafeHttpTransport.MaxConnsPerHost = 5
-
+	// set DefaultCachingTransport to SafeHttpTransport so it is set even when caching is disabled
 	DefaultCachingTransport = SafeHttpTransport
 }
 
