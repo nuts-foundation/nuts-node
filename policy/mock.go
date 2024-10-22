@@ -21,6 +21,7 @@ import (
 type MockPDPBackend struct {
 	ctrl     *gomock.Controller
 	recorder *MockPDPBackendMockRecorder
+	isgomock struct{}
 }
 
 // MockPDPBackendMockRecorder is the mock recorder for MockPDPBackend.

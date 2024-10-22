@@ -25,6 +25,7 @@ import (
 type MockPublisher struct {
 	ctrl     *gomock.Controller
 	recorder *MockPublisherMockRecorder
+	isgomock struct{}
 }
 
 // MockPublisherMockRecorder is the mock recorder for MockPublisher.
@@ -76,6 +77,7 @@ func (mr *MockPublisherMockRecorder) PublishRevocation(ctx, revocation any) *gom
 type MockIssuer struct {
 	ctrl     *gomock.Controller
 	recorder *MockIssuerMockRecorder
+	isgomock struct{}
 }
 
 // MockIssuerMockRecorder is the mock recorder for MockIssuer.
@@ -159,6 +161,7 @@ func (mr *MockIssuerMockRecorder) StatusList(ctx, issuer, page any) *gomock.Call
 type MockStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockStoreMockRecorder
+	isgomock struct{}
 }
 
 // MockStoreMockRecorder is the mock recorder for MockStore.
@@ -283,6 +286,7 @@ func (mr *MockStoreMockRecorder) StoreRevocation(r any) *gomock.Call {
 type MockCredentialSearcher struct {
 	ctrl     *gomock.Controller
 	recorder *MockCredentialSearcherMockRecorder
+	isgomock struct{}
 }
 
 // MockCredentialSearcherMockRecorder is the mock recorder for MockCredentialSearcher.

@@ -23,6 +23,7 @@ import (
 type MockDenylist struct {
 	ctrl     *gomock.Controller
 	recorder *MockDenylistMockRecorder
+	isgomock struct{}
 }
 
 // MockDenylistMockRecorder is the mock recorder for MockDenylist.
@@ -114,6 +115,7 @@ func (mr *MockDenylistMockRecorder) ValidateCert(cert any) *gomock.Call {
 type MockValidator struct {
 	ctrl     *gomock.Controller
 	recorder *MockValidatorMockRecorder
+	isgomock struct{}
 }
 
 // MockValidatorMockRecorder is the mock recorder for MockValidator.
@@ -191,6 +193,7 @@ func (mr *MockValidatorMockRecorder) Validate(chain any) *gomock.Call {
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockProviderMockRecorder is the mock recorder for MockProvider.

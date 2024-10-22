@@ -24,6 +24,7 @@ import (
 type MockProtocol struct {
 	ctrl     *gomock.Controller
 	recorder *MockProtocolMockRecorder
+	isgomock struct{}
 }
 
 // MockProtocolMockRecorder is the mock recorder for MockProtocol.
@@ -226,6 +227,7 @@ func (mr *MockProtocolMockRecorder) Version() *gomock.Call {
 type MockStream struct {
 	ctrl     *gomock.Controller
 	recorder *MockStreamMockRecorder
+	isgomock struct{}
 }
 
 // MockStreamMockRecorder is the mock recorder for MockStream.
@@ -291,6 +293,7 @@ func (mr *MockStreamMockRecorder) SendMsg(m any) *gomock.Call {
 type MockConn struct {
 	ctrl     *gomock.Controller
 	recorder *MockConnMockRecorder
+	isgomock struct{}
 }
 
 // MockConnMockRecorder is the mock recorder for MockConn.
@@ -353,6 +356,7 @@ func (mr *MockConnMockRecorder) NewStream(ctx, desc, method any, opts ...any) *g
 type MockClientStream struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientStreamMockRecorder
+	isgomock struct{}
 }
 
 // MockClientStreamMockRecorder is the mock recorder for MockClientStream.

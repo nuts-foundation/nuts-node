@@ -23,6 +23,7 @@ import (
 type MockJAR struct {
 	ctrl     *gomock.Controller
 	recorder *MockJARMockRecorder
+	isgomock struct{}
 }
 
 // MockJARMockRecorder is the mock recorder for MockJAR.
