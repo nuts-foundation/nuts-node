@@ -233,27 +233,6 @@ func (d dag) getHighestClockValue(tx stoabs.ReadTx) uint32 {
 	return bytesToClock(value)
 }
 
-// getHighestClockLegacy is used for migration.
-// Remove after V5 or V6 release?
-func (d dag) getHighestClockLegacy(tx stoabs.ReadTx) uint32 {
-	reader := tx.GetShelfReader(clockShelf)
-	var clock uint32
-	err := reader.Iterate(func(key stoabs.Key, _ []byte) error {
-		currentClock := uint32(key.(stoabs.Uint32Key))
-		if currentClock > clock {
-			clock = currentClock
-		}
-		return nil
-	}, stoabs.Uint32Key(0))
-	if err != nil {
-		log.Logger().
-			WithError(err).
-			Error("Failed to read clock shelf")
-		return 0
-	}
-	return clock
-}
-
 func (d dag) getHead(tx stoabs.ReadTx) (hash.SHA256Hash, error) {
 	head, err := tx.GetShelfReader(metadataShelf).Get(stoabs.BytesKey(headRefKey))
 	if errors.Is(err, stoabs.ErrKeyNotFound) {
@@ -264,13 +243,6 @@ func (d dag) getHead(tx stoabs.ReadTx) (hash.SHA256Hash, error) {
 	}
 
 	return hash.FromSlice(head), nil
-}
-
-// getNumberOfTransactionsLegacy is used for migration.
-// Remove after V5 or V6 release?
-func (d dag) getNumberOfTransactionsLegacy(tx stoabs.ReadTx) uint64 {
-	reader := tx.GetShelfReader(transactionsShelf)
-	return uint64(reader.Stats().NumEntries)
 }
 
 func (d dag) setHighestClockValue(tx stoabs.WriteTx, count uint32) error {
