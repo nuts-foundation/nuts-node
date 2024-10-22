@@ -19,7 +19,7 @@ D(D)oS Protection
 *****************
 
 Consider implementing (D)DoS protection on the application layer for all public endpoints.
-Monitor and og the following metrics:
+Monitor and log the following metrics:
 
 - Number of requests per second
 - Number of requests from a single IP address
