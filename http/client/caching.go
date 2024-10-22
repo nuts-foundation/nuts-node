@@ -32,7 +32,7 @@ import (
 
 // DefaultCachingTransport is a http.RoundTripper that can be used as a default transport for HTTP clients.
 // If caching is enabled, it will cache responses according to RFC 7234.
-// If caching is disabled, it will behave like our safe http.DefaultTransport.
+// If caching is disabled, it will behave like our safe http.SafeHttpTransport.
 var DefaultCachingTransport http.RoundTripper
 
 // maxCacheTime is the maximum time responses are cached.
