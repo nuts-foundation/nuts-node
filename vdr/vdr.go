@@ -221,16 +221,6 @@ func (r *Module) Start() error {
 		return err
 	}
 
-	// VDR migration needs to be started after ambassador has started!
-	count, err := r.store.DocumentCount()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		// remove after v6 release
-		_, err = r.network.Reprocess(context.Background(), "application/did+json")
-	}
-
 	// start DID Document rollback loop
 	r.routines.Add(1)
 	go func() {

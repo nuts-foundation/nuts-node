@@ -37,8 +37,6 @@ type Transactions interface {
 	Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error
 	// Subscribers returns the list of notifiers on the DAG that emit events to subscribers.
 	Subscribers() []dag.Notifier
-	// CleanupSubscriberEvents removes events. Example use is cleaning up events that errored but should be removed due to a bugfix.
-	CleanupSubscriberEvents(subcriberName, errorPrefix string) error
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction.
 	// If the transaction or Payload is not found, dag.ErrPayloadNotFound is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)

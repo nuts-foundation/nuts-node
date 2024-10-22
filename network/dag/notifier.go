@@ -243,6 +243,7 @@ func (p *notifier) Run() error {
 	}
 	// we're going to retry all events synchronously at startup. For the ones that fail we'll start the retry loop
 	failedAtStartup := make([]Event, 0)
+	readyToRetry := make([]Event, 0)
 	err := p.db.ReadShelf(p.ctx, p.shelfName(), func(reader stoabs.Reader) error {
 		return reader.Iterate(func(k stoabs.Key, v []byte) error {
 			event := Event{}
@@ -253,17 +254,21 @@ func (p *notifier) Run() error {
 				return nil
 			}
 
-			if err := p.notifyNow(event); err != nil {
-				if event.Retries < maxRetries {
-					failedAtStartup = append(failedAtStartup, event)
-				}
-			}
-
+			readyToRetry = append(readyToRetry, event)
 			return nil
 		}, stoabs.BytesKey{})
 	})
 	if err != nil {
 		return err
+	}
+
+	// do outside of main loop to prevent long running read
+	for _, event := range readyToRetry {
+		if err := p.notifyNow(event); err != nil {
+			if event.Retries < maxRetries {
+				failedAtStartup = append(failedAtStartup, event)
+			}
+		}
 	}
 
 	// for all events from failedAtStartup, call retry

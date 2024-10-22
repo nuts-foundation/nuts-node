@@ -25,7 +25,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -105,41 +104,6 @@ func newVDRTestCtx(t *testing.T) vdrTestCtx {
 func TestNewVDR(t *testing.T) {
 	vdr := NewVDR(nil, nil, nil, nil, nil)
 	assert.IsType(t, &Module{}, vdr)
-}
-
-func TestVDR_Start(t *testing.T) {
-	t.Run("migration", func(t *testing.T) {
-		t.Run("migrate on 0 document count", func(t *testing.T) {
-			ctx := newVDRTestCtx(t)
-			ctx.mockAmbassador.EXPECT().Start()
-			ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), nil)
-			ctx.mockNetwork.EXPECT().Reprocess(context.Background(), "application/did+json").Return(nil, nil)
-
-			err := ctx.vdr.Start()
-
-			require.NoError(t, err)
-		})
-		t.Run("don't migrate on > 0 document count", func(t *testing.T) {
-			ctx := newVDRTestCtx(t)
-			ctx.mockAmbassador.EXPECT().Start()
-			ctx.mockStore.EXPECT().DocumentCount().Return(uint(1), nil)
-
-			err := ctx.vdr.Start()
-
-			require.NoError(t, err)
-		})
-		t.Run("error on migration error", func(t *testing.T) {
-			ctx := newVDRTestCtx(t)
-			ctx.mockAmbassador.EXPECT().Start()
-			testError := errors.New("test")
-			ctx.mockStore.EXPECT().DocumentCount().Return(uint(0), testError)
-
-			err := ctx.vdr.Start()
-
-			assert.Equal(t, testError, err)
-		})
-	})
-
 }
 
 func TestVDR_ConflictingDocuments(t *testing.T) {
