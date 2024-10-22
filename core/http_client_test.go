@@ -44,7 +44,7 @@ func TestHTTPClient(t *testing.T) {
 
 	t.Run("no auth token", func(t *testing.T) {
 		authToken = ""
-		client, err := CreateHTTPClient(ClientConfig{}, nil)
+		client, err := CreateHTTPInternalClient(ClientConfig{}, nil)
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -56,7 +56,7 @@ func TestHTTPClient(t *testing.T) {
 	})
 	t.Run("with auth token", func(t *testing.T) {
 		authToken = ""
-		client, err := CreateHTTPClient(ClientConfig{
+		client, err := CreateHTTPInternalClient(ClientConfig{
 			Token: "test",
 		}, nil)
 		require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestHTTPClient(t *testing.T) {
 		assert.Equal(t, "Bearer test", authToken)
 	})
 	t.Run("with custom token builder", func(t *testing.T) {
-		client, err := CreateHTTPClient(ClientConfig{}, newLegacyTokenGenerator("test"))
+		client, err := CreateHTTPInternalClient(ClientConfig{}, newLegacyTokenGenerator("test"))
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -80,7 +80,7 @@ func TestHTTPClient(t *testing.T) {
 		assert.Equal(t, "Bearer test", authToken)
 	})
 	t.Run("with errored token builder", func(t *testing.T) {
-		client, err := CreateHTTPClient(ClientConfig{}, newErrorTokenBuilder())
+		client, err := CreateHTTPInternalClient(ClientConfig{}, newErrorTokenBuilder())
 		require.NoError(t, err)
 
 		req, _ := stdHttp.NewRequest(stdHttp.MethodGet, server.URL, nil)
@@ -161,21 +161,4 @@ func newErrorTokenBuilder() AuthorizationTokenGenerator {
 	return func() (string, error) {
 		return "", errors.New("error")
 	}
-}
-
-func TestLimitedReadAll(t *testing.T) {
-	t.Run("less than limit", func(t *testing.T) {
-		data := strings.Repeat("a", 10)
-		result, err := LimitedReadAll(strings.NewReader(data))
-
-		assert.NoError(t, err)
-		assert.Equal(t, []byte(data), result)
-	})
-	t.Run("more than limit", func(t *testing.T) {
-		data := strings.Repeat("a", DefaultMaxHttpResponseSize+1)
-		result, err := LimitedReadAll(strings.NewReader(data))
-
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
-		assert.Nil(t, result)
-	})
 }

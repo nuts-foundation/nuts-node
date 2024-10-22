@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -198,7 +199,7 @@ func (cs *StatusList2021) download(statusListCredential string) (*vc.VerifiableC
 				Debug("Failed to close response body")
 		}
 	}()
-	body, err := core.LimitedReadAll(res.Body) // default minimum size is 16kb (PII entropy), so 1mb is already unlikely
+	body, err := io.ReadAll(res.Body)
 	if res.StatusCode > 299 || err != nil {
 		return nil, errors.Join(fmt.Errorf("fetching StatusList2021Credential from '%s' failed", statusListCredential), err)
 	}

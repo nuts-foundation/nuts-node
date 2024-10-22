@@ -88,6 +88,7 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 
 // newValidator returns a new PKI (crl/denylist) validator.
 func newValidator(config Config) (*validator, error) {
+	// we do not use our safe http client here since we're downloading from a trusted resource
 	return newValidatorWithHTTPClient(config, &http.Client{Timeout: syncTimeout})
 }
 

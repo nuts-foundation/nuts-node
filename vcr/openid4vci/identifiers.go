@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
@@ -143,12 +144,8 @@ func (t tlsIdentifierResolver) resolveFromCertificate(id did.DID) (string, error
 	}
 
 	// Resolve URLs
-	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
-	httpTransport.TLSClientConfig = t.config
-	httpClient := &http.Client{
-		Timeout:   5 * time.Second,
-		Transport: httpTransport,
-	}
+	httpClient := client.NewWithTLSConfig(5*time.Second, t.config)
+
 	for _, candidateURL := range candidateURLs {
 		issuerIdentifier := core.JoinURLPaths(candidateURL, "n2n", "identity", url.PathEscape(id.String()))
 		err := t.testIdentifier(issuerIdentifier, httpClient)
@@ -161,9 +158,13 @@ func (t tlsIdentifierResolver) resolveFromCertificate(id did.DID) (string, error
 	return "", nil
 }
 
-func (t tlsIdentifierResolver) testIdentifier(issuerIdentifier string, httpClient *http.Client) error {
+func (t tlsIdentifierResolver) testIdentifier(issuerIdentifier string, httpClient core.HTTPRequestDoer) error {
 	metadataURL := core.JoinURLPaths(issuerIdentifier, CredentialIssuerMetadataWellKnownPath)
-	httpResponse, err := httpClient.Head(metadataURL)
+	request, err := http.NewRequest(http.MethodHead, metadataURL, nil)
+	if err != nil {
+		return err
+	}
+	httpResponse, err := httpClient.Do(request)
 	if err != nil {
 		return err
 	}

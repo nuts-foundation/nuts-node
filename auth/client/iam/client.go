@@ -136,7 +136,7 @@ func (hb HTTPClient) RequestObjectByGet(ctx context.Context, requestURI string) 
 		return "", httpErr
 	}
 
-	data, err := core.LimitedReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", fmt.Errorf("unable to read response: %w", err)
 	}
@@ -161,7 +161,7 @@ func (hb HTTPClient) RequestObjectByPost(ctx context.Context, requestURI string,
 		return "", httpErr
 	}
 
-	data, err := core.LimitedReadAll(response.Body)
+	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", fmt.Errorf("unable to read response: %w", err)
 	}
@@ -206,7 +206,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 	}
 
 	var responseData []byte
-	if responseData, err = core.LimitedReadAll(response.Body); err != nil {
+	if responseData, err = io.ReadAll(response.Body); err != nil {
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(responseData, &token); err != nil {
@@ -271,7 +271,7 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 		return nil, httpErr
 	}
 	var data []byte
-	if data, err = core.LimitedReadAll(response.Body); err != nil {
+	if data, err = io.ReadAll(response.Body); err != nil {
 		return nil, fmt.Errorf("unable to read response: %w", err)
 	}
 	// kid is checked against did resolver
@@ -407,7 +407,7 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 
 	var data []byte
 
-	if data, err = core.LimitedReadAll(response.Body); err != nil {
+	if data, err = io.ReadAll(response.Body); err != nil {
 		return fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(data, &target); err != nil {

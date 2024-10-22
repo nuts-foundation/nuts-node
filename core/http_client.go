@@ -31,21 +31,6 @@ import (
 // If the response body is longer than this, it will be truncated.
 const HttpResponseBodyLogClipAt = 200
 
-// DefaultMaxHttpResponseSize is a default maximum size of an HTTP response body that will be read.
-// Very large or unbounded HTTP responses can cause denial-of-service, so it's good to limit how much data is read.
-// This of course heavily depends on the use case, but 1MB is a reasonable default.
-const DefaultMaxHttpResponseSize = 1024 * 1024
-
-// LimitedReadAll reads the given reader until the DefaultMaxHttpResponseSize is reached.
-// It returns an error if more data is available than DefaultMaxHttpResponseSize.
-func LimitedReadAll(reader io.Reader) ([]byte, error) {
-	result, err := io.ReadAll(io.LimitReader(reader, DefaultMaxHttpResponseSize+1))
-	if len(result) > DefaultMaxHttpResponseSize {
-		return nil, fmt.Errorf("data to read exceeds max. safety limit of %d bytes", DefaultMaxHttpResponseSize)
-	}
-	return result, err
-}
-
 // HttpError describes an error returned when invoking a remote server.
 type HttpError struct {
 	error
@@ -63,7 +48,7 @@ func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 // It logs using the given logger, unless nil is passed.
 func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, log *logrus.Entry) error {
 	if response.StatusCode != expectedStatusCode {
-		responseData, _ := LimitedReadAll(response.Body)
+		responseData, _ := io.ReadAll(response.Body)
 		if log != nil {
 			// Cut off the response body to 100 characters max to prevent logging of large responses
 			responseBodyString := string(responseData)
@@ -104,16 +89,18 @@ func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 	return w.fn(req)
 }
 
-// CreateHTTPClient creates a new HTTP client with the given client configuration.
+// CreateHTTPInternalClient creates a new HTTP client with the given client configuration.
+// This client is to be used for internal API calls (CMDs and such)
 // The result HTTPRequestDoer can be supplied to OpenAPI generated clients for executing requests.
 // This does not use the generated client options for e.g. authentication,
 // because each generated OpenAPI client reimplements the client options using structs,
 // which makes them incompatible with each other, making it impossible to use write generic client code for common traits like authorization.
 // If the given authorization token builder is non-nil, it calls it and passes the resulting token as bearer token with requests.
-func CreateHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
+func CreateHTTPInternalClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
 	var result *httpRequestDoerAdapter
 	client := &http.Client{}
 	client.Timeout = cfg.Timeout
+
 	result = &httpRequestDoerAdapter{
 		fn: client.Do,
 	}
@@ -149,9 +136,9 @@ func CreateHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (
 	return result, nil
 }
 
-// MustCreateHTTPClient is like CreateHTTPClient but panics if it returns an error.
-func MustCreateHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) HTTPRequestDoer {
-	client, err := CreateHTTPClient(cfg, generator)
+// MustCreateInternalHTTPClient is like CreateHTTPInternalClient but panics if it returns an error.
+func MustCreateInternalHTTPClient(cfg ClientConfig, generator AuthorizationTokenGenerator) HTTPRequestDoer {
+	client, err := CreateHTTPInternalClient(cfg, generator)
 	if err != nil {
 		panic(err)
 	}
