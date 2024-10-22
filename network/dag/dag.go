@@ -96,69 +96,6 @@ func newDAG(db stoabs.KVStore) *dag {
 	return &dag{db: db}
 }
 
-func (d *dag) Migrate() error {
-	return d.db.Write(context.Background(), func(tx stoabs.WriteTx) error {
-		writer := tx.GetShelfWriter(metadataShelf)
-		// Migrate highest LC value
-		// Todo: remove after V5 release
-		_, err := writer.Get(stoabs.BytesKey(highestClockValue))
-		if errors.Is(err, stoabs.ErrKeyNotFound) {
-			log.Logger().Info("Highest LC value not stored, migrating...")
-			highestLC := d.getHighestClockLegacy(tx)
-			err = d.setHighestClockValue(tx, highestLC)
-		}
-		if err != nil {
-			return err
-		}
-
-		// Migrate number of TXs
-		// Todo: remove after V5 release
-		_, err = writer.Get(stoabs.BytesKey(numberOfTransactionsKey))
-		if errors.Is(err, stoabs.ErrKeyNotFound) {
-			log.Logger().Info("Number of transactions not stored, migrating...")
-			numberOfTXs := d.getNumberOfTransactionsLegacy(tx)
-			err = d.setNumberOfTransactions(tx, numberOfTXs)
-		}
-		if err != nil {
-			return err
-		}
-
-		// Migrate headsLegacy to single head
-		// Todo: remove after V6 release => then remove headsShelf
-		_, err = writer.Get(stoabs.BytesKey(headRefKey))
-		if errors.Is(err, stoabs.ErrKeyNotFound) {
-			log.Logger().Info("Head not stored in metadata, migrating...")
-			heads := d.headsLegacy(tx)
-			err = nil            // reset error
-			if len(heads) != 0 { // ignore for empty node
-				var latestHead hash.SHA256Hash
-				var latestLC uint32
-
-				for _, ref := range heads {
-					transaction, err := getTransaction(ref, tx)
-					if err != nil {
-						if errors.Is(err, ErrTransactionNotFound) {
-							return fmt.Errorf("database migration failed: %w (%s=%s)", err, core.LogFieldTransactionRef, ref)
-						}
-						return err
-					}
-					if transaction.Clock() >= latestLC {
-						latestHead = ref
-						latestLC = transaction.Clock()
-					}
-				}
-
-				err = d.setHead(tx, latestHead)
-			}
-		}
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
 func (d *dag) diagnostics(ctx context.Context) []core.DiagnosticResult {
 	var stats Statistics
 	_ = d.db.Read(ctx, func(tx stoabs.ReadTx) error {

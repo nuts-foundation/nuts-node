@@ -60,7 +60,7 @@ type state struct {
 }
 
 func (s *state) Migrate() error {
-	return s.graph.Migrate()
+	return nil
 }
 
 // NewState returns a new State. The State is used as entry point, it's methods will start transactions and will notify observers from within those transactions.
