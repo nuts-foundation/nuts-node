@@ -199,7 +199,7 @@ func (client *Crypto) Migrate() error {
 		for _, keyNameVersion := range keys {
 			var keyRef orm.KeyReference
 			// find existing record, if it exists do nothing
-			err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("key_name = ? and version = ?", keyNameVersion.KeyName, keyNameVersion.KeyName).First(&keyRef).Error
+			err := tx.WithContext(ctx).Model(&orm.KeyReference{}).Where("key_name = ? and version = ?", keyNameVersion.KeyName, keyNameVersion.Version).First(&keyRef).Error
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					// create a new key reference
