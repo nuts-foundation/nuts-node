@@ -273,14 +273,15 @@ func (s *sqlStore) search(serviceID string, query map[string]string, allowUnvali
 		stmt = stmt.Where("validated != 0")
 	}
 	// remove wildcards to prevent unneeded join on credential
+	filteredQuery := make(map[string]string)
 	for k, v := range query {
-		if strings.TrimSpace(v) == "*" {
-			delete(query, k)
+		if strings.TrimSpace(v) != "*" {
+			filteredQuery[k] = v
 		}
 	}
-	if len(query) > 0 {
+	if len(filteredQuery) > 0 {
 		stmt = stmt.Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
-		stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", query)
+		stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", filteredQuery)
 	}
 
 	var matches []presentationRecord
