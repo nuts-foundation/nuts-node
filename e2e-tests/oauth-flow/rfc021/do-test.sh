@@ -104,6 +104,16 @@ else
   exitWithDockerLogs 1
 fi
 
+# Search for registration using wildcards, results in complicated DB query
+RESPONSE=$(curl -s --insecure http://localhost:28081/internal/discovery/v1/e2e-test?credentialSubject.organization.name=*)
+NUM_ITEMS=$(echo $RESPONSE | jq length)
+if [ $NUM_ITEMS -eq 1 ]; then
+  echo "Registration found"
+else
+  echo "FAILED: Could not find registration" 1>&2
+  exitWithDockerLogs 1
+fi
+
 echo "---------------------------------------"
 echo "Perform OAuth 2.0 rfc021 flow..."
 echo "---------------------------------------"
