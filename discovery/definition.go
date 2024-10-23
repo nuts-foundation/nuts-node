@@ -50,7 +50,7 @@ type ServiceDefinition struct {
 	ID string `json:"id"`
 	// DIDMethods is a list of DID methods that are supported by the use case.
 	// If empty, all methods are supported.
-	DIDMethods []string `json:"did_methods"`
+	DIDMethods []string `json:"did_methods,omitempty"`
 	// Endpoint is the endpoint where the use case list is served.
 	Endpoint string `json:"endpoint"`
 	// PresentationDefinition specifies the Presentation ServiceDefinition submissions to the list must conform to,

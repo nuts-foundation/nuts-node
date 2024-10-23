@@ -85,7 +85,7 @@ type ExtendedTokenIntrospectionResponse struct {
 	// Aud RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
 	Aud *string `json:"aud,omitempty"`
 
-	// ClientId The client (DID) the access token was issued to
+	// ClientId The client identity the access token was issued to. Since the Verifiable Presentation is used to grant access, the client_id reflects the client_id in the access token request.
 	ClientId *string `json:"client_id,omitempty"`
 
 	// Cnf The 'confirmation' claim is used in JWTs to proof the possession of a key.
@@ -97,7 +97,7 @@ type ExtendedTokenIntrospectionResponse struct {
 	// Iat Issuance time in seconds since UNIX epoch
 	Iat *int `json:"iat,omitempty"`
 
-	// Iss Contains the DID of the authorizer. Should be equal to 'sub'
+	// Iss Issuer URL of the authorizer.
 	Iss *string `json:"iss,omitempty"`
 
 	// PresentationDefinitions Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token

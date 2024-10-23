@@ -40,7 +40,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusCreated}
 		server := httptest.NewServer(handler)
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
@@ -51,7 +51,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 	})
 	t.Run("non-ok with problem details", func(t *testing.T) {
 		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusBadRequest, ResponseData: `{"title":"missing credentials", "status":400, "detail":"could not resolve DID"}`})
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
@@ -61,7 +61,7 @@ func TestHTTPInvoker_Register(t *testing.T) {
 	})
 	t.Run("non-ok other", func(t *testing.T) {
 		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusNotFound, ResponseData: `not found`})
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
@@ -84,7 +84,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		presentations, seed, timestamp, err := client.Get(context.Background(), server.URL, 0)
 
@@ -102,7 +102,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 			"timestamp": 1,
 		}
 		server := httptest.NewServer(handler)
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		presentations, _, timestamp, err := client.Get(context.Background(), server.URL, 1)
 
@@ -120,7 +120,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 			writer.Write([]byte("{}"))
 		}
 		server := httptest.NewServer(http.HandlerFunc(handler))
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
@@ -130,7 +130,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 	t.Run("server returns invalid status code", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError, ResponseData: `{"title":"internal server error", "status":500, "detail":"db not found"}`}
 		server := httptest.NewServer(handler)
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
@@ -142,7 +142,7 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}
 		handler.ResponseData = "not json"
 		server := httptest.NewServer(handler)
-		client := New(false, time.Minute, server.TLS)
+		client := New(time.Minute)
 
 		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 

@@ -108,6 +108,19 @@ func TestWrapper_DeactivateServiceForSubject(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, DeactivateServiceForSubject200Response{}, response)
 	})
+	t.Run("server error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedErr := errors.Join(discovery.ErrPresentationRegistrationFailed, errors.New("custom error"))
+		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(expectedErr)
+
+		response, err := test.wrapper.DeactivateServiceForSubject(nil, DeactivateServiceForSubjectRequestObject{
+			ServiceID: serviceID,
+			SubjectID: subjectID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, DeactivateServiceForSubject202JSONResponse{Reason: expectedErr.Error()}, response)
+	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(errors.New("foo"))
@@ -199,7 +212,7 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 		assert.NoError(t, err)
 		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
 		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
-		assert.Equal(t, ServiceStatusActive, string(response.(GetServiceActivation200JSONResponse).Status))
+		assert.Equal(t, ServiceStatusActive, *response.(GetServiceActivation200JSONResponse).Status)
 		assert.Nil(t, response.(GetServiceActivation200JSONResponse).Error)
 		assert.Empty(t, response.(GetServiceActivation200JSONResponse).Vp)
 	})
@@ -215,7 +228,7 @@ func TestWrapper_GetServiceActivation(t *testing.T) {
 		assert.NoError(t, err)
 		require.IsType(t, GetServiceActivation200JSONResponse{}, response)
 		assert.True(t, response.(GetServiceActivation200JSONResponse).Activated)
-		assert.Equal(t, ServiceStatusError, string(response.(GetServiceActivation200JSONResponse).Status))
+		assert.Equal(t, ServiceStatusError, *response.(GetServiceActivation200JSONResponse).Status)
 		assert.NotNil(t, response.(GetServiceActivation200JSONResponse).Error)
 		assert.Empty(t, response.(GetServiceActivation200JSONResponse).Vp)
 	})

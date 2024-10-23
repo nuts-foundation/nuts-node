@@ -35,6 +35,7 @@ type CreateSubjectOptions struct {
 	Keys *KeyCreationOptions `json:"keys,omitempty"`
 
 	// Subject controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
+	// The subject must follow the pattern [a-zA-Z0-9._-]+
 	Subject *string `json:"subject,omitempty"`
 }
 
