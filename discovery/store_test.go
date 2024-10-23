@@ -244,6 +244,16 @@ func Test_sqlStore_search(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 2)
 
+		t.Run("wildcard", func(t *testing.T) {
+			actualVPs, err = c.search(testServiceID, map[string]string{"credentialSubject.person.givenName": "*"}, true)
+			require.NoError(t, err)
+			require.Len(t, actualVPs, 2)
+		})
+		t.Run("wildcard postfix", func(t *testing.T) {
+			actualVPs, err = c.search(testServiceID, map[string]string{"credentialSubject.person.givenName": "A*"}, true)
+			require.NoError(t, err)
+			require.Len(t, actualVPs, 1)
+		})
 		t.Run("validated", func(t *testing.T) {
 			actualVPs, err = c.search(testServiceID, map[string]string{}, false)
 			require.NoError(t, err)
