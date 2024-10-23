@@ -129,7 +129,6 @@ paths:
                 type: object
                 required:
                   - activated
-                  - status
                 properties:
                   activated:
                     type: boolean

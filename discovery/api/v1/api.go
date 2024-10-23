@@ -135,19 +135,24 @@ func (w *Wrapper) GetServices(_ context.Context, _ GetServicesRequestObject) (Ge
 }
 
 func (w *Wrapper) GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error) {
-	response := GetServiceActivation200JSONResponse{
-		Status: ServiceStatusActive,
-	}
+	response := GetServiceActivation200JSONResponse{}
 	activated, presentations, err := w.Client.GetServiceActivation(ctx, request.ServiceID, request.SubjectID)
 	if err != nil {
 		if !errors.As(err, &discovery.RegistrationRefreshError{}) {
 			return nil, err
 		}
-		response.Status = ServiceStatusError
+		response.Status = to.Ptr(ServiceStatusError)
 		response.Error = to.Ptr(err.Error())
 	}
 	response.Activated = activated
-	response.Vp = &presentations
+	if activated && response.Status == nil {
+		// only set if not already set to ServiceStatusError
+		response.Status = to.Ptr(ServiceStatusActive)
+	}
+	if presentations != nil {
+		// if presentations is nil this would add `"vp":null` to the response
+		response.Vp = &presentations
+	}
 
 	return response, nil
 }

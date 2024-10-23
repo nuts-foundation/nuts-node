@@ -363,7 +363,7 @@ type GetServiceActivation200JSONResponse struct {
 	Error *string `json:"error,omitempty"`
 
 	// Status Status of the activation. "active" or "error".
-	Status GetServiceActivation200JSONResponseStatus `json:"status"`
+	Status *GetServiceActivation200JSONResponseStatus `json:"status,omitempty"`
 
 	// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
 	// The list is empty when status is "error".

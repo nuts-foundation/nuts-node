@@ -86,7 +86,7 @@ type Module struct {
 	httpClient          client.HTTPClient
 	storageInstance     storage.Engine
 	store               *sqlStore
-	registrationManager clientRegistrationManager
+	registrationManager *clientRegistrationManager
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR

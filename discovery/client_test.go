@@ -52,7 +52,7 @@ type testContext struct {
 	wallet         *holder.MockWallet
 	subjectManager *didsubject.MockManager
 	store          *sqlStore
-	manager        *defaultClientRegistrationManager
+	manager        *clientRegistrationManager
 }
 
 func newTestContext(t *testing.T) testContext {
@@ -393,19 +393,19 @@ func Test_defaultClientRegistrationManager_validate(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		setupManager func(ctx testContext) *defaultClientRegistrationManager
+		setupManager func(ctx testContext) *clientRegistrationManager
 		expectedLen  int
 	}{
 		{
 			name: "ok",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return ctx.manager
 			},
 			expectedLen: 1,
 		},
 		{
 			name: "verification failed",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return newRegistrationManager(testDefinitions(), ctx.store, ctx.invoker, ctx.vcr, ctx.subjectManager, ctx.didResolver, func(service ServiceDefinition, vp vc.VerifiablePresentation) error {
 					return errors.New("verification failed")
 				})
@@ -414,7 +414,7 @@ func Test_defaultClientRegistrationManager_validate(t *testing.T) {
 		},
 		{
 			name: "registration for unknown service",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return newRegistrationManager(map[string]ServiceDefinition{}, ctx.store, ctx.invoker, ctx.vcr, ctx.subjectManager, ctx.didResolver, alwaysOkVerifier)
 			},
 			expectedLen: 0,
