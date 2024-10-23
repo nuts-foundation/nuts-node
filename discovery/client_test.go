@@ -289,6 +289,13 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
 	})
+	t.Run("unknown service", func(t *testing.T) {
+		ctx := newTestContext(t)
+
+		err := ctx.manager.deactivate(audit.TestContext(), "unknown", aliceSubject)
+
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+	})
 }
 
 func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
@@ -342,7 +349,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
 	})
-	t.Run("deactivate deactivated DID", func(t *testing.T) {
+	t.Run("deactivate unsupported DID method", func(t *testing.T) {
 		ctx := newTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
@@ -350,18 +357,9 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
-		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
-	})
-	t.Run("deactivate unsupported DID method", func(t *testing.T) {
-		ctx := newTestContext(t)
-		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		_ = ctx.store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
-
-		err := ctx.manager.refresh(audit.TestContext(), time.Now())
-
 		// refresh clears the registration
-		require.NoError(t, err)
-		record, err := ctx.store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
+		assert.EqualError(t, err, "removed subject that has no supported DID method (service=usecase_v1, subject=alice)")
+		record, err := ctx.store.getPresentationRefreshRecord(testServiceID, aliceSubject)
 		assert.NoError(t, err)
 		assert.Nil(t, record)
 	})

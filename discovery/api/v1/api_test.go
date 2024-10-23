@@ -108,6 +108,19 @@ func TestWrapper_DeactivateServiceForSubject(t *testing.T) {
 		assert.NoError(t, err)
 		assert.IsType(t, DeactivateServiceForSubject200Response{}, response)
 	})
+	t.Run("server error", func(t *testing.T) {
+		test := newMockContext(t)
+		expectedErr := errors.Join(discovery.ErrPresentationRegistrationFailed, errors.New("custom error"))
+		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(expectedErr)
+
+		response, err := test.wrapper.DeactivateServiceForSubject(nil, DeactivateServiceForSubjectRequestObject{
+			ServiceID: serviceID,
+			SubjectID: subjectID,
+		})
+
+		assert.NoError(t, err)
+		assert.IsType(t, DeactivateServiceForSubject202JSONResponse{Reason: expectedErr.Error()}, response)
+	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
 		test.client.EXPECT().DeactivateServiceForSubject(gomock.Any(), serviceID, subjectID).Return(errors.New("foo"))

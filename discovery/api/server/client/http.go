@@ -21,7 +21,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
@@ -35,9 +34,9 @@ import (
 )
 
 // New creates a new DefaultHTTPClient.
-func New(strictMode bool, timeout time.Duration, tlsConfig *tls.Config) *DefaultHTTPClient {
+func New(timeout time.Duration) *DefaultHTTPClient {
 	return &DefaultHTTPClient{
-		client: client.NewWithTLSConfig(timeout, tlsConfig),
+		client: client.New(timeout),
 	}
 }
 

@@ -61,13 +61,13 @@ type ServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Client API to deactivate the given subject from the Discovery Service.
+	// Remove a subject from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
 	// Retrieves the activation status of a subject on a Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx echo.Context, serviceID string, subjectID string) error
-	// Client API to activate a subject on the specified Discovery Service.
+	// Activate a Discovery Service for a subject.
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
 }
@@ -325,24 +325,6 @@ func (response DeactivateServiceForSubject202JSONResponse) VisitDeactivateServic
 	return json.NewEncoder(w).Encode(response)
 }
 
-type DeactivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
-	// Detail A human-readable explanation specific to this occurrence of the problem.
-	Detail string `json:"detail"`
-
-	// Status HTTP statuscode
-	Status float32 `json:"status"`
-
-	// Title A short, human-readable summary of the problem type.
-	Title string `json:"title"`
-}
-
-func (response DeactivateServiceForSubject400ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -384,7 +366,7 @@ type GetServiceActivation200JSONResponse struct {
 	Status GetServiceActivation200JSONResponseStatus `json:"status"`
 
 	// Vp List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
-	// The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+	// The list is empty when status is "error".
 	Vp *[]VerifiablePresentation `json:"vp,omitempty"`
 }
 
@@ -434,42 +416,6 @@ func (response ActivateServiceForSubject200Response) VisitActivateServiceForSubj
 	return nil
 }
 
-type ActivateServiceForSubject400ApplicationProblemPlusJSONResponse struct {
-	// Detail A human-readable explanation specific to this occurrence of the problem.
-	Detail string `json:"detail"`
-
-	// Status HTTP statuscode
-	Status float32 `json:"status"`
-
-	// Title A short, human-readable summary of the problem type.
-	Title string `json:"title"`
-}
-
-func (response ActivateServiceForSubject400ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ActivateServiceForSubject412ApplicationProblemPlusJSONResponse struct {
-	// Detail A human-readable explanation specific to this occurrence of the problem.
-	Detail string `json:"detail"`
-
-	// Status HTTP statuscode
-	Status float32 `json:"status"`
-
-	// Title A short, human-readable summary of the problem type.
-	Title string `json:"title"`
-}
-
-func (response ActivateServiceForSubject412ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(412)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
 		// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -499,13 +445,13 @@ type StrictServerInterface interface {
 	// Searches for presentations registered on the Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Client API to deactivate the given subject from the Discovery Service.
+	// Remove a subject from the Discovery Service.
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error)
 	// Retrieves the activation status of a subject on a Discovery Service.
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error)
-	// Client API to activate a subject on the specified Discovery Service.
+	// Activate a Discovery Service for a subject.
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error)
 }

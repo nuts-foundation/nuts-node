@@ -121,6 +121,9 @@ func (w *Wrapper) ActivateServiceForSubject(ctx context.Context, request Activat
 func (w *Wrapper) DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error) {
 	err := w.Client.DeactivateServiceForSubject(ctx, request.ServiceID, request.SubjectID)
 	if err != nil {
+		if errors.Is(err, discovery.ErrPresentationRegistrationFailed) {
+			return DeactivateServiceForSubject202JSONResponse{Reason: err.Error()}, nil
+		}
 		return nil, err
 	}
 	return DeactivateServiceForSubject200Response{}, nil

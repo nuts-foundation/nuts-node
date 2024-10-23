@@ -106,7 +106,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
-	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
+	m.httpClient = client.New(serverConfig.HTTPClient.Timeout)
 
 	return m.loadDefinitions()
 
@@ -390,7 +390,10 @@ func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subje
 	}
 
 	log.Logger().Infof("Successfully activated service for subject (subject=%s,service=%s)", subjectID, serviceID)
-	_ = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
+	err = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
+	if err != nil {
+		log.Logger().Infof("Failed to update local copy of Discovery Service (service=%s): %s", serviceID, err)
+	}
 	return nil
 }
 
@@ -412,6 +415,11 @@ func (m *Module) Services() []ServiceDefinition {
 // GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a subject.
 // See interface.go for more information.
 func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
+	// first check if the combination getServiceAndSubject to generate correct api returns
+	_, subjectDIDs, err := m.registrationManager.getServiceAndSubject(ctx, serviceID, subjectID)
+	if err != nil {
+		return false, nil, err
+	}
 	refreshRecord, err := m.store.getPresentationRefreshRecord(serviceID, subjectID)
 	if err != nil {
 		return false, nil, err
@@ -420,12 +428,6 @@ func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID 
 		return false, nil, nil
 	}
 	// subject is activated for service
-
-	subjectDIDs, err := m.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		// can only happen if DB is offline/corrupt, or between deactivating a subject and its next refresh on the service (didsubject.ErrSubjectNotFound)
-		return true, nil, err
-	}
 
 	vps2D, err := m.store.getSubjectVPsOnService(serviceID, subjectDIDs)
 	if err != nil {

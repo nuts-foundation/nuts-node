@@ -70,6 +70,9 @@ paths:
         - `credentialSubject.organization.name=Hospital*`
         - `credentialSubject.organization.name=*clinic`
         - `issuer=did:web:example.com`
+        
+        error returns:
+        * 404 - unknown service.
       operationId: searchPresentations
       tags:
         - discovery
@@ -111,6 +114,9 @@ paths:
         and the status of the activation. A refresh could have failed.
         It will return true after successfully calling the activateServiceForSubject API, and false after calling the deactivateServiceForSubject API.
         It also returns the active Verifiable Presentations, if any.
+        
+        error returns:
+        * 404 - unknown service or subject.
       operationId: getServiceActivation
       tags:
         - discovery
@@ -140,31 +146,30 @@ paths:
                   vp:
                     description: |
                       List of VPs on the Discovery Service for the subject. One per DID method registered on the Service.
-                      The list can be empty even if activated==true if none of the DIDs of a subject is actually registered on the Discovery Service.
+                      The list is empty when status is "error".
                     type: array
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Client API to activate a subject on the specified Discovery Service.
+      summary: Activate a Discovery Service for a subject.
       description: |
         An API provided by the discovery client that will cause all qualifying DIDs of a subject to be registered on the specified Discovery Service.
         A DID qualifies for registration if it meets the requirements defined the Presentation Definition of the Discovery Service.
-        Registration of all DIDs of a subject will be attempted immediately, and they will be automatically refreshed.
+        Registration of all DIDs of a subject will be attempted immediately. 
+        If at least one DID is registered on the Discovery Server, the operation is considered a success and will be periodically refreshed for the entire subject.
         Applications only need to call this API once for every service/subject combination, until the registration is explicitly deleted through this API.
         
-        If initial registration fails, this API returns the error indicating what failed and periodically retry registration.
         Applications can force a retry by calling this API again.
         
         error returns:
-        * 400 - incorrect input: invalid/unknown service or subject.
-        * 412 - precondition failed: subject doesn't have the required credentials.
+        * 404 - unknown service or subject
+        * 412 - precondition failed: subject doesn't have the required credentials
       operationId: activateServiceForSubject
       tags:
         - discovery
       requestBody:
-        required: true
         content:
           application/json:
             schema:
@@ -172,21 +177,16 @@ paths:
       responses:
         "200":
           description: Activation was successful.
-
-        "400":
-          $ref: "../common/error_response.yaml"
-        "412":
-          $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Client API to deactivate the given subject from the Discovery Service.
+      summary: Remove a subject from the Discovery Service.
       description: |
         An API provided by the discovery client that will cancel the periodic registration of a subject on the specified Discovery Service.
         It will also try to delete all the existing registrations on the Discovery Service, if any.
         
         error returns:
-        * 400 - incorrect input: invalid/unknown service or subject.
+        * 404 - unknown service or subject
       operationId: deactivateServiceForSubject
       tags:
         - discovery
@@ -209,8 +209,6 @@ paths:
                   reason:
                     type: string
                     description: Description of why removal of the registration failed.
-        "400":
-          $ref: "../common/error_response.yaml"
         default:
           $ref: "../common/error_response.yaml"
 components:
@@ -269,6 +267,11 @@ components:
         id:
           type: string
           description: The ID of the Discovery Service.
+        did_methods:
+          type: array
+          items:
+            type: string
+          description: List of DID Methods supported by the Discovery Service. Empty/missing means no restrictions.
         endpoint:
           type: string
           description: The endpoint of the Discovery Service.
