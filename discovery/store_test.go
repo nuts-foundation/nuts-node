@@ -272,6 +272,13 @@ func Test_sqlStore_search(t *testing.T) {
 		}, true)
 		require.NoError(t, err)
 		require.Len(t, actualVPs, 0)
+
+		t.Run("wildcard", func(t *testing.T) {
+			actualVPs, err = c.search(testServiceID, map[string]string{"credentialSubject.person.noName": "*"}, true)
+			require.NoError(t, err)
+			require.Len(t, actualVPs, 0)
+		})
+
 	})
 }
 

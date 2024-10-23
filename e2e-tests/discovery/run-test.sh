@@ -62,7 +62,7 @@ sleep 2
 echo "---------------------------------------"
 echo "Searching for care organization registration on Discovery Server..."
 echo "---------------------------------------"
-RESPONSE=$(curl -s --insecure "http://localhost:18081/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*")
+RESPONSE=$(curl -s --insecure "http://localhost:18081/internal/discovery/v1/dev:eOverdracht2023?credentialSubject.organization.name=Care*&credentialSubject.organization.city=*")
 NUM_ITEMS=$(echo $RESPONSE | jq length)
 if [ $NUM_ITEMS -eq 1 ]; then
   echo "Registration found"

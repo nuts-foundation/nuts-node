@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -267,25 +268,19 @@ func (s *sqlStore) get(serviceID string, startAfter int) (map[string]vc.Verifiab
 func (s *sqlStore) search(serviceID string, query map[string]string, allowUnvalidated bool) ([]vc.VerifiablePresentation, error) {
 	// first only select columns also used in group by clause
 	// if the query is empty, there's no need to do a join
-	stmt := s.db.Model(&presentationRecord{}).
+	stmt := s.db.Model(&presentationRecord{}).Select("discovery_presentation.id").
 		Where("service_id = ?", serviceID)
 	if !allowUnvalidated {
 		stmt = stmt.Where("validated != 0")
 	}
-	// remove wildcards to prevent unneeded join on credential
-	filteredQuery := make(map[string]string)
-	for k, v := range query {
-		if strings.TrimSpace(v) != "*" {
-			filteredQuery[k] = v
-		}
+	if len(query) > 0 {
+		stmt = applyQuery(stmt, query)
 	}
-	if len(filteredQuery) > 0 {
-		stmt = stmt.Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
-		stmt = store.CredentialStore{}.BuildSearchStatement(stmt, "discovery_credential.credential_id", filteredQuery)
-	}
+	stmt = stmt.Group("discovery_presentation.id")
 
 	var matches []presentationRecord
-	if err := stmt.Preload("Credentials").Preload("Credentials.Credential").Find(&matches).Error; err != nil {
+	main := s.db.Preload("Credentials").Preload("Credentials.Credential").Model(&presentationRecord{}).Where("id in (?)", stmt)
+	if err := main.Find(&matches).Error; err != nil {
 		return nil, err
 	}
 	var results []vc.VerifiablePresentation
@@ -300,6 +295,52 @@ func (s *sqlStore) search(serviceID string, query map[string]string, allowUnvali
 		results = append(results, *presentation)
 	}
 	return results, nil
+}
+
+// applyQuery is like vcr/credential/store/sql.go#BuildSearchStatement but for searching VPs a group by is needed which also requires a sub query
+// at that point a generic search statement is not maintainable
+func applyQuery(stmt *gorm.DB, query map[string]string) *gorm.DB {
+	propertyColumns := map[string]string{
+		"id":                   "credential.id",
+		"issuer":               "credential.issuer",
+		"type":                 "credential.type",
+		"credentialSubject.id": "credential.subject_id",
+	}
+
+	stmt = stmt.Joins("inner join discovery_credential ON discovery_credential.presentation_id = discovery_presentation.id")
+	stmt = stmt.Joins("inner join credential ON credential.id = discovery_credential.credential_id")
+	numProps := 0
+	for jsonPath, value := range query {
+		// sort out wildcard mode: prefix and postfix asterisks (*) are replaced with %, which then is used in a LIKE query.
+		// an asterisk is translated to IS NOT NULL
+		// Otherwise, exact match (=) is used.
+		var op = "= ?"
+		if strings.TrimSpace(value) == "*" {
+			op = "is not null"
+			value = ""
+		} else {
+			if strings.HasPrefix(value, "*") {
+				value = "%" + value[1:]
+				op = "LIKE ?"
+			}
+			// and or
+			if strings.HasSuffix(value, "*") {
+				value = value[:len(value)-1] + "%"
+				op = "LIKE ?"
+			}
+		}
+		if column := propertyColumns[jsonPath]; column != "" {
+			stmt = stmt.Where(column+" "+op, value)
+		} else {
+			// This property is not present as column, but indexed as key-value property.
+			// Multiple (inner) joins to filter on a dynamic number of properties to filter on is not pretty, but it works
+			alias := "p" + strconv.Itoa(numProps)
+			numProps++
+			// for an IS NOT NULL query, the value is ignored
+			stmt = stmt.Joins("inner join credential_prop "+alias+" ON "+alias+".credential_id = credential.id AND "+alias+".path = ? AND "+alias+".value "+op, jsonPath, value)
+		}
+	}
+	return stmt
 }
 
 // incrementTimestamp increments the last_timestamp of the given service. USed by server.
@@ -406,7 +447,7 @@ func (s *sqlStore) allPresentations(validated bool) ([]presentationRecord, error
 func (s *sqlStore) updateValidated(records []presentationRecord) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		for _, record := range records {
-			if err := tx.Model(&presentationRecord{}).Where("id = ?", record.ID).Update("validated", true).Error; err != nil {
+			if err := tx.Model(&presentationRecord{}).Where("id = ?", record.ID).Update("validated", SQLBool(true)).Error; err != nil {
 				return err
 			}
 		}
