@@ -447,7 +447,7 @@ func (s *sqlStore) allPresentations(validated bool) ([]presentationRecord, error
 func (s *sqlStore) updateValidated(records []presentationRecord) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		for _, record := range records {
-			if err := tx.Model(&presentationRecord{}).Where("id = ?", record.ID).Update("validated", true).Error; err != nil {
+			if err := tx.Model(&presentationRecord{}).Where("id = ?", record.ID).Update("validated", SQLBool(true)).Error; err != nil {
 				return err
 			}
 		}
