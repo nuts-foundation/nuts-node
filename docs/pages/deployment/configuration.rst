@@ -77,8 +77,8 @@ Several of the server options above allow the node to be configured in a way tha
 The node can be configured to run in strict mode (default) to prevent any insecure configurations.
 Below is a summary of the impact ``strictmode=true`` has on the node and its configuration.
 
-Save storage of any private key material requires some serious consideration.
-For this reason the ``crypto.storage`` backend must explicitly be set.
+Save storage of any private key material and data requires some serious consideration.
+For this reason the ``crypto.storage`` backend and the ``storage.sql.connection`` connection string must explicitly be set.
 
 Private transactions can only be exchanged over authenticated nodes.
 Therefore is requires TLS to be configured through ``tls.{certfile,certkeyfile,truststore}``.

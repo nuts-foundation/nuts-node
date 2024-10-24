@@ -28,3 +28,6 @@ network:
   grpcaddr:	:5555
   v2:
     gossipinterval: 500
+storage:
+  sql:
+    connection: "sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"

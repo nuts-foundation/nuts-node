@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/events"
 	httpEngine "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/network"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
@@ -145,6 +146,17 @@ func startServer(testDirectory string, exitCallback func(), serverConfig core.Se
 	err = koanfInstance.Load(structs.ProviderWithDelim(moduleConfig, "koanf", "."), nil)
 	if err != nil {
 		panic(err)
+	}
+	if serverConfig.Strictmode {
+		type modCfg struct {
+			Storage storage.Config `koanf:"storage"`
+		}
+		storageConfig := modCfg{Storage: storage.DefaultConfig()}
+		storageConfig.Storage.SQL.ConnectionString = fmt.Sprintf("sqlite:file:%s/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)", testDirectory)
+		err = koanfInstance.Load(structs.ProviderWithDelim(storageConfig, "koanf", "."), nil)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	bytes, err := koanfInstance.Marshal(yamlParser)

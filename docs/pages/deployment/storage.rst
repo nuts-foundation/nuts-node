@@ -21,9 +21,9 @@ Also remember to test your backup and restore procedure.
 SQL database
 ************
 
-By default, storage SQLite will be used in a file called ``sqlite.db`` in the configured data directory.
-This can be overridden by configuring a connection string in ``storage.sql.connection``.
-Other supported SQL databases are Postgres, MySQL, Microsoft SQL Server and Microsoft Azure SQL Server.
+Currently supported SQL databases are Postgres, MySQL, Microsoft SQL Server, Microsoft Azure SQL Server, and SQLite.
+The database of your preference can be set by configuring a connection string in ``storage.sql.connection``.
+Only in non-strictmode, if no connection string is set this will default to SQLite in a file called ``sqlite.db`` in the configured data directory.
 
 Connection strings must be in the following format:
 
@@ -38,6 +38,11 @@ Refer to the documentation of the driver for the database you are using for the 
 - MS SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_ (e.g. ``sqlserver://user:password@localhost:1433?database=dbname``)
 - Azure SQL Server: `github.com/microsoft/go-mssqldb <https://github.com/microsoft/go-mssqldb>`_ (e.g. ``azuresql://server=awesome-server;port=1433;database=awesome-db;fedauth=ActiveDirectoryDefault;``)
 - SQLite (e.g. ``sqlite:file:/some/path/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)``)
+
+.. warning::
+
+    Usage of SQLite is not recommended for production environments.
+    Connections to a SQLite DB are restricted to 1, which will lead to severe performance reduction.
 
 Private Keys
 ************

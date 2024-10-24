@@ -120,8 +120,14 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		require.NoError(t, os.Remove(dataDir))
 		e := New()
 		e.(*engine).datadir = dataDir
-		err := e.(*engine).initSQLDatabase()
+		err := e.(*engine).initSQLDatabase(false)
 		assert.ErrorContains(t, err, "unable to open database file")
+	})
+	t.Run("no DB configured in strictmode", func(t *testing.T) {
+		e := New()
+		e.(*engine).datadir = io.TestDirectory(t)
+		err := e.(*engine).initSQLDatabase(true)
+		assert.ErrorContains(t, err, "no database configured: storage.sql.connection must be set in strictmode")
 	})
 	t.Run("sqlite is restricted to 1 connection", func(t *testing.T) {
 		e := New()
