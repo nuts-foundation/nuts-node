@@ -22,3 +22,5 @@ storage:
   redis:
     address: redis:6379
     database: nodeB
+  sql:
+    connection: "sqlite:file:/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"

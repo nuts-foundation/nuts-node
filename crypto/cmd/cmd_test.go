@@ -92,11 +92,10 @@ func Test_fs2VaultCommand(t *testing.T) {
 	// Configure target
 	t.Setenv("NUTS_CRYPTO_STORAGE", "vaultkv")
 	t.Setenv("NUTS_CRYPTO_VAULT_ADDRESS", s.URL)
+	t.Setenv("NUTS_STRICTMODE", "false")
 
 	testDirectory := testIo.TestDirectory(t)
 	setupFSStoreData(t, testDirectory)
-	// default datadir is unavailable causing sqlite to fail
-	t.Setenv("NUTS_DATADIR", testDirectory)
 
 	outBuf := new(bytes.Buffer)
 	cryptoCmd := ServerCmd()

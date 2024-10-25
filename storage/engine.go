@@ -172,7 +172,7 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	e.databases = append(e.databases, bboltDB)
 
 	// SQL storage
-	if err := e.initSQLDatabase(); err != nil {
+	if err := e.initSQLDatabase(config.Strictmode); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
@@ -212,9 +212,13 @@ func (e *engine) GetSQLDatabase() *gorm.DB {
 
 // initSQLDatabase initializes the SQL database connection.
 // If the connection string is not configured, it defaults to a SQLite database, stored in the node's data directory.
-func (e *engine) initSQLDatabase() error {
+func (e *engine) initSQLDatabase(strictmode bool) error {
 	connectionString := e.config.SQL.ConnectionString
 	if len(connectionString) == 0 {
+		if strictmode {
+			return errors.New("no database configured: storage.sql.connection must be set in strictmode")
+		}
+		// non-strictmode uses SQLite as default
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
