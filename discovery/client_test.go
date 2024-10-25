@@ -52,7 +52,7 @@ type testContext struct {
 	wallet         *holder.MockWallet
 	subjectManager *didsubject.MockManager
 	store          *sqlStore
-	manager        *defaultClientRegistrationManager
+	manager        *clientRegistrationManager
 }
 
 func newTestContext(t *testing.T) testContext {
@@ -131,7 +131,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 
 		err := ctx.manager.activate(audit.TestContext(), unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
-		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("no matching credentials", func(t *testing.T) {
 		ctx := newTestContext(t)
@@ -255,7 +255,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 
 		err := ctx.manager.deactivate(audit.TestContext(), unsupportedServiceID, aliceSubject)
 
-		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("deregistering from Discovery Service fails", func(t *testing.T) {
 		ctx := newTestContext(t)
@@ -288,6 +288,13 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 		err := ctx.manager.deactivate(audit.TestContext(), testServiceID, aliceSubject)
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+	t.Run("unknown service", func(t *testing.T) {
+		ctx := newTestContext(t)
+
+		err := ctx.manager.deactivate(audit.TestContext(), "unknown", aliceSubject)
+
+		assert.ErrorIs(t, err, ErrServiceNotFound)
 	})
 }
 
@@ -342,7 +349,7 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
 	})
-	t.Run("deactivate deactivated DID", func(t *testing.T) {
+	t.Run("deactivate unsupported DID method", func(t *testing.T) {
 		ctx := newTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		ctx.didResolver.EXPECT().Resolve(aliceDID, gomock.Any()).Return(nil, nil, resolver.ErrDeactivated)
@@ -350,18 +357,9 @@ func Test_defaultClientRegistrationManager_refresh(t *testing.T) {
 
 		err := ctx.manager.refresh(audit.TestContext(), time.Now())
 
-		assert.EqualError(t, err, "removed unknown subject (service=usecase_v1, subject=alice)")
-	})
-	t.Run("deactivate unsupported DID method", func(t *testing.T) {
-		ctx := newTestContext(t)
-		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
-		_ = ctx.store.updatePresentationRefreshTime(unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject), &nextRefresh)
-
-		err := ctx.manager.refresh(audit.TestContext(), time.Now())
-
 		// refresh clears the registration
-		require.NoError(t, err)
-		record, err := ctx.store.getPresentationRefreshRecord(unsupportedServiceID, aliceSubject)
+		assert.EqualError(t, err, "removed subject that has no supported DID method (service=usecase_v1, subject=alice)")
+		record, err := ctx.store.getPresentationRefreshRecord(testServiceID, aliceSubject)
 		assert.NoError(t, err)
 		assert.Nil(t, record)
 	})
@@ -395,19 +393,19 @@ func Test_defaultClientRegistrationManager_validate(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		setupManager func(ctx testContext) *defaultClientRegistrationManager
+		setupManager func(ctx testContext) *clientRegistrationManager
 		expectedLen  int
 	}{
 		{
 			name: "ok",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return ctx.manager
 			},
 			expectedLen: 1,
 		},
 		{
 			name: "verification failed",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return newRegistrationManager(testDefinitions(), ctx.store, ctx.invoker, ctx.vcr, ctx.subjectManager, ctx.didResolver, func(service ServiceDefinition, vp vc.VerifiablePresentation) error {
 					return errors.New("verification failed")
 				})
@@ -416,7 +414,7 @@ func Test_defaultClientRegistrationManager_validate(t *testing.T) {
 		},
 		{
 			name: "registration for unknown service",
-			setupManager: func(ctx testContext) *defaultClientRegistrationManager {
+			setupManager: func(ctx testContext) *clientRegistrationManager {
 				return newRegistrationManager(map[string]ServiceDefinition{}, ctx.store, ctx.invoker, ctx.vcr, ctx.subjectManager, ctx.didResolver, alwaysOkVerifier)
 			},
 			expectedLen: 0,

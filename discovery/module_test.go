@@ -40,7 +40,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"gorm.io/gorm"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -464,8 +463,8 @@ func TestModule_Search(t *testing.T) {
 			{
 				Presentation: vpAlice,
 				Fields: map[string]interface{}{
-					"auth_server_url":"https://example.com/oauth2/alice",
-					"issuer_field": authorityDID,
+					"auth_server_url": "https://example.com/oauth2/alice",
+					"issuer_field":    authorityDID,
 				},
 				Parameters: defaultRegistrationParams(aliceSubject),
 			},
@@ -625,7 +624,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 
 		require.EqualError(t, err, "subject not found")
 	})
-	t.Run("deactivated", func(t *testing.T) {
+	t.Run("deactivated DID", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
 		require.NoError(t, storageEngine.Start())
 		m, testContext := setupModule(t, storageEngine)
@@ -634,7 +633,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
-		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("ok, but couldn't register presentation -> maps to ErrRegistrationFailed", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
@@ -667,7 +666,8 @@ func TestModule_GetServiceActivation(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	require.NoError(t, storageEngine.Start())
 	t.Run("not activated", func(t *testing.T) {
-		m, _ := setupModule(t, storageEngine)
+		m, ctx := setupModule(t, storageEngine)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 
 		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, aliceSubject)
 
@@ -713,14 +713,23 @@ func TestModule_GetServiceActivation(t *testing.T) {
 			assert.ErrorAs(t, err, &RegistrationRefreshError{})
 		})
 	})
-}
+	t.Run("service does not exist - 404", func(t *testing.T) {
+		m, _ := setupModule(t, storageEngine)
 
-func checkWriteAccess(dir string) bool {
-	info, err := os.Stat(dir)
-	if err != nil {
-		return false
-	}
+		activated, presentation, err := m.GetServiceActivation(context.Background(), "unknown", "unknown")
 
-	// Check if the directory is writable by the current user
-	return info.Mode().Perm()&(1<<(uint(7))) != 0
+		assert.ErrorIs(t, err, ErrServiceNotFound)
+		assert.False(t, activated)
+		assert.Nil(t, presentation)
+	})
+	t.Run("subject does not exist - 404", func(t *testing.T) {
+		m, ctx := setupModule(t, storageEngine)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), "unknown").Return(nil, didsubject.ErrSubjectNotFound)
+
+		activated, presentation, err := m.GetServiceActivation(context.Background(), testServiceID, "unknown")
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+		assert.False(t, activated)
+		assert.Nil(t, presentation)
+	})
 }

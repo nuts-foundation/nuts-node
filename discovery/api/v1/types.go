@@ -37,7 +37,7 @@ type GetServiceActivation200JSONResponseStatus string
 
 const (
 	// ServiceStatusActive is the status for an active service.
-	ServiceStatusActive = "active"
+	ServiceStatusActive GetServiceActivation200JSONResponseStatus = "active"
 	// ServiceStatusError is the status for an inactive service.
-	ServiceStatusError = "error"
+	ServiceStatusError GetServiceActivation200JSONResponseStatus = "error"
 )
