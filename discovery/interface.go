@@ -34,7 +34,11 @@ var ErrPresentationAlreadyExists = errors.New("presentation already exists")
 // ErrPresentationRegistrationFailed indicates registration of a presentation on a remote Discovery Service failed.
 var ErrPresentationRegistrationFailed = errors.New("registration of Verifiable Presentation on remote Discovery Service failed")
 
+// ErrDIDMethodsNotSupported indicates that a received VP does not match the supported DID Methods of the service.
 var ErrDIDMethodsNotSupported = errors.New("DID methods not supported")
+
+// ErrNoSupportedDIDMethods indicates that the client cannot create a VP for a subject because it has no (active) DID matching the supported DID Methods of the service.
+var ErrNoSupportedDIDMethods = errors.New("subject has no (active) DIDs matching the service")
 
 // authServerURLField is the field name for the authServerURL in the DiscoveryRegistrationCredential.
 // it is used to resolve authorization server metadata and thus the endpoints for a service entry.

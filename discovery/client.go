@@ -95,7 +95,7 @@ func (r *clientRegistrationManager) activate(ctx context.Context, serviceID, sub
 	subjectDIDs = subjectDIDs[:j]
 
 	if len(subjectDIDs) == 0 {
-		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrNoSupportedDIDMethods, subjectID)
 	}
 
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
@@ -167,7 +167,7 @@ func (r *clientRegistrationManager) deactivate(ctx context.Context, serviceID, s
 	}
 	if len(subjectDIDs) == 0 {
 		// if this means we can't deactivate a previously registered subject because the DID methods have changed, then we rely on the refresh interval to clean up.
-		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrNoSupportedDIDMethods, subjectID)
 	}
 
 	// find all active presentations
@@ -287,7 +287,7 @@ func (r *clientRegistrationManager) refresh(ctx context.Context, now time.Time) 
 	for _, candidate := range refreshCandidates {
 		var loopErr error
 		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
-			if errors.Is(err, ErrDIDMethodsNotSupported) {
+			if errors.Is(err, ErrNoSupportedDIDMethods) {
 				// DID method no longer supported, remove
 				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil, nil)
 				if err != nil {

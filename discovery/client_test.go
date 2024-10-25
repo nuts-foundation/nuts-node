@@ -131,7 +131,7 @@ func Test_defaultClientRegistrationManager_activate(t *testing.T) {
 
 		err := ctx.manager.activate(audit.TestContext(), unsupportedServiceID, aliceSubject, defaultRegistrationParams(aliceSubject))
 
-		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("no matching credentials", func(t *testing.T) {
 		ctx := newTestContext(t)
@@ -255,7 +255,7 @@ func Test_defaultClientRegistrationManager_deactivate(t *testing.T) {
 
 		err := ctx.manager.deactivate(audit.TestContext(), unsupportedServiceID, aliceSubject)
 
-		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("deregistering from Discovery Service fails", func(t *testing.T) {
 		ctx := newTestContext(t)

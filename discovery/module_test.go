@@ -633,7 +633,7 @@ func TestModule_ActivateServiceForSubject(t *testing.T) {
 
 		err := m.ActivateServiceForSubject(context.Background(), testServiceID, aliceSubject, nil)
 
-		assert.ErrorIs(t, err, ErrDIDMethodsNotSupported)
+		assert.ErrorIs(t, err, ErrNoSupportedDIDMethods)
 	})
 	t.Run("ok, but couldn't register presentation -> maps to ErrRegistrationFailed", func(t *testing.T) {
 		storageEngine := storage.NewTestStorageEngine(t)
