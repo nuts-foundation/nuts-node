@@ -7,7 +7,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
-	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"math/big"
 	"time"
@@ -17,18 +16,7 @@ import (
 func BuildCertChain(identifier string) (chainCerts *[4]x509.Certificate, chain *cert.Chain, rootCertificate *x509.Certificate, signingKey *rsa.PrivateKey, signingCert *x509.Certificate, err error) {
 	chainCerts = &[4]x509.Certificate{}
 	chain = &cert.Chain{}
-	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	rootCertTmpl, err := CertTemplate(nil)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	rootCertTmpl.IsCA = true
-	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	rootCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	rootCert, rootPem, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	rootKey, rootCert, rootPem, err := buildRootCert(err)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -38,17 +26,7 @@ func BuildCertChain(identifier string) (chainCerts *[4]x509.Certificate, chain *
 		return nil, nil, nil, nil, nil, err
 	}
 
-	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	intermediateL1Tmpl, err := CertTemplate(nil)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	intermediateL1Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	intermediateL1Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, rootCertTmpl, &intermediateL1Key.PublicKey, rootKey)
+	intermediateL1Key, intermediateL1Cert, intermediateL1Pem, err := buildIntermediateCert(err, rootCert, rootKey)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -58,38 +36,14 @@ func BuildCertChain(identifier string) (chainCerts *[4]x509.Certificate, chain *
 		return nil, nil, nil, nil, nil, err
 	}
 
-	intermediateL2Key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	intermediateL2Tmpl, err := CertTemplate(nil)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	intermediateL2Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	intermediateL2Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	intermediateL2Cert, intermediateL2Pem, err := CreateCert(intermediateL2Tmpl, intermediateL1Cert, &intermediateL2Key.PublicKey, intermediateL1Key)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
+	intermediateL2Key, intermediateL2Cert, intermediateL2Pem, err := buildIntermediateCert(err, intermediateL1Cert, intermediateL1Key)
 	chainCerts[2] = *intermediateL2Cert
 	err = chain.Add(intermediateL2Pem)
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
 
-	signingKey, err = rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	signingTmpl, err := SigningCertTemplate(nil, identifier)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	signingTmpl.Subject.SerialNumber = "32121323"
-	signingTmpl.KeyUsage = x509.KeyUsageDigitalSignature
-	signingTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	signingCert, signingPEM, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
+	signingKey, signingCert, signingPEM, err := buildSigningCert(identifier, intermediateL2Cert, intermediateL2Key, "32121323")
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
@@ -98,10 +52,56 @@ func BuildCertChain(identifier string) (chainCerts *[4]x509.Certificate, chain *
 	if err != nil {
 		return nil, nil, nil, nil, nil, err
 	}
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
 	return chainCerts, chain, rootCert, signingKey, signingCert, nil
+}
+
+func buildSigningCert(identifier string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
+	signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	signingTmpl, err := SigningCertTemplate(nil, identifier)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	signingTmpl.Subject.SerialNumber = serialNumber
+	signingCert, signingPEM, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return signingKey, signingCert, signingPEM, err
+}
+
+func buildIntermediateCert(err error, parentCert *x509.Certificate, parentKey *rsa.PrivateKey) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
+	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	intermediateL1Tmpl, err := CertTemplate(nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, parentCert, &intermediateL1Key.PublicKey, parentKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return intermediateL1Key, intermediateL1Cert, intermediateL1Pem, nil
+}
+
+func buildRootCert(err error) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
+	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	rootCertTmpl, err := CertTemplate(nil)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	rootCert, rootPem, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return rootKey, rootCert, rootPem, nil
 }
 
 // CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
@@ -120,6 +120,9 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
 		BasicConstraintsValid: true,
 	}
+	tmpl.IsCA = true
+	tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 	return &tmpl, nil
 }
 
@@ -171,6 +174,8 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 			},
 		},
 	}
+	tmpl.KeyUsage = x509.KeyUsageDigitalSignature
+	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	return &tmpl, nil
 }
 
@@ -205,56 +210,4 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
 	certPEM = pem.EncodeToMemory(&b)
 	return cert, certPEM, err
-}
-
-// DebugUnmarshall recursively unmarshalls ASN.1 encoded data and prints the structure with parsed values.
-func DebugUnmarshall(data []byte, depth int) error {
-	for len(data) > 0 {
-		var x asn1.RawValue
-		tail, err := asn1.Unmarshal(data, &x)
-		if err != nil {
-			return err
-		}
-		prefix := ""
-		for i := 0; i < depth; i++ {
-			prefix += "\t"
-		}
-		fmt.Printf("%sUnmarshalled: compound: %t, tag: %d, class: %d", prefix, x.IsCompound, x.Tag, x.Class)
-
-		if x.Bytes != nil {
-			if x.IsCompound || x.Tag == 0 {
-				fmt.Println()
-				err := DebugUnmarshall(x.Bytes, depth+1)
-				if err != nil {
-					return err
-				}
-			} else {
-				switch x.Tag {
-				case asn1.TagBoolean:
-					fmt.Printf(", value boolean: %v", x.Bytes)
-				case asn1.TagOID:
-					fmt.Printf(", value: OID: %v", x.Bytes)
-				case asn1.TagInteger:
-					fmt.Printf(", value: integer: %v", x.Bytes)
-				case asn1.TagUTF8String:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagBitString:
-					fmt.Printf(", value: bitstring: %v", x.Bytes)
-				case asn1.TagOctetString:
-					fmt.Printf(", value: octetstring: %v", x.Bytes)
-				case asn1.TagIA5String:
-					fmt.Printf(", value: TagIA5String: %v", x.Bytes)
-				case asn1.TagNull:
-					fmt.Printf(", value: null")
-				default:
-					return fmt.Errorf("unknown tag: %d", x.Tag)
-
-				}
-				fmt.Println()
-			}
-		}
-		data = tail
-	}
-
-	return nil
 }
