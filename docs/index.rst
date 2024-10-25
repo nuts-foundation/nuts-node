@@ -4,6 +4,12 @@
 Nuts documentation
 ##################
 
+.. note::
+
+    This version of the documentation is for Nuts v6.0.0.
+    It no longer describes the setup of the Nuts network required for did:nuts.
+    If you're looking for information on setting up a Nuts network, please refer to the `previous version <https://nuts-node.readthedocs.io/en/v5.4/>`_.
+
 .. toctree::
     :maxdepth: 1
     :caption: Integrating:
