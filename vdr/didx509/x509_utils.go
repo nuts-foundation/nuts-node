@@ -137,13 +137,13 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString, alg stri
 		return nil, fmt.Errorf("failed to decode base64url hash: %v", err)
 	}
 
-	for _, cert := range chain {
-		certHash, err := hash(cert.Raw, alg)
+	for _, c := range chain {
+		certHash, err := hash(c.Raw, alg)
 		if err != nil {
 			return nil, err
 		}
 		if bytes.Equal(targetHash, certHash) {
-			return cert, nil
+			return c, nil
 		}
 	}
 
