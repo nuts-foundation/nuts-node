@@ -48,7 +48,7 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	value := ""
 	for _, extension := range cert.Extensions {
 		if extension.Id.Equal(SubjectAlternativeNameType) {
-			err := forEachSAN(extension.Value, func(tag int, data []byte) error {
+			err := forEachSan(extension.Value, func(tag int, data []byte) error {
 				if tag != 0 {
 					return nil
 				}
@@ -74,8 +74,8 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	return "", nil
 }
 
-// forEachSAN processes each SAN extension in the certificate
-func forEachSAN(extension []byte, callback func(tag int, data []byte) error) error {
+// forEachSan processes each SAN extension in the certificate
+func forEachSan(extension []byte, callback func(tag int, data []byte) error) error {
 	var seq asn1.RawValue
 	rest, err := asn1.Unmarshal(extension, &seq)
 	if err != nil {
