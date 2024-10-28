@@ -8,26 +8,53 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
 	"slices"
 	"strings"
 )
 
-const MethodName = "x509"
+const (
+	MethodName                   = "x509"
+	X509CertChainHeader          = "x5c"
+	X509CertThumbprintHeader     = "x5t"
+	X509CertThumbprintS256Header = "x5t#S256"
+)
+
+type PolicyName string
+
+const (
+	PolicyNameSubject PolicyName = "subject"
+	PolicyNameSan     PolicyName = "san"
+)
+
+type SubjectPolicy string
+
+const (
+	SubjectPolicySerialNumber       SubjectPolicy = "serialNumber"
+	SubjectPolicyCommonName         SubjectPolicy = "CN"
+	SubjectPolicyLocality           SubjectPolicy = "L"
+	SubjectPolicyCountry            SubjectPolicy = "C"
+	SubjectPolicyOrganization       SubjectPolicy = "O"
+	SubjectPolicyOrganizationalUnit SubjectPolicy = "OU"
+)
+
+type SanPolicy string
+
+const (
+	SanPolicyOtherName SanPolicy = "otherName"
+	SanPolicyDNS       SanPolicy = "dns"
+	SanPolicyEmail     SanPolicy = "email"
+	SanPolicyIPAddress SanPolicy = "ip"
+)
 
 var (
-	ErrWrongSerialNumber       = errors.New("query does not match the subject serialNumber")
-	ErrWrongCN                 = errors.New("query does not match the subject CN")
-	ErrWrongLocality           = errors.New("query does not match the subject Locality")
-	ErrWrongOrganization       = errors.New("query does not match the subject Organization")
-	ErrWrongOrganizationalUnit = errors.New("query does not match the subject OrganizationalUnit")
-	ErrWrongSanOtherName       = errors.New("the SAN otherName does not match the query")
-	ErrWrongSanDns             = errors.New("the SAN DNS does not match the query")
-	ErrWrongSanEmailAddresses  = errors.New("the SAN EmailAddresses does not match the query")
-	ErrWrongSanIPAddresses     = errors.New("the SAN IPAddresses does not match the query")
-	ErrDidMalformed            = errors.New("did:x509 is malformed")
-	ErrDidVersion              = errors.New("did:x509 does not have version 0")
-	ErrDidSanMalformed         = errors.New("did:x509 policy is malformed")
-	ErrX509ChainMissing        = errors.New("x509 rootCert chain is missing")
+	ErrDidMalformed         = errors.New("did:x509 is malformed")
+	ErrDidVersion           = errors.New("did:x509 does not have version 0")
+	ErrDidSanMalformed      = errors.New("did:x509 policy is malformed")
+	ErrUnkPolicyType        = errors.New("unknown policy type")
+	ErrUnkSubjectPolicyType = errors.New("unknown subject policy type")
+	ErrUnkSANPolicyType     = errors.New("unknown subject SAN type")
+	ErrX509ChainMissing     = errors.New("x509 rootCert chain is missing")
 )
 
 var _ resolver.DIDResolver = &Resolver{}
@@ -44,9 +71,9 @@ type Resolver struct {
 }
 
 type X509DidReference struct {
-	Method      string
+	Method      HashAlgorithm
 	RootCertRef string
-	PolicyName  string
+	PolicyName  PolicyName
 	PolicyValue string
 }
 
@@ -60,7 +87,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	chainHeader, ok := metadata.GetProtectedHeaderChain("x5c")
+	chainHeader, ok := metadata.GetProtectedHeaderChain(X509CertChainHeader)
 	if !ok {
 		return nil, nil, ErrX509ChainMissing
 	}
@@ -72,14 +99,9 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if err != nil {
 		return nil, nil, err
 	}
-	hashHeader, _ := metadata.GetProtectedHeaderString("x5t")
-	validationCert, err := findCertificateByHash(chain, hashHeader, "sha1")
+	validationCert, err := findValidationCertificate(metadata, chain)
 	if err != nil {
-		hash256Header, _ := metadata.GetProtectedHeaderString("x5t#S256")
-		validationCert, err = findCertificateByHash(chain, hash256Header, "sha256")
-		if err != nil {
-			return nil, nil, err
-		}
+		return nil, nil, err
 	}
 
 	err = validatePolicy(ref, validationCert)
@@ -98,87 +120,130 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	return document, &resolver.DocumentMetadata{}, err
 }
 
+func findValidationCertificate(metadata *resolver.ResolveMetadata, chain []*x509.Certificate) (*x509.Certificate, error) {
+	var validationCert *x509.Certificate
+	var err error
+	hashHeader, found := metadata.GetProtectedHeaderString(X509CertThumbprintHeader)
+	if found {
+		validationCert, err = findCertificateByHash(chain, hashHeader, HashSha1)
+		if err != nil {
+			return nil, err
+		}
+	}
+	hash256Header, found := metadata.GetProtectedHeaderString(X509CertThumbprintS256Header)
+	if found {
+		otherValidationCert, err := findCertificateByHash(chain, hash256Header, HashSha256)
+		if err != nil {
+			return nil, err
+		}
+		if validationCert == nil {
+			validationCert = otherValidationCert
+		} else {
+			if !otherValidationCert.Equal(validationCert) {
+				return nil, errors.New("x5t#S256 header does not match the certificate from the x5t headers")
+			}
+		}
+	}
+	return validationCert, nil
+}
+
 // validatePolicy validates a certificate against a given X509DidReference and its policy.
 func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 
 	switch ref.PolicyName {
-	case "subject":
+	case PolicyNameSubject:
 		keyValue := strings.Split(ref.PolicyValue, ":")
 		if len(keyValue)%2 != 0 {
 			return ErrDidSanMalformed
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
 			subject := cert.Subject
-			key := keyValue[i]
-			value := keyValue[i+1]
+			key := SubjectPolicy(keyValue[i])
+			value := unescapeValue(keyValue[i+1])
 			switch key {
-			case "serialNumber":
+			case SubjectPolicySerialNumber:
 				if subject.SerialNumber != value {
-					return ErrWrongSerialNumber
+					return fmt.Errorf("query does not match the subject : %s", key)
 				}
-			case "CN":
+			case SubjectPolicyCommonName:
 				if subject.CommonName != value {
-					return ErrWrongCN
+					return fmt.Errorf("query does not match the subject : %s", key)
 				}
-			case "L":
+			case SubjectPolicyLocality:
 				if !slices.Contains(subject.Locality, value) {
-					return ErrWrongLocality
+					return fmt.Errorf("query does not match the subject : %s", key)
 				}
-			case "O":
+			case SubjectPolicyCountry:
+				if !slices.Contains(subject.Country, value) {
+					return fmt.Errorf("query does not match the subject : %s", key)
+				}
+			case SubjectPolicyOrganization:
 				if !slices.Contains(subject.Organization, value) {
-					return ErrWrongOrganization
+					return fmt.Errorf("query does not match the subject : %s", key)
 				}
-			case "OU":
+			case SubjectPolicyOrganizationalUnit:
 				if !slices.Contains(subject.OrganizationalUnit, value) {
-					return ErrWrongOrganizationalUnit
+					return fmt.Errorf("query does not match the subject : %s", key)
 				}
+			default:
+				return ErrUnkSubjectPolicyType
 			}
 		}
-	case "san":
+	case PolicyNameSan:
 		keyValue := strings.Split(ref.PolicyValue, ":")
 		if len(keyValue)%2 != 0 {
 			return ErrDidSanMalformed
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
-			key := keyValue[i]
-			value := keyValue[i+1]
+			key := SanPolicy(keyValue[i])
+			value := unescapeValue(keyValue[i+1])
 			switch key {
-			case "otherName":
+			case SanPolicyOtherName:
 				nameValue, err := findOtherNameValue(cert)
 				if err != nil {
 					return err
 				}
 				if nameValue != value {
-					return ErrWrongSanOtherName
+					return fmt.Errorf("the SAN attribute %s does not match the query", key)
 				}
-			case "dns":
-				if len(cert.DNSNames) > 0 && !slices.Contains(cert.DNSNames, value) {
-					return ErrWrongSanDns
+			case SanPolicyDNS:
+				if !slices.Contains(cert.DNSNames, value) {
+					return fmt.Errorf("the SAN attribute %s does not match the query", key)
 				}
-			case "email":
-				if len(cert.EmailAddresses) > 0 && !slices.Contains(cert.EmailAddresses, value) {
-					return ErrWrongSanEmailAddresses
+			case SanPolicyEmail:
+				if !slices.Contains(cert.EmailAddresses, value) {
+					return fmt.Errorf("the SAN attribute %s does not match the query", key)
 				}
-			case "ip":
-				if len(cert.IPAddresses) > 0 {
-					ok := false
-					for _, ip := range cert.IPAddresses {
-						if ip.String() == value {
-							ok = true
-							break
-						}
+			case SanPolicyIPAddress:
+				ok := false
+				for _, ip := range cert.IPAddresses {
+					if ip.String() == value {
+						ok = true
+						break
 					}
-					if !ok {
-						return ErrWrongSanIPAddresses
-					}
+				}
+				if !ok {
+					return fmt.Errorf("the SAN attribute %s does not match the query", key)
+				}
 
-				}
+			default:
+				return ErrUnkSANPolicyType
 			}
-
 		}
+	default:
+		return ErrUnkPolicyType
 	}
 
 	return nil
+}
+
+func unescapeValue(v string) string {
+	unescapedValue := v
+	value, err := url.QueryUnescape(unescapedValue)
+	if err != nil {
+		value = unescapedValue
+	}
+	return value
 }
 
 // createDidDocument generates a new DID Document based on the provided DID identifier and validation certificate.
@@ -223,11 +288,11 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 	if didParts[0] != "0" {
 		return nil, ErrDidVersion
 	}
-	ref.Method = didParts[1]
+	ref.Method = HashAlgorithm(didParts[1])
 	ref.RootCertRef = didParts[2]
 	policyFragments := strings.Split(policyString, ":")
 	if len(policyFragments) > 1 {
-		ref.PolicyName = policyFragments[0]
+		ref.PolicyName = PolicyName(policyFragments[0])
 		ref.PolicyValue = strings.Join(policyFragments[1:], ":")
 	}
 

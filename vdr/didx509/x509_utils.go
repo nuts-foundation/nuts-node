@@ -15,6 +15,15 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+type HashAlgorithm string
+
+const (
+	HashSha1   = HashAlgorithm("sha1")
+	HashSha256 = HashAlgorithm("sha256")
+	HashSha384 = HashAlgorithm("sha384")
+	HashSha512 = HashAlgorithm("sha512")
+)
+
 // OtherName represents a structure for other name in ASN.1
 type OtherName struct {
 	TypeID asn1.ObjectIdentifier
@@ -131,7 +140,7 @@ func parseChain(headerChain *cert.Chain) ([]*x509.Certificate, error) {
 
 // findCertificateByHash searches for a certificate in the provided chain using the given base64url-encoded hash and algorithm.
 // If a matching certificate is found, it returns the certificate; otherwise, it returns an error.
-func findCertificateByHash(chain []*x509.Certificate, targetHashString, alg string) (*x509.Certificate, error) {
+func findCertificateByHash(chain []*x509.Certificate, targetHashString string, alg HashAlgorithm) (*x509.Certificate, error) {
 	targetHash, err := base64.RawURLEncoding.DecodeString(targetHashString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64url hash: %v", err)
@@ -154,18 +163,18 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString, alg stri
 // Supported algorithms are: "sha1", "sha256Sum", "sha384", "sha512".
 // Returns the computed hash as a byte slice and an error if the algorithm is unsupported.
 // The error is nil if the hash is computed successfully.
-func hash(data []byte, alg string) ([]byte, error) {
+func hash(data []byte, alg HashAlgorithm) ([]byte, error) {
 	switch alg {
-	case "sha1":
+	case HashSha1:
 		sum := sha1.Sum(data)
 		return sum[:], nil
-	case "sha256":
+	case HashSha256:
 		sum := sha256.Sum256(data)
 		return sum[:], nil
-	case "sha384":
+	case HashSha384:
 		sum := sha3.Sum384(data)
 		return sum[:], nil
-	case "sha512":
+	case HashSha512:
 		sum := sha512.Sum512(data)
 		return sum[:], nil
 	}

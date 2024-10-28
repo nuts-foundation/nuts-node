@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"math/big"
+	"net"
 	"time"
 )
 
@@ -133,49 +134,59 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
 		serialNumber, _ = rand.Int(rand.Reader, serialNumberLimit)
 	}
-	raw, err := toRawValue(identifier, "ia5")
-	if err != nil {
-		return nil, err
-	}
-	otherName := OtherName{
-		TypeID: OtherNameType,
-		Value: asn1.RawValue{
-			Class:      2,
-			Tag:        0,
-			IsCompound: true,
-			Bytes:      raw.FullBytes,
-		},
-	}
-
-	raw, err = toRawValue(otherName, "tag:0")
-	if err != nil {
-		return nil, err
-	}
-	var list []asn1.RawValue
-	list = append(list, *raw)
-	marshal, err := asn1.Marshal(list)
-	if err != nil {
-		return nil, err
-	}
 
 	tmpl := x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
-		SignatureAlgorithm:    x509.SHA256WithRSA,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
-		EmailAddresses:        []string{"roland@edia.nl"},
-		BasicConstraintsValid: true,
-		ExtraExtensions: []pkix.Extension{
-			{
-				Id:       SubjectAlternativeNameType,
-				Critical: false,
-				Value:    marshal,
-			},
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		SerialNumber:       serialNumber,
+		Subject: pkix.Name{
+			Organization:       []string{"NUTS Foundation"},
+			CommonName:         "www.nuts.nl",
+			Country:            []string{"NL"},
+			Locality:           []string{"Amsterdam", "The Hague"},
+			OrganizationalUnit: []string{"The A-Team"},
 		},
+		NotBefore: time.Now(),
+		NotAfter:  time.Now().Add(time.Hour * 24 * 30), // valid for a month
 	}
 	tmpl.KeyUsage = x509.KeyUsageDigitalSignature
 	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+	// Either the ExtraExtensions SubjectAlternativeNameType is set, or the Subject Alternate Name values are set,
+	// both don't mix
+	if identifier != "" {
+		raw, err := toRawValue(identifier, "ia5")
+		if err != nil {
+			return nil, err
+		}
+		otherName := OtherName{
+			TypeID: OtherNameType,
+			Value: asn1.RawValue{
+				Class:      2,
+				Tag:        0,
+				IsCompound: true,
+				Bytes:      raw.FullBytes,
+			},
+		}
+
+		raw, err = toRawValue(otherName, "tag:0")
+		if err != nil {
+			return nil, err
+		}
+		var list []asn1.RawValue
+		list = append(list, *raw)
+		marshal, err := asn1.Marshal(list)
+		if err != nil {
+			return nil, err
+		}
+		tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, pkix.Extension{
+			Id:       SubjectAlternativeNameType,
+			Critical: false,
+			Value:    marshal,
+		})
+	} else {
+		tmpl.DNSNames = []string{"www.nuts.nl", "www.nuts-foundation.nl"}
+		tmpl.EmailAddresses = []string{"info@nuts.nl", "info@nuts-foundation.nl"}
+		tmpl.IPAddresses = []net.IP{net.ParseIP("192.1.2.3"), net.ParseIP("192.1.2.4")}
+	}
 	return &tmpl, nil
 }
 
