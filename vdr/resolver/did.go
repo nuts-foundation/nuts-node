@@ -140,12 +140,8 @@ type ResolveMetadata struct {
 	SourceTransaction *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
-	// JWT x5c Header
-	X509CertChain *cert.Chain
-	// JWT x5t Header
-	X509CertThumbprint string
-	// JWT x5t#S256 Header
-	X509CertThumbprintS256 string
+	// JWT protected headers
+	JwtProtectedHeaders map[string]interface{}
 }
 
 var _ DIDResolver = &DIDResolverRouter{}
@@ -195,4 +191,28 @@ func GetDIDFromURL(didURL string) (did.DID, error) {
 // IsDeactivated returns true if the DID.Document has already been deactivated
 func IsDeactivated(document did.Document) bool {
 	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
+}
+
+func (m *ResolveMetadata) GetProtectedHeaderString(key string) (string, bool) {
+	if m.JwtProtectedHeaders == nil {
+		return "", false
+	}
+	value, ok := m.JwtProtectedHeaders[key]
+	if !ok {
+		return "", false
+	}
+	str, ok := value.(string)
+	return str, ok
+}
+
+func (m *ResolveMetadata) GetProtectedHeaderChain(key string) (*cert.Chain, bool) {
+	if m.JwtProtectedHeaders == nil {
+		return nil, false
+	}
+	value, ok := m.JwtProtectedHeaders[key]
+	if !ok {
+		return nil, false
+	}
+	chain, ok := value.(*cert.Chain)
+	return chain, ok
 }

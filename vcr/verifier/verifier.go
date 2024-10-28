@@ -19,6 +19,7 @@
 package verifier
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -163,18 +164,17 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
 		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
-		if issuerDID.Method == "x509" {
-			rawJwt := credentialToVerify.Raw()
-			if rawJwt != "" {
-				message, _ := jws.ParseString(rawJwt)
-				if message != nil && len(message.Signatures()) > 0 {
-					headers := message.Signatures()[0].ProtectedHeaders()
-					metadata.X509CertThumbprint = headers.X509CertThumbprint()
-					metadata.X509CertChain = headers.X509CertChain()
-					metadata.X509CertThumbprintS256 = headers.X509CertThumbprintS256()
+		rawJwt := credentialToVerify.Raw()
+		if rawJwt != "" {
+			message, _ := jws.ParseString(rawJwt)
+			if message != nil && len(message.Signatures()) > 0 {
+				headers, err := message.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
+				if err != nil {
+					return err
 				}
-
+				metadata.JwtProtectedHeaders = headers
 			}
+
 		}
 		_, _, err = v.didResolver.Resolve(*issuerDID, &metadata)
 		if err != nil {

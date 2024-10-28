@@ -60,10 +60,11 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	if metadata.X509CertChain == nil {
+	chainHeader, ok := metadata.GetProtectedHeaderChain("x5c")
+	if !ok {
 		return nil, nil, ErrX509ChainMissing
 	}
-	chain, err := parseChain(metadata)
+	chain, err := parseChain(chainHeader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,9 +72,11 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if err != nil {
 		return nil, nil, err
 	}
-	validationCert, err := findCertificateByHash(chain, metadata.X509CertThumbprint, "sha1")
+	hashHeader, _ := metadata.GetProtectedHeaderString("x5t")
+	validationCert, err := findCertificateByHash(chain, hashHeader, "sha1")
 	if err != nil {
-		validationCert, err = findCertificateByHash(chain, metadata.X509CertThumbprintS256, "sha256")
+		hash256Header, _ := metadata.GetProtectedHeaderString("x5t#S256")
+		validationCert, err = findCertificateByHash(chain, hash256Header, "sha256")
 		if err != nil {
 			return nil, nil, err
 		}

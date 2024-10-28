@@ -24,19 +24,29 @@ func TestManager_Resolve(t *testing.T) {
 	otherNameValue := "A_BIG_STRING"
 	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain(otherNameValue)
 	require.NoError(t, err)
-	metadata.X509CertChain = certChain
-	metadata.X509CertThumbprint = sha1Sum(signingCert.Raw)
-	metadata.X509CertThumbprintS256 = sha256Sum(signingCert.Raw)
+	metadata.JwtProtectedHeaders = make(map[string]interface{})
+	metadata.JwtProtectedHeaders["x5c"] = certChain
+	metadata.JwtProtectedHeaders["x5t"] = sha1Sum(signingCert.Raw)
+	metadata.JwtProtectedHeaders["x5t#S256"] = sha256Sum(signingCert.Raw)
 
 	rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue))
 
 	t.Run("test nulls", func(t *testing.T) {
-		chain := metadata.X509CertChain
-		metadata.X509CertChain = nil
+		chain, _ := metadata.GetProtectedHeaderChain("x5c")
+		delete(metadata.JwtProtectedHeaders, "x5c")
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
 		assert.Equal(t, err.Error(), errors.New("x509 rootCert chain is missing").Error())
-		metadata.X509CertChain = chain
+		metadata.JwtProtectedHeaders["x5c"] = chain
+
+	})
+	t.Run("test x5c cast issue", func(t *testing.T) {
+		chain, _ := metadata.GetProtectedHeaderChain("x5c")
+		metadata.JwtProtectedHeaders["x5c"] = "GARBAGE"
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), errors.New("x509 rootCert chain is missing").Error())
+		metadata.JwtProtectedHeaders["x5c"] = chain
 
 	})
 	t.Run("happy flow", func(t *testing.T) {
@@ -47,22 +57,22 @@ func TestManager_Resolve(t *testing.T) {
 		assert.NotNil(t, documentMetadata)
 	})
 	t.Run("happy flow 2", func(t *testing.T) {
-		metadata.X509CertThumbprintS256 = ""
+		delete(metadata.JwtProtectedHeaders, "x5t#S256")
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
 		assert.NotNil(t, documentMetadata)
-		metadata.X509CertThumbprintS256 = sha256Sum(signingCert.Raw)
+		metadata.JwtProtectedHeaders["x5t#S256"] = sha256Sum(signingCert.Raw)
 	})
 	t.Run("happy flow 2", func(t *testing.T) {
-		metadata.X509CertThumbprint = ""
+		delete(metadata.JwtProtectedHeaders, "x5t")
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
 		assert.NotNil(t, documentMetadata)
-		metadata.X509CertThumbprint = sha1Sum(signingCert.Raw)
+		metadata.JwtProtectedHeaders["x5t"] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("broken chain", func(t *testing.T) {
 		expectedErr := errors.New("broken chain")

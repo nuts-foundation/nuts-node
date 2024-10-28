@@ -11,7 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -107,10 +107,10 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 }
 
 // parseChain extracts the certificate chain from the provided metadata
-func parseChain(metadata *resolver.ResolveMetadata) ([]*x509.Certificate, error) {
-	chain := make([]*x509.Certificate, metadata.X509CertChain.Len())
-	for i := range metadata.X509CertChain.Len() {
-		certBytes, has := metadata.X509CertChain.Get(i)
+func parseChain(headerChain *cert.Chain) ([]*x509.Certificate, error) {
+	chain := make([]*x509.Certificate, headerChain.Len())
+	for i := range headerChain.Len() {
+		certBytes, has := headerChain.Get(i)
 		if has {
 			pemBlock, _ := pem.Decode(certBytes)
 			if pemBlock == nil {

@@ -19,6 +19,7 @@
 package verifier
 
 import (
+	"context"
 	crypt "crypto"
 	"errors"
 	"fmt"
@@ -123,14 +124,13 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 		metadata := &resolver.ResolveMetadata{
 			ResolveTime: at,
 		}
-		if strings.HasPrefix(keyID, "did:x509:") {
-			message, _ := jws.ParseString(jwtDocumentToVerify)
-			if message != nil && len(message.Signatures()) > 0 {
-				headers := message.Signatures()[0].ProtectedHeaders()
-				metadata.X509CertThumbprint = headers.X509CertThumbprint()
-				metadata.X509CertChain = headers.X509CertChain()
-				metadata.X509CertThumbprintS256 = headers.X509CertThumbprintS256()
+		message, _ := jws.ParseString(jwtDocumentToVerify)
+		if message != nil && len(message.Signatures()) > 0 {
+			headers, err := message.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
+			if err != nil {
+				return nil, err
 			}
+			metadata.JwtProtectedHeaders = headers
 		}
 		return sv.resolveSigningKey(kid, issuer, metadata)
 	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
