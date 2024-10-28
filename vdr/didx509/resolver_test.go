@@ -360,6 +360,34 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, err.Error(), "query does not match the subject : C")
 	})
+	t.Run("happy flow ST", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:ST:%s", "sha256", sha256Sum(rootCertificate.Raw), "Noord-Holland"))
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		assert.NotNil(t, documentMetadata)
+	})
+	t.Run("happy flow ST error", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:ST:%s", "sha256", sha256Sum(rootCertificate.Raw), "Noord-Brabant"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "query does not match the subject : ST")
+	})
+	t.Run("happy flow STREET", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:STREET:%s", "sha256", sha256Sum(rootCertificate.Raw), "Amsterdamseweg%20100"))
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		assert.NotNil(t, documentMetadata)
+	})
+	t.Run("happy flow STREET error", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:STREET:%s", "sha256", sha256Sum(rootCertificate.Raw), "Haarlemsetraatweg%2099"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "query does not match the subject : STREET")
+	})
 
 	t.Run("happy flow serialNumber", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:serialNumber:%s", "sha256", sha256Sum(rootCertificate.Raw), "32121323"))

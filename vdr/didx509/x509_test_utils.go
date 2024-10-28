@@ -144,6 +144,9 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 			Country:            []string{"NL"},
 			Locality:           []string{"Amsterdam", "The Hague"},
 			OrganizationalUnit: []string{"The A-Team"},
+			StreetAddress:      []string{"Amsterdamseweg 100"},
+			PostalCode:         []string{"1011 NL"},
+			Province:           []string{"Noord-Holland"},
 		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(time.Hour * 24 * 30), // valid for a month

@@ -36,6 +36,8 @@ const (
 	SubjectPolicyCountry            SubjectPolicy = "C"
 	SubjectPolicyOrganization       SubjectPolicy = "O"
 	SubjectPolicyOrganizationalUnit SubjectPolicy = "OU"
+	SubjectPolicyState              SubjectPolicy = "ST"
+	SubjectPolicyStreet             SubjectPolicy = "STREET"
 )
 
 type SanPolicy string
@@ -179,6 +181,14 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 				}
 			case SubjectPolicyCountry:
 				if !slices.Contains(subject.Country, value) {
+					return fmt.Errorf("query does not match the subject : %s", key)
+				}
+			case SubjectPolicyState:
+				if !slices.Contains(subject.Province, value) {
+					return fmt.Errorf("query does not match the subject : %s", key)
+				}
+			case SubjectPolicyStreet:
+				if !slices.Contains(subject.StreetAddress, value) {
 					return fmt.Errorf("query does not match the subject : %s", key)
 				}
 			case SubjectPolicyOrganization:
