@@ -160,7 +160,10 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 		for i := 0; i < len(keyValue); i = i + 2 {
 			subject := cert.Subject
 			key := SubjectPolicy(keyValue[i])
-			value := unescapeValue(keyValue[i+1])
+			value, err := url.QueryUnescape(keyValue[i+1])
+			if err != nil {
+				return err
+			}
 			switch key {
 			case SubjectPolicySerialNumber:
 				if subject.SerialNumber != value {
@@ -197,7 +200,10 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
 			key := SanPolicy(keyValue[i])
-			value := unescapeValue(keyValue[i+1])
+			value, err := url.QueryUnescape(keyValue[i+1])
+			if err != nil {
+				return err
+			}
 			switch key {
 			case SanPolicyOtherName:
 				nameValue, err := findOtherNameValue(cert)
@@ -236,15 +242,6 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	}
 
 	return nil
-}
-
-func unescapeValue(v string) string {
-	unescapedValue := v
-	value, err := url.QueryUnescape(unescapedValue)
-	if err != nil {
-		value = unescapedValue
-	}
-	return value
 }
 
 // createDidDocument generates a new DID Document based on the provided DID identifier and validation certificate.

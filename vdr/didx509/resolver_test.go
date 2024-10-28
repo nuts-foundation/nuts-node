@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/sha3"
+	"strings"
 	"testing"
 )
 
@@ -192,6 +193,19 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, err.Error(), ErrUnkSANPolicyType.Error())
 	})
+	t.Run("impartial san attribute", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), ErrDidSanMalformed.Error())
+	})
+	t.Run("broken san attribute", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
+		rootDID.ID = strings.Replace(rootDID.ID, "www.uva.nl", "www.uva%2.nl", 1)
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "invalid URL escape \"%2.\"")
+	})
 	t.Run("happy SAN DNS", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 
@@ -260,11 +274,26 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		assert.Equal(t, err.Error(), ErrUnkPolicyType.Error())
 
 	})
-	t.Run("fail type 1", func(t *testing.T) {
+	t.Run("fail type 2", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:UNK:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
 		assert.Equal(t, err.Error(), ErrUnkSubjectPolicyType.Error())
+
+	})
+	t.Run("broken subject attribute", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
+		rootDID.ID = strings.Replace(rootDID.ID, "www.nuts.nl", "www.nuts%2.nl", 1)
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "invalid URL escape \"%2.\"")
+
+	})
+	t.Run("impartial subject attribute", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "did:x509 subject policy is malformed")
 
 	})
 	t.Run("happy flow CN", func(t *testing.T) {
