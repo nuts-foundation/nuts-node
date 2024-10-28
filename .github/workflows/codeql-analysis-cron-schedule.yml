@@ -24,8 +24,8 @@ jobs:
         # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
         branches:
           - 'master'
-          - 'V*'
           - 'V5.4'
+          - 'V6.0'
 
     steps:
       - name: Checkout repository
