@@ -160,7 +160,7 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString string, a
 }
 
 // hash computes and returns the hash of the given data using the specified algorithm.
-// Supported algorithms are: "sha1", "sha256Sum", "sha384", "sha512".
+// Supported algorithms are: "sha1", "sha256", "sha384", "sha512".
 // Returns the computed hash as a byte slice and an error if the algorithm is unsupported.
 // The error is nil if the hash is computed successfully.
 func hash(data []byte, alg HashAlgorithm) ([]byte, error) {
