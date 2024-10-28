@@ -140,7 +140,7 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 		SerialNumber:       serialNumber,
 		Subject: pkix.Name{
 			Organization:       []string{"NUTS Foundation"},
-			CommonName:         "www.nuts.nl",
+			CommonName:         "www.example.com",
 			Country:            []string{"NL"},
 			Locality:           []string{"Amsterdam", "The Hague"},
 			OrganizationalUnit: []string{"The A-Team"},
@@ -186,8 +186,8 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 			Value:    marshal,
 		})
 	} else {
-		tmpl.DNSNames = []string{"www.nuts.nl", "www.nuts-foundation.nl"}
-		tmpl.EmailAddresses = []string{"info@nuts.nl", "info@nuts-foundation.nl"}
+		tmpl.DNSNames = []string{"www.example.com", "example.com"}
+		tmpl.EmailAddresses = []string{"info@example.com", "no-reply@example.org"}
 		tmpl.IPAddresses = []net.IP{net.ParseIP("192.1.2.3"), net.ParseIP("192.1.2.4")}
 	}
 	return &tmpl, nil

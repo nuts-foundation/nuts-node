@@ -155,10 +155,10 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		assert.Equal(t, err.Error(), errors.New("cannot find a certificate with alg: sha256 hash: kaas").Error())
 	})
 	t.Run("wrong DID type", func(t *testing.T) {
-		rootDID := did.MustParseDID("did:kaas:gouda.nl:jonge")
+		rootDID := did.MustParseDID("did:test:example.com:testing")
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, err.Error(), fmt.Errorf("unsupported DID method: %s", "kaas").Error())
+		assert.Equal(t, err.Error(), fmt.Errorf("unsupported DID method: %s", "test").Error())
 	})
 	t.Run("wrong x509 did version", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:1:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), "ANOTHER_BIG_STRING"))
