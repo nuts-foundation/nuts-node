@@ -50,7 +50,8 @@ const (
 var (
 	ErrDidMalformed         = errors.New("did:x509 is malformed")
 	ErrDidVersion           = errors.New("did:x509 does not have version 0")
-	ErrDidSanMalformed      = errors.New("did:x509 policy is malformed")
+	ErrDidSanMalformed      = errors.New("did:x509 san policy is malformed")
+	ErrDidSubjectMalformed  = errors.New("did:x509 subject policy is malformed")
 	ErrUnkPolicyType        = errors.New("unknown policy type")
 	ErrUnkSubjectPolicyType = errors.New("unknown subject policy type")
 	ErrUnkSANPolicyType     = errors.New("unknown subject SAN type")
@@ -154,7 +155,7 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	case PolicyNameSubject:
 		keyValue := strings.Split(ref.PolicyValue, ":")
 		if len(keyValue)%2 != 0 {
-			return ErrDidSanMalformed
+			return ErrDidSubjectMalformed
 		}
 		for i := 0; i < len(keyValue); i = i + 2 {
 			subject := cert.Subject
