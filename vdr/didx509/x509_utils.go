@@ -44,33 +44,37 @@ var (
 
 // findOtherNameValue extracts the value of a specified OtherName type from the certificate
 func findOtherNameValue(cert *x509.Certificate) (string, error) {
-	value := ""
 	for _, extension := range cert.Extensions {
 		if extension.Id.Equal(SubjectAlternativeNameType) {
-			err := forEachSan(extension.Value, func(tag int, data []byte) error {
-				if tag != 0 {
-					return nil
-				}
-				var other OtherName
-				_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
-				if err != nil {
-					return fmt.Errorf("could not parse requested other SAN: %v", err)
-				}
-				if other.TypeID.Equal(OtherNameType) {
-					_, err = asn1.Unmarshal(other.Value.Bytes, &value)
-					if err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-			if err != nil {
-				return "", err
-			}
-			return value, err
+			return findSanValue(extension)
 		}
 	}
 	return "", nil
+}
+
+func findSanValue(extension pkix.Extension) (string, error) {
+	value := ""
+	err := forEachSan(extension.Value, func(tag int, data []byte) error {
+		if tag != 0 {
+			return nil
+		}
+		var other OtherName
+		_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
+		if err != nil {
+			return fmt.Errorf("could not parse requested other SAN: %v", err)
+		}
+		if other.TypeID.Equal(OtherNameType) {
+			_, err = asn1.Unmarshal(other.Value.Bytes, &value)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return value, err
 }
 
 // forEachSan processes each SAN extension in the certificate
