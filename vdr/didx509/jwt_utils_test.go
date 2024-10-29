@@ -16,19 +16,16 @@ func TestExtractProtectedHeaders(t *testing.T) {
 			expectResults: true,
 		},
 		{
-			name:          "InvalidJWTHeader",
-			jwt:           "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsIng1YyI6dHJ1ZX0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.fyenaNFjX705H02aOrpHayRVHa1uVxpQRUxWCl91rB4",
-			expectResults: false,
+			name: "InvalidJWTHeader",
+			jwt:  "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsIng1YyI6dHJ1ZX0.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.fyenaNFjX705H02aOrpHayRVHa1uVxpQRUxWCl91rB4",
 		},
 		{
-			name:          "InvalidJWT",
-			jwt:           "invalidToken",
-			expectResults: false,
+			name: "InvalidJWT",
+			jwt:  "invalidToken",
 		},
 		{
-			name:          "EmptyJWT",
-			jwt:           "",
-			expectResults: false,
+			name: "EmptyJWT",
+			jwt:  "",
 		},
 	}
 
