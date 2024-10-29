@@ -19,12 +19,11 @@
 package verifier
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"strings"
 	"time"
 
@@ -166,14 +165,11 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
 		rawJwt := credentialToVerify.Raw()
 		if rawJwt != "" {
-			message, _ := jws.ParseString(rawJwt)
-			if message != nil && len(message.Signatures()) > 0 {
-				headers, err := message.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
-				if err != nil {
-					return err
-				}
-				metadata.JwtProtectedHeaders = headers
+			headers, err := didx509.ExtractProtectedHeaders(rawJwt)
+			if err != nil {
+				return err
 			}
+			metadata.JwtProtectedHeaders = headers
 
 		}
 		_, _, err = v.didResolver.Resolve(*issuerDID, &metadata)

@@ -19,11 +19,10 @@
 package verifier
 
 import (
-	"context"
 	crypt "crypto"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"strings"
 	"time"
 
@@ -124,14 +123,11 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 		metadata := &resolver.ResolveMetadata{
 			ResolveTime: at,
 		}
-		message, _ := jws.ParseString(jwtDocumentToVerify)
-		if message != nil && len(message.Signatures()) > 0 {
-			headers, err := message.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
-			if err != nil {
-				return nil, err
-			}
-			metadata.JwtProtectedHeaders = headers
+		headers, err := didx509.ExtractProtectedHeaders(jwtDocumentToVerify)
+		if err != nil {
+			return nil, err
 		}
+		metadata.JwtProtectedHeaders = headers
 		return sv.resolveSigningKey(kid, issuer, metadata)
 	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
 		if at == nil {
