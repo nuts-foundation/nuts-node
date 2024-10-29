@@ -172,7 +172,7 @@ func hash(data []byte, alg HashAlgorithm) ([]byte, error) {
 		sum := sha256.Sum256(data)
 		return sum[:], nil
 	case HashSha384:
-		sum := sha3.Sum384(data)
+		sum := sha512.Sum384(data)
 		return sum[:], nil
 	case HashSha512:
 		sum := sha512.Sum512(data)
