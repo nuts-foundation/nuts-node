@@ -156,41 +156,49 @@ func SigningCertTemplate(serialNumber *big.Int, identifier string) (*x509.Certif
 	// Either the ExtraExtensions SubjectAlternativeNameType is set, or the Subject Alternate Name values are set,
 	// both don't mix
 	if identifier != "" {
-		raw, err := toRawValue(identifier, "ia5")
+		err := setSanAlternativeName(&tmpl, identifier)
 		if err != nil {
 			return nil, err
 		}
-		otherName := OtherName{
-			TypeID: OtherNameType,
-			Value: asn1.RawValue{
-				Class:      2,
-				Tag:        0,
-				IsCompound: true,
-				Bytes:      raw.FullBytes,
-			},
-		}
-
-		raw, err = toRawValue(otherName, "tag:0")
-		if err != nil {
-			return nil, err
-		}
-		var list []asn1.RawValue
-		list = append(list, *raw)
-		marshal, err := asn1.Marshal(list)
-		if err != nil {
-			return nil, err
-		}
-		tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, pkix.Extension{
-			Id:       SubjectAlternativeNameType,
-			Critical: false,
-			Value:    marshal,
-		})
 	} else {
 		tmpl.DNSNames = []string{"www.example.com", "example.com"}
 		tmpl.EmailAddresses = []string{"info@example.com", "no-reply@example.org"}
 		tmpl.IPAddresses = []net.IP{net.ParseIP("192.1.2.3"), net.ParseIP("192.1.2.4")}
 	}
 	return &tmpl, nil
+}
+
+func setSanAlternativeName(tmpl *x509.Certificate, identifier string) error {
+	raw, err := toRawValue(identifier, "ia5")
+	if err != nil {
+		return err
+	}
+	otherName := OtherName{
+		TypeID: OtherNameType,
+		Value: asn1.RawValue{
+			Class:      2,
+			Tag:        0,
+			IsCompound: true,
+			Bytes:      raw.FullBytes,
+		},
+	}
+
+	raw, err = toRawValue(otherName, "tag:0")
+	if err != nil {
+		return err
+	}
+	var list []asn1.RawValue
+	list = append(list, *raw)
+	marshal, err := asn1.Marshal(list)
+	if err != nil {
+		return err
+	}
+	tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, pkix.Extension{
+		Id:       SubjectAlternativeNameType,
+		Critical: false,
+		Value:    marshal,
+	})
+	return nil
 }
 
 // toRawValue marshals an ASN.1 identifier with a given tag, then unmarshals it into a RawValue structure.

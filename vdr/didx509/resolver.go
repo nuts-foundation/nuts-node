@@ -155,102 +155,110 @@ func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 
 	switch ref.PolicyName {
 	case PolicyNameSubject:
-		keyValue := strings.Split(ref.PolicyValue, ":")
-		if len(keyValue)%2 != 0 {
-			return ErrDidSubjectMalformed
-		}
-		for i := 0; i < len(keyValue); i = i + 2 {
-			subject := cert.Subject
-			key := SubjectPolicy(keyValue[i])
-			value, err := url.QueryUnescape(keyValue[i+1])
-			if err != nil {
-				return err
-			}
-			switch key {
-			case SubjectPolicySerialNumber:
-				if subject.SerialNumber != value {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyCommonName:
-				if subject.CommonName != value {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyLocality:
-				if !slices.Contains(subject.Locality, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyCountry:
-				if !slices.Contains(subject.Country, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyState:
-				if !slices.Contains(subject.Province, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyStreet:
-				if !slices.Contains(subject.StreetAddress, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyOrganization:
-				if !slices.Contains(subject.Organization, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			case SubjectPolicyOrganizationalUnit:
-				if !slices.Contains(subject.OrganizationalUnit, value) {
-					return fmt.Errorf("query does not match the subject : %s", key)
-				}
-			default:
-				return ErrUnkSubjectPolicyType
-			}
-		}
+		return validateSubjectPolicy(ref, cert)
 	case PolicyNameSan:
-		keyValue := strings.Split(ref.PolicyValue, ":")
-		if len(keyValue)%2 != 0 {
-			return ErrDidSanMalformed
-		}
-		for i := 0; i < len(keyValue); i = i + 2 {
-			key := SanPolicy(keyValue[i])
-			value, err := url.QueryUnescape(keyValue[i+1])
-			if err != nil {
-				return err
-			}
-			switch key {
-			case SanPolicyOtherName:
-				nameValue, err := findOtherNameValue(cert)
-				if err != nil {
-					return err
-				}
-				if nameValue != value {
-					return fmt.Errorf("the SAN attribute %s does not match the query", key)
-				}
-			case SanPolicyDNS:
-				if !slices.Contains(cert.DNSNames, value) {
-					return fmt.Errorf("the SAN attribute %s does not match the query", key)
-				}
-			case SanPolicyEmail:
-				if !slices.Contains(cert.EmailAddresses, value) {
-					return fmt.Errorf("the SAN attribute %s does not match the query", key)
-				}
-			case SanPolicyIPAddress:
-				ok := false
-				for _, ip := range cert.IPAddresses {
-					if ip.String() == value {
-						ok = true
-						break
-					}
-				}
-				if !ok {
-					return fmt.Errorf("the SAN attribute %s does not match the query", key)
-				}
-
-			default:
-				return ErrUnkSANPolicyType
-			}
-		}
+		return validateSanPolicy(ref, cert)
 	default:
 		return ErrUnkPolicyType
 	}
+}
 
+func validateSanPolicy(ref *X509DidReference, cert *x509.Certificate) error {
+	keyValue := strings.Split(ref.PolicyValue, ":")
+	if len(keyValue)%2 != 0 {
+		return ErrDidSanMalformed
+	}
+	for i := 0; i < len(keyValue); i = i + 2 {
+		key := SanPolicy(keyValue[i])
+		value, err := url.QueryUnescape(keyValue[i+1])
+		if err != nil {
+			return err
+		}
+		switch key {
+		case SanPolicyOtherName:
+			nameValue, err := findOtherNameValue(cert)
+			if err != nil {
+				return err
+			}
+			if nameValue != value {
+				return fmt.Errorf("the SAN attribute %s does not match the query", key)
+			}
+		case SanPolicyDNS:
+			if !slices.Contains(cert.DNSNames, value) {
+				return fmt.Errorf("the SAN attribute %s does not match the query", key)
+			}
+		case SanPolicyEmail:
+			if !slices.Contains(cert.EmailAddresses, value) {
+				return fmt.Errorf("the SAN attribute %s does not match the query", key)
+			}
+		case SanPolicyIPAddress:
+			ok := false
+			for _, ip := range cert.IPAddresses {
+				if ip.String() == value {
+					ok = true
+					break
+				}
+			}
+			if !ok {
+				return fmt.Errorf("the SAN attribute %s does not match the query", key)
+			}
+
+		default:
+			return ErrUnkSANPolicyType
+		}
+	}
+	return nil
+}
+
+func validateSubjectPolicy(ref *X509DidReference, cert *x509.Certificate) error {
+	keyValue := strings.Split(ref.PolicyValue, ":")
+	if len(keyValue)%2 != 0 {
+		return ErrDidSubjectMalformed
+	}
+	for i := 0; i < len(keyValue); i = i + 2 {
+		subject := cert.Subject
+		key := SubjectPolicy(keyValue[i])
+		value, err := url.QueryUnescape(keyValue[i+1])
+		if err != nil {
+			return err
+		}
+		switch key {
+		case SubjectPolicySerialNumber:
+			if subject.SerialNumber != value {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyCommonName:
+			if subject.CommonName != value {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyLocality:
+			if !slices.Contains(subject.Locality, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyCountry:
+			if !slices.Contains(subject.Country, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyState:
+			if !slices.Contains(subject.Province, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyStreet:
+			if !slices.Contains(subject.StreetAddress, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyOrganization:
+			if !slices.Contains(subject.Organization, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		case SubjectPolicyOrganizationalUnit:
+			if !slices.Contains(subject.OrganizationalUnit, value) {
+				return fmt.Errorf("query does not match the subject : %s", key)
+			}
+		default:
+			return ErrUnkSubjectPolicyType
+		}
+	}
 	return nil
 }
 
