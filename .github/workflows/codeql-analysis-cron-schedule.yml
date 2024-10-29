@@ -1,10 +1,13 @@
 # This is an alternative to the codeql-analysis.yml that only contains a scheduled evaluation of CodeQL
+# The action runs for all branches defined in jobs.analyze.strategy.matrix.branches.
+# Every new production branch (minor release branches) should be added to this list.
 
 name: "Scheduled CodeQL"
 
+# run twice a week at a random time on Sunday and Wednesday evening so its available the next morning
 on:
   schedule:
-    - cron: '0,15,30,45 * * * *'
+    - cron: '42 21 * * 0,3'
 
 jobs:
   analyze:
@@ -18,6 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CodeQL runs on these branches
         branches:
           - 'master'
           - 'V5.4'
