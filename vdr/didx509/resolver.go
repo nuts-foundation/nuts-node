@@ -127,10 +127,11 @@ func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Docum
 		Controller:         []did.DID{id},
 		VerificationMethod: did.VerificationMethods{verificationMethod},
 	}
+	document.AddKeyAgreement(verificationMethod)
 	document.AddAssertionMethod(verificationMethod)
+	document.AddAuthenticationMethod(verificationMethod)
 	document.AddCapabilityDelegation(verificationMethod)
 	document.AddCapabilityInvocation(verificationMethod)
-	document.AddKeyAgreement(verificationMethod)
 	return document, nil
 }
 
