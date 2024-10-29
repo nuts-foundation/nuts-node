@@ -132,7 +132,7 @@ cat << EOF
         "type": ["VerifiableCredential", "EmployeeCredential"],
         "credentialSubject": {
           "name": "John Doe",
-          "roleName": "Janitor",
+          "roleName": "Janitor Level 4",
           "identifier": "123456"
         }
       }

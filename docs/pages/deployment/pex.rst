@@ -91,6 +91,19 @@ The following is an example OAuth2 Token Introspection response containing the `
     "fullName": "John Doe"
   }
 
+If you want introspection to return part of a string, you can use the ``pattern`` regular expression filter in the field definition with a capture group.
+Token introspection will return the value of the first capture group in the regular expression, instead of the full match, e.g.;
+``{"role": "Admin level 4"}`` with the following pattern filter: ``"pattern": "Admin level ([0-9])"`` will return ``"role": "4"`` (given the field ID ``role``).
+
+.. code-block:: json
+
+  {
+    "iss": "did:web:example.com",
+    "active": true,
+    "scope": "example_scope",
+    "fullName": "John Doe"
+  }
+
 Writer of policies should take into consideration:
 - fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
 - claims ideally map a registered claim name (e.g. `IANA JWT claims <https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)

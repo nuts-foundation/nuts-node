@@ -91,6 +91,17 @@
                 "filter": {
                   "type": "string"
                 }
+              },
+              {
+                "id": "employee_role_level",
+                "path": [
+                  "$.credentialSubject.roleName",
+                  "$.credentialSubject[0].roleName"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "Level ([0-9]+)"
+                }
               }
             ]
           }

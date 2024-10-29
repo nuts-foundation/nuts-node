@@ -1,6 +1,6 @@
 services:
   nodeA-backend:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
     ports:
       - "18081:8081"
     environment:
@@ -28,7 +28,7 @@ services:
       - "./node-A/html:/etc/nginx/html:ro"
       - "../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:local}"
     ports:
       - "28081:8081"
     environment:
