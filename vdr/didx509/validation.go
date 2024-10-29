@@ -16,6 +16,7 @@ type PolicyKey struct {
 }
 
 const (
+	PolicyNone        PolicyName = ""
 	PolicyNameSubject PolicyName = "subject"
 	PolicyNameSan     PolicyName = "san"
 )
@@ -182,6 +183,8 @@ var validatorMap = map[PolicyKey]validationFunction{
 func ValidatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 
 	switch ref.PolicyName {
+	case PolicyNone:
+		return nil
 	case PolicyNameSubject, PolicyNameSan:
 		return validate(ref, cert, ref.PolicyName)
 	default:

@@ -163,6 +163,8 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 	if len(policyFragments) > 1 {
 		ref.PolicyName = PolicyName(policyFragments[0])
 		ref.PolicyValue = strings.Join(policyFragments[1:], ":")
+	} else {
+		ref.PolicyName = PolicyNone
 	}
 
 	return &ref, nil

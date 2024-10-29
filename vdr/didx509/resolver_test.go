@@ -51,7 +51,20 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		metadata.JwtProtectedHeaders[X509CertChainHeader] = chain
 
 	})
-	t.Run("happy flow", func(t *testing.T) {
+	t.Run("happy flow, policy depth of 0", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertificate.Raw)))
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		require.NoError(t, err)
+		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
+	})
+	t.Run("happy flow, policy depth of 1", func(t *testing.T) {
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 
