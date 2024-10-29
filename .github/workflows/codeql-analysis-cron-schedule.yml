@@ -1,4 +1,6 @@
 # This is an alternative to the codeql-analysis.yml that only contains a scheduled evaluation of CodeQL
+# The action runs for all branches defined in jobs.analyze.strategy.matrix.branches.
+# Every new production branch (minor release branches) should be added to this list.
 
 name: "Scheduled CodeQL"
 
@@ -19,6 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CodeQL runs on these branches
         branches:
           - 'master'
           - 'V5.4'
