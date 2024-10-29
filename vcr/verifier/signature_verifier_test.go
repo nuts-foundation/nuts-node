@@ -308,7 +308,7 @@ func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, r
 	rootCertHashBytes := hashSha256[:]
 	rootCertHashStr := base64.RawURLEncoding.EncodeToString(rootCertHashBytes)
 	did := "did:x509:0:sha256:" + rootCertHashStr + "::subject:serialNumber:" + ura
-	headers["kid"] = did
+	headers["kid"] = did + "#0"
 
 	claims := map[string]interface{}{}
 	claims["iss"] = did
@@ -349,7 +349,7 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[0] = rootCert
+	chain[3] = rootCert
 	err = chainPems.Add(rootPem)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -369,7 +369,7 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[1] = intermediateL1Cert
+	chain[2] = intermediateL1Cert
 	err = chainPems.Add(intermediateL1Pem)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -389,7 +389,7 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[2] = intermediateL2Cert
+	chain[1] = intermediateL2Cert
 	err = chainPems.Add(intermediateL2Pem)
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -407,7 +407,7 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[3] = signingCert
+	chain[0] = signingCert
 	err = chainPems.Add(signingPEM)
 	if err != nil {
 		return nil, nil, nil, nil, err
