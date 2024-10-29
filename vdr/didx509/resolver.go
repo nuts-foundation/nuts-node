@@ -115,7 +115,8 @@ func findValidationCertificate(metadata *resolver.ResolveMetadata, chain []*x509
 
 // createDidDocument generates a new DID Document based on the provided DID identifier and validation certificate.
 func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Document, error) {
-	verificationMethod, err := did.NewVerificationMethod(did.DIDURL{DID: id}, ssi.JsonWebKey2020, id, validationCert.PublicKey)
+	didUrl := did.DIDURL{DID: id, Fragment: "0"}
+	verificationMethod, err := did.NewVerificationMethod(didUrl, ssi.JsonWebKey2020, id, validationCert.PublicKey)
 	if err != nil {
 		return nil, err
 	}

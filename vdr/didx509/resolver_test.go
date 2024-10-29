@@ -55,9 +55,14 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	t.Run("happy flow", func(t *testing.T) {
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
+		require.NoError(t, err)
 		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
 	t.Run("happy flow with only x5t header", func(t *testing.T) {
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
