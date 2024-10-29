@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"golang.org/x/crypto/sha3"
 	"strings"
 	"testing"
 )
@@ -440,7 +439,7 @@ func sha512Sum(bytes []byte) string {
 	return rootHashStr
 }
 func sha384Sum(bytes []byte) string {
-	rootHash := sha3.Sum384(bytes)
+	rootHash := sha512.Sum384(bytes)
 	rootHashStr := base64.RawURLEncoding.EncodeToString(rootHash[:])
 	return rootHashStr
 }
