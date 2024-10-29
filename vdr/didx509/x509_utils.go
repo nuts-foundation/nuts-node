@@ -12,7 +12,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
-	"golang.org/x/crypto/sha3"
 )
 
 type HashAlgorithm string
