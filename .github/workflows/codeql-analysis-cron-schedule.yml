@@ -2,6 +2,7 @@
 
 name: "Scheduled CodeQL"
 
+# run twice a week at a random time on Sunday and Wednesday evening so its available the next morning
 on:
   schedule:
     - cron: '42 21 * * 0,3'
