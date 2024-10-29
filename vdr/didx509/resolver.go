@@ -35,11 +35,15 @@ type Resolver struct {
 	pkiValidator pki.Validator
 }
 
+type X509DidPolicy struct {
+	Name  PolicyName
+	Value string
+}
+
 type X509DidReference struct {
 	Method      HashAlgorithm
 	RootCertRef string
-	PolicyName  PolicyName
-	PolicyValue string
+	Policies    []X509DidPolicy
 }
 
 // Resolve resolves a DID document given its identifier and corresponding metadata.
@@ -140,14 +144,14 @@ func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Docum
 func parseX509Did(id did.DID) (*X509DidReference, error) {
 	ref := X509DidReference{}
 	fullDidString := id.ID
-	policyString := ""
+	policyStrings := []string{}
 	didString := ""
 	fullDidParts := strings.Split(fullDidString, "::")
 	if len(fullDidParts) == 1 {
 		didString = fullDidParts[0]
-	} else if len(fullDidParts) == 2 {
+	} else if len(fullDidParts) > 1 {
 		didString = fullDidParts[0]
-		policyString = fullDidParts[1]
+		policyStrings = fullDidParts[1:]
 	}
 	didParts := strings.Split(didString, ":")
 	if len(didParts) != 3 {
@@ -159,13 +163,15 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 	}
 	ref.Method = HashAlgorithm(didParts[1])
 	ref.RootCertRef = didParts[2]
-	policyFragments := strings.Split(policyString, ":")
-	if len(policyFragments) > 1 {
-		ref.PolicyName = PolicyName(policyFragments[0])
-		ref.PolicyValue = strings.Join(policyFragments[1:], ":")
-	} else {
-		ref.PolicyName = PolicyNone
-	}
 
+	for _, policyString := range policyStrings {
+		policyFragments := strings.Split(policyString, ":")
+		if len(policyFragments) > 1 {
+			policy := X509DidPolicy{Name: PolicyName(policyFragments[0]), Value: strings.Join(policyFragments[1:], ":")}
+			ref.Policies = append(ref.Policies, policy)
+		} else {
+			return nil, ErrDidPolicyMalformed
+		}
+	}
 	return &ref, nil
 }

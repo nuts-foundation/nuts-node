@@ -76,6 +76,20 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
 		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
+	t.Run("happy flow, policy depth of 2", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue, "The%20A-Team"))
+
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		require.NoError(t, err)
+		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
+	})
 	t.Run("happy flow with only x5t header", func(t *testing.T) {
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
@@ -310,10 +324,10 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, err.Error(), "did:x509 policy is malformed")
+		assert.Equal(t, err.Error(), ErrDidPolicyMalformed.Error())
 
 	})
-	t.Run("happy flow CN www.example.com\"", func(t *testing.T) {
+	t.Run("happy flow CN www.example.com", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.example.com"))
 		validator.EXPECT().Validate(gomock.Any()).Return(nil)
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
@@ -334,6 +348,46 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
 		assert.NotNil(t, documentMetadata)
+	})
+	t.Run("happy flow O and CN", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		assert.NotNil(t, documentMetadata)
+	})
+	t.Run("happy flow O and CN and OU", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com", "The%20A-Team"))
+		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		assert.NotNil(t, documentMetadata)
+	})
+	t.Run("error flow O and CN broken policy", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CV:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "unknown policy key: CV for policy: subject")
+	})
+	t.Run("error flow O and CN broken policy: extra :", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s:", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), ErrDidPolicyMalformed.Error())
+	})
+	t.Run("error flow O and CN broken policy, extra :: ", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s::", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), ErrDidPolicyMalformed.Error())
+	})
+	t.Run("error flow O and CN broken policy, extra : and garbage ", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s:test:", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, err.Error(), "unknown policy key: test for policy: subject")
 	})
 	t.Run("error flow O", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s", "sha256", sha256Sum(rootCertificate.Raw), "UNKNOW%20NUTS%20Foundation"))

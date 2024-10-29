@@ -16,7 +16,6 @@ type PolicyKey struct {
 }
 
 const (
-	PolicyNone        PolicyName = ""
 	PolicyNameSubject PolicyName = "subject"
 	PolicyNameSan     PolicyName = "san"
 )
@@ -179,30 +178,34 @@ var validatorMap = map[PolicyKey]validationFunction{
 	},
 }
 
-// ValidatePolicy validates a certificate against a given X509DidReference and its policy.
+// ValidatePolicy validates a certificate against a given X509DidReference and its policies.
 func ValidatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
-
-	switch ref.PolicyName {
-	case PolicyNone:
-		return nil
-	case PolicyNameSubject, PolicyNameSan:
-		return validate(ref, cert, ref.PolicyName)
-	default:
-		return ErrUnkPolicyType
+	for _, policy := range ref.Policies {
+		var err error
+		switch policy.Name {
+		case PolicyNameSubject, PolicyNameSan:
+			err = validate(&policy, cert)
+		default:
+			err = ErrUnkPolicyType
+		}
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // validate checks if the given certificate adheres to the policy defined by the X509DidReference.
-func validate(ref *X509DidReference, cert *x509.Certificate, name PolicyName) error {
+func validate(ref *X509DidPolicy, cert *x509.Certificate) error {
 
-	keyValue := strings.Split(ref.PolicyValue, ":")
+	keyValue := strings.Split(ref.Value, ":")
 	if len(keyValue)%2 != 0 {
 		return ErrDidPolicyMalformed
 	}
 	for i := 0; i < len(keyValue); i = i + 2 {
 		key := keyValue[i]
 		policyName := PolicyKey{
-			name: name,
+			name: ref.Name,
 			key:  key,
 		}
 		value, err := url.QueryUnescape(keyValue[i+1])
