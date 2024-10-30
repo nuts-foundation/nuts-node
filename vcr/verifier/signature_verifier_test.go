@@ -103,6 +103,18 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			err = sv.VerifySignature(*cred, nil)
 			assert.NoError(t, err)
 		})
+		t.Run("failing ExtractProtectedHeaders", func(t *testing.T) {
+			old := ExtractProtectedHeaders
+			defer func() { ExtractProtectedHeaders = old }()
+			expectedError := errors.New("failing ExtractProtectedHeaders")
+			ExtractProtectedHeaders = func(jwt string) (map[string]interface{}, error) {
+				return nil, expectedError
+			}
+			sv, _ := x509VerifierTestSetup(t)
+			err = sv.VerifySignature(*cred, nil)
+			assert.Error(t, err)
+			assert.ErrorIs(t, err, expectedError)
+		})
 		t.Run("wrong ura", func(t *testing.T) {
 			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)

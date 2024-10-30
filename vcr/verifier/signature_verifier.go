@@ -42,6 +42,8 @@ type signatureVerifier struct {
 	jsonldManager jsonld.JSONLD
 }
 
+var ExtractProtectedHeaders = didx509.ExtractProtectedHeaders
+
 // VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 	switch credentialToVerify.Format() {
@@ -123,7 +125,7 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 		metadata := &resolver.ResolveMetadata{
 			ResolveTime: at,
 		}
-		headers, err := didx509.ExtractProtectedHeaders(jwtDocumentToVerify)
+		headers, err := ExtractProtectedHeaders(jwtDocumentToVerify)
 		if err != nil {
 			return nil, err
 		}
