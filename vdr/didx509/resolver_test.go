@@ -230,7 +230,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:unknown:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "unknown policy key: unknown for policy: san", err.Error())
+		assert.EqualError(t, err, "unknown policy key: unknown for policy: san")
 	})
 	t.Run("impartial san attribute", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
@@ -243,7 +243,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID.ID = strings.Replace(rootDID.ID, "www.uva.nl", "www.uva%2.nl", 1)
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "invalid URL escape \"%2.\"", err.Error())
+		assert.EqualError(t, err, "invalid URL escape \"%2.\"")
 	})
 	t.Run("happy SAN DNS www.example.com", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.example.com"))
@@ -258,7 +258,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "the SAN attribute dns does not match the query", err.Error())
+		assert.EqualError(t, err, "the SAN attribute dns does not match the query")
 	})
 	t.Run("happy SAN ip", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:ip:%s", "sha256", sha256Sum(rootCertificate.Raw), "192.1.2.3"))
@@ -273,7 +273,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:ip:%s", "sha256", sha256Sum(rootCertificate.Raw), "10.0.0.1"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "the SAN attribute ip does not match the query", err.Error())
+		assert.EqualError(t, err, "the SAN attribute ip does not match the query")
 	})
 	t.Run("happy SAN email", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:email:%s", "sha256", sha256Sum(rootCertificate.Raw), "info%40example.com"))
@@ -288,7 +288,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:email:%s", "sha256", sha256Sum(rootCertificate.Raw), "bad%40example.com"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "the SAN attribute email does not match the query", err.Error())
+		assert.EqualError(t, err, "the SAN attribute email does not match the query")
 	})
 }
 
@@ -401,7 +401,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s", "sha256", sha256Sum(rootCertificate.Raw), "UNKNOW%20NUTS%20Foundation"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : O", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : O")
 	})
 	t.Run("happy flow L Amsterdam", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:L:%s", "sha256", sha256Sum(rootCertificate.Raw), "Amsterdam"))
@@ -423,7 +423,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:L:%s", "sha256", sha256Sum(rootCertificate.Raw), "Rotterdam"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : L", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : L")
 	})
 	t.Run("happy flow C", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:C:%s", "sha256", sha256Sum(rootCertificate.Raw), "NL"))
@@ -437,9 +437,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:C:%s", "sha256", sha256Sum(rootCertificate.Raw), "BE"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		one := err.Error()
-		two := "query does not match the subject : C"
-		assert.Equal(t, two, one)
+		assert.EqualError(t, err, "query does not match the subject : C")
 	})
 	t.Run("happy flow ST", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:ST:%s", "sha256", sha256Sum(rootCertificate.Raw), "Noord-Holland"))
@@ -453,7 +451,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:ST:%s", "sha256", sha256Sum(rootCertificate.Raw), "Noord-Brabant"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : ST", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : ST")
 	})
 	t.Run("happy flow STREET", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:STREET:%s", "sha256", sha256Sum(rootCertificate.Raw), "Amsterdamseweg%20100"))
@@ -467,7 +465,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:STREET:%s", "sha256", sha256Sum(rootCertificate.Raw), "Haarlemsetraatweg%2099"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : STREET", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : STREET")
 	})
 
 	t.Run("happy flow serialNumber", func(t *testing.T) {
@@ -482,7 +480,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:serialNumber:%s", "sha256", sha256Sum(rootCertificate.Raw), "1"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : serialNumber", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : serialNumber")
 	})
 	t.Run("happy flow OU", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), "The%20A-Team"))
@@ -496,7 +494,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), "The%20B-Team"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "query does not match the subject : OU", err.Error())
+		assert.EqualError(t, err, "query does not match the subject : OU")
 	})
 }
 
