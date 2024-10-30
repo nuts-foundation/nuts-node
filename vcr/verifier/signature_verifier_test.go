@@ -436,7 +436,8 @@ func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error)
 	credentialId := ssi.MustParseURI(uuid.NewString())
 	credential.ID = &credentialId
 	credential.IssuanceDate = time.Now()
-	credential.IssuanceDate = time.Now().Add(time.Hour * 24 * 365 * 12)
+	exp := time.Now().Add(time.Hour * 24 * 365 * 12)
+	credential.ExpirationDate = &exp
 	subject := map[string]interface{}{}
 	subject["id"] = did
 	subject["uraNumber"] = ura

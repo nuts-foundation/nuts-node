@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
-	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"strings"
 	"time"
 
@@ -165,7 +164,7 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
 		rawJwt := credentialToVerify.Raw()
 		if rawJwt != "" {
-			headers, err := didx509.ExtractProtectedHeaders(rawJwt)
+			headers, err := ExtractProtectedHeaders(rawJwt)
 			if err != nil {
 				return err
 			}
