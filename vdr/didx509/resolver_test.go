@@ -114,7 +114,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.ErrorIs(t, expectedErr, err)
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
 	})
@@ -139,35 +139,32 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint at x5t", func(t *testing.T) {
-		expectedErr := errors.New("cannot find a certificate with alg: sha1 hash: GARBAGE")
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = "GARBAGE"
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.EqualError(t, err, "cannot find a certificate with alg: sha1 hash: GARBAGE")
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint at x5t#S256", func(t *testing.T) {
-		expectedErr := errors.New("cannot find a certificate with alg: sha256 hash: GARBAGE")
+		expectedErr := fmt.Sprintf("cannot find a certificate with alg: %s hash: %s", "sha256", "GARBAGE")
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = "GARBAGE"
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.EqualError(t, err, expectedErr)
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint with wrong hash at x5t", func(t *testing.T) {
-		expectedErr := errors.New("x5t#S256 header does not match the certificate from the x5t headers")
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(rootCertificate.Raw)
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrNoMatchingHeaderCredentials)
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint with wrong hash at x5t#S256", func(t *testing.T) {
-		expectedErr := errors.New("x5t#S256 header does not match the certificate from the x5t headers")
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(rootCertificate.Raw)
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrNoMatchingHeaderCredentials)
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
 	})
 	t.Run("broken chain", func(t *testing.T) {
@@ -175,43 +172,44 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		validator.EXPECT().Validate(gomock.Any()).Return(expectedErr)
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, expectedErr.Error(), err.Error())
+		assert.ErrorIs(t, err, expectedErr)
 	})
 	t.Run("wrong otherName value", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), "ANOTHER_BIG_STRING"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "the SAN attribute otherName does not match the query", err.Error())
+		assert.EqualError(t, err, "the SAN attribute otherName does not match the query")
 	})
 	t.Run("wrong hash type value", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "test", sha256Sum(rootCertificate.Raw), otherNameValue))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, errors.New("unsupported hash algorithm: test").Error(), err.Error())
+		assert.EqualError(t, err, "unsupported hash algorithm: test")
 	})
 	t.Run("wrong hash value", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", "test", otherNameValue))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, errors.New("cannot find a certificate with alg: sha256 hash: test").Error(), err.Error())
+		assert.EqualError(t, err, "cannot find a certificate with alg: sha256 hash: test")
 	})
 	t.Run("wrong DID type", func(t *testing.T) {
+		expectedErr := fmt.Sprintf("unsupported DID method: %s", "test")
 		rootDID := did.MustParseDID("did:test:example.com:testing")
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, fmt.Errorf("unsupported DID method: %s", "test").Error(), err.Error())
+		assert.EqualError(t, err, expectedErr)
 	})
 	t.Run("wrong x509 did version", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:1:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), "ANOTHER_BIG_STRING"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidVersion.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidVersion)
 	})
 	t.Run("missing x509 hash unk", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:%s:%s::san:otherName:%s", "unk", sha256Sum(rootCertificate.Raw), "ANOTHER_BIG_STRING"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidMalformed.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidMalformed)
 	})
 }
 
@@ -238,7 +236,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidPolicyMalformed.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidPolicyMalformed)
 	})
 	t.Run("broken san attribute", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
@@ -312,14 +310,14 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::unknown:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrUnkPolicyType.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrUnkPolicyType)
 
 	})
 	t.Run("unknown policy key", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:UNK:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, "unknown policy key: UNK for policy: subject", err.Error())
+		assert.EqualError(t, err, "unknown policy key: UNK for policy: subject")
 
 	})
 	t.Run("broken subject attribute", func(t *testing.T) {
@@ -334,7 +332,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidPolicyMalformed.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidPolicyMalformed)
 
 	})
 	t.Run("happy flow CN www.example.com", func(t *testing.T) {
@@ -385,13 +383,13 @@ func TestManager_Resolve_Subject(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s:", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidPolicyMalformed.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidPolicyMalformed)
 	})
 	t.Run("error flow O and CN broken policy, extra :: ", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s::", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.Equal(t, ErrDidPolicyMalformed.Error(), err.Error())
+		assert.ErrorIs(t, err, ErrDidPolicyMalformed)
 	})
 	t.Run("error flow O and CN broken policy, extra : and garbage ", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s:test:", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
