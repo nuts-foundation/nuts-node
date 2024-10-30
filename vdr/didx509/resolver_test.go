@@ -53,7 +53,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	})
 	t.Run("happy flow, policy depth of 0", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertificate.Raw)))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 
 		require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
 	t.Run("happy flow, policy depth of 1", func(t *testing.T) {
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 
 		require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	t.Run("happy flow, policy depth of 2", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue, "The%20A-Team"))
 
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 
 		require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	})
 	t.Run("happy flow with only x5t header", func(t *testing.T) {
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -101,7 +101,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	})
 	t.Run("happy flow with only x5t#S256 header", func(t *testing.T) {
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -121,7 +121,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	t.Run("happy flow with alternative hash alg sha512", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha512", sha512Sum(rootCertificate.Raw), otherNameValue))
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -131,7 +131,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	t.Run("happy flow with alternative hash alg sha384", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha384", sha384Sum(rootCertificate.Raw), otherNameValue))
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -248,7 +248,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 	t.Run("happy SAN DNS www.example.com", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:dns:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.example.com"))
 
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -263,7 +263,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 	t.Run("happy SAN ip", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:ip:%s", "sha256", sha256Sum(rootCertificate.Raw), "192.1.2.3"))
 
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -278,7 +278,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 	t.Run("happy SAN email", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:email:%s", "sha256", sha256Sum(rootCertificate.Raw), "info%40example.com"))
 
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -337,7 +337,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow CN www.example.com", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.example.com"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -351,7 +351,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow O", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -359,7 +359,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow O and CN", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -367,7 +367,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow O and CN and OU", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:O:%s::subject:CN:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), "NUTS%20Foundation", "www.example.com", "The%20A-Team"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -405,7 +405,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow L Amsterdam", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:L:%s", "sha256", sha256Sum(rootCertificate.Raw), "Amsterdam"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -413,7 +413,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow L Den Haag", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:L:%s", "sha256", sha256Sum(rootCertificate.Raw), "The%20Hague"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -427,7 +427,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow C", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:C:%s", "sha256", sha256Sum(rootCertificate.Raw), "NL"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -441,7 +441,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow ST", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:ST:%s", "sha256", sha256Sum(rootCertificate.Raw), "Noord-Holland"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -455,7 +455,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow STREET", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:STREET:%s", "sha256", sha256Sum(rootCertificate.Raw), "Amsterdamseweg%20100"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -470,7 +470,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 
 	t.Run("happy flow serialNumber", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:serialNumber:%s", "sha256", sha256Sum(rootCertificate.Raw), "32121323"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
@@ -484,7 +484,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 	t.Run("happy flow OU", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), "The%20A-Team"))
-		validator.EXPECT().Validate(gomock.Any()).Return(nil)
+		validator.EXPECT().Validate(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
