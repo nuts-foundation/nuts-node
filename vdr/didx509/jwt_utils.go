@@ -13,7 +13,6 @@ var (
 // ExtractProtectedHeaders extracts the protected headers from a JWT string.
 // The function takes a JWT string as input and returns a map of the protected headers.
 // Note that:
-//   - This method ignores strings that don't look like JWTs and returns an empty map.
 //   - This method ignores any parsing errors and returns an empty map instead of an error.
 func ExtractProtectedHeaders(jwt string) (map[string]interface{}, error) {
 	headers := make(map[string]interface{})
