@@ -19,7 +19,9 @@ const (
 )
 
 var (
-	ErrX509ChainMissing = errors.New("x509 rootCert chain is missing")
+	ErrX509ChainMissing            = errors.New("x509 rootCert chain is missing")
+	ErrNoCertsInHeaders            = errors.New("no x5t or x5t#S256 header found")
+	ErrNoMatchingHeaderCredentials = errors.New("x5t#S256 header does not match the certificate from the x5t headers")
 )
 
 var _ resolver.DIDResolver = &Resolver{}
@@ -110,9 +112,12 @@ func findValidationCertificate(metadata *resolver.ResolveMetadata, chain []*x509
 			validationCert = otherValidationCert
 		} else {
 			if !otherValidationCert.Equal(validationCert) {
-				return nil, errors.New("x5t#S256 header does not match the certificate from the x5t headers")
+				return nil, ErrNoMatchingHeaderCredentials
 			}
 		}
+	}
+	if validationCert == nil {
+		return nil, ErrNoCertsInHeaders
 	}
 	return validationCert, nil
 }

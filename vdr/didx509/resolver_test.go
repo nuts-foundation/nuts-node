@@ -108,6 +108,16 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		assert.NotNil(t, documentMetadata)
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
+	t.Run("happy flow without x5t or x5t#S256 header", func(t *testing.T) {
+		expectedErr := ErrNoCertsInHeaders
+		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
+		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
+		_, _, err := resolver.Resolve(rootDID, &metadata)
+		require.Error(t, err)
+		assert.Equal(t, expectedErr.Error(), err.Error())
+		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
+		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
+	})
 	t.Run("happy flow with alternative hash alg sha512", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha512", sha512Sum(rootCertificate.Raw), otherNameValue))
 		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
