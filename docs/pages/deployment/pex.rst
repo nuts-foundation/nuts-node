@@ -91,20 +91,36 @@ The following is an example OAuth2 Token Introspection response containing the `
     "fullName": "John Doe"
   }
 
-If you want introspection to return part of a string, you can use the ``pattern`` regular expression filter in the field definition with a capture group.
-Token introspection will return the value of the first capture group in the regular expression, instead of the full match, e.g.;
-``{"role": "Admin level 4"}`` with the following pattern filter: ``"pattern": "Admin level ([0-9])"`` will return ``"role": "4"`` (given the field ID ``role``).
-
-.. code-block:: json
-
-  {
-    "iss": "did:web:example.com",
-    "active": true,
-    "scope": "example_scope",
-    "fullName": "John Doe"
-  }
-
 Writer of policies should take into consideration:
 - fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
 - claims ideally map a registered claim name (e.g. `IANA JWT claims <https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)
 - overwriting properties already defined in the token introspection endpoint response is forbidden. These are: ``iss``, ``sub``, ``exp``, ``iat``, ``active``, ``client_id``, ``scope``.
+
+Extracting substrings with regular expressions
+==============================================
+If you want introspection to return part of a string, you can use the ``pattern`` regular expression filter in the field definition with a capture group.
+Token introspection will return the value of the capture group in the regular expression, instead of the whole field value.
+For instance, if you want to extract the level from the string ``"Admin level 4"`` from the following credential:
+
+.. code-block:: json
+
+  {
+    "credentialSubject": {
+      "role": "Admin level 4"
+    }
+  }
+
+You can define the following field in the input descriptor constraint, to have the level returned in the introspection response as ``admin_level``:
+
+.. code-block:: json
+
+  {
+    "id": "admin_level",
+    "path": ["$.credentialSubject.role"],
+    "filter": {
+      "type": "string"
+      "pattern": "Admin level ([0-9])"
+    }
+  }
+
+Only 1 capture group is supported in regular expressions. If multiple capture groups are defined, an error will be returned.

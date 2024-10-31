@@ -466,13 +466,16 @@ func getValueAtPath(path string, vcAsInterface interface{}) (interface{}, error)
 	return value, err
 }
 
-// matchFilter matches the value against the filter.
+// matchFilter matches the value against the filter. It returns true if the value matches the filter, along with the matched value.
 // A filter is a JSON Schema descriptor (https://json-schema.org/draft/2020-12/json-schema-validation.html#name-a-vocabulary-for-structural)
 // Supported schema types: string, number, boolean, array, enum.
 // Supported schema properties: const, enum, pattern. These only work for strings.
 // Supported go value types: string, float64, int, bool and array.
 // 'null' values are not supported.
-// It returns an error on unsupported features or when the regex pattern fails.
+// It returns an error when;
+// - an unsupported feature is used
+// - the regex pattern fails
+// - the regex pattern contains more than 1 capture group
 func matchFilter(filter Filter, value interface{}) (bool, interface{}, error) {
 	// first we check if it's an enum, so we can recursively call matchFilter for each value
 	if filter.Enum != nil {
@@ -539,11 +542,17 @@ func matchFilter(filter Filter, value interface{}) (bool, interface{}, error) {
 		if match == nil {
 			return false, nil, nil
 		}
-		// If there's a capture group, take the first one (not being the whole string, which is the first in the list)
-		if len(match.Groups()) > 1 {
+		// We support returning a single capture group;
+		// - If there's a capture group, return it
+		// - If there's no capture group, return the whole match
+		// - If there's multiple capture groups, return an error
+		if len(match.Groups()) == 1 {
+			return true, string(match.Capture.Runes()), nil
+		} else if len(match.Groups()) == 2 {
 			return true, string(match.Groups()[1].Runes()), nil
+		} else {
+			return false, nil, errors.New("can't return results from multiple regex capture groups")
 		}
-		return true, string(match.Capture.Runes()), nil // otherwise, take the first (whole string)
 	}
 
 	// if we get here, no pattern, enum or const is requested just the type.

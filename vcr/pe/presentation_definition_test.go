@@ -810,6 +810,12 @@ func Test_matchFilter(t *testing.T) {
 				assert.Equal(t, "value", value)
 				assert.True(t, match)
 			})
+			t.Run("too many capture groups", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("(v)(a)lue")}, "value")
+				require.EqualError(t, err, "can't return results from multiple regex capture groups")
+				assert.False(t, match)
+				assert.Nil(t, value)
+			})
 		})
 		t.Run("enum value not found", func(t *testing.T) {
 			match, _, err := matchFilter(f2, "foo")
