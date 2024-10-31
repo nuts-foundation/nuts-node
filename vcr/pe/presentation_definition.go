@@ -435,12 +435,12 @@ func matchField(field Field, credential map[string]interface{}) (bool, interface
 		}
 
 		// if filter at path matches return true
-		match, err := matchFilter(*field.Filter, value)
+		match, matchedValue, err := matchFilter(*field.Filter, value)
 		if err != nil {
 			return false, nil, err
 		}
 		if match {
-			return true, value, nil
+			return true, matchedValue, nil
 		}
 		// if filter at path does not match continue and set optionalInvalid
 		optionalInvalid++
@@ -466,14 +466,17 @@ func getValueAtPath(path string, vcAsInterface interface{}) (interface{}, error)
 	return value, err
 }
 
-// matchFilter matches the value against the filter.
+// matchFilter matches the value against the filter. It returns true if the value matches the filter, along with the matched value.
 // A filter is a JSON Schema descriptor (https://json-schema.org/draft/2020-12/json-schema-validation.html#name-a-vocabulary-for-structural)
 // Supported schema types: string, number, boolean, array, enum.
 // Supported schema properties: const, enum, pattern. These only work for strings.
 // Supported go value types: string, float64, int, bool and array.
 // 'null' values are not supported.
-// It returns an error on unsupported features or when the regex pattern fails.
-func matchFilter(filter Filter, value interface{}) (bool, error) {
+// It returns an error when;
+// - an unsupported feature is used
+// - the regex pattern fails
+// - the regex pattern contains more than 1 capture group
+func matchFilter(filter Filter, value interface{}) (bool, interface{}, error) {
 	// first we check if it's an enum, so we can recursively call matchFilter for each value
 	if filter.Enum != nil {
 		for _, enum := range filter.Enum {
@@ -481,62 +484,79 @@ func matchFilter(filter Filter, value interface{}) (bool, error) {
 				Type:  "string",
 				Const: &enum,
 			}
-			match, _ := matchFilter(f, value)
+			match, result, _ := matchFilter(f, value)
 			if match {
-				return true, nil
+				return true, result, nil
 			}
 		}
-		return false, nil
+		return false, nil, nil
 	}
 
 	switch typedValue := value.(type) {
 	case string:
 		if filter.Type != "string" {
-			return false, nil
+			return false, nil, nil
 		}
 	case float64:
 		if filter.Type != "number" {
-			return false, nil
+			return false, nil, nil
 		}
 	case int:
 		if filter.Type != "number" {
-			return false, nil
+			return false, nil, nil
 		}
 	case bool:
 		if filter.Type != "boolean" {
-			return false, nil
+			return false, nil, nil
 		}
 	case []interface{}:
 		for _, v := range typedValue {
-			match, err := matchFilter(filter, v)
+			match, _, err := matchFilter(filter, v)
 			if err != nil {
-				return false, err
+				return false, nil, err
 			}
 			if match {
-				return true, nil
+				return true, value, nil
 			}
 		}
 	default:
 		// object not supported for now
-		return false, ErrUnsupportedFilter
+		return false, nil, ErrUnsupportedFilter
 	}
 
 	if filter.Const != nil {
 		if value != *filter.Const {
-			return false, nil
+			return false, nil, nil
 		}
 	}
 
 	if filter.Pattern != nil && filter.Type == "string" {
 		re, err := regexp2.Compile(*filter.Pattern, regexp2.ECMAScript)
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
-		return re.MatchString(value.(string))
+		match, err := re.FindStringMatch(value.(string))
+		if err != nil {
+			return false, nil, err
+		}
+		if match == nil {
+			return false, nil, nil
+		}
+		// We support returning a single capture group;
+		// - If there's a capture group, return it
+		// - If there's no capture group, return the whole match
+		// - If there's multiple capture groups, return an error
+		if len(match.Groups()) == 1 {
+			return true, string(match.Capture.Runes()), nil
+		} else if len(match.Groups()) == 2 {
+			return true, string(match.Groups()[1].Runes()), nil
+		} else {
+			return false, nil, errors.New("can't return results from multiple regex capture groups")
+		}
 	}
 
 	// if we get here, no pattern, enum or const is requested just the type.
-	return true, nil
+	return true, value, nil
 }
 
 // deduplicate removes duplicate VCs from the slice.
