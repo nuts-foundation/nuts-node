@@ -111,6 +111,7 @@ func TestValidator_Validate(t *testing.T) {
 			}
 		}
 		fnStrict := func(expected error) {
+			val.softfail = true // make sure it ignores the configured value
 			err = val.ValidateStrict([]*x509.Certificate{cert})
 			if expected == nil {
 				assert.NoError(t, err)
