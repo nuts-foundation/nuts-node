@@ -23,7 +23,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/nuts-foundation/go-did"
+	"github.com/lestrrat-go/jwx/v2/cert"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/stretchr/testify/assert"
@@ -240,4 +241,101 @@ func TestChainedDIDResolver_Resolve(t *testing.T) {
 
 		assert.ErrorIs(t, err, ErrNotFound)
 	})
+}
+
+func TestResolveMetadata_GetProtectedHeaderString(t *testing.T) {
+	tt := []struct {
+		name       string
+		inputKey   string
+		testKey    string
+		inputValue any
+		expectedOk bool
+	}{
+		{"no JwtProtectedHeaders",
+			"",
+			"testKey",
+			"",
+			false,
+		},
+		{"key not exist",
+			"testKey",
+			"otherKey",
+			"testValue",
+			false,
+		},
+		{"key exists",
+			"testKey",
+			"testKey",
+			"testValue",
+			true,
+		},
+		{"no sting value",
+			"testKey",
+			"testKey",
+			time.Now(),
+			false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			meta := &ResolveMetadata{}
+			if tc.inputKey != "" {
+				meta.JwtProtectedHeaders = make(map[string]interface{})
+				meta.JwtProtectedHeaders[tc.inputKey] = tc.inputValue
+			}
+			foundValue, foundOk := meta.GetProtectedHeaderString(tc.testKey)
+			assert.Equal(t, tc.expectedOk, foundOk)
+			if tc.expectedOk {
+				assert.Equal(t, tc.inputValue, foundValue)
+			}
+		})
+	}
+}
+func TestResolveMetadata_GetProtectedHeaderChain(t *testing.T) {
+	tt := []struct {
+		name       string
+		inputKey   string
+		testKey    string
+		inputValue any
+		expectedOk bool
+	}{
+		{"no JwtProtectedHeaders",
+			"",
+			"testKey",
+			"",
+			false,
+		},
+		{"key not exist",
+			"testKey",
+			"otherKey",
+			&cert.Chain{},
+			false,
+		},
+		{"key exists",
+			"testKey",
+			"testKey",
+			&cert.Chain{},
+			true,
+		},
+		{"no chain value",
+			"testKey",
+			"testKey",
+			time.Now(),
+			false,
+		},
+	}
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			meta := &ResolveMetadata{}
+			if tc.inputKey != "" {
+				meta.JwtProtectedHeaders = make(map[string]interface{})
+				meta.JwtProtectedHeaders[tc.inputKey] = tc.inputValue
+			}
+			foundValue, foundOk := meta.GetProtectedHeaderChain(tc.testKey)
+			assert.Equal(t, tc.expectedOk, foundOk)
+			if tc.expectedOk {
+				assert.Equal(t, tc.inputValue, foundValue)
+			}
+		})
+	}
 }
