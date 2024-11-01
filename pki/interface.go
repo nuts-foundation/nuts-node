@@ -75,6 +75,7 @@ type Validator interface {
 
 	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
 	// CRL Distribution Points encountered during operation, such as on end user certificates, are only added to the monitored CRLs if their issuer is in the truststore.
+	// This fails if any of the issuers mentioned in the chain is not also in the chain or already in the truststore
 	AddTruststore(chain []*x509.Certificate) error
 
 	// SubscribeDenied registers a callback that is triggered everytime the denylist is updated.

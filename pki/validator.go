@@ -249,13 +249,7 @@ func (v *validator) AddTruststore(chain []*x509.Certificate) error {
 	for _, certificate = range chain {
 		issuer, ok := v.getCert(certificate.Issuer.String())
 		if !ok {
-			err = fmt.Errorf("certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
-			if !v.softfail {
-				return fmt.Errorf("pki: %w", err)
-			}
-			// Can happen if the intermediate CA issuing end entity (EE) certificates is added, but not its issuer. EE wil be checked for revocation, CA revocation is not.
-			logger().WithError(err).Warn("Did not add CRL Distribution Points")
-			continue
+			return fmt.Errorf("pki: certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
 		}
 		err = v.addEndpoints(issuer, certificate.CRLDistributionPoints)
 		if err != nil {
