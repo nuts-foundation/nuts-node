@@ -10,8 +10,10 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
+	"strings"
 )
 
 type HashAlgorithm string
@@ -21,6 +23,15 @@ const (
 	HashSha256 = HashAlgorithm("sha256")
 	HashSha384 = HashAlgorithm("sha384")
 	HashSha512 = HashAlgorithm("sha512")
+)
+
+var (
+	ErrUnsupportedHashAlgorithm = fmt.Errorf("unsupported hash algorithm")
+	ErrInvalidHash              = fmt.Errorf("invalid hash")
+	ErrCertificateNotfound      = fmt.Errorf("cannot locate a find a certificate with the given hash")
+	ErrInvalidPemBlock          = fmt.Errorf("invalid PEM block")
+	ErrTrailingData             = errors.New("x509: trailing data after X.509 extension")
+	ErrSanSequenceData          = errors.New("unexpected SAN sequence")
 )
 
 // OtherName represents a structure for other name in ASN.1
@@ -54,14 +65,11 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 
 func findSanValue(extension pkix.Extension) (string, error) {
 	value := ""
-	err := forEachSan(extension.Value, func(tag int, data []byte) error {
-		if tag != 0 {
-			return nil
-		}
+	err := forEachSan(extension.Value, func(data []byte) error {
 		var other OtherName
 		_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
 		if err != nil {
-			return fmt.Errorf("could not parse requested other SAN: %v", err)
+			return err
 		}
 		if other.TypeID.Equal(OtherNameType) {
 			_, err = asn1.Unmarshal(other.Value.Bytes, &value)
@@ -78,18 +86,18 @@ func findSanValue(extension pkix.Extension) (string, error) {
 }
 
 // forEachSan processes each SAN extension in the certificate
-func forEachSan(extension []byte, callback func(tag int, data []byte) error) error {
+func forEachSan(extension []byte, callback func(data []byte) error) error {
 	var seq asn1.RawValue
 	rest, err := asn1.Unmarshal(extension, &seq)
 	if err != nil {
 		return err
 	}
 	if len(rest) != 0 {
-		return fmt.Errorf("x509: trailing data after X.509 extension")
+		return ErrTrailingData
 	}
 
 	if !isSANSequence(seq) {
-		return asn1.StructuralError{Msg: "bad SAN sequence"}
+		return ErrSanSequenceData
 	}
 
 	return processSANSequence(seq.Bytes, callback)
@@ -101,7 +109,7 @@ func isSANSequence(seq asn1.RawValue) bool {
 }
 
 // processSANSequence processes the SAN sequence and invokes the callback on each element
-func processSANSequence(rest []byte, callback func(tag int, data []byte) error) error {
+func processSANSequence(rest []byte, callback func(data []byte) error) error {
 	for len(rest) > 0 {
 		var v asn1.RawValue
 		var err error
@@ -111,7 +119,7 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 			return err
 		}
 
-		if err := callback(v.Tag, v.FullBytes); err != nil {
+		if err := callback(v.FullBytes); err != nil {
 			return err
 		}
 	}
@@ -120,13 +128,16 @@ func processSANSequence(rest []byte, callback func(tag int, data []byte) error) 
 
 // parseChain extracts the certificate chain from the provided metadata
 func parseChain(headerChain *cert.Chain) ([]*x509.Certificate, error) {
+	if headerChain == nil {
+		return nil, nil
+	}
 	chain := make([]*x509.Certificate, headerChain.Len())
 	for i := range headerChain.Len() {
 		certBytes, has := headerChain.Get(i)
 		if has {
 			pemBlock, _ := pem.Decode(certBytes)
 			if pemBlock == nil {
-				return nil, fmt.Errorf("invalid PEM block")
+				return nil, ErrInvalidPemBlock
 			}
 			if pemBlock.Type != "CERTIFICATE" {
 				return nil, fmt.Errorf("invalid PEM block type: %s", pemBlock.Type)
@@ -146,7 +157,7 @@ func parseChain(headerChain *cert.Chain) ([]*x509.Certificate, error) {
 func findCertificateByHash(chain []*x509.Certificate, targetHashString string, alg HashAlgorithm) (*x509.Certificate, error) {
 	targetHash, err := base64.RawURLEncoding.DecodeString(targetHashString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64url hash: %v", err)
+		return nil, ErrInvalidHash
 	}
 
 	for _, c := range chain {
@@ -159,7 +170,7 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString string, a
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find a certificate with alg: %s hash: %s", alg, targetHashString)
+	return nil, ErrCertificateNotfound
 }
 
 // hash computes and returns the hash of the given data using the specified algorithm.
@@ -167,6 +178,7 @@ func findCertificateByHash(chain []*x509.Certificate, targetHashString string, a
 // Returns the computed hash as a byte slice and an error if the algorithm is unsupported.
 // The error is nil if the hash is computed successfully.
 func hash(data []byte, alg HashAlgorithm) ([]byte, error) {
+	alg = HashAlgorithm(strings.ToLower(string(alg)))
 	switch alg {
 	case HashSha1:
 		sum := sha1.Sum(data)
@@ -181,5 +193,5 @@ func hash(data []byte, alg HashAlgorithm) ([]byte, error) {
 		sum := sha512.Sum512(data)
 		return sum[:], nil
 	}
-	return nil, fmt.Errorf("unsupported hash algorithm: %s", alg)
+	return nil, ErrUnsupportedHashAlgorithm
 }

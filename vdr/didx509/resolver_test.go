@@ -142,15 +142,14 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = "GARBAGE"
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.EqualError(t, err, "cannot find a certificate with alg: sha1 hash: GARBAGE")
+		assert.ErrorIs(t, ErrCertificateNotfound, err)
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint at x5t#S256", func(t *testing.T) {
-		expectedErr := fmt.Sprintf("cannot find a certificate with alg: %s hash: %s", "sha256", "GARBAGE")
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = "GARBAGE"
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.EqualError(t, err, expectedErr)
+		assert.ErrorIs(t, ErrCertificateNotfound, err)
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
 	})
 	t.Run("broken thumbprint with wrong hash at x5t", func(t *testing.T) {
@@ -184,13 +183,13 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "test", sha256Sum(rootCertificate.Raw), otherNameValue))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.EqualError(t, err, "unsupported hash algorithm: test")
+		assert.ErrorIs(t, ErrUnsupportedHashAlgorithm, err)
 	})
 	t.Run("wrong hash value", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", "test", otherNameValue))
 		_, _, err := resolver.Resolve(rootDID, &metadata)
 		require.Error(t, err)
-		assert.EqualError(t, err, "cannot find a certificate with alg: sha256 hash: test")
+		assert.ErrorIs(t, ErrCertificateNotfound, err)
 	})
 	t.Run("wrong DID type", func(t *testing.T) {
 		expectedErr := fmt.Sprintf("unsupported DID method: %s", "test")
