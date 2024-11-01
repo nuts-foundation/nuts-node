@@ -110,11 +110,20 @@ func TestValidator_Validate(t *testing.T) {
 				assert.ErrorIs(t, err, expected)
 			}
 		}
+		fnStrict := func(expected error) {
+			err = val.ValidateStrict([]*x509.Certificate{cert})
+			if expected == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, expected)
+			}
+		}
 		t.Run("softfail", func(t *testing.T) {
 			fn(true, softfailReturn)
 		})
 		t.Run("hardfail", func(t *testing.T) {
 			fn(false, hardfailReturn)
+			fnStrict(hardfailReturn)
 		})
 	}
 
