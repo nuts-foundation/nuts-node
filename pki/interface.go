@@ -62,8 +62,8 @@ type Validator interface {
 	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
 	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked.
-	// Ignoring all errors except ErrCertRevoked changes the behavior from hard-fail to soft-fail. Without a truststore, the Validator is a noop if set to soft-fail
 	// Validate uses the configured soft-/hard-fail strategy
+	// If set to soft-fail it ignores ErrCRLMissing and ErrCRLExpired errors.
 	// The certificate chain is expected to be sorted leaf to root.
 	Validate(chain []*x509.Certificate) error
 
