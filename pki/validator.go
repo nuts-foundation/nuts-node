@@ -128,6 +128,14 @@ func (v *validator) syncLoop(ctx context.Context) {
 }
 
 func (v *validator) Validate(chain []*x509.Certificate) error {
+	return v.validate(chain, v.softfail)
+}
+
+func (v *validator) ValidateStrict(chain []*x509.Certificate) error {
+	return v.validate(chain, false)
+}
+
+func (v *validator) validate(chain []*x509.Certificate, softfail bool) error {
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
@@ -135,7 +143,7 @@ func (v *validator) Validate(chain []*x509.Certificate) error {
 		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
 		if err = v.validateCert(cert); err != nil {
 			errOut := fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
-			if v.softfail && !(errors.Is(err, ErrCertRevoked) || errors.Is(err, ErrCertBanned)) {
+			if softfail && !(errors.Is(err, ErrCertRevoked) || errors.Is(err, ErrCertBanned)) {
 				// Accept the certificate even if it cannot be properly validated
 				logger().WithError(errOut).Error("Certificate CRL check softfail bypass. Might be unsafe, find cause of failure!")
 				continue

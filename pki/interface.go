@@ -63,8 +63,12 @@ type Validator interface {
 	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked.
 	// Ignoring all errors except ErrCertRevoked changes the behavior from hard-fail to soft-fail. Without a truststore, the Validator is a noop if set to soft-fail
+	// Validate uses the configured soft-/hard-fail strategy
 	// The certificate chain is expected to be sorted leaf to root.
 	Validate(chain []*x509.Certificate) error
+
+	// ValidateStrict does the same as Validate, except it always uses the hard-fail strategy.
+	ValidateStrict(chain []*x509.Certificate) error
 
 	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
 	SetVerifyPeerCertificateFunc(config *tls.Config) error
