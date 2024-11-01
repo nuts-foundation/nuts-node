@@ -66,7 +66,6 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine, pkiMock)
-	vdrInstance.Config().(*vdr.Config).DIDMethods = []string{"web", "nuts"}
 	err := vdrInstance.Configure(core.TestServerConfig())
 	require.NoError(t, err)
 	newInstance := NewVCRInstance(
@@ -109,7 +108,6 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine, pkiMock)
-	vdrInstance.Config().(*vdr.Config).DIDMethods = []string{"web", "nuts"}
 	err := vdrInstance.Configure(serverCfg)
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +139,6 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager, storageEngine, pkiMock)
-	vdrInstance.Config().(*vdr.Config).DIDMethods = []string{"web", "nuts"}
 	err := vdrInstance.Configure(core.TestServerConfig())
 	if err != nil {
 		t.Fatal(err)
@@ -185,7 +182,7 @@ func newMockContext(t *testing.T) mockContext {
 	tx.EXPECT().WithPersistency().AnyTimes()
 	tx.EXPECT().Subscribe("vcr_vcs", gomock.Any(), gomock.Any())
 	tx.EXPECT().Subscribe("vcr_revocations", gomock.Any(), gomock.Any())
-	tx.EXPECT().CleanupSubscriberEvents("vcr_vcs", gomock.Any())
+	tx.EXPECT().Disabled().AnyTimes()
 	didResolver := resolver.NewMockDIDResolver(ctrl)
 	documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	vdrInstance := vdr.NewMockVDR(ctrl)

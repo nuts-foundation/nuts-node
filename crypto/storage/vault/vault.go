@@ -34,7 +34,6 @@ import (
 
 const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
-const keyName = "key"
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
 const StorageType = "vaultkv"

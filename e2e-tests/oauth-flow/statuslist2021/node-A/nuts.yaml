@@ -1,4 +1,5 @@
 url: https://nodeA
+didmethods: ["web"]
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -11,6 +12,3 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
-vdr:
-  didmethods:
-    - web

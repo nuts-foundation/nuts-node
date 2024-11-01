@@ -20,6 +20,7 @@ import (
 type MockIdentifierResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockIdentifierResolverMockRecorder
+	isgomock struct{}
 }
 
 // MockIdentifierResolverMockRecorder is the mock recorder for MockIdentifierResolver.

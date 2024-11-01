@@ -66,9 +66,7 @@ func (m MemoryJWTSigner) SignJWS(ctx context.Context, payload []byte, headers ma
 	if kid != m.Key.KeyID() {
 		return "", ErrPrivateKeyNotFound
 	}
-	if _, ok := headers["jwk"]; !ok {
-		headers["kid"] = kid
-	}
+	headers["kid"] = kid
 	return SignJWS(ctx, payload, headers, signer, detached)
 }
 

@@ -196,7 +196,7 @@ func compareThumbprint(configurationKey jwk.Key, publicKey crypto.PublicKey) err
 	if err != nil {
 		return err
 	}
-	if bytes.Compare(thumbprintLeft, thumbprintRight) != 0 {
+	if !bytes.Equal(thumbprintLeft, thumbprintRight) {
 		return errors.New("key thumbprints do not match")
 	}
 	return nil

@@ -26,7 +26,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/vdr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -348,4 +351,61 @@ func latestNonDeactivatedRequested(resolveMetadata *resolver.ResolveMetadata) bo
 		return false
 	}
 	return !resolveMetadata.AllowDeactivated
+}
+
+func (tl *store) HistorySinceVersion(id did.DID, version int) ([]orm.MigrationDocument, error) {
+	if version < 0 {
+		return nil, errors.New("negative version")
+	}
+	var history []orm.MigrationDocument
+	txErr := tl.db.Read(context.TODO(), func(tx stoabs.ReadTx) error {
+		el, err := readEventList(tx, id)
+		if err != nil {
+			return err
+		}
+		if len(el.Events) == 0 {
+			return storage.ErrNotFound
+		}
+		highestDIDStoreVersion := len(el.Events) - 1
+
+		// return if no changes
+		if version > highestDIDStoreVersion {
+			return nil
+		}
+
+		created := el.Events[0].SigningTime
+		documentReader := tx.GetShelfReader(documentShelf)
+		history = make([]orm.MigrationDocument, 0, highestDIDStoreVersion-version+1)
+		for v := version; v <= highestDIDStoreVersion; v++ {
+			payloadHash := el.Events[v].PayloadHash
+			documentBytes, err := documentReader.Get(stoabs.NewHashKey(payloadHash))
+			if err != nil {
+				if errors.Is(err, stoabs.ErrKeyNotFound) {
+					return storage.ErrNotFound
+				}
+				return err
+			}
+			// We expect documentBytes to be equal to the raw payload on the DAG because we are the publisher of the document and use the same un/marshal methods everywhere.
+			// This will break if did.Document in go-did is changed.
+			// Confirmed this is safe/true for all documents on prd network as of 13-09-24, so for now just log if they are not the same.
+			if !payloadHash.Equals(hash.SHA256Sum(documentBytes)) {
+				log.Logger().
+					WithField("payload hash", payloadHash).
+					WithField("document hash", hash.SHA256Sum(documentBytes)).
+					WithField("document version", version).
+					Error("Payload hash does not match hash of DID Document during did:nuts history migration")
+			}
+			history = append(history, orm.MigrationDocument{
+				Raw:     documentBytes,
+				Created: created,
+				Updated: el.Events[v].SigningTime,
+				Version: v,
+			})
+		}
+		return nil
+	})
+	if txErr != nil {
+		return nil, txErr
+	}
+	return history, nil
 }

@@ -1,4 +1,5 @@
 url: https://nodeA
+didmethods: ["web"]
 verbosity: debug
 strictmode: false
 internalratelimiter: false
@@ -15,6 +16,3 @@ auth:
     enabled: true
 policy:
   directory: /opt/nuts/policies
-vdr:
-  didmethods:
-    - web

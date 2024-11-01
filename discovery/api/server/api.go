@@ -71,11 +71,12 @@ func (w *Wrapper) GetPresentations(ctx context.Context, request GetPresentations
 		timestamp = *request.Params.Timestamp
 	}
 
-	presentations, newTimestamp, err := w.Server.Get(contextWithForwardedHost(ctx), request.ServiceID, timestamp)
+	presentations, seed, newTimestamp, err := w.Server.Get(contextWithForwardedHost(ctx), request.ServiceID, timestamp)
 	if err != nil {
 		return nil, err
 	}
 	return GetPresentations200JSONResponse{
+		Seed:      seed,
 		Entries:   presentations,
 		Timestamp: newTimestamp,
 	}, nil

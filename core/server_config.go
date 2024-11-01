@@ -25,9 +25,9 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/knadh/koanf"
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
+	"github.com/knadh/koanf/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"net/url"
@@ -56,6 +56,7 @@ var redactedConfigKeys = []string{
 type ServerConfig struct {
 	// URL contains the base URL for public-facing HTTP services.
 	URL                 string           `koanf:"url"`
+	DIDMethods          []string         `koanf:"didmethods"`
 	Verbosity           string           `koanf:"verbosity"`
 	LoggerFormat        string           `koanf:"loggerformat"`
 	CPUProfile          string           `koanf:"cpuprofile"`
@@ -67,7 +68,15 @@ type ServerConfig struct {
 	// LegacyTLS exists to detect usage of deprecated network.{truststorefile,certkeyfile,certfile} parameters.
 	// This can be removed in v6.1+ (can't skip minors in migration). See https://github.com/nuts-foundation/nuts-node/issues/2909
 	LegacyTLS TLSConfig `koanf:"network"`
+	// HTTP exists to expose http.clientipheader to the nuts-network layer.
+	// This header should contaisn the client IP address for logging. Can be removed together with the nuts-network
+	HTTP      HTTPConfig `koanf:"http"`
 	configMap *koanf.Koanf
+}
+
+// Config is the top-level config struct for HTTP interfaces.
+type HTTPConfig struct {
+	ClientIPHeaderName string `koanf:"clientipheader"`
 }
 
 // HTTPClientConfig contains settings for HTTP clients.
@@ -156,6 +165,7 @@ func NewServerConfig() *ServerConfig {
 		Strictmode:          true,
 		InternalRateLimiter: true,
 		Datadir:             "./data",
+		DIDMethods:          []string{"web", "nuts"},
 		TLS: TLSConfig{
 			TrustStoreFile: "./config/ssl/truststore.pem",
 			Offload:        NoOffloading,
@@ -253,6 +263,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("internalratelimiter", defaultCfg.InternalRateLimiter, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", defaultCfg.Datadir, "Directory where the node stores its files.")
 	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
+	flagSet.StringSlice("didmethods", defaultCfg.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). "+
+		"It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.")
 	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
 	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.")
 	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the gRPC server certificate. Required in strict mode.")

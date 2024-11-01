@@ -24,16 +24,17 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	_ "github.com/microsoft/go-mssqldb/azuread"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
+	"github.com/nuts-foundation/sqlite"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -41,6 +42,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+	_ "modernc.org/sqlite"
 )
 
 const storeShutdownTimeout = 5 * time.Second
@@ -147,6 +149,12 @@ func (e *engine) Shutdown() error {
 
 func (e *engine) Configure(config core.ServerConfig) error {
 	e.datadir = config.Datadir
+	err := confirmWriteAccess(e.datadir)
+	if err != nil {
+		return err
+	}
+
+	// KV-storage
 	if e.config.Redis.isConfigured() {
 		redisDB, err := createRedisDatabase(e.config.Redis)
 		if err != nil {
@@ -163,10 +171,12 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	}
 	e.databases = append(e.databases, bboltDB)
 
-	if err := e.initSQLDatabase(); err != nil {
+	// SQL storage
+	if err := e.initSQLDatabase(config.Strictmode); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
+	// session storage
 	redisConfig := e.config.Session.Redis
 	if redisConfig.isConfigured() {
 		redisDB, err := createRedisDatabase(redisConfig)
@@ -202,9 +212,13 @@ func (e *engine) GetSQLDatabase() *gorm.DB {
 
 // initSQLDatabase initializes the SQL database connection.
 // If the connection string is not configured, it defaults to a SQLite database, stored in the node's data directory.
-func (e *engine) initSQLDatabase() error {
+func (e *engine) initSQLDatabase(strictmode bool) error {
 	connectionString := e.config.SQL.ConnectionString
 	if len(connectionString) == 0 {
+		if strictmode {
+			return errors.New("no database configured: storage.sql.connection must be set in strictmode")
+		}
+		// non-strictmode uses SQLite as default
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
@@ -246,8 +260,9 @@ func (e *engine) initSQLDatabase() error {
 		// With 1 connection, all actions will be performed sequentially. This impacts performance, but SQLite should not be used in production.
 		// See https://github.com/nuts-foundation/nuts-node/pull/2589#discussion_r1399130608
 		db.SetMaxOpenConns(1)
-		dialector := sqlite.Dialector{Conn: db}
-		e.sqlDB, err = gorm.Open(dialector, gormConfig)
+		e.sqlDB, err = gorm.Open(sqlite.Dialector{
+			Conn: db,
+		}, gormConfig)
 		if err != nil {
 			return err
 		}
@@ -365,6 +380,33 @@ func (p *provider) getStore(moduleName string, name string, adapter database) (s
 		p.engine.stores[key] = store
 	}
 	return store, err
+}
+
+func confirmWriteAccess(datadir string) error {
+	// Make sure the data directory exists
+	err := os.MkdirAll(path.Dir(datadir+string(os.PathSeparator)), os.ModePerm)
+	if err != nil {
+		// log error: "unable to create datadir (dir=./data): mkdir ./data: read-only file system"
+		return err
+	}
+	filename := filepath.Join(datadir, "rw-access-test-file")
+	// open/create file with read-write permission
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		// log error: "unable to configure Storage: open data/rw-access-test-file: read-only file system"
+		return err
+	}
+	// cleanup
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+	// removing the file could cause issues if it was a pre-existing user file
+	err = os.Remove(filename)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type logrusInfoLogWriter struct {

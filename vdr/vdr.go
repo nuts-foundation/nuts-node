@@ -63,12 +63,12 @@ var _ didsubject.Manager = (*Module)(nil)
 // It connects the Resolve, Create and Update DID methods to the network, and receives events back from the network which are processed in the store.
 // It is also a Runnable, Diagnosable and Configurable Nuts Engine.
 type Module struct {
-	config            Config
-	publicURL         *url.URL
-	store             didnutsStore.Store
-	network           network.Transactions
-	networkAmbassador didnuts.Ambassador
-	documentOwner     didsubject.DocumentOwner
+	supportedDIDMethods []string
+	publicURL           *url.URL
+	store               didnutsStore.Store
+	network             network.Transactions
+	networkAmbassador   didnuts.Ambassador
+	documentOwner       didsubject.DocumentOwner
 	// nutsDocumentManager is used to manage did:nuts DID Documents
 	// Deprecated: used by v1 api
 	nutsDocumentManager didsubject.DocumentManager
@@ -79,6 +79,8 @@ type Module struct {
 	keyStore         crypto.KeyStore
 	storageInstance  storage.Engine
 	eventManager     events.Event
+	// migrations are registered functions to simplify testing
+	migrations []migration
 	pkiValidator     pki.Validator
 
 	// new style DID management
@@ -110,10 +112,6 @@ func (r *Module) Resolver() resolver.DIDResolver {
 	return r.didResolver
 }
 
-func (r *Module) SupportedMethods() []string {
-	return r.config.DIDMethods
-}
-
 // NewVDR creates a new Module with provided params
 func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	didStore didnutsStore.Store, eventManager events.Event, storageInstance storage.Engine, pkiValidator pki.Validator) *Module {
@@ -128,6 +126,7 @@ func NewVDR(cryptoClient crypto.KeyStore, networkClient network.Transactions,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
+	m.migrations = m.allMigrations()
 	return m
 }
 
@@ -135,22 +134,19 @@ func (r *Module) Name() string {
 	return ModuleName
 }
 
-func (r *Module) Config() interface{} {
-	return &r.config
-}
-
 // Configure configures the Module engine.
 func (r *Module) Configure(config core.ServerConfig) error {
+	r.supportedDIDMethods = config.DIDMethods
 	var err error
 	if r.publicURL, err = config.ServerURL(); err != nil {
 		return err
 	}
 	// at least one method should be configured
-	if len(r.config.DIDMethods) == 0 {
+	if len(r.supportedDIDMethods) == 0 {
 		return errors.New("at least one DID method should be configured")
 	}
 	// check if all configured methods are supported
-	for _, method := range r.config.DIDMethods {
+	for _, method := range r.supportedDIDMethods {
 		switch method {
 		case didnuts.MethodName, didweb.MethodName:
 			continue
@@ -159,9 +155,11 @@ func (r *Module) Configure(config core.ServerConfig) error {
 		}
 	}
 
-	r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	// only create ambassador when did:nuts is enabled
+	if slices.Contains(r.supportedDIDMethods, "nuts") {
+		r.networkAmbassador = didnuts.NewAmbassador(r.network, r.store, r.eventManager)
+	}
 	db := r.storageInstance.GetSQLDatabase()
-	methodManagers := make(map[string]didsubject.MethodManager)
 
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
@@ -169,18 +167,20 @@ func (r *Module) Configure(config core.ServerConfig) error {
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 
-	// Methods we can produce from the Nuts node
-	// did:nuts
-	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
-	r.nutsDocumentManager = nutsManager
-	methodManagers = map[string]didsubject.MethodManager{}
 	r.documentOwner = &MultiDocumentOwner{
 		DocumentOwners: []didsubject.DocumentOwner{
 			newCachingDocumentOwner(DBDocumentOwner{DB: db}, r.didResolver),
 			newCachingDocumentOwner(privateKeyDocumentOwner{keyResolver: r.keyStore}, r.didResolver),
 		},
 	}
-	if slices.Contains(r.config.DIDMethods, didnuts.MethodName) {
+
+	// Methods we can produce from the Nuts node
+	methodManagers := map[string]didsubject.MethodManager{}
+
+	// did:nuts
+	nutsManager := didnuts.NewManager(r.keyStore, r.network, r.store, r.didResolver, db)
+	r.nutsDocumentManager = nutsManager
+	if slices.Contains(r.supportedDIDMethods, didnuts.MethodName) {
 		methodManagers[didnuts.MethodName] = nutsManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didnuts.MethodName, &didnuts.Resolver{Store: r.store})
 	}
@@ -202,31 +202,28 @@ func (r *Module) Configure(config core.ServerConfig) error {
 			didweb.NewResolver(),
 		},
 	}
-	if slices.Contains(r.config.DIDMethods, didweb.MethodName) {
+	if slices.Contains(r.supportedDIDMethods, didweb.MethodName) {
 		methodManagers[didweb.MethodName] = webManager
 		r.didResolver.(*resolver.DIDResolverRouter).Register(didweb.MethodName, webResolver)
 	}
 
-	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.config.DIDMethods)
+	r.Manager = didsubject.New(db, methodManagers, r.keyStore, r.supportedDIDMethods)
 
 	// Initiate the routines for auto-updating the data.
-	return r.networkAmbassador.Configure()
+	if r.networkAmbassador != nil {
+		return r.networkAmbassador.Configure()
+	}
+	return nil
 }
 
 func (r *Module) Start() error {
+	// nothing to start if did:nuts is disabled
+	if r.networkAmbassador == nil {
+		return nil
+	}
 	err := r.networkAmbassador.Start()
 	if err != nil {
 		return err
-	}
-
-	// VDR migration needs to be started after ambassador has started!
-	count, err := r.store.DocumentCount()
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		// remove after v6 release
-		_, err = r.network.Reprocess(context.Background(), "application/did+json")
 	}
 
 	// start DID Document rollback loop
@@ -366,40 +363,105 @@ func (r *Module) Migrate() error {
 	if err != nil {
 		return err
 	}
-	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate")
-	// resolve the DID Document if the did starts with did:nuts
-	for _, did := range owned {
-		if did.Method == didnuts.MethodName {
-			doc, _, err := r.Resolve(did, nil)
-			if err != nil {
-				if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
-					log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-				}
-				continue
-			}
-			if len(doc.Controller) > 0 {
-				doc.Controller = nil
 
-				if len(doc.VerificationMethod) == 0 {
-					log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
-					continue
-				}
-
-				if len(doc.CapabilityInvocation) == 0 {
-					// add all keys as capabilityInvocation keys
-					for _, vm := range doc.VerificationMethod {
-						doc.CapabilityInvocation.Add(vm)
-					}
-				}
-
-				err = r.nutsDocumentManager.Update(auditContext, did, *doc)
-				if err != nil {
-					if !(errors.Is(err, resolver.ErrKeyNotFound)) {
-						log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
-					}
-				}
-			}
+	// only migrate if did:nuts is activated on the node
+	if slices.Contains(r.supportedDIDMethods, "nuts") {
+		for _, m := range r.migrations {
+			log.Logger().Infof("Running did:nuts migration: '%s'", m.name)
+			m.migrate(owned)
 		}
 	}
 	return nil
+}
+
+// migration is the signature each migration function in Module.migrations uses
+// there is no error return, if something is fatal the function should panic
+type migrationFn func(owned []did.DID)
+
+type migration struct {
+	migrate migrationFn
+	name    string
+}
+
+func (r *Module) allMigrations() []migration {
+	return []migration{ // key will be printed as description of the migration
+		{r.migrateRemoveControllerFromDIDNuts, "remove controller"}, // must come before migrateHistoryOwnedDIDNuts so controller removal is also migrated.
+		{r.migrateHistoryOwnedDIDNuts, "document history"},
+		{r.migrateAddDIDWebToOwnedDIDNuts, "add did:web to subject"}, // must come after migrateHistoryOwnedDIDNuts since it acts on the SQL store.
+	}
+}
+
+// migrateRemoveControllerFromDIDNuts removes the controller from all did:nuts identifiers under own control.
+// This ignores any DIDs that are not did:nuts.
+func (r *Module) migrateRemoveControllerFromDIDNuts(owned []did.DID) {
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_remove_did_nuts_controller")
+	// resolve the DID Document if the did starts with did:nuts
+	for _, did := range owned {
+		if did.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		doc, _, err := r.Resolve(did, nil)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrDeactivated) || errors.Is(err, resolver.ErrNoActiveController)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+			}
+			continue
+		}
+		if len(doc.Controller) == 0 { // has no controller
+			continue
+		}
+
+		// try to remove controller
+		doc.Controller = nil
+
+		if len(doc.VerificationMethod) == 0 {
+			log.Logger().WithField(core.LogFieldDID, doc.ID.String()).Warnf("No verification method found in owned DID document")
+			continue
+		}
+
+		if len(doc.CapabilityInvocation) == 0 {
+			// add all keys as capabilityInvocation keys
+			for _, vm := range doc.VerificationMethod {
+				doc.CapabilityInvocation.Add(vm)
+			}
+		}
+
+		err = r.nutsDocumentManager.Update(auditContext, did, *doc)
+		if err != nil {
+			if !(errors.Is(err, resolver.ErrKeyNotFound)) {
+				log.Logger().WithError(err).WithField(core.LogFieldDID, did.String()).Error("Could not update owned DID document, continuing with next document")
+			}
+		}
+	}
+}
+
+// migrateHistoryOwnedDIDNuts migrates did:nuts DIDs from the VDR key-value storage to SQL storage
+// This ignores any DIDs that are not did:nuts.
+func (r *Module) migrateHistoryOwnedDIDNuts(owned []did.DID) {
+	for _, id := range owned {
+		if id.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		err := r.Manager.(didsubject.DocumentMigration).MigrateDIDHistoryToSQL(id, id.String(), r.store.HistorySinceVersion)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to migrate DID document history to SQL for %s", id)
+		}
+	}
+}
+
+func (r *Module) migrateAddDIDWebToOwnedDIDNuts(owned []did.DID) {
+	if !slices.Contains(r.supportedDIDMethods, "web") {
+		log.Logger().Info("did:web not in supported did methods. Abort migration.")
+		return
+	}
+	auditContext := audit.Context(context.Background(), "system", ModuleName, "migrate_add_did:web_to_did:nuts")
+	for _, id := range owned {
+		if id.Method != didnuts.MethodName { // skip non did:nuts
+			continue
+		}
+		err := r.Manager.(didsubject.DocumentMigration).MigrateAddWebToNuts(auditContext, id)
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to add a did:web DID for %s", id)
+		}
+	}
 }

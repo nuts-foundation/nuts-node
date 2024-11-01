@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"os"
 	"path"
@@ -67,11 +68,12 @@ var _ Client = &Module{}
 var retractionPresentationType = ssi.MustParseURI("RetractedVerifiablePresentation")
 
 // New creates a new Module.
-func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.Manager) *Module {
+func New(storageInstance storage.Engine, vcrInstance vcr.VCR, subjectManager didsubject.Manager, didResolver resolver.DIDResolver) *Module {
 	m := &Module{
 		storageInstance: storageInstance,
 		vcrInstance:     vcrInstance,
 		subjectManager:  subjectManager,
+		didResolver:     didResolver,
 	}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.routines = new(sync.WaitGroup)
@@ -84,11 +86,12 @@ type Module struct {
 	httpClient          client.HTTPClient
 	storageInstance     storage.Engine
 	store               *sqlStore
-	registrationManager clientRegistrationManager
+	registrationManager *clientRegistrationManager
 	serverDefinitions   map[string]ServiceDefinition
 	allDefinitions      map[string]ServiceDefinition
 	vcrInstance         vcr.VCR
 	subjectManager      didsubject.Manager
+	didResolver         resolver.DIDResolver
 	clientUpdater       *clientUpdater
 	ctx                 context.Context
 	cancel              context.CancelFunc
@@ -97,6 +100,19 @@ type Module struct {
 }
 
 func (m *Module) Configure(serverConfig core.ServerConfig) error {
+	var err error
+	m.publicURL, err = serverConfig.ServerURL()
+	if err != nil {
+		return err
+	}
+
+	m.httpClient = client.New(serverConfig.HTTPClient.Timeout)
+
+	return m.loadDefinitions()
+
+}
+
+func (m *Module) loadDefinitions() error {
 	if m.config.Definitions.Directory == "" {
 		return nil
 	}
@@ -108,11 +124,6 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 			return nil
 		}
 		return fmt.Errorf("failed to load discovery defintions: %w", err)
-	}
-
-	m.publicURL, err = serverConfig.ServerURL()
-	if err != nil {
-		return err
 	}
 
 	m.allDefinitions, err = loadDefinitions(m.config.Definitions.Directory)
@@ -131,7 +142,6 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		}
 		m.serverDefinitions = serverDefinitions
 	}
-	m.httpClient = client.New(serverConfig.Strictmode, serverConfig.HTTPClient.Timeout, nil)
 	return nil
 }
 
@@ -142,7 +152,7 @@ func (m *Module) Start() error {
 		return err
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
-	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager)
+	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager, m.didResolver, m.verifyRegistration)
 	if m.config.Client.RefreshInterval > 0 {
 		m.routines.Add(1)
 		go func() {
@@ -193,7 +203,28 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 		return err
 	}
 
-	return m.store.add(serviceID, presentation, 0)
+	// Check if the presentation already exists
+	credentialSubjectID, err := credential.PresentationSigner(presentation)
+	if err != nil {
+		return err
+	}
+	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
+	if err != nil {
+		return err
+	}
+	if exists {
+		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
+	}
+	record, err := m.store.add(serviceID, presentation, "", 0)
+	if err != nil {
+		return err
+	}
+	// also update validated flag since validation is already done
+	if err = m.store.updateValidated([]presentationRecord{*record}); err != nil {
+		log.Logger().WithError(err).Errorf("failed to update validated flag for presentation (id: %s)", record.ID)
+	}
+
+	return nil
 }
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
@@ -225,15 +256,7 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 		return errors.Join(ErrInvalidPresentation, ErrDIDMethodsNotSupported)
 	}
 
-	// Check if the presentation already exists
-	exists, err := m.store.exists(definition.ID, credentialSubjectID.String(), presentation.ID.String())
-	if err != nil {
-		return err
-	}
-	if exists {
-		return errors.Join(ErrInvalidPresentation, ErrPresentationAlreadyExists)
-	}
-	// Depending on the presentation type, we need to validate different properties before storing it.
+	// Depending on the presentation type, we need to updateValidated different properties before storing it.
 	if presentation.IsType(retractionPresentationType) {
 		err = m.validateRetraction(definition.ID, presentation)
 	} else {
@@ -266,37 +289,21 @@ func (m *Module) validateRegistration(definition ServiceDefinition, presentation
 		return fmt.Errorf("verifiable presentation doesn't match required presentation definition: %w", err)
 	}
 	if len(creds) != len(presentation.VerifiableCredential) {
-		// it could be the case that the VP contains a registration credential and the matching credentials do not.
-		// only return errPresentationDoesNotFulfillDefinition if both contain the registration credential or neither do.
-		vpContainsRegistrationCredential := false
-		for _, cred := range presentation.VerifiableCredential {
-			if slices.Contains(cred.Type, credential.DiscoveryRegistrationCredentialTypeV1URI()) {
-				vpContainsRegistrationCredential = true
-				break
-			}
-		}
-		matchingContainsRegistrationCredential := false
-		for _, cred := range creds {
-			if slices.Contains(cred.Type, credential.DiscoveryRegistrationCredentialTypeV1URI()) {
-				matchingContainsRegistrationCredential = true
-				break
-			}
-		}
-		if vpContainsRegistrationCredential && !matchingContainsRegistrationCredential && len(presentation.VerifiableCredential)-len(creds) == 1 {
-			return nil
-		}
-
 		return errPresentationDoesNotFulfillDefinition
 	}
 	return nil
 }
 
 func (m *Module) validateRetraction(serviceID string, presentation vc.VerifiablePresentation) error {
-	// Presentation might be a retraction (deletion of an earlier credentialRecord) must contain no credentials, and refer to the VP being retracted by ID.
-	// If those conditions aren't met, we don't need to register the retraction.
+	// RFC022 §3.4:it MUST specify RetractedVerifiablePresentation as type, in addition to the VerifiablePresentation.
+	// presentation.IsType(retractionPresentationType) // satisfied by the switch one level up
+
+	// RFC022 §3.4: it MUST NOT contain any credentials.
 	if len(presentation.VerifiableCredential) > 0 {
 		return errRetractionContainsCredentials
 	}
+
+	// RFC022 §3.4: it MUST contain a retract_jti JWT claim, containing the jti of the presentation to retract.
 	// Check that the retraction refers to an existing presentation.
 	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
 	retractJTIRaw, _ := presentation.JWT().Get("retract_jti")
@@ -317,18 +324,18 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 
 // Get is a Discovery Server function that retrieves the presentations for the given service, starting at timestamp+1.
 // See interface.go for more information.
-func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, int, error) {
+func (m *Module) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, string, int, error) {
 	_, exists := m.serverDefinitions[serviceID]
 	if !exists {
 		// forward to configured server
 		service, exists := m.allDefinitions[serviceID]
 		if !exists {
-			return nil, 0, ErrServiceNotFound
+			return nil, "", 0, ErrServiceNotFound
 		}
 
 		// check If X-Forwarded-Host header is set, if set it must not be the same as service.Endpoint
 		if cycleDetected(context, service) {
-			return nil, 0, errCyclicForwardingDetected
+			return nil, "", 0, errCyclicForwardingDetected
 		}
 
 		log.Logger().Infof("Forwarding Get request to configured server (service=%s)", serviceID)
@@ -383,7 +390,10 @@ func (m *Module) ActivateServiceForSubject(ctx context.Context, serviceID, subje
 	}
 
 	log.Logger().Infof("Successfully activated service for subject (subject=%s,service=%s)", subjectID, serviceID)
-	_ = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
+	err = m.clientUpdater.updateService(ctx, m.allDefinitions[serviceID])
+	if err != nil {
+		log.Logger().Infof("Failed to update local copy of Discovery Service (service=%s): %s", serviceID, err)
+	}
 	return nil
 }
 
@@ -405,6 +415,11 @@ func (m *Module) Services() []ServiceDefinition {
 // GetServiceActivation is a Discovery Client function that retrieves the activation status of a service for a subject.
 // See interface.go for more information.
 func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID string) (bool, []vc.VerifiablePresentation, error) {
+	// first check if the combination getServiceAndSubject to generate correct api returns
+	_, subjectDIDs, err := m.registrationManager.getServiceAndSubject(ctx, serviceID, subjectID)
+	if err != nil {
+		return false, nil, err
+	}
 	refreshRecord, err := m.store.getPresentationRefreshRecord(serviceID, subjectID)
 	if err != nil {
 		return false, nil, err
@@ -413,12 +428,6 @@ func (m *Module) GetServiceActivation(ctx context.Context, serviceID, subjectID 
 		return false, nil, nil
 	}
 	// subject is activated for service
-
-	subjectDIDs, err := m.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		// can only happen if DB is offline/corrupt, or between deactivating a subject and its next refresh on the service (didsubject.ErrSubjectNotFound)
-		return true, nil, err
-	}
 
 	vps2D, err := m.store.getSubjectVPsOnService(serviceID, subjectDIDs)
 	if err != nil {
@@ -474,7 +483,7 @@ func (m *Module) Search(serviceID string, query map[string]string) ([]SearchResu
 	if !exists {
 		return nil, ErrServiceNotFound
 	}
-	matchingVPs, err := m.store.search(serviceID, query)
+	matchingVPs, err := m.store.search(serviceID, query, false)
 	if err != nil {
 		return nil, err
 	}
@@ -546,6 +555,16 @@ func (m *Module) update() {
 		err = m.clientUpdater.update(m.ctx)
 		if err != nil {
 			log.Logger().WithError(err).Errorf("Failed to load latest Verifiable Presentations from Discovery Service")
+		}
+		// updateValidated all presentations not yet validated
+		err = m.registrationManager.validate()
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to validate presentations")
+		}
+		// purge list
+		err = m.registrationManager.removeRevoked()
+		if err != nil {
+			log.Logger().WithError(err).Errorf("Failed to remove revoked presentations")
 		}
 	}
 	do()

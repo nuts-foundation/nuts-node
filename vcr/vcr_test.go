@@ -73,7 +73,9 @@ func TestVCR_Configure(t *testing.T) {
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 		pkiProvider := pki.NewMockProvider(ctrl)
 		pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
-		instance := NewVCRInstance(nil, vdrInstance, nil, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
+		networkInstance := network.NewMockTransactions(ctrl)
+		networkInstance.EXPECT().Disabled().AnyTimes()
+		instance := NewVCRInstance(nil, vdrInstance, networkInstance, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
 		instance.config.OpenID4VCI.Enabled = true
 
 		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {

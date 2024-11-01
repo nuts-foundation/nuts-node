@@ -54,9 +54,14 @@ func (bs *bitstring) Scan(value any) error {
 		*bs = nil
 		return nil
 	}
-	asString, ok := value.(string)
-	if !ok {
-		return fmt.Errorf("bitstring unmarshal from DB: expected []uint8, got %T", value)
+	var asString string
+	switch v := value.(type) {
+	case string: // sqlite, postgress, sqlserver
+		asString = v
+	case []uint8: // mysql
+		asString = string(v)
+	default:
+		return fmt.Errorf("bitstring unmarshal from DB: expected []uint8 or string, got %T", value)
 	}
 	expanded, err := expand(asString)
 	if err != nil {

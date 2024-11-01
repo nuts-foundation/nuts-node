@@ -33,6 +33,18 @@ var ErrInvalidService = errors.New("invalid DID document service")
 // ErrUnsupportedDIDMethod is returned when a DID method is not supported.
 var ErrUnsupportedDIDMethod = errors.New("unsupported DID method")
 
+// ErrKeyAgreementNotSupported is returned key agreement is required for did:web.
+var ErrKeyAgreementNotSupported = errors.New("key agreement not supported for did:web")
+
+// ErrSubjectValidation is returned when the subject creation request is invalid.
+var ErrSubjectValidation = errors.New("subject creation validation error")
+
+// ErrSubjectAlreadyExists is returned when a subject already exists.
+var ErrSubjectAlreadyExists = errors.New("subject already exists")
+
+// ErrSubjectNotFound is returned when a subject is not found.
+var ErrSubjectNotFound = errors.New("subject not found")
+
 // MethodManager keeps DID method specific state in sync with the DID sql database.
 type MethodManager interface {
 	// NewDocument generates a new DID document for the given subject.
@@ -121,6 +133,17 @@ type Manager interface {
 	// All DID Document versions that are part of the same transaction_id will be deleted.
 	// This works because did:web is always committed and did:nuts might not be. So the DB state actually only depends on the result of the did:nuts network operation result.
 	Rollback(ctx context.Context)
+}
+
+// DocumentMigration is used to migrate DID document versions to the SQL DB. This should only be used for DID documents managed by this node.
+type DocumentMigration interface {
+	// MigrateDIDHistoryToSQL is used to migrate the history of a DID Document to SQL.
+	// It adds all versions of a DID Document up to a deactivated version. Any changes after a deactivation are not migrated.
+	// getHistory retrieves the history of the DID since the requested version.
+	MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error
+	// MigrateAddWebToNuts checks if the provided did:nuts DID adds a did:web DID under the same subject if does not already have one.
+	// It does not check that id is a did:nuts DID
+	MigrateAddWebToNuts(ctx context.Context, id did.DID) error
 }
 
 // SubjectCreationOption links all create DIDs to the DID Subject

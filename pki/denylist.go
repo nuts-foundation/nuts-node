@@ -219,6 +219,7 @@ func (b *denylistImpl) Subscribe(f func()) {
 // download retrieves and parses the denylist
 func (b *denylistImpl) download() ([]byte, error) {
 	// Make an HTTP GET request for the denylist URL
+	// We do not use our safe http client here since we're downloading from our own resource
 	httpClient := http.Client{Timeout: syncTimeout}
 	response, err := httpClient.Get(b.url)
 	if err != nil {

@@ -21,6 +21,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
@@ -70,6 +71,7 @@ func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	t.Cleanup(func() {
 		_ = result.Shutdown()
 	})
+	fmt.Printf("Created test storage engine in %s\n", dir)
 	return result
 }
 
@@ -127,7 +129,7 @@ func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 	for _, id := range dids {
 		// use gorm EXEC since it accepts '?' as the argument placeholder for all DBs
-		require.NoError(t, db.Exec("INSERT INTO did (subject, id ) VALUES ( ?, ? )", id.String(), id.String(), id.String()).Error)
+		require.NoError(t, db.Exec("INSERT INTO did ( subject, id ) VALUES ( ?, ? )", id.String(), id.String(), id.String()).Error)
 	}
 }
 

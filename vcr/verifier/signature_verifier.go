@@ -87,6 +87,9 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
 
 	// for a VP this will not fail
 	verificationMethod := ldProof.VerificationMethod.String()
+	if verificationMethod == "" {
+		return newVerificationError("missing proof")
+	}
 	verificationMethodIssuer := strings.Split(verificationMethod, "#")[0]
 	if verificationMethodIssuer == "" || verificationMethodIssuer != issuer {
 		return errVerificationMethodNotOfIssuer

@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/log"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"regexp"
 	"sort"
@@ -40,14 +41,8 @@ import (
 	"time"
 )
 
-// ErrSubjectAlreadyExists is returned when a subject already exists.
-var ErrSubjectAlreadyExists = errors.New("subject already exists")
-
-// ErrSubjectNotFound is returned when a subject is not found.
-var ErrSubjectNotFound = errors.New("subject not found")
-
 // subjectPattern is a regular expression for checking whether a subject follows the allowed pattern; a-z, 0-9, -, _, . (case insensitive)
-var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9.-]+$`)
+var subjectPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var _ Manager = (*SqlManager)(nil)
 
@@ -125,7 +120,7 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 		switch opt := option.(type) {
 		case SubjectCreationOption:
 			if !subjectPattern.MatchString(opt.Subject) {
-				return nil, "", fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String())
+				return nil, "", errors.Join(ErrSubjectValidation, fmt.Errorf("invalid subject (must follow pattern: %s)", subjectPattern.String()))
 			}
 			subject = opt.Subject
 		case EncryptionKeyCreationOption:
@@ -133,15 +128,14 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 		case NutsLegacyNamingOption:
 			nutsLegacy = true
 		default:
-			return nil, "", fmt.Errorf("unknown option: %T", option)
+			return nil, "", errors.Join(ErrSubjectValidation, fmt.Errorf("unknown option: %T", option))
 		}
 	}
 
 	sqlDocs := make(map[string]orm.DidDocument)
 	err := r.transactionHelper(ctx, func(tx *gorm.DB) (map[string]orm.DIDChangeLog, error) {
 		// check existence
-		sqlDIDManager := NewDIDManager(tx)
-		_, err := sqlDIDManager.FindBySubject(subject)
+		_, err := NewDIDManager(tx).FindBySubject(subject)
 		if errors.Is(err, ErrSubjectNotFound) {
 			// this is ok, doesn't exist yet
 		} else if err != nil {
@@ -153,6 +147,12 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
+			// known limitation, check is also done within the manager, but at this point we can return a known error for the API
+			// requires update to nutsCrypto module
+			if keyFlags.Is(orm.KeyAgreementUsage) && method == "web" {
+				return nil, ErrKeyAgreementNotSupported
+			}
+
 			// save tx in context to pass all the way down to KeyStore
 			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
 			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
@@ -394,8 +394,8 @@ func (r *SqlManager) AddVerificationMethod(ctx context.Context, subject string, 
 	err := r.applyToDIDDocuments(ctx, subject, func(tx *gorm.DB, id did.DID, current *orm.DidDocument) (*orm.DidDocument, error) {
 		// known limitation
 		if keyUsage.Is(orm.KeyAgreementUsage) && id.Method == "web" {
-			return nil, errors.New("key agreement not supported for did:web")
-			// todo requires update to nutsCrypto module
+			return nil, ErrKeyAgreementNotSupported
+			// requires update to nutsCrypto module
 			//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
 			//	return verificationMethodID.String(), nil
 			//})
@@ -647,4 +647,133 @@ func sortDIDDocumentsByMethod(list []did.Document, methodOrder []string) {
 		}
 	}
 	copy(list, orderedList)
+}
+
+func (r *SqlManager) MigrateDIDHistoryToSQL(id did.DID, subject string, getHistory func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error)) error {
+	latestSQLVersion := -1 // -1 means it's a new DID
+	latestORMDocument, err := NewDIDDocumentManager(r.DB).Latest(id, nil)
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		// new DID, don't update latestSQLVersion
+	} else {
+		// don't migrate DID documents past their deactivation
+		latestDIDDocument, err := latestORMDocument.ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(latestDIDDocument) {
+			return nil
+		}
+		// set latestSQLVersion
+		latestSQLVersion = latestORMDocument.Version
+	}
+
+	// get all new document updates
+	// NOTE: this assumes updates are only appended to the end. This breaks if the history of a document is altered.
+	history, err := getHistory(id, latestSQLVersion+1)
+	if err != nil {
+		return err
+	}
+	if len(history) == 0 {
+		return nil
+	}
+
+	// convert history to orm objects
+	documentVersions := make([]orm.DidDocument, len(history))
+	for i, entry := range history {
+		documentVersions[i], err = entry.ToORMDocument(subject)
+		if err != nil {
+			return err
+		}
+
+		// break if this version deactivates the document
+		didDocument, err := documentVersions[i].ToDIDDocument()
+		if err != nil {
+			return err
+		}
+		if resolver.IsDeactivated(didDocument) {
+			documentVersions = documentVersions[:i+1]
+			break
+		}
+	}
+
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if latestSQLVersion == -1 {
+			// add subject to did table
+			DID := orm.DID{
+				ID:      id.String(),
+				Subject: subject,
+			}
+			err = tx.Create(&DID).Error
+			if err != nil {
+				return err
+			}
+		}
+		// add document history
+		for _, doc := range documentVersions {
+			err = tx.Create(&doc).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *SqlManager) MigrateAddWebToNuts(ctx context.Context, id did.DID) error {
+	// get subject
+	// TODO: this should only run on migrations, so could use 'subject = id.String()'
+	var subject string
+	err := r.DB.Model(new(orm.DID)).Where("id = ?", id.String()).Select("subject").First(&subject).Error
+	if err != nil {
+		return err
+	}
+
+	// check if subject has a did:web
+	subjectDIDs, err := r.ListDIDs(ctx, subject)
+	if err != nil {
+		return err
+	}
+	for _, subjectDID := range subjectDIDs {
+		if subjectDID.Method == "web" {
+			// already has a did:web
+			return nil
+		}
+	}
+
+	// get latest did:nuts document
+	sqlDIDDocumentManager := NewDIDDocumentManager(r.DB)
+	nutsDoc, err := sqlDIDDocumentManager.Latest(id, nil)
+	if err != nil {
+		return err
+	}
+
+	// don't add did:web if did:nuts is deactivated
+	nutsDidDoc, err := nutsDoc.ToDIDDocument()
+	if err != nil {
+		return err
+	}
+	if resolver.IsDeactivated(nutsDidDoc) {
+		return nil
+	}
+
+	// create a did:web for this subject
+	webDoc, err := r.MethodManagers["web"].NewDocument(ctx, orm.AssertionKeyUsage())
+	if err != nil {
+		return err
+	}
+	// add subject
+	webDID := orm.DID{
+		ID:      webDoc.DID.ID,
+		Subject: subject,
+	}
+	// store did:web; don't migrate services
+	_, err = sqlDIDDocumentManager.CreateOrUpdate(webDID, webDoc.VerificationMethods, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

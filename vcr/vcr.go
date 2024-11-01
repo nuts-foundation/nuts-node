@@ -203,7 +203,6 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	c.keyResolver = resolver.DIDKeyResolver{Resolver: didResolver}
 	c.serviceResolver = resolver.DIDServiceResolver{Resolver: didResolver}
 
-	networkPublisher := issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	tlsConfig, err := c.pkiProvider.CreateTLSConfig(config.TLS) // returns nil if TLS is disabled
 	if err != nil {
 		return err
@@ -225,11 +224,18 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		c.openidSessionStore = c.storageClient.GetSessionDatabase()
 	}
 
+	var networkPublisher issuer.Publisher
+	if !c.network.Disabled() {
+		networkPublisher = issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
+	}
+
 	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout), config.URL)
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status)
 
-	c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
+	if !c.network.Disabled() {
+		c.ambassador = NewAmbassador(c.network, c, c.verifier, c.eventManager)
+	}
 
 	// Create holder/wallet
 	c.wallet = holder.NewSQLWallet(c.keyResolver, c.keyStore, c.verifier, c.jsonldManager, c.storageClient)
@@ -269,6 +275,9 @@ func (c *vcr) createCredentialsStore() error {
 }
 
 func (c *vcr) Start() error {
+	if c.ambassador == nil { // did:nuts / network layer is disabled
+		return nil
+	}
 	// start listening for new credentials
 	_ = c.ambassador.Configure()
 

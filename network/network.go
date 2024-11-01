@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -66,11 +67,15 @@ const (
 	newNodeConnectionDelay = 5 * time.Minute
 )
 
+// ErrDIDNutsDisabled is returned from certain API methods when the core.ServerConfig.DIDMethods does not contain "nuts"
+var ErrDIDNutsDisabled = errors.New("network operations not supported; did:nuts support not configured")
+
 // defaultBBoltOptions are given to bbolt, allows for package local adjustments during test
 var defaultBBoltOptions = bbolt.DefaultOptions
 
 // Network implements Transactions interface and Engine functions.
 type Network struct {
+	disabled          bool // node is running without did:nuts support
 	config            Config
 	certificate       tls.Certificate
 	trustStore        *core.TrustStore
@@ -96,6 +101,9 @@ type Network struct {
 
 // CheckHealth performs health checks for the network engine.
 func (n *Network) CheckHealth() map[string]core.Health {
+	if n.disabled {
+		return nil
+	}
 	results := make(map[string]core.Health)
 	if n.certificate.Leaf != nil {
 		results[healthTLS] = n.checkNodeTLSHealth()
@@ -134,6 +142,9 @@ func (n *Network) checkNodeTLSHealth() core.Health {
 }
 
 func (n *Network) Migrate() error {
+	if n.disabled {
+		return nil
+	}
 	return n.state.Migrate()
 }
 
@@ -167,6 +178,10 @@ func NewNetworkInstance(
 
 // Configure configures the Network subsystem
 func (n *Network) Configure(config core.ServerConfig) error {
+	if !slices.Contains(config.DIDMethods, "nuts") {
+		n.disabled = true
+		return nil
+	}
 	var err error
 	dagStore, err := n.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	if err != nil {
@@ -269,11 +284,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 		} else {
 			// Not allowed in strict mode for security reasons: only intended for demo/workshop purposes.
 			if config.Strictmode {
-				if len(n.config.BootstrapNodes) == 0 && n.assumeNewNode {
-					log.Logger().Info("It appears the gRPC network will not be used (no bootstrap nodes and an empty network state), so disabled TLS is accepted even with strict mode enabled.")
-				} else {
-					return errors.New("disabling TLS in strict mode is not allowed")
-				}
+				return errors.New("disabling TLS in strict mode is not allowed")
 			}
 			authenticator = grpc.NewDummyAuthenticator(nil)
 		}
@@ -284,6 +295,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("failed to open connections store: %w", err)
 		}
 
+		grpcOpts = append(grpcOpts, grpc.WithClientIPHeader(config.HTTP.ClientIPHeaderName))
 		connectionManCfg, err := grpc.NewConfig(n.config.GrpcAddr, n.peerID, grpcOpts...)
 		if err != nil {
 			return err
@@ -313,7 +325,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 }
 
 func (n *Network) DiscoverServices(updatedDID did.DID) {
-	if !n.config.EnableDiscovery {
+	if n.disabled || !n.config.EnableDiscovery {
 		return
 	}
 	document, _, err := n.didStore.Resolve(updatedDID, nil)
@@ -363,6 +375,9 @@ func (n *Network) Config() interface{} {
 
 // Start initiates the Network subsystem
 func (n *Network) Start() error {
+	if n.disabled {
+		return nil
+	}
 	startTime := time.Now()
 	n.startTime.Store(&startTime)
 
@@ -571,6 +586,9 @@ func (n *Network) selfTestNutsCommAddress(nutsComm transport.NutsCommURL) error 
 // The receiver is called when a transaction is added to the DAG.
 // It's only called if the given dag.NotificationFilter's match.
 func (n *Network) Subscribe(name string, subscriber dag.ReceiverFn, options ...SubscriberOption) error {
+	if n.disabled {
+		return nil
+	}
 	notifierOptions := make([]dag.NotifierOption, len(options))
 	for i, o := range options {
 		notifierOptions[i] = o()
@@ -609,12 +627,18 @@ func (n *Network) CleanupSubscriberEvents(subscriberName, errorPrefix string) er
 
 // GetTransaction retrieves the transaction for the given reference. If the transaction is not known, an error is returned.
 func (n *Network) GetTransaction(transactionRef hash.SHA256Hash) (dag.Transaction, error) {
+	if n.disabled {
+		return nil, ErrDIDNutsDisabled
+	}
 	return n.state.GetTransaction(context.Background(), transactionRef)
 }
 
 // GetTransactionPayload retrieves the transaction Payload for the given transaction. If the transaction or Payload is not found
 // nil is returned.
 func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error) {
+	if n.disabled {
+		return nil, ErrDIDNutsDisabled
+	}
 	transaction, err := n.state.GetTransaction(context.Background(), transactionRef)
 	if err != nil {
 		if errors.Is(err, dag.ErrTransactionNotFound) {
@@ -628,11 +652,17 @@ func (n *Network) GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte,
 
 // ListTransactionsInRange returns all transactions known to this Network instance with lamport clock value between startInclusive and endExclusive.
 func (n *Network) ListTransactionsInRange(startInclusive uint32, endExclusive uint32) ([]dag.Transaction, error) {
+	if n.disabled {
+		return nil, ErrDIDNutsDisabled
+	}
 	return n.state.FindBetweenLC(context.Background(), startInclusive, endExclusive)
 }
 
 // CreateTransaction creates a new transaction from the given template.
 func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag.Transaction, error) {
+	if n.disabled {
+		return nil, ErrDIDNutsDisabled
+	}
 	payloadHash := hash.SHA256Sum(template.Payload)
 	log.Logger().
 		WithField(core.LogFieldTransactionType, template.Type).
@@ -743,6 +773,9 @@ func (n *Network) calculateLamportClock(ctx context.Context, prevs []hash.SHA256
 
 // Shutdown cleans up any leftover go routines
 func (n *Network) Shutdown() error {
+	if n.disabled {
+		return nil
+	}
 	// Stop protocols and connection manager
 	for _, prot := range n.protocols {
 		prot.Stop()
@@ -758,6 +791,9 @@ func (n *Network) Shutdown() error {
 
 // Diagnostics collects and returns diagnostics for the Network engine.
 func (n *Network) Diagnostics() []core.DiagnosticResult {
+	if n.disabled {
+		return nil
+	}
 	var results = make([]core.DiagnosticResult, 0)
 	// Connection manager and protocols
 	results = append(results, core.DiagnosticResultMap{Title: "connections", Items: n.connectionManager.Diagnostics()})
@@ -778,6 +814,9 @@ func (n *Network) Diagnostics() []core.DiagnosticResult {
 
 // PeerDiagnostics returns a map containing diagnostic information of the node's peers. The key contains the remote peer's ID.
 func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
+	if n.disabled {
+		return nil
+	}
 	result := make(map[transport.PeerID]transport.Diagnostics, 0)
 	// We assume higher protocol versions (later in the slice) have better/more accurate diagnostics,
 	// so for now they're copied over diagnostics of earlier versions, unless the entry is empty for that peer.
@@ -793,7 +832,14 @@ func (n *Network) PeerDiagnostics() map[transport.PeerID]transport.Diagnostics {
 }
 
 func (n *Network) AddressBook() []transport.Contact {
+	if n.disabled {
+		return nil
+	}
 	return n.connectionManager.Contacts()
+}
+
+func (n *Network) Disabled() bool {
+	return n.disabled
 }
 
 // ReprocessReport describes the reprocess exection.
@@ -802,6 +848,9 @@ type ReprocessReport struct {
 }
 
 func (n *Network) Reprocess(ctx context.Context, contentType string) (*ReprocessReport, error) {
+	if n.disabled {
+		return nil, ErrDIDNutsDisabled
+	}
 	log.Logger().Infof("Starting reprocess of %s", contentType)
 
 	_, js, err := n.eventPublisher.Pool().Acquire(ctx)

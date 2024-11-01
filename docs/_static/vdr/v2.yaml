@@ -131,6 +131,7 @@ paths:
         error returns:
           * 400 - the subject param was malformed
           * 404 - Corresponding subject could not be found
+          * 409 - The subject is already deactivated
           * 500 - An error occurred while processing the request
       operationId: "deactivate"
       tags:
@@ -297,7 +298,8 @@ paths:
       summary: Delete a specific service from the subject
       description: |
         Removes the service from all DID Documents in the subject. Matching is done on the fragment of the id.
-        No cascading will happen for references to the service. 
+        No cascading will happen for references to the service.
+        Make sure to only URL encode the pound (#) as %23 in the serviceId. Do not encode the colons (:). 
 
         error returns:
         * 400 - Returned in case of malformed subject or service ID
@@ -315,10 +317,12 @@ paths:
       summary: Updates a service for the subject
       description: |
         It replaces the given service in all DID Documents of the subject by deleting the current service and adding the provided service with a newly generated ID.
+        Make sure to only URL encode the pound (#) as %23 in the serviceId. Do not encode the colons (:).
 
         error returns:
         * 400 - Returned in case of malformed subject or service ID
         * 404 - Corresponding subject or service could not be found
+        * 409 - Duplicate service type
         * 500 - An error occurred while processing the request
       tags:
         - Subject
@@ -478,7 +482,9 @@ components:
       properties:
         subject:
           type: string
-          description: controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
+          description: | 
+            controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
+            The subject must follow the pattern [a-zA-Z0-9._-]+
         keys:
           $ref: '#/components/schemas/KeyCreationOptions'
     DIDDocument:

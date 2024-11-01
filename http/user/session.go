@@ -36,7 +36,7 @@ import (
 	"time"
 )
 
-var userSessionContextKey = struct{}{}
+type userSessionContextKey = struct{}
 
 // userSessionCookieName is the name of the cookie used to store the user session.
 // It uses the __Secure prefix, that instructs the user agent to treat it as a secure cookie:
@@ -94,7 +94,7 @@ func (u SessionMiddleware) Handle(next echo.HandlerFunc) echo.HandlerFunc {
 			return u.Store.Put(sessionID, sessionData)
 		}
 		// Session data is put in request context for access by API handlers
-		echoCtx.SetRequest(echoCtx.Request().WithContext(context.WithValue(echoCtx.Request().Context(), userSessionContextKey, sessionData)))
+		echoCtx.SetRequest(echoCtx.Request().WithContext(context.WithValue(echoCtx.Request().Context(), userSessionContextKey{}, sessionData)))
 
 		return next(echoCtx)
 	}
@@ -166,7 +166,7 @@ func (u SessionMiddleware) createUserSessionCookie(sessionID string, path string
 // GetSession retrieves the user session from the request context.
 // If the user session is not found, an error is returned.
 func GetSession(ctx context.Context) (*Session, error) {
-	result, ok := ctx.Value(userSessionContextKey).(*Session)
+	result, ok := ctx.Value(userSessionContextKey{}).(*Session)
 	if !ok {
 		return nil, errors.New("no user session found")
 	}

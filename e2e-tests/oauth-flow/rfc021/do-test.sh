@@ -45,20 +45,36 @@ echo Vendor B DID: $VENDOR_B_DID
 
 # Issue NutsOrganizationCredential for Vendor B
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"withStatusList2021Revocation\": true}"
-RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
-if echo $RESPONSE | grep -q "VerifiableCredential"; then
+VENDOR_B_CREDENTIAL=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+if echo $VENDOR_B_CREDENTIAL | grep -q "VerifiableCredential"; then
   echo "VC issued"
 else
   echo "FAILED: Could not issue NutsOrganizationCredential to node-B" 1>&2
-  echo $RESPONSE
+  echo $VENDOR_B_CREDENTIAL
   exitWithDockerLogs 1
 fi
 
-RESPONSE=$(echo $RESPONSE | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/vendorB/vc -H "Content-Type:application/json")
+RESPONSE=$(echo $VENDOR_B_CREDENTIAL | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/vendorB/vc -H "Content-Type:application/json")
 if echo $RESPONSE == ""; then
   echo "VC stored in wallet"
 else
   echo "FAILED: Could not load NutsOrganizationCredential in node-B wallet" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+# Test regression for https://github.com/nuts-foundation/nuts-node/issues/3451
+# (VCR: Status List can't be retrieved when using MS SQL Server)
+# Get credential status URL from credentialStatus.statusListCredential property using jq
+STATUS_LIST_CREDENTIAL=$(echo $VENDOR_B_CREDENTIAL | jq -r .credentialStatus.statusListCredential)
+echo "Status list credential: $STATUS_LIST_CREDENTIAL"
+# Get status list credential
+RESPONSE=$($db_dc exec nodeB-backend curl -s -k $STATUS_LIST_CREDENTIAL)
+# Check response HTTP 200 OK
+if  echo $RESPONSE | grep -q "\"id\":\"$STATUS_LIST_CREDENTIAL\"" ; then
+  echo "Status list credential retrieved"
+else
+  echo "FAILED: Could not retrieve status list credential" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
@@ -72,6 +88,29 @@ if [ $RESPONSE -eq 200 ]; then
 else
   echo "FAILED: Could not register vendor B on Discovery Service" 1>&2
   echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+# Test regression for https://github.com/nuts-foundation/nuts-node/issues/3442
+# (Discovery: GetActivationStatus fails on MS SQL Server)
+echo "Getting activation status from Discovery Service..."
+RESPONSE=$(curl -s http://localhost:28081/internal/discovery/v1/e2e-test/vendorB)
+echo $RESPONSE
+if echo $RESPONSE | grep -q "true"; then
+  echo "Activation status OK"
+else
+  echo "FAILED: Could not get activation status of vendor B on Discovery Service" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+# Search for registration using wildcards, results in complicated DB query
+RESPONSE=$(curl -s --insecure http://localhost:28081/internal/discovery/v1/e2e-test?credentialSubject.organization.name=*)
+NUM_ITEMS=$(echo $RESPONSE | jq length)
+if [ $NUM_ITEMS -eq 1 ]; then
+  echo "Registration found"
+else
+  echo "FAILED: Could not find registration" 1>&2
   exitWithDockerLogs 1
 fi
 
@@ -154,8 +193,6 @@ else
   exitWithDockerLogs 1
 fi
 
-
-
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
@@ -164,6 +201,33 @@ if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
   echo "FAILED: Could not get resource from node-A" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+echo "------------------------------------"
+echo "Revoking credential..."
+echo "------------------------------------"
+# revoke credential
+VENDOR_B_CREDENTIAL_ID=$(echo $VENDOR_B_CREDENTIAL | jq -r .id)
+echo $VENDOR_B_CREDENTIAL_ID
+RESPONSE=$(curl -s -X DELETE "http://localhost:28081/internal/vcr/v2/issuer/vc/${VENDOR_B_CREDENTIAL_ID//#/%23}")
+if [ -z "${RESPONSE}" ]; then
+  echo "VendorB NutsOrganizationCredential revoked"
+else
+  echo "FAILED: NutsOrganizationCredential not revoked" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+echo "------------------------------------"
+echo "Retrieving data fails..."
+echo "------------------------------------"
+RESPONSE=$($db_dc exec nodeB curl --http1.1 --insecure --cert /etc/nginx/ssl/server.pem --key /etc/nginx/ssl/key.pem https://nodeA:443/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP")
+if [ "${RESPONSE}" == "Unauthorized" ]; then
+  echo "Access denied!"
+else
+  echo "FAILED: Retrieved data with revoked credential" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi

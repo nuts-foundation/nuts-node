@@ -78,6 +78,17 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "GET", handler.Request.Method)
 		assert.Equal(t, "/.well-known/oauth-authorization-server/iam/123", handler.Request.URL.Path)
 	})
+	t.Run("error - server error changes status code to 502", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
+
+		require.Error(t, err)
+		httpErr, ok := err.(core.HttpError)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusBadGateway, httpErr.StatusCode)
+	})
 }
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {
@@ -97,6 +108,28 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		require.NotNil(t, definition)
 		assert.Equal(t, definition, *response)
 		require.NotNil(t, handler.Request)
+	})
+	t.Run("error - generic error results in 502", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
+		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
+
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBadGateway)
+	})
+	t.Run("error - oauth error", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
+		tlsServer, client := testServerAndClient(t, &handler)
+		pdUrl := test.MustParseURL(tlsServer.URL)
+
+		_, err := client.PresentationDefinition(ctx, *pdUrl)
+
+		require.Error(t, err)
+		oauthErr, ok := err.(oauth.OAuth2Error)
+		require.True(t, ok)
+		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
 	})
 }
 

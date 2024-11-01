@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -452,5 +453,79 @@ func Test_matches(t *testing.T) {
 		t.Run("source transaction", func(t *testing.T) {
 			assert.False(t, matches(metadata, &resolver.ResolveMetadata{SourceTransaction: &h2}))
 		})
+	})
+}
+
+func TestStore_HistorySinceVersion(t *testing.T) {
+	store := NewTestStore(t)
+
+	// create DID document with some updates and a document conflict
+	doc1 := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceA}}
+	tx1 := newTestTransaction(doc1) // serviceA
+	tx1.SigningTime = time.Now().Add(-time.Second)
+	doc2a := did.Document{ID: testDID, Service: []did.Service{testServiceA}}
+	tx2a := newTestTransaction(doc2a, tx1.Ref) // deactivate
+	doc2b := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceB}}
+	tx2b := newTestTransaction(doc2b, tx1.Ref) // serviceB
+	doc3 := did.Document{ID: testDID, Controller: []did.DID{testDID}, Service: []did.Service{testServiceA, testServiceB}}
+	tx3 := newTestTransaction(doc3, tx2a.Ref, tx2b.Ref) // serviceA + serviceB
+
+	// add all transactions.
+	// txs all have LC=0, so they are sorted on SigningTime. Nano-sec timestamps guarantee that the tx{1,2a,2b,3} order is preserved
+	require.NoError(t, store.Add(doc1, tx1))
+	require.NoError(t, store.Add(doc2a, tx2a))
+	require.NoError(t, store.Add(doc2b, tx2b))
+	require.NoError(t, store.Add(doc3, tx3))
+
+	// raw documents in order
+	raw := [4][]byte{}
+	raw[0], _ = json.Marshal(doc1)
+	raw[1], _ = json.Marshal(doc2a)
+	raw[2], _ = json.Marshal(doc2b)
+	raw[3], _ = json.Marshal(doc3)
+
+	t.Run("ok - full history", func(t *testing.T) {
+		history, err := store.HistorySinceVersion(testDID, 0)
+		assert.NoError(t, err)
+		require.Len(t, history, 4)
+
+		for idx, tx := range []Transaction{tx1, tx2a, tx2b, tx3} {
+			result := history[idx]
+			assert.Equal(t, raw[idx], result.Raw) // make sure result.Raw contains the original documents, not the merged document conflicts
+			assert.True(t, tx1.SigningTime.Equal(result.Created))
+			assert.True(t, tx.SigningTime.Equal(result.Updated))
+			assert.Equal(t, idx, result.Version)
+		}
+	})
+	t.Run("ok - partial history", func(t *testing.T) {
+		history, err := store.HistorySinceVersion(testDID, 1)
+		assert.NoError(t, err)
+		require.Len(t, history, 3)
+		assert.Equal(t, 1, history[0].Version)
+	})
+	t.Run("ok - no version updates", func(t *testing.T) {
+		history, err := store.HistorySinceVersion(testDID, 5)
+		assert.NoError(t, err)
+		assert.Len(t, history, 0)
+	})
+	t.Run("error - negative version", func(t *testing.T) {
+		history, err := store.HistorySinceVersion(testDID, -1)
+		assert.EqualError(t, err, "negative version")
+		assert.Nil(t, history)
+	})
+	t.Run("error - unknown DID", func(t *testing.T) {
+		history, err := store.HistorySinceVersion(did.MustParseDID("did:nuts:unknown"), 0)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
+		assert.Nil(t, history)
+	})
+	t.Run("error - document version not found", func(t *testing.T) {
+		err := store.db.WriteShelf(context.Background(), documentShelf, func(writer stoabs.Writer) error {
+			return writer.Delete(stoabs.NewHashKey(tx1.PayloadHash))
+		})
+		require.NoError(t, err)
+
+		history, err := store.HistorySinceVersion(testDID, 0)
+		assert.ErrorIs(t, err, storage.ErrNotFound)
+		assert.Nil(t, history)
 	})
 }

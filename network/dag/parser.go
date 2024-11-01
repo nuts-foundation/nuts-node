@@ -97,7 +97,7 @@ func parsePayload(transaction *transaction, _ jws.Headers, message *jws.Message)
 func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	contentType := headers.ContentType()
 	if !ValidatePayloadType(contentType) {
-		return transactionValidationError(errInvalidPayloadType.Error())
+		return transactionValidationError("%w", errInvalidPayloadType)
 	}
 	transaction.payloadType = contentType
 	return nil

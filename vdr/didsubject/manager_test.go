@@ -20,8 +20,11 @@ package didsubject
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"net/url"
 	"strings"
@@ -141,7 +144,9 @@ func TestManager_Create(t *testing.T) {
 
 		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(""))
 
-		require.EqualError(t, err, "unknown option: string")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrSubjectValidation)
+		assert.ErrorContains(t, err, "unknown option: string")
 	})
 	t.Run("already exists", func(t *testing.T) {
 		db := testDB(t)
@@ -163,7 +168,19 @@ func TestManager_Create(t *testing.T) {
 
 			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: ""}))
 
-			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrSubjectValidation)
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9._-]+$)")
+		})
+		t.Run("contains allowed characters", func(t *testing.T) {
+			db := testDB(t)
+			m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+				"example": testMethod{},
+			}}
+
+			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject_with-special.characters"}))
+
+			assert.NoError(t, err)
 		})
 		t.Run("contains illegal character (space)", func(t *testing.T) {
 			db := testDB(t)
@@ -173,7 +190,9 @@ func TestManager_Create(t *testing.T) {
 
 			_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(SubjectCreationOption{Subject: "subject with space"}))
 
-			require.EqualError(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9.-]+$)")
+			require.Error(t, err)
+			assert.ErrorIs(t, err, ErrSubjectValidation)
+			assert.ErrorContains(t, err, "invalid subject (must follow pattern: ^[a-zA-Z0-9._-]+$)")
 		})
 	})
 }
@@ -439,9 +458,13 @@ type testMethod struct {
 	committed bool
 	error     error
 	method    string
+	document  *orm.DidDocument
 }
 
 func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
+	if t.document != nil {
+		return t.document, nil
+	}
 	method := t.method
 	if method == "" {
 		method = "example"
@@ -475,4 +498,232 @@ func Test_sortDIDDocumentsByMethod(t *testing.T) {
 	require.Len(t, documents, 2)
 	assert.Equal(t, "did:test:1", documents[0].ID.String())
 	assert.Equal(t, "did:example:1", documents[1].ID.String())
+}
+
+func TestSqlManager_MigrateDIDHistoryToSQL(t *testing.T) {
+	testDID := did.MustParseDID("did:nuts:test")
+	vmID := did.MustParseDIDURL("did:nuts:test#key-1")
+	key, _ := spi.GenerateKeyPair()
+	vm, err := did.NewVerificationMethod(vmID, ssi.JsonWebKey2020, testDID, key.Public())
+	require.NoError(t, err)
+	service := did.Service{
+		ID:              ssi.MustParseURI(testDID.String() + "#service-1"),
+		Type:            "test",
+		ServiceEndpoint: "https://example.com",
+	}
+	created := time.Now().Add(-5 * time.Second)
+	subject := "test-subject"
+
+	rawDocNew, err := json.Marshal(did.Document{ID: testDID, CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: vm}}, VerificationMethod: did.VerificationMethods{vm}})
+	require.NoError(t, err)
+	rawDocUpdate, _ := json.Marshal(did.Document{ID: testDID, Service: []did.Service{service}, CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: vm}}})
+	rawDocDeactivate, _ := json.Marshal(did.Document{ID: testDID})
+	ormMigrateNew := orm.MigrationDocument{Raw: rawDocNew, Created: created, Updated: created, Version: 0}
+	ormMigrateUpdate := orm.MigrationDocument{Raw: rawDocUpdate, Created: created, Updated: created.Add(2 * time.Second), Version: 1}
+	ormMigrateDeactivate := orm.MigrationDocument{Raw: rawDocDeactivate, Created: created, Updated: created.Add(2 * time.Second), Version: 1}
+	ormDocNew, err := ormMigrateNew.ToORMDocument(subject)
+	require.NoError(t, err)
+	ormDocUpdate, _ := ormMigrateUpdate.ToORMDocument(subject)
+	ormDocDeactivate, _ := ormMigrateDeactivate.ToORMDocument(subject)
+	equal := func(t *testing.T, o1, o2 orm.DidDocument) {
+		//assert.NotEqual(t, o1.ID, o2.ID) // ToORMDocument generates a random ID everytime. Should probably be ignored.
+		assert.Equal(t, o1.DidID, o2.DidID)
+		assert.Equal(t, o1.DID, o2.DID)
+		assert.Equal(t, o1.CreatedAt, o2.CreatedAt)
+		assert.Equal(t, o1.UpdatedAt, o2.UpdatedAt)
+		assert.Equal(t, o1.Version, o2.Version)
+		assert.Equal(t, o1.VerificationMethods, o2.VerificationMethods)
+		assert.Equal(t, o1.Services, o2.Services)
+		assert.Equal(t, o1.Raw, o2.Raw)
+	}
+	t.Run("create", func(t *testing.T) {
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		manager := SqlManager{DB: db}
+
+		err = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+			assert.Equal(t, testDID, id)
+			assert.Equal(t, 0, sinceVersion)
+			return []orm.MigrationDocument{ormMigrateNew, ormMigrateUpdate}, nil
+		})
+		require.NoError(t, err)
+
+		// version 0
+		ormDoc, err := NewDIDDocumentManager(db).Latest(testDID, &created)
+		require.NoError(t, err)
+		equal(t, *ormDoc, ormDocNew)
+		// version 1
+		ormDoc, err = NewDIDDocumentManager(db).Latest(testDID, nil)
+		require.NoError(t, err)
+		equal(t, *ormDoc, ormDocUpdate)
+	})
+	t.Run("update", func(t *testing.T) {
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		manager := SqlManager{DB: db}
+
+		// init version 0
+		err = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+			assert.Equal(t, 0, sinceVersion)
+			return []orm.MigrationDocument{ormMigrateNew}, nil
+		})
+		require.NoError(t, err)
+		ormDoc, err := NewDIDDocumentManager(db).Latest(testDID, nil)
+		require.NoError(t, err)
+		equal(t, *ormDoc, ormDocNew)
+
+		// update to version 1
+		err = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+			assert.Equal(t, 1, sinceVersion)
+			return []orm.MigrationDocument{ormMigrateUpdate}, nil
+		})
+		require.NoError(t, err)
+		ormDoc, err = NewDIDDocumentManager(db).Latest(testDID, nil)
+		require.NoError(t, err)
+		equal(t, *ormDoc, ormDocUpdate)
+	})
+	t.Run("deactivate", func(t *testing.T) {
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		manager := SqlManager{DB: db}
+
+		// create in version 0, deactivate in version 1
+		err = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+			return []orm.MigrationDocument{ormMigrateNew, ormMigrateDeactivate}, nil
+		})
+		require.NoError(t, err)
+		ormDoc, err := NewDIDDocumentManager(db).Latest(testDID, nil)
+		require.NoError(t, err)
+		equal(t, *ormDoc, ormDocDeactivate)
+
+		// don't update deactivated document
+		assert.NotPanics(t, func() {
+			_ = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+				panic("function should not be called")
+			})
+		})
+	})
+	t.Run("error - getHistory", func(t *testing.T) {
+		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
+		manager := SqlManager{DB: db}
+		err = manager.MigrateDIDHistoryToSQL(testDID, subject, func(id did.DID, sinceVersion int) ([]orm.MigrationDocument, error) {
+			return nil, errors.New("test")
+		})
+		assert.EqualError(t, err, "test")
+	})
+}
+
+func TestSqlManager_MigrateAddWebToNuts(t *testing.T) {
+	didNuts := did.MustParseDID("did:nuts:test")
+	didWeb := did.MustParseDID("did:web:example.com")
+	nutsDoc := generateTestORMDoc(t, didNuts, didNuts.String(), true)
+	webDoc := generateTestORMDoc(t, didWeb, didNuts.String(), false) // don't add service to check it gets migrated properly
+
+	var err error
+	auditContext := audit.Context(context.Background(), "system", "VDR", "migrate_add_did:web_to_did:nuts")
+
+	t.Run("ok", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nutsDoc.VerificationMethods, nutsDoc.Services)
+		require.NoError(t, err)
+		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+			"web": testMethod{document: &webDoc},
+		}, PreferredOrder: []string{"web"}}
+
+		// create did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 2)
+		assert.Equal(t, didNuts.String(), dids[0].ID)
+		assert.Equal(t, didWeb.String(), dids[1].ID)
+
+		require.NoError(t, err)
+		docWeb, err := NewDIDDocumentManager(db).Latest(didWeb, nil)
+		require.NoError(t, err)
+		assert.Len(t, docWeb.Services, 0)
+	})
+	t.Run("ok - already has did:web", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nutsDoc.VerificationMethods, nutsDoc.Services)
+		require.NoError(t, err)
+		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+			"web": testMethod{document: &webDoc},
+		}, PreferredOrder: []string{"web"}}
+
+		// migration 1; create did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 2)
+
+		// migration 2; already has a did:web
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids2, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids2, 2)
+		assert.Equal(t, dids, dids2)
+	})
+	t.Run("ok - deactivated", func(t *testing.T) {
+		db := testDB(t)
+		_, err = NewDIDDocumentManager(db).CreateOrUpdate(nutsDoc.DID, nil, nil)
+		require.NoError(t, err)
+		m := SqlManager{DB: db}
+
+		// migrate is a noop
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+		assert.NoError(t, err)
+
+		dids, err := NewDIDManager(db).FindBySubject(didNuts.String())
+		assert.NoError(t, err)
+		require.Len(t, dids, 1)
+		assert.Equal(t, didNuts.String(), dids[0].ID)
+	})
+	t.Run("error - did not found", func(t *testing.T) {
+		db := testDB(t)
+		m := SqlManager{DB: db}
+
+		// empty db
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	})
+	t.Run("error - doc not found", func(t *testing.T) {
+		db := testDB(t)
+		storage.AddDIDtoSQLDB(t, db, didNuts) // only add did, not the doc
+		m := SqlManager{DB: db}
+
+		// migrate is a noop
+		err = m.MigrateAddWebToNuts(auditContext, didNuts)
+
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	})
+}
+
+func generateTestORMDoc(t *testing.T, id did.DID, subject string, addService bool) orm.DidDocument {
+	// verification method
+	vmID := did.MustParseDIDURL(id.String() + "#key-1")
+	key, _ := spi.GenerateKeyPair()
+	vm, err := did.NewVerificationMethod(vmID, ssi.JsonWebKey2020, id, key.Public())
+	require.NoError(t, err)
+	// service
+	var service did.Service
+	if addService {
+		service = did.Service{
+			ID:              ssi.MustParseURI(id.String() + "#service-1"),
+			Type:            "test",
+			ServiceEndpoint: "https://example.com",
+		}
+	}
+	// generate and parse document
+	didDoc := did.Document{ID: id, VerificationMethod: did.VerificationMethods{vm}, CapabilityInvocation: []did.VerificationRelationship{{VerificationMethod: vm}}, Service: []did.Service{service}}
+	rawDoc, err := json.Marshal(didDoc)
+	require.NoError(t, err)
+	now := time.Now()
+	ormDoc, err := orm.MigrationDocument{Raw: rawDoc, Created: now, Updated: now, Version: 0}.ToORMDocument(subject)
+	require.NoError(t, err)
+	return ormDoc
 }

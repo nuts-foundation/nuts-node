@@ -28,5 +28,5 @@ func CreateTestSession(ctx context.Context, subjectID string) (context.Context, 
 	session.Save = func() error {
 		return nil
 	}
-	return context.WithValue(ctx, userSessionContextKey, session), session
+	return context.WithValue(ctx, userSessionContextKey{}, session), session
 }

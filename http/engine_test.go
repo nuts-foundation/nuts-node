@@ -131,6 +131,7 @@ func TestEngine_Configure(t *testing.T) {
 				request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+securedPath, nil)
 				log.Logger().Infof("requesting %v", request.URL.String())
 				request.Header.Set("Authorization", "Bearer "+string(serializedToken))
+				request.Header.Set(engine.config.ClientIPHeaderName, "1.2.3.4")
 				response, err := http.DefaultClient.Do(request)
 
 				assert.NoError(t, err)
@@ -254,6 +255,7 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 	t.Run("requestLogger", func(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config.Internal.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+		engine.config.ClientIPHeaderName = "X-Custom-Header"
 
 		err := engine.Configure(*core.NewServerConfig())
 		require.NoError(t, err)
@@ -282,6 +284,24 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 			output.Reset()
 			_, _ = http.Get("http://" + engine.config.Internal.Address + "/some-path")
 			assert.Contains(t, output.String(), "HTTP request")
+		})
+		t.Run("ip log - custom header", func(t *testing.T) {
+			// Call to another, registered path is logged
+			output.Reset()
+			request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+"/some-path", nil)
+			request.Header.Set(engine.config.ClientIPHeaderName, "1.2.3.4")
+			_, err = http.DefaultClient.Do(request)
+			require.NoError(t, err)
+			assert.Contains(t, output.String(), "remote_ip=1.2.3.4")
+		})
+		t.Run("ip log - custom header missing", func(t *testing.T) {
+			// Call to another, registered path is logged
+			output.Reset()
+			request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.Internal.Address+"/some-path", nil)
+			request.Header.Set(engine.config.ClientIPHeaderName, "")
+			_, err = http.DefaultClient.Do(request)
+			require.NoError(t, err)
+			assert.Contains(t, output.String(), "remote_ip=127.0.0.1")
 		})
 	})
 	t.Run("bodyLogger", func(t *testing.T) {

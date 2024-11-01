@@ -37,8 +37,6 @@ type Transactions interface {
 	Subscribe(name string, receiver dag.ReceiverFn, filters ...SubscriberOption) error
 	// Subscribers returns the list of notifiers on the DAG that emit events to subscribers.
 	Subscribers() []dag.Notifier
-	// CleanupSubscriberEvents removes events. Example use is cleaning up events that errored but should be removed due to a bugfix.
-	CleanupSubscriberEvents(subcriberName, errorPrefix string) error
 	// GetTransactionPayload retrieves the transaction Payload for the given transaction.
 	// If the transaction or Payload is not found, dag.ErrPayloadNotFound is returned.
 	GetTransactionPayload(transactionRef hash.SHA256Hash) ([]byte, error)
@@ -61,13 +59,12 @@ type Transactions interface {
 	DiscoverServices(updatedDID did.DID)
 	// AddressBook returns the list of contacts in the address book.
 	AddressBook() []transport.Contact
+	// Disabled returns true if core.ServerConfig.DIDMethods does not contain 'nuts'
+	Disabled() bool
 }
 
 // EventType defines a type for specifying the kind of events that can be published/subscribed on the Network.
 type EventType string
-
-// AnyPayloadType is a wildcard that matches with any payload type.
-const AnyPayloadType = "*"
 
 // Receiver defines a callback function for processing transactions/payloads received by the DAG.
 type Receiver func(transaction dag.Transaction, payload []byte) error

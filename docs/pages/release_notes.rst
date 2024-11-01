@@ -3,11 +3,12 @@ Release notes
 #############
 
 *******************
-Peanut (6.0.0)
+Peanut (v6.0.0)
 *******************
 
-**Release date:** TBD
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.0.0...v6.0.0
+Release date: 2024-10-25
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.0...v6.0.0
 
 ================
 Breaking changes
@@ -17,7 +18,9 @@ Breaking changes
   When migrating from v5, change the owner of the data directory on the host to that of the container's user. (``chown -R 18081:18081 /path/to/host/data-dir``)
 - Docker image tags have been changed: previously version tags had were prefixed with ``v`` (e.g., ``v5.0.0``), this prefix has been dropped to better adhere to industry standards.
 - The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
+- Managed ``did:nuts`` DIDs are migrated to the new SQL storage. Unresolved DID document conflicts may contain an incorrect state after migrating to v6. See ``/status/diagnostics`` if you own any DIDs with a document conflict; use ``/internal/vdr/v1/did/conflicted`` to find the specific DIDs.
 - Removed legacy API authentication tokens.
+- See caveats in :ref:`version-incompatibilities`.
 
 ============
 New Features
@@ -51,7 +54,7 @@ Changes
 - Removed support for the UZI authentication means.
 - Documentation of ``did:nuts``-related features have been removed (refer to v5 documentation).
 - Documentation of specific use cases (e.g. health care in general or eOverdracht) has been moved to the `Nuts wiki <https://wiki.nuts.nl>`_.
-- Node can now be run without configuring TLS when the gRPC network isn't used (no bootstrap node configured and no network state), to cater use cases that don't use ``did:nuts``.
+- Node can now be run without configuring TLS when the gRPC network isn't used (``didmethods`` does not contain ``nuts``), to cater use cases that don't use ``did:nuts``.
 - Crypto backends store keys under a key name and are linked to the kid via the ``key_reference`` SQL table.
 
 The following features have also been changed:
@@ -61,8 +64,9 @@ DID management
 
 You no longer manage changes to DIDs but to Subjects. Each subject has multiple DIDs, one for each enabled DID method.
 You're free to choose an ID for a Subject. This feature enables forwards compatibility with new DID methods.
-DID methods can be enabled and disabled via the ``vdr.didmethods`` config parameter. (Default: ``['web','nuts']``).
-Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID.
+DID methods can be enabled and disabled via the ``didmethods`` config parameter. (Default: ``['web','nuts']``).
+Existing ``did:nuts`` documents will be migrated to self-controlled at startup and the DID will be added as SubjectID together with a new ``did:web`` DID.
+See :ref:`nuts-node-migrations` for more information.
 
 HTTP interface
 ==============
@@ -94,7 +98,10 @@ The following features have been deprecated:
   Starting v6, the preferred way to support other key storage backends is to directly implement it in the Nuts node itself.
   This also reduces the complexity of a Nuts node deployment (one service less to configure and deploy).
   Users are recommended to switch to the built-in client of their key storage backend.
-- VDR v1 API.
+- Auth v1 API, replaced by Auth v2
+- DIDMan v1 API, to be removed
+- Network v1 API, to be removed
+- VDR v1 API, replaced by VDR v2
 
 ************************
 Hazelnut update (v5.4.11)

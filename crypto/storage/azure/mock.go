@@ -22,6 +22,7 @@ import (
 type MockkeyVaultClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockkeyVaultClientMockRecorder
+	isgomock struct{}
 }
 
 // MockkeyVaultClientMockRecorder is the mock recorder for MockkeyVaultClient.

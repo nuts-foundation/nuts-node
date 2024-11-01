@@ -27,33 +27,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/http/cache"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/labstack/echo/v4"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
+	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/http/cache"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -97,7 +98,6 @@ type Wrapper struct {
 	storageEngine  storage.Engine
 	jsonldManager  jsonld.JSONLD
 	vcr            vcr.VCR
-	vdr            vdr.VDR
 	jwtSigner      nutsCrypto.JWTSigner
 	keyResolver    resolver.KeyResolver
 	subjectManager didsubject.Manager
@@ -105,7 +105,7 @@ type Wrapper struct {
 }
 
 func New(
-	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, vdrInstance vdr.VDR, subjectManager didsubject.Manager, storageEngine storage.Engine,
+	authInstance auth.AuthenticationServices, vcrInstance vcr.VCR, didKeyResolver resolver.DIDKeyResolver, subjectManager didsubject.Manager, storageEngine storage.Engine,
 	policyBackend policy.PDPBackend, jwtSigner nutsCrypto.JWTSigner, jsonldManager jsonld.JSONLD) *Wrapper {
 
 	templates := template.New("oauth2 templates")
@@ -113,21 +113,19 @@ func New(
 	if err != nil {
 		panic(err)
 	}
-	keyResolver := resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}
 	return &Wrapper{
 		auth:           authInstance,
 		policyBackend:  policyBackend,
 		storageEngine:  storageEngine,
 		vcr:            vcrInstance,
-		vdr:            vdrInstance,
 		subjectManager: subjectManager,
 		jsonldManager:  jsonldManager,
 		jwtSigner:      jwtSigner,
-		keyResolver:    keyResolver,
+		keyResolver:    didKeyResolver,
 		jar: jar{
 			auth:        authInstance,
 			jwtSigner:   jwtSigner,
-			keyResolver: keyResolver,
+			keyResolver: didKeyResolver,
 		},
 	}
 }
@@ -202,6 +200,9 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		pe.ErrNoCredentials:                 http.StatusPreconditionFailed,
 		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
+		iamclient.ErrInvalidClientCall:      http.StatusBadRequest,
+		iamclient.ErrBadGateway:             http.StatusBadGateway,
+		iamclient.ErrPreconditionFailed:     http.StatusPreconditionFailed,
 	})
 }
 
@@ -335,7 +336,11 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 }
 
 // IntrospectAccessToken allows the resource server (XIS/EHR) to introspect details of an access token issued by this node
-func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+func (r Wrapper) IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error) {
+	headers := ctx.Value(httpRequestContextKey{}).(*http.Request).Header
+	if !slices.Contains(headers["Content-Type"], "application/x-www-form-urlencoded") {
+		return nil, core.Error(http.StatusUnsupportedMediaType, "Content-Type MUST be set to application/x-www-form-urlencoded")
+	}
 	input := request.Body.Token
 	response, err := r.introspectAccessToken(input)
 	if err != nil {
@@ -351,7 +356,11 @@ func (r Wrapper) IntrospectAccessToken(_ context.Context, request IntrospectAcce
 
 // IntrospectAccessTokenExtended allows the resource server (XIS/EHR) to introspect details of an access token issued by this node.
 // It returns the same information as IntrospectAccessToken, but with additional information.
-func (r Wrapper) IntrospectAccessTokenExtended(_ context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error) {
+func (r Wrapper) IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error) {
+	headers := ctx.Value(httpRequestContextKey{}).(*http.Request).Header
+	if !slices.Contains(headers["Content-Type"], "application/x-www-form-urlencoded") {
+		return nil, core.Error(http.StatusUnsupportedMediaType, "Content-Type MUST be set to application/x-www-form-urlencoded")
+	}
 	input := request.Body.Token
 	response, err := r.introspectAccessToken(input)
 	if err != nil {
@@ -366,7 +375,7 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// Validate token
 	if input == "" {
 		// Return 200 + 'Active = false' when token is invalid or malformed
-		log.Logger().Debug("IntrospectAccessToken: missing token")
+		log.Logger().Warn("IntrospectAccessToken: missing token")
 		return nil, nil
 	}
 
@@ -599,7 +608,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(&clientID, r.vdr.SupportedMethods())
+	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -663,7 +672,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
 	issuerURL := r.subjectToBaseURL(request.SubjectID)
-	configuration := openIDConfiguration(issuerURL, set, r.vdr.SupportedMethods())
+	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)

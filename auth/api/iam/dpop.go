@@ -49,7 +49,7 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 	// create new DPoP header
 	httpRequest, err := http.NewRequest(request.Body.Htm, request.Body.Htu, nil)
 	if err != nil {
-		return nil, core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError("%w", err)
 	}
 	token := dpop.New(*httpRequest)
 	token.GenerateProof(request.Body.Token)
@@ -58,7 +58,7 @@ func (r Wrapper) CreateDPoPProof(ctx context.Context, request CreateDPoPProofReq
 	// unescape manually here
 	kid, err := url.PathUnescape(request.Kid)
 	if err != nil {
-		return nil, core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError("%w", err)
 	}
 
 	dpop, err := r.jwtSigner.SignDPoP(ctx, *token, kid)

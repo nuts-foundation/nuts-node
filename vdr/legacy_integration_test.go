@@ -256,6 +256,7 @@ func setup(t *testing.T) testContext {
 		config.Strictmode = false
 		config.Verbosity = "trace"
 		config.Datadir = testDir
+		config.DIDMethods = []string{"nuts"}
 	})
 
 	// Configure the logger:
@@ -300,7 +301,6 @@ func setup(t *testing.T) testContext {
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockValidator(ctrl)
 	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine, pkiMock)
-	vdr.Config().(*Config).DIDMethods = []string{"nuts"}
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))

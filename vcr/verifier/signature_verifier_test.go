@@ -269,7 +269,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 		err := sv.VerifySignature(vc2, nil)
 
-		assert.EqualError(t, err, "verification error: unsupported proof type: json: cannot unmarshal array into Go value of type proof.LDProof")
+		assert.EqualError(t, err, "verification error: missing proof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {

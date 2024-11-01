@@ -14,9 +14,10 @@ paths:
         It'll initiate a s2s (RFC021) flow.
 
         error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
+        * 400 - one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
+        * 412 - the organization wallet does not contain the correct credentials or doesn't support the right DID methods
+        * 502 - the authorizer returned an error
+        * 503 - the authorizer could not be reached
       tags:
         - auth
       parameters:
@@ -591,16 +592,16 @@ components:
           $ref: '#/components/schemas/cnf'
         iss:
           type: string
-          description: Contains the DID of the authorizer. Should be equal to 'sub'
-          example: did:web:example.com:resource-owner
+          description: Issuer URL of the authorizer.
+          example: https://example.com/oauth2/authorizer
         aud:
           type: string
           description: RFC7662 - Service-specific string identifier or list of string identifiers representing the intended audience for this token, as defined in JWT [RFC7519].
           example: "https://target_token_endpoint"
         client_id:
           type: string
-          description: The client (DID) the access token was issued to
-          example: did:web:example.com:client
+          description: The client identity the access token was issued to. Since the Verifiable Presentation is used to grant access, the client_id reflects the client_id in the access token request.
+          example: https://example.com/oauth2/client
         exp:
           type: integer
           description: Expiration date in seconds since UNIX epoch

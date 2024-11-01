@@ -25,6 +25,7 @@ import (
 	"embed"
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
 	"strings"
 	"testing"
@@ -761,9 +762,12 @@ func Test_matchFilter(t *testing.T) {
 
 		for _, testCase := range testCases {
 			t.Run(testCase.name, func(t *testing.T) {
-				got, err := matchFilter(testCase.filter, testCase.value)
+				matches, matchedValue, err := matchFilter(testCase.filter, testCase.value)
 				require.NoError(t, err)
-				assert.Equal(t, testCase.want, got)
+				assert.Equal(t, testCase.want, matches)
+				if testCase.want && matches {
+					assert.Equal(t, testCase.value, matchedValue)
+				}
 			})
 		}
 	})
@@ -775,13 +779,46 @@ func Test_matchFilter(t *testing.T) {
 		filters := []Filter{f1, f2, f3}
 		t.Run("ok", func(t *testing.T) {
 			for _, filter := range filters {
-				match, err := matchFilter(filter, stringValue)
+				match, matchedValue, err := matchFilter(filter, stringValue)
 				require.NoError(t, err)
 				assert.True(t, match)
+				assert.Equal(t, stringValue, matchedValue)
 			}
 		})
+		t.Run("pattern", func(t *testing.T) {
+			t.Run("no match", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("[0-9]+")}, "value")
+				require.NoError(t, err)
+				assert.Nil(t, value)
+				assert.False(t, match)
+			})
+			t.Run("capture group", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("v([a-z]+)e")}, "value")
+				require.NoError(t, err)
+				assert.Equal(t, "alu", value)
+				assert.True(t, match)
+			})
+			t.Run("no capture group", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("value")}, "value")
+				require.NoError(t, err)
+				assert.Equal(t, "value", value)
+				assert.True(t, match)
+			})
+			t.Run("non-capturing group", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("(?:val)ue")}, "value")
+				require.NoError(t, err)
+				assert.Equal(t, "value", value)
+				assert.True(t, match)
+			})
+			t.Run("too many capture groups", func(t *testing.T) {
+				match, value, err := matchFilter(Filter{Type: "string", Pattern: to.Ptr("(v)(a)lue")}, "value")
+				require.EqualError(t, err, "can't return results from multiple regex capture groups")
+				assert.False(t, match)
+				assert.Nil(t, value)
+			})
+		})
 		t.Run("enum value not found", func(t *testing.T) {
-			match, err := matchFilter(f2, "foo")
+			match, _, err := matchFilter(f2, "foo")
 			require.NoError(t, err)
 			assert.False(t, match)
 		})
@@ -790,17 +827,17 @@ func Test_matchFilter(t *testing.T) {
 	t.Run("error cases", func(t *testing.T) {
 		t.Run("enum with wrong type", func(t *testing.T) {
 			f := Filter{Type: "object"}
-			match, err := matchFilter(f, struct{}{})
+			match, _, err := matchFilter(f, struct{}{})
 			assert.False(t, match)
 			assert.Equal(t, err, ErrUnsupportedFilter)
 		})
 		t.Run("incorrect regex", func(t *testing.T) {
 			pattern := "["
 			f := Filter{Type: "string", Pattern: &pattern}
-			match, err := matchFilter(f, stringValue)
+			match, _, err := matchFilter(f, stringValue)
 			assert.False(t, match)
 			assert.Error(t, err, "error parsing regexp: missing closing ]: `[`")
-			match, err = matchFilter(f, []interface{}{stringValue})
+			match, _, err = matchFilter(f, []interface{}{stringValue})
 			assert.False(t, match)
 			assert.Error(t, err, "error parsing regexp: missing closing ]: `[`")
 		})

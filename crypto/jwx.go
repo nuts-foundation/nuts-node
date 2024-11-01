@@ -82,9 +82,7 @@ func (client *Crypto) SignJWS(ctx context.Context, payload []byte, headers map[s
 		return "", err
 	}
 
-	if _, ok := headers["jwk"]; !ok {
-		headers["kid"] = kid
-	}
+	headers["kid"] = kid
 	return SignJWS(ctx, payload, headers, privateKey, detached)
 }
 
@@ -247,10 +245,13 @@ func SignJWS(ctx context.Context, payload []byte, protectedHeaders map[string]in
 			return "", fmt.Errorf("unable to set header %s: %w", key, err)
 		}
 	}
-	// The JWX library is fine with creating a JWK for a private key (including the private exponents), so
-	// we want to make sure the `jwk` header (if present) does not (accidentally) contain a private key.
-	// That would lead to the node leaking its private key material in the resulting JWS which would be very, very bad.
 	if headers.JWK() != nil {
+		// 'kid' has been logged, use 'jwk' to sign
+		_ = headers.Remove(jwk.KeyIDKey)
+
+		// The JWX library is fine with creating a JWK for a private key (including the private exponents), so
+		// we want to make sure the `jwk` header (if present) does not (accidentally) contain a private key.
+		// That would lead to the node leaking its private key material in the resulting JWS which would be very, very bad.
 		var jwkAsPrivateKey crypto.Signer
 		if err := headers.JWK().Raw(&jwkAsPrivateKey); err == nil {
 			// `err != nil` is good in this case, because that means the key is not assignable to crypto.Signer,

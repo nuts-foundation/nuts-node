@@ -40,6 +40,8 @@ import (
 	"time"
 )
 
+const testSeed = "1234567890"
+
 var keyPairs map[string]*ecdsa.PrivateKey
 var authorityDID did.DID
 var aliceSubject string
@@ -97,6 +99,16 @@ func testDefinitions() map[string]ServiceDefinition {
 										Type:    "string",
 										Pattern: to.Ptr("did:example:authority"),
 									},
+								},
+							},
+						},
+					}, {
+						Id: "2",
+						Constraints: &pe.Constraints{
+							Fields: []pe.Field{
+								{
+									Id:   to.Ptr("auth_server_url"),
+									Path: []string{"$.credentialSubject.authServerURL"},
 								},
 							},
 						},

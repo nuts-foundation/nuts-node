@@ -35,10 +35,11 @@ const serviceID = "wonderland"
 func TestWrapper_GetPresentations(t *testing.T) {
 	lastTimestamp := 1
 	presentations := map[string]vc.VerifiablePresentation{}
+	seed := "seed"
 	ctx := context.Background()
 	t.Run("no timestamp", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(presentations, lastTimestamp, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(presentations, seed, lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{ServiceID: serviceID})
 
@@ -46,11 +47,12 @@ func TestWrapper_GetPresentations(t *testing.T) {
 		require.IsType(t, GetPresentations200JSONResponse{}, response)
 		assert.Equal(t, lastTimestamp, response.(GetPresentations200JSONResponse).Timestamp)
 		assert.Equal(t, presentations, response.(GetPresentations200JSONResponse).Entries)
+		assert.Equal(t, seed, response.(GetPresentations200JSONResponse).Seed)
 	})
 	t.Run("with timestamp", func(t *testing.T) {
 		givenTimestamp := 1
 		test := newMockContext(t)
-		test.server.EXPECT().Get(gomock.Any(), serviceID, 1).Return(presentations, lastTimestamp, nil)
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 1).Return(presentations, seed, lastTimestamp, nil)
 
 		response, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{
 			ServiceID: serviceID,
@@ -66,7 +68,7 @@ func TestWrapper_GetPresentations(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		test := newMockContext(t)
-		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(nil, 0, errors.New("foo"))
+		test.server.EXPECT().Get(gomock.Any(), serviceID, 0).Return(nil, "", 0, errors.New("foo"))
 
 		_, err := test.wrapper.GetPresentations(ctx, GetPresentationsRequestObject{ServiceID: serviceID})
 

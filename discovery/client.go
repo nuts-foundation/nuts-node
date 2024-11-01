@@ -33,7 +33,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"slices"
 	"strings"
 	"time"
@@ -41,43 +43,34 @@ import (
 
 // clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.
 // It can refresh registered Verifiable Presentations when they are about to expire.
-type clientRegistrationManager interface {
-	activate(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error
-	deactivate(ctx context.Context, serviceID, subjectID string) error
-	// refresh checks which Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
-	refresh(ctx context.Context, now time.Time) error
-}
-
-var _ clientRegistrationManager = &defaultClientRegistrationManager{}
-
-type defaultClientRegistrationManager struct {
+type clientRegistrationManager struct {
 	services       map[string]ServiceDefinition
 	store          *sqlStore
 	client         client.HTTPClient
 	vcr            vcr.VCR
 	subjectManager didsubject.Manager
+	didResolver    resolver.DIDResolver
+	verifier       presentationVerifier
 }
 
-func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.Manager) *defaultClientRegistrationManager {
-	return &defaultClientRegistrationManager{
+func newRegistrationManager(services map[string]ServiceDefinition, store *sqlStore, client client.HTTPClient, vcr vcr.VCR, subjectManager didsubject.Manager, didResolver resolver.DIDResolver, verifier presentationVerifier) *clientRegistrationManager {
+	return &clientRegistrationManager{
 		services:       services,
 		store:          store,
 		client:         client,
 		vcr:            vcr,
 		subjectManager: subjectManager,
+		didResolver:    didResolver,
+		verifier:       verifier,
 	}
 }
 
-func (r *defaultClientRegistrationManager) activate(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error {
-	service, serviceExists := r.services[serviceID]
-	if !serviceExists {
-		return ErrServiceNotFound
-	}
-	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
+func (r *clientRegistrationManager) activate(ctx context.Context, serviceID, subjectID string, parameters map[string]interface{}) error {
+	service, subjectDIDs, err := r.getServiceAndSubject(ctx, serviceID, subjectID)
 	if err != nil {
 		return err
 	}
-	// filter DIDs on DID methods supported by the service
+	// filter DIDs on DID methods supported by the service; len == 0 means all DID Methods are accepted
 	if len(service.DIDMethods) > 0 {
 		j := 0
 		for i, did := range subjectDIDs {
@@ -88,8 +81,21 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 		}
 		subjectDIDs = subjectDIDs[:j]
 	}
+
+	// and filter by deactivated status
+	j := 0
+	for i, did := range subjectDIDs {
+		_, _, err := r.didResolver.Resolve(did, nil)
+		// any temporary error, like db errors should not cause a deregister action, only ErrDeactivated
+		if err == nil || !errors.Is(err, resolver.ErrDeactivated) {
+			subjectDIDs[j] = subjectDIDs[i]
+			j++
+		}
+	}
+	subjectDIDs = subjectDIDs[:j]
+
 	if len(subjectDIDs) == 0 {
-		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrNoSupportedDIDMethods, subjectID)
 	}
 
 	log.Logger().Debugf("Registering Verifiable Presentation on Discovery Service (service=%s, subject=%s)", service.ID, subjectID)
@@ -99,7 +105,12 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	for _, subjectDID := range subjectDIDs {
 		err := r.registerPresentation(ctx, subjectDID, service, parameters)
 		if err != nil {
-			loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			if !errors.Is(err, pe.ErrNoCredentials) { // ignore missing credentials
+				loopErrs = append(loopErrs, fmt.Errorf("%s: %w", subjectDID.String(), err))
+			} else {
+				// trace logging for missing credentials
+				log.Logger().Tracef("Missing credentials for Discovery Service (service=%s, subject=%s, did=%s): %s", service.ID, subjectID, subjectDID, err.Error())
+			}
 		} else {
 			registeredDIDs = append(registeredDIDs, subjectDID.String())
 		}
@@ -130,23 +141,18 @@ func (r *defaultClientRegistrationManager) activate(ctx context.Context, service
 	return nil
 }
 
-func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, serviceID, subjectID string) error {
-	service, serviceExists := r.services[serviceID]
-	if !serviceExists {
-		return ErrServiceNotFound
+func (r *clientRegistrationManager) deactivate(ctx context.Context, serviceID, subjectID string) error {
+	service, subjectDIDs, err := r.getServiceAndSubject(ctx, serviceID, subjectID)
+	if err != nil {
+		return err
 	}
 	// delete DID/service combination from DB, so it won't be registered again
-	err := r.store.updatePresentationRefreshTime(serviceID, subjectID, nil, nil)
+	err = r.store.updatePresentationRefreshTime(serviceID, subjectID, nil, nil)
 	if err != nil {
 		return err
 	}
-	// subject is now successfully deactivated for the service, anything after this point is best effort
-	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		// this could be a didsubject.ErrSubjectNotFound after the subject has been deactivated
-		// still fail in this case since we no longer have the keys to sign a retraction
-		return err
-	}
+	// subject is now successfully deactivated for the service,
+	// anything after this point is best-effort and should include ErrPresentationRegistrationFailed to trigger a 202 status code
 
 	// filter DIDs on DID methods supported by the service
 	if len(service.DIDMethods) > 0 {
@@ -161,7 +167,7 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 	}
 	if len(subjectDIDs) == 0 {
 		// if this means we can't deactivate a previously registered subject because the DID methods have changed, then we rely on the refresh interval to clean up.
-		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrDIDMethodsNotSupported, subjectID)
+		return fmt.Errorf("%w: %w for %s", ErrPresentationRegistrationFailed, ErrNoSupportedDIDMethods, subjectID)
 	}
 
 	// find all active presentations
@@ -192,17 +198,30 @@ func (r *defaultClientRegistrationManager) deactivate(ctx context.Context, servi
 	return nil
 }
 
-func (r *defaultClientRegistrationManager) deregisterPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, vp vc.VerifiablePresentation) error {
+// getServiceAndSubject returns the service and subject, or ErrServiceNotFound / didsubject.ErrSubjectNotFound if either does not exist
+func (r *clientRegistrationManager) getServiceAndSubject(ctx context.Context, serviceID, subjectID string) (ServiceDefinition, []did.DID, error) {
+	service, serviceExists := r.services[serviceID]
+	if !serviceExists {
+		return ServiceDefinition{}, nil, ErrServiceNotFound
+	}
+	subjectDIDs, err := r.subjectManager.ListDIDs(ctx, subjectID)
+	if err != nil {
+		return ServiceDefinition{}, nil, err
+	}
+	return service, subjectDIDs, nil
+}
+
+func (r *clientRegistrationManager) deregisterPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, vp vc.VerifiablePresentation) error {
 	presentation, err := r.buildPresentation(ctx, subjectDID, service, nil, map[string]interface{}{
 		"retract_jti": vp.ID.String(),
-	})
+	}, &retractionPresentationType)
 	if err != nil {
 		return err
 	}
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) error {
+func (r *clientRegistrationManager) registerPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) error {
 	presentation, err := r.findCredentialsAndBuildPresentation(ctx, subjectDID, service, parameters)
 	if err != nil {
 		return err
@@ -210,7 +229,7 @@ func (r *defaultClientRegistrationManager) registerPresentation(ctx context.Cont
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) (*vc.VerifiablePresentation, error) {
+func (r *clientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) (*vc.VerifiablePresentation, error) {
 	credentials, err := r.vcr.Wallet().List(ctx, subjectDID)
 	if err != nil {
 		return nil, err
@@ -231,27 +250,18 @@ func (r *defaultClientRegistrationManager) findCredentialsAndBuildPresentation(c
 		return nil, fmt.Errorf(errStr, service.ID, subjectDID, err)
 	}
 
-	// add registration params as credential if not already done so by the Presentation Definition
-	var found bool
-	for _, cred := range matchingCredentials {
-		if cred.ID == registrationCredential.ID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		matchingCredentials = append(matchingCredentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
-	}
-
-	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil)
+	return r.buildPresentation(ctx, subjectDID, service, matchingCredentials, nil, nil)
 }
 
-func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition,
-	credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}) (*vc.VerifiablePresentation, error) {
+func (r *clientRegistrationManager) buildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, credentials []vc.VerifiableCredential, additionalProperties map[string]interface{}, additionalVPType *ssi.URI) (*vc.VerifiablePresentation, error) {
 	nonce := nutsCrypto.GenerateNonce()
 	// Make sure the presentation is not valid for longer than the max validity as defined by the Service Definitio.
 	expires := time.Now().Add(time.Duration(service.PresentationMaxValidity-1) * time.Second).Truncate(time.Second)
 	holderURI := subjectDID.URI()
+	var additionalVPTypes []ssi.URI
+	if additionalVPType != nil {
+		additionalVPTypes = append(additionalVPTypes, *additionalVPType)
+	}
 	return r.vcr.Wallet().BuildPresentation(ctx, credentials, holder.PresentationOptions{
 		ProofOptions: proof.ProofOptions{
 			Created:              time.Now(),
@@ -260,12 +270,14 @@ func (r *defaultClientRegistrationManager) buildPresentation(ctx context.Context
 			Nonce:                &nonce,
 			AdditionalProperties: additionalProperties,
 		},
-		Format: vc.JWTPresentationProofFormat,
-		Holder: &holderURI,
+		AdditionalTypes: additionalVPTypes,
+		Format:          vc.JWTPresentationProofFormat,
+		Holder:          &holderURI,
 	}, &subjectDID, false)
 }
 
-func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time.Time) error {
+// refresh checks which Verifiable Presentations that are about to expire, and should be refreshed on the Discovery Service.
+func (r *clientRegistrationManager) refresh(ctx context.Context, now time.Time) error {
 	log.Logger().Debug("Refreshing own registered Verifiable Presentations on Discovery Services")
 	refreshCandidates, err := r.store.getSubjectsToBeRefreshed(now)
 	if err != nil {
@@ -275,11 +287,13 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	for _, candidate := range refreshCandidates {
 		var loopErr error
 		if err = r.activate(ctx, candidate.ServiceID, candidate.SubjectID, candidate.Parameters); err != nil {
-			if errors.Is(err, ErrDIDMethodsNotSupported) {
+			if errors.Is(err, ErrNoSupportedDIDMethods) {
 				// DID method no longer supported, remove
 				err = r.store.updatePresentationRefreshTime(candidate.ServiceID, candidate.SubjectID, nil, nil)
 				if err != nil {
 					loopErr = fmt.Errorf("failed to remove subject with unsupported DID method (service=%s, subject=%s): %w", candidate.ServiceID, candidate.SubjectID, err)
+				} else {
+					loopErr = fmt.Errorf("removed subject that has no supported DID method (service=%s, subject=%s)", candidate.ServiceID, candidate.SubjectID)
 				}
 			} else if errors.Is(err, didsubject.ErrSubjectNotFound) {
 				// Subject has probably been deactivated. Remove from service or registration will be retried every refresh interval.
@@ -301,6 +315,70 @@ func (r *defaultClientRegistrationManager) refresh(ctx context.Context, now time
 	}
 	if len(loopErrs) > 0 {
 		return errors.Join(loopErrs...)
+	}
+	return nil
+}
+
+// validate validates all presentations that are not yet validated
+func (r *clientRegistrationManager) validate() error {
+	errMsg := "background verification of presentation failed (service: %s, id: %s)"
+	// find all unvalidated entries in store
+	presentations, err := r.store.allPresentations(false)
+	if err != nil {
+		return err
+	}
+	j := 0
+	for i, presentation := range presentations {
+		verifiablePresentation, err := vc.ParseVerifiablePresentation(presentation.PresentationRaw)
+		if err != nil {
+			log.Logger().WithError(err).Warnf(errMsg, presentation.ServiceID, presentation.ID)
+			continue
+		}
+		service, exists := r.services[presentation.ServiceID]
+		if !exists {
+			log.Logger().WithError(err).Warnf("service not found for background validation: %s", presentation.ServiceID)
+			continue
+		}
+		if err = r.verifier(service, *verifiablePresentation); err != nil {
+			log.Logger().WithError(err).Warnf(errMsg, presentation.ServiceID, presentation.ID)
+			continue
+		}
+		presentations[j] = presentations[i]
+		j++
+	}
+	// update flag in DB
+	if j > 0 {
+		return r.store.updateValidated(presentations[:j])
+	}
+	return nil
+}
+
+// removeRevoked removes all revoked presentations from the store
+func (r *clientRegistrationManager) removeRevoked() error {
+	errMsg := "background revocation check of presentation failed (id: %s)"
+	// find all validated entries in store
+	presentations, err := r.store.allPresentations(true)
+	if err != nil {
+		return err
+	}
+
+	for _, presentation := range presentations {
+		verifiablePresentation, err := vc.ParseVerifiablePresentation(presentation.PresentationRaw)
+		if err != nil {
+			log.Logger().WithError(err).Warnf(errMsg, presentation.ID)
+			continue
+		}
+		_, err = r.vcr.Verifier().VerifyVP(*verifiablePresentation, true, true, nil)
+		if err != nil && !errors.Is(err, types.ErrRevoked) {
+			log.Logger().WithError(err).Warnf(errMsg, presentation.ID)
+			continue
+		}
+		if errors.Is(err, types.ErrRevoked) {
+			log.Logger().WithError(err).Infof("removing revoked presentation (id: %s)", presentation.ID)
+			if err = r.store.deletePresentationRecord(presentation.ID); err != nil {
+				log.Logger().WithError(err).Warnf("failed to remove revoked presentation from discovery service (id: %s)", presentation.ID)
+			}
+		}
 	}
 	return nil
 }
@@ -342,18 +420,44 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 	log.Logger().
 		WithField("discoveryService", service.ID).
 		Tracef("Checking for new Verifiable Presentations from Discovery Service (timestamp: %d)", currentTimestamp)
-	presentations, serverTimestamp, err := u.client.Get(ctx, service.Endpoint, currentTimestamp)
+	presentations, seed, serverTimestamp, err := u.client.Get(ctx, service.Endpoint, currentTimestamp)
 	if err != nil {
 		return fmt.Errorf("failed to get presentations from discovery service (id=%s): %w", service.ID, err)
 	}
+	// check testSeed in store, wipe if it's different. Done by the store for transaction safety.
+	err = u.store.wipeOnSeedChange(service.ID, seed)
+	if err != nil {
+		return fmt.Errorf("failed to wipe on testSeed change (service=%s, testSeed=%s): %w", service.ID, seed, err)
+	}
 	for _, presentation := range presentations {
-		if err := u.verifier(service, presentation); err != nil {
-			log.Logger().WithError(err).Warnf("Presentation verification failed, not adding it (service=%s, id=%s)", service.ID, presentation.ID)
+		// Check if the presentation already exists
+		credentialSubjectID, err := credential.PresentationSigner(presentation)
+		if err != nil {
+			return err
+		}
+		exists, err := u.store.exists(service.ID, credentialSubjectID.String(), presentation.ID.String())
+		if err != nil {
+			return err
+		}
+		if exists {
 			continue
 		}
-		if err := u.store.add(service.ID, presentation, serverTimestamp); err != nil {
+
+		// always add the presentation, even if it's not valid
+		// it won't be returned in a search if invalid
+		// the validator will set the validated flag to true when it's valid
+		// it'll also remove it from the store if it's invalidated later
+		if record, err := u.store.add(service.ID, presentation, seed, serverTimestamp); err != nil {
 			return fmt.Errorf("failed to store presentation (service=%s, id=%s): %w", service.ID, presentation.ID, err)
+		} else if err = u.verifier(service, presentation); err == nil {
+			// valid, immediately activate
+			if err = u.store.updateValidated([]presentationRecord{*record}); err != nil {
+				return fmt.Errorf("failed to update validated flag (service=%s, id=%s): %w", service.ID, presentation.ID, err)
+			}
+		} else {
+			log.Logger().WithError(err).Infof("failed to verify added presentation (service=%s, id=%s)", service.ID, presentation.ID)
 		}
+
 		log.Logger().
 			WithField("discoveryService", service.ID).
 			WithField("presentationID", presentation.ID).

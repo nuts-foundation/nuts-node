@@ -24,6 +24,7 @@ import (
 type MockTransactions struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionsMockRecorder
+	isgomock struct{}
 }
 
 // MockTransactionsMockRecorder is the mock recorder for MockTransactions.
@@ -57,20 +58,6 @@ func (mr *MockTransactionsMockRecorder) AddressBook() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddressBook", reflect.TypeOf((*MockTransactions)(nil).AddressBook))
 }
 
-// CleanupSubscriberEvents mocks base method.
-func (m *MockTransactions) CleanupSubscriberEvents(subcriberName, errorPrefix string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CleanupSubscriberEvents", subcriberName, errorPrefix)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CleanupSubscriberEvents indicates an expected call of CleanupSubscriberEvents.
-func (mr *MockTransactionsMockRecorder) CleanupSubscriberEvents(subcriberName, errorPrefix any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CleanupSubscriberEvents", reflect.TypeOf((*MockTransactions)(nil).CleanupSubscriberEvents), subcriberName, errorPrefix)
-}
-
 // CreateTransaction mocks base method.
 func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template) (dag.Transaction, error) {
 	m.ctrl.T.Helper()
@@ -84,6 +71,20 @@ func (m *MockTransactions) CreateTransaction(ctx context.Context, spec Template)
 func (mr *MockTransactionsMockRecorder) CreateTransaction(ctx, spec any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTransaction", reflect.TypeOf((*MockTransactions)(nil).CreateTransaction), ctx, spec)
+}
+
+// Disabled mocks base method.
+func (m *MockTransactions) Disabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Disabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Disabled indicates an expected call of Disabled.
+func (mr *MockTransactionsMockRecorder) Disabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Disabled", reflect.TypeOf((*MockTransactions)(nil).Disabled))
 }
 
 // DiscoverServices mocks base method.
