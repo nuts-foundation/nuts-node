@@ -99,7 +99,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 		t.Run("happy flow", func(t *testing.T) {
 			sv, validator := x509VerifierTestSetup(t)
-			validator.EXPECT().Validate(gomock.Any()).Return(nil)
+			validator.EXPECT().ValidateStrict(gomock.Any()).Return(nil)
 			err = sv.VerifySignature(*cred, nil)
 			assert.NoError(t, err)
 		})
@@ -120,7 +120,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			assert.NoError(t, err)
 			sv, validator := x509VerifierTestSetup(t)
 			expectedError := errors.New("wrong ura")
-			validator.EXPECT().Validate(gomock.Any()).Return(expectedError)
+			validator.EXPECT().ValidateStrict(gomock.Any()).Return(expectedError)
 			err = sv.VerifySignature(*cred, nil)
 			assert.Error(t, err)
 			assert.ErrorIs(t, err, expectedError)

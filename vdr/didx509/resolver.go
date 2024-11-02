@@ -80,7 +80,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	err = r.pkiValidator.Validate(chain)
+	err = r.pkiValidator.ValidateStrict(chain)
 	if err != nil {
 		return nil, nil, err
 	}
