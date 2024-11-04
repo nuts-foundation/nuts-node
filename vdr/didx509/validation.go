@@ -236,8 +236,8 @@ var validatorMap = map[PolicyKey]validationFunction{
 	},
 }
 
-// ValidatePolicy validates an X.509 certificate against a set of policies defined in X509DidReference.
-func ValidatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
+// validatePolicy validates an X.509 certificate against a set of policies defined in X509DidReference.
+func validatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	for _, policy := range ref.Policies {
 		var err error
 		switch policy.Name {

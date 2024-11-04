@@ -109,7 +109,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	err = ValidatePolicy(ref, validationCert)
+	err = validatePolicy(ref, validationCert)
 	if err != nil {
 		return nil, nil, err
 	}
