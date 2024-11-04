@@ -1,11 +1,14 @@
-.. _pex:
+.. _policy:
+
+Access Token Policy
+###################
 
 Presentation Definition mapping
-###############################
+*******************************
 
 Wallet functionality uses `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_ to determine the required credentials for a given presentation request.
 An OAuth2 authorization request uses scopes to determine the required permissions for a given request.
-The mapping between scopes and presentation definitions is defined in a configuration file.
+The mapping between scopes and presentation definitions is defined in a policy definition file.
 
 Configuration
 *************
@@ -14,7 +17,7 @@ The Nuts config supports the mapping between OAuth2 scopes and presentation defi
 The file-based configuration is a simple way to define the mapping between scopes and presentation definitions.
 It can be used for simple use cases where the mapping is static and does not change often.
 
-To use file-based configuration, you need to define the path to a directory that contains policy configuration files:
+To use file-based configuration, you need to define the path to a directory that contains policy definition files:
 
 .. code-block:: yaml
 

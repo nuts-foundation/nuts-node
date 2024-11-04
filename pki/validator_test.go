@@ -136,7 +136,7 @@ func TestValidator_Validate(t *testing.T) {
 	})
 	t.Run("unknown issuer", func(t *testing.T) {
 		val := &validator{}
-		testSoftHard(t, val, validCertA, nil, ErrCertUntrusted)
+		testSoftHard(t, val, validCertA, ErrCertUntrusted, ErrCertUntrusted)
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		testSoftHard(t, val, validCertBWithRevokedCA, nil, ErrCRLMissing)
@@ -215,20 +215,12 @@ func TestValidator_AddTruststore(t *testing.T) {
 
 	t.Run("missing CA", func(t *testing.T) {
 		noRootStore := store.Certificates()[:2]
-		t.Run("softfail", func(t *testing.T) {
-			val, err := newValidator(Config{Softfail: true})
-			require.NoError(t, err)
+		val, err := newValidator(Config{Softfail: true})
+		require.NoError(t, err)
 
-			assert.NoError(t, val.AddTruststore(noRootStore))
-		})
-		t.Run("hardfail", func(t *testing.T) {
-			val, err := newValidator(Config{Softfail: false})
-			require.NoError(t, err)
+		err = val.AddTruststore(noRootStore)
 
-			err = val.AddTruststore(noRootStore)
-
-			assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
-		})
+		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
 	})
 }
 
