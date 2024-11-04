@@ -20,6 +20,8 @@ Breaking changes
 - The VDR v1 ``createDID`` (``POST /internal/vdr/v1/did``) no longer supports the ``controller`` and ``selfControl`` fields. All did:nuts documents are now self controlled. All existing documents will be migrated to self controlled at startup.
 - Managed ``did:nuts`` DIDs are migrated to the new SQL storage. Unresolved DID document conflicts may contain an incorrect state after migrating to v6. See ``/status/diagnostics`` if you own any DIDs with a document conflict; use ``/internal/vdr/v1/did/conflicted`` to find the specific DIDs.
 - Removed legacy API authentication tokens.
+- Removed ``auth.publicURL`` config param. The requirement for Yivi is now also covered by the ``url`` config param value.
+- Default port bindings and http config options have changed. See below.
 - See caveats in :ref:`version-incompatibilities`.
 
 ============
