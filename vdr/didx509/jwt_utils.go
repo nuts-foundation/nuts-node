@@ -24,6 +24,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jws"
 )
 
+// ErrorInvalidNumberOfSignatures indicates that the number of signatures present in the JWT is invalid.
 var (
 	ErrorInvalidNumberOfSignatures = errors.New("invalid number of signatures")
 )

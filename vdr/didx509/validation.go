@@ -27,46 +27,69 @@ import (
 	"strings"
 )
 
+// PolicyName represents the name of a policy in an X.509 DID (Decentralized Identifier).
 type PolicyName string
+
+// PolicyKey represents a key-value pair where 'name' specifies the policy name and 'key' identifies the specific attribute.
 type PolicyKey struct {
 	name PolicyName
 	key  string
 }
 
 const (
+
+	// PolicyNameSubject specifies that the policy is related to the subject attributes of an X.509 certificate.
 	PolicyNameSubject PolicyName = "subject"
-	PolicyNameSan     PolicyName = "san"
+
+	// PolicyNameSan represents a policy for Subject Alternative Name (SAN) in an X.509 DID.
+	PolicyNameSan PolicyName = "san"
 )
 
 var (
+
+	// SubjectPolicySerialNumber represents the serial number attribute in the subject field of an X.509 certificate.
 	SubjectPolicySerialNumber = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "serialNumber",
 	}
+
+	// SubjectPolicyCommonName represents a policy key for the Common Name (CN) attribute in the subject of an X.509 certificate.
 	SubjectPolicyCommonName = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "CN",
 	}
+
+	// SubjectPolicyLocality represents the policy key for the subject's locality attribute in an X.509 certificate.
 	SubjectPolicyLocality = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "L",
 	}
+
+	// SubjectPolicyCountry defines the policy key for the country attribute of the subject in an X.509 certificate.
 	SubjectPolicyCountry = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "C",
 	}
+
+	// SubjectPolicyOrganization represents the policy key for the 'Organization' attribute in the subject of an X.509 certificate.
 	SubjectPolicyOrganization = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "O",
 	}
+
+	// SubjectPolicyOrganizationalUnit represents the policy key for the organizational unit (OU) attribute of the subject
 	SubjectPolicyOrganizationalUnit = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "OU",
 	}
+
+	// SubjectPolicyState represents the state or province attribute in the subject of an X.509 certificate.
 	SubjectPolicyState = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "ST",
 	}
+
+	// SubjectPolicyStreet is a PolicyKey for the 'streetAddress' attribute in the subject of an X.509 certificate.
 	SubjectPolicyStreet = PolicyKey{
 		name: PolicyNameSubject,
 		key:  "STREET",
@@ -74,18 +97,26 @@ var (
 )
 
 var (
+
+	// SanPolicyOtherName represents a policy key for the "otherName" attribute within the Subject Alternative Name (SAN) policy.
 	SanPolicyOtherName = PolicyKey{
 		name: PolicyNameSan,
 		key:  "otherName",
 	}
+
+	// SanPolicyDNS represents a policy key for the 'dns' attribute in the Subject Alternative Name (SAN) extension of an X.509 certificate.
 	SanPolicyDNS = PolicyKey{
 		name: PolicyNameSan,
 		key:  "dns",
 	}
+
+	// SanPolicyEmail is a PolicyKey for validating the email attribute within the Subject Alternative Name (SAN) of a certificate.
 	SanPolicyEmail = PolicyKey{
 		name: PolicyNameSan,
 		key:  "email",
 	}
+
+	// SanPolicyIPAddress represents a policy key for IP address in Subject Alternative Name (SAN) validation.
 	SanPolicyIPAddress = PolicyKey{
 		name: PolicyNameSan,
 		key:  "ip",
@@ -93,12 +124,21 @@ var (
 )
 
 var (
-	ErrDidMalformed       = errors.New("did:x509 is malformed")
-	ErrDidVersion         = errors.New("did:x509 does not have version 0")
+
+	// ErrDidMalformed indicates that the DID (Decentralized Identifier) is malformed and does not adhere to the expected format.
+	ErrDidMalformed = errors.New("did:x509 is malformed")
+
+	// ErrDidVersion indicates that the DID:x509 does not have version 0.
+	ErrDidVersion = errors.New("did:x509 does not have version 0")
+
+	// ErrDidPolicyMalformed indicates that the did:x509 policy is malformed.
 	ErrDidPolicyMalformed = errors.New("did:x509 policy is malformed")
-	ErrUnkPolicyType      = errors.New("unknown policy type")
+
+	// ErrUnkPolicyType indicates that the encountered policy type is unknown or unsupported.
+	ErrUnkPolicyType = errors.New("unknown policy type")
 )
 
+// validationFunction defines a function type for validating specific attributes within an x509.Certificate.
 type validationFunction func(cert *x509.Certificate, key string, value string) error
 
 // validatorMap maps PolicyKey to their corresponding validation functions for certificate attributes.
@@ -196,7 +236,7 @@ var validatorMap = map[PolicyKey]validationFunction{
 	},
 }
 
-// ValidatePolicy validates a certificate against a given X509DidReference and its policies.
+// ValidatePolicy validates an X.509 certificate against a set of policies defined in X509DidReference.
 func ValidatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	for _, policy := range ref.Policies {
 		var err error
@@ -213,7 +253,8 @@ func ValidatePolicy(ref *X509DidReference, cert *x509.Certificate) error {
 	return nil
 }
 
-// validate checks if the given certificate adheres to the policy defined by the X509DidReference.
+// validate checks if an X.509 certificate conforms to a given DID policy.
+// Errors are returned if the policy is malformed, unknown, or if the certificate attributes don't match the policy requirements.
 func validate(ref *X509DidPolicy, cert *x509.Certificate) error {
 
 	keyValue := strings.Split(ref.Value, ":")

@@ -30,15 +30,29 @@ import (
 )
 
 const (
-	MethodName                   = "x509"
-	X509CertChainHeader          = "x5c"
-	X509CertThumbprintHeader     = "x5t"
+
+	// MethodName represents the x509 DID method identifier.
+	MethodName = "x509"
+
+	// X509CertChainHeader represents the header key for the x509 certificate chain in a JWT.
+	X509CertChainHeader = "x5c"
+
+	// X509CertThumbprintHeader represents the header for the thumbprint of an x509 certificate using SHA-1.
+	X509CertThumbprintHeader = "x5t"
+
+	// X509CertThumbprintS256Header represents a header for the X.509 certificate thumbprint using the SHA-256 hashing algorithm.
 	X509CertThumbprintS256Header = "x5t#S256"
 )
 
 var (
-	ErrX509ChainMissing            = errors.New("x509 rootCert chain is missing")
-	ErrNoCertsInHeaders            = errors.New("no x5t or x5t#S256 header found")
+
+	// ErrX509ChainMissing is returned when the x509 root certificate chain is not present in the metadata.
+	ErrX509ChainMissing = errors.New("x509 rootCert chain is missing")
+
+	// ErrNoCertsInHeaders indicates that no x5t or x5t#S256 header was found in the provided metadata.
+	ErrNoCertsInHeaders = errors.New("no x5t or x5t#S256 header found")
+
+	// ErrNoMatchingHeaderCredentials indicates that the x5t#S256 header does not match the certificate from the x5t headers.
 	ErrNoMatchingHeaderCredentials = errors.New("x5t#S256 header does not match the certificate from the x5t headers")
 )
 
@@ -55,11 +69,13 @@ type Resolver struct {
 	pkiValidator pki.Validator
 }
 
+// X509DidPolicy represents an X.509 DID policy that includes a policy name and corresponding value.
 type X509DidPolicy struct {
 	Name  PolicyName
 	Value string
 }
 
+// X509DidReference represents a reference for an X.509 Decentralized Identifier (DID) including method, root certificate, and policies.
 type X509DidReference struct {
 	Method      HashAlgorithm
 	RootCertRef string

@@ -37,19 +37,39 @@ import (
 type HashAlgorithm string
 
 const (
-	HashSha1   = HashAlgorithm("sha1")
+
+	// HashSha1 represents the SHA-1 hashing algorithm to be used for generating hash values.
+	HashSha1 = HashAlgorithm("sha1")
+
+	// HashSha256 represents the SHA-256 hash algorithm constant, used for cryptographic hashing operations.
 	HashSha256 = HashAlgorithm("sha256")
+
+	// HashSha384 represents the SHA-384 hash algorithm.
 	HashSha384 = HashAlgorithm("sha384")
+
+	// HashSha512 defines the SHA-512 hash algorithm.
 	HashSha512 = HashAlgorithm("sha512")
 )
 
 var (
+
+	// ErrUnsupportedHashAlgorithm indicates that the provided hash algorithm is not supported by the system.
 	ErrUnsupportedHashAlgorithm = fmt.Errorf("unsupported hash algorithm")
-	ErrInvalidHash              = fmt.Errorf("invalid hash")
-	ErrCertificateNotfound      = fmt.Errorf("cannot locate a find a certificate with the given hash")
-	ErrInvalidPemBlock          = fmt.Errorf("invalid PEM block")
-	ErrTrailingData             = errors.New("x509: trailing data after X.509 extension")
-	ErrSanSequenceData          = errors.New("unexpected SAN sequence")
+
+	// ErrInvalidHash indicates that the provided hash is invalid or improperly formatted.
+	ErrInvalidHash = fmt.Errorf("invalid hash")
+
+	// ErrCertificateNotfound indicates that a certificate could not be found with the given hash.
+	ErrCertificateNotfound = fmt.Errorf("cannot locate a find a certificate with the given hash")
+
+	// ErrInvalidPemBlock indicates that a PEM block is invalid or cannot be decoded properly.
+	ErrInvalidPemBlock = fmt.Errorf("invalid PEM block")
+
+	// ErrTrailingData indicates that there is trailing data after an X.509 extension, which should not be present.
+	ErrTrailingData = errors.New("x509: trailing data after X.509 extension")
+
+	// ErrSanSequenceData indicates an unexpected sequence in the Subject Alternative Name (SAN) extension.
+	ErrSanSequenceData = errors.New("unexpected SAN sequence")
 )
 
 // OtherName represents a structure for other name in ASN.1
@@ -81,6 +101,7 @@ func findOtherNameValue(cert *x509.Certificate) (string, error) {
 	return "", nil
 }
 
+// findSanValue extracts the SAN value from a given pkix.Extension, returning the resulting value or an error.
 func findSanValue(extension pkix.Extension) (string, error) {
 	value := ""
 	err := forEachSan(extension.Value, func(data []byte) error {
