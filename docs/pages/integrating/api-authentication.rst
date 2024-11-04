@@ -131,7 +131,7 @@ To generate the SSH fingerprint of a key (for specifying as ``kid`` field) using
 
     nuts-jwt-generator -i /path/to/keyfile -export-ssh-fingerprint
 
-The ``ssh-keygen``` command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages.
+The ``ssh-keygen`` command unfortunately fails for Ed25519 PEM keys at the time of this writing due to a `bug <https://bugzilla.mindrot.org/show_bug.cgi?id=3195>`_ and poor recent support for Ed25519 in libcrypto packages.
 You can use the nuts-jwt-generator until this bug is fixed for keys of this type.
 
 Generating keys

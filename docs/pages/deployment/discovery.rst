@@ -176,6 +176,7 @@ Service definitions
 
 
 A service definition consists of:
+
 - ``id``: the unique identifier of the service
 - ``did_methods``: the DID methods that are allowed (optional)
 - ``endpoint``: the URL of the service

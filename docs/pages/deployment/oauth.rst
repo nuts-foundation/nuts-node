@@ -14,6 +14,7 @@ The Nuts node implements (parts of) the following RFCs:
 - `RFC 9449 <https://tools.ietf.org/html/rfc9449>`_ - OAuth 2.0 Demonstrating Proof of Possession (DPoP)
 - `Nuts RFC021 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc021-vp_token-grant-type>`_ - RFC021 VP Token Grant Type
 - `OpenID4VP <https://openid.net/specs/openid-4-verifiable-presentations-1_0.html>`_ - OpenID for Verifiable Presentations - draft 20
+- `StatusList2021 <https://www.w3.org/community/reports/credentials/CG-FINAL-vc-status-list-2021-20230102/>`_ - Status List 2021
 - `Presentation Exchange <https://identity.foundation/presentation-exchange/>`_ - Presentation Exchange
 
 
@@ -58,5 +59,14 @@ A resources server must check the type of access token used to request data. If 
 The Nuts node provides a convenience API to do this for you.
 Some of the calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
 More information can be found on the `API documentation <nuts-node-api>`_ page. The relevant API's are:
-- ``POST /internal/auth/v2/{did}/dpop``
-- ``POST /internal/auth/v2/dpop_validate``
+
+- ``POST /internal/auth/v2/dpop/{kid}``
+- ``POST /internal/auth/v2/dpop/validate``
+
+StatusList2021
+**************
+
+The revocation status of presented Verifiable Credentials that contain a ``credentialStatus`` with type ``StatusList2021Entry`` will automatically be validated.
+To issue a Verifiable Credential that can be revoked, see ``POST /internal/vcr/v2/issuer/vc`` in the `API documentation <nuts-node-api>`_.
+Be aware that the Nuts-node hosts a ``StatusList2021Credential`` with the revocation status of all issued credentials.
+This endpoint MUST be available for some time after the last VC on the list has been revoked, or until all VCs on the list have expired.
