@@ -83,6 +83,12 @@ type X509DidReference struct {
 }
 
 // Resolve resolves a DID document given its identifier and corresponding metadata.
+// The resolve method resolves using the did:x509 v1.0 Draft method specification found at:
+// https://trustoverip.github.io/tswg-did-x509-method-specification/
+// Given this specification, this implementation diverges from the spec at the following:
+// * Besides the "san" policies "email" / "dns" / "uri", the san policy "otherName" is also implemented.
+// * The policy "subject" also supports "serialNumber", besides the "CN" / "L" / "ST" / "O" / "OU" / "C" / "STREET" fields.
+// * The policy "eku" is not implemented.
 func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
