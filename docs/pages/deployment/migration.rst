@@ -13,7 +13,7 @@ Nuts node v6 runs several migrations on startup for DID documents that are manag
 Requires ``didmethods`` to contain ``nuts``.
 
 Previously, DID documents could either by under self-control or under control of another DID as was recommended for vendor and care organisation, respectively.
-In the new situation a user manages ``subject``s, and the node manages all DIDs under the ``subject``.
+In the new situation a user manages ``subjects``, and the node manages all DIDs under the ``subject``.
 To reduce complexity and allow future adoption of other did methods, all documents will be under self-control from v6.
 
 **Migration: convert did:nuts to subject**

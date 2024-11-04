@@ -71,6 +71,7 @@ Will be expanded by the node to:
     }
 
 There are three parameters that can be passed:
+
 - `format` (optional): The format of the VC. Can be ``ldp_vc`` or ``jwt_vc``. Default is ``ldp_vc``.
 - `publishToNetwork` (did:nuts only, optional): Whether the VC should be published on the network. Default is ``true``.
 - `visibility` (did:nuts only, optional): The visibility of the VC. Can be ``public`` or ``private``. Default is ``private``.
@@ -126,8 +127,10 @@ The following query does not return all `NutsOrganizationCredential` but **all**
 To find certain credentials, you'll need to add fields that are required to exist in the desired credential.
 By default, matching is exact: it only returns the result when the given value exactly matches.
 There are 2 other matchers for strings:
+
 - ``"*"`` to match credential fields that contain the field (non-empty)
 - ``*`` as postfix to match credential fields that start with the given string, e.g. ``Hospital Amst*``
+
 When ``*`` is used anywhere else in the string it won't be interpreted as wildcard and matched as-is.
 Wildcards are not supported for other types than strings.
 

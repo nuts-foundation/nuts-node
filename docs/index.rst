@@ -31,6 +31,7 @@ Nuts documentation
     pages/deployment/configuration.rst
     pages/deployment/migration.rst
     pages/deployment/recommended-deployment.rst
+    pages/deployment/certificates.rst
     pages/deployment/docker.rst
     pages/deployment/storage.rst
     pages/deployment/verifiable-credentials.rst
@@ -38,7 +39,7 @@ Nuts documentation
     pages/deployment/monitoring.rst
     pages/deployment/cli-reference.rst
     pages/deployment/discovery.rst
-    pages/deployment/pex.rst
+    pages/deployment/policy.rst
     pages/deployment/key-rotation.rst
     pages/deployment/audit-logging.rst
     pages/deployment/oauth.rst

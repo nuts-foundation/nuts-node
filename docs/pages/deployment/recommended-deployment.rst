@@ -180,7 +180,7 @@ Below is a list of items that should be addressed when running a node in product
 
 - Reverse proxy
    - Use a proxy in front of the node which terminates TLS
-   - Make sure the reverse proxy sends the ``X-Forwarded-For`` header to log correct IP addresses
+   - Make sure the reverse proxy sets the header configured in ``http.clientipheader`` (default ``X-Forwarded-For``) to log correct IP addresses
 - Backup Management
    - Make sure data is backed up (data stored in SQL and private keys)
    - Have a tested backup/restore procedure
