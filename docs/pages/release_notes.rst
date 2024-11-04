@@ -104,6 +104,17 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 ************************
+Hazelnut update (v5.4.12)
+************************
+
+Release date: 2024-11-04
+
+- Updated dependencies with vulnerabilities
+- Fixed issue with failed network events giving errors at startup
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.11...v5.4.12
+
+************************
 Hazelnut update (v5.4.11)
 ************************
 
