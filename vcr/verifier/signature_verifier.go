@@ -22,7 +22,6 @@ import (
 	crypt "crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"strings"
 	"time"
 
@@ -42,7 +41,7 @@ type signatureVerifier struct {
 	jsonldManager jsonld.JSONLD
 }
 
-var ExtractProtectedHeaders = didx509.ExtractProtectedHeaders
+var ExtractProtectedHeaders = crypto.ExtractProtectedHeaders
 
 // VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
