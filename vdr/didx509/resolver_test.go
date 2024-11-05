@@ -42,7 +42,8 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	metadata := resolver2.ResolveMetadata{}
 
 	otherNameValue := "A_BIG_STRING"
-	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain(otherNameValue)
+	otherNameValueSecondary := "A_SECOND_STRING"
+	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain([]string{otherNameValue, otherNameValueSecondary})
 	require.NoError(t, err)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = certChain
@@ -82,7 +83,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
 		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
-	t.Run("happy flow, policy depth of 1", func(t *testing.T) {
+	t.Run("happy flow, policy depth of 1 and primary value", func(t *testing.T) {
 		validator.EXPECT().ValidateStrict(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
 
@@ -94,8 +95,50 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
 		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
-	t.Run("happy flow, policy depth of 2", func(t *testing.T) {
+	t.Run("happy flow, policy depth of 1 and secondary value", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValueSecondary))
+
+		validator.EXPECT().ValidateStrict(gomock.Any())
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		require.NoError(t, err)
+		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
+	})
+	t.Run("happy flow, policy depth of 2 of type OU", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s::subject:OU:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue, "The%20A-Team"))
+
+		validator.EXPECT().ValidateStrict(gomock.Any())
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		require.NoError(t, err)
+		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
+	})
+	t.Run("happy flow, policy depth of 2, primary and secondary", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue, otherNameValueSecondary))
+
+		validator.EXPECT().ValidateStrict(gomock.Any())
+		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.NotNil(t, resolve)
+		require.NoError(t, err)
+		assert.NotNil(t, documentMetadata)
+		// Check that the DID url is did#0
+		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
+		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
+	})
+	t.Run("happy flow, policy depth of 2, secondary and primary", func(t *testing.T) {
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s::san:otherName:%s", "sha256", sha256Sum(rootCertificate.Raw), otherNameValue, otherNameValueSecondary))
 
 		validator.EXPECT().ValidateStrict(gomock.Any())
 		resolve, documentMetadata, err := resolver.Resolve(rootDID, &metadata)
@@ -236,7 +279,7 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 	resolver := NewResolver(validator)
 	metadata := resolver2.ResolveMetadata{}
 
-	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain("")
+	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain([]string{})
 	require.NoError(t, err)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = certChain
@@ -316,7 +359,7 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	metadata := resolver2.ResolveMetadata{}
 
 	otherNameValue := "A_BIG_STRING"
-	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain(otherNameValue)
+	_, certChain, rootCertificate, _, signingCert, err := BuildCertChain([]string{otherNameValue})
 	require.NoError(t, err)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = certChain

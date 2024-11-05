@@ -144,11 +144,11 @@ type validationFunction func(cert *x509.Certificate, key string, value string) e
 // validatorMap maps PolicyKey to their corresponding validation functions for certificate attributes.
 var validatorMap = map[PolicyKey]validationFunction{
 	SanPolicyOtherName: func(cert *x509.Certificate, key string, value string) error {
-		nameValue, err := findOtherNameValue(cert)
+		nameValues, err := findOtherNameValues(cert)
 		if err != nil {
 			return err
 		}
-		if nameValue != value {
+		if !slices.Contains(nameValues, value) {
 			return fmt.Errorf("the SAN attribute %s does not match the query", key)
 		}
 		return nil
