@@ -80,8 +80,8 @@ type Module struct {
 	storageInstance  storage.Engine
 	eventManager     events.Event
 	// migrations are registered functions to simplify testing
-	migrations []migration
-	pkiValidator     pki.Validator
+	migrations   []migration
+	pkiValidator pki.Validator
 
 	// new style DID management
 	didsubject.Manager
