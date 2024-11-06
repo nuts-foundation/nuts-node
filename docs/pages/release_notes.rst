@@ -2,9 +2,20 @@
 Release notes
 #############
 
-*******************
+***************
+Peanut (v6.0.1)
+***************
+
+Release date: 2024-11-06
+
+- disable rate limiting on APIs when supported DID methods does not include 'nuts'
+- add rate limiting to VDR v2 APIs
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.0...v6.0.1
+
+***************
 Peanut (v6.0.0)
-*******************
+***************
 
 Release date: 2024-10-25
 
@@ -103,9 +114,9 @@ The following features have been deprecated:
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
 
-************************
+*************************
 Hazelnut update (v5.4.11)
-************************
+*************************
 
 Release date: 2024-09-24
 
@@ -113,9 +124,9 @@ Release date: 2024-09-24
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.10...v5.4.11
 
-************************
+*************************
 Hazelnut update (v5.4.10)
-************************
+*************************
 
 Release date: 2024-09-13
 
