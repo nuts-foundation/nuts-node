@@ -22,10 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
 	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -33,8 +33,10 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 )
 
 const moduleName = "HTTP"
@@ -180,15 +182,19 @@ func matchesPath(requestURI string, path string) bool {
 }
 
 func (h Engine) applyRateLimiterMiddleware(echoServer core.EchoRouter, serverConfig core.ServerConfig) {
-	// Always enabled in strict mode
-	if serverConfig.Strictmode || serverConfig.InternalRateLimiter {
+	// Always enabled in strict mode, but only if did:nuts is enabled on the node
+	if (serverConfig.Strictmode || serverConfig.InternalRateLimiter) && slices.Contains(serverConfig.DIDMethods, didnuts.MethodName) {
 		echoServer.Use(newInternalRateLimiter(map[string][]string{
 			http.MethodPost: {
-				"/internal/vcr/v2/issuer/vc",                   // issuing new VCs
-				"/internal/vdr/v1/did",                         // creating new DIDs
-				"/internal/vdr/v1/did/:did/verificationmethod", // add VM to DID
-				"/internal/didman/v1/did/:did/endpoint",        // add endpoint to DID
-				"/internal/didman/v1/did/:did/compoundservice", // add compound service to DID
+				"/internal/vcr/v2/issuer/vc",                      // issuing new VCs
+				"/internal/vdr/v1/did",                            // creating new DIDs
+				"/internal/vdr/v1/did/:did/verificationmethod",    // add VM to DID
+				"/internal/didman/v1/did/:did/endpoint",           // add endpoint to DID
+				"/internal/didman/v1/did/:did/compoundservice",    // add compound service to DID
+				"/internal/vdr/v2/subject",                        // create new subject
+				"/internal/vdr/v2/subject/:id/service",            // add service to subject
+				"/internal/vdr/v2/subject/:id/service/:serviceId", // update service for a subject
+				"/internal/vdr/v2/subject/:id/verificationmethod", // create new verification method for subject
 			},
 			http.MethodPut: {
 				"/internal/vdr/v1/did/:did",                // updating DIDs
