@@ -104,21 +104,24 @@ func findOtherNameValues(cert *x509.Certificate) ([]string, error) {
 // findSanValues extracts the SAN values from a given pkix.Extension, returning the resulting values or an error.
 func findSanValues(extension pkix.Extension) ([]string, error) {
 	var values []string
-	err := forEachSan(extension.Value, func(data []byte) error {
-		var other OtherName
-		_, err := asn1.UnmarshalWithParams(data, &other, "tag:0")
-		if err != nil {
-			return err
-		}
-		if other.TypeID.Equal(OtherNameType) {
-			var value string
-			_, err = asn1.Unmarshal(other.Value.Bytes, &value)
+	err := forEachSan(extension.Value, func(v *asn1.RawValue) error {
+		if v.Class == asn1.ClassContextSpecific && v.Tag == 0 {
+			var other OtherName
+			_, err := asn1.UnmarshalWithParams(v.FullBytes, &other, "tag:0")
 			if err != nil {
 				return err
 			}
-			values = append(values, value)
+			if other.TypeID.Equal(OtherNameType) {
+				var value string
+				_, err = asn1.Unmarshal(other.Value.Bytes, &value)
+				if err != nil {
+					return err
+				}
+				values = append(values, value)
+			}
 		}
 		return nil
+
 	})
 	if err != nil {
 		return make([]string, 0), err
@@ -127,7 +130,7 @@ func findSanValues(extension pkix.Extension) ([]string, error) {
 }
 
 // forEachSan processes each SAN extension in the certificate
-func forEachSan(extension []byte, callback func(data []byte) error) error {
+func forEachSan(extension []byte, callback func(data *asn1.RawValue) error) error {
 	var seq asn1.RawValue
 	rest, err := asn1.Unmarshal(extension, &seq)
 	if err != nil {
@@ -150,7 +153,7 @@ func isSANSequence(seq asn1.RawValue) bool {
 }
 
 // processSANSequence processes the SAN sequence and invokes the callback on each element
-func processSANSequence(rest []byte, callback func(data []byte) error) error {
+func processSANSequence(rest []byte, callback func(data *asn1.RawValue) error) error {
 	for len(rest) > 0 {
 		var v asn1.RawValue
 		var err error
@@ -160,7 +163,7 @@ func processSANSequence(rest []byte, callback func(data []byte) error) error {
 			return err
 		}
 
-		if err := callback(v.FullBytes); err != nil {
+		if err := callback(&v); err != nil {
 			return err
 		}
 	}

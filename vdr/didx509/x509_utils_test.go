@@ -181,7 +181,7 @@ func SigningCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Cer
 	// Either the ExtraExtensions SubjectAlternativeNameType is set, or the Subject Alternate Name values are set,
 	// both don't mix
 	if len(identifiers) > 0 {
-		err := setSanAlternativeName(&tmpl, identifiers)
+		err := setSanAlternativeName(&tmpl, identifiers, "testhost.example.com")
 		if err != nil {
 			return nil, err
 		}
@@ -193,8 +193,14 @@ func SigningCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Cer
 	return &tmpl, nil
 }
 
-func setSanAlternativeName(tmpl *x509.Certificate, identifiers []string) error {
+func setSanAlternativeName(tmpl *x509.Certificate, identifiers []string, altHostName string) error {
 	var list []asn1.RawValue
+	// Add the alternative host name first
+	value, err := toRawValue(altHostName, "tag:2")
+	if err != nil {
+		return err
+	}
+	list = append(list, *value)
 
 	for _, identifier := range identifiers {
 		raw, err := toRawValue(identifier, "ia5")
@@ -230,8 +236,8 @@ func setSanAlternativeName(tmpl *x509.Certificate, identifiers []string) error {
 }
 
 // toRawValue marshals an ASN.1 identifier with a given tag, then unmarshals it into a RawValue structure.
-func toRawValue(identifier any, tag string) (*asn1.RawValue, error) {
-	b, err := asn1.MarshalWithParams(identifier, tag)
+func toRawValue(value any, tag string) (*asn1.RawValue, error) {
+	b, err := asn1.MarshalWithParams(value, tag)
 	if err != nil {
 		return nil, err
 	}
@@ -493,8 +499,8 @@ func TestProcessSANSequence(t *testing.T) {
 		panic(err)
 	}
 	wrongValueErr := errors.New("wrong value")
-	callback := func(data []byte) error {
-		if !bytes.Equal(data, testRawValue.FullBytes) {
+	callback := func(v *asn1.RawValue) error {
+		if !bytes.Equal(v.FullBytes, testRawValue.FullBytes) {
 			return wrongValueErr
 		}
 		return nil
@@ -552,8 +558,8 @@ func TestForEachSan(t *testing.T) {
 		panic(err)
 	}
 	wrongValueErr := errors.New("wrong value")
-	callback := func(data []byte) error {
-		if !bytes.Equal(data, testEncapsulatedValue.FullBytes) {
+	callback := func(v *asn1.RawValue) error {
+		if !bytes.Equal(v.FullBytes, testEncapsulatedValue.FullBytes) {
 			return wrongValueErr
 		}
 		return nil
