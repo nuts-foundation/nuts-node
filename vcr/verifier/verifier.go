@@ -161,7 +161,17 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	// Check signature
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
-		_, _, err := v.didResolver.Resolve(*issuerDID, &resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false})
+		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
+		rawJwt := credentialToVerify.Raw()
+		if rawJwt != "" {
+			headers, err := ExtractProtectedHeaders(rawJwt)
+			if err != nil {
+				return err
+			}
+			metadata.JwtProtectedHeaders = headers
+
+		}
+		_, _, err = v.didResolver.Resolve(*issuerDID, &metadata)
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}
@@ -219,8 +229,10 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	if vmIssuer != revocation.Issuer.String() {
 		return errVerificationMethodNotOfIssuer
 	}
-
-	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType)
+	metadata := &resolver.ResolveMetadata{
+		ResolveTime: &revocation.Date,
+	}
+	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}

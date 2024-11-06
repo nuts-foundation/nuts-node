@@ -41,6 +41,8 @@ type signatureVerifier struct {
 	jsonldManager jsonld.JSONLD
 }
 
+var ExtractProtectedHeaders = crypto.ExtractProtectedHeaders
+
 // VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 	switch credentialToVerify.Format() {
@@ -102,7 +104,10 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
 	}
 
 	// find key
-	signingKey, err := sv.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), at, resolver.NutsSigningKeyType)
+	metadata := &resolver.ResolveMetadata{
+		ResolveTime: at,
+	}
+	signingKey, err := sv.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve valid signing key: %w", err)
 	}
@@ -119,7 +124,15 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 	var keyID string
 	_, err := crypto.ParseJWT(jwtDocumentToVerify, func(kid string) (crypt.PublicKey, error) {
 		keyID = kid
-		return sv.resolveSigningKey(kid, issuer, at)
+		metadata := &resolver.ResolveMetadata{
+			ResolveTime: at,
+		}
+		headers, err := ExtractProtectedHeaders(jwtDocumentToVerify)
+		if err != nil {
+			return nil, err
+		}
+		metadata.JwtProtectedHeaders = headers
+		return sv.resolveSigningKey(kid, issuer, metadata)
 	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
 		if at == nil {
 			return time.Now()
@@ -135,7 +148,7 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 	return nil
 }
 
-func (sv *signatureVerifier) resolveSigningKey(kid string, issuer string, at *time.Time) (crypt.PublicKey, error) {
+func (sv *signatureVerifier) resolveSigningKey(kid string, issuer string, metadata *resolver.ResolveMetadata) (crypt.PublicKey, error) {
 	// Compatibility: VC data model v1 puts key discovery out of scope and does not require the `kid` header.
 	// When `kid` isn't present use the JWT issuer as `kid`, then it is at least compatible with DID methods that contain a single verification method (did:jwk).
 	if kid == "" {
@@ -144,5 +157,5 @@ func (sv *signatureVerifier) resolveSigningKey(kid string, issuer string, at *ti
 	if strings.HasPrefix(kid, "did:jwk:") && !strings.Contains(kid, "#") {
 		kid += "#0"
 	}
-	return sv.keyResolver.ResolveKeyByID(kid, at, resolver.NutsSigningKeyType)
+	return sv.keyResolver.ResolveKeyByID(kid, metadata, resolver.NutsSigningKeyType)
 }

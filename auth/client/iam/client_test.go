@@ -460,7 +460,7 @@ type testKeyResolver struct {
 	key *ecdsa.PrivateKey
 }
 
-func (t testKeyResolver) ResolveKeyByID(keyID string, validAt *time.Time, relationType resolver.RelationType) (crypto.PublicKey, error) {
+func (t testKeyResolver) ResolveKeyByID(keyID string, metadata *resolver.ResolveMetadata, relationType resolver.RelationType) (crypto.PublicKey, error) {
 	return t.key.Public(), nil
 }
 

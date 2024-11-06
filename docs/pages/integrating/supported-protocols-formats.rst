@@ -29,6 +29,7 @@ The following DID methods are supported:
 - ``did:web`` (creating and resolving)
 - ``did:key`` (resolving)
 - ``did:jwk`` (resolving)
+- ``did:x509`` (resolving, except the "eku" policy type, additionally the "san" "otherName" policy)
 
 Credentials
 ***********

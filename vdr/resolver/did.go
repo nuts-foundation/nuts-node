@@ -20,6 +20,7 @@ package resolver
 
 import (
 	"errors"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"sync"
@@ -139,6 +140,8 @@ type ResolveMetadata struct {
 	SourceTransaction *hash.SHA256Hash
 	// Allow DIDs which are deactivated
 	AllowDeactivated bool
+	// JWT protected headers
+	JwtProtectedHeaders map[string]interface{}
 }
 
 var _ DIDResolver = &DIDResolverRouter{}
@@ -188,4 +191,33 @@ func GetDIDFromURL(didURL string) (did.DID, error) {
 // IsDeactivated returns true if the DID.Document has already been deactivated
 func IsDeactivated(document did.Document) bool {
 	return len(document.Controller) == 0 && len(document.CapabilityInvocation) == 0
+}
+
+// GetProtectedHeaderString retrieves the string value associated with the specified key from JwtProtectedHeaders.
+// It returns the value as a string and a boolean indicating whether the key was found and its value was a string.
+// If JwtProtectedHeaders is nil or the key is not found or its value is not a string, it returns an empty string and false.
+func (m *ResolveMetadata) GetProtectedHeaderString(key string) (string, bool) {
+	if m.JwtProtectedHeaders == nil {
+		return "", false
+	}
+	value, ok := m.JwtProtectedHeaders[key]
+	if !ok {
+		return "", false
+	}
+	str, ok := value.(string)
+	return str, ok
+}
+
+// GetProtectedHeaderChain retrieves a certificate chain from JwtProtectedHeaders for the specified key.
+// It returns the chain and a boolean indicating whether the key was found and its value was a certificate chain.
+func (m *ResolveMetadata) GetProtectedHeaderChain(key string) (*cert.Chain, bool) {
+	if m.JwtProtectedHeaders == nil {
+		return nil, false
+	}
+	value, ok := m.JwtProtectedHeaders[key]
+	if !ok {
+		return nil, false
+	}
+	chain, ok := value.(*cert.Chain)
+	return chain, ok
 }

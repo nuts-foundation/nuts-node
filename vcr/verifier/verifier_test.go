@@ -101,7 +101,7 @@ func TestVerifier_Verify(t *testing.T) {
 			ctx.store.EXPECT().GetRevocations(*vc.ID).Return(nil, ErrNotFound)
 			proofs, _ := vc.Proofs()
 			ctx.didResolver.EXPECT().Resolve(did.MustParseDID(vc.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(proofs[0].VerificationMethod.String(), nil, resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(proofs[0].VerificationMethod.String(), gomock.Any(), resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
 
 			validationErr := ctx.verifier.Verify(vc, true, true, nil)
 
@@ -303,6 +303,78 @@ func TestVerifier_Verify(t *testing.T) {
 
 		assert.EqualError(t, err, "verifiable credential must list at most 2 types")
 	})
+
+	t.Run("verify x509", func(t *testing.T) {
+		ura := "312312312"
+		chainPems, rootCert, signingKey, signingCert, err := buildCertChain(ura)
+		assert.NoError(t, err)
+
+		t.Run("ok", func(t *testing.T) {
+			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			assert.NoError(t, err)
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			ctx.didResolver.EXPECT().Resolve(did.MustParseDID(cred.Issuer.String()), gomock.Any()).Return(nil, nil, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(cred.Issuer.String()+"#0", gomock.Any(), resolver.NutsSigningKeyType).Return(signingKey, nil)
+			for _, vcType := range cred.Type {
+				_ = ctx.trustConfig.AddTrust(vcType, cred.Issuer)
+			}
+			validAt := time.Now()
+			err = ctx.verifier.Verify(*cred, false, true, &validAt)
+			assert.NoError(t, err)
+		})
+		t.Run("ok revoked", func(t *testing.T) {
+			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			assert.NoError(t, err)
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*cred.ID)
+			for _, vcType := range cred.Type {
+				_ = ctx.trustConfig.AddTrust(vcType, cred.Issuer)
+			}
+			validAt := time.Now()
+			err = ctx.verifier.Verify(*cred, false, true, &validAt)
+			assert.EqualError(t, err, "credential is revoked")
+		})
+		t.Run("untrusted", func(t *testing.T) {
+			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			assert.NoError(t, err)
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			validAt := time.Now()
+			err = ctx.verifier.Verify(*cred, false, true, &validAt)
+			assert.EqualError(t, err, "credential issuer is untrusted")
+		})
+		t.Run("expired", func(t *testing.T) {
+			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			assert.NoError(t, err)
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			for _, vcType := range cred.Type {
+				_ = ctx.trustConfig.AddTrust(vcType, cred.Issuer)
+			}
+			validAt := time.Now().Add(-10 * time.Hour)
+			err = ctx.verifier.Verify(*cred, false, true, &validAt)
+			assert.EqualError(t, err, "credential not valid at given time")
+		})
+		t.Run("broken headers", func(t *testing.T) {
+			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			assert.NoError(t, err)
+			ctx := newMockContext(t)
+			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			for _, vcType := range cred.Type {
+				_ = ctx.trustConfig.AddTrust(vcType, cred.Issuer)
+			}
+			validAt := time.Now()
+			old := ExtractProtectedHeaders
+			defer func() { ExtractProtectedHeaders = old }()
+			expectedError := errors.New("failing ExtractProtectedHeaders")
+			ExtractProtectedHeaders = func(jwt string) (map[string]interface{}, error) {
+				return nil, expectedError
+			}
+			err = ctx.verifier.Verify(*cred, false, true, &validAt)
+			assert.ErrorIs(t, err, expectedError)
+		})
+	})
 }
 
 func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
@@ -318,11 +390,12 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(rawRevocation, &document))
 
 	revocation := credential.Revocation{}
+	metadata := resolver.ResolveMetadata{ResolveTime: &revocation.Date}
 	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
 
 	t.Run("it checks and stores a valid revocation", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType).Return(key, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &metadata, resolver.NutsSigningKeyType).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation)
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.NoError(t, err)
@@ -366,14 +439,14 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 
 	t.Run("it handles an unknown key error", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType).Return(nil, errors.New("unknown key"))
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &metadata, resolver.NutsSigningKeyType).Return(nil, errors.New("unknown key"))
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to resolve key for revocation: unknown key")
 	})
 
 	t.Run("it handles an error from store operation", func(t *testing.T) {
 		sut := newMockContext(t)
-		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType).Return(key, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &metadata, resolver.NutsSigningKeyType).Return(key, nil)
 		sut.store.EXPECT().StoreRevocation(revocation).Return(errors.New("storage error"))
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to store revocation: storage error")
@@ -382,7 +455,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 	t.Run("it handles an invalid signature error", func(t *testing.T) {
 		sut := newMockContext(t)
 		otherKey, _ := spi.GenerateKeyPair()
-		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &revocation.Date, resolver.NutsSigningKeyType).Return(otherKey, nil)
+		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &metadata, resolver.NutsSigningKeyType).Return(otherKey, nil)
 		err := sut.verifier.RegisterRevocation(revocation)
 		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")
 	})
@@ -555,9 +628,10 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
@@ -568,9 +642,10 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt)
@@ -584,9 +659,10 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], true, true, validAt)
@@ -614,9 +690,10 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDAPrivateKey().PublicKey, nil)
 
 			mockVerifier := NewMockVerifier(ctx.ctrl)
 			mockVerifier.EXPECT().Verify(vp.VerifiableCredential[0], false, true, validAt).Return(errors.New("invalid"))
@@ -630,10 +707,11 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
 			// Return incorrect key, causing signature verification failure
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().PublicKey, nil)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(vdr.TestMethodDIDBPrivateKey().PublicKey, nil)
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
@@ -644,10 +722,11 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			_ = json.Unmarshal([]byte(rawVP), &vp)
 
 			var validAt *time.Time
+			metadata := resolver.ResolveMetadata{ResolveTime: validAt}
 
 			ctx := newMockContext(t)
 			// Return incorrect key, causing signature verification failure
-			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), validAt, resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
+			ctx.keyResolver.EXPECT().ResolveKeyByID(vpSignerKeyID.String(), &metadata, resolver.NutsSigningKeyType).Return(nil, resolver.ErrKeyNotFound)
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 

@@ -63,7 +63,9 @@ func NewTestVCRContext(t *testing.T, keyStore crypto.KeyStore) TestVCRContext {
 	storageEngine := storage.NewTestStorageEngine(t)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine, pkiMock)
 	err := vdrInstance.Configure(core.TestServerConfig())
 	require.NoError(t, err)
 	newInstance := NewVCRInstance(
@@ -103,7 +105,9 @@ func NewTestVCRInstance(t *testing.T) *vcr {
 		config.Datadir = testDirectory
 	})
 	_ = networkInstance.Configure(serverCfg)
-	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	vdrInstance := vdr.NewVDR(keyStore, networkInstance, didStore, eventManager, storageEngine, pkiMock)
 	err := vdrInstance.Configure(serverCfg)
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +136,9 @@ func NewTestVCRInstanceInDir(t *testing.T, testDirectory string) *vcr {
 	storageEngine := storage.NewTestStorageEngineInDir(t, testDirectory)
 	networkInstance := network.NewTestNetworkInstance(t)
 	eventManager := events.NewTestManager(t)
-	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager, storageEngine)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	vdrInstance := vdr.NewVDR(nil, networkInstance, didStore, eventManager, storageEngine, pkiMock)
 	err := vdrInstance.Configure(core.TestServerConfig())
 	if err != nil {
 		t.Fatal(err)

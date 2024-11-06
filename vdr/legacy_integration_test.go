@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"go.uber.org/mock/gomock"
 	"net/url"
 	"sync"
 	"testing"
@@ -297,7 +298,9 @@ func setup(t *testing.T) testContext {
 		storageEngine.GetProvider("network"),
 		pkiValidator,
 	)
-	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine)
+	ctrl := gomock.NewController(t)
+	pkiMock := pki.NewMockValidator(ctrl)
+	vdr := NewVDR(cryptoInstance, nutsNetwork, didStore, eventPublisher, storageEngine, pkiMock)
 
 	// Configure
 	require.NoError(t, vdr.Configure(nutsConfig))

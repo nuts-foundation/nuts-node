@@ -29,6 +29,9 @@ import (
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
 var ErrPrivateKeyNotFound = errors.New("private key not found")
 
+// ErrorInvalidNumberOfSignatures indicates that the number of signatures present in the JWT is invalid.
+var ErrorInvalidNumberOfSignatures = errors.New("invalid number of signatures")
+
 // KIDNamingFunc is a function passed to New() which generates the kid for the pub/priv key
 type KIDNamingFunc func(key crypto.PublicKey) (string, error)
 

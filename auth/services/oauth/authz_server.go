@@ -351,7 +351,10 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 	}
 
 	validationTime := vContext.jwtBearerToken.IssuedAt()
-	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, &validationTime, resolver.NutsSigningKeyType); err != nil {
+	metadata := &resolver.ResolveMetadata{
+		ResolveTime: &validationTime,
+	}
+	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, metadata, resolver.NutsSigningKeyType); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
