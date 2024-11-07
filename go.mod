@@ -145,7 +145,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
-	github.com/minio/sha256-simd v0.1.1
+	github.com/minio/sha256-simd v1.0.1
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -203,6 +203,7 @@ require (
 
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/strutil v1.2.0 // indirect
