@@ -233,7 +233,7 @@ func TestRedisWithPrefixAll(t *testing.T) {
 	t.Run("test prefix all", func(t *testing.T) {
 		// PUT
 		marshal, _ := json.Marshal(testValue)
-		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		mock.ExpectSet(expectedPrefix, string(marshal), time.Second).SetVal("")
 		err := store.Put("last", testValue)
 		assert.NoError(t, err)
 
@@ -245,12 +245,12 @@ func TestRedisWithPrefixAll(t *testing.T) {
 		assert.Equal(t, testValue, actual)
 
 		// EXISTS False
-		mock.ExpectExists(expectedPrefix).SetVal(0)
+		mock.ExpectGet(expectedPrefix).SetVal("")
 		exists := store.Exists("last")
 		assert.False(t, exists)
 
 		// EXISTS True
-		mock.ExpectExists(expectedPrefix).SetVal(1)
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
 		exists = store.Exists("last")
 		assert.True(t, exists)
 
@@ -282,7 +282,7 @@ func TestRedisWithPrefixDb(t *testing.T) {
 	t.Run("test prefix db", func(t *testing.T) {
 		// PUT
 		marshal, _ := json.Marshal(testValue)
-		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		mock.ExpectSet(expectedPrefix, string(marshal), time.Second).SetVal("")
 		err := store.Put("three", testValue)
 		assert.NoError(t, err)
 
@@ -294,12 +294,12 @@ func TestRedisWithPrefixDb(t *testing.T) {
 		assert.Equal(t, testValue, actual)
 
 		// EXISTS False
-		mock.ExpectExists(expectedPrefix).SetVal(0)
+		mock.ExpectGet(expectedPrefix).SetVal("")
 		exists := store.Exists("three")
 		assert.False(t, exists)
 
 		// EXISTS True
-		mock.ExpectExists(expectedPrefix).SetVal(1)
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
 		exists = store.Exists("three")
 		assert.True(t, exists)
 
@@ -330,7 +330,7 @@ func TestRedisWithPrefixesClient(t *testing.T) {
 	t.Run("test prefix db", func(t *testing.T) {
 		// PUT
 		marshal, _ := json.Marshal(testValue)
-		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		mock.ExpectSet(expectedPrefix, string(marshal), time.Second).SetVal("")
 		err := store.Put("three", testValue)
 		assert.NoError(t, err)
 
@@ -342,12 +342,12 @@ func TestRedisWithPrefixesClient(t *testing.T) {
 		assert.Equal(t, testValue, actual)
 
 		// EXISTS False
-		mock.ExpectExists(expectedPrefix).SetVal(0)
+		mock.ExpectGet(expectedPrefix).SetVal("")
 		exists := store.Exists("three")
 		assert.False(t, exists)
 
 		// EXISTS True
-		mock.ExpectExists(expectedPrefix).SetVal(1)
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
 		exists = store.Exists("three")
 		assert.True(t, exists)
 
@@ -379,7 +379,7 @@ func TestRedisWithPrefixNone(t *testing.T) {
 	t.Run("test prefix none", func(t *testing.T) {
 		// PUT
 		marshal, _ := json.Marshal(testValue)
-		mock.ExpectSet(expectedPrefix, marshal, time.Second).SetVal("")
+		mock.ExpectSet(expectedPrefix, string(marshal), time.Second).SetVal("")
 		err := store.Put("three", testValue)
 		assert.NoError(t, err)
 
@@ -391,12 +391,12 @@ func TestRedisWithPrefixNone(t *testing.T) {
 		assert.Equal(t, testValue, actual)
 
 		// EXISTS False
-		mock.ExpectExists(expectedPrefix).SetVal(0)
+		mock.ExpectGet(expectedPrefix).SetVal("")
 		exists := store.Exists("three")
 		assert.False(t, exists)
 
 		// EXISTS True
-		mock.ExpectExists(expectedPrefix).SetVal(1)
+		mock.ExpectGet(expectedPrefix).SetVal(string(marshal))
 		exists = store.Exists("three")
 		assert.True(t, exists)
 

@@ -202,8 +202,14 @@ require (
 )
 
 require (
+	github.com/eko/gocache/lib/v4 v4.1.6 // indirect
+	github.com/eko/gocache/store/go_cache/v4 v4.2.2 // indirect
+	github.com/eko/gocache/store/redis/v4 v4.2.2 // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/strutil v1.2.0 // indirect

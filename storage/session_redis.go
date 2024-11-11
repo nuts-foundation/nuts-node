@@ -19,26 +19,25 @@
 package storage
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/eko/gocache/lib/v4/cache"
+	redisstore "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabase {
-	return redisSessionDatabase{
-		client: client,
-		prefix: prefix,
-	}
+type redisSessionDatabase struct {
+	underlying *cache.Cache[string]
+	prefix     string
 }
 
-type redisSessionDatabase struct {
-	client *redis.Client
-	prefix string
+func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabase {
+	redisStore := redisstore.NewRedis(client)
+	return redisSessionDatabase{
+		underlying: cache.New[string](redisStore),
+		prefix:     prefix,
+	}
 }
 
 func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
@@ -47,73 +46,18 @@ func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) Sessio
 		prefixParts = append(prefixParts, s.prefix)
 	}
 	prefixParts = append(prefixParts, keys...)
-	return redisSessionStore{
-		client:    s.client,
-		ttl:       ttl,
-		storeName: strings.Join(prefixParts, "."),
+	return SessionStoreImpl[string]{
+		underlying: s.underlying,
+		ttl:        ttl,
+		prefixes:   prefixParts,
+		db:         s,
 	}
 }
 
 func (s redisSessionDatabase) close() {
-	err := s.client.Close()
-	if err != nil {
-		log.Logger().WithError(err).Error("Failed to close redis client")
-	}
+	// nop
 }
 
-type redisSessionStore struct {
-	client    *redis.Client
-	ttl       time.Duration
-	storeName string
-}
-
-func (s redisSessionStore) Delete(key string) error {
-	return s.client.Del(context.Background(), s.toRedisKey(key)).Err()
-}
-
-func (s redisSessionStore) Exists(key string) bool {
-	result, err := s.client.Exists(context.Background(), s.toRedisKey(key)).Result()
-	if err != nil {
-		log.Logger().WithError(err).Error("Failed to check key existence in Redis session store")
-		return false
-	}
-	return result > 0
-}
-
-func (s redisSessionStore) Get(key string, target interface{}) error {
-	result, err := s.client.Get(context.Background(), s.toRedisKey(key)).Result()
-	if err != nil {
-		if errors.Is(redis.Nil, err) {
-			return ErrNotFound
-		}
-		return err
-	}
-	return json.Unmarshal([]byte(result), target)
-}
-
-func (s redisSessionStore) Put(key string, value interface{}) error {
-	marshal, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return s.client.Set(context.Background(), s.toRedisKey(key), marshal, s.ttl).Err()
-}
-
-func (s redisSessionStore) GetAndDelete(key string, target interface{}) error {
-	// GetDel requires redis-server version >= 6.2.0.
-	result, err := s.client.GetDel(context.Background(), s.toRedisKey(key)).Result()
-	if err != nil {
-		if errors.Is(redis.Nil, err) {
-			return ErrNotFound
-		}
-		return err
-	}
-	return json.Unmarshal([]byte(result), target)
-}
-
-func (s redisSessionStore) toRedisKey(key string) string {
-	if len(s.storeName) > 0 {
-		return strings.Join([]string{s.storeName, key}, ".")
-	}
-	return key
+func (s redisSessionDatabase) getFullKey(prefixes []string, key string) string {
+	return strings.Join(append(prefixes, key), ".")
 }
