@@ -20,6 +20,7 @@ package storage
 
 import (
 	"fmt"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/daangn/minimemcached"
 	"net"
 	"testing"
@@ -30,13 +31,13 @@ import (
 )
 
 func TestNewMemcachedSessionDatabase(t *testing.T) {
-	db := createMemcachedDatabase(t)
+	db := memcachedTestDatabase(t)
 
 	assert.NotNil(t, db)
 }
 
 func TestNewMemcachedSessionDatabase_GetStore(t *testing.T) {
-	db := createMemcachedDatabase(t)
+	db := memcachedTestDatabase(t)
 
 	store := db.GetStore(time.Minute, "key1", "key2").(SessionStoreImpl[[]byte])
 
@@ -46,7 +47,7 @@ func TestNewMemcachedSessionDatabase_GetStore(t *testing.T) {
 }
 
 func TestNewMemcachedSessionDatabase_Get(t *testing.T) {
-	db := createMemcachedDatabase(t)
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("string value is retrieved correctly", func(t *testing.T) {
@@ -100,7 +101,7 @@ func TestNewMemcachedSessionDatabase_Get(t *testing.T) {
 }
 
 func TestNewMemcachedSessionDatabase_Delete(t *testing.T) {
-	db := createMemcachedDatabase(t)
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("value is deleted", func(t *testing.T) {
@@ -120,7 +121,7 @@ func TestNewMemcachedSessionDatabase_Delete(t *testing.T) {
 }
 
 func TestNewMemcachedSessionDatabase_GetAndDelete(t *testing.T) {
-	db := createMemcachedDatabase(t)
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("ok", func(t *testing.T) {
@@ -152,7 +153,16 @@ func getRandomAvailablePort() (int, error) {
 	return addr.Port, nil
 }
 
-func createMemcachedDatabase(t *testing.T) *MemcachedSessionDatabase {
+func memcachedTestDatabase(t *testing.T) *MemcachedSessionDatabase {
+	m := memcachedTestServer(t)
+	client := memcache.New(fmt.Sprintf("localhost:%d", m.Port()))
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+	return NewMemcachedSessionDatabase(client)
+}
+
+func memcachedTestServer(t *testing.T) *minimemcached.MiniMemcached {
 	// get random available port
 	port, err := getRandomAvailablePort()
 	if err != nil {
@@ -166,6 +176,8 @@ func createMemcachedDatabase(t *testing.T) *MemcachedSessionDatabase {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { m.Close() })
-	return NewMemcachedSessionDatabase(fmt.Sprintf("localhost:%d", m.Port()))
+	t.Cleanup(func() {
+		m.Close()
+	})
+	return m
 }

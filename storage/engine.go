@@ -178,6 +178,10 @@ func (e *engine) Configure(config core.ServerConfig) error {
 
 	// session storage
 	redisConfig := e.config.Session.Redis
+	memcachedConfig := e.config.Session.Memcached
+	if redisConfig.isConfigured() && memcachedConfig.isConfigured() {
+		return errors.New("only one of 'storage.session.redis' and 'storage.session.memcached' can be configured")
+	}
 	if redisConfig.isConfigured() {
 		redisDB, err := createRedisDatabase(redisConfig)
 		if err != nil {
@@ -188,6 +192,14 @@ func (e *engine) Configure(config core.ServerConfig) error {
 			return fmt.Errorf("unable to configure redis client: %w", err)
 		}
 		e.sessionDatabase = NewRedisSessionDatabase(client, redisConfig.Database)
+		log.Logger().Info("Redis session storage support enabled.")
+	} else if memcachedConfig.isConfigured() {
+		memcachedClient, err := newMemcachedClient(memcachedConfig)
+		if err != nil {
+			return fmt.Errorf("unable to initialize memcached client: %w", err)
+		}
+		e.sessionDatabase = NewMemcachedSessionDatabase(memcachedClient)
+		log.Logger().Info("Memcached session storage support enabled.")
 	} else {
 		e.sessionDatabase = NewInMemorySessionDatabase()
 	}

@@ -55,7 +55,7 @@ type RedisConfig struct {
 
 // isConfigured returns true if config the indicates Redis support should be enabled.
 func (r RedisConfig) isConfigured() bool {
-	return len(r.Address) > 0
+	return r.Sentinel.enabled() || len(r.Address) > 0
 }
 
 func (r RedisConfig) parse() (*redis.Options, error) {

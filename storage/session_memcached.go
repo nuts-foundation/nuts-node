@@ -29,13 +29,15 @@ import (
 )
 
 type MemcachedSessionDatabase struct {
+	client     *memcache.Client
 	underlying *cache.Cache[[]byte]
 }
 
-func NewMemcachedSessionDatabase(addresses ...string) *MemcachedSessionDatabase {
-	redisStore := memcachestore.NewMemcache(memcache.New(addresses...), store.WithExpiration(5*time.Minute))
+// NewMemcachedSessionDatabase creates a new MemcachedSessionDatabase using an initialized memcache.Client.
+func NewMemcachedSessionDatabase(client *memcache.Client) *MemcachedSessionDatabase {
+	memcachedStore := memcachestore.NewMemcache(client, store.WithExpiration(5*time.Minute))
 	return &MemcachedSessionDatabase{
-		underlying: cache.New[[]byte](redisStore),
+		underlying: cache.New[[]byte](memcachedStore),
 	}
 }
 
@@ -49,7 +51,10 @@ func (s MemcachedSessionDatabase) GetStore(ttl time.Duration, keys ...string) Se
 }
 
 func (s MemcachedSessionDatabase) close() {
-	// nop
+	// noop
+	if s.client != nil {
+		_ = s.client.Close()
+	}
 }
 
 func (s MemcachedSessionDatabase) getFullKey(prefixes []string, key string) string {

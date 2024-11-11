@@ -20,6 +20,13 @@ package storage
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"path"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -27,11 +34,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"os"
-	"path"
-	"strings"
-	"testing"
-	"time"
 )
 
 func Test_New(t *testing.T) {
@@ -261,7 +263,7 @@ func TestEngine_CheckHealth(t *testing.T) {
 	})
 }
 
-func Test_engine_redisSessionDatabase(t *testing.T) {
+func Test_engine_sessionDatabase(t *testing.T) {
 	t.Run("redis", func(t *testing.T) {
 		redis := miniredis.RunT(t)
 		e := New().(*engine)
@@ -277,5 +279,32 @@ func Test_engine_redisSessionDatabase(t *testing.T) {
 			_ = e.Shutdown()
 		})
 		assert.IsType(t, redisSessionDatabase{}, e.GetSessionDatabase())
+	})
+	t.Run("memcached", func(t *testing.T) {
+		memcached := memcachedTestServer(t)
+		e := New().(*engine)
+		e.config = Config{
+			Session: SessionConfig{
+				Memcached: MemcachedConfig{Address: []string{fmt.Sprintf("localhost:%d", memcached.Port())}},
+			},
+		}
+		dataDir := io.TestDirectory(t)
+		require.NoError(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+		require.NoError(t, e.Start())
+		t.Cleanup(func() {
+			_ = e.Shutdown()
+		})
+		assert.IsType(t, &MemcachedSessionDatabase{}, e.GetSessionDatabase())
+	})
+	t.Run("error on both redis and memcached", func(t *testing.T) {
+		e := New().(*engine)
+		e.config = Config{
+			Session: SessionConfig{
+				Memcached: MemcachedConfig{Address: []string{"localhost:1111"}},
+				Redis:     RedisConfig{Address: "localhost:1111"},
+			},
+		}
+		dataDir := io.TestDirectory(t)
+		require.Error(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
 	})
 }
