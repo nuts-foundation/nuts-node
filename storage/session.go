@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
 	"time"
@@ -41,7 +42,14 @@ type SessionStoreImpl[T StringOrBytes] struct {
 }
 
 func (s SessionStoreImpl[T]) Delete(key string) error {
-	return s.underlying.Delete(context.Background(), s.db.getFullKey(s.prefixes, key))
+	err := s.underlying.Delete(context.Background(), s.db.getFullKey(s.prefixes, key))
+	if err != nil {
+		if errors.Is(err, store.NotFound{}) || errors.Is(err, memcache.ErrCacheMiss) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (s SessionStoreImpl[T]) Exists(key string) bool {
@@ -55,7 +63,8 @@ func (s SessionStoreImpl[T]) Exists(key string) bool {
 func (s SessionStoreImpl[T]) Get(key string, target interface{}) error {
 	val, err := s.underlying.Get(context.Background(), s.db.getFullKey(s.prefixes, key))
 	if err != nil {
-		if errors.Is(err, store.NotFound{}) {
+		// memcache.ErrCacheMiss is added here since the abstraction layer doesn't map this error to NotFound
+		if errors.Is(err, store.NotFound{}) || errors.Is(err, memcache.ErrCacheMiss) {
 			return ErrNotFound
 		}
 		return err
