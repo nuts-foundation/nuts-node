@@ -65,7 +65,6 @@ services:
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-      - "./node-A/html:/etc/nginx/html:ro"
       - "../../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
@@ -93,4 +92,3 @@ services:
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-      - "./node-B/html:/etc/nginx/html:ro"
