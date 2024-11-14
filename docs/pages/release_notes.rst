@@ -3,6 +3,17 @@ Release notes
 #############
 
 ***************
+Peanut (v6.0.2)
+***************
+
+Release date: 2024-11-14
+
+- `#3556 <https://github.com/nuts-foundation/nuts-node/issues/3556>`_: fix private key path when using native Hashicorp Vault integration,
+  broken since v6.0.0 (pre-v6.0.0 keys couldn't be found, post-v6.0.0 keys have an incorrect name).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.1...v6.0.2
+
+***************
 Peanut (v6.0.1)
 ***************
 
