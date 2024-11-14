@@ -34,6 +34,7 @@ import (
 
 const privateKeyPathName = "nuts-private-keys"
 const defaultPathPrefix = "kv"
+const vaultSecretkeyName = "key"
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
 const StorageType = "vaultkv"
@@ -102,8 +103,8 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
-	return spi.GenerateAndStore(ctx, v, keyName)
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (crypto.PublicKey, string, error) {
+	return spi.GenerateAndStore(ctx, v, keyPath)
 }
 
 func configureVaultClient(cfg Config) (*vault.Client, error) {
@@ -142,7 +143,7 @@ func (v vaultKVStorage) checkConnection() error {
 
 func (v vaultKVStorage) GetPrivateKey(ctx context.Context, keyName string, _ string) (crypto.Signer, error) {
 	path := privateKeyPath(v.config.PathPrefix, keyName)
-	value, err := v.getValue(ctx, path, keyName)
+	value, err := v.getValue(ctx, path, vaultSecretkeyName)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +182,7 @@ func (v vaultKVStorage) storeValue(ctx context.Context, path, key string, value 
 
 func (v vaultKVStorage) PrivateKeyExists(ctx context.Context, keyName string, _ string) (bool, error) {
 	path := privateKeyPath(v.config.PathPrefix, keyName)
-	_, err := v.getValue(ctx, path, keyName)
+	_, err := v.getValue(ctx, path, vaultSecretkeyName)
 	if errors.Is(err, spi.ErrNotFound) {
 		return false, nil
 	}
@@ -224,14 +225,14 @@ func privateKeyListPath(prefix string) string {
 	return filepath.Clean(path)
 }
 
-func (v vaultKVStorage) SavePrivateKey(ctx context.Context, keyName string, key crypto.PrivateKey) error {
-	path := privateKeyPath(v.config.PathPrefix, keyName)
+func (v vaultKVStorage) SavePrivateKey(ctx context.Context, keyPath string, key crypto.PrivateKey) error {
+	path := privateKeyPath(v.config.PathPrefix, keyPath)
 	pem, err := util.PrivateKeyToPem(key)
 	if err != nil {
 		return fmt.Errorf("unable to convert private key to pem format: %w", err)
 	}
 
-	return v.storeValue(ctx, path, keyName, pem)
+	return v.storeValue(ctx, path, vaultSecretkeyName, pem)
 }
 
 func (v vaultKVStorage) DeletePrivateKey(ctx context.Context, kid string) error {
