@@ -26,6 +26,7 @@ import (
 	"errors"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -103,6 +104,17 @@ func TestVaultKVStorage(t *testing.T) {
 		assert.Equal(t, privateKey, result, "expected retrieved key to equal original")
 	})
 
+	t.Run("get", func(t *testing.T) {
+		pem, _ := util.PrivateKeyToPem(privateKey)
+		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {vaultSecretkeyName: pem}}}}
+
+		signer, err := vaultStorage.GetPrivateKey(ctx, keyName, version)
+
+		require.NoError(t, err)
+		pem2, _ := util.PrivateKeyToPem(signer)
+		assert.Equal(t, pem, pem2)
+	})
+
 	t.Run("delete", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			vaultStorage := vaultKVStorage{client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {}}}}
@@ -171,7 +183,7 @@ func TestVaultKVStorage(t *testing.T) {
 	})
 
 	t.Run("error - encoding issues", func(t *testing.T) {
-		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {keyName: []byte("foo")}}}}
+		vaultStorage := vaultKVStorage{config: DefaultConfig(), client: mockVaultClient{store: map[string]map[string]interface{}{"kv/nuts-private-keys/did:nuts:123#abc": {vaultSecretkeyName: []byte("foo")}}}}
 
 		t.Run("SavePrivateKey", func(t *testing.T) {
 			err := vaultStorage.SavePrivateKey(ctx, keyName, "123")
