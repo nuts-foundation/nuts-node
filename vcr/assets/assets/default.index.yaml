@@ -5,9 +5,6 @@ indices:
   - name: index_issuer
     parts:
       - iriPath: ["https://www.w3.org/2018/credentials#issuer"]
-  - name: index_subject
-    parts:
-      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
   - name: index_organization
     parts:
       - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "http://schema.org/organization", "http://schema.org/legalname"]
@@ -20,3 +17,8 @@ indices:
     parts:
       - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
       - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#subject"]
+  - name: index_auth_subject_purpose_resources
+    parts:
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject"]
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#purposeOfUse"]
+      - iriPath: ["https://www.w3.org/2018/credentials#credentialSubject", "https://nuts.nl/credentials/v1#resources", "https://nuts.nl/credentials/v1#path"]
