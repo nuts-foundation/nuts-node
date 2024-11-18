@@ -35,7 +35,7 @@ type MemcachedSessionDatabase struct {
 
 // NewMemcachedSessionDatabase creates a new MemcachedSessionDatabase using an initialized memcache.Client.
 func NewMemcachedSessionDatabase(client *memcache.Client) *MemcachedSessionDatabase {
-	memcachedStore := memcachestore.NewMemcache(client, store.WithExpiration(5*time.Minute))
+	memcachedStore := memcachestore.NewMemcache(client, store.WithExpiration(defaultSessionDataTTL))
 	return &MemcachedSessionDatabase{
 		underlying: cache.New[[]byte](memcachedStore),
 	}

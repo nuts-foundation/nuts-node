@@ -22,18 +22,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/store"
-	"time"
 )
 
 var _ SessionStore = (*SessionStoreImpl[[]byte])(nil)
 
+// defaultSessionDataTTL is the default time to live for session data
+// some stores require a default
+var defaultSessionDataTTL = 15 * time.Minute
+
+// StringOrBytes is a type that can be either a string or a byte slice
+// used for generic type constraints
 type StringOrBytes interface {
 	~string | ~[]byte
 }
 
+// SessionStoreImpl is an implementation of the SessionStore interface
+// It handles logic for all session store types
 type SessionStoreImpl[T StringOrBytes] struct {
 	underlying *cache.Cache[T]
 	ttl        time.Duration

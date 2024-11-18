@@ -19,11 +19,12 @@
 package storage
 
 import (
+	"strings"
+	"time"
+
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/store/go_cache/v4"
 	gocacheclient "github.com/patrickmn/go-cache"
-	"strings"
-	"time"
 )
 
 var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
@@ -39,7 +40,7 @@ type InMemorySessionDatabase struct {
 
 // NewInMemorySessionDatabase creates a new in memory session database.
 func NewInMemorySessionDatabase() *InMemorySessionDatabase {
-	gocacheClient := gocacheclient.New(5*time.Minute, sessionStorePruneInterval)
+	gocacheClient := gocacheclient.New(defaultSessionDataTTL, sessionStorePruneInterval)
 	gocacheStore := go_cache.NewGoCache(gocacheClient)
 	return &InMemorySessionDatabase{
 		underlying: cache.New[[]byte](gocacheStore),
