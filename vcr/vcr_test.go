@@ -163,8 +163,8 @@ func TestVCR_Start(t *testing.T) {
 			}
 			assert.NotNil(t, mainBucket.Bucket([]byte("index_id")))
 			assert.NotNil(t, mainBucket.Bucket([]byte("index_issuer")))
-			assert.NotNil(t, mainBucket.Bucket([]byte("index_subject")))
 			assert.NotNil(t, mainBucket.Bucket([]byte("index_organization")))
+			assert.NotNil(t, mainBucket.Bucket([]byte("index_auth_subject_purpose_resources")))
 
 			return nil
 		})
