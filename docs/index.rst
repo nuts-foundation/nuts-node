@@ -31,6 +31,7 @@ Nuts documentation
     pages/deployment/configuration.rst
     pages/deployment/migration.rst
     pages/deployment/recommended-deployment.rst
+    pages/deployment/clustering.rst
     pages/deployment/certificates.rst
     pages/deployment/docker.rst
     pages/deployment/storage.rst
