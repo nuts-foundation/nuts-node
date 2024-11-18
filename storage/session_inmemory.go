@@ -56,7 +56,7 @@ func (s *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) Se
 	}
 }
 
-func (s *InMemorySessionDatabase) close() {
+func (s *InMemorySessionDatabase) Close() {
 	// NOP
 }
 

@@ -30,6 +30,7 @@ import (
 type redisSessionDatabase struct {
 	underlying *cache.Cache[string]
 	prefix     string
+	client     *redis.Client
 }
 
 func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabase {
@@ -37,6 +38,7 @@ func NewRedisSessionDatabase(client *redis.Client, prefix string) SessionDatabas
 	return redisSessionDatabase{
 		underlying: cache.New[string](redisStore),
 		prefix:     prefix,
+		client:     client,
 	}
 }
 
@@ -54,8 +56,10 @@ func (s redisSessionDatabase) GetStore(ttl time.Duration, keys ...string) Sessio
 	}
 }
 
-func (s redisSessionDatabase) close() {
-	// nop
+func (s redisSessionDatabase) Close() {
+	if s.client != nil {
+		_ = s.client.Close()
+	}
 }
 
 func (s redisSessionDatabase) getFullKey(prefixes []string, key string) string {

@@ -880,7 +880,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		})
 
 		t.Run("cache expired", func(t *testing.T) {
-			cacheKey, _ := accessTokenRequestCacheKey(request)
+			cacheKey := accessTokenRequestCacheKey(request)
 			_ = ctx.client.accessTokenCache().Delete(cacheKey)
 			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
 
@@ -905,6 +905,16 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 	})
+	t.Run("ok with expired cache by ttl", func(t *testing.T) {
+		ctx := newTestClient(t)
+		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+		require.NoError(t, err)
+		assert.False(t, ctx.client.accessTokenCache().Exists(accessTokenRequestCacheKey(request)))
+	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(nil, pe.ErrNoCredentials)
@@ -914,6 +924,24 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, err, pe.ErrNoCredentials)
 		assert.Equal(t, http.StatusPreconditionFailed, statusCodeFrom(err))
+	})
+	t.Run("broken cache", func(t *testing.T) {
+		ctx := newTestClient(t)
+		mockStorage := storage.NewMockEngine(ctx.ctrl)
+		errorSessionDatabase := storage.NewErrorSessionDatabase(assert.AnError)
+		mockStorage.EXPECT().GetSessionDatabase().Return(errorSessionDatabase).AnyTimes()
+		ctx.client.storageEngine = mockStorage
+
+		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{AccessToken: "first"}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{AccessToken: "second"}, nil)
+
+		token1, err := ctx.client.RequestServiceAccessToken(nil, request)
+		require.NoError(t, err)
+		token2, err := ctx.client.RequestServiceAccessToken(nil, request)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, token1, token2)
 	})
 }
 
@@ -1338,6 +1366,15 @@ func TestWrapper_subjectOwns(t *testing.T) {
 		assert.NoError(t, err)
 		assert.False(t, owned)
 	})
+}
+
+func TestWrapper_accessTokenRequestCacheKey(t *testing.T) {
+	expected := "0cc6fbbd972c72de7bc86c6147347bdd54bcb41fe23cea3d8f61d6ddd75dbf86"
+	key := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test"}})
+	other := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test2"}})
+
+	assert.Equal(t, expected, key)
+	assert.NotEqual(t, key, other)
 }
 
 func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.VerifiableCredential {

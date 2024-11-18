@@ -40,6 +40,7 @@ func NewMemcachedSessionDatabase(client *memcache.Client) *MemcachedSessionDatab
 	memcachedStore := memcachestore.NewMemcache(client, store.WithExpiration(defaultSessionDataTTL))
 	return &MemcachedSessionDatabase{
 		underlying: cache.New[[]byte](memcachedStore),
+		client:     client,
 	}
 }
 
@@ -52,8 +53,7 @@ func (s MemcachedSessionDatabase) GetStore(ttl time.Duration, keys ...string) Se
 	}
 }
 
-func (s MemcachedSessionDatabase) close() {
-	// noop
+func (s MemcachedSessionDatabase) Close() {
 	if s.client != nil {
 		_ = s.client.Close()
 	}

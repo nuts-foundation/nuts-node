@@ -255,6 +255,18 @@ func (m *MockSessionDatabase) EXPECT() *MockSessionDatabaseMockRecorder {
 	return m.recorder
 }
 
+// Close mocks base method.
+func (m *MockSessionDatabase) Close() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Close")
+}
+
+// Close indicates an expected call of Close.
+func (mr *MockSessionDatabaseMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockSessionDatabase)(nil).Close))
+}
+
 // GetStore mocks base method.
 func (m *MockSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
 	m.ctrl.T.Helper()
@@ -272,18 +284,6 @@ func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl any, keys ...any) *gomoc
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]any{ttl}, keys...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
-}
-
-// close mocks base method.
-func (m *MockSessionDatabase) close() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "close")
-}
-
-// close indicates an expected call of close.
-func (mr *MockSessionDatabaseMockRecorder) close() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "close", reflect.TypeOf((*MockSessionDatabase)(nil).close))
 }
 
 // MockSessionStore is a mock of SessionStore interface.
@@ -367,15 +367,20 @@ func (mr *MockSessionStoreMockRecorder) GetAndDelete(key, target any) *gomock.Ca
 }
 
 // Put mocks base method.
-func (m *MockSessionStore) Put(key string, value any) error {
+func (m *MockSessionStore) Put(key string, value any, options ...SessionOption) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", key, value)
+	varargs := []any{key, value}
+	for _, a := range options {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Put", varargs...)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Put indicates an expected call of Put.
-func (mr *MockSessionStoreMockRecorder) Put(key, value any) *gomock.Call {
+func (mr *MockSessionStoreMockRecorder) Put(key, value any, options ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockSessionStore)(nil).Put), key, value)
+	varargs := append([]any{key, value}, options...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockSessionStore)(nil).Put), varargs...)
 }

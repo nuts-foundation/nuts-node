@@ -147,7 +147,7 @@ func (e *engine) Shutdown() error {
 	}
 
 	// Close session database
-	e.sessionDatabase.close()
+	e.sessionDatabase.Close()
 	// Close SQL db
 	if e.sqlDB != nil {
 		underlyingDB, err := e.sqlDB.DB()

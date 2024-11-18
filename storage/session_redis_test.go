@@ -45,7 +45,7 @@ func TestRedisSessionStore(t *testing.T) {
 	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 
 	t.Run("lifecycle", func(t *testing.T) {
 		store := sessions.GetStore(time.Second, "unit")
@@ -66,7 +66,7 @@ func TestRedisSessionStore_Get(t *testing.T) {
 	storageEngine, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, storageEngine.Start())
 	sessions := storageEngine.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 
 	var actual testType
 	t.Run("non-existing key", func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestRedisSessionStore_Delete(t *testing.T) {
 	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 	// We make sure the value exists in another store,
 	// to test partitioning
 	otherStore := sessions.GetStore(time.Second, "unit_other")
@@ -111,7 +111,7 @@ func TestRedisSessionStore_GetAndDelete(t *testing.T) {
 	storageEngine, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, storageEngine.Start())
 	sessions := storageEngine.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 
 	t.Run("ok", func(t *testing.T) {
 		var actual testType
@@ -152,7 +152,7 @@ func TestRedisSessionStore_Exists(t *testing.T) {
 	store, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 	// We make sure the value exists in another store,
 	// to test partitioning
 	otherStore := sessions.GetStore(time.Second, "unit_other")
@@ -177,7 +177,7 @@ func TestRedisSessionStore_Put(t *testing.T) {
 	store, _ := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 	// We make sure the value exists in another store,
 	// to test partitioning
 	otherStore := sessions.GetStore(time.Second, "unit_other")
@@ -209,7 +209,7 @@ func TestRedisSessionStore_Pruning(t *testing.T) {
 	store, miniRedis := NewTestStorageEngineRedis(t)
 	require.NoError(t, store.Start())
 	sessions := store.GetSessionDatabase()
-	defer sessions.close()
+	defer sessions.Close()
 	// We make sure the value exists in another store,
 	// to test partitioning
 	otherStore := sessions.GetStore(time.Second*1, "unit_other")

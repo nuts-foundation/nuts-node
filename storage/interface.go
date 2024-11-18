@@ -78,9 +78,11 @@ type SessionDatabase interface {
 	// The keys are used to logically partition the store, eg: tenants and/or flows that are not allowed to overlap like credential issuance and verification.
 	// The TTL is the time-to-live for the entries in the store.
 	GetStore(ttl time.Duration, keys ...string) SessionStore
-	// close stops any background processes and closes the database.
-	close()
+	// getFullKey returns the full key for the given key and prefixes.
+	// the supported chars differ per backend.
 	getFullKey(prefixes []string, key string) string
+	// Close stops any background processes and closes the database.
+	Close()
 }
 
 // SessionStore is a key-value store that holds session data.
@@ -95,10 +97,25 @@ type SessionStore interface {
 	// Returns ErrNotFound if the key does not exist.
 	Get(key string, target interface{}) error
 	// Put stores the given value for the given key.
-	Put(key string, value interface{}) error
+	// options can be used to fine-tune the storage of the item.
+	Put(key string, value interface{}, options ...SessionOption) error
 	// GetAndDelete combines Get and Delete as a convenience for burning nonce entries.
 	GetAndDelete(key string, target interface{}) error
 }
 
 // TransactionKey is the key used to store the SQL transaction in the context.
 type TransactionKey struct{}
+
+// SessionOption is an option that can be given when storing items.
+type SessionOption func(target *sessionOptions)
+
+type sessionOptions struct {
+	ttl time.Duration
+}
+
+// WithTTL sets the time-to-live for the stored item.
+func WithTTL(ttl time.Duration) SessionOption {
+	return func(target *sessionOptions) {
+		target.ttl = ttl
+	}
+}
