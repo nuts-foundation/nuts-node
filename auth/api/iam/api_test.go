@@ -24,12 +24,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -51,10 +45,15 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -63,6 +62,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -865,11 +865,31 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
+		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
+		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
 		require.NoError(t, err)
+
+		t.Run("is cached", func(t *testing.T) {
+			cachedToken, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			require.NoError(t, err)
+			assert.Equal(t, token, cachedToken)
+		})
+
+		t.Run("cache expired", func(t *testing.T) {
+			cacheKey, _ := accessTokenRequestCacheKey(request)
+			_ = ctx.client.accessTokenCache().Delete(cacheKey)
+			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
+
+			otherToken, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			require.NoError(t, err)
+
+			assert.NotEqual(t, token, otherToken)
+		})
 	})
 	t.Run("ok - no DPoP", func(t *testing.T) {
 		ctx := newTestClient(t)

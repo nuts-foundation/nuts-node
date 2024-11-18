@@ -22,8 +22,10 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -722,6 +724,25 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
+	tokenCache := r.accessTokenCache()
+	cacheKey, err := accessTokenRequestCacheKey(request)
+	cacheToken := true
+	if err != nil {
+		cacheToken = false
+		// only log error, don't fail
+		log.Logger().WithError(err).Warnf("Failed to create cache key for access token request: %s", err.Error())
+	} else {
+		// try to retrieve token from cache
+		tokenResult := new(TokenResponse)
+		err = tokenCache.Get(cacheKey, tokenResult)
+		if err == nil {
+			return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
+		} else if !errors.Is(err, storage.ErrNotFound) {
+			// only log error, don't fail
+			log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+		}
+	}
+
 	var credentials []VerifiableCredential
 	if request.Body.Credentials != nil {
 		credentials = *request.Body.Credentials
@@ -736,6 +757,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
+	}
+	if cacheToken {
+		err = tokenCache.Put(cacheKey, tokenResult)
+		if err != nil {
+			// only log error, don't fail
+			log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
+		}
 	}
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
@@ -897,6 +925,12 @@ func (r Wrapper) accessTokenServerStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, "serveraccesstoken")
 }
 
+// accessTokenClientStore is used by the client to cache access tokens
+func (r Wrapper) accessTokenCache() storage.SessionStore {
+	// we use a slightly reduced validity to prevent the cache from being used after the token has expired
+	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity-30*time.Second, "accesstokencache")
+}
+
 // accessTokenServerStore is used by the Auth server to store issued access tokens
 func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 	return r.storageEngine.GetSessionDatabase().GetStore(accessTokenValidity, oauthRequestObjectKey...)
@@ -945,4 +979,16 @@ func (r Wrapper) determineClientDID(ctx context.Context, authServerMetadata oaut
 		return nil, err
 	}
 	return &candidateDIDs[0], nil
+}
+
+// accessTokenRequestCacheKey creates a cache key for the access token request.
+// it writes the JSON to a sha256 hash and returns the hex encoded hash.
+func accessTokenRequestCacheKey(request RequestServiceAccessTokenRequestObject) (string, error) {
+	// create a hash of the request
+	hash := sha256.New()
+	err := json.NewEncoder(hash).Encode(request)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
