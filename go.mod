@@ -31,7 +31,7 @@ require (
 	github.com/nats-io/nats.go v1.37.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.15.0
-	github.com/nuts-foundation/go-leia/v4 v4.0.3
+	github.com/nuts-foundation/go-leia/v4 v4.1.0
 	github.com/nuts-foundation/go-stoabs v1.10.0
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
