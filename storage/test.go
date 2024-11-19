@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/test/io"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
@@ -138,3 +139,51 @@ type nilGooseLogger struct{}
 func (m nilGooseLogger) Printf(format string, v ...interface{}) {}
 
 func (m nilGooseLogger) Fatalf(format string, v ...interface{}) {}
+
+var _ SessionDatabase = (*errorSessionDatabase)(nil)
+var _ SessionStore = (*errorSessionStore)(nil)
+
+// NewErrorSessionDatabase creates a SessionDatabase that always returns an error.
+func NewErrorSessionDatabase(err error) SessionDatabase {
+	return errorSessionDatabase{err: err}
+}
+
+type errorSessionDatabase struct {
+	err error
+}
+
+type errorSessionStore struct {
+	err error
+}
+
+func (e errorSessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
+	return errorSessionStore{err: e.err}
+}
+
+func (e errorSessionDatabase) getFullKey(prefixes []string, key string) string {
+	return ""
+}
+
+func (e errorSessionDatabase) close() {
+	// nop
+}
+
+func (e errorSessionStore) Delete(key string) error {
+	return e.err
+}
+
+func (e errorSessionStore) Exists(key string) bool {
+	return false
+}
+
+func (e errorSessionStore) Get(key string, target interface{}) error {
+	return e.err
+}
+
+func (e errorSessionStore) Put(key string, value interface{}) error {
+	return e.err
+}
+
+func (e errorSessionStore) GetAndDelete(key string, target interface{}) error {
+	return e.err
+}

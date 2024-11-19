@@ -99,6 +99,18 @@ func (e *engine) CheckHealth() map[string]core.Health {
 		}
 		results["sql"] = sqlHealth
 	}
+	if e.sessionDatabase != nil {
+		results["session"] = core.Health{
+			Status: core.HealthStatusUp,
+		}
+		err := e.sessionDatabase.GetStore(defaultSessionDataTTL, "healthcheck").Get("does_not_exist", nil)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			results["session"] = core.Health{
+				Status:  core.HealthStatusDown,
+				Details: err.Error(),
+			}
+		}
+	}
 	return results
 }
 

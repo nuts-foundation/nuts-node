@@ -242,24 +242,45 @@ func TestEngine_CheckHealth(t *testing.T) {
 		expected := core.Health{Status: core.HealthStatusUp}
 		e := setup(t)
 		health := e.CheckHealth()
-		status, ok := health["sql"]
-		require.True(t, ok)
-		assert.Equal(t, expected, status)
+		t.Run("sql", func(t *testing.T) {
+			status, ok := health["sql"]
+			require.True(t, ok)
+			assert.Equal(t, expected, status)
+		})
+		t.Run("session", func(t *testing.T) {
+			status, ok := health["session"]
+			require.True(t, ok)
+			assert.Equal(t, expected, status)
+		})
 	})
 	t.Run("fails", func(t *testing.T) {
-		expected := core.Health{
-			Status:  core.HealthStatusDown,
-			Details: "sql: database is closed",
-		}
 		e := setup(t)
 		db, err := e.sqlDB.DB()
 		require.NoError(t, err)
 		require.NoError(t, db.Close())
+		e.sessionDatabase = NewErrorSessionDatabase(assert.AnError)
 
 		health := e.CheckHealth()
-		status, ok := health["sql"]
-		require.True(t, ok)
-		assert.Equal(t, expected, status)
+		t.Run("sql", func(t *testing.T) {
+			expected := core.Health{
+				Status:  core.HealthStatusDown,
+				Details: "sql: database is closed",
+			}
+
+			status, ok := health["sql"]
+			require.True(t, ok)
+			assert.Equal(t, expected, status)
+		})
+		t.Run("session", func(t *testing.T) {
+			expected := core.Health{
+				Status:  core.HealthStatusDown,
+				Details: assert.AnError.Error(),
+			}
+
+			status, ok := health["session"]
+			require.True(t, ok)
+			assert.Equal(t, expected, status)
+		})
 	})
 }
 
