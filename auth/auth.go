@@ -179,7 +179,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 }
 
 func (auth *Auth) SupportedDIDMethods() []string {
-	return auth.supportedDIDMethods
+	return append(auth.supportedDIDMethods, "x509")
 }
 
 // Start starts the Auth engine (Noop)
