@@ -64,8 +64,10 @@ func TestNewSignerAndVerifier(t *testing.T) {
 		IrmaSchemeManager:     "empty",
 		AutoUpdateIrmaSchemas: false,
 		Production:            false,
+		CORSOrigin:            []string{"*"},
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, signer)
 	assert.NotNil(t, verifier)
+	assert.Equal(t, []string{"*"}, signer.cors)
 }
