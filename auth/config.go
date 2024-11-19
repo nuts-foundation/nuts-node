@@ -44,8 +44,15 @@ type AuthorizationEndpointConfig struct {
 }
 
 type IrmaConfig struct {
-	SchemeManager     string `koanf:"schememanager"`
-	AutoUpdateSchemas bool   `koanf:"autoupdateschemas"`
+	SchemeManager     string     `koanf:"schememanager"`
+	AutoUpdateSchemas bool       `koanf:"autoupdateschemas"`
+	CORS              CORSConfig `koanf:"cors"`
+}
+
+// CORSConfig contains configuration for Cross Origin Resource Sharing.
+type CORSConfig struct {
+	// Origin specifies the AllowOrigin option. If no origins are given CORS is considered to be disabled.
+	Origin []string `koanf:"origin"`
 }
 
 // DefaultConfig returns an instance of Config with the default values.

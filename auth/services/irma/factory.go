@@ -48,6 +48,8 @@ type Config struct {
 	// Use the IRMA server in production mode. Without this the IRMA app needs to be in "developer mode"
 	// https://irma.app/docs/irma-app/#developer-mode
 	Production bool
+	// CORS configuration
+	CORSOrigin []string
 }
 
 // NewSignerAndVerifier creates a new IRMA signer and verifier.
@@ -64,6 +66,7 @@ func NewSignerAndVerifier(cfg Config) (*Signer, *Verifier, error) {
 	return &Signer{
 			sessionHandler: irmaServer,
 			schemeManager:  cfg.IrmaSchemeManager,
+			cors:           cfg.CORSOrigin,
 		}, &Verifier{
 			IrmaConfig: irmaConfig,
 			Templates:  contract.StandardContractTemplates,
