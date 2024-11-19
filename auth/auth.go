@@ -23,10 +23,16 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/vdr/didkey"
+	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"path"
+	"slices"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
@@ -46,23 +52,25 @@ var _ AuthenticationServices = (*Auth)(nil)
 
 // Auth is the main struct of the Auth service
 type Auth struct {
-	config              Config
-	jsonldManager       jsonld.JSONLD
-	authzServer         oauth.AuthorizationServer
-	relyingParty        oauth.RelyingParty
-	contractNotary      services.ContractNotary
-	serviceResolver     didman.CompoundServiceResolver
-	keyStore            crypto.KeyStore
-	vcr                 vcr.VCR
-	pkiProvider         pki.Provider
-	shutdownFunc        func()
-	vdrInstance         vdr.VDR
-	publicURL           *url.URL
-	strictMode          bool
-	httpClientTimeout   time.Duration
-	tlsConfig           *tls.Config
-	subjectManager      didsubject.Manager
-	supportedDIDMethods []string
+	config            Config
+	jsonldManager     jsonld.JSONLD
+	authzServer       oauth.AuthorizationServer
+	relyingParty      oauth.RelyingParty
+	contractNotary    services.ContractNotary
+	serviceResolver   didman.CompoundServiceResolver
+	keyStore          crypto.KeyStore
+	vcr               vcr.VCR
+	pkiProvider       pki.Provider
+	shutdownFunc      func()
+	vdrInstance       vdr.VDR
+	publicURL         *url.URL
+	strictMode        bool
+	httpClientTimeout time.Duration
+	tlsConfig         *tls.Config
+	subjectManager    didsubject.Manager
+	// configuredDIDMethods contains the DID methods that are configured in the Nuts node,
+	// of which VDR will create DIDs.
+	configuredDIDMethods []string
 }
 
 // Name returns the name of the module.
@@ -137,7 +145,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		return err
 	}
 
-	auth.supportedDIDMethods = config.DIDMethods
+	auth.configuredDIDMethods = config.DIDMethods
 
 	auth.contractNotary = notary.NewNotary(notary.Config{
 		PublicURL:             auth.publicURL.String(),
@@ -179,7 +187,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 }
 
 func (auth *Auth) SupportedDIDMethods() []string {
-	return append(auth.supportedDIDMethods, "x509")
+	// DID methods that don't require additional resources/configuration in the Nuts node are always supported.
+	// Other DID methods (did:nuts), are only supported if explicitly enabled.
+	result := []string{didweb.MethodName, didjwk.MethodName, didkey.MethodName, didx509.MethodName}
+	if slices.Contains(auth.configuredDIDMethods, didnuts.MethodName) {
+		result = append(result, didnuts.MethodName)
+	}
+	return result
 }
 
 // Start starts the Auth engine (Noop)

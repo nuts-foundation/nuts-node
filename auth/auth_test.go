@@ -125,3 +125,22 @@ func TestAuth_IAMClient(t *testing.T) {
 	})
 
 }
+
+func TestAuth_SupportedDIDMethods(t *testing.T) {
+	t.Run("supports did:web", func(t *testing.T) {
+		assert.Contains(t, (&Auth{}).SupportedDIDMethods(), "web")
+	})
+	t.Run("supports did:key", func(t *testing.T) {
+		assert.Contains(t, (&Auth{}).SupportedDIDMethods(), "key")
+	})
+	t.Run("supports did:x509", func(t *testing.T) {
+		assert.Contains(t, (&Auth{}).SupportedDIDMethods(), "x509")
+	})
+	t.Run("supports did:jwk", func(t *testing.T) {
+		assert.Contains(t, (&Auth{}).SupportedDIDMethods(), "jwk")
+	})
+	t.Run("supports did:nuts if configured", func(t *testing.T) {
+		assert.NotContains(t, (&Auth{}).SupportedDIDMethods(), "nuts")
+		assert.Contains(t, (&Auth{configuredDIDMethods: []string{"nuts"}}).SupportedDIDMethods(), "nuts")
+	})
+}
