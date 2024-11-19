@@ -48,11 +48,11 @@ Session storage
 ***************
 
 Session storage is used for storing access tokens, nonces and other volatile data.
-Data is stored in-memory only. There are 3 supported session storage types:
+Session data is volatile by nature. There are 3 supported session storage types:
 
-- local
-- memcached
-- redis (standalone, cluster, sentinel)
+- In-memory
+- Memcached
+- Redis (standalone, cluster, sentinel)
 
 Local
 =====
@@ -73,6 +73,7 @@ Memcached can be enabled with the following config:
 You can add multiple memcached servers to the list.
 memcached is not capable of clustering. Each piece of data is stored on a single instance.
 If you want true HA, you'll need to use Redis.
+For more information on Memcached connection strings, refer to the `Memcached documentation <https://docs.memcached.org/>`_.
 
 Redis
 =====

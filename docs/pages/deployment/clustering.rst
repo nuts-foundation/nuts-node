@@ -3,7 +3,6 @@
 Clustering
 ##########
 
-With the introduction of a SQL database and separate session storage, clustering with HA is now possible.
 Clustering is currently limited to nodes that have the ``did:nuts`` method disabled.
 To enable clustering, you must support the following:
 
@@ -14,3 +13,9 @@ To enable clustering, you must support the following:
 
 It's recommended to use a level 4 load balancer to distribute the load across the nodes.
 Each node should have a reverse proxy for TLS termination.
+
+Clustering will not work if you use one of the following:
+
+- The did:nuts method
+- SQLite
+- Disk based private key storage
