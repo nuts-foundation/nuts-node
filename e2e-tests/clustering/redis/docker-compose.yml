@@ -10,14 +10,14 @@ services:
       - redisA
     command: redis-server /redis/conf/redis.conf
     volumes:
-      - "./slave/B:/redis/conf:ro"
+      - "./slave:/redis/conf:ro"
   redisC:
     image: *image
     depends_on:
       - redisA
     command: redis-server /redis/conf/redis.conf
     volumes:
-      - "./slave/C:/redis/conf:ro"
+      - "./slave:/redis/conf:ro"
   sentinelA:
     image: *image
     depends_on:
