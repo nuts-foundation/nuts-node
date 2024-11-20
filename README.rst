@@ -246,6 +246,7 @@ If your use case does not use these features, you can ignore this table.
     auth.contractvalidators               [irma,dummy,employeeid]          sets the different contract validators to use
     auth.irma.autoupdateschemas           true                             set if you want automatically update the IRMA schemas every 60 minutes.
     auth.irma.schememanager               pbdf                             IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
+    auth.irma.cors.origin                 []                               sets the allowed CORS origins for the IRMA server
     **Events**
     events.nats.hostname                  0.0.0.0                          Hostname for the NATS server
     events.nats.port                      4222                             Port where the NATS server listens on

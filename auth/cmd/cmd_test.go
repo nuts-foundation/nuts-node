@@ -48,6 +48,7 @@ func TestFlagSet(t *testing.T) {
 		ConfContractValidators,
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
+		ConfIrmaCorsOrigin,
 		ConfIrmaSchemeManager,
 	}, keys)
 }

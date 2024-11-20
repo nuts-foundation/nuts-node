@@ -61,6 +61,7 @@ type Config struct {
 	IrmaSchemeManager     string
 	ContractValidators    []string
 	ContractValidity      time.Duration
+	CORSOrigin            []string
 }
 
 func (c Config) hasContractValidator(cv string) bool {
@@ -164,6 +165,7 @@ func (n *notary) Configure() error {
 			AutoUpdateIrmaSchemas: n.config.AutoUpdateIrmaSchemas,
 			// Deduce IRMA production mode from the nuts strict-mode
 			Production: n.config.StrictMode,
+			CORSOrigin: n.config.CORSOrigin,
 		}
 		signer, verifier, err := irma.NewSignerAndVerifier(cfg)
 		if err != nil {
