@@ -35,6 +35,9 @@ const ConfAutoUpdateIrmaSchemas = "auth.irma.autoupdateschemas"
 // ConfIrmaSchemeManager allows selecting an IRMA scheme manager. During development this can ben irma-demo. Production should be pdfb
 const ConfIrmaSchemeManager = "auth.irma.schememanager"
 
+// ConfIrmaCorsOrigin is the config key for the allowed CORS origins for the IRMA server
+const ConfIrmaCorsOrigin = "auth.irma.cors.origin"
+
 // ConfHTTPTimeout defines a timeout (in seconds) which is used by the Auth API HTTP client
 const ConfHTTPTimeout = "auth.http.timeout"
 
@@ -51,6 +54,7 @@ func FlagSet() *pflag.FlagSet {
 	defs := auth.DefaultConfig()
 	flags.String(ConfIrmaSchemeManager, defs.Irma.SchemeManager, "IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.")
 	flags.Bool(ConfAutoUpdateIrmaSchemas, defs.Irma.AutoUpdateSchemas, "set if you want automatically update the IRMA schemas every 60 minutes.")
+	flags.StringSlice(ConfIrmaCorsOrigin, defs.Irma.CORS.Origin, "sets the allowed CORS origins for the IRMA server")
 	flags.Int(ConfHTTPTimeout, defs.HTTPTimeout, "HTTP timeout (in seconds) used by the Auth API HTTP client")
 	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")

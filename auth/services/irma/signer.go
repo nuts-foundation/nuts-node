@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -46,6 +47,7 @@ import (
 type Signer struct {
 	sessionHandler signingSessionHandler
 	schemeManager  string
+	cors           []string
 }
 
 // SessionPtr should be made private when v0 is removed
@@ -131,6 +133,20 @@ func (v Signer) Routes(router core.EchoRouter) {
 
 	for _, method := range methods {
 		router.Add(method, IrmaMountPath+"/*", irmaEchoHandler)
+	}
+	skipper := func(c echo.Context) bool {
+		return !strings.HasPrefix(c.Path(), IrmaMountPath)
+	}
+
+	// enable CORS for the IRMA endpoints
+	if len(v.cors) > 0 {
+		// print warning if CORS is enabled for all origins
+		for _, origin := range v.cors {
+			if strings.TrimSpace(origin) == "*" {
+				log.Logger().Warnf("Enabling wildcard CORS for IRMA/Yivi endpoints is not recommended")
+			}
+		}
+		router.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: v.cors, Skipper: skipper}))
 	}
 }
 
