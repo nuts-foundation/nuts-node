@@ -189,9 +189,12 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 func (auth *Auth) SupportedDIDMethods() []string {
 	// DID methods that don't require additional resources/configuration in the Nuts node are always supported.
 	// Other DID methods (did:nuts), are only supported if explicitly enabled.
-	result := []string{didweb.MethodName, didjwk.MethodName, didkey.MethodName, didx509.MethodName}
+	result := []string{didjwk.MethodName, didkey.MethodName, didx509.MethodName}
 	if slices.Contains(auth.configuredDIDMethods, didnuts.MethodName) {
 		result = append(result, didnuts.MethodName)
+	}
+	if slices.Contains(auth.configuredDIDMethods, didweb.MethodName) {
+		result = append(result, didweb.MethodName)
 	}
 	return result
 }
