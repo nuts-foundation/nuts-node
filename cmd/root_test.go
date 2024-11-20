@@ -141,6 +141,8 @@ func Test_serverCmd(t *testing.T) {
 		assert.Error(t, err, "unable to start")
 	})
 	t.Run("migration fails", func(t *testing.T) {
+		testDirectory := io.TestDirectory(t)
+		t.Setenv("NUTS_DATADIR", testDirectory)
 		ctrl := gomock.NewController(t)
 		r := core.NewMockMigratable(ctrl)
 		system := core.NewSystem()
