@@ -91,9 +91,9 @@ func (s SessionStoreImpl[T]) Put(key string, value interface{}, options ...Sessi
 		opt(&opts)
 	}
 	// TTL can't go below 0 because that is translated to "no expiration" by the library
-	// in that case it should be 1 nanosecond
-	if opts.ttl < 0 {
-		opts.ttl = 1
+	// so just don't cache
+	if opts.ttl <= 0 {
+		return nil
 	}
 	bytes, err := json.Marshal(value)
 	if err != nil {
