@@ -80,6 +80,7 @@ type SessionDatabase interface {
 	GetStore(ttl time.Duration, keys ...string) SessionStore
 	// close stops any background processes and closes the database.
 	close()
+	getFullKey(prefixes []string, key string) string
 }
 
 // SessionStore is a key-value store that holds session data.

@@ -42,6 +42,8 @@ type SQLConfig struct {
 
 // SessionConfig specifies config for the session storage engine.
 type SessionConfig struct {
-	// Type is the type of session storage engine to use.
+	// Memcached specifies config for the Memcached session storage engine.
+	Memcached MemcachedConfig `koanf:"memcached"`
+	// Redis specifies config for the Redis session storage engine.
 	Redis RedisConfig `koanf:"redis"`
 }

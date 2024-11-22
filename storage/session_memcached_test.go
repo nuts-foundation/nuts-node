@@ -19,6 +19,10 @@
 package storage
 
 import (
+	"fmt"
+	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/daangn/minimemcached"
+	"net"
 	"testing"
 	"time"
 
@@ -26,14 +30,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewInMemorySessionDatabase(t *testing.T) {
-	db := createDatabase(t)
+func TestNewMemcachedSessionDatabase(t *testing.T) {
+	db := memcachedTestDatabase(t)
 
 	assert.NotNil(t, db)
 }
 
-func TestInMemorySessionDatabase_GetStore(t *testing.T) {
-	db := createDatabase(t)
+func TestNewMemcachedSessionDatabase_GetStore(t *testing.T) {
+	db := memcachedTestDatabase(t)
 
 	store := db.GetStore(time.Minute, "key1", "key2").(SessionStoreImpl[[]byte])
 
@@ -42,8 +46,8 @@ func TestInMemorySessionDatabase_GetStore(t *testing.T) {
 	assert.Equal(t, []string{"key1", "key2"}, store.prefixes)
 }
 
-func TestInMemorySessionStore_Get(t *testing.T) {
-	db := createDatabase(t)
+func TestNewMemcachedSessionDatabase_Get(t *testing.T) {
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("string value is retrieved correctly", func(t *testing.T) {
@@ -96,8 +100,8 @@ func TestInMemorySessionStore_Get(t *testing.T) {
 	})
 }
 
-func TestInMemorySessionStore_Delete(t *testing.T) {
-	db := createDatabase(t)
+func TestNewMemcachedSessionDatabase_Delete(t *testing.T) {
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("value is deleted", func(t *testing.T) {
@@ -116,8 +120,8 @@ func TestInMemorySessionStore_Delete(t *testing.T) {
 	})
 }
 
-func TestInMemorySessionStore_GetAndDelete(t *testing.T) {
-	db := createDatabase(t)
+func TestNewMemcachedSessionDatabase_GetAndDelete(t *testing.T) {
+	db := memcachedTestDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])
 
 	t.Run("ok", func(t *testing.T) {
@@ -136,10 +140,44 @@ func TestInMemorySessionStore_GetAndDelete(t *testing.T) {
 	})
 }
 
-type testStruct struct {
-	Field1 string `json:"field1"`
+func getRandomAvailablePort() (int, error) {
+	// Listen on a random port by specifying ":0"
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+
+	// Extract the assigned port
+	addr := listener.Addr().(*net.TCPAddr)
+	return addr.Port, nil
 }
 
-func createDatabase(t *testing.T) *InMemorySessionDatabase {
-	return NewTestInMemorySessionDatabase(t)
+func memcachedTestDatabase(t *testing.T) *MemcachedSessionDatabase {
+	m := memcachedTestServer(t)
+	client := memcache.New(fmt.Sprintf("localhost:%d", m.Port()))
+	t.Cleanup(func() {
+		_ = client.Close()
+	})
+	return NewMemcachedSessionDatabase(client)
+}
+
+func memcachedTestServer(t *testing.T) *minimemcached.MiniMemcached {
+	// get random available port
+	port, err := getRandomAvailablePort()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &minimemcached.Config{
+		Port: uint16(port),
+	}
+	m, err := minimemcached.Run(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		m.Close()
+	})
+	return m
 }

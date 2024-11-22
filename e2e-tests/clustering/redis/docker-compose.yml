@@ -1,19 +1,63 @@
 services:
+  redisA:
+    image: &image redis:latest
+    command: redis-server /redis/conf/redis.conf
+    volumes:
+      - "./master:/redis/conf:ro"
+  redisB:
+    image: *image
+    depends_on:
+      - redisA
+    command: redis-server /redis/conf/redis.conf
+    volumes:
+      - "./slave:/redis/conf:ro"
+  redisC:
+    image: *image
+    depends_on:
+      - redisA
+    command: redis-server /redis/conf/redis.conf
+    volumes:
+      - "./slave:/redis/conf:ro"
+  sentinelA:
+    image: *image
+    depends_on:
+      - redisA
+    command: redis-server /redis/conf/sentinel.conf --sentinel
+    volumes:
+      - "./sentinel/A:/redis/conf"
+  sentinelB:
+    image: *image
+    depends_on:
+      - redisA
+    command: redis-server /redis/conf/sentinel.conf --sentinel
+    volumes:
+      - "./sentinel/B:/redis/conf"
+  sentinelC:
+    image: *image
+    depends_on:
+      - redisA
+    command: redis-server /redis/conf/sentinel.conf --sentinel
+    volumes:
+      - "./sentinel/C:/redis/conf"
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_URL: "https://nodeA"
+      NUTS_DISCOVERY_SERVER_IDS: "e2e-test"
+      NUTS_STORAGE_SESSION_REDIS_SENTINEL_MASTER: "mymaster"
+      NUTS_STORAGE_SESSION_REDIS_SENTINEL_NODES: sentinelA:26379,sentinelB:26379,sentinelC:26379
     volumes:
-      - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../shared/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
-      - "./node-A/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
-      - "./shared/discovery:/nuts/discovery:ro"
+      - "../shared/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
+      - "../shared/discovery:/nuts/discovery:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
@@ -21,11 +65,10 @@ services:
     ports:
       - "10443:443"
     volumes:
-      - "./node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "../shared/node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-      - "./node-A/html:/etc/nginx/html:ro"
       - "../../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
   nodeB-backend:
     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
@@ -33,15 +76,17 @@ services:
       - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_URL: "https://nodeB"
     volumes:
-      - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../shared/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/truststore.pem:ro"
       # did:web resolver uses the OS CA bundle, but e2e tests use a self-signed CA which can be found in truststore.pem
       # So we need to mount that file to the OS CA bundle location, otherwise did:web resolving will fail due to untrusted certs.
       - "../../tls-certs/truststore.pem:/etc/ssl/certs/Nuts_RootCA.pem:ro"
-      - "./shared/discovery:/nuts/discovery:ro"
+      - "../shared/presentationexchangemapping.json:/opt/nuts/policies/presentationexchangemapping.json:ro"
+      - "../shared/discovery:/nuts/discovery:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB:
@@ -53,4 +98,3 @@ services:
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
-      - "./node-B/html:/etc/nginx/html:ro"

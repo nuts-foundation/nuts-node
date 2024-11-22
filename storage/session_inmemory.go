@@ -19,164 +19,47 @@
 package storage
 
 import (
-	"encoding/json"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/eko/gocache/lib/v4/cache"
+	"github.com/eko/gocache/store/go_cache/v4"
+	gocacheclient "github.com/patrickmn/go-cache"
 )
 
 var _ SessionDatabase = (*InMemorySessionDatabase)(nil)
-var _ SessionStore = (*InMemorySessionStore)(nil)
 
 var sessionStorePruneInterval = 10 * time.Minute
-
-type expiringEntry struct {
-	// Value stores the actual value as JSON
-	Value  string
-	Expiry time.Time
-}
 
 // InMemorySessionDatabase is an in memory database that holds session data on a KV basis.
 // Keys could be access tokens, nonce's, authorization codes, etc.
 // All entries are stored with a TTL, so they will be removed automatically.
 type InMemorySessionDatabase struct {
-	done     chan struct{}
-	mux      sync.RWMutex
-	routines sync.WaitGroup
-	entries  map[string]expiringEntry
+	underlying *cache.Cache[[]byte]
 }
 
 // NewInMemorySessionDatabase creates a new in memory session database.
 func NewInMemorySessionDatabase() *InMemorySessionDatabase {
-	result := &InMemorySessionDatabase{
-		entries: map[string]expiringEntry{},
-		done:    make(chan struct{}, 10),
-	}
-	result.startPruning(sessionStorePruneInterval)
-	return result
-}
-
-func (i *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
-	return InMemorySessionStore{
-		ttl:      ttl,
-		prefixes: keys,
-		db:       i,
+	gocacheClient := gocacheclient.New(defaultSessionDataTTL, sessionStorePruneInterval)
+	gocacheStore := go_cache.NewGoCache(gocacheClient)
+	return &InMemorySessionDatabase{
+		underlying: cache.New[[]byte](gocacheStore),
 	}
 }
 
-func (i *InMemorySessionDatabase) close() {
-	// Signal pruner to stop and wait for it to finish
-	i.done <- struct{}{}
-}
-
-func (i *InMemorySessionDatabase) startPruning(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	i.routines.Add(1)
-	go func() {
-		defer i.routines.Done()
-		for {
-			select {
-			case <-i.done:
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				valsPruned := i.prune()
-				if valsPruned > 0 {
-					log.Logger().Debugf("Pruned %d expired session variables", valsPruned)
-				}
-			}
-		}
-	}()
-}
-
-func (i *InMemorySessionDatabase) prune() int {
-	i.mux.Lock()
-	defer i.mux.Unlock()
-
-	moment := time.Now()
-
-	// Find expired flows and delete them
-	var count int
-	for key, entry := range i.entries {
-		if entry.Expiry.Before(moment) {
-			count++
-			delete(i.entries, key)
-		}
+func (s *InMemorySessionDatabase) GetStore(ttl time.Duration, keys ...string) SessionStore {
+	return SessionStoreImpl[[]byte]{
+		underlying: s.underlying,
+		ttl:        ttl,
+		prefixes:   keys,
+		db:         s,
 	}
-
-	return count
 }
 
-type InMemorySessionStore struct {
-	ttl      time.Duration
-	prefixes []string
-	db       *InMemorySessionDatabase
+func (s *InMemorySessionDatabase) close() {
+	// NOP
 }
 
-func (i InMemorySessionStore) Delete(key string) error {
-	i.db.mux.Lock()
-	defer i.db.mux.Unlock()
-
-	delete(i.db.entries, i.getFullKey(key))
-	return nil
-}
-
-func (i InMemorySessionStore) Exists(key string) bool {
-	i.db.mux.Lock()
-	defer i.db.mux.Unlock()
-
-	_, ok := i.db.entries[i.getFullKey(key)]
-	return ok
-}
-
-func (i InMemorySessionStore) Get(key string, target interface{}) error {
-	i.db.mux.Lock()
-	defer i.db.mux.Unlock()
-	return i.get(key, target)
-}
-
-func (i InMemorySessionStore) get(key string, target interface{}) error {
-	fullKey := i.getFullKey(key)
-	entry, ok := i.db.entries[fullKey]
-	if !ok {
-		return ErrNotFound
-	}
-	if entry.Expiry.Before(time.Now()) {
-		delete(i.db.entries, fullKey)
-		return ErrNotFound
-	}
-
-	return json.Unmarshal([]byte(entry.Value), target)
-}
-
-func (i InMemorySessionStore) Put(key string, value interface{}) error {
-	i.db.mux.Lock()
-	defer i.db.mux.Unlock()
-
-	bytes, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	entry := expiringEntry{
-		Value:  string(bytes),
-		Expiry: time.Now().Add(i.ttl),
-	}
-
-	i.db.entries[i.getFullKey(key)] = entry
-	return nil
-}
-func (i InMemorySessionStore) GetAndDelete(key string, target interface{}) error {
-	i.db.mux.Lock()
-	defer i.db.mux.Unlock()
-	if err := i.get(key, target); err != nil {
-		return err
-	}
-	delete(i.db.entries, i.getFullKey(key))
-	return nil
-}
-
-func (i InMemorySessionStore) getFullKey(key string) string {
-	return strings.Join(append(i.prefixes, key), "/")
+func (s *InMemorySessionDatabase) getFullKey(prefixes []string, key string) string {
+	return strings.Join(append(prefixes, key), "/")
 }

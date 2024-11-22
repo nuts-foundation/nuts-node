@@ -44,6 +44,69 @@ Refer to the documentation of the driver for the database you are using for the 
     Usage of SQLite is not recommended for production environments.
     Connections to a SQLite DB are restricted to 1, which will lead to severe performance reduction.
 
+Session storage
+***************
+
+Session storage is used for storing access tokens, nonces and other volatile data.
+Session data is volatile by nature. There are 3 supported session storage types:
+
+- In-memory
+- Memcached
+- Redis (standalone, cluster, sentinel)
+
+Local
+=====
+
+This is the default and will store data in-memory. Any restart will wipe all data.
+Data is also not shared if you run multiple nodes.
+
+Memcached
+=========
+
+Memcached can be enabled with the following config:
+
+.. code-block:: yaml
+
+    storage.session.memcached.address:
+      - localhost:11211
+
+You can add multiple memcached servers to the list.
+memcached is not capable of clustering. Each piece of data is stored on a single instance.
+If you want true HA, you'll need to use Redis.
+For more information on Memcached connection strings, refer to the `Memcached documentation <https://docs.memcached.org/>`_.
+
+Redis
+=====
+
+Redis is the only option if you want to run multiple nodes and the cache as HA.
+Redis can be configured in standalone or sentinel mode.
+Standalone:
+
+.. code-block:: yaml
+
+    storage:
+      session:
+        redis:
+          address: localhost:6379
+          username: user
+          password: pass
+          db: 0
+
+Sentinel:
+
+.. code-block:: yaml
+
+    storage:
+      session:
+        redis:
+          sentinel:
+            master: mymaster
+            nodes:
+              - localhost:26379
+              - localhost:26380
+              - localhost:26381
+
+
 Private Keys
 ************
 
