@@ -35,6 +35,8 @@ type MemcachedSessionDatabase struct {
 
 // NewMemcachedSessionDatabase creates a new MemcachedSessionDatabase using an initialized memcache.Client.
 func NewMemcachedSessionDatabase(client *memcache.Client) *MemcachedSessionDatabase {
+	// the defaultSessionDataTTL is used because the memcached store requires a default
+	// the underlying store will always use the TTL of the store as argument for the PUT.
 	memcachedStore := memcachestore.NewMemcache(client, store.WithExpiration(defaultSessionDataTTL))
 	return &MemcachedSessionDatabase{
 		underlying: cache.New[[]byte](memcachedStore),
