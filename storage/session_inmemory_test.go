@@ -42,6 +42,71 @@ func TestInMemorySessionDatabase_GetStore(t *testing.T) {
 	assert.Equal(t, []string{"key1", "key2"}, store.prefixes)
 }
 
+func TestInMemorySessionStore_Exists(t *testing.T) {
+	db := createDatabase(t)
+	store := db.GetStore(time.Minute, "prefix")
+
+	t.Run("value exists", func(t *testing.T) {
+		_ = store.Put(t.Name(), "value")
+
+		exists := store.Exists(t.Name())
+
+		assert.True(t, exists)
+	})
+
+	t.Run("value does not exist", func(t *testing.T) {
+		exists := store.Exists(t.Name())
+
+		assert.False(t, exists)
+	})
+}
+
+func TestInMemorySessionStore_Put(t *testing.T) {
+	db := createDatabase(t)
+	store := db.GetStore(time.Minute, "prefix")
+
+	t.Run("string value is stored", func(t *testing.T) {
+		err := store.Put("key", "value")
+
+		require.NoError(t, err)
+
+		var val string
+		err = store.Get("key", &val)
+		require.NoError(t, err)
+		assert.Equal(t, "value", val)
+	})
+
+	t.Run("float value is stored", func(t *testing.T) {
+		err := store.Put("key", 1.23)
+
+		require.NoError(t, err)
+
+		var val float64
+		err = store.Get("key", &val)
+		assert.Equal(t, 1.23, val)
+	})
+
+	t.Run("struct value is stored", func(t *testing.T) {
+		value := testStruct{
+			Field1: "value",
+		}
+
+		err := store.Put("key", value)
+
+		require.NoError(t, err)
+
+		var val testStruct
+		err = store.Get("key", &val)
+		assert.Equal(t, value, val)
+	})
+
+	t.Run("value is not JSON", func(t *testing.T) {
+		err := store.Put("key", make(chan int))
+
+		assert.Error(t, err)
+	})
+}
+
 func TestInMemorySessionStore_Get(t *testing.T) {
 	db := createDatabase(t)
 	store := db.GetStore(time.Minute, "prefix").(SessionStoreImpl[[]byte])

@@ -122,7 +122,7 @@ func (p *StaticKVStoreProvider) GetKVStore(_ string, _ Class) (stoabs.KVStore, e
 func NewTestInMemorySessionDatabase(t *testing.T) *InMemorySessionDatabase {
 	db := NewInMemorySessionDatabase()
 	t.Cleanup(func() {
-		db.close()
+		db.Close()
 	})
 	return db
 }
@@ -164,7 +164,7 @@ func (e errorSessionDatabase) getFullKey(prefixes []string, key string) string {
 	return ""
 }
 
-func (e errorSessionDatabase) close() {
+func (e errorSessionDatabase) Close() {
 	// nop
 }
 
@@ -180,7 +180,7 @@ func (e errorSessionStore) Get(key string, target interface{}) error {
 	return e.err
 }
 
-func (e errorSessionStore) Put(key string, value interface{}) error {
+func (e errorSessionStore) Put(key string, value interface{}, options ...SessionOption) error {
 	return e.err
 }
 

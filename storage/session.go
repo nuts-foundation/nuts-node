@@ -85,16 +85,31 @@ func (s SessionStoreImpl[T]) Get(key string, target interface{}) error {
 	return json.Unmarshal([]byte(val), target)
 }
 
-func (s SessionStoreImpl[T]) Put(key string, value interface{}) error {
+func (s SessionStoreImpl[T]) Put(key string, value interface{}, options ...SessionOption) error {
+	opts := s.defaultOptions()
+	for _, opt := range options {
+		opt(&opts)
+	}
+	// TTL can't go below 0 because that is translated to "no expiration" by the library
+	// so just don't cache
+	if opts.ttl <= 0 {
+		return nil
+	}
 	bytes, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
-	return s.underlying.Set(context.Background(), s.db.getFullKey(s.prefixes, key), T(bytes), store.WithExpiration(s.ttl))
+	return s.underlying.Set(context.Background(), s.db.getFullKey(s.prefixes, key), T(bytes), store.WithExpiration(opts.ttl))
 }
 func (s SessionStoreImpl[T]) GetAndDelete(key string, target interface{}) error {
 	if err := s.Get(key, target); err != nil {
 		return err
 	}
 	return s.underlying.Delete(context.Background(), s.db.getFullKey(s.prefixes, key))
+}
+
+func (s SessionStoreImpl[T]) defaultOptions() sessionOptions {
+	return sessionOptions{
+		ttl: s.ttl,
+	}
 }
