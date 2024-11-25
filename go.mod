@@ -37,7 +37,7 @@ require (
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
-	github.com/pressly/goose/v3 v3.22.1
+	github.com/pressly/goose/v3 v3.23.0
 	github.com/privacybydesign/irmago v0.16.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/client_model v0.6.1
@@ -202,17 +202,20 @@ require (
 )
 
 require (
+	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
+	github.com/daangn/minimemcached v1.2.0
+	github.com/eko/gocache/lib/v4 v4.1.6
+	github.com/eko/gocache/store/go_cache/v4 v4.2.2
+	github.com/eko/gocache/store/memcache/v4 v4.2.2
+	github.com/eko/gocache/store/redis/v4 v4.2.2
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+)
+
+require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
-	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874 // indirect
-	github.com/daangn/minimemcached v1.2.0 // indirect
-	github.com/eko/gocache/lib/v4 v4.1.6 // indirect
-	github.com/eko/gocache/store/go_cache/v4 v4.2.2 // indirect
-	github.com/eko/gocache/store/memcache/v4 v4.2.2 // indirect
-	github.com/eko/gocache/store/redis/v4 v4.2.2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
