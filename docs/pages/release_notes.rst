@@ -3,6 +3,36 @@ Release notes
 #############
 
 ***************
+Peanut (v6.0.5)
+***************
+
+Release date: 2024-11-20
+
+- `#3570 <https://github.com/nuts-foundation/nuts-node/issues/3570>`_: re-enable CORS configuration for public Yivi endpoint.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.4...v6.0.5
+
+***************
+Peanut (v6.0.4)
+***************
+
+Release date: 2024-11-19
+
+- `#3567 <https://github.com/nuts-foundation/nuts-node/issues/3567>`_: performance fix by updating JSON-LD search library.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.3...v6.0.4
+
+***************
+Peanut (v6.0.3)
+***************
+
+Release date: 2024-11-18
+
+- `#3561 <https://github.com/nuts-foundation/nuts-node/issues/3561>`_: performance fix by changing the index for NutsAuthorizationCredential.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.2...v6.0.3
+
+***************
 Peanut (v6.0.2)
 ***************
 
