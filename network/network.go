@@ -128,7 +128,7 @@ func (n *Network) checkNodeTLSHealth() core.Health {
 		}
 	}
 	// check if the configured certificate is revoked / denied.
-	err = n.pkiValidator.Validate([]*x509.Certificate{n.certificate.Leaf})
+	err = n.pkiValidator.CheckCRL([]*x509.Certificate{n.certificate.Leaf})
 	if err != nil {
 		return core.Health{
 			Status:  core.HealthStatusDown,

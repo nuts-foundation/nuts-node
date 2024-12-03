@@ -58,28 +58,28 @@ type Denylist interface {
 }
 
 type Validator interface {
-	// Validate returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
+	// CheckCRL returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
 	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
 	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked.
-	// Validate uses the configured soft-/hard-fail strategy
+	// CheckCRL uses the configured soft-/hard-fail strategy
 	// If set to soft-fail it ignores ErrCRLMissing and ErrCRLExpired errors.
 	// The certificate chain is expected to be sorted leaf to root.
-	Validate(chain []*x509.Certificate) error
+	CheckCRL(chain []*x509.Certificate) error
 
-	// ValidateStrict does the same as Validate, except it always uses the hard-fail strategy.
-	ValidateStrict(chain []*x509.Certificate) error
+	// CheckCRLStrict does the same as CheckCRL, except it always uses the hard-fail strategy.
+	CheckCRLStrict(chain []*x509.Certificate) error
 
-	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use Validate.
+	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use CheckCRL.
 	SetVerifyPeerCertificateFunc(config *tls.Config) error
 
 	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
-	// CRL Distribution Points encountered during operation, such as on end user certificates, are only added to the monitored CRLs if their issuer is in the truststore.
+	// CRL Distribution Points encountered at runtime, such as on end user certificates when calling CheckCRL, are only added to the monitored CRLs if their issuer is in the truststore.
 	// This fails if any of the issuers mentioned in the chain is not also in the chain or already in the truststore
 	AddTruststore(chain []*x509.Certificate) error
 
 	// SubscribeDenied registers a callback that is triggered everytime the denylist is updated.
-	// This can be used to revalidate all certificates on long-lasting connections by calling Validate on them again.
+	// This can be used to revalidate all certificates on long-lasting connections by calling CheckCRL on them again.
 	SubscribeDenied(f func())
 }
 
