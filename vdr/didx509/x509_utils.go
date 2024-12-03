@@ -60,7 +60,7 @@ var (
 	ErrInvalidHash = fmt.Errorf("invalid hash")
 
 	// ErrCertificateNotfound indicates that a certificate could not be found with the given hash.
-	ErrCertificateNotfound = fmt.Errorf("cannot locate a find a certificate with the given hash")
+	ErrCertificateNotfound = fmt.Errorf("cannot find a certificate with the given hash")
 
 	// ErrInvalidPemBlock indicates that a PEM block is invalid or cannot be decoded properly.
 	ErrInvalidPemBlock = fmt.Errorf("invalid PEM block")

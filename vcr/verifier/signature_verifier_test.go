@@ -488,7 +488,7 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 	}
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
+		Subject:               pkix.Name{Organization: []string{"Example Org"}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month

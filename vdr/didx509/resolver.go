@@ -24,6 +24,7 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
@@ -115,12 +116,29 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
+	// Validate certificate chain, checking signatures and whether the chain is complete
+	var chainWithoutLeaf []*x509.Certificate
+	for _, curr := range chain {
+		if curr.Equal(validationCert) {
+			continue
+		}
+		chainWithoutLeaf = append(chainWithoutLeaf, curr)
+	}
+	trustStore := core.BuildTrustStore(chainWithoutLeaf)
+	verifiedChains, err := validationCert.Verify(x509.VerifyOptions{
+		Intermediates: core.NewCertPool(trustStore.IntermediateCAs),
+		Roots:         core.NewCertPool(trustStore.RootCAs),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("did:509 certificate chain validation failed: %w", err)
+	}
+
 	err = validatePolicy(ref, validationCert)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = r.pkiValidator.ValidateStrict(chain)
+	err = r.pkiValidator.ValidateStrict(verifiedChains[0])
 	if err != nil {
 		return nil, nil, err
 	}
