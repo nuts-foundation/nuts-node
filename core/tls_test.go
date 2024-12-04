@@ -22,6 +22,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 )
 
@@ -52,5 +53,23 @@ func TestLoadTrustStore(t *testing.T) {
 		err = validate(&TrustStore{certificates: cert})
 
 		assert.EqualError(t, err, "x509: certificate signed by unknown authority")
+	})
+}
+
+func TestBuildTrustStore(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		caBundleData, err := os.ReadFile("../pki/test/pkioverheid-server-bundle.pem")
+		require.NoError(t, err)
+		certs, err := ParseCertificates(caBundleData)
+		require.NoError(t, err)
+
+		store := BuildTrustStore(certs)
+
+		// Assert root certs
+		require.Len(t, store.RootCAs, 1)
+		assert.Equal(t, "CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL", store.RootCAs[0].Subject.String())
+		// Assert intermediate certs
+		require.Len(t, store.IntermediateCAs, 2)
+		assert.Equal(t, "CN=Staat der Nederlanden Domein Server CA 2020,O=Staat der Nederlanden,C=NL", store.IntermediateCAs[1].Subject.String())
 	})
 }

@@ -22,8 +22,10 @@ import (
 	"crypto/sha1"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/minio/sha256-simd"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/pki"
@@ -226,6 +228,48 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrNoMatchingHeaderCredentials)
 		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
+	})
+	t.Run("invalid signature of root certificate", func(t *testing.T) {
+		t.Skip("Can't test this right now, enable after https://github.com/nuts-foundation/nuts-node/issues/3587 has been fixed")
+		_, _, rootCert, _, _, err := BuildCertChain([]string{otherNameValue, otherNameValueSecondary})
+		require.NoError(t, err)
+
+		craftedCertChain := new(cert.Chain)
+		require.NoError(t, craftedCertChain.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: rootCert.Raw})))
+		// Do not add first cert, since it's the root CA cert, which should be the crafted certificate
+		for i := 1; i < certChain.Len(); i++ {
+			curr, b := certChain.Get(i)
+			require.True(t, b)
+			require.NoError(t, craftedCertChain.Add(curr))
+		}
+
+		metadata := resolver2.ResolveMetadata{}
+		metadata.JwtProtectedHeaders = make(map[string]interface{})
+		metadata.JwtProtectedHeaders[X509CertChainHeader] = craftedCertChain
+
+		_, _, err = resolver.Resolve(rootDID, &metadata)
+		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
+	})
+	t.Run("invalid signature of leaf certificate", func(t *testing.T) {
+		_, _, _, _, craftedSigningCert, err := BuildCertChain([]string{otherNameValue, otherNameValueSecondary})
+		require.NoError(t, err)
+
+		craftedCertChain := new(cert.Chain)
+		// Do not add last cert, since it's the leaf, which should be the crafted certificate
+		for i := 0; i < certChain.Len()-1; i++ {
+			curr, b := certChain.Get(i)
+			require.True(t, b)
+			require.NoError(t, craftedCertChain.Add(curr))
+		}
+		require.NoError(t, craftedCertChain.Add(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: craftedSigningCert.Raw})))
+
+		metadata := resolver2.ResolveMetadata{}
+		metadata.JwtProtectedHeaders = make(map[string]interface{})
+		metadata.JwtProtectedHeaders[X509CertChainHeader] = craftedCertChain
+		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(craftedSigningCert.Raw)
+
+		_, _, err = resolver.Resolve(rootDID, &metadata)
+		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
 	})
 	t.Run("broken chain", func(t *testing.T) {
 		expectedErr := errors.New("broken chain")

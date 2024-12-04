@@ -87,13 +87,23 @@ func LoadTrustStore(trustStoreFile string) (*TrustStore, error) {
 
 // ParseTrustStore creates a x509 certificate pool from the raw data
 func ParseTrustStore(data []byte) (*TrustStore, error) {
-	var err error
-	trustStore := new(TrustStore)
-
-	trustStore.certificates, err = ParseCertificates(data)
+	certificates, err := ParseCertificates(data)
 	if err != nil {
 		return nil, err
 	}
+	trustStore := BuildTrustStore(certificates)
+
+	if err = validate(trustStore); err != nil {
+		return nil, err
+	}
+
+	return trustStore, nil
+}
+
+// BuildTrustStore creates a TrustStore from the given certificates, separating them into root and intermediate CAs
+func BuildTrustStore(certificates []*x509.Certificate) *TrustStore {
+	trustStore := new(TrustStore)
+	trustStore.certificates = certificates
 	trustStore.CertPool = NewCertPool(trustStore.certificates)
 
 	for _, certificate := range trustStore.certificates {
@@ -106,12 +116,7 @@ func ParseTrustStore(data []byte) (*TrustStore, error) {
 			}
 		}
 	}
-
-	if err = validate(trustStore); err != nil {
-		return nil, err
-	}
-
-	return trustStore, nil
+	return trustStore
 }
 
 // validate returns an error if one of the certificates is invalid or does not form a chain to some root

@@ -52,7 +52,7 @@ func BuildCertChain(identifiers []string) (chainCerts [4]*x509.Certificate, chai
 		return chainCerts, nil, nil, nil, nil, err
 	}
 
-	intermediateL1Key, intermediateL1Cert, intermediateL1Pem, err := buildIntermediateCert(err, rootCert, rootKey)
+	intermediateL1Key, intermediateL1Cert, intermediateL1Pem, err := buildIntermediateCert(rootCert, rootKey, "Intermediate CA Level 1")
 	if err != nil {
 		return chainCerts, nil, nil, nil, nil, err
 	}
@@ -62,7 +62,7 @@ func BuildCertChain(identifiers []string) (chainCerts [4]*x509.Certificate, chai
 		return chainCerts, nil, nil, nil, nil, err
 	}
 
-	intermediateL2Key, intermediateL2Cert, intermediateL2Pem, err := buildIntermediateCert(err, intermediateL1Cert, intermediateL1Key)
+	intermediateL2Key, intermediateL2Cert, intermediateL2Pem, err := buildIntermediateCert(intermediateL1Cert, intermediateL1Key, "Intermediate CA Level 2")
 	chainCerts[2] = intermediateL2Cert
 	err = chain.Add(intermediateL2Pem)
 	if err != nil {
@@ -98,12 +98,12 @@ func buildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate
 	return signingKey, signingCert, signingPEM, err
 }
 
-func buildIntermediateCert(err error, parentCert *x509.Certificate, parentKey *rsa.PrivateKey) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
+func buildIntermediateCert(parentCert *x509.Certificate, parentKey *rsa.PrivateKey, subjectName string) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
 	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	intermediateL1Tmpl, err := CertTemplate(nil)
+	intermediateL1Tmpl, err := CertTemplate(subjectName)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -119,7 +119,7 @@ func buildRootCert() (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	rootCertTmpl, err := CertTemplate(nil)
+	rootCertTmpl, err := CertTemplate("Root CA")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -132,15 +132,12 @@ func buildRootCert() (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
 
 // CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
 // The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
-	// generate a random serial number (a real cert authority would have some logic behind this)
-	if serialNumber == nil {
-		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
-		serialNumber, _ = rand.Int(rand.Reader, serialNumberLimit)
-	}
+func CertTemplate(subjectName string) (*x509.Certificate, error) {
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
+		Subject:               pkix.Name{Organization: []string{subjectName}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
