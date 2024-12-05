@@ -103,7 +103,7 @@ func TestValidator_Validate(t *testing.T) {
 	testSoftHard := func(t *testing.T, val *validator, cert *x509.Certificate, softfailReturn error, hardfailReturn error) {
 		fn := func(softbool bool, expected error) {
 			val.softfail = softbool
-			err = val.Validate([]*x509.Certificate{cert})
+			err = val.CheckCRL([]*x509.Certificate{cert})
 			if expected == nil {
 				assert.NoError(t, err)
 			} else {
@@ -112,7 +112,7 @@ func TestValidator_Validate(t *testing.T) {
 		}
 		fnStrict := func(expected error) {
 			val.softfail = true // make sure it ignores the configured value
-			err = val.ValidateStrict([]*x509.Certificate{cert})
+			err = val.CheckCRLStrict([]*x509.Certificate{cert})
 			if expected == nil {
 				assert.NoError(t, err)
 			} else {

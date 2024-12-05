@@ -176,9 +176,9 @@ func (mr *MockValidatorMockRecorder) SubscribeDenied(f any) *gomock.Call {
 }
 
 // Validate mocks base method.
-func (m *MockValidator) Validate(chain []*x509.Certificate) error {
+func (m *MockValidator) CheckCRL(chain []*x509.Certificate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", chain)
+	ret := m.ctrl.Call(m, "CheckCRL", chain)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -186,13 +186,13 @@ func (m *MockValidator) Validate(chain []*x509.Certificate) error {
 // Validate indicates an expected call of Validate.
 func (mr *MockValidatorMockRecorder) Validate(chain any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockValidator)(nil).Validate), chain)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCRL", reflect.TypeOf((*MockValidator)(nil).CheckCRL), chain)
 }
 
 // ValidateStrict mocks base method.
-func (m *MockValidator) ValidateStrict(chain []*x509.Certificate) error {
+func (m *MockValidator) CheckCRLStrict(chain []*x509.Certificate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateStrict", chain)
+	ret := m.ctrl.Call(m, "CheckCRLStrict", chain)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -200,7 +200,7 @@ func (m *MockValidator) ValidateStrict(chain []*x509.Certificate) error {
 // ValidateStrict indicates an expected call of ValidateStrict.
 func (mr *MockValidatorMockRecorder) ValidateStrict(chain any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateStrict", reflect.TypeOf((*MockValidator)(nil).ValidateStrict), chain)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCRLStrict", reflect.TypeOf((*MockValidator)(nil).CheckCRLStrict), chain)
 }
 
 // MockProvider is a mock of Provider interface.
@@ -283,9 +283,9 @@ func (mr *MockProviderMockRecorder) SubscribeDenied(f any) *gomock.Call {
 }
 
 // Validate mocks base method.
-func (m *MockProvider) Validate(chain []*x509.Certificate) error {
+func (m *MockProvider) CheckCRL(chain []*x509.Certificate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Validate", chain)
+	ret := m.ctrl.Call(m, "CheckCRL", chain)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -293,13 +293,13 @@ func (m *MockProvider) Validate(chain []*x509.Certificate) error {
 // Validate indicates an expected call of Validate.
 func (mr *MockProviderMockRecorder) Validate(chain any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockProvider)(nil).Validate), chain)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCRL", reflect.TypeOf((*MockProvider)(nil).CheckCRL), chain)
 }
 
 // ValidateStrict mocks base method.
-func (m *MockProvider) ValidateStrict(chain []*x509.Certificate) error {
+func (m *MockProvider) CheckCRLStrict(chain []*x509.Certificate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ValidateStrict", chain)
+	ret := m.ctrl.Call(m, "CheckCRLStrict", chain)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -307,5 +307,5 @@ func (m *MockProvider) ValidateStrict(chain []*x509.Certificate) error {
 // ValidateStrict indicates an expected call of ValidateStrict.
 func (mr *MockProviderMockRecorder) ValidateStrict(chain any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateStrict", reflect.TypeOf((*MockProvider)(nil).ValidateStrict), chain)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckCRLStrict", reflect.TypeOf((*MockProvider)(nil).CheckCRLStrict), chain)
 }
