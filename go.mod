@@ -23,7 +23,6 @@ require (
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/labstack/echo/v4 v4.13.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
-	github.com/magiconair/properties v1.8.9
 	github.com/mdp/qrterminal/v3 v3.2.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
