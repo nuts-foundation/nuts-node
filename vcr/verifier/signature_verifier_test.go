@@ -344,13 +344,11 @@ func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, r
 }
 
 func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey, *x509.Certificate, error) {
-	chain := [4]*x509.Certificate{}
-	chainPems := &cert.Chain{}
 	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	rootCertTmpl, err := CertTemplate(nil)
+	rootCertTmpl, err := CertTemplate("Root CA")
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -361,28 +359,19 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[3] = rootCert
-	err = chainPems.Add(rootPem)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
 
 	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	intermediateL1Tmpl, err := CertTemplate(nil)
+	intermediateL1Tmpl, err := CertTemplate("Intermediate CA Level 1")
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	intermediateL1Tmpl.IsCA = true
 	intermediateL1Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
 	intermediateL1Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, rootCertTmpl, &intermediateL1Key.PublicKey, rootKey)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	chain[2] = intermediateL1Cert
-	err = chainPems.Add(intermediateL1Pem)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -391,18 +380,14 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	intermediateL2Tmpl, err := CertTemplate(nil)
+	intermediateL2Tmpl, err := CertTemplate("Intermediate CA Level 2")
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	intermediateL2Tmpl.IsCA = true
 	intermediateL2Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
 	intermediateL2Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 	intermediateL2Cert, intermediateL2Pem, err := CreateCert(intermediateL2Tmpl, intermediateL1Cert, &intermediateL2Key.PublicKey, intermediateL1Key)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	chain[1] = intermediateL2Cert
-	err = chainPems.Add(intermediateL2Pem)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -411,7 +396,10 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	signingTmpl, err := CertTemplate(nil)
+	signingTmpl, err := CertTemplate("Leaf")
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
 	signingTmpl.Subject.SerialNumber = ura
 	signingTmpl.KeyUsage = x509.KeyUsageDigitalSignature
 	signingTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
@@ -419,13 +407,17 @@ func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	chain[0] = signingCert
-	err = chainPems.Add(signingPEM)
-	if err != nil {
-		return nil, nil, nil, nil, err
+
+	certChain := &cert.Chain{}
+	for _, str := range []string{signingPEM, intermediateL2Pem, intermediateL1Pem, rootPem} {
+		fixedPem := strings.ReplaceAll(str, "\n", "\\n")
+		err = certChain.Add([]byte(fixedPem))
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
 	}
-	chainPems, err = fixChainHeaders(chainPems)
-	return chainPems, rootCert, signingKey, signingCert, nil
+
+	return certChain, rootCert, signingKey, signingCert, nil
 }
 
 func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error) {
@@ -480,15 +472,13 @@ func x509VerifierTestSetup(t testing.TB) (signatureVerifier, *pki.MockValidator)
 }
 
 // CertTemplate is a helper function to create a cert template with a serial number and other required fields
-func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
+func CertTemplate(subjectName string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
-	if serialNumber == nil {
-		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
-		serialNumber, _ = rand.Int(rand.Reader, serialNumberLimit)
-	}
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{"JaegerTracing"}},
+		Subject:               pkix.Name{Organization: []string{subjectName}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
@@ -498,19 +488,18 @@ func CertTemplate(serialNumber *big.Int) (*x509.Certificate, error) {
 }
 
 // CreateCert invokes x509.CreateCertificate and returns it in the x509.Certificate format
-func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM []byte, err error) {
-
+func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM string, err error) {
 	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	// parse the resulting certificate so we can use it again
 	cert, err = x509.ParseCertificate(certDER)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", err
 	}
 	// PEM encode the certificate (this is a standard TLS encoding)
 	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
-	certPEM = pem.EncodeToMemory(&b)
+	certPEM = string(pem.EncodeToMemory(&b))
 	return cert, certPEM, err
 }
