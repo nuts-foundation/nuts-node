@@ -138,7 +138,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	err = r.pkiValidator.ValidateStrict(verifiedChains[0])
+	err = r.pkiValidator.CheckCRLStrict(verifiedChains[0])
 	if err != nil {
 		return nil, nil, err
 	}

@@ -24,10 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-
 	"github.com/labstack/echo/v4"
-	"github.com/magiconair/properties/assert"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 

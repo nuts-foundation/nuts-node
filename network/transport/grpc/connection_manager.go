@@ -571,7 +571,7 @@ func (s *grpcConnectionManager) revalidatePeers() {
 			conn.disconnect()
 			return
 		}
-		err = s.config.pkiValidator.Validate([]*x509.Certificate{peerCert})
+		err = s.config.pkiValidator.CheckCRL([]*x509.Certificate{peerCert})
 		if err != nil {
 			log.Logger().WithError(err).WithFields(conn.Peer().ToFields()).Warn("Disconnected peer")
 			conn.disconnect()

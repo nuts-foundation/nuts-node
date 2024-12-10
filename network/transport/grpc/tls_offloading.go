@@ -60,7 +60,7 @@ func (t *tlsOffloadingAuthenticator) intercept(srv interface{}, serverStream grp
 	}
 
 	// Validate revocation/deny list status
-	if err = t.pkiValidator.Validate(certificates); err != nil {
+	if err = t.pkiValidator.CheckCRL(certificates); err != nil {
 		log.Logger().
 			WithError(err).
 			Warnf("Validation of offloaded TLS certificate failed")

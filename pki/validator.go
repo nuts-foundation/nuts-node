@@ -127,15 +127,15 @@ func (v *validator) syncLoop(ctx context.Context) {
 	}
 }
 
-func (v *validator) Validate(chain []*x509.Certificate) error {
-	return v.validate(chain, v.softfail)
+func (v *validator) CheckCRL(chain []*x509.Certificate) error {
+	return v.checkCRL(chain, v.softfail)
 }
 
-func (v *validator) ValidateStrict(chain []*x509.Certificate) error {
-	return v.validate(chain, false)
+func (v *validator) CheckCRLStrict(chain []*x509.Certificate) error {
+	return v.checkCRL(chain, false)
 }
 
-func (v *validator) validate(chain []*x509.Certificate, softfail bool) error {
+func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool) error {
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
@@ -159,7 +159,7 @@ func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 		// rawCerts contain all certificates provided by the peer, in our case only the leaf cert, while verifiedChains is guaranteed to include the CA's.
 		// rawCerts are ignored since we would only be checking revocation status on a cert whose issuer is not in the truststore. failure mode is then determined by v.softfail.
 		for _, chain := range verifiedChains {
-			if err := v.Validate(chain); err != nil {
+			if err := v.CheckCRL(chain); err != nil {
 				return &tls.CertificateVerificationError{
 					UnverifiedCertificates: chain,
 					Err:                    err,
