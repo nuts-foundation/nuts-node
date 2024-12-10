@@ -67,11 +67,6 @@ func InvalidCertificate() tls.Certificate {
 	return cert
 }
 
-// InvalidCertificateFile returns the path to a file containing an invalid test certificate and its key.
-func InvalidCertificateFile(t *testing.T) string {
-	return writeToTemp(t, "invalid-cert.pem", InvalidCertificateData)
-}
-
 // Certificate returns a valid test certificate.
 func Certificate() tls.Certificate {
 	cert, err := tls.X509KeyPair(CertificateData, CertificateData)
@@ -153,12 +148,12 @@ func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate
 	if err != nil {
 		return nil, nil, err
 	}
-	signingTmpl, err := SigningCertTemplate(nil, identifiers)
+	signingTmpl, err := signingCertTemplate(nil, identifiers)
 	if err != nil {
 		return nil, nil, err
 	}
 	signingTmpl.Subject.SerialNumber = serialNumber
-	signingCert, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
+	signingCert, err := createCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -170,11 +165,11 @@ func buildIntermediateCert(parentCert *x509.Certificate, parentKey *rsa.PrivateK
 	if err != nil {
 		return nil, nil, err
 	}
-	intermediateL1Tmpl, err := CertTemplate(subjectName)
+	intermediateL1Tmpl, err := certTemplate(subjectName)
 	if err != nil {
 		return nil, nil, err
 	}
-	intermediateL1Cert, err := CreateCert(intermediateL1Tmpl, parentCert, &intermediateL1Key.PublicKey, parentKey)
+	intermediateL1Cert, err := createCert(intermediateL1Tmpl, parentCert, &intermediateL1Key.PublicKey, parentKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -186,20 +181,20 @@ func BuildRootCert() (*rsa.PrivateKey, *x509.Certificate, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	rootCertTmpl, err := CertTemplate("Root CA")
+	rootCertTmpl, err := certTemplate("Root CA")
 	if err != nil {
 		return nil, nil, err
 	}
-	rootCert, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
+	rootCert, err := createCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
 	if err != nil {
 		return nil, nil, err
 	}
 	return rootKey, rootCert, nil
 }
 
-// CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
+// certTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
 // The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func CertTemplate(subjectName string) (*x509.Certificate, error) {
+func certTemplate(subjectName string) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
 	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
 	tmpl := x509.Certificate{
@@ -216,9 +211,9 @@ func CertTemplate(subjectName string) (*x509.Certificate, error) {
 	return &tmpl, nil
 }
 
-// CreateCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
+// createCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
 // It returns the generated certificate, its PEM-encoded version, and any error encountered during the process.
-func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, err error) {
+func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, err error) {
 	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
 	if err != nil {
 		return nil, err
@@ -231,8 +226,8 @@ func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 	return cert, err
 }
 
-// SigningCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
-func SigningCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Certificate, error) {
+// signingCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
+func signingCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -287,14 +282,14 @@ func addCertSan(tmpl *x509.Certificate, identifiers []string, altHostName string
 
 	var list []asn1.RawValue
 	// Add the alternative host name first
-	value, err := ToRawValue(altHostName, "tag:2")
+	value, err := toRawValue(altHostName, "tag:2")
 	if err != nil {
 		return err
 	}
 	list = append(list, *value)
 
 	for _, identifier := range identifiers {
-		raw, err := ToRawValue(identifier, "ia5")
+		raw, err := toRawValue(identifier, "ia5")
 		if err != nil {
 			return err
 		}
@@ -308,7 +303,7 @@ func addCertSan(tmpl *x509.Certificate, identifiers []string, altHostName string
 			},
 		}
 
-		raw, err = ToRawValue(otherName, "tag:0")
+		raw, err = toRawValue(otherName, "tag:0")
 		if err != nil {
 			return err
 		}
@@ -327,7 +322,7 @@ func addCertSan(tmpl *x509.Certificate, identifiers []string, altHostName string
 }
 
 // toRawValue marshals an ASN.1 identifier with a given tag, then unmarshals it into a RawValue structure.
-func ToRawValue(value any, tag string) (*asn1.RawValue, error) {
+func toRawValue(value any, tag string) (*asn1.RawValue, error) {
 	b, err := asn1.MarshalWithParams(value, tag)
 	if err != nil {
 		return nil, err
