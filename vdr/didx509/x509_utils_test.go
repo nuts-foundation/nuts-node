@@ -20,258 +20,26 @@ package didx509
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
-	"math/big"
-	"net"
+	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/stretchr/testify/require"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 )
-
-// BuildCertChain generates a certificate chain, including root, intermediate, and signing certificates.
-func BuildCertChain(identifiers []string) (chainCerts [4]*x509.Certificate, chain *cert.Chain, rootCertificate *x509.Certificate, signingKey *rsa.PrivateKey, signingCert *x509.Certificate, err error) {
-	chainCerts = [4]*x509.Certificate{}
-	chain = &cert.Chain{}
-	rootKey, rootCert, rootPem, err := buildRootCert()
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-	chainCerts[0] = rootCert
-	err = chain.Add(rootPem)
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-
-	intermediateL1Key, intermediateL1Cert, intermediateL1Pem, err := buildIntermediateCert(rootCert, rootKey, "Intermediate CA Level 1")
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-	chainCerts[1] = intermediateL1Cert
-	err = chain.Add(intermediateL1Pem)
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-
-	intermediateL2Key, intermediateL2Cert, intermediateL2Pem, err := buildIntermediateCert(intermediateL1Cert, intermediateL1Key, "Intermediate CA Level 2")
-	chainCerts[2] = intermediateL2Cert
-	err = chain.Add(intermediateL2Pem)
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-
-	signingKey, signingCert, signingPEM, err := buildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, "32121323")
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-	chainCerts[3] = signingCert
-	err = chain.Add(signingPEM)
-	if err != nil {
-		return chainCerts, nil, nil, nil, nil, err
-	}
-	return chainCerts, chain, rootCert, signingKey, signingCert, nil
-}
-
-func buildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
-	signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	signingTmpl, err := SigningCertTemplate(nil, identifiers)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	signingTmpl.Subject.SerialNumber = serialNumber
-	signingCert, signingPEM, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return signingKey, signingCert, signingPEM, err
-}
-
-func buildIntermediateCert(parentCert *x509.Certificate, parentKey *rsa.PrivateKey, subjectName string) (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
-	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	intermediateL1Tmpl, err := CertTemplate(subjectName)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, parentCert, &intermediateL1Key.PublicKey, parentKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return intermediateL1Key, intermediateL1Cert, intermediateL1Pem, nil
-}
-
-func buildRootCert() (*rsa.PrivateKey, *x509.Certificate, []byte, error) {
-	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	rootCertTmpl, err := CertTemplate("Root CA")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	rootCert, rootPem, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	return rootKey, rootCert, rootPem, nil
-}
-
-// CertTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
-// The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func CertTemplate(subjectName string) (*x509.Certificate, error) {
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
-	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
-	tmpl := x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{subjectName}},
-		SignatureAlgorithm:    x509.SHA256WithRSA,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
-		BasicConstraintsValid: true,
-	}
-	tmpl.IsCA = true
-	tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	return &tmpl, nil
-}
-
-// SigningCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
-func SigningCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Certificate, error) {
-	// generate a random serial number (a real cert authority would have some logic behind this)
-	if serialNumber == nil {
-		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
-		serialNumber, _ = rand.Int(rand.Reader, serialNumberLimit)
-	}
-
-	tmpl := x509.Certificate{
-		SignatureAlgorithm: x509.SHA256WithRSA,
-		SerialNumber:       serialNumber,
-		Subject: pkix.Name{
-			Organization:       []string{"NUTS Foundation"},
-			CommonName:         "www.example.com",
-			Country:            []string{"NL"},
-			Locality:           []string{"Amsterdam", "The Hague"},
-			OrganizationalUnit: []string{"The A-Team"},
-			StreetAddress:      []string{"Amsterdamseweg 100"},
-			PostalCode:         []string{"1011 NL"},
-			Province:           []string{"Noord-Holland"},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(time.Hour * 24 * 30), // valid for a month
-	}
-	tmpl.KeyUsage = x509.KeyUsageDigitalSignature
-	tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	// Either the ExtraExtensions SubjectAlternativeNameType is set, or the Subject Alternate Name values are set,
-	// both don't mix
-	if len(identifiers) > 0 {
-		err := setSanAlternativeName(&tmpl, identifiers, "testhost.example.com")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		tmpl.DNSNames = []string{"www.example.com", "example.com"}
-		tmpl.EmailAddresses = []string{"info@example.com", "no-reply@example.org"}
-		tmpl.IPAddresses = []net.IP{net.ParseIP("192.1.2.3"), net.ParseIP("192.1.2.4")}
-	}
-	return &tmpl, nil
-}
-
-func setSanAlternativeName(tmpl *x509.Certificate, identifiers []string, altHostName string) error {
-	var list []asn1.RawValue
-	// Add the alternative host name first
-	value, err := toRawValue(altHostName, "tag:2")
-	if err != nil {
-		return err
-	}
-	list = append(list, *value)
-
-	for _, identifier := range identifiers {
-		raw, err := toRawValue(identifier, "ia5")
-		if err != nil {
-			return err
-		}
-		otherName := OtherName{
-			TypeID: OtherNameType,
-			Value: asn1.RawValue{
-				Class:      2,
-				Tag:        0,
-				IsCompound: true,
-				Bytes:      raw.FullBytes,
-			},
-		}
-
-		raw, err = toRawValue(otherName, "tag:0")
-		if err != nil {
-			return err
-		}
-		list = append(list, *raw)
-	}
-	marshal, err := asn1.Marshal(list)
-	if err != nil {
-		return err
-	}
-	tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, pkix.Extension{
-		Id:       SubjectAlternativeNameType,
-		Critical: false,
-		Value:    marshal,
-	})
-	return nil
-}
-
-// toRawValue marshals an ASN.1 identifier with a given tag, then unmarshals it into a RawValue structure.
-func toRawValue(value any, tag string) (*asn1.RawValue, error) {
-	b, err := asn1.MarshalWithParams(value, tag)
-	if err != nil {
-		return nil, err
-	}
-	var val asn1.RawValue
-	_, err = asn1.Unmarshal(b, &val)
-	if err != nil {
-		return nil, err
-	}
-	return &val, nil
-}
-
-// CreateCert generates a new x509 certificate using the provided template and parent certificates, public and private keys.
-// It returns the generated certificate, its PEM-encoded version, and any error encountered during the process.
-func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM []byte, err error) {
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
-	if err != nil {
-		return nil, nil, err
-	}
-	// parse the resulting certificate so we can use it again
-	cert, err = x509.ParseCertificate(certDER)
-	if err != nil {
-		return nil, nil, err
-	}
-	// PEM encode the certificate (this is a standard TLS encoding)
-	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
-	certPEM = pem.EncodeToMemory(&b)
-	return cert, certPEM, err
-}
 
 func TestFindOtherNameValue(t *testing.T) {
 	t.Parallel()
-	key, certificate, _, err := buildRootCert()
-	_, signingCert, _, err := buildSigningCert([]string{"123", "321"}, certificate, key, "4567")
-	if err != nil {
-		t.Fatalf("failed to build root certificate: %v", err)
-	}
+	key, certificate, err := pki.BuildRootCert()
+	require.NoError(t, err)
+	_, signingCert, err := pki.BuildSigningCert([]string{"123", "321"}, certificate, key, "4567")
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -321,10 +89,8 @@ func TestFindCertificateByHash(t *testing.T) {
 		}
 		return base64.RawURLEncoding.EncodeToString(h)
 	}
-	chainCerts, _, _, _, _, err := BuildCertChain([]string{"123"})
-	if err != nil {
-		t.Error(err)
-	}
+	chainCerts, _, err := pki.BuildCertChain([]string{"123"}, "")
+	require.NoError(t, err)
 	t.Parallel()
 	type testCase struct {
 		name      string
@@ -422,17 +188,10 @@ func TestParseChain(t *testing.T) {
 		}
 		return &chain
 	}
-	certs, chain, _, _, _, _ := BuildCertChain([]string{"123"})
+	certs, _, _ := pki.BuildCertChain([]string{"123"}, "")
 
-	invalidPEM := `-----BEGIN CERTIFICATE-----
-Y29ycnVwdCBjZXJ0aWZpY2F0ZQo=
------END CERTIFICATE-----`
-	emptyTypePEM := `-----BEGIN CIPHER TEXT-----
-MIIEDTCCAvegAwIBAgIQAf2j627KdciIQ4tyS8+8kTANBgkqhkiG9w0BAQsFADA/
------END CIPHER TEXT-----`
-	invalidBase64PEM := `-----BEGIN CERTIFICATE-----
-Hello, world!
------END CERTIFICATE-----`
+	invalidCert := `Y29ycnVwdCBjZXJ0aWZpY2F0ZQo=`
+	invalidBase64 := `Hello, world!`
 	tests := []struct {
 		name      string
 		chain     *cert.Chain
@@ -446,35 +205,29 @@ Hello, world!
 			wantError: nil,
 		}, {
 			name:      "valid certificate",
-			chain:     chain,
+			chain:     pki.CertsToChain(certs),
 			want:      certs[:], // not critical for testing
 			wantError: nil,
 		}, {
-			name:      "invalid PEM",
-			chain:     newChain([][]byte{[]byte(invalidPEM)}),
+			name:      "invalid cert",
+			chain:     newChain([][]byte{[]byte(invalidCert)}),
 			want:      nil,
 			wantError: errors.New("x509: malformed certificate"),
 		}, {
-			name:      "PEM with empty type",
-			chain:     newChain([][]byte{[]byte(emptyTypePEM)}),
+			name:      "invalid base64",
+			chain:     newChain([][]byte{[]byte(invalidBase64)}),
 			want:      nil,
-			wantError: fmt.Errorf("invalid PEM block type: %s", "CIPHER TEXT"),
-		}, {
-			name:      "invalid base64 in PEM",
-			chain:     newChain([][]byte{[]byte(invalidBase64PEM)}),
-			want:      nil,
-			wantError: ErrInvalidPemBlock,
+			wantError: errors.New("illegal base64 data at input byte 5"),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			chain, foundErr := parseChain(tt.chain)
-			if !errors.Is(foundErr, tt.wantError) {
-				if foundErr.Error() != tt.wantError.Error() {
-					t.Errorf("parseChain() error = %v, want: %v", foundErr, tt.wantError)
-				}
-				return
+			if tt.wantError == nil {
+				require.NoError(t, foundErr)
+			} else {
+				require.EqualError(t, foundErr, tt.wantError.Error())
 			}
 			if len(chain) != len(tt.want) {
 				t.Errorf("parseChain() error, wrong number of parsed certs: %d, want: %d", len(chain), len(tt.want))
@@ -482,6 +235,14 @@ Hello, world!
 			}
 		})
 	}
+}
+
+func leafCertFromCerts(certs []*x509.Certificate) *x509.Certificate {
+	return certs[0]
+}
+
+func rootCertFromCerts(certs []*x509.Certificate) *x509.Certificate {
+	return certs[len(certs)-1]
 }
 
 func TestProcessSANSequence(t *testing.T) {

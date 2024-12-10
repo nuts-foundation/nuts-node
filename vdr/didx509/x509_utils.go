@@ -27,7 +27,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
@@ -61,9 +60,6 @@ var (
 
 	// ErrCertificateNotfound indicates that a certificate could not be found with the given hash.
 	ErrCertificateNotfound = fmt.Errorf("cannot find a certificate with the given hash")
-
-	// ErrInvalidPemBlock indicates that a PEM block is invalid or cannot be decoded properly.
-	ErrInvalidPemBlock = fmt.Errorf("invalid PEM block")
 
 	// ErrTrailingData indicates that there is trailing data after an X.509 extension, which should not be present.
 	ErrTrailingData = errors.New("x509: trailing data after X.509 extension")
@@ -177,21 +173,16 @@ func parseChain(headerChain *cert.Chain) ([]*x509.Certificate, error) {
 	}
 	chain := make([]*x509.Certificate, headerChain.Len())
 	for i := range headerChain.Len() {
-		certBytes, has := headerChain.Get(i)
-		if has {
-			pemBlock, _ := pem.Decode(certBytes)
-			if pemBlock == nil {
-				return nil, ErrInvalidPemBlock
-			}
-			if pemBlock.Type != "CERTIFICATE" {
-				return nil, fmt.Errorf("invalid PEM block type: %s", pemBlock.Type)
-			}
-			certificate, err := x509.ParseCertificate(pemBlock.Bytes)
-			if err != nil {
-				return nil, err
-			}
-			chain[i] = certificate
+		certBytes, _ := headerChain.Get(i)
+		certRawBytes, err := base64.StdEncoding.DecodeString(string(certBytes))
+		if err != nil {
+			return nil, err
 		}
+		certificate, err := x509.ParseCertificate(certRawBytes)
+		if err != nil {
+			return nil, err
+		}
+		chain[i] = certificate
 	}
 	return chain, nil
 }

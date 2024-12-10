@@ -48,7 +48,7 @@ const (
 var (
 
 	// ErrX509ChainMissing is returned when the x509 root certificate chain is not present in the metadata.
-	ErrX509ChainMissing = errors.New("x509 rootCert chain is missing")
+	ErrX509ChainMissing = errors.New("x509 rootCertFromCerts chain is missing")
 
 	// ErrNoCertsInHeaders indicates that no x5t or x5t#S256 header was found in the provided metadata.
 	ErrNoCertsInHeaders = errors.New("no x5t or x5t#S256 header found")
@@ -105,7 +105,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 	chain, err := parseChain(chainHeader)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("did:x509 x5c certificate parsing: %w", err)
 	}
 	_, err = findCertificateByHash(chain, ref.RootCertRef, ref.Method)
 	if err != nil {
