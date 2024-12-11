@@ -35,7 +35,6 @@ import (
 )
 
 func TestFindOtherNameValue(t *testing.T) {
-	t.Parallel()
 	key, certificate, err := pki.BuildRootCert()
 	require.NoError(t, err)
 	_, signingCert, err := pki.BuildSigningCert([]string{"123", "321"}, certificate, key, "4567")
@@ -91,7 +90,6 @@ func TestFindCertificateByHash(t *testing.T) {
 	}
 	chainCerts, _, err := pki.BuildCertChain([]string{"123"}, "")
 	require.NoError(t, err)
-	t.Parallel()
 	type testCase struct {
 		name      string
 		chain     []*x509.Certificate
