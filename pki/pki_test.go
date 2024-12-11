@@ -54,10 +54,44 @@ func TestPKI_Configure(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		e := New()
 
-		err := e.Configure(core.ServerConfig{})
+		err := e.Configure(*core.NewServerConfig())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, e.validator)
+	})
+	t.Run("loads truststore", func(t *testing.T) {
+		e := New()
+		cfg := core.NewServerConfig().TLS
+		cfg.TrustStoreFile = "test/truststore.pem"
+		cfg.CertFile = "test/A-valid.pem"
+		cfg.CertKeyFile = "test/A-valid.pem"
+
+		err := e.Configure(core.ServerConfig{TLS: cfg})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, e.validator)
+		// Assert the certificate in truststore.pem was loaded into the truststore
+		_, ok := e.cas.Load("CN=Intermediate A CA")
+		assert.True(t, ok)
+	})
+	t.Run("no truststore", func(t *testing.T) {
+		e := New()
+		cfg := core.NewServerConfig()
+		cfg.TLS.TrustStoreFile = "" // remove default
+
+		err := e.Configure(*cfg)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, e.validator)
+	})
+	t.Run("invalid truststore file", func(t *testing.T) {
+		e := New()
+		cfg := core.NewServerConfig()
+		cfg.TLS.TrustStoreFile = "./not-the-default"
+
+		err := e.Configure(*cfg)
+
+		assert.ErrorContains(t, err, "failed to load truststore: stat ./not-the-default:")
 	})
 	t.Run("invalid config", func(t *testing.T) {
 		e := New()
@@ -66,7 +100,7 @@ func TestPKI_Configure(t *testing.T) {
 			TrustedSigner: "definitely not valid",
 		}
 
-		err := e.Configure(core.ServerConfig{})
+		err := e.Configure(*core.NewServerConfig())
 
 		assert.Error(t, err)
 	})
@@ -100,7 +134,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 	// Add truststore
 	store, err := core.LoadTrustStore(truststore) // contains 1 CRL distribution point
 	require.NoError(t, err)
-	require.NoError(t, e.validator.AddTruststore(store.Certificates()))
+	require.NoError(t, e.validator.addCAs(store.Certificates()))
 
 	// Add Denylist
 	testServer := denylistTestServer("")
@@ -171,9 +205,6 @@ func TestPKI_CreateTLSConfig(t *testing.T) {
 		assert.Equal(t, core.MinTLSVersion, tlsConfig.MinVersion)
 		assert.NotEmpty(t, tlsConfig.Certificates)
 		assert.NotNil(t, tlsConfig.RootCAs)
-		// Assert the certificate in truststore.pem was loaded into the truststore
-		_, ok := e.truststore.Load("CN=Intermediate A CA")
-		assert.True(t, ok)
 	})
 	t.Run("TLS disabled", func(t *testing.T) {
 		e := New()

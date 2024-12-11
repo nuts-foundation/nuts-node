@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"os"
 	"time"
 )
 
@@ -56,13 +57,37 @@ func (p *PKI) Config() any {
 	return &p.config
 }
 
-func (p *PKI) Configure(_ core.ServerConfig) error {
+func (p *PKI) Configure(config core.ServerConfig) error {
 	var err error
 	p.validator, err = newValidator(p.config)
 	if err != nil {
 		return err
 	}
+	trustStore, err := loadTrustStore(config.TLS.TrustStoreFile)
+	if err != nil {
+		return err
+	}
+	if trustStore != nil {
+		err = p.addCAs(trustStore.Certificates())
+		if err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func loadTrustStore(file string) (*core.TrustStore, error) {
+	if file == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(file); err != nil {
+		if os.IsNotExist(err) && file == core.NewServerConfig().TLS.TrustStoreFile {
+			// assume this is the default config value and ignore it
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to load truststore: %w", err)
+	}
+	return core.LoadTrustStore(file)
 }
 
 func (p *PKI) Start() error {
@@ -77,21 +102,17 @@ func (p *PKI) Shutdown() error {
 }
 
 // CreateTLSConfig creates a tls.Config based on the given core.TLSConfig for outbound connections to other Nuts nodes.
-// It registers the CA certificates in the trust store in the validator which will start fetching their CRLs.
-// It finally registers a VerifyPeerCertificateFunc in the tls.Config which will validate the peer certificate against the validator.
+// It registers a VerifyPeerCertificateFunc in the tls.Config which will validate the peer certificate against the CRLs.
 // If TLS is not enabled, it returns nil (and no error).
 func (p *PKI) CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error) {
-	tlsConfig, trustStore, err := cfg.Load()
+	// This uses the provided truststore (truststore from config), NOT the CA list from the CRL Validator.
+	tlsConfig, _, err := cfg.Load()
 	if err != nil {
 		return nil, err
 	}
 	if tlsConfig == nil {
 		// TLS is not enabled
 		return nil, nil
-	}
-	err = p.AddTruststore(trustStore.Certificates())
-	if err != nil {
-		return nil, err
 	}
 	_ = p.SetVerifyPeerCertificateFunc(tlsConfig) // no error can occur
 	return tlsConfig, nil

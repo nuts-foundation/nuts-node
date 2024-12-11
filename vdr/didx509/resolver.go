@@ -145,6 +145,10 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
+	// Check CRLs on the verifiedChain, but
+	// 		only after the integrity of the chain has been verified, and
+	// 		only after we have established it is appropriate to use this chain.
+	// Any CAs/CRLs in the verifiedChain will from hereon exist in the CRL checker and will be periodically updated
 	err = r.pkiValidator.CheckCRLStrict(verifiedChains[0])
 	if err != nil {
 		return nil, nil, err
