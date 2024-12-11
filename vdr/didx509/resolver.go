@@ -105,7 +105,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	}
 	chain, err := parseChain(chainHeader)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("did:x509 x5c certificate parsing: %w", err)
 	}
 	_, err = findCertificateByHash(chain, ref.RootCertRef, ref.Method)
 	if err != nil {

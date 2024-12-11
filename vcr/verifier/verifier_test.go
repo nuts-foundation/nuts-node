@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -306,11 +307,15 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("verify x509", func(t *testing.T) {
 		ura := "312312312"
-		chainPems, rootCert, signingKey, signingCert, err := buildCertChain(ura)
+		certs, keys, err := pki.BuildCertChain(nil, ura)
+		chain := pki.CertsToChain(certs)
+		signingCert := certs[0]
+		signingKey := keys[0]
+		rootCert := certs[len(certs)-1]
 		assert.NoError(t, err)
 
 		t.Run("ok", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
@@ -324,7 +329,7 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.NoError(t, err)
 		})
 		t.Run("ok revoked", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*cred.ID)
@@ -336,7 +341,7 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.EqualError(t, err, "credential is revoked")
 		})
 		t.Run("untrusted", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
@@ -345,7 +350,7 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.EqualError(t, err, "credential issuer is untrusted")
 		})
 		t.Run("expired", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
@@ -357,7 +362,7 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.EqualError(t, err, "credential not valid at given time")
 		})
 		t.Run("broken headers", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			ctx := newMockContext(t)
 			ctx.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)

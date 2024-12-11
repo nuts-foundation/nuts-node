@@ -28,19 +28,16 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/nuts-node/pki"
+	testpki "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
-	"math/big"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -91,10 +88,14 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	t.Run("JWT - X509", func(t *testing.T) {
 
 		ura := "312312312"
-		chainPems, rootCert, signingKey, signingCert, err := buildCertChain(ura)
+		certs, keys, err := testpki.BuildCertChain(nil, ura)
+		chain := testpki.CertsToChain(certs)
+		signingCert := certs[0]
+		signingKey := keys[0]
+		rootCert := certs[len(certs)-1]
 		assert.NoError(t, err)
 
-		cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+		cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 		assert.NoError(t, err)
 
 		t.Run("happy flow", func(t *testing.T) {
@@ -116,7 +117,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			assert.ErrorIs(t, err, expectedError)
 		})
 		t.Run("wrong ura", func(t *testing.T) {
-			cred, err := buildX509Credential(chainPems, signingCert, rootCert, signingKey, ura)
+			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
 			assert.NoError(t, err)
 			sv, validator := x509VerifierTestSetup(t)
 			expectedError := errors.New("wrong ura")
@@ -310,9 +311,9 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	})
 }
 
-func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, ura string) (*vc.VerifiableCredential, error) {
+func buildX509Credential(chain *cert.Chain, signingCert *x509.Certificate, rootCert *x509.Certificate, signingKey *rsa.PrivateKey, ura string) (*vc.VerifiableCredential, error) {
 	headers := map[string]interface{}{}
-	headers["x5c"] = chainPems
+	headers["x5c"] = chain
 	hashSha1 := sha1.Sum(signingCert.Raw)
 	headers["x5t"] = base64.RawURLEncoding.EncodeToString(hashSha1[:])
 
@@ -343,83 +344,6 @@ func buildX509Credential(chainPems *cert.Chain, signingCert *x509.Certificate, r
 	return cred, nil
 }
 
-func buildCertChain(ura string) (*cert.Chain, *x509.Certificate, *rsa.PrivateKey, *x509.Certificate, error) {
-	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	rootCertTmpl, err := CertTemplate("Root CA")
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	rootCertTmpl.IsCA = true
-	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	rootCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	rootCert, rootPem, err := CreateCert(rootCertTmpl, rootCertTmpl, &rootKey.PublicKey, rootKey)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	intermediateL1Tmpl, err := CertTemplate("Intermediate CA Level 1")
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	intermediateL1Tmpl.IsCA = true
-	intermediateL1Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	intermediateL1Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	intermediateL1Cert, intermediateL1Pem, err := CreateCert(intermediateL1Tmpl, rootCertTmpl, &intermediateL1Key.PublicKey, rootKey)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	intermediateL2Key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	intermediateL2Tmpl, err := CertTemplate("Intermediate CA Level 2")
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	intermediateL2Tmpl.IsCA = true
-	intermediateL2Tmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
-	intermediateL2Tmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
-	intermediateL2Cert, intermediateL2Pem, err := CreateCert(intermediateL2Tmpl, intermediateL1Cert, &intermediateL2Key.PublicKey, intermediateL1Key)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	signingTmpl, err := CertTemplate("Leaf")
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	signingTmpl.Subject.SerialNumber = ura
-	signingTmpl.KeyUsage = x509.KeyUsageDigitalSignature
-	signingTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-	signingCert, signingPEM, err := CreateCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	certChain := &cert.Chain{}
-	for _, str := range []string{signingPEM, intermediateL2Pem, intermediateL1Pem, rootPem} {
-		fixedPem := strings.ReplaceAll(str, "\n", "\\n")
-		err = certChain.Add([]byte(fixedPem))
-		if err != nil {
-			return nil, nil, nil, nil, err
-		}
-	}
-
-	return certChain, rootCert, signingKey, signingCert, nil
-}
-
 func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error) {
 	credential := &vc.VerifiableCredential{}
 	credential.Issuer = ssi.MustParseURI(did)
@@ -435,19 +359,6 @@ func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error)
 	subject["uraNumber"] = ura
 	credential.CredentialSubject = []interface{}{subject}
 	return credential, nil
-}
-
-func fixChainHeaders(chain *cert.Chain) (*cert.Chain, error) {
-	rv := &cert.Chain{}
-	for i := 0; i < chain.Len(); i++ {
-		value, _ := chain.Get(i)
-		der := strings.ReplaceAll(string(value), "\n", "\\n")
-		err := rv.AddString(der)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return rv, nil
 }
 
 func signatureVerifierTestSetup(t testing.TB) (signatureVerifier, *resolver.MockKeyResolver) {
@@ -469,37 +380,4 @@ func x509VerifierTestSetup(t testing.TB) (signatureVerifier, *pki.MockValidator)
 		keyResolver:   keyResolver,
 		jsonldManager: jsonld.NewTestJSONLDManager(t),
 	}, pkiMock
-}
-
-// CertTemplate is a helper function to create a cert template with a serial number and other required fields
-func CertTemplate(subjectName string) (*x509.Certificate, error) {
-	// generate a random serial number (a real cert authority would have some logic behind this)
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
-	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
-	tmpl := x509.Certificate{
-		SerialNumber:          serialNumber,
-		Subject:               pkix.Name{Organization: []string{subjectName}},
-		SignatureAlgorithm:    x509.SHA256WithRSA,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
-		BasicConstraintsValid: true,
-	}
-	return &tmpl, nil
-}
-
-// CreateCert invokes x509.CreateCertificate and returns it in the x509.Certificate format
-func CreateCert(template, parent *x509.Certificate, pub interface{}, parentPriv interface{}) (cert *x509.Certificate, certPEM string, err error) {
-	certDER, err := x509.CreateCertificate(rand.Reader, template, parent, pub, parentPriv)
-	if err != nil {
-		return nil, "", err
-	}
-	// parse the resulting certificate so we can use it again
-	cert, err = x509.ParseCertificate(certDER)
-	if err != nil {
-		return nil, "", err
-	}
-	// PEM encode the certificate (this is a standard TLS encoding)
-	b := pem.Block{Type: "CERTIFICATE", Bytes: certDER}
-	certPEM = string(pem.EncodeToMemory(&b))
-	return cert, certPEM, err
 }
