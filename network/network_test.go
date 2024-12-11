@@ -217,7 +217,6 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
-		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
 		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()).Times(2) // tls.Configs: client, selfTestDialer
 		ctx.pkiValidator.EXPECT().SubscribeDenied(gomock.Any())
 		ctx.network.connectionManager = nil
@@ -277,7 +276,6 @@ func TestNetwork_Configure(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		ctx := createNetwork(t, ctrl)
 		ctx.protocol.EXPECT().Configure(gomock.Any())
-		ctx.pkiValidator.EXPECT().AddTruststore(gomock.Any())
 		ctx.pkiValidator.EXPECT().SetVerifyPeerCertificateFunc(gomock.Any()) // selftestDialer tls.Config
 		ctx.network.connectionManager = nil
 
