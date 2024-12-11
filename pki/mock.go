@@ -189,20 +189,6 @@ func (mr *MockValidatorMockRecorder) SubscribeDenied(f any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeDenied", reflect.TypeOf((*MockValidator)(nil).SubscribeDenied), f)
 }
 
-// addCAs mocks base method.
-func (m *MockValidator) addCAs(chain []*x509.Certificate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "addCAs", chain)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// addCAs indicates an expected call of addCAs.
-func (mr *MockValidatorMockRecorder) addCAs(chain any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addCAs", reflect.TypeOf((*MockValidator)(nil).addCAs), chain)
-}
-
 // MockProvider is a mock of Provider interface.
 type MockProvider struct {
 	ctrl     *gomock.Controller
@@ -294,18 +280,4 @@ func (m *MockProvider) SubscribeDenied(f func()) {
 func (mr *MockProviderMockRecorder) SubscribeDenied(f any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubscribeDenied", reflect.TypeOf((*MockProvider)(nil).SubscribeDenied), f)
-}
-
-// addCAs mocks base method.
-func (m *MockProvider) addCAs(chain []*x509.Certificate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "addCAs", chain)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// addCAs indicates an expected call of addCAs.
-func (mr *MockProviderMockRecorder) addCAs(chain any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "addCAs", reflect.TypeOf((*MockProvider)(nil).addCAs), chain)
 }
