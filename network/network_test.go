@@ -1255,7 +1255,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
 		t.Run("up", func(t *testing.T) {
 			mockPKIValidator := pki.NewMockValidator(gomock.NewController(t))
-			mockPKIValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf})
+			mockPKIValidator.EXPECT().CheckCRL([]*x509.Certificate{certificate.Leaf})
 			n := Network{
 				trustStore:   trustStore,
 				certificate:  certificate,
@@ -1268,7 +1268,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 		})
 		t.Run("revoked/denied certificate", func(t *testing.T) {
 			mockPKIValidator := pki.NewMockValidator(gomock.NewController(t))
-			mockPKIValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf}).Return(errors.New("custom error"))
+			mockPKIValidator.EXPECT().CheckCRL([]*x509.Certificate{certificate.Leaf}).Return(errors.New("custom error"))
 			n := Network{
 				trustStore:   trustStore,
 				certificate:  certificate,
@@ -1320,7 +1320,7 @@ func TestNetwork_checkHealth(t *testing.T) {
 			cxt.network.certificate = certificate
 			cxt.network.nodeDID = *nodeDID
 			cxt.didStore.EXPECT().Resolve(*nodeDID, nil).MinTimes(1).Return(completeDocument, &resolver.DocumentMetadata{}, nil)
-			cxt.pkiValidator.EXPECT().Validate([]*x509.Certificate{certificate.Leaf})
+			cxt.pkiValidator.EXPECT().CheckCRL([]*x509.Certificate{certificate.Leaf})
 
 			health := cxt.network.CheckHealth()
 

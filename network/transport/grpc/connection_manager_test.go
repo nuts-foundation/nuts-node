@@ -1221,7 +1221,7 @@ func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
 	cert := testPKI.Certificate().Leaf
 
 	t.Run("ok", func(t *testing.T) {
-		mockValidator.EXPECT().Validate([]*x509.Certificate{cert})
+		mockValidator.EXPECT().CheckCRL([]*x509.Certificate{cert})
 		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		connection := NewStubConnection(transport.Peer{Certificate: cert})
@@ -1232,7 +1232,7 @@ func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
 		assert.Equal(t, 0, connection.disconnectCalls)
 	})
 	t.Run("denied", func(t *testing.T) {
-		mockValidator.EXPECT().Validate([]*x509.Certificate{cert}).Return(pki.ErrCertBanned)
+		mockValidator.EXPECT().CheckCRL([]*x509.Certificate{cert}).Return(pki.ErrCertBanned)
 		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		connection := NewStubConnection(transport.Peer{Certificate: cert})
@@ -1243,7 +1243,7 @@ func Test_grpcConnectionManager_revalidatePeers(t *testing.T) {
 		assert.Equal(t, 1, connection.disconnectCalls)
 	})
 	t.Run("denied multiple", func(t *testing.T) {
-		mockValidator.EXPECT().Validate([]*x509.Certificate{cert}).Return(pki.ErrCertBanned).Times(3)
+		mockValidator.EXPECT().CheckCRL([]*x509.Certificate{cert}).Return(pki.ErrCertBanned).Times(3)
 		cm, err := NewGRPCConnectionManager(Config{pkiValidator: mockValidator}, nil, *nodeDID, nil)
 		require.NoError(t, err)
 		connection := NewStubConnection(transport.Peer{Certificate: cert})
