@@ -20,7 +20,6 @@ import (
 type MockEchoRouter struct {
 	ctrl     *gomock.Controller
 	recorder *MockEchoRouterMockRecorder
-	isgomock struct{}
 }
 
 // MockEchoRouterMockRecorder is the mock recorder for MockEchoRouter.

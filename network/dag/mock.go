@@ -24,7 +24,6 @@ import (
 type MockState struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateMockRecorder
-	isgomock struct{}
 }
 
 // MockStateMockRecorder is the mock recorder for MockState.
@@ -338,7 +337,6 @@ func (mr *MockStateMockRecorder) XOR(reqClock any) *gomock.Call {
 type MockPayloadStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockPayloadStoreMockRecorder
-	isgomock struct{}
 }
 
 // MockPayloadStoreMockRecorder is the mock recorder for MockPayloadStore.

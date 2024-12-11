@@ -21,7 +21,6 @@ import (
 type MockSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockSignerMockRecorder
-	isgomock struct{}
 }
 
 // MockSignerMockRecorder is the mock recorder for MockSigner.
@@ -87,7 +86,6 @@ func (mr *MockSignerMockRecorder) StartSigningSession(contract, params any) *gom
 type MockSessionPointer struct {
 	ctrl     *gomock.Controller
 	recorder *MockSessionPointerMockRecorder
-	isgomock struct{}
 }
 
 // MockSessionPointerMockRecorder is the mock recorder for MockSessionPointer.
@@ -154,7 +152,6 @@ func (mr *MockSessionPointerMockRecorder) SessionID() *gomock.Call {
 type MockSigningSessionResult struct {
 	ctrl     *gomock.Controller
 	recorder *MockSigningSessionResultMockRecorder
-	isgomock struct{}
 }
 
 // MockSigningSessionResultMockRecorder is the mock recorder for MockSigningSessionResult.

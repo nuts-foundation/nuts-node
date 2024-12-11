@@ -24,7 +24,6 @@ import (
 type MockVerifier struct {
 	ctrl     *gomock.Controller
 	recorder *MockVerifierMockRecorder
-	isgomock struct{}
 }
 
 // MockVerifierMockRecorder is the mock recorder for MockVerifier.
@@ -135,7 +134,6 @@ func (mr *MockVerifierMockRecorder) VerifyVP(presentation, verifyVCs, allowUntru
 type MockStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockStoreMockRecorder
-	isgomock struct{}
 }
 
 // MockStoreMockRecorder is the mock recorder for MockStore.

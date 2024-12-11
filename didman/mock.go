@@ -23,7 +23,6 @@ import (
 type MockDidman struct {
 	ctrl     *gomock.Controller
 	recorder *MockDidmanMockRecorder
-	isgomock struct{}
 }
 
 // MockDidmanMockRecorder is the mock recorder for MockDidman.
@@ -210,7 +209,6 @@ func (mr *MockDidmanMockRecorder) UpdateEndpoint(ctx, id, serviceType, endpoint 
 type MockCompoundServiceResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockCompoundServiceResolverMockRecorder
-	isgomock struct{}
 }
 
 // MockCompoundServiceResolverMockRecorder is the mock recorder for MockCompoundServiceResolver.

@@ -25,7 +25,6 @@ import (
 type MockSignedToken struct {
 	ctrl     *gomock.Controller
 	recorder *MockSignedTokenMockRecorder
-	isgomock struct{}
 }
 
 // MockSignedTokenMockRecorder is the mock recorder for MockSignedToken.
@@ -78,7 +77,6 @@ func (mr *MockSignedTokenMockRecorder) SignerAttributes() *gomock.Call {
 type MockVPProofValueParser struct {
 	ctrl     *gomock.Controller
 	recorder *MockVPProofValueParserMockRecorder
-	isgomock struct{}
 }
 
 // MockVPProofValueParserMockRecorder is the mock recorder for MockVPProofValueParser.
@@ -131,7 +129,6 @@ func (mr *MockVPProofValueParserMockRecorder) Verify(token any) *gomock.Call {
 type MockContractNotary struct {
 	ctrl     *gomock.Controller
 	recorder *MockContractNotaryMockRecorder
-	isgomock struct{}
 }
 
 // MockContractNotaryMockRecorder is the mock recorder for MockContractNotary.

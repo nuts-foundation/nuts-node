@@ -21,7 +21,6 @@ import (
 type MockWriter struct {
 	ctrl     *gomock.Controller
 	recorder *MockWriterMockRecorder
-	isgomock struct{}
 }
 
 // MockWriterMockRecorder is the mock recorder for MockWriter.

@@ -20,7 +20,6 @@ import (
 type MockWalletAPIClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockWalletAPIClientMockRecorder
-	isgomock struct{}
 }
 
 // MockWalletAPIClientMockRecorder is the mock recorder for MockWalletAPIClient.

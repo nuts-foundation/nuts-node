@@ -22,7 +22,6 @@ import (
 type MockIssuerAPIClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockIssuerAPIClientMockRecorder
-	isgomock struct{}
 }
 
 // MockIssuerAPIClientMockRecorder is the mock recorder for MockIssuerAPIClient.
@@ -90,7 +89,6 @@ func (mr *MockIssuerAPIClientMockRecorder) RequestCredential(ctx, request, acces
 type MockOAuth2Client struct {
 	ctrl     *gomock.Controller
 	recorder *MockOAuth2ClientMockRecorder
-	isgomock struct{}
 }
 
 // MockOAuth2ClientMockRecorder is the mock recorder for MockOAuth2Client.

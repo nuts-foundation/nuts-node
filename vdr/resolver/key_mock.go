@@ -23,7 +23,6 @@ import (
 type MockKeyResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockKeyResolverMockRecorder
-	isgomock struct{}
 }
 
 // MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
@@ -78,7 +77,6 @@ func (mr *MockKeyResolverMockRecorder) ResolveKeyByID(keyID, metadata, relationT
 type MockNutsKeyResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockNutsKeyResolverMockRecorder
-	isgomock struct{}
 }
 
 // MockNutsKeyResolverMockRecorder is the mock recorder for MockNutsKeyResolver.

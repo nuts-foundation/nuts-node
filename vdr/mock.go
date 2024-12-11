@@ -23,7 +23,6 @@ import (
 type MockVDR struct {
 	ctrl     *gomock.Controller
 	recorder *MockVDRMockRecorder
-	isgomock struct{}
 }
 
 // MockVDRMockRecorder is the mock recorder for MockVDR.

@@ -19,6 +19,7 @@
 package didx509
 
 import (
+	"bytes"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -47,8 +48,8 @@ const (
 
 var (
 
-	// ErrX509ChainMissing is returned when the x509 root certificate chain is not present in the metadata.
-	ErrX509ChainMissing = errors.New("x509 rootCert chain is missing")
+	// ErrX509ChainMissing indicates that no x5c header was found in the provided metadata.
+	ErrX509ChainMissing = errors.New("no x5c header found")
 
 	// ErrNoCertsInHeaders indicates that no x5t or x5t#S256 header was found in the provided metadata.
 	ErrNoCertsInHeaders = errors.New("no x5t or x5t#S256 header found")
@@ -78,9 +79,9 @@ type X509DidPolicy struct {
 
 // X509DidReference represents a reference for an X.509 Decentralized Identifier (DID) including method, root certificate, and policies.
 type X509DidReference struct {
-	Method      HashAlgorithm
-	RootCertRef string
-	Policies    []X509DidPolicy
+	Method        HashAlgorithm
+	CAFingerprint string
+	Policies      []X509DidPolicy
 }
 
 // Resolve resolves a DID document given its identifier and corresponding metadata.
@@ -107,13 +108,16 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:x509 x5c certificate parsing: %w", err)
 	}
-	_, err = findCertificateByHash(chain, ref.RootCertRef, ref.Method)
+	caFingerprintCert, err := findCertificateByHash(chain, ref.CAFingerprint, ref.Method)
 	if err != nil {
 		return nil, nil, err
 	}
 	validationCert, err := findValidationCertificate(metadata, chain)
 	if err != nil {
 		return nil, nil, err
+	}
+	if bytes.Equal(caFingerprintCert.Raw, validationCert.Raw) {
+		return nil, nil, fmt.Errorf("did:509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	}
 
 	// Validate certificate chain, checking signatures and whether the chain is complete
@@ -225,7 +229,7 @@ func parseX509Did(id did.DID) (*X509DidReference, error) {
 		return nil, ErrDidVersion
 	}
 	ref.Method = HashAlgorithm(didParts[1])
-	ref.RootCertRef = didParts[2]
+	ref.CAFingerprint = didParts[2]
 
 	for _, policyString := range policyStrings {
 		policyFragments := strings.Split(policyString, ":")

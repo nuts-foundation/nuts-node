@@ -23,7 +23,6 @@ import (
 type MockEngine struct {
 	ctrl     *gomock.Controller
 	recorder *MockEngineMockRecorder
-	isgomock struct{}
 }
 
 // MockEngineMockRecorder is the mock recorder for MockEngine.
@@ -131,7 +130,6 @@ func (mr *MockEngineMockRecorder) Start() *gomock.Call {
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
-	isgomock struct{}
 }
 
 // MockProviderMockRecorder is the mock recorder for MockProvider.
@@ -170,7 +168,6 @@ func (mr *MockProviderMockRecorder) GetKVStore(name, class any) *gomock.Call {
 type Mockdatabase struct {
 	ctrl     *gomock.Controller
 	recorder *MockdatabaseMockRecorder
-	isgomock struct{}
 }
 
 // MockdatabaseMockRecorder is the mock recorder for Mockdatabase.
@@ -235,7 +232,6 @@ func (mr *MockdatabaseMockRecorder) getClass() *gomock.Call {
 type MockSessionDatabase struct {
 	ctrl     *gomock.Controller
 	recorder *MockSessionDatabaseMockRecorder
-	isgomock struct{}
 }
 
 // MockSessionDatabaseMockRecorder is the mock recorder for MockSessionDatabase.
@@ -286,11 +282,24 @@ func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl any, keys ...any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
 }
 
+// getFullKey mocks base method.
+func (m *MockSessionDatabase) getFullKey(prefixes []string, key string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "getFullKey", prefixes, key)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// getFullKey indicates an expected call of getFullKey.
+func (mr *MockSessionDatabaseMockRecorder) getFullKey(prefixes, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getFullKey", reflect.TypeOf((*MockSessionDatabase)(nil).getFullKey), prefixes, key)
+}
+
 // MockSessionStore is a mock of SessionStore interface.
 type MockSessionStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockSessionStoreMockRecorder
-	isgomock struct{}
 }
 
 // MockSessionStoreMockRecorder is the mock recorder for MockSessionStore.

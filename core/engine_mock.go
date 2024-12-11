@@ -19,7 +19,6 @@ import (
 type MockRoutable struct {
 	ctrl     *gomock.Controller
 	recorder *MockRoutableMockRecorder
-	isgomock struct{}
 }
 
 // MockRoutableMockRecorder is the mock recorder for MockRoutable.
@@ -55,7 +54,6 @@ func (mr *MockRoutableMockRecorder) Routes(router any) *gomock.Call {
 type MockRunnable struct {
 	ctrl     *gomock.Controller
 	recorder *MockRunnableMockRecorder
-	isgomock struct{}
 }
 
 // MockRunnableMockRecorder is the mock recorder for MockRunnable.
@@ -107,7 +105,6 @@ func (mr *MockRunnableMockRecorder) Start() *gomock.Call {
 type MockMigratable struct {
 	ctrl     *gomock.Controller
 	recorder *MockMigratableMockRecorder
-	isgomock struct{}
 }
 
 // MockMigratableMockRecorder is the mock recorder for MockMigratable.
@@ -145,7 +142,6 @@ func (mr *MockMigratableMockRecorder) Migrate() *gomock.Call {
 type MockConfigurable struct {
 	ctrl     *gomock.Controller
 	recorder *MockConfigurableMockRecorder
-	isgomock struct{}
 }
 
 // MockConfigurableMockRecorder is the mock recorder for MockConfigurable.
@@ -183,7 +179,6 @@ func (mr *MockConfigurableMockRecorder) Configure(config any) *gomock.Call {
 type MockViewableDiagnostics struct {
 	ctrl     *gomock.Controller
 	recorder *MockViewableDiagnosticsMockRecorder
-	isgomock struct{}
 }
 
 // MockViewableDiagnosticsMockRecorder is the mock recorder for MockViewableDiagnostics.
@@ -235,7 +230,6 @@ func (mr *MockViewableDiagnosticsMockRecorder) Name() *gomock.Call {
 type MockDiagnosable struct {
 	ctrl     *gomock.Controller
 	recorder *MockDiagnosableMockRecorder
-	isgomock struct{}
 }
 
 // MockDiagnosableMockRecorder is the mock recorder for MockDiagnosable.
@@ -273,7 +267,6 @@ func (mr *MockDiagnosableMockRecorder) Diagnostics() *gomock.Call {
 type MockEngine struct {
 	ctrl     *gomock.Controller
 	recorder *MockEngineMockRecorder
-	isgomock struct{}
 }
 
 // MockEngineMockRecorder is the mock recorder for MockEngine.
@@ -297,7 +290,6 @@ func (m *MockEngine) EXPECT() *MockEngineMockRecorder {
 type MockNamed struct {
 	ctrl     *gomock.Controller
 	recorder *MockNamedMockRecorder
-	isgomock struct{}
 }
 
 // MockNamedMockRecorder is the mock recorder for MockNamed.
@@ -335,7 +327,6 @@ func (mr *MockNamedMockRecorder) Name() *gomock.Call {
 type MockInjectable struct {
 	ctrl     *gomock.Controller
 	recorder *MockInjectableMockRecorder
-	isgomock struct{}
 }
 
 // MockInjectableMockRecorder is the mock recorder for MockInjectable.
@@ -387,7 +378,6 @@ func (mr *MockInjectableMockRecorder) Name() *gomock.Call {
 type MockHealthCheckable struct {
 	ctrl     *gomock.Controller
 	recorder *MockHealthCheckableMockRecorder
-	isgomock struct{}
 }
 
 // MockHealthCheckableMockRecorder is the mock recorder for MockHealthCheckable.

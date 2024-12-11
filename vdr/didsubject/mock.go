@@ -23,7 +23,6 @@ import (
 type MockMethodManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockMethodManagerMockRecorder
-	isgomock struct{}
 }
 
 // MockMethodManagerMockRecorder is the mock recorder for MockMethodManager.
@@ -106,7 +105,6 @@ func (mr *MockMethodManagerMockRecorder) NewVerificationMethod(ctx, controller, 
 type MockDocumentManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocumentManagerMockRecorder
-	isgomock struct{}
 }
 
 // MockDocumentManagerMockRecorder is the mock recorder for MockDocumentManager.
@@ -158,7 +156,6 @@ func (mr *MockDocumentManagerMockRecorder) Update(ctx, id, next any) *gomock.Cal
 type MockManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockManagerMockRecorder
-	isgomock struct{}
 }
 
 // MockManagerMockRecorder is the mock recorder for MockManager.
@@ -343,7 +340,6 @@ func (mr *MockManagerMockRecorder) UpdateService(ctx, subject, serviceID, servic
 type MockDocumentMigration struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocumentMigrationMockRecorder
-	isgomock struct{}
 }
 
 // MockDocumentMigrationMockRecorder is the mock recorder for MockDocumentMigration.
@@ -395,7 +391,6 @@ func (mr *MockDocumentMigrationMockRecorder) MigrateDIDHistoryToSQL(id, subject,
 type MockCreationOptions struct {
 	ctrl     *gomock.Controller
 	recorder *MockCreationOptionsMockRecorder
-	isgomock struct{}
 }
 
 // MockCreationOptionsMockRecorder is the mock recorder for MockCreationOptions.
@@ -447,7 +442,6 @@ func (mr *MockCreationOptionsMockRecorder) With(option any) *gomock.Call {
 type MockCreationOption struct {
 	ctrl     *gomock.Controller
 	recorder *MockCreationOptionMockRecorder
-	isgomock struct{}
 }
 
 // MockCreationOptionMockRecorder is the mock recorder for MockCreationOption.
@@ -471,7 +465,6 @@ func (m *MockCreationOption) EXPECT() *MockCreationOptionMockRecorder {
 type MockDocumentOwner struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocumentOwnerMockRecorder
-	isgomock struct{}
 }
 
 // MockDocumentOwnerMockRecorder is the mock recorder for MockDocumentOwner.

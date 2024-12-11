@@ -21,7 +21,6 @@ import (
 type MockOpenIDHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockOpenIDHandlerMockRecorder
-	isgomock struct{}
 }
 
 // MockOpenIDHandlerMockRecorder is the mock recorder for MockOpenIDHandler.

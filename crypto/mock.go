@@ -23,7 +23,6 @@ import (
 type MockKeyCreator struct {
 	ctrl     *gomock.Controller
 	recorder *MockKeyCreatorMockRecorder
-	isgomock struct{}
 }
 
 // MockKeyCreatorMockRecorder is the mock recorder for MockKeyCreator.
@@ -63,7 +62,6 @@ func (mr *MockKeyCreatorMockRecorder) New(ctx, namingFunc any) *gomock.Call {
 type MockKeyResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockKeyResolverMockRecorder
-	isgomock struct{}
 }
 
 // MockKeyResolverMockRecorder is the mock recorder for MockKeyResolver.
@@ -131,7 +129,6 @@ func (mr *MockKeyResolverMockRecorder) Resolve(ctx, kid any) *gomock.Call {
 type MockKeyStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockKeyStoreMockRecorder
-	isgomock struct{}
 }
 
 // MockKeyStoreMockRecorder is the mock recorder for MockKeyStore.
@@ -334,7 +331,6 @@ func (mr *MockKeyStoreMockRecorder) SignJWT(ctx, claims, headers, kid any) *gomo
 type MockDecrypter struct {
 	ctrl     *gomock.Controller
 	recorder *MockDecrypterMockRecorder
-	isgomock struct{}
 }
 
 // MockDecrypterMockRecorder is the mock recorder for MockDecrypter.
@@ -373,7 +369,6 @@ func (mr *MockDecrypterMockRecorder) Decrypt(ctx, kid, ciphertext any) *gomock.C
 type MockJWTSigner struct {
 	ctrl     *gomock.Controller
 	recorder *MockJWTSignerMockRecorder
-	isgomock struct{}
 }
 
 // MockJWTSignerMockRecorder is the mock recorder for MockJWTSigner.
@@ -442,7 +437,6 @@ func (mr *MockJWTSignerMockRecorder) SignJWT(ctx, claims, headers, kid any) *gom
 type MockJsonWebEncryptor struct {
 	ctrl     *gomock.Controller
 	recorder *MockJsonWebEncryptorMockRecorder
-	isgomock struct{}
 }
 
 // MockJsonWebEncryptorMockRecorder is the mock recorder for MockJsonWebEncryptor.

@@ -23,7 +23,6 @@ import (
 type MockRelyingParty struct {
 	ctrl     *gomock.Controller
 	recorder *MockRelyingPartyMockRecorder
-	isgomock struct{}
 }
 
 // MockRelyingPartyMockRecorder is the mock recorder for MockRelyingParty.
@@ -77,7 +76,6 @@ func (mr *MockRelyingPartyMockRecorder) RequestRFC003AccessToken(ctx, jwtGrantTo
 type MockAuthorizationServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockAuthorizationServerMockRecorder
-	isgomock struct{}
 }
 
 // MockAuthorizationServerMockRecorder is the mock recorder for MockAuthorizationServer.

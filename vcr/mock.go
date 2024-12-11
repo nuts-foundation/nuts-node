@@ -27,7 +27,6 @@ import (
 type MockFinder struct {
 	ctrl     *gomock.Controller
 	recorder *MockFinderMockRecorder
-	isgomock struct{}
 }
 
 // MockFinderMockRecorder is the mock recorder for MockFinder.
@@ -66,7 +65,6 @@ func (mr *MockFinderMockRecorder) Search(ctx, searchTerms, allowUntrusted, resol
 type MockTrustManager struct {
 	ctrl     *gomock.Controller
 	recorder *MockTrustManagerMockRecorder
-	isgomock struct{}
 }
 
 // MockTrustManagerMockRecorder is the mock recorder for MockTrustManager.
@@ -148,7 +146,6 @@ func (mr *MockTrustManagerMockRecorder) Untrusted(credentialType any) *gomock.Ca
 type MockResolver struct {
 	ctrl     *gomock.Controller
 	recorder *MockResolverMockRecorder
-	isgomock struct{}
 }
 
 // MockResolverMockRecorder is the mock recorder for MockResolver.
@@ -187,7 +184,6 @@ func (mr *MockResolverMockRecorder) Resolve(ID, resolveTime any) *gomock.Call {
 type MockVCR struct {
 	ctrl     *gomock.Controller
 	recorder *MockVCRMockRecorder
-	isgomock struct{}
 }
 
 // MockVCRMockRecorder is the mock recorder for MockVCR.

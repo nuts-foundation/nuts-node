@@ -21,7 +21,6 @@ import (
 type MockSuite struct {
 	ctrl     *gomock.Controller
 	recorder *MockSuiteMockRecorder
-	isgomock struct{}
 }
 
 // MockSuiteMockRecorder is the mock recorder for MockSuite.
