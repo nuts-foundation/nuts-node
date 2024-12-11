@@ -250,16 +250,16 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		_, _, err = didResolver.Resolve(rootDID, &metadata)
 		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
 	})
-	t.Run("invalid signature of leaf certificate", func(t *testing.T) {
+	t.Run("invalid issuer signature of leaf certificate", func(t *testing.T) {
 		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "")
 		require.NoError(t, err)
 
 		craftedCertChain := new(cert.Chain)
-		// Do not add last cert, since it's the leaf, which should be the crafted certificate
-		for i := 0; i < len(certs)-1; i++ {
+		// Do not add first cert, since it's the leaf, which should be the crafted certificate
+		require.NoError(t, craftedCertChain.Add([]byte(base64.StdEncoding.EncodeToString(leafCertFromCerts(craftedCerts).Raw))))
+		for i := 1; i < len(certs); i++ {
 			require.NoError(t, craftedCertChain.Add([]byte(base64.StdEncoding.EncodeToString(certs[i].Raw))))
 		}
-		require.NoError(t, craftedCertChain.Add([]byte(base64.StdEncoding.EncodeToString(leafCertFromCerts(craftedCerts).Raw))))
 
 		metadata := resolver.ResolveMetadata{}
 		metadata.JwtProtectedHeaders = make(map[string]interface{})
