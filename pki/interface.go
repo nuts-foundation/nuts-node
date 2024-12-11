@@ -79,10 +79,6 @@ type Validator interface {
 	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use CheckCRL.
 	SetVerifyPeerCertificateFunc(config *tls.Config) error
 
-	// addCAs adds all CAs to the list of CAs for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
-	// The certificate chain MUST be sorted leaf to root.
-	addCAs(chain []*x509.Certificate) error
-
 	// SubscribeDenied registers a callback that is triggered everytime the denylist is updated.
 	// This can be used to revalidate all certificates on long-lasting connections by calling CheckCRL on them again.
 	SubscribeDenied(f func())
