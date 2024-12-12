@@ -20,6 +20,7 @@ import (
 type MockDocFinder struct {
 	ctrl     *gomock.Controller
 	recorder *MockDocFinderMockRecorder
+	isgomock struct{}
 }
 
 // MockDocFinderMockRecorder is the mock recorder for MockDocFinder.
@@ -62,6 +63,7 @@ func (mr *MockDocFinderMockRecorder) Find(arg0 ...any) *gomock.Call {
 type MockPredicate struct {
 	ctrl     *gomock.Controller
 	recorder *MockPredicateMockRecorder
+	isgomock struct{}
 }
 
 // MockPredicateMockRecorder is the mock recorder for MockPredicate.

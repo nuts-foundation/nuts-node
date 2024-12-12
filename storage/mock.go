@@ -23,6 +23,7 @@ import (
 type MockEngine struct {
 	ctrl     *gomock.Controller
 	recorder *MockEngineMockRecorder
+	isgomock struct{}
 }
 
 // MockEngineMockRecorder is the mock recorder for MockEngine.
@@ -130,6 +131,7 @@ func (mr *MockEngineMockRecorder) Start() *gomock.Call {
 type MockProvider struct {
 	ctrl     *gomock.Controller
 	recorder *MockProviderMockRecorder
+	isgomock struct{}
 }
 
 // MockProviderMockRecorder is the mock recorder for MockProvider.
@@ -168,6 +170,7 @@ func (mr *MockProviderMockRecorder) GetKVStore(name, class any) *gomock.Call {
 type Mockdatabase struct {
 	ctrl     *gomock.Controller
 	recorder *MockdatabaseMockRecorder
+	isgomock struct{}
 }
 
 // MockdatabaseMockRecorder is the mock recorder for Mockdatabase.
@@ -232,6 +235,7 @@ func (mr *MockdatabaseMockRecorder) getClass() *gomock.Call {
 type MockSessionDatabase struct {
 	ctrl     *gomock.Controller
 	recorder *MockSessionDatabaseMockRecorder
+	isgomock struct{}
 }
 
 // MockSessionDatabaseMockRecorder is the mock recorder for MockSessionDatabase.
@@ -300,6 +304,7 @@ func (mr *MockSessionDatabaseMockRecorder) getFullKey(prefixes, key any) *gomock
 type MockSessionStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockSessionStoreMockRecorder
+	isgomock struct{}
 }
 
 // MockSessionStoreMockRecorder is the mock recorder for MockSessionStore.

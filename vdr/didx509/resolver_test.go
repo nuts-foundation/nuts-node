@@ -214,8 +214,7 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	})
 	t.Run("ca-fingerprint pointing at leaf certificate, which is not allowed", func(t *testing.T) {
 		subjectDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(leafCertFromCerts(certs).Raw), otherNameValue))
-
-		validator.EXPECT().CheckCRLStrict(gomock.Any())
+		
 		_, _, err := didResolver.Resolve(subjectDID, &metadata)
 		require.EqualError(t, err, "did:509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	})
@@ -289,6 +288,9 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
 	})
 	t.Run("can't check CRL", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		validator := pki.NewMockValidator(ctrl)
+		didResolver := NewResolver(validator)
 		expectedErr := errors.New("broken chain")
 		validator.EXPECT().CheckCRLStrict(gomock.Any()).Return(expectedErr)
 		_, _, err := didResolver.Resolve(rootDID, &metadata)

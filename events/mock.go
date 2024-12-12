@@ -21,6 +21,7 @@ import (
 type MockConn struct {
 	ctrl     *gomock.Controller
 	recorder *MockConnMockRecorder
+	isgomock struct{}
 }
 
 // MockConnMockRecorder is the mock recorder for MockConn.
@@ -75,6 +76,7 @@ func (mr *MockConnMockRecorder) JetStream(opts ...any) *gomock.Call {
 type MockJetStreamContext struct {
 	ctrl     *gomock.Controller
 	recorder *MockJetStreamContextMockRecorder
+	isgomock struct{}
 }
 
 // MockJetStreamContextMockRecorder is the mock recorder for MockJetStreamContext.
@@ -915,6 +917,7 @@ func (mr *MockJetStreamContextMockRecorder) UpdateStream(cfg any, opts ...any) *
 type MockConnectionPool struct {
 	ctrl     *gomock.Controller
 	recorder *MockConnectionPoolMockRecorder
+	isgomock struct{}
 }
 
 // MockConnectionPoolMockRecorder is the mock recorder for MockConnectionPool.

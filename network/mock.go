@@ -24,6 +24,7 @@ import (
 type MockTransactions struct {
 	ctrl     *gomock.Controller
 	recorder *MockTransactionsMockRecorder
+	isgomock struct{}
 }
 
 // MockTransactionsMockRecorder is the mock recorder for MockTransactions.
