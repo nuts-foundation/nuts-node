@@ -117,7 +117,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 	if bytes.Equal(caFingerprintCert.Raw, validationCert.Raw) {
-		return nil, nil, fmt.Errorf("did:509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
+		return nil, nil, fmt.Errorf("did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	}
 
 	// Validate certificate chain, checking signatures and whether the chain is complete
