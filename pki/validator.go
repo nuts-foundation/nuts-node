@@ -47,9 +47,9 @@ type validator struct {
 	// httpClient downloads the CRLs
 	httpClient *http.Client
 
-	// truststore maps Certificate.Subject.String() to their certificate.
-	// Used for CRL signature checking. Immutable once Start() has been called.
-	truststore sync.Map
+	// cas maps a CA's Certificate.Subject.String() to their certificate.
+	// Used for CRL signature checking.
+	cas sync.Map
 
 	// crls maps CRL endpoints to their x509.RevocationList
 	crls sync.Map
@@ -139,12 +139,26 @@ func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool) error {
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
-		cert = chain[len(chain)-1-i]
 		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
-		if err = v.validateCert(cert); err != nil {
+		cert = chain[len(chain)-1-i]
+		err = v.validateCert(cert)
+		if err != nil {
+			// if the issuer of a cert is unknown, add entire chain to the ca/crl lists and try again
+			if errors.Is(err, ErrUnknownIssuer) {
+				if err = v.addCAs(chain); err == nil {
+					if err = v.validateCert(cert); err == nil {
+						continue
+					}
+				}
+			}
+			// handle error
 			errOut := fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
 			if softfail && (errors.Is(err, ErrCRLExpired) || errors.Is(err, ErrCRLMissing) || errors.Is(err, ErrDenylistMissing)) {
 				// Accept the certificate even if it cannot be properly validated against the CRL or denylist
+				// NOTE: ErrUnknownIssuer should probably be part of the soft-fail list, but this could result in unsafe configurations for did:nuts:
+				//		If the presented chain only contains the leaf certificate, and if the issuer of this leaf certificate is unknown,
+				//		the node cannot check the CRL -> revocation status of the leaf cert will always succeed with soft-fail.
+				//		This situation occurs when using the gRPC(-nuts)-network WithTLSOffloading and the configured truststore is incomplete.
 				logger().WithError(errOut).Error("Certificate CRL check softfail bypass. Might be unsafe, find cause of failure!")
 				continue
 			}
@@ -190,7 +204,7 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 			var issuer *x509.Certificate
 			issuer, ok = v.getCert(cert.Issuer.String())
 			if !ok {
-				return ErrCertUntrusted
+				return ErrUnknownIssuer
 			}
 			err := v.addEndpoints(issuer, []string{endpoint})
 			if err != nil {
@@ -236,20 +250,20 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 	return nil
 }
 
-func (v *validator) AddTruststore(chain []*x509.Certificate) error {
+func (v *validator) addCAs(chain []*x509.Certificate) error {
 	// Add all CAs
-	// TODO: cert.Subject.String() is not guaranteed to be unique
+	// NOTE: cert.Subject.String() is not guaranteed to be unique, we rely on external validation of the chain
 	var certificate *x509.Certificate
 	var err error
 	for _, certificate = range chain {
-		v.truststore.Store(certificate.Subject.String(), certificate)
+		v.cas.Store(certificate.Subject.String(), certificate)
 	}
 
 	// Add CRL distribution points, issuers should all be available now
 	for _, certificate = range chain {
 		issuer, ok := v.getCert(certificate.Issuer.String())
 		if !ok {
-			return fmt.Errorf("pki: certificate's issuer is not in the trust store: subject=%s, issuer=%s", certificate.Subject.String(), certificate.Issuer.String())
+			return fmt.Errorf("pki: %w: subject=%s, issuer=%s", ErrUnknownIssuer, certificate.Subject.String(), certificate.Issuer.String())
 		}
 		err = v.addEndpoints(issuer, certificate.CRLDistributionPoints)
 		if err != nil {
@@ -266,7 +280,7 @@ func (v *validator) SubscribeDenied(f func()) {
 }
 
 func (v *validator) getCert(subject string) (*x509.Certificate, bool) {
-	issuer, ok := v.truststore.Load(subject)
+	issuer, ok := v.cas.Load(subject)
 	if !ok {
 		return nil, false
 	}

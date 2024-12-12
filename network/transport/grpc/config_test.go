@@ -53,7 +53,6 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: x509.NewCertPool(),
 		}
-		pkiMock.EXPECT().AddTruststore(gomock.Any())
 		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts, pkiMock))
 		require.NoError(t, err)
 		assert.Equal(t, &tlsCert, cfg.clientCert)
@@ -64,7 +63,6 @@ func TestNewConfig(t *testing.T) {
 		ts := &core.TrustStore{
 			CertPool: core.NewCertPool(x509Cert),
 		}
-		pkiMock.EXPECT().AddTruststore(gomock.Any())
 		cfg, err := NewConfig(":1234", "foo", WithTLS(tlsCert, ts, pkiMock))
 		require.NoError(t, err)
 		assert.Equal(t, &tlsCert, cfg.clientCert)
