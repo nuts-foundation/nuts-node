@@ -77,11 +77,14 @@ type X509DidPolicy struct {
 	Value string
 }
 
-// X509DidReference represents a reference for an X.509 Decentralized Identifier (DID) including method, root certificate, and policies.
+// X509DidReference represents a reference for an X.509 Decentralized Identifier (DID).
 type X509DidReference struct {
-	Method        HashAlgorithm
+	// Method specifies the hash algorithm that was used to generate CAFingerprint from the raw DER bytes of the CA certificate.
+	Method HashAlgorithm
+	// CAFingerprint is the fingerprint of the CA certificate.
 	CAFingerprint string
-	Policies      []X509DidPolicy
+	// Policies contain the fields that are included in the did:x509, which must be validated against the certificates.
+	Policies []X509DidPolicy
 }
 
 // Resolve resolves a DID document given its identifier and corresponding metadata.
