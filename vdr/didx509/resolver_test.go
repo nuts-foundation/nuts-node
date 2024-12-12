@@ -214,9 +214,9 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 	})
 	t.Run("ca-fingerprint pointing at leaf certificate, which is not allowed", func(t *testing.T) {
 		subjectDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(leafCertFromCerts(certs).Raw), otherNameValue))
-		
+
 		_, _, err := didResolver.Resolve(subjectDID, &metadata)
-		require.EqualError(t, err, "did:509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
+		require.EqualError(t, err, "did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	})
 	t.Run("broken thumbprint at x5t", func(t *testing.T) {
 		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = "GARBAGE"
