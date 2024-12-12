@@ -74,7 +74,7 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 			var peerInfo *peer.Peer
 			var success bool
 			serverStream.ctx = contextWithMD(encodedCert)
-			pkiMock.EXPECT().Validate(gomock.Any())
+			pkiMock.EXPECT().CheckCRL(gomock.Any())
 
 			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				peerInfo, success = peer.FromContext(wrappedStream.Context())
@@ -99,7 +99,7 @@ func Test_tlsOffloadingAuthenticator(t *testing.T) {
 		})
 		t.Run("certificate revoked/banned", func(t *testing.T) {
 			serverStream.ctx = contextWithMD(encodedCert)
-			pkiMock.EXPECT().Validate(gomock.Any()).Return(errors.New("custom error"))
+			pkiMock.EXPECT().CheckCRL(gomock.Any()).Return(errors.New("custom error"))
 
 			err := auth.intercept(nil, serverStream, nil, func(srv interface{}, wrappedStream grpc.ServerStream) error {
 				t.Fatal("should not be called")
