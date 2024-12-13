@@ -36,7 +36,7 @@ require (
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
-	github.com/pressly/goose/v3 v3.23.0
+	github.com/pressly/goose/v3 v3.23.1
 	github.com/privacybydesign/irmago v0.16.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/prometheus/client_model v0.6.1
