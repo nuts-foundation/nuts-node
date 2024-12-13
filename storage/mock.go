@@ -286,6 +286,20 @@ func (mr *MockSessionDatabaseMockRecorder) GetStore(ttl any, keys ...any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStore", reflect.TypeOf((*MockSessionDatabase)(nil).GetStore), varargs...)
 }
 
+// getFullKey mocks base method.
+func (m *MockSessionDatabase) getFullKey(prefixes []string, key string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "getFullKey", prefixes, key)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// getFullKey indicates an expected call of getFullKey.
+func (mr *MockSessionDatabaseMockRecorder) getFullKey(prefixes, key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "getFullKey", reflect.TypeOf((*MockSessionDatabase)(nil).getFullKey), prefixes, key)
+}
+
 // MockSessionStore is a mock of SessionStore interface.
 type MockSessionStore struct {
 	ctrl     *gomock.Controller
