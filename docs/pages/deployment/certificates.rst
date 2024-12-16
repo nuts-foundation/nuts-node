@@ -24,6 +24,6 @@ In ``did:x509`` the certificates are also used in the cryptographic proofs to ob
 This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
 
 Trust in specific certificate CAs is configured per use-case in a :ref:`Discovery <discovery>` and :ref:`Policy <policy>` definition file.
-All CA certificates from chains trusted per the above definition files are automatically added to the CRL checker at runtime.
+CRLs from trusted chains (per the above definition files) are consulted when evaluating ``did:x509`` Verifiable Credentials.
 For certificate chains used in ``did:x509`` the Nuts-node always uses a hard-fail strategy, i.e., the ``pki.softfail`` config value is ignored during certificate validation for ``did:x509``.
 This means that the Nuts-node will not be able to verify a ``did:x509`` DID or Verifiable Credential signed by this DID Method if the CRL cannot be downloaded and the CRL in the cache is older than ``pki.maxupdatefailhours``.
