@@ -11,10 +11,12 @@ paths:
   /internal/vdr/v1/did:
     post:
       summary: Creates a new Nuts DID
+      deprecated: true
       description: |
-        The DID Document will be created according to the given request. If a combination of options is not allowed, a 400 is returned.
-        The default values for selfControl, assertionMethod, keyAgreement, and capabilityInvocation are true. The default for controllers is an empty list. All other options default to false.
-        Only a single keypair will be generated. All enabled methods will reuse the same key pair. A seperate keypair will be generated to generate the DID if SelfControl is false.
+        Starting with v6.0.0, the entire body will be ignored and default values will be used.
+        The default values are: selfControl = true, assertionMethod = true, keyAgreement = true, capabilityInvocation = true, capabilityDelegation = true, authentication = true and controllers = [].
+        
+        Only a single keypair will be generated. All enabled methods will reuse the same key pair.
 
         error returns:
         * 400 - Invalid (combination of) options
@@ -272,7 +274,7 @@ components:
         authentication:
           type: boolean
           description: indicates if the generated key pair can be used for authentication.
-          default: false
+          default: true
         capabilityInvocation:
           type: boolean
           description: |
@@ -288,6 +290,17 @@ components:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.
           default: true
+        selfControl:
+          type: boolean
+          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
+          default: true
+        controllers:
+          type: array
+          items:
+            type: string
+          description: |
+            List of DID controllers. The DID controllers are the entities that can alter the DID Document.
+            default: []
     VerificationMethodRelationship:
       properties:
         assertionMethod:
@@ -312,10 +325,6 @@ components:
         keyAgreement:
           type: boolean
           description: indicates if the generated key pair can be used for Key agreements.
-          default: true
-        selfControl:
-          type: boolean
-          description: whether the generated DID Document can be altered with its own capabilityInvocation key.
           default: true
   securitySchemes:
     jwtBearerAuth:
