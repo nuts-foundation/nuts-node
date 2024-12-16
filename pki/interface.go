@@ -31,7 +31,7 @@ var (
 	ErrCRLMissing    = errors.New("crl is missing")
 	ErrCRLExpired    = errors.New("crl has expired")
 	ErrCertRevoked   = errors.New("certificate is revoked")
-	ErrCertUntrusted = errors.New("certificate's issuer is not trusted")
+	ErrUnknownIssuer = errors.New("unknown certificate issuer")
 	// ErrDenylistMissing occurs when the denylist cannot be downloaded
 	ErrDenylistMissing = errors.New("denylist cannot be retrieved")
 
@@ -57,14 +57,20 @@ type Denylist interface {
 	Subscribe(f func())
 }
 
+// Validator is used to check the revocation status of certificates on the issuer controlled CRL and the user controlled Denylist.
+// It does NOT manage trust and assumes all presented certificates belong to a trusted certificate tree.
 type Validator interface {
 	// CheckCRL returns an error if any of the certificates in the chain has been revoked, or if the request cannot be processed.
-	// ErrCertRevoked and ErrCertUntrusted indicate that at least one of the certificates is revoked, or signed by a CA that is not in the truststore.
+	// All certificates in the chain are considered trusted, which means that the caller has verified the integrity of the chain and appropriateness for the use-case.
+	// Any new CA / CRL in the chain will be added to the internal watchlist and updated periodically, so it MUST NOT be called on untrusted/invalid chains.
+	// The certificate chain MUST be sorted leaf to root.
+	//
+	// ErrCertRevoked and ErrUnknownIssuer indicate that at least one of the certificates is revoked, or signed by an unknown CA (so we have no key to verify the CRL).
 	// ErrCRLMissing and ErrCRLExpired signal that at least one of the certificates cannot be validated reliably.
 	// If the certificate was revoked on an expired CRL, it wil return ErrCertRevoked.
+	//
 	// CheckCRL uses the configured soft-/hard-fail strategy
 	// If set to soft-fail it ignores ErrCRLMissing and ErrCRLExpired errors.
-	// The certificate chain is expected to be sorted leaf to root.
 	CheckCRL(chain []*x509.Certificate) error
 
 	// CheckCRLStrict does the same as CheckCRL, except it always uses the hard-fail strategy.
@@ -72,11 +78,6 @@ type Validator interface {
 
 	// SetVerifyPeerCertificateFunc sets config.ValidatePeerCertificate to use CheckCRL.
 	SetVerifyPeerCertificateFunc(config *tls.Config) error
-
-	// AddTruststore adds all CAs to the truststore for validation of CRL signatures. It also adds all CRL Distribution Endpoints found in the chain.
-	// CRL Distribution Points encountered at runtime, such as on end user certificates when calling CheckCRL, are only added to the monitored CRLs if their issuer is in the truststore.
-	// This fails if any of the issuers mentioned in the chain is not also in the chain or already in the truststore
-	AddTruststore(chain []*x509.Certificate) error
 
 	// SubscribeDenied registers a callback that is triggered everytime the denylist is updated.
 	// This can be used to revalidate all certificates on long-lasting connections by calling CheckCRL on them again.
@@ -86,6 +87,7 @@ type Validator interface {
 // Provider is an interface for providing PKI services (e.g. TLS configuration, certificate validation).
 type Provider interface {
 	Validator
-	// CreateTLSConfig creates a tls.Config for outbound connections. It returns nil (and no error) if TLS is disabled.
+	// CreateTLSConfig creates a tls.Config from the core.TLSConfig for outbound connections.
+	// It returns (nil, nil)  if core.TLSConfig.Enabled() == false.
 	CreateTLSConfig(cfg core.TLSConfig) (*tls.Config, error)
 }

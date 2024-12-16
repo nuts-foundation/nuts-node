@@ -40,7 +40,6 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	vcrInstance := vcr.NewTestVCRInstance(t)
 	ctrl := gomock.NewController(t)
 	pkiMock := pki.NewMockProvider(ctrl)
-	pkiMock.EXPECT().AddTruststore(gomock.Any()).AnyTimes()
 	pkiMock.EXPECT().CreateTLSConfig(gomock.Any()).AnyTimes()
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()

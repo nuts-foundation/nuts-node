@@ -34,7 +34,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/nuts-node/pki"
 	testpki "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"os"
@@ -99,8 +98,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		assert.NoError(t, err)
 
 		t.Run("happy flow", func(t *testing.T) {
-			sv, validator := x509VerifierTestSetup(t)
-			validator.EXPECT().CheckCRLStrict(gomock.Any()).Return(nil)
+			sv := x509VerifierTestSetup(t)
 			err = sv.VerifySignature(*cred, nil)
 			assert.NoError(t, err)
 		})
@@ -111,19 +109,8 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			ExtractProtectedHeaders = func(jwt string) (map[string]interface{}, error) {
 				return nil, expectedError
 			}
-			sv, _ := x509VerifierTestSetup(t)
+			sv := x509VerifierTestSetup(t)
 			err = sv.VerifySignature(*cred, nil)
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, expectedError)
-		})
-		t.Run("wrong ura", func(t *testing.T) {
-			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
-			assert.NoError(t, err)
-			sv, validator := x509VerifierTestSetup(t)
-			expectedError := errors.New("wrong ura")
-			validator.EXPECT().CheckCRLStrict(gomock.Any()).Return(expectedError)
-			err = sv.VerifySignature(*cred, nil)
-			assert.Error(t, err)
 			assert.ErrorIs(t, err, expectedError)
 		})
 	})
@@ -370,14 +357,11 @@ func signatureVerifierTestSetup(t testing.TB) (signatureVerifier, *resolver.Mock
 	}, keyResolver
 }
 
-func x509VerifierTestSetup(t testing.TB) (signatureVerifier, *pki.MockValidator) {
-	ctrl := gomock.NewController(t)
-	pkiMock := pki.NewMockValidator(ctrl)
-	var keyResolver = resolver.DIDKeyResolver{
-		Resolver: didx509.NewResolver(pkiMock),
-	}
+func x509VerifierTestSetup(t testing.TB) signatureVerifier {
 	return signatureVerifier{
-		keyResolver:   keyResolver,
+		keyResolver: resolver.DIDKeyResolver{
+			Resolver: didx509.NewResolver(),
+		},
 		jsonldManager: jsonld.NewTestJSONLDManager(t),
-	}, pkiMock
+	}
 }

@@ -64,7 +64,7 @@ func TestValidator_Start(t *testing.T) {
 	defer cancel()
 	val, err := newValidatorWithHTTPClient(TestConfig(t), newClient())
 	require.NoError(t, err)
-	require.NoError(t, val.AddTruststore(store.Certificates()))
+	require.NoError(t, val.addCAs(store.Certificates()))
 
 	// crls are empty
 	val.crls.Range(func(key, value any) bool {
@@ -86,7 +86,7 @@ func TestValidator_Start(t *testing.T) {
 	assert.True(t, crl.lastUpdated.IsZero()) // pkiOverheid CA has expired, so is not updated
 }
 
-func TestValidator_Validate(t *testing.T) {
+func TestValidator_CheckCRL(t *testing.T) {
 	val := newValidatorStarted(t)
 
 	// load test certificates
@@ -136,7 +136,28 @@ func TestValidator_Validate(t *testing.T) {
 	})
 	t.Run("unknown issuer", func(t *testing.T) {
 		val := &validator{}
-		testSoftHard(t, val, validCertA, ErrCertUntrusted, ErrCertUntrusted)
+		testSoftHard(t, val, validCertA, ErrUnknownIssuer, ErrUnknownIssuer)
+	})
+	t.Run("recover from unknown issuer", func(t *testing.T) {
+		cert := validCertA
+		chain := []*x509.Certificate{cert}
+		val := newValidatorStarted(t)
+		// rebuild chain for cert from ca list and then remove the ca list
+		for cert.Subject.String() != cert.Issuer.String() {
+			val.cas.Range(func(caName, caCert any) bool {
+				thisCACert := caCert.(*x509.Certificate)
+				if thisCACert.Subject.String() == cert.Issuer.String() {
+					chain = append(chain, thisCACert)
+					cert = thisCACert
+					return false
+				}
+				return true
+			})
+		}
+		// clear CA/CRL list so it is rebuilt at runtime
+		val.cas.Clear()
+		val.crls.Clear()
+		assert.NoError(t, val.CheckCRLStrict(chain)) // if strict works, the rest works too
 	})
 	t.Run("missing crl", func(t *testing.T) {
 		testSoftHard(t, val, validCertBWithRevokedCA, nil, ErrCRLMissing)
@@ -176,7 +197,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	require.Nil(t, cfg.VerifyPeerCertificate)
 
 	v := testValidator(t)
-	require.NoError(t, v.AddTruststore(store.Certificates()))
+	require.NoError(t, v.addCAs(store.Certificates()))
 
 	err = v.SetVerifyPeerCertificateFunc(cfg)
 
@@ -200,7 +221,7 @@ func TestValidator_SetValidatePeerCertificateFunc(t *testing.T) {
 	})
 }
 
-func TestValidator_AddTruststore(t *testing.T) {
+func TestValidator_addCAs(t *testing.T) {
 	store, err := core.LoadTrustStore(truststore)
 	require.NoError(t, err)
 
@@ -208,7 +229,7 @@ func TestValidator_AddTruststore(t *testing.T) {
 		val, err := newValidator(TestConfig(t))
 		require.NoError(t, err)
 
-		err = val.AddTruststore(store.Certificates())
+		err = val.addCAs(store.Certificates())
 
 		assert.NotNil(t, val)
 	})
@@ -218,9 +239,9 @@ func TestValidator_AddTruststore(t *testing.T) {
 		val, err := newValidator(Config{Softfail: true})
 		require.NoError(t, err)
 
-		err = val.AddTruststore(noRootStore)
+		err = val.addCAs(noRootStore)
 
-		assert.ErrorContains(t, err, "certificate's issuer is not in the trust store")
+		assert.ErrorIs(t, err, ErrUnknownIssuer)
 	})
 }
 
@@ -394,7 +415,7 @@ func testValidator(t *testing.T) *validator {
 	require.Len(t, store.Certificates(), 4)
 	val, err := newValidatorWithHTTPClient(DefaultConfig(), newClient())
 	require.NoError(t, err)
-	require.NoError(t, val.AddTruststore(store.Certificates()))
+	require.NoError(t, val.addCAs(store.Certificates()))
 	return val
 }
 

@@ -163,7 +163,7 @@ func (r *Module) Configure(config core.ServerConfig) error {
 
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didjwk.MethodName, didjwk.NewResolver())
 	r.didResolver.(*resolver.DIDResolverRouter).Register(didkey.MethodName, didkey.NewResolver())
-	r.didResolver.(*resolver.DIDResolverRouter).Register(didx509.MethodName, didx509.NewResolver(r.pkiValidator))
+	r.didResolver.(*resolver.DIDResolverRouter).Register(didx509.MethodName, didx509.NewResolver())
 	// Register DID resolver and DID methods we can resolve
 	r.ownedDIDResolver = didsubject.Resolver{DB: db}
 

@@ -135,20 +135,6 @@ func (m *MockValidator) EXPECT() *MockValidatorMockRecorder {
 	return m.recorder
 }
 
-// AddTruststore mocks base method.
-func (m *MockValidator) AddTruststore(chain []*x509.Certificate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTruststore", chain)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddTruststore indicates an expected call of AddTruststore.
-func (mr *MockValidatorMockRecorder) AddTruststore(chain any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTruststore", reflect.TypeOf((*MockValidator)(nil).AddTruststore), chain)
-}
-
 // CheckCRL mocks base method.
 func (m *MockValidator) CheckCRL(chain []*x509.Certificate) error {
 	m.ctrl.T.Helper()
@@ -225,20 +211,6 @@ func NewMockProvider(ctrl *gomock.Controller) *MockProvider {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 	return m.recorder
-}
-
-// AddTruststore mocks base method.
-func (m *MockProvider) AddTruststore(chain []*x509.Certificate) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddTruststore", chain)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddTruststore indicates an expected call of AddTruststore.
-func (mr *MockProviderMockRecorder) AddTruststore(chain any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTruststore", reflect.TypeOf((*MockProvider)(nil).AddTruststore), chain)
 }
 
 // CheckCRL mocks base method.
