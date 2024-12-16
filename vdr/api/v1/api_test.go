@@ -22,6 +22,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
@@ -48,7 +49,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		request := DIDCreateRequest{}
+		request := DIDCreateRequest{SelfControl: to.Ptr(false)} // SelfControl value is overwritten with default
 		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{})).Return([]did.Document{*didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
