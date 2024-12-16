@@ -26,7 +26,6 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"strings"
 )
@@ -61,14 +60,11 @@ var (
 var _ resolver.DIDResolver = &Resolver{}
 
 // NewResolver creates a new Resolver.
-func NewResolver(pkiValidator pki.Validator) *Resolver {
-	return &Resolver{
-		pkiValidator: pkiValidator,
-	}
+func NewResolver() *Resolver {
+	return &Resolver{}
 }
 
 type Resolver struct {
-	pkiValidator pki.Validator
 }
 
 // X509DidPolicy represents an X.509 DID policy that includes a policy name and corresponding value.
@@ -94,6 +90,7 @@ type X509DidReference struct {
 // * Besides the "san" policies "email" / "dns" / "uri", the san policy "otherName" is also implemented.
 // * The policy "subject" also supports "serialNumber", besides the "CN" / "L" / "ST" / "O" / "OU" / "C" / "STREET" fields.
 // * The policy "eku" is not implemented.
+// Resolve does NOT check the CRLs on the certificate chain.
 func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.Document, *resolver.DocumentMetadata, error) {
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
@@ -132,7 +129,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		chainWithoutLeaf = append(chainWithoutLeaf, curr)
 	}
 	trustStore := core.BuildTrustStore(chainWithoutLeaf)
-	verifiedChains, err := validationCert.Verify(x509.VerifyOptions{
+	_, err = validationCert.Verify(x509.VerifyOptions{
 		Intermediates: core.NewCertPool(trustStore.IntermediateCAs),
 		Roots:         core.NewCertPool(trustStore.RootCAs),
 	})
@@ -145,14 +142,9 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
-	// Check CRLs on the verifiedChain, but
-	// 		only after the integrity of the chain has been verified, and
-	// 		only after we have established it is appropriate to use this chain.
-	// Any CAs/CRLs in the verifiedChain will from hereon exist in the CRL checker and will be periodically updated
-	err = r.pkiValidator.CheckCRLStrict(verifiedChains[0])
-	if err != nil {
-		return nil, nil, err
-	}
+	// Do NOT check CRLs. Checking CRLs at this point would allow unsanitized user input into the CRL checker DB.
+	// CRL checking should be done where the appropriateness of usage of (i.e., trust in) the certificate chain can be confirmed.
+
 	document, err := createDidDocument(id, validationCert)
 	if err != nil {
 		return nil, nil, err
