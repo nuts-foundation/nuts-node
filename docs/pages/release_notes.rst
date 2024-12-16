@@ -2,6 +2,9 @@
 Release notes
 #############
 
+- `#3610 <https://github.com/nuts-foundation/nuts-node/issues/3610>`_: Fix DID Creation with VDR V1 API.
+  The Body for POST /internal/vdr/v1/did is now completely ignored, defaults are used.
+
 ***************
 Peanut (v6.0.5)
 ***************
