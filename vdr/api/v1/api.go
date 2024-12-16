@@ -125,15 +125,9 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 }
 
 // CreateDID creates a new DID Document and returns it.
-func (a *Wrapper) CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	options := didsubject.DefaultCreationOptions()
-
-	defaultKeyFlags := didnuts.DefaultKeyFlags()
-	keyFlags := request.Body.VerificationMethodRelationship.ToFlags(defaultKeyFlags)
-	if keyFlags != defaultKeyFlags {
-		options = options.With(keyFlags)
-	}
-	options = options.With(didsubject.NutsLegacyNamingOption{})
+func (a *Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
+	// request body is ignored, defaults are used.
+	options := didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{})
 
 	docs, _, err := a.SubjectManager.Create(ctx, options)
 	// if this operation leads to an error, it may return a 500
