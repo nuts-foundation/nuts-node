@@ -38,7 +38,8 @@ func FindValidator(credential vc.VerifiableCredential) Validator {
 				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}
-			case X509CredentialType: return x509CredentialValidator{}
+			case X509CredentialType:
+				return x509CredentialValidator{}
 			}
 		}
 	}
