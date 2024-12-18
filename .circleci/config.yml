@@ -52,7 +52,7 @@ jobs:
       - run:
           name: Remove test, mock and generated code
           command: |
-            cat c_raw.out | grep -v generated | grep -v mock | grep -v test.go > c.out
+            cat c_raw.out | grep -v generated | grep -v mock | grep -v test > c.out
       # Run coverage report for Code Climate
       - run:
           name: Setup Code Climate test-reporter
