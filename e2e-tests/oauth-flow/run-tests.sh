@@ -16,6 +16,13 @@ pushd rfc021
 ./run-test.sh
 popd
 
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+echo "!! Running test: OAuth flow (rfc021) using X509Credential !!"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+pushd didx509
+./run-test.sh
+popd
+
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 echo "!! Running test: OpenID4VP flow !!"
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"

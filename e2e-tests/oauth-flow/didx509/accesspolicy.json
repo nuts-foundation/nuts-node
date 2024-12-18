@@ -1,0 +1,75 @@
+{
+  "test": {
+    "organization": {
+      "format": {
+        "jwt_vc": {
+          "alg": [
+            "PS256"
+          ]
+        },
+        "jwt_vp": {
+          "alg": [
+            "PS256"
+          ]
+        }
+      },
+      "id": "pd_care_organization",
+      "input_descriptors": [
+        {
+          "id": "id_x509credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "X509Credential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "purpose": "Whe can only accept credentials from a trusted issuer",
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:x509:0:sha256:szqMaTpnD6GN0aRrT98eV4bhAoOgyItEZVyskYyL_Qc::.*$"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject[0].O"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject[0].otherName"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^[0-9.]+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+$"
+                }
+              },
+              {
+                "id": "organization_city",
+                "path": [
+                  "$.credentialSubject[0].L"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
