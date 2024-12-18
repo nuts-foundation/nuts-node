@@ -142,7 +142,7 @@ func ValidX509Credential(t *testing.T, options ...credentialOption) vc.Verifiabl
 	rootCertificate := certs[len(certs)-1]
 	rootKey := keys[len(keys)-1]
 	rootHash := sha256.Sum256(rootCertificate.Raw)
-	rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", base64.RawURLEncoding.EncodeToString(rootHash[:]), otherNameValue))
+	rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::subject:C:NL:O:NUTS%%20Foundation:L:Amsterdam:CN:www.example.com::san:otherName:%s", "sha256", base64.RawURLEncoding.EncodeToString(rootHash[:]), otherNameValue))
 	x5c := cert.Chain{}
 	for _, cert := range certs {
 		_ = x5c.AddString(base64.StdEncoding.EncodeToString(cert.Raw))
@@ -160,9 +160,13 @@ func ValidX509Credential(t *testing.T, options ...credentialOption) vc.Verifiabl
 		Subject("did:example:1").
 		Claim("vc", map[string]interface{}{
 			"@context": []string{"https://www.w3.org/2018/credentials/v1"},
-			"type":     []string{"VerifiableCredential"},
+			"type":     []string{vc.VerifiableCredentialType, "X509Credential"},
 			"credentialSubject": map[string]interface{}{
 				"id":            rootDID.String(),
+				"subject:C":     "NL",
+				"subject:O":     "NUTS Foundation",
+				"subject:L":     "Amsterdam",
+				"subject:CN":    "www.example.com",
 				"san:otherName": otherNameValue,
 			},
 		})

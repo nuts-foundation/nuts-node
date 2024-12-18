@@ -20,6 +20,9 @@
 package credential
 
 import (
+	"testing"
+	"time"
+
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -30,8 +33,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"testing"
-	"time"
 )
 
 func init() {
@@ -514,19 +515,51 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 		assert.ErrorIs(t, err, errValidation)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
-	t.Run("invalid assertion value", func(t *testing.T) {
-		x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
-			builder.Claim("vc", map[string]interface{}{
-				"credentialSubject": map[string]interface{}{
+
+	t.Run("failed validation", func(t *testing.T) {
+
+		testCases := []struct {
+			name          string
+			claim         map[string]interface{}
+			expectedError string
+		}{
+			{
+				name: "invalid assertion value",
+				claim: map[string]interface{}{
 					"san:otherName": "A_BIG_STRIN",
 				},
+				expectedError: "invalid assertion value 'A_BIG_STRIN' for 'san:otherName' did:x509 policy",
+			},
+			{
+				name: "unknown assertion",
+				claim: map[string]interface{}{
+					"san:ip": "10.0.0.1",
+				},
+				expectedError: "assertion 'san:ip' not found in did:x509 policy",
+			},
+			{
+				name: "unknown policy",
+				claim: map[string]interface{}{
+					"stan:ip": "10.0.0.1",
+				},
+				expectedError: "policy 'stan' not found in did:x509 policy",
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+					builder.Claim("vc", map[string]interface{}{
+						"credentialSubject": tc.claim,
+					})
+					return builder
+				})
+
+				err := validator.Validate(x509credential)
+
+				assert.ErrorIs(t, err, errValidation)
+				assert.ErrorContains(t, err, tc.expectedError)
 			})
-			return builder
-		})
-
-		err := validator.Validate(x509credential)
-
-		assert.ErrorIs(t, err, errValidation)
-		assert.ErrorContains(t, err, "assertion 'san:otherName:A_BIG_STRIN:' not found in issuer policy")
+		}
 	})
 }
