@@ -23,6 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -251,5 +253,66 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 	if id.String() != credential.Issuer.String() {
 		return fmt.Errorf("%w: credential ID must start with issuer", errValidation)
 	}
+	return nil
+}
+
+// x509CredentialValidator checks the did:x509 issuer and if the credentialSubject claims match the x509 certificate
+type x509CredentialValidator struct {
+}
+
+func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	didX509Issuer, err := did.ParseDID(credential.Issuer.String())
+	if err != nil {
+		return errors.Join(errValidation, err)
+	}
+	x509resolver := didx509.NewResolver()
+	resolveMetadata := resolver.ResolveMetadata{}
+	if credential.Format() == vc.JWTCredentialProofFormat {
+		headers, err := crypto.ExtractProtectedHeaders(credential.Raw())
+		if err != nil {
+			return fmt.Errorf("%w: invalid JWT headers: %w", errValidation, err)
+		}
+		resolveMetadata.JwtProtectedHeaders = headers
+	}
+	_, _, err = x509resolver.Resolve(*didX509Issuer, &resolveMetadata)
+	if err != nil {
+		return fmt.Errorf("%w: invalid issuer: %w", errValidation, err)
+	}
+
+	if err = validatePolicyAssertions(credential); err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	return (defaultCredentialValidator{}).Validate(credential)
+}
+
+// validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
+func validatePolicyAssertions(credential vc.VerifiableCredential) error {
+	// add a : to the end of the string so we can always add an end character for string matching
+	// this eliminates the possibility to use substrings as assertions.
+	policyString := credential.Issuer.String() + ":"
+
+	// get base form of all credentialSubject
+	var target = make([]map[string]interface{}, 0)
+	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
+		return err
+	}
+	if len(target) != 1 {
+		return errors.New("single CredentialSubject expected")
+	}
+	credentialSubject := target[0]
+
+	// remove id from target
+	delete(credentialSubject, "id")
+
+	// for each assertion create a string as "%s:%s" with key/value
+	// check if the resulting string is present in the policyString
+	for key, value := range credentialSubject {
+		assertionString := fmt.Sprintf("%s:%s:", key, value)
+		if !strings.Contains(policyString, assertionString) {
+			return fmt.Errorf("assertion '%s' not found in issuer policy", assertionString)
+		}
+	}
+
 	return nil
 }

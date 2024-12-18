@@ -23,10 +23,16 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -125,4 +131,49 @@ func ValidStatusList2021Credential(t testing.TB) vc.VerifiableCredential {
 		},
 		Proof: []any{vc.Proof{}},
 	}
+}
+
+type credentialOption func(*jwt.Builder) *jwt.Builder
+
+func ValidX509Credential(t *testing.T, options ...credentialOption) vc.VerifiableCredential {
+	otherNameValue := "A_BIG_STRING"
+	certs, keys, err := pki.BuildCertChain([]string{otherNameValue}, "123")
+	require.NoError(t, err)
+	rootCertificate := certs[len(certs)-1]
+	rootKey := keys[len(keys)-1]
+	rootHash := sha256.Sum256(rootCertificate.Raw)
+	rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", base64.RawURLEncoding.EncodeToString(rootHash[:]), otherNameValue))
+	x5c := cert.Chain{}
+	for _, cert := range certs {
+		_ = x5c.AddString(base64.StdEncoding.EncodeToString(cert.Raw))
+	}
+
+	x5t := sha256.Sum256(certs[0].Raw)
+	headers := jws.NewHeaders()
+	_ = headers.Set(jws.X509CertChainKey, &x5c)
+	err = headers.Set(jws.X509CertThumbprintS256Key, base64.RawURLEncoding.EncodeToString(x5t[:]))
+	require.NoError(t, err)
+	builder := jwt.NewBuilder().
+		JwtID(fmt.Sprintf("%s#1", rootDID)).
+		Issuer(rootDID.String()).
+		NotBefore(time.Now()).
+		Subject("did:example:1").
+		Claim("vc", map[string]interface{}{
+			"@context": []string{"https://www.w3.org/2018/credentials/v1"},
+			"type":     []string{"VerifiableCredential"},
+			"credentialSubject": map[string]interface{}{
+				"id":            rootDID.String(),
+				"san:otherName": otherNameValue,
+			},
+		})
+	for _, option := range options {
+		builder = option(builder)
+	}
+	token, err := builder.Build()
+	require.NoError(t, err)
+	s, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, rootKey, jws.WithProtectedHeaders(headers)))
+	require.NoError(t, err)
+	credential, err := vc.ParseVerifiableCredential(string(s))
+	require.NoError(t, err)
+	return *credential
 }

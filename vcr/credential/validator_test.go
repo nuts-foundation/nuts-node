@@ -20,7 +20,9 @@
 package credential
 
 import (
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
@@ -491,5 +493,40 @@ func Test_validateCredentialStatus(t *testing.T) {
 			err := validateCredentialStatus(cred)
 			assert.EqualError(t, err, "parse StatusList2021Entry.statusListCredential URL: parse \"make sure validator is called\": invalid URI for request")
 		})
+	})
+}
+
+func TestX509CredentialValidator_Validate(t *testing.T) {
+	validator := x509CredentialValidator{}
+
+	t.Run("ok", func(t *testing.T) {
+		x509credential := test.ValidX509Credential(t)
+
+		err := validator.Validate(x509credential)
+
+		assert.NoError(t, err)
+	})
+	t.Run("invalid did", func(t *testing.T) {
+		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("not_a_did")}
+
+		err := validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorIs(t, err, did.ErrInvalidDID)
+	})
+	t.Run("invalid assertion value", func(t *testing.T) {
+		x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+			builder.Claim("vc", map[string]interface{}{
+				"credentialSubject": map[string]interface{}{
+					"san:otherName": "A_BIG_STRIN",
+				},
+			})
+			return builder
+		})
+
+		err := validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorContains(t, err, "assertion 'san:otherName:A_BIG_STRIN:' not found in issuer policy")
 	})
 }
