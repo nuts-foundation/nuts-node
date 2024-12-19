@@ -28,6 +28,8 @@ const (
 	NutsOrganizationCredentialType = "NutsOrganizationCredential"
 	// NutsAuthorizationCredentialType is the VC type for a NutsAuthorizationCredential
 	NutsAuthorizationCredentialType = "NutsAuthorizationCredential"
+	// X509CredentialType is the VC type for a X509Credential
+	X509CredentialType = "X509Credential"
 	// NutsV1Context is the nuts V1 json-ld context
 	NutsV1Context = "https://nuts.nl/credentials/v1"
 )

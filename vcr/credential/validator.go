@@ -23,6 +23,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
+	"net/url"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -251,5 +254,91 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 	if id.String() != credential.Issuer.String() {
 		return fmt.Errorf("%w: credential ID must start with issuer", errValidation)
 	}
+	return nil
+}
+
+// x509CredentialValidator checks the did:x509 issuer and if the credentialSubject claims match the x509 certificate
+type x509CredentialValidator struct {
+}
+
+func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	didX509Issuer, err := did.ParseDID(credential.Issuer.String())
+	if err != nil {
+		return errors.Join(errValidation, err)
+	}
+	x509resolver := didx509.NewResolver()
+	resolveMetadata := resolver.ResolveMetadata{}
+	if credential.Format() == vc.JWTCredentialProofFormat {
+		headers, err := crypto.ExtractProtectedHeaders(credential.Raw())
+		if err != nil {
+			return fmt.Errorf("%w: invalid JWT headers: %w", errValidation, err)
+		}
+		resolveMetadata.JwtProtectedHeaders = headers
+	}
+	_, _, err = x509resolver.Resolve(*didX509Issuer, &resolveMetadata)
+	if err != nil {
+		return fmt.Errorf("%w: invalid issuer: %w", errValidation, err)
+	}
+
+	if err = validatePolicyAssertions(credential); err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	return (defaultCredentialValidator{}).Validate(credential)
+}
+
+// validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
+func validatePolicyAssertions(credential vc.VerifiableCredential) error {
+	// get base form of all credentialSubject
+	var target = make([]map[string]interface{}, 0)
+	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
+		return err
+	}
+
+	// we create a map of policyName to policyValue, then we split the policyValue into another map
+	policyMap := make(map[string]map[string]string)
+	policies := strings.Split(credential.Issuer.String(), "::")
+	if len(policies) < 2 {
+		return fmt.Errorf("invalid did:x509 policy")
+	}
+	for _, policy := range policies[1:] {
+		policySplit := strings.Split(policy, ":")
+		if len(policySplit) < 2 {
+			return fmt.Errorf("invalid did:x509 policy '%s'", policy)
+		}
+		policyName := policySplit[0]
+		policyMap[policyName] = make(map[string]string)
+		for i := 1; i < len(policySplit); i += 2 {
+			unscaped, _ := url.PathUnescape(policySplit[i+1])
+			policyMap[policyName][policySplit[i]] = unscaped
+		}
+	}
+
+	// we usually don't use multiple credentialSubjects, but for this validation it doesn't matter
+	for _, credentialSubject := range target {
+		// remove id from target
+		delete(credentialSubject, "id")
+
+		// for each assertion create a string as "%s:%s" with key/value
+		// check if the resulting string is present in the policyString
+		for key, value := range credentialSubject {
+			split := strings.Split(key, ":")
+			if len(split) != 2 {
+				return fmt.Errorf("invalid credentialSubject assertion name '%s'", key)
+			}
+			policyValueMap, ok := policyMap[split[0]]
+			if !ok {
+				return fmt.Errorf("policy '%s' not found in did:x509 policy", split[0])
+			}
+			policyValue, ok := policyValueMap[split[1]]
+			if !ok {
+				return fmt.Errorf("assertion '%s' not found in did:x509 policy", key)
+			}
+			if value != policyValue {
+				return fmt.Errorf("invalid assertion value '%s' for '%s' did:x509 policy", value, key)
+			}
+		}
+	}
+
 	return nil
 }
