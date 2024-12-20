@@ -20,18 +20,21 @@
 package credential
 
 import (
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didx509"
-	"net/url"
-	"strings"
-
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
+	"strings"
 )
 
 // Validator is the interface specific VC verification.
@@ -259,6 +262,7 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 
 // x509CredentialValidator checks the did:x509 issuer and if the credentialSubject claims match the x509 certificate
 type x509CredentialValidator struct {
+	pkiValidator pki.Validator
 }
 
 func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -284,6 +288,25 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 	}
 
 	if err = validatePolicyAssertions(credential); err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	chainHeader, _ := resolveMetadata.GetProtectedHeaderChain(jwk.X509CertChainKey) // already succeeded for resolve
+	// convert cert.Chain to []*x509.Certificate
+	chain := make([]*x509.Certificate, chainHeader.Len())
+	for i := 0; i < chainHeader.Len(); i++ {
+		base64Cert, _ := chainHeader.Get(i)
+		der, err := base64.StdEncoding.DecodeString(string(base64Cert))
+		if err != nil {
+			return fmt.Errorf("%w: invalid certificate chain: %w", errValidation, err)
+		}
+		cert, err := x509.ParseCertificate(der)
+		if err != nil {
+			return fmt.Errorf("%w: invalid certificate chain: %w", errValidation, err)
+		}
+		chain[i] = cert
+	}
+	if err = d.pkiValidator.CheckCRL(chain); err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
 

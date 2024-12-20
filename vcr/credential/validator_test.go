@@ -20,6 +20,8 @@
 package credential
 
 import (
+	"github.com/nuts-foundation/nuts-node/pki"
+	"go.uber.org/mock/gomock"
 	"testing"
 	"time"
 
@@ -498,19 +500,31 @@ func Test_validateCredentialStatus(t *testing.T) {
 }
 
 func TestX509CredentialValidator_Validate(t *testing.T) {
-	validator := x509CredentialValidator{}
+	ctx := createTestContext(t)
 
 	t.Run("ok", func(t *testing.T) {
 		x509credential := test.ValidX509Credential(t)
+		ctx := createTestContext(t)
+		ctx.pkiValidator.EXPECT().CheckCRL(gomock.Any()).Return(nil)
 
-		err := validator.Validate(x509credential)
+		err := ctx.validator.Validate(x509credential)
 
 		assert.NoError(t, err)
+	})
+	t.Run("CRL check failed", func(t *testing.T) {
+		x509credential := test.ValidX509Credential(t)
+		ctx := createTestContext(t)
+		ctx.pkiValidator.EXPECT().CheckCRL(gomock.Any()).Return(assert.AnError)
+
+		err := ctx.validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 	t.Run("invalid did", func(t *testing.T) {
 		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("not_a_did")}
 
-		err := validator.Validate(x509credential)
+		err := ctx.validator.Validate(x509credential)
 
 		assert.ErrorIs(t, err, errValidation)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
@@ -555,11 +569,27 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 					return builder
 				})
 
-				err := validator.Validate(x509credential)
+				err := ctx.validator.Validate(x509credential)
 
 				assert.ErrorIs(t, err, errValidation)
 				assert.ErrorContains(t, err, tc.expectedError)
 			})
 		}
 	})
+}
+
+type testContext struct {
+	ctrl         *gomock.Controller
+	validator    x509CredentialValidator
+	pkiValidator *pki.MockValidator
+}
+
+func createTestContext(t *testing.T) testContext {
+	ctrl := gomock.NewController(t)
+	pkiValidator := pki.NewMockValidator(ctrl)
+	return testContext{
+		ctrl:         ctrl,
+		validator:    x509CredentialValidator{pkiValidator: pkiValidator},
+		pkiValidator: pkiValidator,
+	}
 }

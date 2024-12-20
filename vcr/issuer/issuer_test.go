@@ -944,7 +944,7 @@ func TestIssuer_StatusList(t *testing.T) {
 		vDIDResolverMock.EXPECT().Resolve(gomock.Any(), gomock.Any())
 		vKeyResolverMock := resolver.NewMockKeyResolver(ctrl)
 		vKeyResolverMock.EXPECT().ResolveKeyByID(gomock.Any(), gomock.Any(), gomock.Any()).Return(signingKey, nil)
-		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, nil, &revocation.StatusList2021{})
+		verif := verifier.NewVerifier(vStoreMock, vDIDResolverMock, vKeyResolverMock, jsonldManager, nil, &revocation.StatusList2021{}, nil)
 		assert.NoError(t, verif.Verify(*result, true, true, nil))
 	})
 	t.Run("error - unknown status list credential", func(t *testing.T) {
