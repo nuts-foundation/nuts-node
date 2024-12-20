@@ -405,8 +405,8 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/pquerna/cachecontrol v0.2.0 h1:vBXSNuE5MYP9IJ5kjsdo8uq+w41jSPgvba2DEnkRx9k=
 github.com/pquerna/cachecontrol v0.2.0/go.mod h1:NrUG3Z7Rdu85UNR3vm7SOsl1nFIeSiQnrHV5K9mBcUI=
-github.com/pressly/goose/v3 v3.23.1 h1:bwjOXvep4HtuiiIqtrXmCkQu0IW9O9JAqA6UQNY9ntk=
-github.com/pressly/goose/v3 v3.23.1/go.mod h1:0oK0zcK7cmNqJSVwMIOiUUW0ox2nDIz+UfPMSOaw2zY=
+github.com/pressly/goose/v3 v3.24.0 h1:sFbNms7Bd++2VMq6HSgDHDLWa7kHz1qXzPb3ZIU72VU=
+github.com/pressly/goose/v3 v3.24.0/go.mod h1:rEWreU9uVtt0DHCyLzF9gRcWiiTF/V+528DV+4DORug=
 github.com/privacybydesign/gabi v0.0.0-20221212095008-68a086907750 h1:3RuYOQTlArQ6Uw2TgySusmZGluP+18WdQL56YSfkM3Q=
 github.com/privacybydesign/gabi v0.0.0-20221212095008-68a086907750/go.mod h1:QZI8hX8Ff2GfZ7UJuxyWw3nAGgt2s5+U4hxY6rmwQvs=
 github.com/privacybydesign/irmago v0.16.0 h1:PxIPRvpitxfJSocIRwIoYDSETarsopxtByZ5XZ3yzcE=
