@@ -306,7 +306,7 @@ func validatePolicyAssertions(credential vc.VerifiableCredential) error {
 	}
 	for _, policy := range policies[1:] {
 		policySplit := strings.Split(policy, ":")
-		if len(policySplit)%2 != 0 {
+		if len(policySplit)%2 != 1 { // policy name and 2*n key/value pairs
 			return fmt.Errorf("invalid did:x509 policy '%s'", policy)
 		}
 		policyName := policySplit[0]
