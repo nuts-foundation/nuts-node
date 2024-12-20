@@ -274,6 +274,9 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 			return fmt.Errorf("%w: invalid JWT headers: %w", errValidation, err)
 		}
 		resolveMetadata.JwtProtectedHeaders = headers
+	} else {
+		// unsupported format
+		return fmt.Errorf("%w: unsupported credential format: %s", errValidation, credential.Format())
 	}
 	_, _, err = x509resolver.Resolve(*didX509Issuer, &resolveMetadata)
 	if err != nil {
@@ -290,7 +293,7 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 // validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
 func validatePolicyAssertions(credential vc.VerifiableCredential) error {
 	// get base form of all credentialSubject
-	var target = make([]map[string]interface{}, 0)
+	var target = make([]map[string]interface{}, 1)
 	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
 		return err
 	}
@@ -303,7 +306,7 @@ func validatePolicyAssertions(credential vc.VerifiableCredential) error {
 	}
 	for _, policy := range policies[1:] {
 		policySplit := strings.Split(policy, ":")
-		if len(policySplit) < 2 {
+		if len(policySplit)%2 != 0 {
 			return fmt.Errorf("invalid did:x509 policy '%s'", policy)
 		}
 		policyName := policySplit[0]
