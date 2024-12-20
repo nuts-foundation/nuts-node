@@ -39,15 +39,19 @@ import (
 
 func TestFindValidator(t *testing.T) {
 	t.Run("an unknown type returns the default validator", func(t *testing.T) {
-		assert.IsType(t, defaultCredentialValidator{}, FindValidator(vc.VerifiableCredential{}))
+		assert.IsType(t, defaultCredentialValidator{}, FindValidator(vc.VerifiableCredential{}, nil))
 	})
 
-	t.Run("validator and builder found for NutsOrganizationCredential", func(t *testing.T) {
-		assert.IsType(t, nutsOrganizationCredentialValidator{}, FindValidator(test.ValidNutsOrganizationCredential(t)))
+	t.Run("validator found for NutsOrganizationCredential", func(t *testing.T) {
+		assert.IsType(t, nutsOrganizationCredentialValidator{}, FindValidator(test.ValidNutsOrganizationCredential(t), nil))
 	})
 
-	t.Run("validator and builder found for NutsAuthorizationCredential", func(t *testing.T) {
-		assert.IsType(t, nutsAuthorizationCredentialValidator{}, FindValidator(test.ValidNutsAuthorizationCredential(t)))
+	t.Run("validator found for NutsAuthorizationCredential", func(t *testing.T) {
+		assert.IsType(t, nutsAuthorizationCredentialValidator{}, FindValidator(test.ValidNutsAuthorizationCredential(t), nil))
+	})
+
+	t.Run("validator found for X509Credential", func(t *testing.T) {
+		assert.IsType(t, x509CredentialValidator{}, FindValidator(test.ValidX509Credential(t), nil))
 	})
 }
 

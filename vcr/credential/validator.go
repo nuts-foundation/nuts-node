@@ -20,15 +20,21 @@
 package credential
 
 import (
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
-
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
+	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"net/url"
+	"strings"
 )
 
 // Validator is the interface specific VC verification.
@@ -251,5 +257,106 @@ func validateNutsCredentialID(credential vc.VerifiableCredential) error {
 	if id.String() != credential.Issuer.String() {
 		return fmt.Errorf("%w: credential ID must start with issuer", errValidation)
 	}
+	return nil
+}
+
+// x509CredentialValidator checks the did:x509 issuer and if the credentialSubject claims match the x509 certificate
+type x509CredentialValidator struct {
+	pkiValidator pki.Validator
+}
+
+func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	didX509Issuer, err := did.ParseDID(credential.Issuer.String())
+	if err != nil {
+		return errors.Join(errValidation, err)
+	}
+	x509resolver := didx509.NewResolver()
+	resolveMetadata := resolver.ResolveMetadata{}
+	if credential.Format() == vc.JWTCredentialProofFormat {
+		headers, err := crypto.ExtractProtectedHeaders(credential.Raw())
+		if err != nil {
+			// theoretically impossible, since the credential is already parsed
+			return fmt.Errorf("%w: invalid JWT headers: %w", errValidation, err)
+		}
+		resolveMetadata.JwtProtectedHeaders = headers
+	} else {
+		// unsupported format
+		return fmt.Errorf("%w: unsupported credential format: %s", errValidation, credential.Format())
+	}
+	_, _, err = x509resolver.Resolve(*didX509Issuer, &resolveMetadata)
+	if err != nil {
+		return fmt.Errorf("%w: invalid issuer: %w", errValidation, err)
+	}
+
+	if err = validatePolicyAssertions(*didX509Issuer, credential); err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	chainHeader, _ := resolveMetadata.GetProtectedHeaderChain(jwk.X509CertChainKey) // already succeeded for resolve
+	// convert cert.Chain to []*x509.Certificate
+	chain := make([]*x509.Certificate, chainHeader.Len())
+	for i := 0; i < chainHeader.Len(); i++ {
+		base64Cert, _ := chainHeader.Get(i)
+		// these two operations can't fail since the resolve earlier already succeeded
+		der, _ := base64.StdEncoding.DecodeString(string(base64Cert))
+		cert, _ := x509.ParseCertificate(der)
+		chain[i] = cert
+	}
+	if err = d.pkiValidator.CheckCRL(chain); err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	return (defaultCredentialValidator{}).Validate(credential)
+}
+
+// validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
+func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential) error {
+	// get base form of all credentialSubject
+	var target = make([]map[string]interface{}, 1)
+	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
+		return err
+	}
+
+	// we create a map of policyName to policyValue, then we split the policyValue into another map
+	// no checks required, this has been done by the did:x509 resolver
+	x509DID, _ := didx509.ParseX509Did(issuer)
+	policyMap := make(map[string]map[string]string)
+	for _, policy := range x509DID.Policies {
+		policySplit := strings.Split(policy.Value, ":")
+		policyName := string(policy.Name)
+		policyMap[policyName] = make(map[string]string)
+		// bounds checked by ParseX509Did
+		for i := 0; i < len(policySplit); i += 2 {
+			unscaped, _ := url.PathUnescape(policySplit[i+1])
+			policyMap[policyName][policySplit[i]] = unscaped
+		}
+	}
+
+	// we usually don't use multiple credentialSubjects, but for this validation it doesn't matter
+	for _, credentialSubject := range target {
+		// remove id from target
+		delete(credentialSubject, "id")
+
+		// for each assertion create a string as "%s:%s" with key/value
+		// check if the resulting string is present in the policyString
+		for key, value := range credentialSubject {
+			split := strings.Split(key, ":")
+			if len(split) != 2 {
+				return fmt.Errorf("invalid credentialSubject assertion name '%s'", key)
+			}
+			policyValueMap, ok := policyMap[split[0]]
+			if !ok {
+				return fmt.Errorf("policy '%s' not found in did:x509 policy", split[0])
+			}
+			policyValue, ok := policyValueMap[split[1]]
+			if !ok {
+				return fmt.Errorf("assertion '%s' not found in did:x509 policy", key)
+			}
+			if value != policyValue {
+				return fmt.Errorf("invalid assertion value '%s' for '%s' did:x509 policy", value, key)
+			}
+		}
+	}
+
 	return nil
 }

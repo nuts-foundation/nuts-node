@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
@@ -56,6 +57,7 @@ type verifier struct {
 	trustConfig   *trust.Config
 	signatureVerifier
 	credentialStatus revocation.StatusList2021Verifier
+	pkiValidator     pki.Validator
 }
 
 // VerificationError is used to describe a VC/VP verification failure.
@@ -83,13 +85,14 @@ func (e VerificationError) Error() string {
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
-func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config, credentialStatus *revocation.StatusList2021) Verifier {
+func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver resolver.KeyResolver, jsonldManager jsonld.JSONLD, trustConfig *trust.Config, credentialStatus *revocation.StatusList2021, pkiValidator pki.Validator) Verifier {
 	v := &verifier{store: store, didResolver: didResolver, keyResolver: keyResolver, jsonldManager: jsonldManager, trustConfig: trustConfig,
 		signatureVerifier: signatureVerifier{
 			keyResolver:   keyResolver,
 			jsonldManager: jsonldManager,
 		},
 		credentialStatus: credentialStatus,
+		pkiValidator:     pkiValidator,
 	}
 	credentialStatus.VerifySignature = v.VerifySignature
 	return v
@@ -99,7 +102,7 @@ func NewVerifier(store Store, didResolver resolver.DIDResolver, keyResolver reso
 // It currently checks if the credential has the required fields and values, if it is valid at the given time and optional the signature.
 func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrusted bool, checkSignature bool, validAt *time.Time) error {
 	// it must have valid content
-	validator := credential.FindValidator(credentialToVerify)
+	validator := credential.FindValidator(credentialToVerify, v.pkiValidator)
 	if err := validator.Validate(credentialToVerify); err != nil {
 		return err
 	}

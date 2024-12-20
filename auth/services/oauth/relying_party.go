@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"strings"
 	"time"
@@ -50,12 +51,13 @@ type relyingParty struct {
 	httpClientTimeout time.Duration
 	httpClientTLS     *tls.Config
 	wallet            holder.Wallet
+	pkiValidator      pki.Validator
 }
 
 // NewRelyingParty returns an implementation of RelyingParty
 func NewRelyingParty(
 	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
-	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, strictMode bool) RelyingParty {
+	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, strictMode bool, pkiValidator pki.Validator) RelyingParty {
 	return &relyingParty{
 		keyResolver:       resolver.DIDKeyResolver{Resolver: didResolver},
 		serviceResolver:   serviceResolver,
@@ -64,6 +66,7 @@ func NewRelyingParty(
 		httpClientTLS:     httpClientTLS,
 		strictMode:        strictMode,
 		wallet:            wallet,
+		pkiValidator:      pkiValidator,
 	}
 }
 
@@ -81,7 +84,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 	}
 
 	for _, verifiableCredential := range request.Credentials {
-		validator := credential.FindValidator(verifiableCredential)
+		validator := credential.FindValidator(verifiableCredential, s.pkiValidator)
 		if err := validator.Validate(verifiableCredential); err != nil {
 			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
 		}

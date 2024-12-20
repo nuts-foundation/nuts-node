@@ -848,7 +848,7 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	db := orm.NewTestDatabase(t)
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, "")).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, ""), nil).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

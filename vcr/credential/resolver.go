@@ -25,12 +25,13 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type
 // When no additional type is provided, it returns the default validator
-func FindValidator(credential vc.VerifiableCredential) Validator {
+func FindValidator(credential vc.VerifiableCredential, pkiValidator pki.Validator) Validator {
 	if vcTypes := ExtractTypes(credential); len(vcTypes) > 0 {
 		for _, t := range vcTypes {
 			switch t {
@@ -38,6 +39,8 @@ func FindValidator(credential vc.VerifiableCredential) Validator {
 				return nutsOrganizationCredentialValidator{}
 			case NutsAuthorizationCredentialType:
 				return nutsAuthorizationCredentialValidator{}
+			case X509CredentialType:
+				return x509CredentialValidator{pkiValidator: pkiValidator}
 			}
 		}
 	}

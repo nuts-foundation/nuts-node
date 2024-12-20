@@ -115,7 +115,8 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 	}
 
 	// Validate the VC using the type-specific validator
-	validator := credential.FindValidator(*createdVC)
+	// we don't pass a pki.Validator since we don't issue x509 certs
+	validator := credential.FindValidator(*createdVC, nil)
 	if err := validator.Validate(*createdVC); err != nil {
 		return nil, err
 	}
