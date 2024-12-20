@@ -95,7 +95,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
 	}
-	ref, err := parseX509Did(id)
+	ref, err := ParseX509Did(id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -206,8 +206,8 @@ func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Docum
 	return document, nil
 }
 
-// parseX509Did parses a DID (Decentralized Identifier) in the x509 format and returns a corresponding X509DidReference.
-func parseX509Did(id did.DID) (*X509DidReference, error) {
+// ParseX509Did parses a DID (Decentralized Identifier) in the x509 format and returns a corresponding X509DidReference.
+func ParseX509Did(id did.DID) (*X509DidReference, error) {
 	ref := X509DidReference{}
 	fullDidString := id.ID
 	policyStrings := []string{}

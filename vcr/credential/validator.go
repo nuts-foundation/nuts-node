@@ -275,6 +275,7 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 	if credential.Format() == vc.JWTCredentialProofFormat {
 		headers, err := crypto.ExtractProtectedHeaders(credential.Raw())
 		if err != nil {
+			// theoretically impossible, since the credential is already parsed
 			return fmt.Errorf("%w: invalid JWT headers: %w", errValidation, err)
 		}
 		resolveMetadata.JwtProtectedHeaders = headers
@@ -287,7 +288,7 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 		return fmt.Errorf("%w: invalid issuer: %w", errValidation, err)
 	}
 
-	if err = validatePolicyAssertions(credential); err != nil {
+	if err = validatePolicyAssertions(*didX509Issuer, credential); err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
 
@@ -296,14 +297,9 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 	chain := make([]*x509.Certificate, chainHeader.Len())
 	for i := 0; i < chainHeader.Len(); i++ {
 		base64Cert, _ := chainHeader.Get(i)
-		der, err := base64.StdEncoding.DecodeString(string(base64Cert))
-		if err != nil {
-			return fmt.Errorf("%w: invalid certificate chain: %w", errValidation, err)
-		}
-		cert, err := x509.ParseCertificate(der)
-		if err != nil {
-			return fmt.Errorf("%w: invalid certificate chain: %w", errValidation, err)
-		}
+		// these two operations can't fail since the resolve earlier already succeeded
+		der, _ := base64.StdEncoding.DecodeString(string(base64Cert))
+		cert, _ := x509.ParseCertificate(der)
 		chain[i] = cert
 	}
 	if err = d.pkiValidator.CheckCRL(chain); err != nil {
@@ -314,7 +310,7 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 }
 
 // validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
-func validatePolicyAssertions(credential vc.VerifiableCredential) error {
+func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential) error {
 	// get base form of all credentialSubject
 	var target = make([]map[string]interface{}, 1)
 	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
@@ -322,19 +318,15 @@ func validatePolicyAssertions(credential vc.VerifiableCredential) error {
 	}
 
 	// we create a map of policyName to policyValue, then we split the policyValue into another map
+	// no checks required, this has been done by the did:x509 resolver
+	x509DID, _ := didx509.ParseX509Did(issuer)
 	policyMap := make(map[string]map[string]string)
-	policies := strings.Split(credential.Issuer.String(), "::")
-	if len(policies) < 2 {
-		return fmt.Errorf("invalid did:x509 policy")
-	}
-	for _, policy := range policies[1:] {
-		policySplit := strings.Split(policy, ":")
-		if len(policySplit)%2 != 1 { // policy name and 2*n key/value pairs
-			return fmt.Errorf("invalid did:x509 policy '%s'", policy)
-		}
-		policyName := policySplit[0]
+	for _, policy := range x509DID.Policies {
+		policySplit := strings.Split(policy.Value, ":")
+		policyName := string(policy.Name)
 		policyMap[policyName] = make(map[string]string)
-		for i := 1; i < len(policySplit); i += 2 {
+		// bounds checked by ParseX509Did
+		for i := 0; i < len(policySplit); i += 2 {
 			unscaped, _ := url.PathUnescape(policySplit[i+1])
 			policyMap[policyName][policySplit[i]] = unscaped
 		}

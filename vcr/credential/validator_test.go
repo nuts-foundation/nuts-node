@@ -529,12 +529,31 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 		assert.ErrorIs(t, err, errValidation)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
+	t.Run("invalid format", func(t *testing.T) {
+		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("did:example:123")}
+
+		err := ctx.validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorContains(t, err, "unsupported credential format")
+	})
+	t.Run("invalid did:x509", func(t *testing.T) {
+		x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+			builder.Issuer("did:example:123")
+			return builder
+		})
+
+		err := ctx.validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorContains(t, err, "invalid issuer")
+	})
 
 	t.Run("failed validation", func(t *testing.T) {
 
 		testCases := []struct {
 			name          string
-			claim         map[string]interface{}
+			claim         interface{}
 			expectedError string
 		}{
 			{
@@ -543,6 +562,13 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 					"san:otherName": "A_BIG_STRIN",
 				},
 				expectedError: "invalid assertion value 'A_BIG_STRIN' for 'san:otherName' did:x509 policy",
+			},
+			{
+				name: "invalid assertion name",
+				claim: map[string]interface{}{
+					"san": "A_BIG_STRING",
+				},
+				expectedError: "invalid credentialSubject assertion name 'san'",
 			},
 			{
 				name: "unknown assertion",
