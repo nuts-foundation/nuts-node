@@ -30,12 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewMemcachedSessionDatabase(t *testing.T) {
-	db := memcachedTestDatabase(t)
-
-	assert.NotNil(t, db)
-}
-
 func TestNewMemcachedSessionDatabase_GetStore(t *testing.T) {
 	db := memcachedTestDatabase(t)
 
@@ -177,6 +171,10 @@ func memcachedTestServer(t *testing.T) *minimemcached.MiniMemcached {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		// Note on DATA RACE
+		// 		minimemcached.Run creates a new go routine to listen for new connections.
+		// 		In certain cases the new go routine may be created after/simultaneous with this cleanup resulting in a data race / nil pointer dereference.
+		// 		Mostly happens on CI during really short tests.
 		m.Close()
 	})
 	return m
