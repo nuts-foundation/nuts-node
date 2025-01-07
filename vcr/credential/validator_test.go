@@ -559,28 +559,28 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 			{
 				name: "invalid assertion value",
 				claim: map[string]interface{}{
-					"san:otherName": "A_BIG_STRIN",
+					"san": map[string]interface{}{"otherName": "A_BIG_STRIN"},
 				},
 				expectedError: "invalid assertion value 'A_BIG_STRIN' for 'san:otherName' did:x509 policy",
 			},
 			{
-				name: "invalid assertion name",
+				name: "invalid assertion type",
 				claim: map[string]interface{}{
 					"san": "A_BIG_STRING",
 				},
-				expectedError: "invalid credentialSubject assertion name 'san'",
+				expectedError: "invalid assertion value type for 'credentialSubject.san'",
 			},
 			{
 				name: "unknown assertion",
 				claim: map[string]interface{}{
-					"san:ip": "10.0.0.1",
+					"san": map[string]interface{}{"ip": "10.0.0.1"},
 				},
-				expectedError: "assertion 'san:ip' not found in did:x509 policy",
+				expectedError: "assertion 'credentialSubject.san.ip' not found in did:x509 policy",
 			},
 			{
 				name: "unknown policy",
 				claim: map[string]interface{}{
-					"stan:ip": "10.0.0.1",
+					"stan": map[string]interface{}{"ip": "10.0.0.1"},
 				},
 				expectedError: "policy 'stan' not found in did:x509 policy",
 			},

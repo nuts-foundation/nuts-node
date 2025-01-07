@@ -339,21 +339,28 @@ func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential
 
 		// for each assertion create a string as "%s:%s" with key/value
 		// check if the resulting string is present in the policyString
-		for key, value := range credentialSubject {
-			split := strings.Split(key, ":")
-			if len(split) != 2 {
-				return fmt.Errorf("invalid credentialSubject assertion name '%s'", key)
-			}
-			policyValueMap, ok := policyMap[split[0]]
+		for policyName, values := range credentialSubject {
+			valueMap, ok := values.(map[string]interface{})
 			if !ok {
-				return fmt.Errorf("policy '%s' not found in did:x509 policy", split[0])
+				return fmt.Errorf("invalid assertion value type for 'credentialSubject.%s'", policyName)
 			}
-			policyValue, ok := policyValueMap[split[1]]
+			policyValueMap, ok := policyMap[policyName]
 			if !ok {
-				return fmt.Errorf("assertion '%s' not found in did:x509 policy", key)
+				return fmt.Errorf("policy '%s' not found in did:x509 policy", policyName)
 			}
-			if value != policyValue {
-				return fmt.Errorf("invalid assertion value '%s' for '%s' did:x509 policy", value, key)
+
+			for key, value := range valueMap {
+				valueString, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("invalid assertion value type for 'credentialSubject.%s.%s'", policyName, key)
+				}
+				policyValue, ok := policyValueMap[key]
+				if !ok {
+					return fmt.Errorf("assertion 'credentialSubject.%s.%s' not found in did:x509 policy", policyName, key)
+				}
+				if valueString != policyValue {
+					return fmt.Errorf("invalid assertion value '%s' for '%s:%s' did:x509 policy", valueString, policyName, key)
+				}
 			}
 		}
 	}
