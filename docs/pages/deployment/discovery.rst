@@ -61,7 +61,7 @@ Optionally, a POST body can be provided with registration parameters, e.g.:
 This can be used to provide additional information. All registration parameters are returned by the search API.
 The ``authServerURL`` is added automatically by the Nuts node. It's constructed as ``https://<config.url>/oauth2/<subject_id>``.
 Registration parameters can only be used if a specific parameters and/or ``DiscoveryRegistrationCredential`` are required by the Presentation Definition.
-The key provided in the POST call can be matched by the path of a field in the Presentation Definition. So ``endpoint`` in the example above can be matched by the path ``$.credentialSubject.endpoint``.
+The registration parameters should match the ``credentialSubject`` definition for the ``DiscoveryRegistrationCredential`` in the Presentation Definition. So ``endpoint`` in the example above can be matched by the path ``$.credentialSubject.endpoint``.
 
 Once registered, future refreshes will be done automatically by the Nuts node. These refreshes could fail because of various reasons.
 You can check the status of the refreshes by querying the service, e.g.:
