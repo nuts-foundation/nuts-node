@@ -162,12 +162,16 @@ func ValidX509Credential(t *testing.T, options ...credentialOption) vc.Verifiabl
 			"@context": []string{"https://www.w3.org/2018/credentials/v1"},
 			"type":     []string{vc.VerifiableCredentialType, "X509Credential"},
 			"credentialSubject": map[string]interface{}{
-				"id":            rootDID.String(),
-				"subject:C":     "NL",
-				"subject:O":     "NUTS Foundation",
-				"subject:L":     "Amsterdam",
-				"subject:CN":    "www.example.com",
-				"san:otherName": otherNameValue,
+				"id": rootDID.String(),
+				"subject": map[string]interface{}{
+					"C":  "NL",
+					"O":  "NUTS Foundation",
+					"L":  "Amsterdam",
+					"CN": "www.example.com",
+				},
+				"san": map[string]interface{}{
+					"otherName": otherNameValue,
+				},
 			},
 		})
 	for _, option := range options {
