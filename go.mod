@@ -202,7 +202,7 @@ require (
 require (
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
 	github.com/daangn/minimemcached v1.2.0
-	github.com/eko/gocache/lib/v4 v4.1.6
+	github.com/eko/gocache/lib/v4 v4.2.0
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
 	github.com/eko/gocache/store/memcache/v4 v4.2.2
 	github.com/eko/gocache/store/redis/v4 v4.2.2
