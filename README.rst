@@ -53,13 +53,6 @@ To enable ES256K (Koblitz) support, you need to build with the ``jwx_es256k`` ta
 
     go build -tags jwx_es256k
 
-Building for exotic environments
-================================
-
-You can build and run the Nuts node on more exotic environments, e.g. Raspberry Pis:
-
-* 32-bit ARMv6 (Raspberry Pi Zero): ``env GOOS=linux GOARCH=arm GOARM=6 go build``
-
 Running tests
 *************
 

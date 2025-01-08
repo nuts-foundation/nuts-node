@@ -1,10 +1,10 @@
-# Nuts Node Documentation
+#  Nuts Node Documentation
 
-Documentation gets compiled with a mixture of tooling into the `_build` directory.
+Building the documentation is mostly done on readthedocs based on settings configured on `.readthedocs.yaml` in the project root.
 
-Run `make docs` in the parent/base directory first.
+To build the documentation locally, run `make cli-docs` in the parent directory first and then compile the rest in the `_build` directory using:
 
 ```shell
-docker build -t nutsfoundation/nuts-node-docs .
-docker run --rm -v $PWD:/docs nutsfoundation/nuts-node-docs
+docker build -t nuts-node-docs .
+docker run --rm -v $PWD:/docs nuts-node-docs
 ```
