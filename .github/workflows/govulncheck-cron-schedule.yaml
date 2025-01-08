@@ -22,6 +22,7 @@ jobs:
           - 'master'
           - 'V5.4'
           - 'V6.0'
+
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
@@ -37,3 +38,5 @@ jobs:
           go-version-input: '' # remove default
           go-version-file: 'go.mod'
           go-package: ./...
+          repo-checkout: false # will checkout the default branch if left on true
+          output-format: 'text' # leave on the default since other values will always result in successful completion of the action.
