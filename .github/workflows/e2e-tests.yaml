@@ -81,6 +81,7 @@ jobs:
 
       - name: package cleanup
         uses: dataaxiom/ghcr-cleanup-action@v1
+        continue-on-error: true # action doesn't fail when this step fails
         if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
@@ -91,6 +92,7 @@ jobs:
 
       - name: package cleanup dependabot
         uses: dataaxiom/ghcr-cleanup-action@v1
+        continue-on-error: true # action doesn't fail when this step fails
         if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation

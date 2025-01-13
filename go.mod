@@ -1,6 +1,8 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.23
+// This is the minimal version, the actual go version is determined by the images in the Dockerfile
+// This version is used in automated tests such as the 'Scheduled govulncheck' action
+go 1.23.4
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
