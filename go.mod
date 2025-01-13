@@ -1,6 +1,8 @@
 module github.com/nuts-foundation/nuts-node
 
-go 1.21
+// This is the minimal version, the actual go version is determined by the images in the Dockerfile
+// This version is used in automated tests such as the 'Scheduled govulncheck' action
+go 1.23.4
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
@@ -98,7 +100,7 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.3.2 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
