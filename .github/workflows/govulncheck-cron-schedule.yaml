@@ -4,10 +4,12 @@
 # For more information see https://go.dev/blog/vuln and https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck
 name: 'Scheduled govulncheck'
 
-# run schedule every work day at 9:42 UTC
 on:
+  # run schedule every work day at 9:42 UTC
   schedule:
-    - cron: '0,15,30,45 * * * 1-5'
+    - cron: '42 9 * * 1-5'
+  # allow manually triggering workflow
+  workflow_dispatch:
 
 jobs:
   govulncheck_job:
@@ -29,14 +31,45 @@ jobs:
         with:
           ref: ${{ matrix.branches }}
 
-      - id: govulncheck
+      - name: govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          # TODO: This should probably run against the builder or runtime in the Dockerfile.
-          #       I don't think it is possible to detect those versions here, but maybe run against `go-version-input: 'stable'`
-          #       and detect container vulnerabilities in a different action?
-          go-version-input: '' # remove default
-          go-version-file: 'go.mod'
+          go-version-input: '' # remove default to suppress github warning
+          go-version-file: 'go.mod' # test against go.mod since 'stable' is not valid for older branches
           go-package: ./...
-          repo-checkout: false # will checkout the default branch if left on true
-          output-format: 'text' # leave on the default since other values will always result in successful completion of the action.
+          repo-checkout: false # will auto-checkout the default branch if left on true
+          output-format: 'text' # other values will always result in successful completion of the action, we need it fail on vulnerabilities
+
+      - name: notify slack
+        # this uses our own 'Github notifications' app in slack
+        uses: slackapi/slack-github-action@v2.0.0
+        if: ${{ failure() }} # only run this steps if one of the previous steps has failed
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "GitHub Action failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Vulnerabilities detected on a production branch* :rotating_light:\n govulncheck detected vulnerabilities on one of the production branches.\n See workflow for more info."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": ":github: Failed workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
