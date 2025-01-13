@@ -75,6 +75,7 @@ jobs:
 
       - name: package cleanup
         uses: bots-house/ghcr-delete-image-action@v1.1.0
+        continue-on-error: true # action doesn't fail when this step fails
         if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
@@ -85,6 +86,7 @@ jobs:
 
       - name: package cleanup dependabot
         uses: bots-house/ghcr-delete-image-action@v1.1.0
+        continue-on-error: true # action doesn't fail when this step fails
         if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation
