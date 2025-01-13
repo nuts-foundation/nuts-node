@@ -3,13 +3,16 @@
 Releasing Nuts Node
 ###################
 
+Semantic versioning
+*******************
+
 Nuts Node and auxiliary tools/applications follow a semantic versioning scheme (``<major>.<minor>.<patch>(-rc.<rc>)``):
 
-    Given a version number MAJOR.MINOR.PATCH, increment the:
-
-    1. MAJOR version when you make incompatible API changes,
-    2. MINOR version when you add functionality in a backwards compatible manner, and
-    3. PATCH version when you make backwards compatible bug fixes.
+|   Given a version number MAJOR.MINOR.PATCH, increment the:
+|
+|    1. MAJOR version when you make incompatible API changes,
+|    2. MINOR version when you add functionality in a backwards compatible manner, or
+|    3. PATCH version when you make backwards compatible bug fixes.
 
 (Taken from `semver.org <https://semver.org/>`_)
 
@@ -23,6 +26,16 @@ This approach prevents the docker ``latest`` tags to be updated to a new version
 
 Aside from the Nuts Node itself, all projects that follow the same versions need to be released.
 They follow the major version from the Nuts Node, but minor and patch versions may differ.
+
+Update automated tests
+^^^^^^^^^^^^^^^^^^^^^^
+
+Testing is automated using Github workflows.
+Some of the tests cannot handle branch patterns and require each new major/minor version branch to be added to the workflow file manually.
+The current list of files that need to be updated are:
+
+- **Scheduled govulncheck** action: ``.github/workflows/govulncheck-cron-schedule.yaml``
+- **Scheduled CodeQL** action: ``.github/workflows/codeql-analyisis-cron-schedule.yaml``
 
 Major release
 *************
