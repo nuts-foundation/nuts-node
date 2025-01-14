@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.21.5-alpine as builder
+FROM golang:1.23.4-alpine as builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -25,12 +25,11 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.18.2
+FROM alpine:3.21.2
 RUN apk update \
   && apk add --no-cache \
              tzdata \
-             curl \
-  && update-ca-certificates
+             curl
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
