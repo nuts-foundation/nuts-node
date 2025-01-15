@@ -3,6 +3,17 @@
 Release notes
 #############
 
+*************************
+Hazelnut update (v5.4.13)
+*************************
+
+Release date: 2025-01-15
+
+- Updated dependencies with vulnerabilities
+- Updated go version to 1.23.4
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.12...v5.4.13
+
 ************************
 Hazelnut update (v5.4.12)
 ************************
