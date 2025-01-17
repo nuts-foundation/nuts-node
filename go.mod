@@ -6,7 +6,7 @@ go 1.23.4
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.1
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/avast/retry-go/v4 v4.6.0
@@ -70,7 +70,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys v1.3.0
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/internal v1.1.0 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.1 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.2 // indirect
 	github.com/PaesslerAG/gval v1.2.2 // indirect
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
