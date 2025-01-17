@@ -197,7 +197,7 @@ require (
 	gorm.io/gorm v1.25.12
 	modernc.org/mathutil v1.6.0 // indirect
 	modernc.org/memory v1.8.0 // indirect
-	modernc.org/sqlite v1.34.4
+	modernc.org/sqlite v1.34.5
 	rsc.io/qr v0.2.0 // indirect
 )
 
@@ -214,12 +214,8 @@ require (
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/golang/mock v1.6.0 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
-	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.55.3 // indirect
-	modernc.org/strutil v1.2.0 // indirect
-	modernc.org/token v1.1.0 // indirect
 )
