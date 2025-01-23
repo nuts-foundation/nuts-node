@@ -11,7 +11,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
-	github.com/chromedp/chromedp v0.11.2
+	github.com/chromedp/chromedp v0.12.1
 	github.com/dlclark/regexp2 v1.11.4
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/goodsign/monday v1.0.2
@@ -84,7 +84,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chromedp/cdproto v0.0.0-20241022234722-4d5d5faf59fb // indirect
+	github.com/chromedp/cdproto v0.0.0-20250120090109-d38428e4d9c8 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
@@ -137,7 +137,7 @@ require (
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
