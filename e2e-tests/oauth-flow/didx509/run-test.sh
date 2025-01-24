@@ -26,10 +26,11 @@ echo "------------------------------------"
 echo "Issuing X509Credential..."
 echo "------------------------------------"
 CREDENTIAL=$(docker run \
+  --rm \
   -v "$(pwd)/certs/nodeA-chain.pem:/cert-chain.pem:ro" \
   -v "$(pwd)/certs/nodeA.key:/cert-key.key:ro" \
-  reinkrul/uzi-did-x509-issuer:latest \
-  vc "/cert-chain.pem" "/cert-key.key" "${VENDOR_A_DID}")
+  nutsfoundation/go-didx509-toolkit:main \
+  vc "/cert-chain.pem" "/cert-key.key" "CN=Fake UZI Root CA" "${VENDOR_A_DID}")
 echo $CREDENTIAL
 
 RESPONSE=$(echo "\"${CREDENTIAL}\"" | curl -s -o /dev/null -w "%{http_code}" -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/holder/vendorA/vc -H "Content-Type:application/json")
@@ -54,7 +55,7 @@ else
 fi
 
 echo "Searching for registration on Discovery Service..."
-RESPONSE=$(curl -s --insecure http://localhost:18081/internal/discovery/v1/e2e-test?credentialSubject.O=Because*)
+RESPONSE=$(curl -s --insecure http://localhost:18081/internal/discovery/v1/e2e-test?credentialSubject.subject.O=Because*)
 NUM_ITEMS=$(echo $RESPONSE | jq length)
 if [ $NUM_ITEMS -eq 1 ]; then
   echo "Registration found"

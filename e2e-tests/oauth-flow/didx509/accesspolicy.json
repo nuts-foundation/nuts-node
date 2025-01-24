@@ -41,7 +41,7 @@
               {
                 "id": "organization_name",
                 "path": [
-                  "$.credentialSubject[0].O"
+                  "$.credentialSubject[0].subject.O"
                 ],
                 "filter": {
                   "type": "string"
@@ -50,7 +50,7 @@
               {
                 "id": "organization_ura",
                 "path": [
-                  "$.credentialSubject[0].otherName"
+                  "$.credentialSubject[0].san.otherName"
                 ],
                 "filter": {
                   "type": "string",
@@ -60,7 +60,7 @@
               {
                 "id": "organization_city",
                 "path": [
-                  "$.credentialSubject[0].L"
+                  "$.credentialSubject[0].subject.L"
                 ],
                 "filter": {
                   "type": "string"
