@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.14)
+*************************
+
+Release date: 2025-01-28
+
+- Update minimal GO version to 1.23.5 to fix vulnerabilities.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.13...v5.4.14
+
+*************************
 Hazelnut update (v5.4.13)
 *************************
 

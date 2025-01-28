@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.23.4-alpine as builder
+FROM golang:1.23.5-alpine as builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -10,11 +10,7 @@ ARG GIT_VERSION=undefined
 
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
-RUN apk update \
- && update-ca-certificates
-
-ENV GO111MODULE on
-ENV GOPATH /
+ENV GOPATH=/
 
 RUN mkdir /opt/nuts && cd /opt/nuts
 COPY go.mod .
