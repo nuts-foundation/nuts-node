@@ -10,13 +10,6 @@ ARG GIT_VERSION=undefined
 
 LABEL maintainer="wout.slakhorst@nuts.nl"
 
-RUN apk update \
- && apk add --no-cache \
-            gcc \
-            musl-dev \
- && update-ca-certificates
-
-ENV GO111MODULE=on
 ENV GOPATH=/
 
 RUN mkdir /opt/nuts && cd /opt/nuts
