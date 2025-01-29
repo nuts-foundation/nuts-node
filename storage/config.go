@@ -28,9 +28,7 @@ type Config struct {
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
-	return Config{
-		Session: SessionConfig{Redis: RedisConfig{}},
-	}
+	return Config{}
 }
 
 // SQLConfig specifies config for the SQL storage engine.
