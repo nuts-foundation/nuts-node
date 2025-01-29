@@ -22,23 +22,23 @@ services:
     image: *image
     depends_on:
       - redisA
-    command: redis-server /redis/conf/sentinel.conf --sentinel
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/A:/redis/conf"
+      - "./sentinel/A:/redis/conf:rw"
   sentinelB:
     image: *image
     depends_on:
       - redisA
-    command: redis-server /redis/conf/sentinel.conf --sentinel
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/B:/redis/conf"
+      - "./sentinel/B:/redis/conf:rw"
   sentinelC:
     image: *image
     depends_on:
       - redisA
-    command: redis-server /redis/conf/sentinel.conf --sentinel
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/C:/redis/conf"
+      - "./sentinel/C:/redis/conf:rw"
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
