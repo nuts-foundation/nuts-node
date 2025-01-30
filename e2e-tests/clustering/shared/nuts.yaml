@@ -1,0 +1,20 @@
+verbosity: debug
+strictmode: false
+internalratelimiter: false
+http:
+  log: metadata-and-body
+  internal:
+    address: :8081
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+policy:
+  directory: /opt/nuts/policies
+discovery:
+  definitions:
+    directory: /nuts/discovery
+vdr:
+  didmethods:
+    - web
