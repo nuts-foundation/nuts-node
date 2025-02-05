@@ -207,7 +207,7 @@ Recommended system requirements for production depends on the expected load and 
 It's recommended to keep track of the system's performance and adjust the resources accordingly.
 CPU and memory usage, and the API response times are good indicators of the system's performance.
 Make sure the CPUs are of a decent speed, as some operations are CPU-bound.
-The exposes metrics for ``process_cpu_seconds_total``, ``go_gc_duration_seconds_sum`` and ``go_memstats_alloc_bytes`` are a good starting point for monitoring CPU and memory usage.
+The exposed metrics for ``process_cpu_seconds_total``, ``go_gc_duration_seconds_sum`` and ``go_memstats_alloc_bytes`` are a good starting point for monitoring CPU and memory usage.
 
 SQL storage size is influenced by:
 
