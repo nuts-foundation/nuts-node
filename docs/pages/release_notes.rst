@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.15)
+*************************
+
+Release date: 2025-02-07
+
+- Update minimal GO version to 1.23.6 to fix vulnerabilities in standard library crypto package.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.14...v5.4.15
+
+*************************
 Hazelnut update (v5.4.14)
 *************************
 
