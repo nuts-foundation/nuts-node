@@ -52,6 +52,12 @@ type RedirectResponse = oauth.Redirect
 // TokenResponse is an alias
 type TokenResponse = oauth.TokenResponse
 
+// TokenResponseCache is used to cache TokenResponses for RequestServiceAccessToken
+type TokenResponseCache struct {
+	TokenResponse TokenResponse `json:"token_response"`
+	ExpiresAt     int64         `json:"expires_at"`
+}
+
 // OAuthAuthorizationServerMetadata is an alias
 type OAuthAuthorizationServerMetadata = oauth.AuthorizationServerMetadata
 

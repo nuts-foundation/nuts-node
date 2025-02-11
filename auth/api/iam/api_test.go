@@ -866,7 +866,12 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(&oauth.TokenResponse{}, nil)
+		response := &oauth.TokenResponse{
+			AccessToken: "token",
+			TokenType:   "Bearer",
+			ExpiresIn:   to.Ptr(900),
+		}
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(response, nil)
 
 		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -876,7 +881,30 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			cachedToken, err := ctx.client.RequestServiceAccessToken(nil, request)
 
 			require.NoError(t, err)
-			assert.Equal(t, token, cachedToken)
+			jsonResponse := token.(RequestServiceAccessToken200JSONResponse)
+			cachedJsonResponse := cachedToken.(RequestServiceAccessToken200JSONResponse)
+
+			assert.Equal(t, jsonResponse.AccessToken, cachedJsonResponse.AccessToken)
+			assert.Equal(t, jsonResponse.TokenType, cachedJsonResponse.TokenType)
+		})
+
+		t.Run("check expires_at reduction", func(t *testing.T) {
+			// get current cached value and adjust ExpiresAt
+			cacheKey := accessTokenRequestCacheKey(request)
+			var cachedTokenResponse TokenResponseCache
+			require.NoError(t, ctx.client.accessTokenCache().Get(cacheKey, &cachedTokenResponse))
+			// shorten with 5 seconds
+			expiry := cachedTokenResponse.ExpiresAt - 5
+			cachedTokenResponse.ExpiresAt = expiry
+			require.NoError(t, ctx.client.accessTokenCache().Put(cacheKey, &cachedTokenResponse, storage.WithTTL(10*time.Second)))
+
+			cachedToken, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			require.NoError(t, err)
+			jsonResponse := cachedToken.(RequestServiceAccessToken200JSONResponse)
+
+			assert.Less(t, *jsonResponse.ExpiresIn, 900)
+			assert.Greater(t, *jsonResponse.ExpiresIn, 0)
 		})
 
 		t.Run("cache expired", func(t *testing.T) {
