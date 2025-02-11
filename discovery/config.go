@@ -41,7 +41,9 @@ type ServerConfig struct {
 // ClientConfig holds the config for the client
 type ClientConfig struct {
 	// RefreshInterval specifies how often the client should refresh the Discovery Services.
-	RefreshInterval time.Duration `koanf:"refresh_interval"`
+	RefreshInterval time.Duration `koanf:"refreshinterval"`
+	// RefreshIntervalOld is deprecated, use RefreshInterval instead. It's there for backwards compatibility; remove in v7.
+	RefreshIntervalOld time.Duration `koanf:"refresh_interval"`
 }
 
 // DefaultConfig returns the default configuration.

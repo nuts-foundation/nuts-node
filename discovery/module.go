@@ -153,7 +153,7 @@ func (m *Module) Start() error {
 	}
 	m.clientUpdater = newClientUpdater(m.allDefinitions, m.store, m.verifyRegistration, m.httpClient)
 	m.registrationManager = newRegistrationManager(m.allDefinitions, m.store, m.httpClient, m.vcrInstance, m.subjectManager, m.didResolver, m.verifyRegistration)
-	if m.config.Client.RefreshInterval > 0 {
+	if m.config.Client.RefreshInterval > 0 || m.config.Client.RefreshIntervalOld > 0 {
 		m.routines.Add(1)
 		go func() {
 			defer m.routines.Done()
@@ -543,7 +543,11 @@ func extractParameters(vp vc.VerifiablePresentation) map[string]interface{} {
 }
 
 func (m *Module) update() {
-	ticker := time.NewTicker(m.config.Client.RefreshInterval)
+	interval := m.config.Client.RefreshInterval
+	if interval == 0 {
+		interval = m.config.Client.RefreshIntervalOld
+	}
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	ctx := audit.Context(m.ctx, "app", ModuleName, "RefreshDiscoveryClient")
 	do := func() {
