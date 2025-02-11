@@ -38,7 +38,7 @@ func FlagSet() *pflag.FlagSet {
 			"refreshing Verifiable Presentations of local DIDs and loading changes, updating the local copy. "+
 			"It only will actually refresh registrations of local DIDs that about to expire (less than 1/4th of their lifetime left). "+
 			"Specified as Golang duration (e.g. 1m, 1h30m).")
-	flagSet.Duration("discovery.client.refresh_interval", 0,
-		"Deprecated, use refresh_interval.")
+	flagSet.Duration("discovery.client.refresh_interval", 0, "Deprecated, use refresh_interval instead.")
+	_ = flagSet.MarkDeprecated("discovery.client.refresh_interval", "Use refreshinterval instead.")
 	return flagSet
 }
