@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -732,10 +733,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	cacheKey := accessTokenRequestCacheKey(request)
 
 	// try to retrieve token from cache
-	tokenResult := new(TokenResponse)
-	err = tokenCache.Get(cacheKey, tokenResult)
+	tokenCacheResult := new(TokenResponse)
+	err = tokenCache.Get(cacheKey, tokenCacheResult)
 	if err == nil {
-		return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
+		// adjust tokenCacheResult.ExpiresIn to the remaining time
+		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
 	} else if !errors.Is(err, storage.ErrNotFound) {
 		// only log error, don't fail
 		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
@@ -751,7 +755,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		useDPoP = false
 	}
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err = r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -760,6 +764,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if tokenResult.ExpiresIn != nil {
 		ttl = time.Second * time.Duration(*tokenResult.ExpiresIn)
 	}
+	tokenResult.ExpiresAt = to.Ptr(int(time.Now().Add(ttl).Unix()))
 	// we reduce the ttl by accessTokenCacheOffset to make sure the token is expired when the cache expires
 	ttl -= accessTokenCacheOffset
 	err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
