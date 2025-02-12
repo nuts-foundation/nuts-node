@@ -891,11 +891,11 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		t.Run("check expires_at reduction", func(t *testing.T) {
 			// get current cached value and adjust ExpiresAt
 			cacheKey := accessTokenRequestCacheKey(request)
-			var cachedTokenResponse TokenResponseCache
+			var cachedTokenResponse TokenResponse
 			require.NoError(t, ctx.client.accessTokenCache().Get(cacheKey, &cachedTokenResponse))
 			// shorten with 5 seconds
-			expiry := cachedTokenResponse.ExpiresAt - 5
-			cachedTokenResponse.ExpiresAt = expiry
+			expiry := *cachedTokenResponse.ExpiresAt - 5
+			cachedTokenResponse.ExpiresAt = &expiry
 			require.NoError(t, ctx.client.accessTokenCache().Put(cacheKey, &cachedTokenResponse, storage.WithTTL(10*time.Second)))
 
 			cachedToken, err := ctx.client.RequestServiceAccessToken(nil, request)

@@ -733,12 +733,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	cacheKey := accessTokenRequestCacheKey(request)
 
 	// try to retrieve token from cache
-	tokenCacheResult := new(TokenResponseCache)
+	tokenCacheResult := new(TokenResponse)
 	err = tokenCache.Get(cacheKey, tokenCacheResult)
 	if err == nil {
-		// adjust tokenCacheResult.TokenResponse.ExpiresIn to the remaining time
-		tokenCacheResult.TokenResponse.ExpiresIn = to.Ptr(int(time.Until(time.Unix(tokenCacheResult.ExpiresAt, 0)).Seconds()))
-		return RequestServiceAccessToken200JSONResponse(tokenCacheResult.TokenResponse), nil
+		// adjust tokenCacheResult.ExpiresIn to the remaining time
+		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
 	} else if !errors.Is(err, storage.ErrNotFound) {
 		// only log error, don't fail
 		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
@@ -763,10 +764,10 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if tokenResult.ExpiresIn != nil {
 		ttl = time.Second * time.Duration(*tokenResult.ExpiresIn)
 	}
-	expiresAt := time.Now().Add(ttl)
+	tokenResult.ExpiresAt = to.Ptr(int(time.Now().Add(ttl).Unix()))
 	// we reduce the ttl by accessTokenCacheOffset to make sure the token is expired when the cache expires
 	ttl -= accessTokenCacheOffset
-	err = tokenCache.Put(cacheKey, TokenResponseCache{TokenResponse: *tokenResult, ExpiresAt: expiresAt.Unix()}, storage.WithTTL(ttl))
+	err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
 	if err != nil {
 		// only log error, don't fail
 		log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
