@@ -12,7 +12,7 @@ require (
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.12.1
-	github.com/dlclark/regexp2 v1.11.4
+	github.com/dlclark/regexp2 v1.11.5
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
