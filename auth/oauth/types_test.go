@@ -20,6 +20,7 @@ package oauth
 
 import (
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -67,7 +68,7 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 }
 
 func TestTokenResponse_Marshalling(t *testing.T) {
-	expected := *NewTokenResponse("1234567", "bearer", 5, "abc", "kid").With("c_nonce", "hello")
+	expected := (&TokenResponse{AccessToken: "1234567", TokenType: "bearer", ExpiresIn: to.Ptr(5), Scope: to.Ptr("abc"), DPoPKid: to.Ptr("kid")}).With("c_nonce", "hello")
 
 	t.Run("marshal", func(t *testing.T) {
 		data, err := json.Marshal(expected)
@@ -79,8 +80,8 @@ func TestTokenResponse_Marshalling(t *testing.T) {
 		var actual TokenResponse
 		err := json.Unmarshal(data, &actual)
 		require.NoError(t, err)
-		assert.Equal(t, expected, actual)
 
+		assert.Equal(t, *expected, actual)
 		assert.Equal(t, actual.Get("c_nonce"), "hello")
 	})
 }

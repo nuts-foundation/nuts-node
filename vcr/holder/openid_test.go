@@ -77,7 +77,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
 		issuerAPIClient.EXPECT().Metadata().Return(metadata)
-		tokenResponse := oauth.NewTokenResponse("access-token", "bearer", 0, "", "").With("c_nonce", nonce)
+		tokenResponse := (&oauth.TokenResponse{AccessToken: "access-token", TokenType: "bearer"}).With("c_nonce", nonce)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)

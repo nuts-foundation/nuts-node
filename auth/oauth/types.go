@@ -73,11 +73,19 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 		result[key] = value
 	}
 	result["access_token"] = t.AccessToken
-	result["expires_in"] = t.ExpiresIn
-	result["expires_at"] = t.ExpiresAt
+	if t.ExpiresIn != nil {
+		result["expires_in"] = *t.ExpiresIn
+	}
+	if t.ExpiresAt != nil {
+		result["expires_at"] = *t.ExpiresAt
+	}
 	result["token_type"] = t.TokenType
-	result["scope"] = t.Scope
-	result["dpop_kid"] = t.DPoPKid
+	if t.Scope != nil {
+		result["scope"] = *t.Scope
+	}
+	if t.DPoPKid != nil {
+		result["dpop_kid"] = *t.DPoPKid
+	}
 
 	return json.Marshal(result)
 }
