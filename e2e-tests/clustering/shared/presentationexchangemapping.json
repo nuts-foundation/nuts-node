@@ -59,7 +59,7 @@
                 ],
                 "filter": {
                   "type": "string",
-                  "const": "EmployeeCredential"
+                  "const": "NutsEmployeeCredential"
                 }
               },
               {
