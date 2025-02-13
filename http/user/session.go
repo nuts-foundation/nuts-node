@@ -205,7 +205,7 @@ type Session struct {
 	Save func() error `json:"-"`
 	// SubjectID identifies the requesting subject when the user session was created.
 	// A session needs to be scoped to the subject, since the session gives access to the subject's wallets,
-	// and the user session might contain session-bound credentials (e.g. EmployeeCredential) that were issued by the subject.
+	// and the user session might contain session-bound credentials (e.g. NutsEmployeeCredential) that were issued by the subject.
 	SubjectID string    `json:"subjectID"`
 	Wallet    Wallet    `json:"wallet"`
 	ExpiresAt time.Time `json:"expiresAt"`
@@ -213,7 +213,7 @@ type Session struct {
 
 // Wallet is a session-bound Verifiable Credential wallet.
 // It's an in-memory wallet which contains the user's private key in plain text.
-// This is OK, since the associated credentials are intended for protocol compatibility (OpenID4VP with a low-assurance EmployeeCredential),
+// This is OK, since the associated credentials are intended for protocol compatibility (OpenID4VP with a low-assurance NutsEmployeeCredential),
 // when an actual user wallet is involved, this wallet isn't used.
 type Wallet struct {
 	Credentials []vc.VerifiableCredential

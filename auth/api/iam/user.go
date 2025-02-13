@@ -76,7 +76,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 	accessTokenRequest := redirectSession.AccessTokenRequest
 	authServerURL := accessTokenRequest.Body.AuthorizationServer
 
-	// Make sure there's a user session, loaded with EmployeeCredential
+	// Make sure there's a user session, loaded with NutsEmployeeCredential
 	userSession, err := user.GetSession(echoCtx.Request().Context())
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Sessi
 	expirationDate := session.ExpiresAt
 	template := vc.VerifiableCredential{
 		Context:        []ssi.URI{credential.NutsV1ContextURI},
-		Type:           []ssi.URI{ssi.MustParseURI("EmployeeCredential")},
+		Type:           []ssi.URI{ssi.MustParseURI("NutsEmployeeCredential")},
 		Issuer:         issuerDID,
 		IssuanceDate:   issuanceDate,
 		ExpirationDate: &expirationDate,
@@ -196,7 +196,7 @@ func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Sessi
 		WithStatusListRevocation: false,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("issue EmployeeCredential: %w", err)
+		return nil, fmt.Errorf("issue NutsEmployeeCredential: %w", err)
 	}
 	return employeeCredential, nil
 }
