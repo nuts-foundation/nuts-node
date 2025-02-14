@@ -518,7 +518,9 @@ components:
     TokenResponse:
       type: object
       description: |
-        Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1]
+        Token Responses are made as defined in (RFC6749)[https://datatracker.ietf.org/doc/html/rfc6749#section-5.1].
+        With an additional field 'expires_at' used for cached tokens to recalculate 'expires_in'.
+        The field 'dpop_kid' is added from (RFC9449)[https://datatracker.ietf.org/doc/html/rfc9449].
       required:
         - access_token
         - token_type
@@ -552,6 +554,11 @@ components:
           description: |
             The lifetime in seconds of the access token.
           example: 3600
+        expires_at:
+          type: integer
+          description: |
+              The expiration time of the access token in seconds since UNIX epoch.
+          example: 1640995200
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",

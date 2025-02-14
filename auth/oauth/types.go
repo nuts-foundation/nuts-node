@@ -33,6 +33,7 @@ import (
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
 	DPoPKid     *string `json:"dpop_kid,omitempty"`
+	ExpiresAt   *int    `json:"expires_at,omitempty"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
 	TokenType   string  `json:"token_type"`
 	Scope       *string `json:"scope,omitempty"`
@@ -54,6 +55,7 @@ func (t *TokenResponse) UnmarshalJSON(data []byte) error {
 	additionalParams := map[string]interface{}{}
 	_ = json.Unmarshal(data, &additionalParams) // can't fail, already unmarshalled
 	delete(additionalParams, "access_token")
+	delete(additionalParams, "expires_at")
 	delete(additionalParams, "expires_in")
 	delete(additionalParams, "token_type")
 	delete(additionalParams, "scope")
@@ -71,10 +73,19 @@ func (t TokenResponse) MarshalJSON() ([]byte, error) {
 		result[key] = value
 	}
 	result["access_token"] = t.AccessToken
-	result["expires_in"] = t.ExpiresIn
+	if t.ExpiresIn != nil {
+		result["expires_in"] = *t.ExpiresIn
+	}
+	if t.ExpiresAt != nil {
+		result["expires_at"] = *t.ExpiresAt
+	}
 	result["token_type"] = t.TokenType
-	result["scope"] = t.Scope
-	result["dpop_kid"] = t.DPoPKid
+	if t.Scope != nil {
+		result["scope"] = *t.Scope
+	}
+	if t.DPoPKid != nil {
+		result["dpop_kid"] = *t.DPoPKid
+	}
 
 	return json.Marshal(result)
 }
