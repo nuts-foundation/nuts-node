@@ -195,9 +195,9 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241202173237-19429a94021a // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
 	gorm.io/gorm v1.25.12
-	modernc.org/mathutil v1.6.0 // indirect
-	modernc.org/memory v1.8.0 // indirect
-	modernc.org/sqlite v1.34.5
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.8.2 // indirect
+	modernc.org/sqlite v1.35.0
 	rsc.io/qr v0.2.0 // indirect
 )
 
@@ -217,5 +217,5 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
-	modernc.org/libc v1.55.3 // indirect
+	modernc.org/libc v1.61.13 // indirect
 )
