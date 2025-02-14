@@ -76,7 +76,7 @@ cat << EOF
           "https://www.w3.org/2018/credentials/v1",
           "https://nuts.nl/credentials/v1"
         ],
-        "type": ["VerifiableCredential", "EmployeeCredential"],
+        "type": ["VerifiableCredential", "NutsEmployeeCredential"],
         "credentialSubject": {
           "name": "John Doe",
           "roleName": "Janitor",
