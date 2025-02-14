@@ -139,7 +139,7 @@ func TestEmployeeCredential(t *testing.T) {
                 ],
                 "filter": {
                   "type": "string",
-                  "const": "EmployeeCredential"
+                  "const": "NutsEmployeeCredential"
                 }
               },
               {
@@ -178,7 +178,8 @@ func TestEmployeeCredential(t *testing.T) {
       ]
     }`))
 	require.NoError(t, err)
-	cred, err := vc.ParseVerifiableCredential(`eyJhbGciOiJFUzI1NiIsImtpZCI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciMwIiwidHlwIjoiSldUIn0.eyJleHAiOjE3MTI1NzI2MTIsImlzcyI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciIsImp0aSI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciM4ZjNkMWI0OS1iODYzLTQxZjYtYmY4Ny05ZTVhODY2YWMyMzEiLCJuYmYiOjE3MTI1NjkwMTIsInN1YiI6ImRpZDpqd2s6ZXlKamNuWWlPaUpRTFRJMU5pSXNJbXQwZVNJNklrVkRJaXdpZUNJNklsOVFVVk5TVkY5UmRFWmpOMFpvU0VwUGFGVXRibEJ2TVVaNGRFZDRTRmRqUzJ0b2FqUTVhRE5hT1VVaUxDSjVJam9pTmpoek16TTFOVkJIYm5CcVVVSkVNamRKTjE4NVpFUnpkRzU2TVVwZlZtZzNZVlprUlVOVlNHOXpRU0o5IiwidmMiOnsiQGNvbnRleHQiOlsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL251dHMubmwvY3JlZGVudGlhbHMvdjEiXSwiY3JlZGVudGlhbFN1YmplY3QiOlt7ImlkIjoiZGlkOmp3azpleUpqY25ZaU9pSlFMVEkxTmlJc0ltdDBlU0k2SWtWRElpd2llQ0k2SWw5UVVWTlNWRjlSZEVaak4wWm9TRXBQYUZVdGJsQnZNVVo0ZEVkNFNGZGpTMnRvYWpRNWFETmFPVVVpTENKNUlqb2lOamh6TXpNMU5WQkhibkJxVVVKRU1qZEpOMTg1WkVSemRHNTZNVXBmVm1nM1lWWmtSVU5WU0c5elFTSjkiLCJpZGVudGlmaWVyIjoiamRvZUBleGFtcGxlLmNvbSIsIm5hbWUiOiJKb2huIERvZSIsInJvbGVOYW1lIjoiQWNjb3VudGFudCJ9XSwidHlwZSI6WyJFbXBsb3llZUNyZWRlbnRpYWwiLCJWZXJpZmlhYmxlQ3JlZGVudGlhbCJdfX0.6VeGDsTEy2BpQW3RKCiczIVoAAdlfl_EP4KioE9lavWIuXTASTAPkcY9oOlfG_HFLZvu82Nnt6L-ntK8XzR7Ew`)
+	cred, err := vc.ParseVerifiableCredential(`eyJhbGciOiJFUzI1NiIsImtpZCI6ImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciMwIiwidHlwIjoiSldUIn0.eyJleHAiOiAxNzEyNTcyNjEyLCJpc3MiOiAiZGlkOndlYjpub2RlQTppYW06cmVxdWVzdGVyIiwianRpIjogImRpZDp3ZWI6bm9kZUE6aWFtOnJlcXVlc3RlciM4ZjNkMWI0OS1iODYzLTQxZjYtYmY4Ny05ZTVhODY2YWMyMzEiLCJuYmYiOiAxNzEyNTY5MDEyLCJzdWIiOiAiZGlkOmp3azpleUpqY25ZaU9pSlFMVEkxTmlJc0ltdDBlU0k2SWtWRElpd2llQ0k2SWw5UVVWTlNWRjlSZEVaak4wWm9TRXBQYUZVdGJsQnZNVVo0ZEVkNFNGZGpTMnRvYWpRNWFETmFPVVVpTENKNUlqb2lOamh6TXpNMU5WQkhibkJxVVVKRU1qZEpOMTg1WkVSemRHNTZNVXBmVm1nM1lWWmtSVU5WU0c5elFTSjkiLCJ2YyI6IHsiQGNvbnRleHQiOiBbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIiwiaHR0cHM6Ly9udXRzLm5sL2NyZWRlbnRpYWxzL3YxIl0sICJjcmVkZW50aWFsU3ViamVjdCI6IFt7ImlkIjogImRpZDpqd2s6ZXlKamNuWWlPaUpRTFRJMU5pSXNJbXQwZVNJNklrVkRJaXdpZUNJNklsOVFVVk5TVkY5UmRFWmpOMFpvU0VwUGFGVXRibEJ2TVVaNGRFZDRTRmRqUzJ0b2FqUTVhRE5hT1VVaUxDSjVJam9pTmpoek16TTFOVkJIYm5CcVVVSkVNamRKTjE4NVpFUnpkRzU2TVVwZlZtZzNZVlprUlVOVlNHOXpRU0o5IiwiaWRlbnRpZmllciI6ICJqZG9lQGV4YW1wbGUuY29tIiwibmFtZSI6ICJKb2huIERvZSIsICJyb2xlTmFtZSI6ICJBY2NvdW50YW50In1dLCJ0eXBlIjogWyJOdXRzRW1wbG95ZWVDcmVkZW50aWFsIiwiVmVyaWZpYWJsZUNyZWRlbnRpYWwiXX19.BAD_C0DE`)
+	require.NoError(t, err)
 
 	credentials, _, err := pd.Match([]vc.VerifiableCredential{*cred})
 

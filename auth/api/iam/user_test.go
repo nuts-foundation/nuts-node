@@ -120,7 +120,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 
 		err = ctx.client.handleUserLanding(echoCtx)
 		require.NoError(t, err)
-		// check for issued EmployeeCredential in session wallet
+		// check for issued NutsEmployeeCredential in session wallet
 		require.NoError(t, err)
 		require.Equal(t, holderSubjectID, userSession.SubjectID)
 		require.Len(t, userSession.Wallet.Credentials, 1)
@@ -129,8 +129,8 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, sessionKey.KeyID)
 		assert.Equal(t, jwa.EC, sessionKey.KeyType())
-		// check for details of issued EmployeeCredential
-		assert.Equal(t, "EmployeeCredential", employeeCredentialTemplate.Type[0].String())
+		// check for details of issued NutsEmployeeCredential
+		assert.Equal(t, "NutsEmployeeCredential", employeeCredentialTemplate.Type[0].String())
 		employeeCredentialSubject := employeeCredentialTemplate.CredentialSubject[0].(map[string]string)
 		assert.True(t, strings.HasPrefix(employeeCredentialSubject["id"], "did:jwk:"))
 		assert.Equal(t, userDetails.Id, employeeCredentialSubject["identifier"])

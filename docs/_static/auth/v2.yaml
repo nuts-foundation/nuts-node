@@ -418,7 +418,7 @@ components:
                 "https://www.w3.org/2018/credentials/v1",
                 "https://nuts.nl/credentials/v1"
               ],
-              "type": ["VerifiableCredential", "EmployeeCredential"],
+              "type": ["VerifiableCredential", "NutsEmployeeCredential"],
               "credentialSubject": {
                 "name": "John Doe",
                 "roleName": "Janitor",
@@ -578,7 +578,7 @@ components:
       properties:
         token:
           type: string
-          example: spnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
+      example: token=spnhVHZ4IFVvuNrpflVaB1A7P3A2xZ7G_a8gF_SHMynYSA
     TokenIntrospectionResponse:
       description: Token introspection response as described in RFC7662 section 2.2
       required:

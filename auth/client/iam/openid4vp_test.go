@@ -291,7 +291,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 					holder.VerifiableCredentialLDContextV1,
 					credential.NutsV1ContextURI,
 				},
-				Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("EmployeeCredential")},
+				Type: []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("NutsEmployeeCredential")},
 				CredentialSubject: []interface{}{
 					map[string]interface{}{
 						"roleName":   "employee",
