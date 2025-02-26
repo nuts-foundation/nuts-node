@@ -3,6 +3,16 @@ Release notes
 #############
 
 ***************
+Peanut (v6.0.9)
+***************
+
+Release date: 2025-02-26
+
+- `#3696 <https://github.com/nuts-foundation/nuts-node/issues/3696>`_: Fix holder credential usage when a subject has multiple DIDs.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.8...v6.0.9
+
+***************
 Peanut (v6.0.8)
 ***************
 

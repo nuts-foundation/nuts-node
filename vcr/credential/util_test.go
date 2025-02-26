@@ -293,11 +293,23 @@ func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 	credential := vc.VerifiableCredential{
 		CredentialSubject: make([]interface{}, 1),
 	}
+
 	result := AutoCorrectSelfAttestedCredential(credential, requestor)
+
 	assert.Equal(t, requestor.URI(), result.Issuer)
 	assert.NotEqual(t, time.Time{}, result.IssuanceDate)
 	assert.NotEqual(t, "", result.ID.String())
 	assert.Equal(t, requestor.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
+
+	t.Run("autocorrect for multiple DIDs does not skip credentialSubject.id", func(t *testing.T) {
+		altDID := did.MustParseDID("did:test:456")
+		subjectPointer := &credential.CredentialSubject
+
+		result = AutoCorrectSelfAttestedCredential(credential, altDID)
+
+		assert.NotEqual(t, subjectPointer, &result.CredentialSubject)
+		assert.Equal(t, altDID.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
+	})
 }
 
 func TestFilterOnDIDMethod(t *testing.T) {
