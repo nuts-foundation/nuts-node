@@ -136,6 +136,7 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 		}
 		if _, ok := credentialSubject[0]["id"]; !ok {
 			credentialSubject[0]["id"] = requester.String()
+			credential.CredentialSubject = make([]interface{}, 1)
 			credential.CredentialSubject[0] = credentialSubject[0]
 		}
 	}
