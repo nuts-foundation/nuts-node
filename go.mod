@@ -2,7 +2,7 @@ module github.com/nuts-foundation/nuts-node
 
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action
-go 1.23.6
+go 1.24.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
