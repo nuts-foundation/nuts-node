@@ -270,7 +270,7 @@ func (w Wrapper) CreateJwtGrant(ctx context.Context, request CreateJwtGrantReque
 
 	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
 	if err != nil {
-		return nil, core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError("%s", err.Error())
 	}
 
 	return CreateJwtGrant200JSONResponse{BearerToken: response.BearerToken, AuthorizationServerEndpoint: response.AuthorizationServerEndpoint}, nil
@@ -288,7 +288,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 
 	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
 	if err != nil {
-		return nil, core.InvalidInputError(err.Error())
+		return nil, core.InvalidInputError("%s", err.Error())
 	}
 
 	authServerEndpoint, err := url.Parse(jwtGrant.AuthorizationServerEndpoint)
@@ -298,7 +298,7 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 
 	accessTokenResult, err := w.Auth.RelyingParty().RequestAccessToken(ctx, jwtGrant.BearerToken, *authServerEndpoint)
 	if err != nil {
-		return nil, core.Error(http.StatusServiceUnavailable, err.Error())
+		return nil, core.Error(http.StatusServiceUnavailable, "%s", err.Error())
 	}
 	return RequestAccessToken200JSONResponse(*accessTokenResult), nil
 }
