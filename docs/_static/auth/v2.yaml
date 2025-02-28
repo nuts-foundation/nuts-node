@@ -28,6 +28,15 @@ paths:
           schema:
             type: string
             example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+        - name: Cache-Control
+          in: header
+          required: false
+          description: |
+            Access tokens are cached by the Nuts node, specify Cache-Control: no-cache to bypass the cache.
+            This forces the Nuts node to request a new access token from the authorizer.
+          schema:
+            type: string
+            example: no-cache
       requestBody:
         required: true
         content:

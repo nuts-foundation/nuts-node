@@ -731,18 +731,19 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 
 	tokenCache := r.accessTokenCache()
 	cacheKey := accessTokenRequestCacheKey(request)
-
-	// try to retrieve token from cache
-	tokenCacheResult := new(TokenResponse)
-	err = tokenCache.Get(cacheKey, tokenCacheResult)
-	if err == nil {
-		// adjust tokenCacheResult.ExpiresIn to the remaining time
-		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
-		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
-		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
-	} else if !errors.Is(err, storage.ErrNotFound) {
-		// only log error, don't fail
-		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+	if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
+		// try to retrieve token from cache
+		tokenCacheResult := new(TokenResponse)
+		err = tokenCache.Get(cacheKey, tokenCacheResult)
+		if err == nil {
+			// adjust tokenCacheResult.ExpiresIn to the remaining time
+			expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+			tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+			return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
+		} else if !errors.Is(err, storage.ErrNotFound) {
+			// only log error, don't fail
+			log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+		}
 	}
 
 	var credentials []VerifiableCredential
@@ -991,6 +992,7 @@ func (r Wrapper) determineClientDID(ctx context.Context, authServerMetadata oaut
 // accessTokenRequestCacheKey creates a cache key for the access token request.
 // it writes the JSON to a sha256 hash and returns the hex encoded hash.
 func accessTokenRequestCacheKey(request RequestServiceAccessTokenRequestObject) string {
+	request.Params.CacheControl = nil
 	hash := sha256.New()
 	_ = json.NewEncoder(hash).Encode(request)
 	return hex.EncodeToString(hash.Sum(nil))

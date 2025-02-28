@@ -218,6 +218,13 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	WalletDid string `json:"wallet_did"`
 }
 
+// RequestServiceAccessTokenParams defines parameters for RequestServiceAccessToken.
+type RequestServiceAccessTokenParams struct {
+	// CacheControl Access tokens are cached by the Nuts node, specify Cache-Control: no-cache to bypass the cache.
+	// This forces the Nuts node to request a new access token from the authorizer.
+	CacheControl *string `json:"Cache-Control,omitempty"`
+}
+
 // HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
 type HandleAuthorizeRequestParams struct {
 	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
@@ -559,7 +566,7 @@ type ServerInterface interface {
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
 	// Start the authorization flow to get an access token from a remote authorization server.
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
-	RequestServiceAccessToken(ctx echo.Context, subjectID string) error
+	RequestServiceAccessToken(ctx echo.Context, subjectID string, params RequestServiceAccessTokenParams) error
 	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
@@ -730,8 +737,28 @@ func (w *ServerInterfaceWrapper) RequestServiceAccessToken(ctx echo.Context) err
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RequestServiceAccessTokenParams
+
+	headers := ctx.Request().Header
+	// ------------- Optional header parameter "Cache-Control" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Cache-Control")]; found {
+		var CacheControl string
+		n := len(valueList)
+		if n != 1 {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Expected one value for Cache-Control, got %d", n))
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Cache-Control", valueList[0], &CacheControl, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter Cache-Control: %s", err))
+		}
+
+		params.CacheControl = &CacheControl
+	}
+
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestServiceAccessToken(ctx, subjectID)
+	err = w.Handler.RequestServiceAccessToken(ctx, subjectID, params)
 	return err
 }
 
@@ -1308,6 +1335,7 @@ func (response RequestOpenid4VCICredentialIssuancedefaultApplicationProblemPlusJ
 
 type RequestServiceAccessTokenRequestObject struct {
 	SubjectID string `json:"subjectID"`
+	Params    RequestServiceAccessTokenParams
 	Body      *RequestServiceAccessTokenJSONRequestBody
 }
 
@@ -2033,10 +2061,11 @@ func (sh *strictHandler) RequestOpenid4VCICredentialIssuance(ctx echo.Context, s
 }
 
 // RequestServiceAccessToken operation middleware
-func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subjectID string) error {
+func (sh *strictHandler) RequestServiceAccessToken(ctx echo.Context, subjectID string, params RequestServiceAccessTokenParams) error {
 	var request RequestServiceAccessTokenRequestObject
 
 	request.SubjectID = subjectID
+	request.Params = params
 
 	var body RequestServiceAccessTokenJSONRequestBody
 	if err := ctx.Bind(&body); err != nil {
