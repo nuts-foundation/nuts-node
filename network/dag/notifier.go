@@ -383,10 +383,10 @@ func (p *notifier) retry(event Event) {
 				// logs after every failed attempt
 				if errors.Is(err, errEventIncomplete) {
 					// debug level if errEventIncomplete
-					p.logNotificationResponse(event, err, logrus.DebugLevel, "Retrying event (attempt %d/%d)", n, maxRetries)
+					p.logNotificationResponse(event, err, logrus.DebugLevel, fmt.Sprintf("Retrying event (attempt %d/%d)", n, maxRetries))
 				} else {
 					// error level for all other errors
-					p.logNotificationResponse(event, err, logrus.ErrorLevel, "Retrying event (attempt %d/%d)", n, maxRetries)
+					p.logNotificationResponse(event, err, logrus.ErrorLevel, fmt.Sprintf("Retrying event (attempt %d/%d)", n, maxRetries))
 				}
 			}),
 		)
@@ -397,12 +397,12 @@ func (p *notifier) retry(event Event) {
 	}(p.ctx)
 }
 
-func (p *notifier) logNotificationResponse(event Event, err error, level logrus.Level, msg string, args ...interface{}) {
+func (p *notifier) logNotificationResponse(event Event, err error, level logrus.Level, msg string) {
 	log.Logger().
 		WithError(err).
 		WithField(core.LogFieldTransactionRef, event.Hash.String()).
 		WithField(core.LogFieldEventSubscriber, p.name).
-		Logf(level, msg, args...)
+		Log(level, msg)
 }
 
 var errEventIncomplete = errors.New("receiver did not finish or fail")
