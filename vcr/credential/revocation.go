@@ -20,7 +20,6 @@
 package credential
 
 import (
-	"fmt"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -79,7 +78,7 @@ func ValidateRevocation(r Revocation) error {
 			}
 		}
 		if !foundType {
-			return failure(fmt.Sprintf("'type' does not contain %s", RevocationType))
+			return failure("'type' does not contain %s", RevocationType)
 		}
 	}
 
