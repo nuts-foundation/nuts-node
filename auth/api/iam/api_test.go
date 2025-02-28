@@ -863,6 +863,29 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		Scope:               "first second",
 	}
 
+	t.Run("ok - bypass cache (client uses Cache-Control: no-cache)", func(t *testing.T) {
+		ctx := newTestClient(t)
+		response := &oauth.TokenResponse{
+			AccessToken: "token",
+			TokenType:   "Bearer",
+			ExpiresIn:   to.Ptr(900),
+		}
+		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+		request.Params.CacheControl = to.Ptr("no-cache")
+		// Initial call to populate cache
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil).Return(response, nil).Times(2)
+		token, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+		// Test call to check cache is bypassed
+		cachedToken, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+		require.NoError(t, err)
+		jsonResponse := token.(RequestServiceAccessToken200JSONResponse)
+		cachedJsonResponse := cachedToken.(RequestServiceAccessToken200JSONResponse)
+
+		assert.Equal(t, jsonResponse.AccessToken, cachedJsonResponse.AccessToken)
+		assert.Equal(t, jsonResponse.TokenType, cachedJsonResponse.TokenType)
+	})
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
@@ -1397,7 +1420,7 @@ func TestWrapper_subjectOwns(t *testing.T) {
 }
 
 func TestWrapper_accessTokenRequestCacheKey(t *testing.T) {
-	expected := "0cc6fbbd972c72de7bc86c6147347bdd54bcb41fe23cea3d8f61d6ddd75dbf86"
+	expected := "080c4170aa372da86b76c6b5db2c3c08a532c7c8454b5d2f3fb0e1d239e59758"
 	key := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test"}})
 	other := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test2"}})
 
