@@ -20,6 +20,7 @@ package dag
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -68,6 +69,9 @@ func ParseTransaction(input []byte) (Transaction, error) {
 }
 
 func transactionValidationError(format string, args ...interface{}) error {
+	if len(args) == 0 {
+		return fmt.Errorf(transactionNotValidErrFmt, errors.New(format))
+	}
 	return fmt.Errorf(transactionNotValidErrFmt, fmt.Errorf(format, args...))
 }
 
@@ -97,7 +101,7 @@ func parsePayload(transaction *transaction, _ jws.Headers, message *jws.Message)
 func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	contentType := headers.ContentType()
 	if !ValidatePayloadType(contentType) {
-		return transactionValidationError(errInvalidPayloadType.Error())
+		return transactionValidationError("%s", errInvalidPayloadType.Error())
 	}
 	transaction.payloadType = contentType
 	return nil
