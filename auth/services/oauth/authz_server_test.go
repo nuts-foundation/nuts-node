@@ -574,7 +574,9 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("wrong signing algorithm", func(t *testing.T) {
-		privateKey, _ := rsa.GenerateKey(rand.Reader, 512)
+		t.Setenv("GODEBUG", "rsa1024min=0") // minimum key-length has changed to 1024 -> https://pkg.go.dev/crypto/rsa#hdr-Minimum_key_size
+		privateKey, err := rsa.GenerateKey(rand.Reader, 512)
+		require.NoError(t, err)
 
 		keyID := "did:nuts:somedid#key-id"
 
