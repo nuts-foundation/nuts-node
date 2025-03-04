@@ -10,6 +10,6 @@ services:
       - "./config/node/nuts.yaml:/opt/nuts/nuts.yaml"
       - "./data/node:/opt/nuts/data"
   chrome-headless-shell:
-    image: chromedp/headless-shell:134.0.6998.35
+    image: chromedp/headless-shell:133.0.6943.142
     ports:
       - 9222:9222
