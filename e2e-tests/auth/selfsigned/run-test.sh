@@ -13,6 +13,6 @@ mkdir ./data
 docker compose up --wait
 
 
-go test -v --tags=e2e_tests .
+go test -v -count=1 --tags=e2e_tests .
 
 docker compose stop
