@@ -11,7 +11,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/cbroglie/mustache v1.4.0
-	github.com/chromedp/chromedp v0.13.0
+	github.com/chromedp/chromedp v0.13.1
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/goodsign/monday v1.0.2
