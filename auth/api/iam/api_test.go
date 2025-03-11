@@ -994,6 +994,55 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		assert.NotEqual(t, token1, token2)
 	})
+	t.Run("self-asserted credentials", func(t *testing.T) {
+		response := &oauth.TokenResponse{
+			AccessToken: "token",
+			TokenType:   "Bearer",
+			ExpiresIn:   to.Ptr(900),
+		}
+		body := &RequestServiceAccessTokenJSONRequestBody{
+			AuthorizationServer: verifierURL.String(),
+			Scope:               "first second",
+		}
+		t.Run("ok", func(t *testing.T) {
+			ctx := newTestClient(t)
+			body.Credentials = &[]vc.VerifiableCredential{
+				{ID: to.Ptr(ssi.MustParseURI("not empty"))},
+			}
+			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, *body.Credentials).Return(response, nil)
+
+			_, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			require.NoError(t, err)
+		})
+		t.Run("error - contains issuer", func(t *testing.T) {
+			ctx := newTestClient(t)
+			body.Credentials = &[]vc.VerifiableCredential{
+				{
+					ID:     to.Ptr(ssi.MustParseURI("not empty")),
+					Issuer: ssi.MustParseURI("has issuer"),
+				},
+			}
+			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+			_, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			assert.EqualError(t, err, "self-asserted credentials MUST NOT contain an 'issuer'")
+		})
+		t.Run("error - contains credentialSubject.id", func(t *testing.T) {
+			ctx := newTestClient(t)
+			body.Credentials = &[]vc.VerifiableCredential{
+				{
+					ID:                to.Ptr(ssi.MustParseURI("not empty")),
+					CredentialSubject: []any{map[string]string{"id": "not empty"}},
+				},
+			}
+			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
+			_, err := ctx.client.RequestServiceAccessToken(nil, request)
+
+			assert.EqualError(t, err, "self-asserted credentials MUST NOT contain a 'credentialSubject.id'")
+		})
+	})
 }
 
 func TestWrapper_RequestUserAccessToken(t *testing.T) {
