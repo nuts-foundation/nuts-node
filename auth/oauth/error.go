@@ -20,8 +20,8 @@ package oauth
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"html/template"
 	"net/http"
 	"net/url"

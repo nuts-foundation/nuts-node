@@ -20,7 +20,7 @@ package openid4vci
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"

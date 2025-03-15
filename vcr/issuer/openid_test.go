@@ -74,7 +74,7 @@ func TestNew(t *testing.T) {
 		_, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/invalid", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: unexpected end of JSON input")
+		assert.EqualError(t, err, "failed to parse credential definition from test/invalid/invalid.json: sonnet: unexpected EOF reading a byte")
 	})
 
 	t.Run("error - invalid directory", func(t *testing.T) {

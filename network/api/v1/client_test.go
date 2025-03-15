@@ -19,8 +19,8 @@
 package v1
 
 import (
-	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"

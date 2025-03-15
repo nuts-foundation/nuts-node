@@ -21,8 +21,8 @@ package verifier
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"

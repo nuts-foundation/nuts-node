@@ -19,10 +19,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	v1 "github.com/nuts-foundation/nuts-node/didman/api/v1"
+	"github.com/nuts-foundation/nuts-node/json"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/stretchr/testify/assert"
 	"net/http"

@@ -21,9 +21,9 @@ package verifier
 import (
 	"context"
 	"crypto/sha1"
-	"encoding/json"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"path"

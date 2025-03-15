@@ -21,7 +21,6 @@ package didstore
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/alicebob/miniredis/v2"
 	ssi "github.com/nuts-foundation/go-did"
@@ -29,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/redis7"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/redis/go-redis/v9"

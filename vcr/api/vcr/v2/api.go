@@ -20,9 +20,9 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"strings"
 	"time"

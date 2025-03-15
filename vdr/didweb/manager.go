@@ -21,10 +21,10 @@ package didweb
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"time"
 

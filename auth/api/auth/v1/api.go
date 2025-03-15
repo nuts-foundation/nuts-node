@@ -20,10 +20,10 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"net/url"
 	"regexp"

@@ -21,9 +21,9 @@ package didnuts
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"time"
 

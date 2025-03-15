@@ -22,8 +22,8 @@ package vcr
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"os"
 	"testing"
@@ -331,7 +331,7 @@ func Test_ambassador_handleNetworkRevocations(t *testing.T) {
 			Payload:     []byte("b00m"),
 		})
 		assert.False(t, value)
-		assert.EqualError(t, err, "revocation processing failed: invalid character 'b' looking for beginning of value")
+		assert.EqualError(t, err, "revocation processing failed: sonnet: invalid character 'b' looking for beginning of value")
 		assert.True(t, errors.As(err, new(dag.EventFatal)))
 	})
 

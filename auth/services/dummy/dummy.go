@@ -22,9 +22,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"

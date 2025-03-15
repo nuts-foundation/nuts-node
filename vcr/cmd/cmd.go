@@ -19,8 +19,8 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/spf13/pflag"

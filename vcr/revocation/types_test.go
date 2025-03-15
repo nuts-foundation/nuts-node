@@ -21,7 +21,7 @@ package revocation
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"

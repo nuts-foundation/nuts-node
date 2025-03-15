@@ -19,7 +19,6 @@
 package issuer
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -27,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/types"

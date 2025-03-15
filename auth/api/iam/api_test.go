@@ -21,9 +21,9 @@ package iam
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -639,7 +639,7 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		// token is invalid JSON
 		require.NoError(t, ctx.client.accessTokenServerStore().Put("err", "{"))
 		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "err"}})
-		assert.ErrorContains(t, err, "json: cannot unmarshal")
+		assert.ErrorContains(t, err, "sonnet: cannot unmarshal")
 		assert.Nil(t, res)
 	})
 	t.Run("error - does not exist", func(t *testing.T) {
@@ -1420,7 +1420,7 @@ func TestWrapper_subjectOwns(t *testing.T) {
 }
 
 func TestWrapper_accessTokenRequestCacheKey(t *testing.T) {
-	expected := "080c4170aa372da86b76c6b5db2c3c08a532c7c8454b5d2f3fb0e1d239e59758"
+	expected := "0ab3c494cd634278b5a9b8ba0d84486b0cb0b4686bed86fdfb3b77d662f66175"
 	key := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test"}})
 	other := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test2"}})
 

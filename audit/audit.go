@@ -21,8 +21,8 @@ package audit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
