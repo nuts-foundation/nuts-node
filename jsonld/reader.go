@@ -20,7 +20,7 @@
 package jsonld
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 
 	"github.com/piprate/json-gold/ld"
 )

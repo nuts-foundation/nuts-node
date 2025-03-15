@@ -23,7 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	v2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
 	"github.com/stretchr/testify/require"
 	"net/http"

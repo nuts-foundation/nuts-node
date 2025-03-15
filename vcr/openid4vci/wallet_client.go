@@ -20,10 +20,10 @@ package openid4vci
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/url"
 )
 

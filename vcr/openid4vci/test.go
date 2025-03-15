@@ -20,10 +20,10 @@ package openid4vci
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"testing"

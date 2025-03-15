@@ -20,8 +20,8 @@ package hash
 
 import (
 	"encoding"
-	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/require"
 	"testing"
 

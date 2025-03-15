@@ -20,7 +20,7 @@
 package credential
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"os"
 	"testing"
 	"time"

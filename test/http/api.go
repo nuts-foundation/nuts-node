@@ -19,7 +19,7 @@
 package http
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"

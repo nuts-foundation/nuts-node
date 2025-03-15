@@ -19,9 +19,9 @@
 package proof
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/stretchr/testify/require"
 	"testing"

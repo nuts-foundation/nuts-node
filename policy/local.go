@@ -20,9 +20,9 @@ package policy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"

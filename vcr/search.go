@@ -21,9 +21,9 @@ package vcr
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/sirupsen/logrus"
 	"reflect"

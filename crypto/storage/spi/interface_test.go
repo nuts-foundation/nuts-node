@@ -33,7 +33,7 @@ import (
 func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 	t.Run("error - incorrect json", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("}"))
-		assert.EqualError(t, err, "invalid character '}' looking for beginning of value")
+		assert.EqualError(t, err, "sonnet: invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("error - invalid publicKeyJwk format", func(t *testing.T) {

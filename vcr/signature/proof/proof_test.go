@@ -19,9 +19,9 @@
 package proof
 
 import (
-	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

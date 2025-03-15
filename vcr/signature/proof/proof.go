@@ -21,7 +21,7 @@ package proof
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 )
 

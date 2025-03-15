@@ -19,7 +19,7 @@
 package orm
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"time"
 
 	"github.com/google/uuid"

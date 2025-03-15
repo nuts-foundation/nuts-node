@@ -20,7 +20,6 @@ package selfsigned
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -28,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/contract"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"

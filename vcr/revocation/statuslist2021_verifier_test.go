@@ -19,8 +19,8 @@
 package revocation
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -216,7 +216,7 @@ func TestStatusList2021_statusList(t *testing.T) {
 
 		actualCR, err := cs.statusList(entry.StatusListCredential)
 
-		assert.EqualError(t, err, "unexpected end of JSON input")
+		assert.EqualError(t, err, "sonnet: unexpected EOF reading a byte")
 		assert.Nil(t, actualCR)
 	})
 
@@ -344,7 +344,7 @@ func TestStatusList2021_download(t *testing.T) {
 		cs := &StatusList2021{client: ts.Client()}
 
 		received, err := cs.download(ts.URL)
-		assert.EqualError(t, err, "unexpected end of JSON input")
+		assert.EqualError(t, err, "sonnet: unexpected EOF reading a byte")
 		assert.Nil(t, received)
 	})
 }

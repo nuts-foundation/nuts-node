@@ -21,9 +21,9 @@ package vdr
 import (
 	"context"
 	crypto2 "crypto"
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"

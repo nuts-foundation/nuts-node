@@ -21,10 +21,10 @@ package iam
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/json"
 	test2 "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -393,7 +393,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrBadGateway)
-		assert.ErrorContains(t, err, "unable to unmarshal response: unexpected end of JSON input")
+		assert.ErrorContains(t, err, "unable to unmarshal response: sonnet: unexpected EOF reading a byte")
 	})
 	t.Run("error - failed to build vp", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)

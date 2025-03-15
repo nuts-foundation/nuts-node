@@ -19,12 +19,12 @@
 package didnuts
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )

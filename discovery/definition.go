@@ -21,7 +21,7 @@ package discovery
 import (
 	"bytes"
 	"embed"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"github.com/santhosh-tekuri/jsonschema"

@@ -20,7 +20,7 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/sirupsen/logrus"
 	"sort"

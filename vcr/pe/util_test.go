@@ -19,8 +19,8 @@
 package pe
 
 import (
-	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

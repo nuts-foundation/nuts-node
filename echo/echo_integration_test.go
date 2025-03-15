@@ -21,8 +21,8 @@ package echo
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"strings"
 	"testing"

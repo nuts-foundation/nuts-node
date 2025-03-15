@@ -20,9 +20,9 @@ package test
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/test/node"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"

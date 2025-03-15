@@ -18,7 +18,7 @@
 
 package iam
 
-import "encoding/json"
+import "github.com/nuts-foundation/nuts-node/json"
 
 var _ json.Marshaler = IntrospectAccessToken200JSONResponse{}
 

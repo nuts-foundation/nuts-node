@@ -20,11 +20,11 @@
 package vcr
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"reflect"
 	"time"
 

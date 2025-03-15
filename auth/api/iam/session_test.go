@@ -19,7 +19,7 @@
 package iam
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

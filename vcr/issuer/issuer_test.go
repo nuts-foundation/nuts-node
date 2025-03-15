@@ -21,9 +21,9 @@ package issuer
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"gorm.io/gorm"
 	"path"
 	"testing"

@@ -19,13 +19,13 @@
 package pe
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"

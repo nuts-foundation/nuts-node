@@ -21,9 +21,9 @@ package azure
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"io"
 	"net/http"
 	"os"

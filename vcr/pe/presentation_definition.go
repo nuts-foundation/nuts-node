@@ -19,11 +19,11 @@
 package pe
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/nuts-foundation/nuts-node/json"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"
 

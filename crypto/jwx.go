@@ -24,9 +24,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"maps"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"

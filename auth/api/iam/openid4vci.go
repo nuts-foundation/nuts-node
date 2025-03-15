@@ -20,9 +20,9 @@ package iam
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"net/url"
 	"time"

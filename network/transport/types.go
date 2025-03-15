@@ -21,10 +21,10 @@ package transport
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/url"
 	"time"
 

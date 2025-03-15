@@ -19,8 +19,8 @@
 package didstore
 
 import (
-	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"

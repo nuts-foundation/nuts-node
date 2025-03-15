@@ -20,8 +20,8 @@
 package v2
 
 import (
-	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 

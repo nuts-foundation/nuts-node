@@ -20,7 +20,7 @@
 package events
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/stretchr/testify/require"
 	"testing"
 

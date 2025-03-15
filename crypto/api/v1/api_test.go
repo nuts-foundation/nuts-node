@@ -19,10 +19,10 @@
 package v1
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"testing"

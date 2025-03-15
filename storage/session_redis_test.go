@@ -19,8 +19,8 @@
 package storage
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"testing"
 	"time"
 

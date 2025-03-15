@@ -21,11 +21,11 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
