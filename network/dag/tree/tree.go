@@ -418,7 +418,7 @@ func (n node) isLeaf() bool {
 	return n.left == nil
 }
 
-// reBuild rebuilds the node from left and right.
+// rebuild rebuilds the node from left and right.
 func (n node) rebuild() (node, error) {
 	var err error
 	if n.isLeaf() {

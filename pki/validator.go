@@ -287,7 +287,7 @@ func (v *validator) getCert(subject string) (*x509.Certificate, bool) {
 	return issuer.(*x509.Certificate), true
 }
 
-// addEndpoint adds the CRL endpoint if it does not exist. Returns an error if the CRL issuer does not match the expected issuer.
+// addEndpoints adds the CRL endpoint if it does not exist. Returns an error if the CRL issuer does not match the expected issuer.
 func (v *validator) addEndpoints(certIssuer *x509.Certificate, endpoints []string) error {
 	for _, endpoint := range endpoints {
 		if crl, ok := v.getCRL(endpoint); ok {
