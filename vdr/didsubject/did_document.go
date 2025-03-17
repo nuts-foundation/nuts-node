@@ -19,8 +19,8 @@
 package didsubject
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"time"
 

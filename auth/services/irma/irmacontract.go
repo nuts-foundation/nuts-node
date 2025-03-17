@@ -20,9 +20,9 @@ package irma
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"strings"
 	"time"
 

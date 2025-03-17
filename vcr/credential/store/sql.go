@@ -19,9 +19,9 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 	"gorm.io/gorm"
 	"strconv"
 	"strings"

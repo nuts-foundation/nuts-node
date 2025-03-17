@@ -21,11 +21,11 @@ package irma
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"

@@ -19,10 +19,10 @@
 package pe
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 )
 
 // Envelope is a parsed Presentation Exchange envelope, containing zero or more Verifiable Presentations that are referenced by the Presentation Submission.

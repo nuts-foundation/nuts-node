@@ -21,9 +21,9 @@ package pki
 
 import (
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"

@@ -19,9 +19,9 @@
 package services
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 )
 
 const (

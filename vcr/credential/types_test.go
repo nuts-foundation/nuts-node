@@ -19,7 +19,7 @@
 package credential
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

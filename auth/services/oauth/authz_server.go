@@ -21,9 +21,9 @@ package oauth
 import (
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"

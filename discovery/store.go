@@ -20,10 +20,10 @@ package discovery
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
 	"slices"
 	"strconv"

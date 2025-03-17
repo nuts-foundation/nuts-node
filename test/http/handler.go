@@ -17,7 +17,7 @@
 package http
 
 import (
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"io"
 	"net/http"
 	"net/url"

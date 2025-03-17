@@ -21,12 +21,12 @@ package openid4vci
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"io"
 	"net/http"
