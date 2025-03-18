@@ -29,6 +29,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"io/fs"
 	"net/url"
+	"sync"
 )
 
 // ContextsConfig contains config for json-ld document loader
@@ -177,6 +178,26 @@ func DefaultContextConfig() ContextsConfig {
 	}
 }
 
+var _ ld.DocumentLoader = &cachingContextLoader{}
+
+type cachingContextLoader struct {
+	entries    sync.Map
+	underlying ld.DocumentLoader
+}
+
+func (c *cachingContextLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	entry, ok := c.entries.Load(u)
+	if ok {
+		return entry.(*ld.RemoteDocument), nil
+	}
+	doc, err := c.underlying.LoadDocument(u)
+	if err != nil {
+		return nil, err
+	}
+	c.entries.Store(u, doc)
+	return doc, nil
+}
+
 // DefaultAllowList returns the default allow list for external contexts
 func DefaultAllowList() []string {
 	return []string{SchemaOrgContext, W3cVcContext, Jws2020Context, W3cStatusList2021Context}
@@ -208,15 +229,17 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 		loader = NewFilteredLoader(allowed, loader)
 	}
 
+	cachingLoader := &cachingContextLoader{underlying: loader}
+
 	for contextURL, localFile := range contexts.LocalFileMapping {
 		// preload mapped files:
-		if _, err := loader.LoadDocument(contextURL); err != nil {
+		if _, err := cachingLoader.LoadDocument(contextURL); err != nil {
 			return nil, fmt.Errorf("preloading context %s failed: %w", contextURL, err)
 		}
 		log.Logger().Debugf("Loaded context from local file (context=%s, file=%s)", contextURL, localFile)
 	}
 
-	return loader, nil
+	return cachingLoader, nil
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.
