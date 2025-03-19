@@ -237,7 +237,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 		})
 		t.Run("error - not all VCs have the same id", func(t *testing.T) {
 			secondCredential := testCredential
-			secondCredential.CredentialSubject = []interface{}{map[string]interface{}{"id": vdr.TestDIDB.String()}}
+			secondCredential.CredentialSubject = []map[string]any{{"id": vdr.TestDIDB.String()}}
 
 			ctrl := gomock.NewController(t)
 
@@ -252,7 +252,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 		})
 		t.Run("error -  not all VCs have an id", func(t *testing.T) {
 			secondCredential := testCredential
-			secondCredential.CredentialSubject = []interface{}{}
+			secondCredential.CredentialSubject = []map[string]any{}
 
 			ctrl := gomock.NewController(t)
 

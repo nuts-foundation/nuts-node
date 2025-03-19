@@ -197,7 +197,7 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 		Issuer:            issuerDID.URI(),
 		IssuanceDate:      issuanceDate,
 		ExpirationDate:    &expirationDate,
-		CredentialSubject: []interface{}{credentialSubject},
+		CredentialSubject: []map[string]any{credentialSubject},
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 		if claimVisitor != nil {
 			claimVisitor(claims)
@@ -214,7 +214,7 @@ func createHolderCredential(subjectDID did.DID, credentialSubject map[string]int
 	c := vc.VerifiableCredential{
 		Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
-		CredentialSubject: []interface{}{credentialSubject},
+		CredentialSubject: []map[string]any{credentialSubject},
 	}
 	c = credential.AutoCorrectSelfAttestedCredential(c, subjectDID)
 	// serialize/deserialize

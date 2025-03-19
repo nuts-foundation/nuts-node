@@ -178,3 +178,12 @@ type StatusList2021CredentialSubject struct {
 	// of verifiable credential status values. The uncompressed bitstring MUST be at least 16KB in size.
 	EncodedList string `json:"encodedList"`
 }
+
+func (s StatusList2021CredentialSubject) ToMap() map[string]any {
+	return map[string]any{
+		"id":            s.ID,
+		"type":          s.Type,
+		"statusPurpose": s.StatusPurpose,
+		"encodedList":   s.EncodedList,
+	}
+}

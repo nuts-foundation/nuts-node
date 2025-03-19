@@ -239,7 +239,7 @@ func (r *clientRegistrationManager) findCredentialsAndBuildPresentation(ctx cont
 		registrationCredential = vc.VerifiableCredential{
 			Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
-			CredentialSubject: []interface{}{parameters},
+			CredentialSubject: []map[string]any{parameters},
 		}
 		credentials = append(credentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
 	}

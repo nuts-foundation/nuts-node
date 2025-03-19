@@ -247,7 +247,7 @@ func TestSessionStore_SigningSessionStatus(t *testing.T) {
 				assert.Equal(t, employer.URI(), credential.Issuer)
 				assert.Equal(t, []ssi.URI{ssi.MustParseURI("NutsEmployeeCredential")}, credential.Type)
 
-				credentialSubject := credential.CredentialSubject[0].(map[string]interface{})
+				credentialSubject := credential.CredentialSubject[0]
 				assert.Equal(t, employer.String(), credentialSubject["id"])
 				assert.Equal(t, "Organization", credentialSubject["type"])
 				require.IsType(t, map[string]interface{}{}, credentialSubject["member"])

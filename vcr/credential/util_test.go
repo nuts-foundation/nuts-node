@@ -35,13 +35,13 @@ func TestResolveSubjectDID(t *testing.T) {
 	did1 := did.MustParseDID("did:test:123")
 	did2 := did.MustParseDID("did:test:456")
 	credential1 := vc.VerifiableCredential{
-		CredentialSubject: []interface{}{map[string]interface{}{"id": did1}},
+		CredentialSubject: []map[string]any{{"id": did1.String()}},
 	}
 	credential2 := vc.VerifiableCredential{
-		CredentialSubject: []interface{}{map[string]interface{}{"id": did1}},
+		CredentialSubject: []map[string]any{{"id": did1.String()}},
 	}
 	credential3 := vc.VerifiableCredential{
-		CredentialSubject: []interface{}{map[string]interface{}{"id": did2}},
+		CredentialSubject: []map[string]any{{"id": did2.String()}},
 	}
 	t.Run("all the same", func(t *testing.T) {
 		actual, err := ResolveSubjectDID(credential1, credential2)
@@ -54,7 +54,7 @@ func TestResolveSubjectDID(t *testing.T) {
 		assert.Nil(t, actual)
 	})
 	t.Run("no ID", func(t *testing.T) {
-		actual, err := ResolveSubjectDID(vc.VerifiableCredential{CredentialSubject: []interface{}{map[string]interface{}{}}})
+		actual, err := ResolveSubjectDID(vc.VerifiableCredential{CredentialSubject: []map[string]any{{}}})
 		assert.EqualError(t, err, "unable to get subject DID from VC: credential subjects have no ID")
 		assert.Nil(t, actual)
 	})
@@ -79,7 +79,7 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 			VerifiableCredential: []vc.VerifiableCredential{
 				{
-					CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID}},
+					CredentialSubject: []map[string]any{{"id": subjectDID}},
 				},
 			},
 		})
@@ -119,7 +119,7 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 			VerifiableCredential: []vc.VerifiableCredential{
 				{
-					CredentialSubject: []interface{}{map[string]interface{}{}},
+					CredentialSubject: []map[string]any{{}},
 				},
 			},
 		})
@@ -137,7 +137,7 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 			VerifiableCredential: []vc.VerifiableCredential{
 				{
-					CredentialSubject: []interface{}{map[string]interface{}{"id": did.MustParseDID("did:test:456")}},
+					CredentialSubject: []map[string]any{{"id": did.MustParseDID("did:test:456")}},
 				},
 			},
 		})
@@ -152,7 +152,7 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 			VerifiableCredential: []vc.VerifiableCredential{
 				{
-					CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID}},
+					CredentialSubject: []map[string]any{{"id": subjectDID}},
 				},
 			},
 		})
@@ -168,7 +168,7 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 			VerifiableCredential: []vc.VerifiableCredential{
 				{
-					CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID}},
+					CredentialSubject: []map[string]any{{"id": subjectDID}},
 				},
 			},
 		})
@@ -291,7 +291,7 @@ func TestPresentationExpirationDate(t *testing.T) {
 func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 	requestor := did.MustParseDID("did:test:123")
 	credential := vc.VerifiableCredential{
-		CredentialSubject: make([]interface{}, 1),
+		CredentialSubject: make([]map[string]any, 1),
 	}
 
 	result := AutoCorrectSelfAttestedCredential(credential, requestor)
@@ -299,7 +299,7 @@ func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 	assert.Equal(t, requestor.URI(), result.Issuer)
 	assert.NotEqual(t, time.Time{}, result.IssuanceDate)
 	assert.NotEqual(t, "", result.ID.String())
-	assert.Equal(t, requestor.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
+	assert.Equal(t, requestor.String(), result.CredentialSubject[0]["id"])
 
 	t.Run("autocorrect for multiple DIDs does not skip credentialSubject.id", func(t *testing.T) {
 		altDID := did.MustParseDID("did:test:456")
@@ -308,7 +308,7 @@ func TestAutoCorrectSelfAttestedCredential(t *testing.T) {
 		result = AutoCorrectSelfAttestedCredential(credential, altDID)
 
 		assert.NotEqual(t, subjectPointer, &result.CredentialSubject)
-		assert.Equal(t, altDID.String(), result.CredentialSubject[0].(map[string]interface{})["id"])
+		assert.Equal(t, altDID.String(), result.CredentialSubject[0]["id"])
 	})
 }
 
@@ -317,8 +317,8 @@ func TestFilterOnDIDMethod(t *testing.T) {
 		credentials := []vc.VerifiableCredential{
 			{
 				Issuer: ssi.MustParseURI("did:test:123"),
-				CredentialSubject: []interface{}{
-					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				CredentialSubject: []map[string]any{
+					{"id": ssi.MustParseURI("did:test:456")},
 				},
 			},
 		}
@@ -341,8 +341,8 @@ func TestFilterOnDIDMethod(t *testing.T) {
 	t.Run("no match on credentialSubject", func(t *testing.T) {
 		credentials := []vc.VerifiableCredential{
 			{
-				CredentialSubject: []interface{}{
-					map[string]interface{}{"id": ssi.MustParseURI("did:test:456")},
+				CredentialSubject: []map[string]any{
+					{"id": ssi.MustParseURI("did:test:456")},
 				},
 			},
 		}
@@ -365,8 +365,8 @@ func TestFilterOnDIDMethod(t *testing.T) {
 	t.Run("credentialSubject not a did", func(t *testing.T) {
 		credentials := []vc.VerifiableCredential{
 			{
-				CredentialSubject: []interface{}{
-					map[string]interface{}{"id": ssi.MustParseURI("client_id")},
+				CredentialSubject: []map[string]any{
+					{"id": ssi.MustParseURI("client_id")},
 				},
 			},
 		}

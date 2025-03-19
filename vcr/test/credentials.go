@@ -55,8 +55,8 @@ func ValidNutsAuthorizationCredential(t testing.TB) vc.VerifiableCredential {
 		Type:         []ssi.URI{ssi.MustParseURI("NutsAuthorizationCredential"), vc.VerifiableCredentialTypeV1URI()},
 		Issuer:       ssi.MustParseURI(vdr.TestDIDA.String()),
 		IssuanceDate: issuanceDate,
-		CredentialSubject: []interface{}{
-			map[string]any{
+		CredentialSubject: []map[string]any{
+			{
 				"id":           vdr.TestDIDB.String(),
 				"purposeOfUse": "eTransfer",
 				"resources": []any{
@@ -121,8 +121,8 @@ func ValidStatusList2021Credential(t testing.TB) vc.VerifiableCredential {
 		IssuanceDate:     issuanceDate,
 		ExpirationDate:   &expirationDate,
 		CredentialStatus: nil,
-		CredentialSubject: []any{
-			map[string]any{
+		CredentialSubject: []map[string]any{
+			{
 				"id":            "https://example-com/status/3#list",
 				"type":          "StatusList2021",
 				"statusPurpose": "revocation",

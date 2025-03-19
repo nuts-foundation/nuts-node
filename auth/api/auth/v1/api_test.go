@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr"
@@ -507,7 +508,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 				Type:         []ssi.URI{*credential.NutsAuthorizationCredentialTypeURI, vc.VerifiableCredentialTypeV1URI()},
 				Issuer:       vdr.TestDIDA.URI(),
 				IssuanceDate: issuanceDate,
-				CredentialSubject: []interface{}{credential.NutsAuthorizationCredentialSubject{
+				CredentialSubject: []map[string]any{test.MustRemarshalIntoMap(credential.NutsAuthorizationCredentialSubject{
 					ID:           vdr.TestDIDB.String(),
 					PurposeOfUse: "eTransfer",
 					Resources: []credential.Resource{
@@ -517,7 +518,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 							UserContext: true,
 						},
 					},
-				}},
+				})},
 				Proof: []interface{}{vc.Proof{}},
 			},
 		}

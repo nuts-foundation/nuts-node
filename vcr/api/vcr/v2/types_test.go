@@ -29,8 +29,8 @@ import (
 func Test_Marshalling(t *testing.T) {
 	t.Run("IssueVC200JSONResponse", func(t *testing.T) {
 		r := IssueVC200JSONResponse{
-			CredentialSubject: []interface{}{
-				map[string]interface{}{
+			CredentialSubject: []map[string]any{
+				{
 					"id": "did:nuts:123",
 				}},
 		}
@@ -43,8 +43,8 @@ func Test_Marshalling(t *testing.T) {
 	})
 	t.Run("ResolveVC200JSONResponse", func(t *testing.T) {
 		r := ResolveVC200JSONResponse{
-			CredentialSubject: []interface{}{
-				map[string]interface{}{
+			CredentialSubject: []map[string]any{
+				{
 					"id": "did:nuts:123",
 				}},
 		}

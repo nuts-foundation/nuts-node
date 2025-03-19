@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/didman/log"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
 )
 
 // ModuleName contains the name of this module: Didman
@@ -501,13 +500,7 @@ func (d *didman) resolveOrganizationDIDDocument(organization vc.VerifiableCreden
 	if len(organization.CredentialSubject) == 0 {
 		return nil, did.DID{}, errors.New("no credential subjects in organization credential")
 	}
-	credentialSubject := make([]credential.BaseCredentialSubject, 0)
-	err := organization.UnmarshalCredentialSubject(&credentialSubject)
-	if err != nil {
-		return nil, did.DID{}, fmt.Errorf("unable to get DID from organization credential: %w", err)
-	}
-	organizationDIDStr := credentialSubject[0].ID
-	organizationDID, err := did.ParseDID(organizationDIDStr)
+	organizationDID, err := organization.SubjectDID()
 	if err != nil {
 		return nil, did.DID{}, fmt.Errorf("unable to parse DID from organization credential: %w", err)
 	}

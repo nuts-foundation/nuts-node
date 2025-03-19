@@ -64,7 +64,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing credential subject", func(t *testing.T) {
 		v := test.ValidNutsOrganizationCredential(t)
-		v.CredentialSubject = []interface{}{}
+		v.CredentialSubject = []map[string]any{}
 
 		err := validator.Validate(v)
 
@@ -75,7 +75,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		v := test.ValidNutsOrganizationCredential(t)
 		var credentialSubject = make(map[string]interface{})
 		credentialSubject["id"] = vdr.TestDIDB.String()
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -89,7 +89,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		credentialSubject["organization"] = map[string]interface{}{
 			"city": "EIbergen",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -103,7 +103,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 		credentialSubject["organization"] = map[string]interface{}{
 			"name": "Because we care B.V.",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -118,7 +118,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 			"name": "Because we care B.V.",
 			"city": " ",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -133,7 +133,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 			"name": " ",
 			"city": "EIbergen",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -147,7 +147,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 			"name": "Because we care B.V.",
 			"city": "EIbergen",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -162,7 +162,7 @@ func TestNutsOrganizationCredentialValidator_Validate(t *testing.T) {
 			"name": "Because we care B.V.",
 			"city": "EIbergen",
 		}
-		v.CredentialSubject = []interface{}{credentialSubject}
+		v.CredentialSubject = []map[string]any{credentialSubject}
 
 		err := validator.Validate(v)
 
@@ -203,7 +203,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("ok - multiple resources", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{
+		v.CredentialSubject[0]["resources"] = []Resource{
 			{
 				Path:        "/Task/1",
 				UserContext: false,
@@ -227,7 +227,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("ok - empty resources array", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{}
+		v.CredentialSubject[0]["resources"] = []Resource{}
 
 		err := validator.Validate(v)
 
@@ -267,7 +267,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing credentialSubject", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject = []interface{}{}
+		v.CredentialSubject = []map[string]any{}
 
 		err := validator.Validate(v)
 
@@ -277,7 +277,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing credentialSubject.ID", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["id"] = ""
+		v.CredentialSubject[0]["id"] = ""
 
 		err := validator.Validate(v)
 
@@ -287,7 +287,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - invalid credentialSubject.ID", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["id"] = "unknown"
+		v.CredentialSubject[0]["id"] = "unknown"
 
 		err := validator.Validate(v)
 
@@ -297,7 +297,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - missing purposeOfUse", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["purposeOfUse"] = ""
+		v.CredentialSubject[0]["purposeOfUse"] = ""
 
 		err := validator.Validate(v)
 
@@ -307,7 +307,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - resources: missing path", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+		v.CredentialSubject[0]["resources"] = []Resource{{
 			Operations: []string{"read"},
 		}}
 
@@ -319,7 +319,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - resources: missing operation", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+		v.CredentialSubject[0]["resources"] = []Resource{{
 			Path: "/composition/1",
 		}}
 
@@ -331,7 +331,7 @@ func TestNutsAuthorizationCredentialValidator_Validate(t *testing.T) {
 
 	t.Run("failed - resources: invalid operation", func(t *testing.T) {
 		v := test.ValidNutsAuthorizationCredential(t)
-		v.CredentialSubject[0].(map[string]any)["resources"] = []Resource{{
+		v.CredentialSubject[0]["resources"] = []Resource{{
 			Path:       "/composition/1",
 			Operations: []string{"unknown"},
 		}}
@@ -355,8 +355,8 @@ func TestDefaultCredentialValidator(t *testing.T) {
 	t.Run("ok - credential with just ID in credentialSubject", func(t *testing.T) {
 		// compaction replaces credentialSubject map with ID, with just the ID as string
 		credential := test.ValidNutsAuthorizationCredential(t)
-		credential.CredentialSubject = []interface{}{
-			map[string]interface{}{
+		credential.CredentialSubject = []map[string]any{
+			{
 				"id": "did:nuts:1234",
 			},
 		}

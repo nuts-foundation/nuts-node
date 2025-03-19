@@ -21,6 +21,7 @@ package revocation
 import (
 	"encoding/json"
 	"errors"
+	test2 "github.com/nuts-foundation/nuts-node/test"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -87,8 +88,8 @@ func TestStatusList2021_Verify(t *testing.T) {
 
 		// server that return StatusList2021Credential with statusPurpose == suspension
 		statusList2021Credential := test.ValidStatusList2021Credential(t)
-		statusList2021Credential.CredentialSubject[0].(map[string]any)["statusPurpose"] = "suspension"
-		statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
+		statusList2021Credential.CredentialSubject[0]["statusPurpose"] = "suspension"
+		statusList2021Credential.CredentialSubject[0]["id"] = ts.URL
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
 		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -246,7 +247,7 @@ func TestStatusList2021_update(t *testing.T) {
 		statusList2021Credential := test.ValidStatusList2021Credential(t)
 		expectedExpires := time.Now().Truncate(time.Second)
 		statusList2021Credential.ExpirationDate = &expectedExpires
-		statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL
+		statusList2021Credential.CredentialSubject[0]["id"] = ts.URL
 		credBytes, err := json.Marshal(statusList2021Credential)
 		require.NoError(t, err)
 		ts.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -369,14 +370,14 @@ func TestStatusList2021_verify(t *testing.T) {
 	})
 	t.Run("error - credential validation failed", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["type"] = "wrong type"
+		cred.CredentialSubject[0]["type"] = "wrong type"
 		credSubj, err := credentialStatusNoSignCheck.verify(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
 		assert.Nil(t, credSubj)
 	})
 	t.Run("error - invalid credentialSubject.encodedList", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["encodedList"] = "@"
+		cred.CredentialSubject[0]["encodedList"] = "@"
 		credSubj, err := credentialStatusNoSignCheck.verify(cred)
 
 		assert.EqualError(t, err, "credentialSubject.encodedList is invalid: illegal base64 data at input byte 0")
@@ -470,39 +471,38 @@ func TestStatusList2021_validate(t *testing.T) {
 	})
 
 	// CredentialSubject checks
-	t.Run("error - invalid credential subject", func(t *testing.T) {
-		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{"{"}
-		_, err := cs.validate(cred)
-		assert.EqualError(t, err, "json: cannot unmarshal string into Go value of type revocation.StatusList2021CredentialSubject")
-	})
 	t.Run("error - wrong credential subject", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{struct{}{}}
+		cred.CredentialSubject = []map[string]any{
+			{},
+		}
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
 	})
 	t.Run("error - multiple credentialSubject", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject = []any{StatusList2021CredentialSubject{}, StatusList2021CredentialSubject{}}
+		cred.CredentialSubject = []map[string]any{
+			test2.MustRemarshalIntoMap(StatusList2021CredentialSubject{}),
+			test2.MustRemarshalIntoMap(StatusList2021CredentialSubject{}),
+		}
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "single credentialSubject expected")
 	})
 	t.Run("error - missing credentialSubject.type", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["type"] = ""
+		cred.CredentialSubject[0]["type"] = ""
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "credentialSubject.type 'StatusList2021' is required")
 	})
 	t.Run("error - missing statusPurpose", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["statusPurpose"] = ""
+		cred.CredentialSubject[0]["statusPurpose"] = ""
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "credentialSubject.statusPurpose is required")
 	})
 	t.Run("error - missing encodedList", func(t *testing.T) {
 		cred := test.ValidStatusList2021Credential(t)
-		cred.CredentialSubject[0].(map[string]any)["encodedList"] = ""
+		cred.CredentialSubject[0]["encodedList"] = ""
 		_, err := cs.validate(cred)
 		assert.EqualError(t, err, "credentialSubject.encodedList is required")
 	})
@@ -518,8 +518,8 @@ func testSetup(t testing.TB, entryIsRevoked bool) (*StatusList2021, StatusList20
 	t.Cleanup(func() { ts.Close() })
 
 	// credential
-	statusList2021Credential := test.ValidStatusList2021Credential(t)             // has bit 1 set
-	statusList2021Credential.CredentialSubject[0].(map[string]any)["id"] = ts.URL // point to the test server
+	statusList2021Credential := test.ValidStatusList2021Credential(t) // has bit 1 set
+	statusList2021Credential.CredentialSubject[0]["id"] = ts.URL      // point to the test server
 	credBytes, err := json.Marshal(statusList2021Credential)
 	require.NoError(t, err)
 

@@ -344,7 +344,7 @@ func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error)
 	subject := map[string]interface{}{}
 	subject["id"] = did
 	subject["uraNumber"] = ura
-	credential.CredentialSubject = []interface{}{subject}
+	credential.CredentialSubject = []map[string]any{subject}
 	return credential, nil
 }
 

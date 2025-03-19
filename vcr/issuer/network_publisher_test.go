@@ -109,7 +109,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
 			IssuanceDate:      issuanceDate,
-			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
+			CredentialSubject: []map[string]any{{"id": subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
 
@@ -150,7 +150,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		credentialToPublish := vc.VerifiableCredential{
 			Issuer:            issuerID,
 			IssuanceDate:      issuanceDate,
-			CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
+			CredentialSubject: []map[string]any{{"id": subjectID.String()}},
 		}
 		payload, _ := json.Marshal(credentialToPublish)
 
@@ -204,12 +204,12 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 		t.Run("invalid credentialSubject for private transaction", func(t *testing.T) {
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
-				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: "abc"}},
+				CredentialSubject: []map[string]any{{"id": "abc"}},
 			}
 
 			sut := networkPublisher{}
 			err := sut.PublishCredential(ctx, credentialToPublish, false)
-			assert.EqualError(t, err, "failed to determine credentialSubject.ID: invalid DID")
+			assert.EqualError(t, err, "failed to determine credentialSubject.ID: unable to get subject DID from VC: invalid DID")
 		})
 	})
 
@@ -225,7 +225,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
-				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
+				CredentialSubject: []map[string]any{{"id": subjectID.String()}},
 			}
 			expectedIssuerServiceURI := ssi.MustParseURI("did:nuts:123/serviceEndpoint?type=NutsComm")
 			mockServiceResolver.EXPECT().Resolve(expectedIssuerServiceURI, 5).Return(did.Service{}, resolver.ErrServiceNotFound)
@@ -242,7 +242,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
-				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
+				CredentialSubject: []map[string]any{{"id": subjectID.String()}},
 			}
 
 			mockKeyResolver.EXPECT().ResolveKey(*issuerDID, nil, resolver.AssertionMethod).Return("", nil, errors.New("b00m!"))
@@ -264,7 +264,7 @@ func Test_networkPublisher_PublishCredential(t *testing.T) {
 			credentialToPublish := vc.VerifiableCredential{
 				Issuer:            issuerID,
 				IssuanceDate:      issuanceDate,
-				CredentialSubject: []interface{}{credential.BaseCredentialSubject{ID: subjectID.String()}},
+				CredentialSubject: []map[string]any{{"id": subjectID.String()}},
 			}
 			payload, _ := json.Marshal(credentialToPublish)
 

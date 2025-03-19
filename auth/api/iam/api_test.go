@@ -1034,7 +1034,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			body.Credentials = &[]vc.VerifiableCredential{
 				{
 					ID:                to.Ptr(ssi.MustParseURI("not empty")),
-					CredentialSubject: []any{map[string]string{"id": "not empty"}},
+					CredentialSubject: []map[string]any{{"id": "not empty"}},
 				},
 			}
 			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
@@ -1498,7 +1498,7 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 		Issuer:            issuerDID.URI(),
 		Context:           []ssi.URI{credential.NutsV1ContextURI},
 		Type:              []ssi.URI{credType},
-		CredentialSubject: []interface{}{map[string]interface{}{"id": holderDID.String()}},
+		CredentialSubject: []map[string]any{{"id": holderDID.String()}},
 		IssuanceDate:      time.Now(),
 	}
 	verifiableCredential, _ := vc.CreateJWTVerifiableCredential(nil, template, captureFn)

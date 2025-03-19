@@ -47,8 +47,8 @@ const definitionsDIR = "./test/valid"
 
 var issuedVC = vc.VerifiableCredential{
 	Issuer: issuerDID.URI(),
-	CredentialSubject: []interface{}{
-		map[string]interface{}{
+	CredentialSubject: []map[string]any{
+		{
 			"id": holderDID.String(),
 		},
 	},
@@ -240,8 +240,8 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {
 				otherIssuedVC := vc.VerifiableCredential{
 					Issuer: issuerDID.URI(),
-					CredentialSubject: []interface{}{
-						map[string]interface{}{
+					CredentialSubject: []map[string]any{
+						{
 							"id": "did:nuts:other-wallet",
 						},
 					},

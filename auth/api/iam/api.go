@@ -754,12 +754,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	// by the nuts-node to build the correct wallet for a DID. See https://github.com/nuts-foundation/nuts-node/issues/3696
 	// As a sideeffect it is no longer possible to pass signed credentials to this API.
 	for _, cred := range credentials {
-		var credentialSubject []map[string]interface{}
-		if err := cred.UnmarshalCredentialSubject(&credentialSubject); err != nil {
-			// extremely unlikely
-			return nil, core.InvalidInputError("failed to parse credentialSubject.id: %w", err)
-		}
-		for _, credSub := range credentialSubject {
+		for _, credSub := range cred.CredentialSubject {
 			if _, ok := credSub["id"]; ok {
 				return nil, core.InvalidInputError("self-asserted credentials MUST NOT contain a 'credentialSubject.id'")
 			}

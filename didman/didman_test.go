@@ -859,8 +859,8 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		ctx := newMockContext(t)
 		credentialWithInvalidSubjectID := vc.VerifiableCredential{}
 		_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &credentialWithInvalidSubjectID)
-		credentialWithInvalidSubjectID.CredentialSubject = []interface{}{
-			map[string]interface{}{
+		credentialWithInvalidSubjectID.CredentialSubject = []map[string]any{
+			{
 				"id": "90",
 			},
 		}
@@ -877,8 +877,8 @@ func TestDidman_SearchOrganizations(t *testing.T) {
 		ctx := newMockContext(t)
 		credentialWithoutSubjectID := vc.VerifiableCredential{}
 		_ = json.Unmarshal([]byte(jsonld.TestOrganizationCredential), &credentialWithoutSubjectID)
-		credentialWithoutSubjectID.CredentialSubject = []interface{}{
-			map[string]interface{}{},
+		credentialWithoutSubjectID.CredentialSubject = []map[string]any{
+			{},
 		}
 
 		ctx.vcr.EXPECT().Search(reqCtx, searchTerms, false, nil).Return([]vc.VerifiableCredential{credentialWithoutSubjectID}, nil)

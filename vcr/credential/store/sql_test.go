@@ -23,6 +23,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -49,11 +50,11 @@ func init() {
 	})
 	vcOrganization = vc.VerifiableCredential{
 		Issuer: organizationIssuer,
-		CredentialSubject: []interface{}{
-			credential.NutsOrganizationCredentialSubject{
+		CredentialSubject: []map[string]any{
+			test.MustRemarshalIntoMap(credential.NutsOrganizationCredentialSubject{
 				ID:           "did:example:org",
 				Organization: map[string]string{"name": "Example Corp"},
-			},
+			}),
 		},
 	}
 	vcOrganization.ID, _ = ssi.ParseURI("3")
@@ -349,8 +350,8 @@ func createPersonCredential(id string, subjectID string, properties map[string]i
 		ID:     &parsedID,
 		Issuer: personIssuer,
 		Type:   []ssi.URI{ssi.MustParseURI("PersonCredential")},
-		CredentialSubject: []interface{}{
-			map[string]interface{}{
+		CredentialSubject: []map[string]any{
+			{
 				"id":     subjectID,
 				"person": properties,
 			},
