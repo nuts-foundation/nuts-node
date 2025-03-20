@@ -25,7 +25,7 @@ require (
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/lestrrat-go/jwx/v2 v2.1.4
-	github.com/mdp/qrterminal/v3 v3.2.0
+	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/nats-io/nats-server/v2 v2.10.26
@@ -136,7 +136,7 @@ require (
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
