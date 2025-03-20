@@ -102,14 +102,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 func (p networkPublisher) generateParticipants(verifiableCredential vc.VerifiableCredential) ([]did.DID, error) {
 	issuer, _ := did.ParseDIDURL(verifiableCredential.Issuer.String())
 	participants := make([]did.DID, 0)
-	var (
-		base                []credential.BaseCredentialSubject
-		credentialSubjectID *did.DID
-	)
-	err := verifiableCredential.UnmarshalCredentialSubject(&base)
-	if err == nil {
-		credentialSubjectID, err = did.ParseDID(base[0].ID) // earlier validation made sure length == 1 and ID is present
-	}
+	credentialSubjectID, err := verifiableCredential.SubjectDID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine credentialSubject.ID: %w", err)
 	}

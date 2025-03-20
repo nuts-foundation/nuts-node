@@ -448,10 +448,10 @@ func createOrganizationCredential(issuerDID string) vc.VerifiableCredential {
 		Context: []ssi.URI{credential.NutsV1ContextURI},
 		Type:    []ssi.URI{ssi.MustParseURI("NutsOrganizationCredential")},
 		Issuer:  did.MustParseDID(issuerDID).URI(),
-		CredentialSubject: []interface{}{
-			credential.NutsOrganizationCredentialSubject{
-				ID: issuerDID,
-				Organization: map[string]string{
+		CredentialSubject: []map[string]any{
+			{
+				"id": issuerDID,
+				"organization": map[string]string{
 					"name": "CareBears",
 					"city": "CareTown",
 				},

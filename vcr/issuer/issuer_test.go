@@ -76,7 +76,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 		Type:           []ssi.URI{credentialType},
 		Issuer:         issuerID,
 		ExpirationDate: &expirationDate,
-		CredentialSubject: []interface{}{map[string]interface{}{
+		CredentialSubject: []map[string]any{{
 			"id": subjectDID,
 		}},
 	}
@@ -277,7 +277,7 @@ func Test_issuer_Issue(t *testing.T) {
 		Context: []ssi.URI{credential.NutsV1ContextURI},
 		Type:    []ssi.URI{credentialType},
 		Issuer:  issuerDID.URI(),
-		CredentialSubject: []interface{}{map[string]interface{}{
+		CredentialSubject: []map[string]any{{
 			"id": holderDID.String(),
 		}},
 	}
@@ -519,8 +519,8 @@ func Test_issuer_Issue(t *testing.T) {
 			sut := issuer{keyResolver: keyResolverMock, store: mockStore, jsonldManager: jsonldManager, keyStore: nutsCryptoInstance}
 
 			invalidCred := template
-			invalidCred.CredentialSubject = []interface{}{
-				map[string]interface{}{"foo": "bar"},
+			invalidCred.CredentialSubject = []map[string]any{
+				{"foo": "bar"},
 			}
 
 			result, err := sut.Issue(ctx, invalidCred, CredentialOptions{

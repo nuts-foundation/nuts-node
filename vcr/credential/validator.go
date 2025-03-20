@@ -311,12 +311,6 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 
 // validatePolicyAssertions checks if the credentialSubject claims match the did issuer policies
 func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential) error {
-	// get base form of all credentialSubject
-	var target = make([]map[string]interface{}, 1)
-	if err := credential.UnmarshalCredentialSubject(&target); err != nil {
-		return err
-	}
-
 	// we create a map of policyName to policyValue, then we split the policyValue into another map
 	// no checks required, this has been done by the did:x509 resolver
 	x509DID, _ := didx509.ParseX509Did(issuer)
@@ -333,13 +327,13 @@ func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential
 	}
 
 	// we usually don't use multiple credentialSubjects, but for this validation it doesn't matter
-	for _, credentialSubject := range target {
-		// remove id from target
-		delete(credentialSubject, "id")
-
+	for _, credentialSubject := range credential.CredentialSubject {
 		// for each assertion create a string as "%s:%s" with key/value
 		// check if the resulting string is present in the policyString
 		for policyName, values := range credentialSubject {
+			if policyName == "id" {
+				continue
+			}
 			valueMap, ok := values.(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("invalid assertion value type for 'credentialSubject.%s'", policyName)
