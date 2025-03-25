@@ -317,7 +317,10 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		return err
 	}
 	if !exists {
-		return errRetractionReferencesUnknownPresentation
+		if _, ok = m.serverDefinitions[serviceID]; !ok { // clients do not need to check that the retraction refers to a VP
+			return errRetractionReferencesUnknownPresentation
+		}
+		log.Logger().Warnf("Ignored retraction (ID=%s) signed by (did=%s) for (service=%s) that references a VP (retractedJTI=%s) that does not exist (anymore).", presentation.ID, signerDID.String(), serviceID, retractJTI)
 	}
 	return nil
 }
