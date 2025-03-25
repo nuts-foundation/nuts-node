@@ -1,6 +1,6 @@
 url: https://node-A
 verbosity: debug
-strictmode: true
+strictmode: false
 internalratelimiter: false
 datadir: /opt/nuts/data
 http:

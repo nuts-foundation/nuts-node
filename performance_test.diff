@@ -1,0 +1,703 @@
+diff --git a/Dockerfile b/Dockerfile
+index 8eedf22d..f5772742 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -20,11 +20,11 @@ ENV GO111MODULE=on
+ ENV GOPATH=/
+
+ RUN mkdir /opt/nuts && cd /opt/nuts
++COPY . .
+ COPY go.mod .
+ COPY go.sum .
+ RUN go mod download && go mod verify
+
+-COPY . .
+ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
+
+ # alpine
+diff --git a/crypto/jwx.go b/crypto/jwx.go
+index e9bd81fc..ba9fef53 100644
+--- a/crypto/jwx.go
++++ b/crypto/jwx.go
+@@ -27,8 +27,6 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+-	"maps"
+-
+ 	"github.com/lestrrat-go/jwx/v2/jwa"
+ 	"github.com/lestrrat-go/jwx/v2/jwe"
+ 	"github.com/lestrrat-go/jwx/v2/jwk"
+@@ -39,6 +37,7 @@ import (
+ 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+ 	"github.com/nuts-foundation/nuts-node/crypto/log"
+ 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
++	"maps"
+ )
+
+ // GenerateJWK a new in-memory key pair and returns it as JWK.
+diff --git a/e2e-tests/nuts-network/private-transactions/docker-compose.yml b/e2e-tests/nuts-network/private-transactions/docker-compose.yml
+index d5037be1..735702e3 100644
+--- a/e2e-tests/nuts-network/private-transactions/docker-compose.yml
++++ b/e2e-tests/nuts-network/private-transactions/docker-compose.yml
+@@ -1,10 +1,25 @@
+ services:
++  db:
++    image: postgres:16-alpine
++    restart: always
++    environment:
++      POSTGRES_USER: postgres
++      POSTGRES_PASSWORD: postgres
++    healthcheck:
++      test: [ "CMD-SHELL", "pg_isready -U postgres" ] # this makes sure the container only reports healthy it can be connected to
++      interval: 1s
++      timeout: 5s
++      retries: 20
+   nodeA:
+     user: "$USER:$USER"
+     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
++    depends_on:
++      db:
++        condition: service_healthy
+     environment:
+       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+       NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
++      NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_a?sslmode=disable
+     ports:
+       - "18081:8081"
+     volumes:
+@@ -12,15 +27,21 @@ services:
+       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+       - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
++    mem_limit: 512m
++    command: ["server","--cpuprofile=/opt/nuts/data/profile.dmp"]
+     healthcheck:
+       interval: 1s # Make test run quicker by checking health status more often
+   nodeB:
+     user: "$USER:$USER"
+     image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
++    depends_on:
++      db:
++        condition: service_healthy
+     environment:
+       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+       NUTS_NETWORK_NODEDID: "${NODE_B_DID}"
+       NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
++      NUTS_STORAGE_SQL_CONNECTION: postgres://postgres:postgres@db:5432/node_b?sslmode=disable
+     ports:
+       - "28081:8081"
+     volumes:
+@@ -28,5 +49,6 @@ services:
+       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+       - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
++    mem_limit: 512m
+     healthcheck:
+       interval: 1s # Make test run quicker by checking health status more often
+\ No newline at end of file
+diff --git a/e2e-tests/nuts-network/private-transactions/node-A/nuts.yaml b/e2e-tests/nuts-network/private-transactions/node-A/nuts.yaml
+index c4d541af..bc2999b8 100644
+--- a/e2e-tests/nuts-network/private-transactions/node-A/nuts.yaml
++++ b/e2e-tests/nuts-network/private-transactions/node-A/nuts.yaml
+@@ -1,6 +1,6 @@
+ url: https://node-A
+ verbosity: debug
+-strictmode: true
++strictmode: false
+ internalratelimiter: false
+ datadir: /opt/nuts/data
+ http:
+diff --git a/e2e-tests/nuts-network/private-transactions/node-B/nuts.yaml b/e2e-tests/nuts-network/private-transactions/node-B/nuts.yaml
+index 71573460..9b30b048 100644
+--- a/e2e-tests/nuts-network/private-transactions/node-B/nuts.yaml
++++ b/e2e-tests/nuts-network/private-transactions/node-B/nuts.yaml
+@@ -1,6 +1,6 @@
+ url: https://node-B
+ verbosity: debug
+-strictmode: true
++strictmode: false
+ internalratelimiter: false
+ datadir: /opt/nuts/data
+ http:
+diff --git a/e2e-tests/nuts-network/private-transactions/run-test.sh b/e2e-tests/nuts-network/private-transactions/run-test.sh
+index 6676fe73..efcf0ccd 100755
+--- a/e2e-tests/nuts-network/private-transactions/run-test.sh
++++ b/e2e-tests/nuts-network/private-transactions/run-test.sh
+@@ -32,6 +32,13 @@ docker compose down
+ docker compose rm -f -v
+ rm -rf ./node-*/data
+
++echo "------------------------------------"
++echo "Create DB..."
++echo "------------------------------------"
++docker compose up --wait db
++docker compose exec db psql -U postgres -c "CREATE DATABASE node_a"
++docker compose exec db psql -U postgres -c "CREATE DATABASE node_b"
++
+ echo "------------------------------------"
+ echo "Starting Docker containers..."
+ echo "------------------------------------"
+@@ -43,14 +50,43 @@ docker compose up --wait
+ echo "------------------------------------"
+ echo "Creating NodeDIDs..."
+ echo "------------------------------------"
+-export NODE_A_DID=$(setupNode "http://localhost:18081" "nodeA:5555")
++export NODE_A_DID=$(setupNode "http://localhost:18081" "nodeA:5555" "http://nodeA:8080")
+ printf "NodeDID for node-a: %s\n" "$NODE_A_DID"
+ # Wait for node B to receive the TXs created by node A, indicating the connection is working
+-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10
+-export NODE_B_DID=$(setupNode "http://localhost:28081" "nodeB:5555")
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 3 10
++export NODE_B_DID=$(setupNode "http://localhost:28081" "nodeB:5555" "http://nodeB:8080")
+ printf "NodeDID for node-b: %s\n" "$NODE_B_DID"
+ # Wait for node A to receive all TXs created by node B
+-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 4 10
++waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 6 10
++
++# Issue NutsOrganizationCredential for Vendor B
++REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${NODE_B_DID}\", \"credentialSubject\": {\"id\":\"${NODE_B_DID}\", \"organization\":{\"name\":\"Caresoft B\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
++RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
++if echo $RESPONSE | grep -q "VerifiableCredential"; then
++  echo "VC issued"
++else
++  echo "FAILED: Could not issue NutsOrganizationCredential to node-B" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
++# Issue NutsOrganizationCredential for Vendor A
++REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${NODE_A_DID}\", \"credentialSubject\": {\"id\":\"${NODE_A_DID}\", \"organization\":{\"name\":\"Caresoft A\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
++RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
++if echo $RESPONSE | grep -q "VerifiableCredential"; then
++  echo "VC issued"
++else
++  echo "FAILED: Could not issue NutsOrganizationCredential to node-A" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
++
++waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 8 10
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 8 10
++
++# Vendor A must trust 'NutsOrganizationCredential's from Vendor B
++docker compose exec nodeA nuts vcr trust "NutsOrganizationCredential" "${NODE_B_DID}"
++# Vendor B must trust its own 'NutsOrganizationCredential's since it's self-issued
++docker compose exec nodeB nuts vcr trust "NutsOrganizationCredential" "${NODE_A_DID}"
+
+ echo "------------------------------------"
+ echo "Restarting with NodeDID set..."
+@@ -72,8 +108,8 @@ vcNodeB=$(createAuthCredential "http://localhost:28081" "$NODE_B_DID" "$NODE_A_D
+ printf "VC issued by node B: %s\n" "$vcNodeB"
+
+ # Wait for transactions to sync
+-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 6 10
+-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 6 10
++waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 10 10
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 10 10
+
+ if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
+   echo "failed to find NutsAuthorizationCredentials on Node-A"
+@@ -85,27 +121,134 @@ if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentia
+   exitWithDockerLogs 1
+ fi
+
++
+ echo "------------------------------------"
+-echo "Revoking NutsAuthorizationCredential..."
++echo "Sign contract..."
+ echo "------------------------------------"
+-revokeCredential "http://localhost:18081" "${vcNodeA}"
+-revokeCredential "http://localhost:28081" "${vcNodeB}"
+
+-# Wait for transactions to sync
+-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 8 10
+-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 8 10
++# draw up a contract
++REQUEST="{\"type\": \"PractitionerLogin\",\"language\": \"EN\",\"version\": \"v3\",\"legalEntity\": \"${NODE_B_DID}\"}"
++RESPONSE=$(echo $REQUEST | curl -X PUT --data-binary @- http://localhost:28081/internal/auth/v1/contract/drawup -H "Content-Type:application/json")
++if echo $RESPONSE | grep -q "PractitionerLogin"; then
++  echo $RESPONSE | sed -E 's/.*"message":"([^"]*).*/\1/' > ./node-B/data/contract.txt
++  echo "Contract stored in ./node-B/data/contract.txt"
++else
++  echo "FAILED: Could not get contract drawn up at node-B" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
++
++# sign the contract with dummy means
++sed "s/BASE64_CONTRACT/$(cat ./node-B/data/contract.txt)/" ./node-B/createsigningsessionrequesttemplate.json > ./node-B/data/createsigningsessionrequest.json
++RESPONSE=$(curl -X POST -s --data-binary "@./node-B/data/createsigningsessionrequest.json" http://localhost:28081/internal/auth/v1/signature/session -H "Content-Type:application/json")
++if echo $RESPONSE | grep -q "sessionPtr"; then
++  SESSION=$(echo $RESPONSE | sed -E 's/.*"sessionID":"([^"]*).*/\1/')
++  echo $SESSION
++else
++  echo "FAILED: Could not get contract signed at node-B" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
+
+-if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
+-  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
++# poll once for status created
++RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
++if echo $RESPONSE | grep -q "created"; then
++  echo $RESPONSE
++else
++  echo "FAILED: Could not get session status from node-B" 1>&2
++  echo $RESPONSE
+   exitWithDockerLogs 1
+ fi
+
+-if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
+-  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-B"
++# poll twice for status success
++RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
++if echo $RESPONSE | grep -q "in-progress"; then
++  echo $RESPONSE
++else
++  echo "FAILED: Could not get session status from node-B" 1>&2
++  echo $RESPONSE
+   exitWithDockerLogs 1
+ fi
+
++# poll three times for status completed
++RESPONSE=$(curl "http://localhost:28081/internal/auth/v1/signature/session/$SESSION")
++if echo $RESPONSE | grep -q "completed"; then
++  echo $RESPONSE | sed -E 's/.*"verifiablePresentation":(.*\]}).*/\1/' > ./node-B/data/vp.txt
++  echo "VP stored in ./node-B/data/vp.txt"
++else
++  echo "FAILED: Could not get session status from node-B" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
++
++echo "------------------------------------"
++echo "Add more credentials..."
++echo "------------------------------------"
++# Create JWT bearer token
++VP=$(cat ./node-B/data/vp.txt)
++VC1=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[0].verifiableCredential")
++VC2=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[1].verifiableCredential")
++
++#
++#for i in {1..10000}; do
++#  vcNodeA=$(createAuthCredential "http://localhost:18081" "$NODE_A_DID" "$NODE_B_DID")
++#  vcNodeB=$(createAuthCredential "http://localhost:28081" "$NODE_B_DID" "$NODE_A_DID")
++#  echo $i
++#done
++
++waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 10 60
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 10 60
++
++echo "------------------------------------"
++echo "Perform OAuth 2.0 flow..."
++echo "------------------------------------"
++
++REQUESTA="{\"credentials\": [${VC1}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
++REQUESTB="{\"credentials\": [${VC2}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
++for i in {1..40}; do
++  for i in {1..100}; do
++    echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
++    echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
++  done
++ sleep 1
++done
++
++RESPONSE=$(echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
++RESPONSE=$(echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
++
++
++#if echo $RESPONSE | grep -q "access_token"; then
++#  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
++#  echo "access token stored in ./node-B/data/accesstoken.txt"
++#else
++#  echo "FAILED: Could not get JWT access token from node-A" 1>&2
++#  echo $RESPONSE
++#  exitWithDockerLogs 1
++#fi
++
++#
++#echo "------------------------------------"
++#echo "Revoking NutsAuthorizationCredential..."
++#echo "------------------------------------"
++#revokeCredential "http://localhost:18081" "${vcNodeA}"
++#revokeCredential "http://localhost:28081" "${vcNodeB}"
++#
++## Wait for transactions to sync
++#waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 12 10
++#waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 12 10
++#
++#if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
++#  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
++#  exitWithDockerLogs 1
++#fi
++#
++#if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
++#  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-B"
++#  exitWithDockerLogs 1
++#fi
++
+ echo "------------------------------------"
+ echo "Stopping Docker containers..."
+ echo "------------------------------------"
+-docker compose stop
+\ No newline at end of file
++#docker compose stop
++#exitWithDockerLogs 0
+\ No newline at end of file
+diff --git a/e2e-tests/oauth-flow/rfc002/run-test.sh b/e2e-tests/oauth-flow/rfc002/run-test.sh
+index 9d0886de..414714e8 100755
+--- a/e2e-tests/oauth-flow/rfc002/run-test.sh
++++ b/e2e-tests/oauth-flow/rfc002/run-test.sh
+@@ -19,6 +19,7 @@ docker compose up --wait nodeA-backend nodeB
+ echo "------------------------------------"
+ echo "Registering vendors..."
+ echo "------------------------------------"
++
+ # Register Vendor A
+ VENDOR_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did)
+ VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
+@@ -32,9 +33,12 @@ VENDOR_A_DIDDOC=$(echo $VENDOR_A_DIDDOC | jq ". |= . + {assertionMethod: [\"${VE
+ echo $VENDOR_A_DIDDOC > ./node-A/data/updated-did.json
+ DIDDOC_HASH=$(docker compose exec nodeA-backend nuts vdr resolve $VENDOR_A_DID --metadata | jq -r .hash)
+ docker compose exec nodeA-backend nuts vdr update "${VENDOR_A_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
++# Add NutsComm
++REQUEST="{\"type\": \"NutsComm\",\"endpoint\": \"grpc://nodeA-backend:5555\"}"
++RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:18081/internal/didman/v1/did/${VENDOR_A_DID}/endpoint -H "Content-Type:application/json")
+
+ # Wait for NodeB to contain 2 transactions
+-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 3 10
+
+ # Register Vendor B
+ VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did)
+@@ -47,6 +51,9 @@ VENDOR_B_DIDDOC=$(echo $VENDOR_B_DIDDOC | jq ". |= . + {assertionMethod: [\"${VE
+ echo $VENDOR_B_DIDDOC > ./node-B/data/updated-did.json
+ DIDDOC_HASH=$(docker compose exec nodeB nuts vdr resolve $VENDOR_B_DID --metadata | jq -r .hash)
+ docker compose exec nodeB nuts vdr update "${VENDOR_B_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
++# Add NutsComm
++REQUEST="{\"type\": \"NutsComm\",\"endpoint\": \"grpc://nodeB:5555\"}"
++RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/didman/v1/did/${VENDOR_B_DID}/endpoint -H "Content-Type:application/json")
+
+ # Issue NutsOrganizationCredential for Vendor B
+ REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
+@@ -60,14 +67,28 @@ else
+ fi
+
+ echo Waiting for updates to be propagated on the network...
+-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 5 10
+-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 5 10
++waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 7 10
++waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 7 10
+
+ # Vendor A must trust 'NutsOrganizationCredential's from Vendor B
+ docker compose exec nodeA-backend nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
+ # Vendor B must trust its own 'NutsOrganizationCredential's since it's self-issued
+ docker compose exec nodeB nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
+
++echo "------------------------------------"
++echo "Issue auth creds..."
++echo "------------------------------------"
++
++REQUEST="{\"type\":\"NutsAuthorizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_A_DID}\", \"purposeOfUse\":\"test\"}, \"visibility\": \"private\"}"
++RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
++if echo $RESPONSE | grep -q "VerifiableCredential"; then
++  echo "VC issued"
++else
++  echo "FAILED: Could not issue NutsAuthorizationCredential to node-B" 1>&2
++  echo $RESPONSE
++  exitWithDockerLogs 1
++fi
++
+ echo "------------------------------------"
+ echo "Sign contract..."
+ echo "------------------------------------"
+@@ -160,3 +181,4 @@ echo "------------------------------------"
+ echo "Stopping Docker containers..."
+ echo "------------------------------------"
+ docker compose stop
++exitWithDockerLogs 0
+\ No newline at end of file
+diff --git a/e2e-tests/util.sh b/e2e-tests/util.sh
+index b140fb94..00e62c82 100644
+--- a/e2e-tests/util.sh
++++ b/e2e-tests/util.sh
+@@ -88,6 +88,11 @@ function setupNode() {
+     "endpoint": "grpc://%s"
+   }' "$2" | curl -s -X POST "$1/internal/didman/v1/did/$did/endpoint" -H "Content-Type: application/json" --data-binary @- > /dev/null
+
++  printf '{
++    "type": "test",
++    "serviceEndpoint": {"oauth": "%s/n2n/auth/v1/accesstoken"}
++  }' "$3" | curl -s -X POST "$1/internal/didman/v1/did/$did/compoundservice" -H "Content-Type: application/json" --data-binary @- > /dev/null
++
+   echo "$did"
+ }
+
+@@ -126,7 +131,98 @@ function createAuthCredential() {
+     "issuer": "%s",
+     "credentialSubject": {
+       "id": "%s",
+-      "resources": [],
++      "resources": [
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/1","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/2","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/3","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/4","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/5","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/6","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/7","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/8","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/9","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/10","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/11","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/12","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/13","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/14","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/15","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/16","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/17","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/18","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/19","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/20","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/21","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/22","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/23","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/24","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/25","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/26","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/27","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/28","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/29","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/30","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/31","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/32","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/33","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/34","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/35","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/36","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/37","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/38","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/39","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/40","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/41","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/42","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/43","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/44","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/45","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/46","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/47","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/48","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/49","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/50","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/61","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/62","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/63","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/64","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/65","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/66","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/67","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/68","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/69","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/70","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/71","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/72","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/73","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/74","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/75","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/76","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/77","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/78","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/79","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/80","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/81","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/82","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/83","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/84","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/85","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/86","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/87","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/88","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/89","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/90","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/91","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/92","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/93","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/94","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/95","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/96","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/97","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/98","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/99","operations": ["read"],"userContext": true},
++        {"path": "/patient/2250f7ab-6517-4923-ac00-88ed26f85843/100","operations": ["read"],"userContext": true}
++      ],
+       "purposeOfUse": "example",
+       "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
+     },
+diff --git a/go.mod b/go.mod
+index f8f470fe..77e95a35 100644
+--- a/go.mod
++++ b/go.mod
+@@ -65,6 +65,8 @@ require (
+ 	schneider.vip/problem v1.9.1
+ )
+
++replace github.com/piprate/json-gold => ./json-gold
++
+ require (
+ 	filippo.io/edwards25519 v1.1.0 // indirect
+ 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
+diff --git a/http/requestlogger.go b/http/requestlogger.go
+index 9a30299b..bbf471b9 100644
+--- a/http/requestlogger.go
++++ b/http/requestlogger.go
+@@ -37,6 +37,7 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
+ 		LogMethod:   true,
+ 		LogRemoteIP: true,
+ 		LogError:    true,
++		LogLatency:  true,
+ 		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+ 			status := values.Status
+ 			if values.Error != nil {
+@@ -48,6 +49,7 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
+ 				"method":    values.Method,
+ 				"uri":       values.URI,
+ 				"status":    status,
++				"duration":  values.Latency.Milliseconds(),
+ 			}
+ 			if logger.Level >= logrus.DebugLevel {
+ 				fields["headers"] = values.Headers
+diff --git a/jsonld/ldutils.go b/jsonld/ldutils.go
+index 34100e3f..a4658215 100644
+--- a/jsonld/ldutils.go
++++ b/jsonld/ldutils.go
+@@ -20,7 +20,6 @@ package jsonld
+
+ import (
+ 	"embed"
+-	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	ssi "github.com/nuts-foundation/go-did"
+@@ -264,12 +263,7 @@ func AddContext(context interface{}, newContext ssi.URI) []interface{} {
+ }
+
+ // Canonicalize canonicalizes the json-ld input according to the URDNA2015 [RDF-DATASET-NORMALIZATION] algorithm.
+-func (util LDUtil) Canonicalize(input interface{}) (result interface{}, err error) {
+-	var optionsMap map[string]interface{}
+-	inputAsJSON, _ := json.Marshal(input)
+-	if err := json.Unmarshal(inputAsJSON, &optionsMap); err != nil {
+-		return nil, err
+-	}
++func (util LDUtil) Canonicalize(input map[string]interface{}) (result interface{}, err error) {
+ 	proc := ld.NewJsonLdProcessor()
+
+ 	normalizeOptions := ld.NewJsonLdOptions("")
+@@ -277,7 +271,7 @@ func (util LDUtil) Canonicalize(input interface{}) (result interface{}, err erro
+ 	normalizeOptions.Format = "application/n-quads"
+ 	normalizeOptions.Algorithm = "URDNA2015"
+
+-	result, err = proc.Normalize(optionsMap, normalizeOptions)
++	result, err = proc.Normalize(input, normalizeOptions)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("unable to normalize the json-ld document: %w", err)
+ 	}
+diff --git a/storage/engine.go b/storage/engine.go
+index 8f9790c8..fbffb91f 100644
+--- a/storage/engine.go
++++ b/storage/engine.go
+@@ -300,6 +300,7 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
+ 		}
+ 		dialect = goose.DialectMySQL
+ 	case "postgres":
++		db.SetMaxOpenConns(20)
+ 		e.sqlDB, err = gorm.Open(postgres.New(postgres.Config{
+ 			Conn: db,
+ 		}), gormConfig)
+diff --git a/vcr/signature/json_web_signature.go b/vcr/signature/json_web_signature.go
+index b3eeceae..58910188 100644
+--- a/vcr/signature/json_web_signature.go
++++ b/vcr/signature/json_web_signature.go
+@@ -46,7 +46,7 @@ func (s JSONWebSignature2020) Sign(ctx context.Context, doc []byte, keyID string
+
+ // CanonicalizeDocument canonicalizes a document using the LD canonicalization algorithm.
+ // Can be used for both the LD proof as the document. It requires the document to have a valid context.
+-func (s JSONWebSignature2020) CanonicalizeDocument(doc interface{}) ([]byte, error) {
++func (s JSONWebSignature2020) CanonicalizeDocument(doc map[string]interface{}) ([]byte, error) {
+ 	res, err := jsonld.LDUtil{LDDocumentLoader: s.ContextLoader}.Canonicalize(doc)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("canonicalization failed: %w", err)
+diff --git a/vcr/signature/signature.go b/vcr/signature/signature.go
+index cde5722a..463ce557 100644
+--- a/vcr/signature/signature.go
++++ b/vcr/signature/signature.go
+@@ -35,7 +35,7 @@ var JSONWebSignature2020Context = ssi.MustParseURI("https://w3c-ccg.github.io/ld
+ // Suite is an interface which defines the methods a signature suite implementation should implement.
+ type Suite interface {
+ 	Sign(ctx context.Context, doc []byte, keyID string) ([]byte, error)
+-	CanonicalizeDocument(doc interface{}) ([]byte, error)
++	CanonicalizeDocument(doc map[string]interface{}) ([]byte, error)
+ 	CalculateDigest(doc []byte) []byte
+ 	GetType() ssi.ProofType
+ }
+diff --git a/vcr/verifier/signature_verifier.go b/vcr/verifier/signature_verifier.go
+index 75ff0334..2a5964aa 100644
+--- a/vcr/verifier/signature_verifier.go
++++ b/vcr/verifier/signature_verifier.go
+@@ -78,12 +78,10 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
+ 	if err != nil {
+ 		return newVerificationError("invalid LD-JSON document: %w", err)
+ 	}
+-
+ 	ldProof := proof.LDProof{}
+ 	if err = signedDocument.UnmarshalProofValue(&ldProof); err != nil {
+ 		return newVerificationError("unsupported proof type: %w", err)
+ 	}
+-
+ 	// for a VP this will not fail
+ 	verificationMethod := ldProof.VerificationMethod.String()
+ 	if verificationMethod == "" {
+@@ -111,7 +109,6 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
+ 	if err != nil {
+ 		return fmt.Errorf("unable to resolve valid signing key: %w", err)
+ 	}
+-
+ 	// verify signature
+ 	err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: sv.jsonldManager.DocumentLoader()}, signingKey)
+ 	if err != nil {
+diff --git a/vcr/verifier/verifier.go b/vcr/verifier/verifier.go
+index 8cf4ba73..d2ae0ec0 100644
+--- a/vcr/verifier/verifier.go
++++ b/vcr/verifier/verifier.go
+@@ -112,7 +112,6 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
+ 	if len(credentialToVerify.Type) > 2 {
+ 		return errors.New("verifiable credential must list at most 2 types")
+ 	}
+-
+ 	// Check revocation status
+ 	if credentialToVerify.ID != nil {
+ 		revoked, err := v.IsRevoked(*credentialToVerify.ID)
+@@ -124,7 +123,6 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
+ 		}
+
+ 	}
+-
+ 	// Check the credentialStatus if the credential is revoked
+ 	err := v.credentialStatus.Verify(credentialToVerify)
+ 	if err != nil {
+@@ -137,7 +135,6 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
+ 			log.Logger().WithError(err).WithField("credential", string(bs)).Info("CredentialStatus verification failed")
+ 		}
+ 	}
+-
+ 	// Check trust status
+ 	if !allowUntrusted {
+ 		for _, t := range credentialToVerify.Type {
+@@ -180,7 +177,6 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
+ 		}
+ 		return v.VerifySignature(credentialToVerify, validAt)
+ 	}
+-
+ 	return nil
+ }
+

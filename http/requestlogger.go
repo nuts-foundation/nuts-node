@@ -37,6 +37,7 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 		LogMethod:   true,
 		LogRemoteIP: true,
 		LogError:    true,
+		LogLatency:  true,
 		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
 			status := values.Status
 			if values.Error != nil {
@@ -48,6 +49,7 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 				"method":    values.Method,
 				"uri":       values.URI,
 				"status":    status,
+				"duration":  values.Latency.Milliseconds(),
 			}
 			if logger.Level >= logrus.DebugLevel {
 				fields["headers"] = values.Headers

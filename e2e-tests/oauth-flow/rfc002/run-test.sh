@@ -19,6 +19,7 @@ docker compose up --wait nodeA-backend nodeB
 echo "------------------------------------"
 echo "Registering vendors..."
 echo "------------------------------------"
+
 # Register Vendor A
 VENDOR_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did)
 VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
@@ -32,9 +33,12 @@ VENDOR_A_DIDDOC=$(echo $VENDOR_A_DIDDOC | jq ". |= . + {assertionMethod: [\"${VE
 echo $VENDOR_A_DIDDOC > ./node-A/data/updated-did.json
 DIDDOC_HASH=$(docker compose exec nodeA-backend nuts vdr resolve $VENDOR_A_DID --metadata | jq -r .hash)
 docker compose exec nodeA-backend nuts vdr update "${VENDOR_A_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
+# Add NutsComm
+REQUEST="{\"type\": \"NutsComm\",\"endpoint\": \"grpc://nodeA-backend:5555\"}"
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:18081/internal/didman/v1/did/${VENDOR_A_DID}/endpoint -H "Content-Type:application/json")
 
 # Wait for NodeB to contain 2 transactions
-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 2 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 3 10
 
 # Register Vendor B
 VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did)
@@ -47,6 +51,9 @@ VENDOR_B_DIDDOC=$(echo $VENDOR_B_DIDDOC | jq ". |= . + {assertionMethod: [\"${VE
 echo $VENDOR_B_DIDDOC > ./node-B/data/updated-did.json
 DIDDOC_HASH=$(docker compose exec nodeB nuts vdr resolve $VENDOR_B_DID --metadata | jq -r .hash)
 docker compose exec nodeB nuts vdr update "${VENDOR_B_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
+# Add NutsComm
+REQUEST="{\"type\": \"NutsComm\",\"endpoint\": \"grpc://nodeB:5555\"}"
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/didman/v1/did/${VENDOR_B_DID}/endpoint -H "Content-Type:application/json")
 
 # Issue NutsOrganizationCredential for Vendor B
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Caresoft B.V.\", \"city\":\"Caretown\"}},\"visibility\": \"public\"}"
@@ -60,13 +67,27 @@ else
 fi
 
 echo Waiting for updates to be propagated on the network...
-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 5 10
-waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 5 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 7 10
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 7 10
 
 # Vendor A must trust 'NutsOrganizationCredential's from Vendor B
 docker compose exec nodeA-backend nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
 # Vendor B must trust its own 'NutsOrganizationCredential's since it's self-issued
 docker compose exec nodeB nuts vcr trust "NutsOrganizationCredential" "${VENDOR_B_DID}"
+
+echo "------------------------------------"
+echo "Issue auth creds..."
+echo "------------------------------------"
+
+REQUEST="{\"type\":\"NutsAuthorizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_A_DID}\", \"purposeOfUse\":\"test\"}, \"visibility\": \"private\"}"
+RESPONSE=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+if echo $RESPONSE | grep -q "VerifiableCredential"; then
+  echo "VC issued"
+else
+  echo "FAILED: Could not issue NutsAuthorizationCredential to node-B" 1>&2
+  echo $RESPONSE
+  exitWithDockerLogs 1
+fi
 
 echo "------------------------------------"
 echo "Sign contract..."
@@ -160,3 +181,4 @@ echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose stop
+exitWithDockerLogs 0
