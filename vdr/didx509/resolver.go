@@ -37,24 +37,12 @@ const (
 
 	// X509CertChainHeader represents the header key for the x509 certificate chain in a JWT.
 	X509CertChainHeader = "x5c"
-
-	// X509CertThumbprintHeader represents the header for the thumbprint of an x509 certificate using SHA-1.
-	X509CertThumbprintHeader = "x5t"
-
-	// X509CertThumbprintS256Header represents a header for the X.509 certificate thumbprint using the SHA-256 hashing algorithm.
-	X509CertThumbprintS256Header = "x5t#S256"
 )
 
 var (
 
 	// ErrX509ChainMissing indicates that no x5c header was found in the provided metadata.
 	ErrX509ChainMissing = errors.New("no x5c header found")
-
-	// ErrNoCertsInHeaders indicates that no x5t or x5t#S256 header was found in the provided metadata.
-	ErrNoCertsInHeaders = errors.New("no x5t or x5t#S256 header found")
-
-	// ErrNoMatchingHeaderCredentials indicates that the x5t#S256 header does not match the certificate from the x5t headers.
-	ErrNoMatchingHeaderCredentials = errors.New("x5t#S256 header does not match the certificate from the x5t headers")
 )
 
 var _ resolver.DIDResolver = &Resolver{}
@@ -100,6 +88,8 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 		return nil, nil, err
 	}
 
+	// These steps align with https://trustoverip.github.io/tswg-did-x509-method-specification/#read
+	// Step 1. decode x509chain
 	chainHeader, ok := metadata.GetProtectedHeaderChain(X509CertChainHeader)
 	if !ok {
 		return nil, nil, ErrX509ChainMissing
@@ -108,88 +98,71 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:x509 x5c certificate parsing: %w", err)
 	}
-	caFingerprintCert, err := findCertificateByHash(chain, ref.CAFingerprint, ref.Method)
-	if err != nil {
-		return nil, nil, err
+	if len(chain) < 2 {
+		return nil, nil, fmt.Errorf("did:x509 x5c certificate chain must contain at least two certificates")
 	}
-	validationCert, err := findValidationCertificate(metadata, chain)
-	if err != nil {
-		return nil, nil, err
-	}
-	if bytes.Equal(caFingerprintCert.Raw, validationCert.Raw) {
-		return nil, nil, fmt.Errorf("did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
-	}
-
-	// Validate certificate chain, checking signatures and whether the chain is complete
-	var chainWithoutLeaf []*x509.Certificate
-	for _, curr := range chain {
-		if curr.Equal(validationCert) {
-			continue
-		}
-		chainWithoutLeaf = append(chainWithoutLeaf, curr)
-	}
-	trustStore := core.BuildTrustStore(chainWithoutLeaf)
-	_, err = validationCert.Verify(x509.VerifyOptions{
+	// Step 2. build valid certificate chain
+	// Step 3. check whether any certificate in the chain is revoked (using CRL, OCSP, or other mechanisms)
+	//         Skipped: this check is deferred to the Verifiable Credential validation.
+	//         Checking CRLs at this point would allow unsanitized user input into the CRL checker DB.
+	//         CRL checking should be done where the appropriateness of usage of (i.e., trust in) the certificate chain can be confirmed.
+	//         See https://github.com/nuts-foundation/nuts-node/pull/3606#issuecomment-2545051148
+	validationCert := chain[0]
+	trustStore := core.BuildTrustStore(chain[1:])
+	validatedChains, err := validationCert.Verify(x509.VerifyOptions{
 		Intermediates: core.NewCertPool(trustStore.IntermediateCAs),
 		Roots:         core.NewCertPool(trustStore.RootCAs),
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:509 certificate chain validation failed: %w", err)
 	}
-
+	validatedChain := validatedChains[0]
+	if len(validatedChain) != len(chain) {
+		return nil, nil, fmt.Errorf("did:x509 x5c header contains more certificates than the validated certificate chain")
+	}
+	// Sanity check: x5c header must be in correct order
+	for i, cert := range chain {
+		if !bytes.Equal(cert.Raw, validatedChain[i].Raw) {
+			return nil, nil, fmt.Errorf("did:x509 x5c header must be sorted from leaf- to root certificate")
+		}
+	}
+	// Sanity check: ca-fingerprint must refer to a CA certificate
+	caFingerprintCert, err := findCertificateByHash(chain, ref.CAFingerprint, ref.Method)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !caFingerprintCert.IsCA {
+		return nil, nil, fmt.Errorf("did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
+	}
+	// Step 4. Apply any further application-specific checks, for example disallowing insecure certificate signature algorithms.
+	//         Skipped: this check is already performed by Verfiable Credential interaction using PEX: Presentation Definitions should limit the accepted CAs through ca-fingerprint constraining.
+	// Step 5. Map the certificate chain to the JSON data model.
+	// Step 6. Check whether the DID is valid against the certificate chain in the JSON data model according to the Rego policy (or equivalent rules) defined in this document.
 	err = validatePolicy(ref, validationCert)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Do NOT check CRLs. Checking CRLs at this point would allow unsanitized user input into the CRL checker DB.
-	// CRL checking should be done where the appropriateness of usage of (i.e., trust in) the certificate chain can be confirmed.
-
+	// Step 7 to 12: Create DID Document
 	document, err := createDidDocument(id, validationCert)
 	if err != nil {
 		return nil, nil, err
 	}
+	// Step 13. Return the complete DID document.
 	return document, &resolver.DocumentMetadata{}, err
-}
-
-// findValidationCertificate retrieves the validation certificate from the given chain based on metadata-provided thumbprints.
-func findValidationCertificate(metadata *resolver.ResolveMetadata, chain []*x509.Certificate) (*x509.Certificate, error) {
-	var validationCert *x509.Certificate
-	var err error
-	hashHeader, found := metadata.GetProtectedHeaderString(X509CertThumbprintHeader)
-	if found {
-		validationCert, err = findCertificateByHash(chain, hashHeader, HashSha1)
-		if err != nil {
-			return nil, err
-		}
-	}
-	hash256Header, found := metadata.GetProtectedHeaderString(X509CertThumbprintS256Header)
-	if found {
-		otherValidationCert, err := findCertificateByHash(chain, hash256Header, HashSha256)
-		if err != nil {
-			return nil, err
-		}
-		if validationCert == nil {
-			validationCert = otherValidationCert
-		} else {
-			if !otherValidationCert.Equal(validationCert) {
-				return nil, ErrNoMatchingHeaderCredentials
-			}
-		}
-	}
-	if validationCert == nil {
-		return nil, ErrNoCertsInHeaders
-	}
-	return validationCert, nil
 }
 
 // createDidDocument generates a new DID Document based on the provided DID identifier and validation certificate.
 func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Document, error) {
 	didUrl := did.DIDURL{DID: id, Fragment: "0"}
-	verificationMethod, err := did.NewVerificationMethod(didUrl, ssi.JsonWebKey2020, id, validationCert.PublicKey)
+	// Step 7. Extract the public key of the first certificate in the chain.
+	publicKey := validationCert.PublicKey
+	// Step 8. Convert the public key to a JSON Web Key.
+	verificationMethod, err := did.NewVerificationMethod(didUrl, ssi.JsonWebKey2020, id, publicKey)
 	if err != nil {
 		return nil, err
 	}
+	// Step 9. Create the following partial DID document:
 	document := &did.Document{
 		Context: []interface{}{
 			ssi.MustParseURI("https://www.w3.org/ns/did/v1"),
@@ -198,11 +171,18 @@ func createDidDocument(id did.DID, validationCert *x509.Certificate) (*did.Docum
 		Controller:         []did.DID{id},
 		VerificationMethod: did.VerificationMethods{verificationMethod},
 	}
-	document.AddKeyAgreement(verificationMethod)
-	document.AddAssertionMethod(verificationMethod)
-	document.AddAuthenticationMethod(verificationMethod)
-	document.AddCapabilityDelegation(verificationMethod)
-	document.AddCapabilityInvocation(verificationMethod)
+	// Step 10. If the first certificate in the chain has the key usage bit position for digitalSignature set or is missing the key usage extension, add the following to the DID document:
+	if validationCert.KeyUsage == 0 || validationCert.KeyUsage&x509.KeyUsageDigitalSignature != 0 {
+		document.AddAssertionMethod(verificationMethod)
+	}
+	// Step 11. If the first certificate in the chain has the key usage bit position for keyAgreement set or is missing the key usage extension, add the following to the DID document:
+	if validationCert.KeyUsage == 0 || validationCert.KeyUsage&x509.KeyUsageKeyAgreement != 0 {
+		document.AddKeyAgreement(verificationMethod)
+	}
+	// Step 12. If the first certificate in the chain includes the key usage extension but has neither digitalSignature nor keyAgreement set as key usage bits, fail.
+	if validationCert.KeyUsage != 0 && validationCert.KeyUsage&x509.KeyUsageDigitalSignature == 0 && validationCert.KeyUsage&x509.KeyUsageKeyAgreement == 0 {
+		return nil, errors.New("did:x509 certificate must have either digitalSignature or keyAgreement set as key usage bits")
+	}
 	return document, nil
 }
 

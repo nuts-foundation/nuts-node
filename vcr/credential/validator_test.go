@@ -529,18 +529,8 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 		assert.ErrorIs(t, err, errValidation)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
-	t.Run("issuer is not did:x509", func(t *testing.T) {
-		x509credential := test.ValidX509Credential(t)
-		x509credential.Issuer = ssi.MustParseURI("did:web:example.com")
-		ctx := createTestContext(t)
-
-		err := ctx.validator.Validate(x509credential)
-
-		assert.ErrorIs(t, err, errValidation)
-		assert.ErrorContains(t, err, "issuer of X509Credential MUST be did:x509 DID")
-	})
 	t.Run("invalid format", func(t *testing.T) {
-		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("did:example:123")}
+		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("did:x509:foo")}
 
 		err := ctx.validator.Validate(x509credential)
 
@@ -556,9 +546,50 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 		err := ctx.validator.Validate(x509credential)
 
 		assert.ErrorIs(t, err, errValidation)
-		assert.ErrorContains(t, err, "invalid issuer")
+		assert.ErrorContains(t, err, "issuer of X509Credential MUST be did:x509 DID")
 	})
+	t.Run("expiration", func(t *testing.T) {
+		t.Run("issuanceDate is before certificate's NotBefore", func(t *testing.T) {
+			x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+				builder.NotBefore(time.Now().Add(time.Hour * 24 * 30 * -2))
+				return builder
+			})
 
+			err := ctx.validator.Validate(x509credential)
+
+			assert.ErrorIs(t, err, errValidation)
+			assert.ErrorContains(t, err, "credential issuance date is before certificate's notBefore")
+		})
+		t.Run("expiration is after certificate's NotAfter", func(t *testing.T) {
+			x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+				builder.Expiration(time.Now().Add(time.Hour * 24 * 30 * 2)) // cert is valid for 1 month, this is 2 months
+				return builder
+			})
+
+			err := ctx.validator.Validate(x509credential)
+
+			assert.ErrorIs(t, err, errValidation)
+			assert.ErrorContains(t, err, "credential expiration date is after certificate's")
+		})
+		t.Run("expiration is not set", func(t *testing.T) {
+			x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
+				// Build new jwt.Builder without expiration
+				token, _ := builder.Build()
+				vc, _ := token.Get("vc")
+				return jwt.NewBuilder().
+					NotBefore(token.NotBefore()).
+					Subject(token.Subject()).
+					Issuer(token.Issuer()).
+					JwtID(token.JwtID()).
+					Claim("vc", vc)
+			})
+
+			err := ctx.validator.Validate(x509credential)
+
+			assert.ErrorIs(t, err, errValidation)
+			assert.ErrorContains(t, err, "'expirationDate' is required")
+		})
+	})
 	t.Run("failed validation", func(t *testing.T) {
 
 		testCases := []struct {

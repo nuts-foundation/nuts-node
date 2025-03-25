@@ -110,7 +110,7 @@ func CertsToChain(certs []*x509.Certificate) *cert.Chain {
 }
 
 // BuildCertChain generates a certificate chain, including root, intermediate, and signing certificates.
-func BuildCertChain(identifiers []string, subjectSerialNumber string) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
+func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKeyUsage *x509.KeyUsage) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
 	rootKey, rootCert, err := BuildRootCert()
 	if err != nil {
 		return nil, nil, err
@@ -126,7 +126,7 @@ func BuildCertChain(identifiers []string, subjectSerialNumber string) ([]*x509.C
 	if subjectSerialNumber == "" {
 		subjectSerialNumber = "32121323"
 	}
-	signingKey, signingCert, err := BuildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber)
+	signingKey, signingCert, err := BuildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber, signCertKeyUsage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -143,12 +143,19 @@ func BuildCertChain(identifiers []string, subjectSerialNumber string) ([]*x509.C
 		}, nil
 }
 
-func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string) (*rsa.PrivateKey, *x509.Certificate, error) {
+func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string, keyUsage *x509.KeyUsage) (*rsa.PrivateKey, *x509.Certificate, error) {
+	var ku x509.KeyUsage
+	if keyUsage != nil {
+		ku = *keyUsage
+	} else {
+		ku = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyAgreement
+	}
 	signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
 	signingTmpl, err := signingCertTemplate(nil, identifiers)
+	signingTmpl.KeyUsage = ku
 	if err != nil {
 		return nil, nil, err
 	}
@@ -182,6 +189,8 @@ func BuildRootCert() (*rsa.PrivateKey, *x509.Certificate, error) {
 		return nil, nil, err
 	}
 	rootCertTmpl, err := certTemplate("Root CA")
+	rootCertTmpl.NotBefore = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+	rootCertTmpl.NotAfter = time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
 	if err != nil {
 		return nil, nil, err
 	}
