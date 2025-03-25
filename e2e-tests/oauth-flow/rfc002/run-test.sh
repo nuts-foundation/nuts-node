@@ -19,7 +19,6 @@ docker compose up --wait nodeA-backend nodeB
 echo "------------------------------------"
 echo "Registering vendors..."
 echo "------------------------------------"
-
 # Register Vendor A
 VENDOR_A_DIDDOC=$(docker compose exec nodeA-backend nuts vdr create-did)
 VENDOR_A_DID=$(echo $VENDOR_A_DIDDOC | jq -r .id)
