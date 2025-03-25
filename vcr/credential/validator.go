@@ -270,6 +270,9 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 	if err != nil {
 		return errors.Join(errValidation, err)
 	}
+	if didX509Issuer.Method != didx509.MethodName {
+		return fmt.Errorf("%w: issuer of X509Credential MUST be did:%s DID", errValidation, didx509.MethodName)
+	}
 	x509resolver := didx509.NewResolver()
 	resolveMetadata := resolver.ResolveMetadata{}
 	if credential.Format() == vc.JWTCredentialProofFormat {

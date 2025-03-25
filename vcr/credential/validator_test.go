@@ -529,6 +529,16 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 		assert.ErrorIs(t, err, errValidation)
 		assert.ErrorIs(t, err, did.ErrInvalidDID)
 	})
+	t.Run("issuer is not did:x509", func(t *testing.T) {
+		x509credential := test.ValidX509Credential(t)
+		x509credential.Issuer = ssi.MustParseURI("did:web:example.com")
+		ctx := createTestContext(t)
+
+		err := ctx.validator.Validate(x509credential)
+
+		assert.ErrorIs(t, err, errValidation)
+		assert.ErrorContains(t, err, "issuer of X509Credential MUST be did:x509 DID")
+	})
 	t.Run("invalid format", func(t *testing.T) {
 		x509credential := vc.VerifiableCredential{Issuer: ssi.MustParseURI("did:example:123")}
 
