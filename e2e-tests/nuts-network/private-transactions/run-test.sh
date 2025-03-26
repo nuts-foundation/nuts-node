@@ -189,13 +189,6 @@ VP=$(cat ./node-B/data/vp.txt)
 VC1=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[0].verifiableCredential")
 VC2=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[1].verifiableCredential")
 
-#
-#for i in {1..10000}; do
-#  vcNodeA=$(createAuthCredential "http://localhost:18081" "$NODE_A_DID" "$NODE_B_DID")
-#  vcNodeB=$(createAuthCredential "http://localhost:28081" "$NODE_B_DID" "$NODE_A_DID")
-#  echo $i
-#done
-
 waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 10 60
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 10 60
 
@@ -203,52 +196,23 @@ echo "------------------------------------"
 echo "Perform OAuth 2.0 flow..."
 echo "------------------------------------"
 
+START_DATE=$(date +%s)
 REQUESTA="{\"credentials\": [${VC1}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
 REQUESTB="{\"credentials\": [${VC2}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
 for i in {1..40}; do
   for i in {1..100}; do
     echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
-    echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
+    echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:18081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
   done
  sleep 1
 done
 
 RESPONSE=$(echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
-RESPONSE=$(echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
-
-
-#if echo $RESPONSE | grep -q "access_token"; then
-#  echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/data/accesstoken.txt
-#  echo "access token stored in ./node-B/data/accesstoken.txt"
-#else
-#  echo "FAILED: Could not get JWT access token from node-A" 1>&2
-#  echo $RESPONSE
-#  exitWithDockerLogs 1
-#fi
-
-#
-#echo "------------------------------------"
-#echo "Revoking NutsAuthorizationCredential..."
-#echo "------------------------------------"
-#revokeCredential "http://localhost:18081" "${vcNodeA}"
-#revokeCredential "http://localhost:28081" "${vcNodeB}"
-#
-## Wait for transactions to sync
-#waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 12 10
-#waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 12 10
-#
-#if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
-#  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
-#  exitWithDockerLogs 1
-#fi
-#
-#if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
-#  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-B"
-#  exitWithDockerLogs 1
-#fi
+RESPONSE=$(echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:18081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
-#docker compose stop
+docker compose stop
+echo Finished in $(($(date +%s) - $START_DATE)) seconds
 #exitWithDockerLogs 0

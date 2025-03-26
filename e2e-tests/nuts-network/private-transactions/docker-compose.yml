@@ -28,7 +28,6 @@ services:
       - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     mem_limit: 512m
-    command: ["server","--cpuprofile=/opt/nuts/data/profile.dmp"]
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB:

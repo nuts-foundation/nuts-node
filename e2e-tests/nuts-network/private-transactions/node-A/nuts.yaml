@@ -1,5 +1,5 @@
 url: https://node-A
-verbosity: debug
+verbosity: info
 strictmode: false
 internalratelimiter: false
 datadir: /opt/nuts/data
