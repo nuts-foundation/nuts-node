@@ -134,9 +134,10 @@ type ServiceAccessTokenRequest struct {
 	// A typical use case is to provide a self-attested credential to convey information about the user that initiated the request.
 	//
 	// The following credential fields are automatically filled (when not present), and may be omitted:
-	// - issuer, credentialSubject.id (filled with the DID of the requester)
+	// - issuer, credentialSubject.id (MUST be omitted; filled with the DID of the requester)
 	// - issuanceDate (filled with the current date/time)
 	// - id (filled with a UUID)
+	// - proof/signature (MUST be omitted; integrity protection is covered by the VP's proof/signature)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
 	// Scope The scope that will be the service for which this access token can be used.
@@ -216,6 +217,13 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 type RequestServiceAccessTokenParams struct {
 	// CacheControl Access tokens are cached by the Nuts node, specify Cache-Control: no-cache to bypass the cache.
 	// This forces the Nuts node to request a new access token from the authorizer.
+	//
+	// A valid use case for this is when the Resource Server rejects the access token with 401 Unauthorized.
+	// It could be that the Authorization Server lost the access token due to a server restart,
+	// in combination with (non-recommended) usage of in-memory session storage.
+	// The local Nuts node then still considers the token valid, while the Authorization Server does not.
+	//
+	// Note that this should not be used under normal circumstances, as it will increase round trip time and load on both the requester and authorizer.
 	CacheControl *string `json:"Cache-Control,omitempty"`
 }
 
