@@ -7,10 +7,12 @@ USER=$UID
 source ../../util.sh
 
 function searchAuthCredentials() {
+  ISSUER=$2
   printf '{
     "query": {
       "@context": ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"],
       "type": ["VerifiableCredential" ,"NutsAuthorizationCredential"],
+      "issuer": "%s",
       "credentialSubject": {
         "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
       }
@@ -111,12 +113,22 @@ printf "VC issued by node B: %s\n" "$vcNodeB"
 waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 10 10
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 10 10
 
-if [ $(searchAuthCredentials "http://localhost:18081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
+if [ $(searchAuthCredentials "http://localhost:18081" "$NODE_A_DID" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "1" ]; then
   echo "failed to find NutsAuthorizationCredentials on Node-A"
   exitWithDockerLogs 1
 fi
 
-if [ $(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
+if [ $(searchAuthCredentials "http://localhost:18081" "$NODE_B_DID" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "1" ]; then
+  echo "failed to find NutsAuthorizationCredentials on Node-A"
+  exitWithDockerLogs 1
+fi
+
+if [ $(searchAuthCredentials "http://localhost:28081" "$NODE_A_DID" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "1" ]; then
+  echo "failed to find NutsAuthorizationCredentials on Node-B"
+  exitWithDockerLogs 1
+fi
+
+if [ $(searchAuthCredentials "http://localhost:28081" "$NODE_B_DID" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "1" ]; then
   echo "failed to find NutsAuthorizationCredentials on Node-B"
   exitWithDockerLogs 1
 fi
@@ -186,8 +198,8 @@ echo "Add more credentials..."
 echo "------------------------------------"
 # Create JWT bearer token
 VP=$(cat ./node-B/data/vp.txt)
-VC1=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[0].verifiableCredential")
-VC2=$(searchAuthCredentials "http://localhost:28081" | jq ".verifiableCredentials[1].verifiableCredential")
+VC1=$(searchAuthCredentials "http://localhost:28081" "${NODE_A_DID}" | jq ".verifiableCredentials[0].verifiableCredential")
+VC2=$(searchAuthCredentials "http://localhost:28081" "${NODE_B_DID}" | jq ".verifiableCredentials[1].verifiableCredential")
 
 waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 10 60
 waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 10 60
@@ -196,23 +208,21 @@ echo "------------------------------------"
 echo "Perform OAuth 2.0 flow..."
 echo "------------------------------------"
 
+echo $VC1
+echo $VC2
+export REQUESTA="{\"credentials\": [${VC1}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
+export REQUESTB="{\"credentials\": [${VC2}],\"authorizer\":\"${NODE_B_DID}\",\"requester\":\"${NODE_A_DID}\",\"identity\":${VP},\"service\":\"test\"}"
 START_DATE=$(date +%s)
-REQUESTA="{\"credentials\": [${VC1}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
-REQUESTB="{\"credentials\": [${VC2}],\"authorizer\":\"${NODE_A_DID}\",\"requester\":\"${NODE_B_DID}\",\"identity\":${VP},\"service\":\"test\"}"
-for i in {1..40}; do
-  for i in {1..100}; do
-    echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
-    echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:18081/internal/auth/v1/request-access-token -H "Content-Type:application/json" > /dev/null &
-  done
- sleep 1
+for i in {1..10}; do
+  echo "Starting burst $i"
+  ./burst.sh &
 done
-
-RESPONSE=$(echo $REQUESTA | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
-RESPONSE=$(echo $REQUESTB | curl -X POST -s --data-binary @- http://localhost:18081/internal/auth/v1/request-access-token -H "Content-Type:application/json" -v)
+echo "Waiting for all requests to finish..."
+wait
+echo Finished in $(($(date +%s) - $START_DATE)) seconds
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."
 echo "------------------------------------"
 docker compose stop
-echo Finished in $(($(date +%s) - $START_DATE)) seconds
 #exitWithDockerLogs 0
