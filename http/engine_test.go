@@ -325,7 +325,7 @@ func TestEngine_Configure(t *testing.T) {
 						Type: BearerTokenAuth,
 					},
 				}
-				_ = engine.Configure(*core.NewServerConfig())
+				require.NoError(t, engine.Configure(*core.NewServerConfig()))
 				var capturedUser string
 				captureUser := func(c echo.Context) error {
 					userContext := c.Get(core.UserContextKey)
@@ -339,7 +339,7 @@ func TestEngine_Configure(t *testing.T) {
 				engine.Router().GET("/", captureUser)
 				engine.Router().GET("/default-with-auth", captureUser)
 				engine.Router().GET("/alt-with-auth", captureUser)
-				_ = engine.Start()
+				require.NoError(t, engine.Start())
 				defer engine.Shutdown()
 
 				assertServerStarted(t, engine.config.InterfaceConfig.Address)
