@@ -20,7 +20,7 @@ package types
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"strings"
 	"time"

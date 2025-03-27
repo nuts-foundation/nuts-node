@@ -216,6 +216,7 @@ require (
 	github.com/google/go-tpm v0.9.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
+	github.com/sugawarayuuta/sonnet v0.0.0-20231004000330-239c7b6e4ce8 // indirect
 	golang.org/x/exp v0.0.0-20240416160154-fe59bbe5cc7f // indirect
 	modernc.org/libc v1.61.13 // indirect
 )

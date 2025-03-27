@@ -19,8 +19,8 @@
 package didstore
 
 import (
-	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/json"
 	"testing"
 	"time"
 

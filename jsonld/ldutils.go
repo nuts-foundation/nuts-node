@@ -20,10 +20,10 @@ package jsonld
 
 import (
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/jsonld/log"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
 	"github.com/piprate/json-gold/ld"

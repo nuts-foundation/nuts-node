@@ -20,8 +20,8 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"

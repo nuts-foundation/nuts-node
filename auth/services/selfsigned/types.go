@@ -19,9 +19,9 @@
 package selfsigned
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/json"
 )
 
 // ContractFormat is the contract format type

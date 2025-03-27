@@ -24,9 +24,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"regexp"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"

@@ -20,8 +20,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 )
 
 // SHA256HashSize holds the size of a sha256 hash in bytes.

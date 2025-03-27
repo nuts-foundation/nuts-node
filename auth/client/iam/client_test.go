@@ -22,13 +22,13 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/http"
 	"net/http/httptest"
@@ -193,7 +193,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")
+		assert.EqualError(t, err, "unable to unmarshal response: sonnet: invalid character '}' looking for beginning of value, }")
 	})
 
 }

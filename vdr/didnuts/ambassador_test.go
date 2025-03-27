@@ -24,8 +24,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"testing"
 	"time"
 
@@ -273,7 +273,7 @@ func TestAmbassador_callback(t *testing.T) {
 
 		err := ctx.ambassador.callback(tx, []byte("}"))
 
-		assert.EqualError(t, err, "unable to unmarshal DID document from network payload: invalid character '}' looking for beginning of value")
+		assert.EqualError(t, err, "unable to unmarshal DID document from network payload: sonnet: invalid character '}' looking for beginning of value")
 	})
 
 	t.Run("nok - incorrect payloadType", func(t *testing.T) {

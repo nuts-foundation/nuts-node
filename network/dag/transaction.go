@@ -20,8 +20,8 @@
 package dag
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/json"
 	"strings"
 	"time"
 

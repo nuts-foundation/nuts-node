@@ -20,11 +20,11 @@ package didsubject
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/json"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"net/url"
 	"strings"

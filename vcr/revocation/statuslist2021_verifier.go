@@ -19,9 +19,9 @@
 package revocation
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"io"
 	"net/http"
 	"strconv"
