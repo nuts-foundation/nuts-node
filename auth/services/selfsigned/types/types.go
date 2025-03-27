@@ -20,7 +20,6 @@ package types
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"strings"
 	"time"
@@ -44,27 +43,26 @@ type Session struct {
 	Employee  Employee
 }
 
-func (s Session) CredentialSubject() []interface{} {
-	subject := EmployeeIdentityCredentialSubject{
-		BaseCredentialSubject: credential.BaseCredentialSubject{
-			ID: s.Employer,
+func (s Session) CredentialSubject() []map[string]any {
+	member := map[string]any{
+		"identifier": s.Employee.Identifier,
+		"member": map[string]any{
+			"familyName": s.Employee.FamilyName,
+			"initials":   s.Employee.Initials,
+			"type":       "Person",
 		},
-		Type: "Organization",
-		Member: EmployeeIdentityCredentialMember{
-			Identifier: s.Employee.Identifier,
-			Member: EmployeeIdentityCredentialMemberMember{
-				FamilyName: s.Employee.FamilyName,
-				Initials:   s.Employee.Initials,
-				Type:       "Person",
-			},
-			RoleName: s.Employee.RoleName,
-			Type:     "EmployeeRole",
+		"type": "EmployeeRole",
+	}
+	if s.Employee.RoleName != nil {
+		member["roleName"] = *s.Employee.RoleName
+	}
+	return []map[string]any{
+		{
+			"id":     s.Employer,
+			"type":   "Organization",
+			"member": member,
 		},
 	}
-	data, _ := json.Marshal(subject)
-	result := map[string]interface{}{}
-	_ = json.Unmarshal(data, &result)
-	return []interface{}{result}
 }
 
 // HumanReadableContract returns the contract text without the contract type (e.g. "NL:LoginContract:v3")
