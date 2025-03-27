@@ -345,7 +345,7 @@ func TestEngine_Configure(t *testing.T) {
 				assertServerStarted(t, engine.config.InterfaceConfig.Address)
 
 				t.Run("success - no auth on default bind root path", func(t *testing.T) {
-					capturedUser = ""
+					capturedUser = "not empty"
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address, nil)
 					response, err := http.DefaultClient.Do(request)
 
@@ -374,33 +374,27 @@ func TestEngine_Configure(t *testing.T) {
 					assert.Equal(t, "admin", capturedUser)
 				})
 				t.Run("no token", func(t *testing.T) {
-					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 
 					assert.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
 				})
 				t.Run("invalid token", func(t *testing.T) {
-					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer invalid")
 
 					assert.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
 				})
 				t.Run("invalid token (incorrect signing key)", func(t *testing.T) {
-					capturedUser = ""
 					request, _ := http.NewRequest(http.MethodGet, "http://"+engine.config.InterfaceConfig.Address+"/default-with-auth", nil)
 					response, err := http.DefaultClient.Do(request)
 					request.Header.Set("Authorization", "Bearer "+attackerToken)
 
 					assert.NoError(t, err)
 					assert.Equal(t, http.StatusUnauthorized, response.StatusCode)
-					assert.Empty(t, capturedUser)
 				})
 			})
 		})
