@@ -19,8 +19,8 @@
 package didx509
 
 import (
-	"crypto/sha1"
 	"crypto/sha512"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/cert"
@@ -34,20 +34,17 @@ import (
 	"testing"
 )
 
-func TestManager_Resolve_OtherName(t *testing.T) {
+func TestManager_Resolve(t *testing.T) {
 	didResolver := NewResolver()
 	metadata := resolver.ResolveMetadata{}
 
 	otherNameValue := "A_BIG_STRING"
 	otherNameValueSecondary := "A_SECOND_STRING"
-	certs, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "")
+	certs, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", nil)
 	require.NoError(t, err)
-	signingCert := leafCertFromCerts(certs)
 	rootCertificate := rootCertFromCerts(certs)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = testpki.CertsToChain(certs)
-	metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(leafCertFromCerts(certs).Raw)
-	metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(leafCertFromCerts(certs).Raw)
 
 	rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(rootCertFromCerts(certs).Raw), otherNameValue))
 
@@ -144,49 +141,19 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		didUrl, err := did.ParseDIDURL(rootDID.String() + "#0")
 		assert.NotNil(t, resolve.VerificationMethod.FindByID(*didUrl))
 	})
-	t.Run("happy flow with only x5t header", func(t *testing.T) {
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
-		resolve, documentMetadata, err := didResolver.Resolve(rootDID, &metadata)
-		require.NoError(t, err)
-		assert.NotNil(t, resolve)
-		assert.NotNil(t, documentMetadata)
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
-	})
-	t.Run("happy flow with only x5t#S256 header", func(t *testing.T) {
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
-		resolve, documentMetadata, err := didResolver.Resolve(rootDID, &metadata)
-		require.NoError(t, err)
-		assert.NotNil(t, resolve)
-		assert.NotNil(t, documentMetadata)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
-	})
-	t.Run("happy flow without x5t or x5t#S256 header", func(t *testing.T) {
-		expectedErr := ErrNoCertsInHeaders
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintS256Header)
-		_, _, err := didResolver.Resolve(rootDID, &metadata)
-		require.Error(t, err)
-		assert.ErrorIs(t, expectedErr, err)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
-	})
 	t.Run("happy flow with alternative hash alg sha512", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha512", sha512Sum(rootCertificate.Raw), otherNameValue))
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
 		resolve, documentMetadata, err := didResolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
 		assert.NotNil(t, documentMetadata)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("happy flow with alternative hash alg sha384", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha384", sha384Sum(rootCertificate.Raw), otherNameValue))
-		delete(metadata.JwtProtectedHeaders, X509CertThumbprintHeader)
 		resolve, documentMetadata, err := didResolver.Resolve(rootDID, &metadata)
 		require.NoError(t, err)
 		assert.NotNil(t, resolve)
 		assert.NotNil(t, documentMetadata)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
 	})
 	t.Run("happy flow with ca-fingerprint pointing at intermediate CA", func(t *testing.T) {
 		subjectDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:otherName:%s", "sha256", sha256Sum(certs[2].Raw), otherNameValue))
@@ -202,36 +169,8 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		_, _, err := didResolver.Resolve(subjectDID, &metadata)
 		require.EqualError(t, err, "did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	})
-	t.Run("broken thumbprint at x5t", func(t *testing.T) {
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = "GARBAGE"
-		_, _, err := didResolver.Resolve(rootDID, &metadata)
-		require.Error(t, err)
-		assert.ErrorIs(t, ErrCertificateNotfound, err)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
-	})
-	t.Run("broken thumbprint at x5t#S256", func(t *testing.T) {
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = "GARBAGE"
-		_, _, err := didResolver.Resolve(rootDID, &metadata)
-		require.Error(t, err)
-		assert.ErrorIs(t, ErrCertificateNotfound, err)
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
-	})
-	t.Run("broken thumbprint with wrong hash at x5t", func(t *testing.T) {
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(rootCertificate.Raw)
-		_, _, err := didResolver.Resolve(rootDID, &metadata)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrNoMatchingHeaderCredentials)
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(signingCert.Raw)
-	})
-	t.Run("broken thumbprint with wrong hash at x5t#S256", func(t *testing.T) {
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(rootCertificate.Raw)
-		_, _, err := didResolver.Resolve(rootDID, &metadata)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrNoMatchingHeaderCredentials)
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
-	})
 	t.Run("invalid signature of root certificate", func(t *testing.T) {
-		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "")
+		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", nil)
 		require.NoError(t, err)
 
 		craftedCertChain := new(cert.Chain)
@@ -247,13 +186,55 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		metadata := resolver.ResolveMetadata{}
 		metadata.JwtProtectedHeaders = make(map[string]interface{})
 		metadata.JwtProtectedHeaders[X509CertChainHeader] = craftedCertChain
-		metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(signingCert.Raw)
 
 		_, _, err = didResolver.Resolve(rootDID, &metadata)
 		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
 	})
+	t.Run("x5c contains extra certs", func(t *testing.T) {
+		metadata := resolver.ResolveMetadata{
+			JwtProtectedHeaders: map[string]interface{}{
+				X509CertChainHeader: testpki.CertsToChain(append(certs, certs[0])),
+			},
+		}
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertificate.Raw)))
+		_, _, err := didResolver.Resolve(rootDID, &metadata)
+
+		require.EqualError(t, err, "did:x509 x5c header contains more certificates than the validated certificate chain")
+	})
+	t.Run("no key usage in signing certificate", func(t *testing.T) {
+		keyUsage := x509.KeyUsage(0)
+		certs, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", &keyUsage)
+		require.NoError(t, err)
+
+		metadata := resolver.ResolveMetadata{
+			JwtProtectedHeaders: map[string]interface{}{
+				X509CertChainHeader: testpki.CertsToChain(certs),
+			},
+		}
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertFromCerts(certs).Raw)))
+		didDocument, _, err := didResolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.Len(t, didDocument.AssertionMethod, 1)
+		assert.Len(t, didDocument.KeyAgreement, 1)
+	})
+	t.Run("key usage in signing certificate, but neither digitalSignature or keyAgreement", func(t *testing.T) {
+		keyUsage := x509.KeyUsageCertSign
+		certs, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", &keyUsage)
+		require.NoError(t, err)
+
+		metadata := resolver.ResolveMetadata{
+			JwtProtectedHeaders: map[string]interface{}{
+				X509CertChainHeader: testpki.CertsToChain(certs),
+			},
+		}
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertFromCerts(certs).Raw)))
+		_, _, err = didResolver.Resolve(rootDID, &metadata)
+
+		require.EqualError(t, err, "did:x509 certificate must have either digitalSignature or keyAgreement set as key usage bits")
+	})
 	t.Run("invalid issuer signature of leaf certificate", func(t *testing.T) {
-		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "")
+		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", nil)
 		require.NoError(t, err)
 
 		craftedCertChain := new(cert.Chain)
@@ -266,7 +247,6 @@ func TestManager_Resolve_OtherName(t *testing.T) {
 		metadata := resolver.ResolveMetadata{}
 		metadata.JwtProtectedHeaders = make(map[string]interface{})
 		metadata.JwtProtectedHeaders[X509CertChainHeader] = craftedCertChain
-		metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(leafCertFromCerts(craftedCerts).Raw)
 
 		_, _, err = didResolver.Resolve(rootDID, &metadata)
 		require.ErrorContains(t, err, "did:509 certificate chain validation failed: x509: certificate signed by unknown authority")
@@ -314,13 +294,11 @@ func TestManager_Resolve_San_Generic(t *testing.T) {
 	didResolver := NewResolver()
 	metadata := resolver.ResolveMetadata{}
 
-	certs, _, err := testpki.BuildCertChain([]string{}, "")
+	certs, _, err := testpki.BuildCertChain([]string{}, "", nil)
 	require.NoError(t, err)
 	rootCertificate := rootCertFromCerts(certs)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = testpki.CertsToChain(certs)
-	metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(leafCertFromCerts(certs).Raw)
-	metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(leafCertFromCerts(certs).Raw)
 
 	t.Run("unk san attribute", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::san:unknown:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.uva.nl"))
@@ -390,13 +368,11 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	metadata := resolver.ResolveMetadata{}
 
 	otherNameValue := "A_BIG_STRING"
-	certs, _, err := testpki.BuildCertChain([]string{otherNameValue}, "")
+	certs, _, err := testpki.BuildCertChain([]string{otherNameValue}, "", nil)
 	require.NoError(t, err)
 	rootCertificate := rootCertFromCerts(certs)
 	metadata.JwtProtectedHeaders = make(map[string]interface{})
 	metadata.JwtProtectedHeaders[X509CertChainHeader] = testpki.CertsToChain(certs)
-	metadata.JwtProtectedHeaders[X509CertThumbprintHeader] = sha1Sum(leafCertFromCerts(certs).Raw)
-	metadata.JwtProtectedHeaders[X509CertThumbprintS256Header] = sha256Sum(leafCertFromCerts(certs).Raw)
 
 	t.Run("unknown policy", func(t *testing.T) {
 		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s::unknown:CN:%s", "sha256", sha256Sum(rootCertificate.Raw), "www.nuts.nl"))
@@ -579,16 +555,12 @@ func TestManager_Resolve_Subject(t *testing.T) {
 	})
 }
 
-func sha1Sum(raw []byte) string {
-	sum := sha1.Sum(raw)
-	return base64.RawURLEncoding.EncodeToString(sum[:])
-}
-
 func sha256Sum(bytes []byte) string {
 	rootHash := sha256.Sum256(bytes)
 	rootHashStr := base64.RawURLEncoding.EncodeToString(rootHash[:])
 	return rootHashStr
 }
+
 func sha512Sum(bytes []byte) string {
 	rootHash := sha512.Sum512(bytes)
 	rootHashStr := base64.RawURLEncoding.EncodeToString(rootHash[:])

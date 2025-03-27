@@ -87,7 +87,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	t.Run("JWT - X509", func(t *testing.T) {
 
 		ura := "312312312"
-		certs, keys, err := testpki.BuildCertChain(nil, ura)
+		certs, keys, err := testpki.BuildCertChain(nil, ura, nil)
 		chain := testpki.CertsToChain(certs)
 		signingCert := certs[0]
 		signingKey := keys[0]
