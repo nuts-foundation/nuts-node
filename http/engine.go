@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -66,11 +65,6 @@ func (h Engine) Router() core.EchoRouter {
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	h.configureClient(serverConfig)
-
-	// Override default Echo HTTP error when bearer token is expected but not provided.
-	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
-	// "Unauthorized (401)" is a better fit.
-	middleware.ErrJWTMissing = echo.NewHTTPError(http.StatusUnauthorized, "missing or malformed jwt")
 
 	// We have 2 HTTP interfaces: internal and public
 	// The following paths (and their subpaths) are bound to the internal interface:
