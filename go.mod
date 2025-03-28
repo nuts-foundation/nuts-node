@@ -3,7 +3,6 @@ module github.com/nuts-foundation/nuts-node
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action
 go 1.24.0
-
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
@@ -195,7 +194,7 @@ require (
 	gorm.io/gorm v1.25.12
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.8.2 // indirect
-	modernc.org/sqlite v1.36.2
+	modernc.org/sqlite v1.36.3
 	rsc.io/qr v0.2.0 // indirect
 )
 
