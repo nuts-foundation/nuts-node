@@ -19,11 +19,12 @@
 package auth
 
 import (
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, DefaultConfig(), DefaultConfig())
-	assert.NotSame(t, DefaultConfig(), DefaultConfig())
+	assert.NotSame(t, to.Ptr(DefaultConfig()), to.Ptr(DefaultConfig()))
 }
