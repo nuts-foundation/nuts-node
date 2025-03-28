@@ -30,7 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/jwa"
@@ -72,7 +73,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	// Override default Echo HTTP error when bearer token is expected but not provided.
 	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
 	// "Unauthorized (401)" is a better fit.
-	middleware.ErrJWTMissing = echo.NewHTTPError(http.StatusUnauthorized, "missing or malformed jwt")
+	echojwt.ErrJWTMissing = echo.NewHTTPError(http.StatusUnauthorized, "missing or malformed jwt")
 
 	var tlsConfig *tls.Config
 	var err error
@@ -330,7 +331,7 @@ func (h Engine) applyBindMiddleware(echoServer EchoServer, path string, excludeP
 	case BearerTokenAuth:
 		log.Logger().Infof("Enabling token authentication for HTTP interface: %s%s", address, path)
 		signingPublicKey, signingKeyLookupErr := h.getLegacyTokenAuthKey()
-		echoServer.Use(middleware.JWTWithConfig(middleware.JWTConfig{
+		echoServer.Use(echojwt.WithConfig(echojwt.Config{
 			KeyFunc: func(_ *jwt.Token) (interface{}, error) {
 				return signingPublicKey, signingKeyLookupErr
 			},

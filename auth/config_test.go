@@ -24,6 +24,8 @@ import (
 )
 
 func TestDefaultConfig(t *testing.T) {
-	assert.Equal(t, DefaultConfig(), DefaultConfig())
-	assert.NotSame(t, DefaultConfig(), DefaultConfig())
+	a := DefaultConfig()
+	b := DefaultConfig()
+	assert.Equal(t, a, b)
+	assert.NotSame(t, &a, &b)
 }
