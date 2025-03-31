@@ -940,10 +940,7 @@ func NewRemoveCredentialFromWalletRequest(server string, subjectID string, id st
 
 	var pathParam1 string
 
-	pathParam1, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
+	pathParam1 = id
 
 	serverURL, err := url.Parse(server)
 	if err != nil {
@@ -2905,10 +2902,7 @@ func (w *ServerInterfaceWrapper) RemoveCredentialFromWallet(ctx echo.Context) er
 	// ------------- Path parameter "id" -------------
 	var id string
 
-	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
-	}
+	id = ctx.Param("id")
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
