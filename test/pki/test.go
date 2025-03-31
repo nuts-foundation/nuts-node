@@ -189,6 +189,8 @@ func BuildRootCert() (*rsa.PrivateKey, *x509.Certificate, error) {
 		return nil, nil, err
 	}
 	rootCertTmpl, err := certTemplate("Root CA")
+	// Set a fixed validity period for the root certificate, so expiration can be tested deterministically.
+	// Also, set expiration in the far future, so we don't have failing tests due to expiration of the root cert in 10 years or so.
 	rootCertTmpl.NotBefore = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
 	rootCertTmpl.NotAfter = time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
 	if err != nil {
