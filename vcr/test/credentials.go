@@ -137,7 +137,7 @@ type credentialOption func(*jwt.Builder) *jwt.Builder
 
 func ValidX509Credential(t *testing.T, options ...credentialOption) vc.VerifiableCredential {
 	otherNameValue := "A_BIG_STRING"
-	certs, keys, err := pki.BuildCertChain([]string{otherNameValue}, "123")
+	certs, keys, err := pki.BuildCertChain([]string{otherNameValue}, "123", nil)
 	require.NoError(t, err)
 	rootCertificate := certs[len(certs)-1]
 	rootKey := keys[len(keys)-1]
@@ -157,6 +157,7 @@ func ValidX509Credential(t *testing.T, options ...credentialOption) vc.Verifiabl
 		JwtID(fmt.Sprintf("%s#1", rootDID)).
 		Issuer(rootDID.String()).
 		NotBefore(time.Now()).
+		Expiration(time.Now().Add(time.Hour)).
 		Subject("did:example:1").
 		Claim("vc", map[string]interface{}{
 			"@context": []string{"https://www.w3.org/2018/credentials/v1"},

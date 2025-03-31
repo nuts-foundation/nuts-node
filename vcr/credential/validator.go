@@ -266,9 +266,12 @@ type x509CredentialValidator struct {
 }
 
 func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) error {
-	didX509Issuer, err := did.ParseDID(credential.Issuer.String())
+	issuerDID, err := did.ParseDID(credential.Issuer.String())
 	if err != nil {
 		return errors.Join(errValidation, err)
+	}
+	if issuerDID.Method != didx509.MethodName {
+		return fmt.Errorf("%w: issuer of X509Credential MUST be did:%s DID", errValidation, didx509.MethodName)
 	}
 	x509resolver := didx509.NewResolver()
 	resolveMetadata := resolver.ResolveMetadata{}
@@ -283,12 +286,12 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 		// unsupported format
 		return fmt.Errorf("%w: unsupported credential format: %s", errValidation, credential.Format())
 	}
-	_, _, err = x509resolver.Resolve(*didX509Issuer, &resolveMetadata)
+	_, _, err = x509resolver.Resolve(*issuerDID, &resolveMetadata)
 	if err != nil {
 		return fmt.Errorf("%w: invalid issuer: %w", errValidation, err)
 	}
 
-	if err = validatePolicyAssertions(*didX509Issuer, credential); err != nil {
+	if err = validatePolicyAssertions(*issuerDID, credential); err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
 
@@ -302,6 +305,19 @@ func (d x509CredentialValidator) Validate(credential vc.VerifiableCredential) er
 		cert, _ := x509.ParseCertificate(der)
 		chain[i] = cert
 	}
+
+	// Check credential's time validity v.s. certificate's time validity
+	if credential.ExpirationDate == nil || credential.ExpirationDate.IsZero() {
+		return fmt.Errorf("%w: 'expirationDate' is required", errValidation)
+	}
+	leafCert := chain[0]
+	if credential.ExpirationDate.After(leafCert.NotAfter) {
+		return fmt.Errorf("%w: credential expiration date is after certificate's notAfter", errValidation)
+	}
+	if credential.IssuanceDate.Before(leafCert.NotBefore) {
+		return fmt.Errorf("%w: credential issuance date is before certificate's notBefore", errValidation)
+	}
+
 	if err = d.pkiValidator.CheckCRL(chain); err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
