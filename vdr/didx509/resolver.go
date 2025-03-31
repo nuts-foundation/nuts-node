@@ -83,10 +83,6 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if id.Method != MethodName {
 		return nil, nil, fmt.Errorf("unsupported DID method: %s", id.Method)
 	}
-	ref, err := ParseX509Did(id)
-	if err != nil {
-		return nil, nil, err
-	}
 
 	// These steps align with https://trustoverip.github.io/tswg-did-x509-method-specification/#read
 	// Step 1. decode x509chain
@@ -126,6 +122,14 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 			return nil, nil, fmt.Errorf("did:x509 x5c header must be sorted from leaf- to root certificate")
 		}
 	}
+	// Step 4. Apply any further application-specific checks, for example disallowing insecure certificate signature algorithms.
+	//         Skipped: this check is already performed by Verfiable Credential interaction using PEX: Presentation Definitions should limit the accepted CAs through ca-fingerprint constraining.
+	// Step 5. Map the certificate chain to the JSON data model.
+	//         Note: this isn't implemented by unmarshalling into a JSON model, but by parsing the DID into X509DidReference.
+	ref, err := ParseX509Did(id)
+	if err != nil {
+		return nil, nil, err
+	}
 	// Sanity check: ca-fingerprint must refer to a CA certificate
 	caFingerprintCert, err := findCertificateByHash(chain, ref.CAFingerprint, ref.Method)
 	if err != nil {
@@ -134,10 +138,8 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	if !caFingerprintCert.IsCA {
 		return nil, nil, fmt.Errorf("did:x509 ca-fingerprint refers to leaf certificate, must be either root or intermediate CA certificate")
 	}
-	// Step 4. Apply any further application-specific checks, for example disallowing insecure certificate signature algorithms.
-	//         Skipped: this check is already performed by Verfiable Credential interaction using PEX: Presentation Definitions should limit the accepted CAs through ca-fingerprint constraining.
-	// Step 5. Map the certificate chain to the JSON data model.
 	// Step 6. Check whether the DID is valid against the certificate chain in the JSON data model according to the Rego policy (or equivalent rules) defined in this document.
+	//         Note: this isn't implemented by unmarshalling into a JSON model and Rego, but by parsing the DID and checking the policies against the signing certificate.
 	err = validatePolicy(ref, validationCert)
 	if err != nil {
 		return nil, nil, err
