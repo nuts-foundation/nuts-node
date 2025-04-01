@@ -33,6 +33,18 @@ import (
 // RootPath is the path used for routes that don't map to a configured bind.
 const RootPath = "/"
 
+// StatusPath is the path used for the status endpoint.
+const StatusPath = "/status"
+
+// MetricsPath is the path used for the metrics endpoint.
+const MetricsPath = "/metrics"
+
+// HealthPath is the path used for the health endpoint.
+const HealthPath = "/health"
+
+// InternalPath is the path used for internal endpoints.
+const InternalPath = "/internal"
+
 // EchoCreator is a function used to create an Echo server.
 type EchoCreator func() (EchoServer, error)
 
@@ -41,21 +53,23 @@ type EchoCreator func() (EchoServer, error)
 func NewMultiEcho() *MultiEcho {
 	instance := &MultiEcho{
 		interfaces: map[string]EchoServer{},
-		binds:      map[string]string{},
+		binds:      map[string][]string{},
 	}
 
 	// Add adds a route to the Echo server.
 	instance.echoAdapter.useFn = instance.Use
 	instance.echoAdapter.addFn = func(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
 		bind := instance.getBindFromPath(path)
-		bindAddress := instance.binds[bind]
-		var iface EchoServer
-		if bindAddress != "" {
-			iface = instance.interfaces[bindAddress]
-		} else {
-			iface = instance.interfaces[instance.binds[RootPath]]
+		bindAddresses := instance.binds[bind]
+		// If bound, bind to root interface
+		if len(bindAddresses) == 0 {
+			bindAddresses = instance.binds[RootPath]
 		}
-		return iface.Add(method, path, handler, middleware...)
+		var route *echo.Route
+		for _, bindAddress := range bindAddresses {
+			route = instance.interfaces[bindAddress].Add(method, path, handler, middleware...)
+		}
+		return route
 	}
 	return instance
 }
@@ -65,16 +79,21 @@ type MultiEcho struct {
 	echoAdapter
 
 	interfaces map[string]EchoServer
-	binds      map[string]string
+	binds      map[string][]string
 }
 
 // Bind binds the given path (first part of the URL) to the given HTTP interface. Calling Bind for the same path twice
 // results in an error being returned.
 // If address wasn't used for another bind and thus leads to creating a new Echo server, it returns true.
 // If an existing Echo server is returned, it returns false.
-func (c *MultiEcho) Bind(path string, address string, creatorFn func(ipHeader string) (EchoServer, error), ipHeader string) error {
-	if len(address) == 0 {
-		return errors.New("empty address")
+func (c *MultiEcho) Bind(path string, addresses []string, creatorFn func(ipHeader string) (EchoServer, error), ipHeader string) error {
+	if len(addresses) == 0 {
+		return errors.New("no addresses")
+	}
+	for _, address := range addresses {
+		if len(address) == 0 {
+			return errors.New("empty address")
+		}
 	}
 	err := c.validateBindPath(path)
 	if err != nil {
@@ -84,13 +103,16 @@ func (c *MultiEcho) Bind(path string, address string, creatorFn func(ipHeader st
 	if _, pathExists := c.binds[path]; pathExists {
 		return fmt.Errorf("http bind already exists: %s", path)
 	}
-	c.binds[path] = address
-	if _, addressBound := c.interfaces[address]; !addressBound {
-		server, err := creatorFn(ipHeader)
-		if err != nil {
-			return err
+	c.binds[path] = addresses
+
+	for _, address := range addresses {
+		if _, addressBound := c.interfaces[address]; !addressBound {
+			server, err := creatorFn(ipHeader)
+			if err != nil {
+				return err
+			}
+			c.interfaces[address] = server
 		}
-		c.interfaces[address] = server
 	}
 	return nil
 }
@@ -136,7 +158,7 @@ func (c MultiEcho) Use(middleware ...echo.MiddlewareFunc) {
 		curr.Use(middleware...)
 	}
 }
-func (c *MultiEcho) getAddressForPath(path string) string {
+func (c *MultiEcho) getAddressesForPath(path string) []string {
 	return c.binds[c.getBindFromPath(path)]
 }
 
