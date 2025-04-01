@@ -69,6 +69,7 @@ func NewMultiEcho() *MultiEcho {
 		for _, bindAddress := range bindAddresses {
 			route = instance.interfaces[bindAddress].Add(method, path, handler, middleware...)
 		}
+		// Doesn't matter from which HTTP interface we return the route, since they're all the same.
 		return route
 	}
 	return instance

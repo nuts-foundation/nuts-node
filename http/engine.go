@@ -222,8 +222,6 @@ func (h Engine) applyLoggerMiddleware(echoServer core.EchoRouter, excludePaths [
 }
 
 func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, config AuthConfig) error {
-	address := h.server.getAddressesForPath(path)
-
 	skipper := func(c echo.Context) bool {
 		return !matchesPath(c.Request().RequestURI, path)
 	}
@@ -235,7 +233,9 @@ func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, con
 		return nil
 
 	case BearerTokenAuthV2:
-		log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
+		for _, address := range h.server.getAddressesForPath(path) {
+			log.Logger().Infof("Enabling token authentication (v2) for HTTP interface: %s%s", address, path)
+		}
 
 		// Use the configured audience or the hostname by default
 		audience := config.Audience
