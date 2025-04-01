@@ -20,8 +20,6 @@
 package vcr
 
 import (
-	"encoding/json"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
@@ -77,12 +75,7 @@ func TestNutsV1Context(t *testing.T) {
 		assert.NoError(t, err)
 	})
 	t.Run("X509Credential", func(t *testing.T) {
-		vcJWT, _ := assets.TestAssets.ReadFile("test_assets/x509credential.jwt")
-		parsedVC, err := vc.ParseVerifiableCredential(string(vcJWT))
-		require.NoError(t, err)
-		type Alias vc.VerifiableCredential
-		vcJSON, err := json.Marshal(Alias(*parsedVC))
-		require.NoError(t, err)
+		vcJSON, _ := assets.TestAssets.ReadFile("test_assets/x509credential.json")
 
 		documents, err := reader.ReadBytes(vcJSON)
 		if err != nil {
