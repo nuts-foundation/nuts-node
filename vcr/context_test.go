@@ -20,6 +20,8 @@
 package vcr
 
 import (
+	"encoding/json"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
@@ -58,6 +60,30 @@ func TestNutsV1Context(t *testing.T) {
 		subject := test.ValidNutsAuthorizationCredential(t)
 		subject.Proof = nil
 		vcJSON, _ := subject.MarshalJSON()
+		documents, err := reader.ReadBytes(vcJSON)
+		if err != nil {
+			panic(err)
+		}
+
+		options := ld.NewJsonLdOptions("")
+		options.DocumentLoader = jsonldManager.DocumentLoader()
+		processor := ld.NewJsonLdProcessor()
+
+		compacted, err := processor.Compact(documents[0], nil, options)
+		require.NoError(t, err)
+		expanded, err := processor.Expand(compacted, options)
+
+		assert.Equal(t, documents[0], expanded[0])
+		assert.NoError(t, err)
+	})
+	t.Run("X509Credential", func(t *testing.T) {
+		vcJWT, _ := assets.TestAssets.ReadFile("test_assets/x509credential.jwt")
+		parsedVC, err := vc.ParseVerifiableCredential(string(vcJWT))
+		require.NoError(t, err)
+		type Alias vc.VerifiableCredential
+		vcJSON, err := json.Marshal(Alias(*parsedVC))
+		require.NoError(t, err)
+
 		documents, err := reader.ReadBytes(vcJSON)
 		if err != nil {
 			panic(err)

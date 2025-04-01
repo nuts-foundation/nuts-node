@@ -76,19 +76,23 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 	h.server = NewMultiEcho()
 	// Public endpoints
-	if err := h.server.Bind(RootPath, h.config.Public.Address, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
+	if err := h.server.Bind(RootPath, []string{h.config.Public.Address}, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
 		return err
 	}
 	// Internal endpoints
-	for _, httpPath := range []string{"/internal", "/status", "/health", "/metrics"} {
-		if err := h.server.Bind(httpPath, h.config.Internal.Address, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
+	for _, httpPath := range []string{InternalPath, HealthPath, MetricsPath} {
+		if err := h.server.Bind(httpPath, []string{h.config.Internal.Address}, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
 			return err
 		}
 	}
+	// /status endpoint is both on internally and publicly available.
+	if err := h.server.Bind(StatusPath, []string{h.config.Public.Address, h.config.Internal.Address}, h.createEchoServer, h.config.ClientIPHeaderName); err != nil {
+		return err
+	}
 
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
-	h.applyLoggerMiddleware(h.server, []string{"/metrics", "/status", "/health"}, h.config.Log)
-	return h.applyAuthMiddleware(h.server, "/internal", h.config.Internal.Auth)
+	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)
+	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
 }
 
 func (h *Engine) configureClient(serverConfig core.ServerConfig) {
@@ -218,7 +222,7 @@ func (h Engine) applyLoggerMiddleware(echoServer core.EchoRouter, excludePaths [
 }
 
 func (h Engine) applyAuthMiddleware(echoServer core.EchoRouter, path string, config AuthConfig) error {
-	address := h.server.getAddressForPath(path)
+	address := h.server.getAddressesForPath(path)
 
 	skipper := func(c echo.Context) bool {
 		return !matchesPath(c.Request().RequestURI, path)

@@ -32,18 +32,18 @@ func Test_MultiEcho_Bind(t *testing.T) {
 	const defaultAddress = ":1323"
 	t.Run("group already bound", func(t *testing.T) {
 		m := NewMultiEcho()
-		err := m.Bind("", defaultAddress, func(ipHeader string) (EchoServer, error) {
+		err := m.Bind("", []string{defaultAddress}, func(ipHeader string) (EchoServer, error) {
 			return echo.New(), nil
 		}, "header")
 		require.NoError(t, err)
-		err = m.Bind("", defaultAddress, func(ipHeader string) (EchoServer, error) {
+		err = m.Bind("", []string{defaultAddress}, func(ipHeader string) (EchoServer, error) {
 			return echo.New(), nil
 		}, "header")
 		assert.EqualError(t, err, "http bind already exists: /")
 	})
 	t.Run("error - group contains subpaths", func(t *testing.T) {
 		m := NewMultiEcho()
-		err := m.Bind("internal/vdr", defaultAddress, nil, "")
+		err := m.Bind("internal/vdr", []string{defaultAddress}, nil, "")
 		assert.EqualError(t, err, "bind can't contain subpaths: internal/vdr")
 	})
 }
@@ -55,7 +55,7 @@ func Test_MultiEcho_Start(t *testing.T) {
 		server.EXPECT().Start(gomock.Any()).Return(errors.New("unable to start"))
 
 		m := NewMultiEcho()
-		m.Bind("group2", ":8080", func(ipHeader string) (EchoServer, error) {
+		m.Bind("group2", []string{":8080"}, func(ipHeader string) (EchoServer, error) {
 			return server, nil
 		}, "header")
 		err := m.Start()
@@ -74,31 +74,37 @@ func Test_MultiEcho(t *testing.T) {
 	defaultServer.EXPECT().Start(defaultAddress)
 
 	internalServer := NewMockEchoServer(ctrl)
-	internalServer.EXPECT().Add("GET", "/internal/internal-endpoint", gomock.Any())
+	internalServer.EXPECT().Add(http.MethodGet, "/internal/internal-endpoint", gomock.Any())
+	internalServer.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
 	internalServer.EXPECT().Start("internal:8080")
 
 	publicServer := NewMockEchoServer(ctrl)
 	publicServer.EXPECT().Add(http.MethodPost, "/public/pub-endpoint", gomock.Any())
 	publicServer.EXPECT().Add(http.MethodDelete, "/extra-public/extra-pub-endpoint", gomock.Any())
+	publicServer.EXPECT().Add(http.MethodGet, "/status", gomock.Any())
 	publicServer.EXPECT().Start("public:8080")
 
 	// Bind interfaces
 	m := NewMultiEcho()
-	err := m.Bind(RootPath, defaultAddress, func(ipHeader string) (EchoServer, error) {
+	err := m.Bind(RootPath, []string{defaultAddress}, func(ipHeader string) (EchoServer, error) {
 		return defaultServer, nil
 	}, "header")
 	require.NoError(t, err)
-	err = m.Bind("internal", "internal:8080", func(ipHeader string) (EchoServer, error) {
+	err = m.Bind("internal", []string{"internal:8080"}, func(ipHeader string) (EchoServer, error) {
 		return internalServer, nil
 	}, "header")
 	require.NoError(t, err)
-	err = m.Bind("public", "public:8080", func(ipHeader string) (EchoServer, error) {
+	err = m.Bind("public", []string{"public:8080"}, func(ipHeader string) (EchoServer, error) {
 		return publicServer, nil
 	}, "header")
 	require.NoError(t, err)
-	err = m.Bind("extra-public", "public:8080", func(ipHeader string) (EchoServer, error) {
+	err = m.Bind("extra-public", []string{"public:8080"}, func(ipHeader string) (EchoServer, error) {
 		t.Fatal("should not be called!")
 		return nil, nil
+	}, "header")
+	require.NoError(t, err)
+	err = m.Bind("status", []string{"public:8080", "internal:8080"}, func(ipHeader string) (EchoServer, error) {
+		return internalServer, nil
 	}, "header")
 	require.NoError(t, err)
 
@@ -129,7 +135,7 @@ func Test_MultiEcho_Methods(t *testing.T) {
 	)
 
 	m := NewMultiEcho()
-	m.Bind(RootPath, ":1323", func(ipHeader string) (EchoServer, error) {
+	m.Bind(RootPath, []string{":1323"}, func(ipHeader string) (EchoServer, error) {
 		return defaultServer, nil
 	}, "header")
 	m.GET("/get", nil)

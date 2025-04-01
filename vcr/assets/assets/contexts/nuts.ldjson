@@ -92,6 +92,41 @@
         "@vocab": "nuts"
       }
     },
-    "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation"
+    "NutsSelfSignedPresentation": "nuts:NutsSelfSignedPresentation",
+    "X509Credential": {
+      "@id": "nuts:X509Credential",
+      "@type": "@id",
+      "@context": {
+        "@version": 1.1,
+        "@protected": true,
+        "@propagate": true,
+        "subject": {
+          "@id": "nuts:X509Subject",
+          "@type": "@id",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "@propagate": false,
+            "L":"schema:addressLocality",
+            "C":"schema:addressCountry",
+            "S": "schema:addressRegion",
+            "O":"schema:name",
+            "CN": "schema:url"
+          }
+        },
+        "san": {
+          "@id": "nuts:X509SubjectAlternativeName",
+          "@type": "@id",
+          "@context": {
+            "@version": 1.1,
+            "@protected": true,
+            "@propagate": false,
+            "otherName": "nuts:X509SubjectAlternativeName.othername",
+            "permanentIdentifier.assigner": "nuts:X509SubjectAlternativeName.permanentIdentifier.assigner",
+            "permanentIdentifier.value": "nuts:X509SubjectAlternativeName.permanentIdentifier.value"
+          }
+        }
+      }
+    }
   }
 }
