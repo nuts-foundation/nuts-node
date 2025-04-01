@@ -61,7 +61,7 @@ func NewMultiEcho() *MultiEcho {
 	instance.echoAdapter.addFn = func(method, path string, handler echo.HandlerFunc, middleware ...echo.MiddlewareFunc) *echo.Route {
 		bind := instance.getBindFromPath(path)
 		bindAddresses := instance.binds[bind]
-		// If bound, bind to root interface
+		// If not bound to a specific HTTP interface, bind to HTTP interface associated with root HTTP path (/)
 		if len(bindAddresses) == 0 {
 			bindAddresses = instance.binds[RootPath]
 		}
