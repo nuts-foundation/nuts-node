@@ -109,6 +109,7 @@ func Test_MultiEcho(t *testing.T) {
 	require.NoError(t, err)
 
 	m.addFn(http.MethodPost, "/public/pub-endpoint", nil)
+	m.addFn(http.MethodGet, "/status", nil)
 	m.addFn(http.MethodDelete, "/extra-public/extra-pub-endpoint", nil)
 	m.addFn(http.MethodGet, "/internal/internal-endpoint", nil)
 	m.addFn(http.MethodPatch, "/other/default-endpoint", nil)
