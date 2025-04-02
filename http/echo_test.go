@@ -46,6 +46,17 @@ func Test_MultiEcho_Bind(t *testing.T) {
 		err := m.Bind("internal/vdr", []string{defaultAddress}, nil, "")
 		assert.EqualError(t, err, "bind can't contain subpaths: internal/vdr")
 	})
+	t.Run("empty address", func(t *testing.T) {
+		m := NewMultiEcho()
+		err := m.Bind("internal", []string{""}, nil, "")
+		assert.EqualError(t, err, "empty address")
+	})
+	t.Run("no addresses", func(t *testing.T) {
+		m := NewMultiEcho()
+		err := m.Bind("internal", []string{}, nil, "")
+		assert.EqualError(t, err, "no addresses")
+	})
+
 }
 
 func Test_MultiEcho_Start(t *testing.T) {
