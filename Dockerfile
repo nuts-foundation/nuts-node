@@ -13,11 +13,11 @@ LABEL maintainer="wout.slakhorst@nuts.nl"
 ENV GOPATH=/
 
 RUN mkdir /opt/nuts && cd /opt/nuts
+COPY . .
 COPY go.mod .
 COPY go.sum .
 RUN go mod download && go mod verify
 
-COPY . .
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
