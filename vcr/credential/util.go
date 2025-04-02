@@ -136,7 +136,7 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 		}
 		if _, ok := credentialSubject[0]["id"]; !ok {
 			credentialSubject[0]["id"] = requester.String()
-			credential.CredentialSubject = make([]interface{}, 1)
+			credential.CredentialSubject = make([]map[string]any, 1)
 			credential.CredentialSubject[0] = credentialSubject[0]
 		}
 	}
@@ -151,7 +151,6 @@ func FilterOnDIDMethod(credentials []vc.VerifiableCredential, didMethods []strin
 		return credentials
 	}
 	var result []vc.VerifiableCredential
-outer:
 	for _, credential := range credentials {
 		// check issuer
 		issuerDID, err := did.ParseDID(credential.Issuer.String())
@@ -160,21 +159,9 @@ outer:
 				continue
 			}
 		}
-		bl := make([]BaseCredentialSubject, 0)
-		err = credential.UnmarshalCredentialSubject(&bl)
-		if err != nil {
+		subjectDID, err := credential.SubjectDID()
+		if err == nil && !slices.Contains(didMethods, subjectDID.Method) {
 			continue
-		}
-		for _, b := range bl {
-			if b.ID != "" {
-				// check credentialSubject
-				subjectDID, err := did.ParseDID(b.ID)
-				if err == nil {
-					if !slices.Contains(didMethods, subjectDID.Method) {
-						continue outer
-					}
-				}
-			}
 		}
 		result = append(result, credential)
 	}
