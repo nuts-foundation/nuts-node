@@ -93,7 +93,7 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 	}, nil
 }
 
-// parseEnvelopeEntry parses a single Verifiable Presentation in a Presentation Exchange envelope.
+// parseJSONArrayEnvelope parses a single Verifiable Presentation in a Presentation Exchange envelope.
 // It takes into account custom unmarshalling required for JWT VPs.
 func parseJSONArrayEnvelope(arr []interface{}) (interface{}, []vc.VerifiablePresentation, error) {
 	var presentations []vc.VerifiablePresentation
