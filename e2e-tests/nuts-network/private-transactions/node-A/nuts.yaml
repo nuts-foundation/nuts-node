@@ -1,9 +1,11 @@
 url: https://node-A
-verbosity: debug
-strictmode: true
+verbosity: info
+strictmode: false
 internalratelimiter: false
 datadir: /opt/nuts/data
+cpuprofile: /opt/nuts/data/cpu.profile
 http:
+  log: metadata-and-body
   internal:
     address: :8081
 auth:
