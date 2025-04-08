@@ -114,18 +114,18 @@ func (mr *MockStateMockRecorder) FindBetweenLC(ctx, startInclusive, endExclusive
 }
 
 // GetTransaction mocks base method.
-func (m *MockState) GetTransaction(ctx context.Context, hash hash.SHA256Hash) (Transaction, error) {
+func (m *MockState) GetTransaction(ctx context.Context, arg1 hash.SHA256Hash) (Transaction, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransaction", ctx, hash)
+	ret := m.ctrl.Call(m, "GetTransaction", ctx, arg1)
 	ret0, _ := ret[0].(Transaction)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetTransaction indicates an expected call of GetTransaction.
-func (mr *MockStateMockRecorder) GetTransaction(ctx, hash any) *gomock.Call {
+func (mr *MockStateMockRecorder) GetTransaction(ctx, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockState)(nil).GetTransaction), ctx, hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransaction", reflect.TypeOf((*MockState)(nil).GetTransaction), ctx, arg1)
 }
 
 // Head mocks base method.

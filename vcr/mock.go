@@ -87,17 +87,17 @@ func (m *MockTrustManager) EXPECT() *MockTrustManagerMockRecorder {
 }
 
 // Trust mocks base method.
-func (m *MockTrustManager) Trust(credentialType, issuer ssi.URI) error {
+func (m *MockTrustManager) Trust(credentialType, arg1 ssi.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
+	ret := m.ctrl.Call(m, "Trust", credentialType, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Trust indicates an expected call of Trust.
-func (mr *MockTrustManagerMockRecorder) Trust(credentialType, issuer any) *gomock.Call {
+func (mr *MockTrustManagerMockRecorder) Trust(credentialType, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockTrustManager)(nil).Trust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockTrustManager)(nil).Trust), credentialType, arg1)
 }
 
 // Trusted mocks base method.
@@ -116,17 +116,17 @@ func (mr *MockTrustManagerMockRecorder) Trusted(credentialType any) *gomock.Call
 }
 
 // Untrust mocks base method.
-func (m *MockTrustManager) Untrust(credentialType, issuer ssi.URI) error {
+func (m *MockTrustManager) Untrust(credentialType, arg1 ssi.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
+	ret := m.ctrl.Call(m, "Untrust", credentialType, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Untrust indicates an expected call of Untrust.
-func (mr *MockTrustManagerMockRecorder) Untrust(credentialType, issuer any) *gomock.Call {
+func (mr *MockTrustManagerMockRecorder) Untrust(credentialType, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockTrustManager)(nil).Untrust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockTrustManager)(nil).Untrust), credentialType, arg1)
 }
 
 // Untrusted mocks base method.
@@ -296,31 +296,31 @@ func (mr *MockVCRMockRecorder) Search(ctx, searchTerms, allowUntrusted, resolveT
 }
 
 // StoreCredential mocks base method.
-func (m *MockVCR) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
+func (m *MockVCR) StoreCredential(arg0 vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
+	ret := m.ctrl.Call(m, "StoreCredential", arg0, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockVCRMockRecorder) StoreCredential(vc, validAt any) *gomock.Call {
+func (mr *MockVCRMockRecorder) StoreCredential(arg0, validAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), vc, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockVCR)(nil).StoreCredential), arg0, validAt)
 }
 
 // Trust mocks base method.
-func (m *MockVCR) Trust(credentialType, issuer ssi.URI) error {
+func (m *MockVCR) Trust(credentialType, arg1 ssi.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Trust", credentialType, issuer)
+	ret := m.ctrl.Call(m, "Trust", credentialType, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Trust indicates an expected call of Trust.
-func (mr *MockVCRMockRecorder) Trust(credentialType, issuer any) *gomock.Call {
+func (mr *MockVCRMockRecorder) Trust(credentialType, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockVCR)(nil).Trust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Trust", reflect.TypeOf((*MockVCR)(nil).Trust), credentialType, arg1)
 }
 
 // Trusted mocks base method.
@@ -339,17 +339,17 @@ func (mr *MockVCRMockRecorder) Trusted(credentialType any) *gomock.Call {
 }
 
 // Untrust mocks base method.
-func (m *MockVCR) Untrust(credentialType, issuer ssi.URI) error {
+func (m *MockVCR) Untrust(credentialType, arg1 ssi.URI) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Untrust", credentialType, issuer)
+	ret := m.ctrl.Call(m, "Untrust", credentialType, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Untrust indicates an expected call of Untrust.
-func (mr *MockVCRMockRecorder) Untrust(credentialType, issuer any) *gomock.Call {
+func (mr *MockVCRMockRecorder) Untrust(credentialType, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockVCR)(nil).Untrust), credentialType, issuer)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Untrust", reflect.TypeOf((*MockVCR)(nil).Untrust), credentialType, arg1)
 }
 
 // Untrusted mocks base method.

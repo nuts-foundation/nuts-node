@@ -42,9 +42,9 @@ func (m *MockServer) EXPECT() *MockServerMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockServer) Get(context context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, string, int, error) {
+func (m *MockServer) Get(arg0 context.Context, serviceID string, startAfter int) (map[string]vc.VerifiablePresentation, string, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", context, serviceID, startAfter)
+	ret := m.ctrl.Call(m, "Get", arg0, serviceID, startAfter)
 	ret0, _ := ret[0].(map[string]vc.VerifiablePresentation)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(int)
@@ -53,23 +53,23 @@ func (m *MockServer) Get(context context.Context, serviceID string, startAfter i
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockServerMockRecorder) Get(context, serviceID, startAfter any) *gomock.Call {
+func (mr *MockServerMockRecorder) Get(arg0, serviceID, startAfter any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockServer)(nil).Get), context, serviceID, startAfter)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockServer)(nil).Get), arg0, serviceID, startAfter)
 }
 
 // Register mocks base method.
-func (m *MockServer) Register(context context.Context, serviceID string, presentation vc.VerifiablePresentation) error {
+func (m *MockServer) Register(arg0 context.Context, serviceID string, presentation vc.VerifiablePresentation) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", context, serviceID, presentation)
+	ret := m.ctrl.Call(m, "Register", arg0, serviceID, presentation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockServerMockRecorder) Register(context, serviceID, presentation any) *gomock.Call {
+func (mr *MockServerMockRecorder) Register(arg0, serviceID, presentation any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockServer)(nil).Register), context, serviceID, presentation)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockServer)(nil).Register), arg0, serviceID, presentation)
 }
 
 // MockClient is a mock of Client interface.

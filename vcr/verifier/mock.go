@@ -89,17 +89,17 @@ func (mr *MockVerifierMockRecorder) RegisterRevocation(revocation any) *gomock.C
 }
 
 // Verify mocks base method.
-func (m *MockVerifier) Verify(credential vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
+func (m *MockVerifier) Verify(arg0 vc.VerifiableCredential, allowUntrusted, checkSignature bool, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", credential, allowUntrusted, checkSignature, validAt)
+	ret := m.ctrl.Call(m, "Verify", arg0, allowUntrusted, checkSignature, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockVerifierMockRecorder) Verify(credential, allowUntrusted, checkSignature, validAt any) *gomock.Call {
+func (mr *MockVerifierMockRecorder) Verify(arg0, allowUntrusted, checkSignature, validAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), credential, allowUntrusted, checkSignature, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockVerifier)(nil).Verify), arg0, allowUntrusted, checkSignature, validAt)
 }
 
 // VerifySignature mocks base method.
