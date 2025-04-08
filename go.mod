@@ -3,6 +3,7 @@ module github.com/nuts-foundation/nuts-node
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action
 go 1.24.0
+
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.1
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
@@ -28,7 +29,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/nats-io/nats-server/v2 v2.11.0
-	github.com/nats-io/nats.go v1.40.1
+	github.com/nats-io/nats.go v1.41.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.15.0
 	github.com/nuts-foundation/go-leia/v4 v4.1.0
