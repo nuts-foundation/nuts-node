@@ -3,6 +3,18 @@ Release notes
 #############
 
 ****************
+Peanut (v6.1.0)
+****************
+
+Release date: 2025-04-09
+
+- Add support for did:x509 DID method
+- Add support for `X509Credential` Verifiable Credential type, which is used to represent X.509 certificates as Verifiable Credentials (#3582)
+- Also make `/status` endpoint available on public HTTP interface (#3755)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.0.0...v6.1.0
+
+****************
 Peanut (v6.0.10)
 ****************
 
