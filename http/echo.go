@@ -83,10 +83,8 @@ type MultiEcho struct {
 	binds      map[string][]string
 }
 
-// Bind binds the given path (first part of the URL) to the given HTTP interface. Calling Bind for the same path twice
+// Bind binds the given path (first part of the URL) to the given HTTP interfaces. Calling Bind for the same path twice
 // results in an error being returned.
-// If address wasn't used for another bind and thus leads to creating a new Echo server, it returns true.
-// If an existing Echo server is returned, it returns false.
 func (c *MultiEcho) Bind(path string, addresses []string, creatorFn func(ipHeader string) (EchoServer, error), ipHeader string) error {
 	if len(addresses) == 0 {
 		return errors.New("no addresses")
