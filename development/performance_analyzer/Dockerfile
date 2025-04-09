@@ -1,5 +1,8 @@
 FROM nutsfoundation/nuts-node:master
 
+# set UID to root user
+USER 0:0
+
 # install and configure node-exporter
 RUN apk update && apk add --no-cache prometheus-node-exporter openrc
 RUN rc-update add node-exporter default \
