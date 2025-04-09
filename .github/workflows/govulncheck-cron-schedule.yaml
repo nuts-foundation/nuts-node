@@ -24,6 +24,7 @@ jobs:
           - 'master'
           - 'V5.4'
           - 'V6.0'
+          - 'V6.1'
 
     steps:
       - name: Checkout branch
