@@ -20,6 +20,9 @@ package spi
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -163,4 +166,95 @@ func TestWrapper_ListPrivateKeys(t *testing.T) {
 		assert.Equal(t, KeyNameVersion{"foo", "1"}, keys[0])
 		ctrl.Finish()
 	})
+}
+
+func TestPrometheusWrapper(t *testing.T) {
+	testCases := []struct {
+		name          string
+		expectedStats string
+		fn            func(context.Context, *PrometheusWrapper) error
+	}{
+		{
+			name: "NewPrivateKey",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				_, _, err := wrapper.NewPrivateKey(ctx, "test")
+				return err
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"new_private_key\"} 1",
+		},
+		{
+			name: "GetPrivateKey",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				_, err := wrapper.GetPrivateKey(ctx, "test", "1")
+				return err
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"get_private_key\"} 1",
+		},
+		{
+			name: "PrivateKeyExists",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				_, err := wrapper.PrivateKeyExists(ctx, "", "")
+				return err
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"private_key_exists\"} 1",
+		},
+		{
+			name: "SavePrivateKey",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				return wrapper.SavePrivateKey(ctx, "", nil)
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"save_private_key\"} 1",
+		},
+		{
+			name: "ListPrivateKeys",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				wrapper.ListPrivateKeys(ctx)
+				return nil
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"list_private_keys\"} 1",
+		},
+		{
+			name: "DeletePrivateKey",
+			fn: func(ctx context.Context, wrapper *PrometheusWrapper) error {
+				return wrapper.DeletePrivateKey(ctx, "")
+			},
+			expectedStats: "crypto_storage_op_duration_seconds_count{op=\"delete_private_key\"} 1",
+		},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			storage := NewMockStorage(ctrl)
+			storage.EXPECT().NewPrivateKey(gomock.Any(), gomock.Any()).AnyTimes()
+			storage.EXPECT().GetPrivateKey(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			storage.EXPECT().PrivateKeyExists(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			storage.EXPECT().SavePrivateKey(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+			storage.EXPECT().ListPrivateKeys(gomock.Any()).AnyTimes()
+			storage.EXPECT().DeletePrivateKey(gomock.Any(), gomock.Any()).AnyTimes()
+
+			w := NewPrometheusWrapper(storage)
+			for _, collector := range w.Collectors() {
+				err := prometheus.Register(collector)
+				require.NoError(t, err)
+			}
+			t.Cleanup(func() {
+				for _, collector := range w.Collectors() {
+					_ = prometheus.Unregister(collector)
+				}
+			})
+			err := testCase.fn(audit.TestContext(), w)
+			require.NoError(t, err)
+			s := test.PrometheusStats(t)
+			println(s)
+			require.Contains(t, s, testCase.expectedStats)
+		})
+	}
+}
+
+func TestPrometheusWrapper_Name(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	storage := NewMockStorage(ctrl)
+	storage.EXPECT().Name().Return("mocked")
+	w := NewPrometheusWrapper(storage)
+	assert.Equal(t, "mocked", w.Name())
 }

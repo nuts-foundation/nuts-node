@@ -26,13 +26,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path"
 	"reflect"
 	"testing"
 
@@ -292,19 +290,10 @@ func TestCrypto_StartAndShutdown(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		stats := getPrometheusStats(t)
+		stats := test.PrometheusStats(t)
 		assert.Contains(t, stats, "crypto_storage_op_duration_seconds_count{op=\"new_private_key\"} 1")
 
 		err = instance.Shutdown()
 		assert.NoError(t, err)
 	})
-}
-
-func getPrometheusStats(t *testing.T) string {
-	fileName := path.Join(t.TempDir(), "prometheus.txt")
-	err := prometheus.WriteToTextfile(fileName, prometheus.Gatherers{prometheus.DefaultGatherer})
-	require.NoError(t, err)
-	data, err := os.ReadFile(fileName)
-	require.NoError(t, err)
-	return string(data)
 }
