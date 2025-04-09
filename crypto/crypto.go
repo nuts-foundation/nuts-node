@@ -78,7 +78,7 @@ type Crypto struct {
 
 func (client *Crypto) Start() error {
 	for _, collector := range client.backend.(*spi.PrometheusWrapper).Collectors() {
-		if err := prometheus.Register(collector); err != nil {
+		if err := prometheus.Register(collector); err != nil && !errors.Is(err, prometheus.AlreadyRegisteredError{}) {
 			return fmt.Errorf("register metric: %w", err)
 		}
 	}

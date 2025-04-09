@@ -104,7 +104,7 @@ func NewPrometheusWrapper(backend Storage) *PrometheusWrapper {
 		wrappedBackend: backend,
 		opDurationMetric: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "crypto_storage_op_duration_seconds",
-			Help:    "Duration of crypto storage operations in seconds",
+			Help:    "Duration of crypto storage operations in seconds (experimental, may be removed without notice)",
 			Buckets: []float64{0.01, 0.05, 0.1, .5, 1, 2},
 		}, []string{"op"}),
 	}
