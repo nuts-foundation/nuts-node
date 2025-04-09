@@ -45,11 +45,11 @@ func requestLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) e
 			}
 
 			fields := logrus.Fields{
-				"remote_ip": values.RemoteIP,
-				"method":    values.Method,
-				"uri":       values.URI,
-				"duration":  values.Latency,
-				"status":    status,
+				"remote_ip":   values.RemoteIP,
+				"method":      values.Method,
+				"uri":         values.URI,
+				"duration_ms": values.Latency.Milliseconds(),
+				"status":      status,
 			}
 			if logger.Level >= logrus.DebugLevel {
 				fields["headers"] = values.Headers
