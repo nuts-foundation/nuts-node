@@ -32,6 +32,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func Test_requestLoggerMiddleware(t *testing.T) {
@@ -57,6 +58,7 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 		assert.Equal(t, "::1", hook.LastEntry().Data["remote_ip"])
 		assert.Equal(t, http.StatusNoContent, hook.LastEntry().Data["status"])
 		assert.Equal(t, "/test", hook.LastEntry().Data["uri"])
+		assert.NotEmpty(t, hook.LastEntry().Data["duration"].(time.Duration))
 	})
 
 	t.Run("it handles echo.HTTPErrors", func(t *testing.T) {
