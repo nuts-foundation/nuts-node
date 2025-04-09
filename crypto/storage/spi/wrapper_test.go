@@ -42,7 +42,7 @@ var badKIDs = []string{
 }
 
 func TestWrapper(t *testing.T) {
-	w := wrapper{kidPattern: KidPattern}
+	w := validationWrapper{kidPattern: KidPattern}
 
 	t.Run("good KIDs", func(t *testing.T) {
 		for _, kid := range goodKIDs {
@@ -59,7 +59,7 @@ func TestWrapper(t *testing.T) {
 func TestWrapper_GetPrivateKey(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: KidPattern}
+		w := validationWrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			_, err := w.GetPrivateKey(ctx, kid, "")
 			assert.Error(t, err)
@@ -82,7 +82,7 @@ func TestWrapper_GetPrivateKey(t *testing.T) {
 func TestWrapper_PrivateKeyExists(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: KidPattern}
+		w := validationWrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			exists, err := w.PrivateKeyExists(ctx, kid, "")
 			assert.Error(t, err)
@@ -107,7 +107,7 @@ func TestWrapper_PrivateKeyExists(t *testing.T) {
 func TestWrapper_SavePrivateKey(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: KidPattern}
+		w := validationWrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			err := w.SavePrivateKey(ctx, kid, nil)
 			assert.Error(t, err)
@@ -130,7 +130,7 @@ func TestWrapper_SavePrivateKey(t *testing.T) {
 func Test_wrapper_DeletePrivateKey(t *testing.T) {
 	ctx := context.Background()
 	t.Run("expect error for bad KIDs", func(t *testing.T) {
-		w := wrapper{kidPattern: KidPattern}
+		w := validationWrapper{kidPattern: KidPattern}
 		for _, kid := range badKIDs {
 			err := w.DeletePrivateKey(ctx, kid)
 			assert.Error(t, err)
