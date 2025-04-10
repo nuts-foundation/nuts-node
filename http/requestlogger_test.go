@@ -32,6 +32,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func Test_requestLoggerMiddleware(t *testing.T) {
@@ -49,6 +50,8 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 			return false
 		}, logger.WithFields(logrus.Fields{}))
 		err := logFunc(func(context echo.Context) error {
+			// Simulate some processing time to cause latency to be > 0
+			time.Sleep(1 * time.Millisecond)
 			return context.NoContent(http.StatusNoContent)
 		})(echoMock)
 
