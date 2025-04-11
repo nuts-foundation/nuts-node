@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,9 @@ func Test_gormLogrusLogger_Trace(t *testing.T) {
 	logger := gormLogrusLogger{
 		underlying:    underlying.WithFields(nil),
 		slowThreshold: 10 * time.Second,
+		queryDurationMetric: prometheus.NewHistogram(prometheus.HistogramOpts{
+			Name: "test",
+		}),
 	}
 	now := time.Now()
 	nowFunc = func() time.Time {

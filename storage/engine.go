@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"os"
 	"path"
 	"path/filepath"
@@ -69,6 +70,7 @@ type engine struct {
 	sqlDB              *gorm.DB
 	config             Config
 	sqlMigrationLogger goose.Logger
+	prometheusMetrics  []prometheus.Collector
 }
 
 func (e *engine) Config() interface{} {
@@ -115,6 +117,12 @@ func (e *engine) CheckHealth() map[string]core.Health {
 }
 
 func (e *engine) Start() error {
+	for _, metric := range e.prometheusMetrics {
+		if err := prometheus.Register(metric); err != nil && !errors.As(err, &prometheus.AlreadyRegisteredError{}) {
+			println(errors.Is(err, prometheus.AlreadyRegisteredError{}))
+			return fmt.Errorf("register metric: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -154,7 +162,12 @@ func (e *engine) Shutdown() error {
 		if err != nil {
 			return err
 		}
-		return underlyingDB.Close()
+		if err := underlyingDB.Close(); err != nil {
+			return err
+		}
+	}
+	for _, metric := range e.prometheusMetrics {
+		_ = prometheus.Unregister(metric)
 	}
 	return nil
 }
@@ -259,12 +272,18 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	if err != nil {
 		return err
 	}
-	var dialect goose.Dialect
+
+	queryDurationMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name: "sql_query_duration_seconds",
+		Help: "Duration of SQL queries in seconds (experimental, may be removed without notice)",
+	})
+	e.prometheusMetrics = append(e.prometheusMetrics, queryDurationMetric)
 	gormConfig := &gorm.Config{
 		TranslateError: true,
 		Logger: gormLogrusLogger{
-			underlying:    log.Logger(),
-			slowThreshold: sqlSlowQueryThreshold,
+			underlying:          log.Logger(),
+			slowThreshold:       sqlSlowQueryThreshold,
+			queryDurationMetric: queryDurationMetric,
 		},
 	}
 	// SQL migration files use env variables for substitutions.
@@ -274,6 +293,7 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		return err
 	}
 	defer os.Unsetenv("TEXT_TYPE")
+	var dialect goose.Dialect
 	switch dbType {
 	case "sqlite":
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,

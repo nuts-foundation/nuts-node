@@ -21,6 +21,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -32,8 +33,9 @@ var nowFunc = time.Now
 
 // gormLogrusLogger is a logger that uses logrus as underlying logger for gorm
 type gormLogrusLogger struct {
-	underlying    *logrus.Entry
-	slowThreshold time.Duration
+	underlying          *logrus.Entry
+	slowThreshold       time.Duration
+	queryDurationMetric prometheus.Histogram
 }
 
 func (g gormLogrusLogger) LogMode(level logger.LogLevel) logger.Interface {
@@ -62,6 +64,7 @@ func (g gormLogrusLogger) Trace(_ context.Context, begin time.Time, fn func() (s
 		g.underlying.WithError(err).Warnf("Query failed (took %s): %s", elapsed, sql)
 		return
 	}
+	g.queryDurationMetric.Observe(elapsed.Seconds())
 	if elapsed >= g.slowThreshold {
 		g.underlying.Warnf("Slow query (took %s): %s", elapsed, sql)
 	} else {
