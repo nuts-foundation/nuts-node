@@ -19,7 +19,6 @@
 package store
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"gorm.io/gorm"
@@ -91,14 +90,8 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 	if len(credential.CredentialSubject) != 1 {
 		return nil, fmt.Errorf("expected exactly one credential subject, got %d", len(credential.CredentialSubject))
 	}
-	credentialSubjectJSON, err := json.Marshal(credential.CredentialSubject[0])
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal credential subject: %w", err)
-	}
-	var credentialSubject map[string]interface{}
-	_ = json.Unmarshal(credentialSubjectJSON, &credentialSubject) // if we marshalled it, we can unmarshal into a map
 	// now index it
-	paths, values := indexJSONObject(credentialSubject, nil, nil, "credentialSubject")
+	paths, values := indexJSONObject(credential.CredentialSubject[0], nil, nil, "credentialSubject")
 	for i, path := range paths {
 		if path == "credentialSubject.id" {
 			// present as column, don't index

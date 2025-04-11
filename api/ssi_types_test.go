@@ -129,10 +129,14 @@ func createVerifiableCredential() vcr.VerifiableCredential {
 			ssi.MustParseURI("NutsOrganizationCredential"),
 			ssi.MustParseURI("VerifiableCredential"),
 		},
-		Issuer:            ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"),
-		IssuanceDate:      issuanceDate,
-		CredentialSubject: []interface{}{"subject"},
-		Proof:             []interface{}{"because"},
+		Issuer:       ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"),
+		IssuanceDate: issuanceDate,
+		CredentialSubject: []map[string]any{
+			{
+				"id": "subject",
+			},
+		},
+		Proof: []interface{}{"because"},
 	}
 }
 

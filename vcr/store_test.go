@@ -41,7 +41,7 @@ import (
 func TestVcr_StoreCredential(t *testing.T) {
 	// load VC
 	target := test.ValidNutsOrganizationCredential(t)
-	holderDID := did.MustParseDID(target.CredentialSubject[0].(map[string]interface{})["id"].(string))
+	holderDID := did.MustParseDID(target.CredentialSubject[0]["id"].(string))
 
 	// load pub key
 	pke := spi.PublicKeyEntry{}
@@ -109,8 +109,8 @@ func TestVcr_StoreCredential(t *testing.T) {
 
 		_ = ctx.vcr.StoreCredential(target, &now)
 
-		target.CredentialSubject = []interface{}{
-			map[string]interface{}{
+		target.CredentialSubject = []map[string]any{
+			{
 				"name": "John Doe",
 				"age":  "42",
 			},
