@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/gorm"
 	"path"
 	"time"
@@ -65,6 +66,7 @@ func DefaultCryptoConfig() Config {
 }
 
 var _ KeyStore = (*Crypto)(nil)
+var _ core.Runnable = (*Crypto)(nil)
 
 // Crypto holds references to storage and needed config
 type Crypto struct {
@@ -72,6 +74,22 @@ type Crypto struct {
 	backend spi.Storage
 	db      *gorm.DB
 	storage storage.Engine
+}
+
+func (client *Crypto) Start() error {
+	for _, collector := range client.backend.(*spi.PrometheusWrapper).Collectors() {
+		if err := prometheus.Register(collector); err != nil && !errors.Is(err, prometheus.AlreadyRegisteredError{}) {
+			return fmt.Errorf("register metric: %w", err)
+		}
+	}
+	return nil
+}
+
+func (client *Crypto) Shutdown() error {
+	for _, collector := range client.backend.(*spi.PrometheusWrapper).Collectors() {
+		_ = prometheus.Unregister(collector)
+	}
+	return nil
 }
 
 func (client *Crypto) CheckHealth() map[string]core.Health {
@@ -94,49 +112,28 @@ func (client *Crypto) Config() interface{} {
 	return &client.config
 }
 
-func (client *Crypto) setupFSBackend(config core.ServerConfig) error {
+func (client *Crypto) setupFSBackend(config core.ServerConfig) (spi.Storage, error) {
 	log.Logger().Info("Setting up FileSystem backend for storage of private key material. " +
 		"Discouraged for production use unless backups and encryption is properly set up. Consider using the Hashicorp Vault backend.")
 	fsPath := path.Join(config.Datadir, "crypto")
-	fsBackend, err := fs.NewFileSystemBackend(fsPath)
-	if err != nil {
-		return err
-	}
-	client.backend = spi.NewValidatedKIDBackendWrapper(fsBackend, spi.KidPattern)
-	return nil
+	return fs.NewFileSystemBackend(fsPath)
 }
 
-func (client *Crypto) setupStorageAPIBackend() error {
+func (client *Crypto) setupStorageAPIBackend() (spi.Storage, error) {
 	log.Logger().Debug("Setting up StorageAPI backend for storage of private key material.")
 	log.Logger().Warn("External key storage backend is deprecated and will be removed in the future.")
-	apiBackend, err := external.NewAPIClient(client.config.External)
-	if err != nil {
-		return fmt.Errorf("unable to set up external crypto API client: %w", err)
-	}
-	client.backend = spi.NewValidatedKIDBackendWrapper(apiBackend, spi.KidPattern)
-	return nil
+	return external.NewAPIClient(client.config.External)
 }
 
-func (client *Crypto) setupVaultBackend(_ core.ServerConfig) error {
+func (client *Crypto) setupVaultBackend(_ core.ServerConfig) (spi.Storage, error) {
 	log.Logger().Debug("Setting up Vault backend for storage of private key material. " +
 		"This feature is experimental and may change in the future.")
-	vaultBackend, err := vault.NewVaultKVStorage(client.config.Vault)
-	if err != nil {
-		return err
-	}
-
-	client.backend = spi.NewValidatedKIDBackendWrapper(vaultBackend, spi.KidPattern)
-	return nil
+	return vault.NewVaultKVStorage(client.config.Vault)
 }
 
-func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) error {
+func (client *Crypto) setupAzureKeyVaultBackend(_ core.ServerConfig) (spi.Storage, error) {
 	log.Logger().Debug("Setting up Azure Key Vault backend for storage of private key material.")
-	azureBackend, err := azure.New(client.config.AzureKeyVault)
-	if err != nil {
-		return err
-	}
-	client.backend = spi.NewValidatedKIDBackendWrapper(azureBackend, spi.KidPattern)
-	return nil
+	return azure.New(client.config.AzureKeyVault)
 }
 
 // List returns the KIDs of the private keys that are present in the key store.
@@ -163,24 +160,33 @@ func (client *Crypto) List(ctx context.Context) []string {
 func (client *Crypto) Configure(config core.ServerConfig) error {
 	client.db = client.storage.GetSQLDatabase()
 
+	var backend spi.Storage
+	var err error
 	switch client.config.Storage {
 	case fs.StorageType:
-		return client.setupFSBackend(config)
+		backend, err = client.setupFSBackend(config)
 	case vault.StorageType:
-		return client.setupVaultBackend(config)
+		backend, err = client.setupVaultBackend(config)
 	case azure.StorageType:
-		return client.setupAzureKeyVaultBackend(config)
+		backend, err = client.setupAzureKeyVaultBackend(config)
 	case external.StorageType:
-		return client.setupStorageAPIBackend()
+		backend, err = client.setupStorageAPIBackend()
 	case "":
 		if config.Strictmode {
 			return errors.New("backend must be explicitly set in strict mode")
 		}
 		// default to file system and run this setup again
-		return client.setupFSBackend(config)
+		backend, err = client.setupFSBackend(config)
 	default:
 		return fmt.Errorf("invalid config for crypto.storage. Available options are: vaultkv, fs, %s(experimental)", external.StorageType)
 	}
+	if err != nil {
+		return fmt.Errorf("could not setup crypto backend (type=%s): %w", client.config.Storage, err)
+	}
+
+	metricsWrapper := spi.NewPrometheusWrapper(spi.NewValidatedKIDBackendWrapper(backend, spi.KidPattern))
+	client.backend = metricsWrapper
+	return nil
 }
 
 func (client *Crypto) Migrate() error {
