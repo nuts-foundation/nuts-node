@@ -20,11 +20,13 @@ package crypto
 
 import (
 	"context"
+	"crypto"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -191,16 +193,20 @@ func TestCrypto_Resolve(t *testing.T) {
 func TestCrypto_setupBackend(t *testing.T) {
 	directory := io.TestDirectory(t)
 	cfg := *core.NewServerConfig()
+	cfg.Strictmode = false
 	cfg.Datadir = directory
 
 	t.Run("backends should be wrapped", func(t *testing.T) {
-
+		client := createCrypto(t)
+		err := client.Configure(cfg)
+		require.NoError(t, err)
 		t.Run("ok - fs backend is wrapped", func(t *testing.T) {
-			client := createCrypto(t)
-			err := client.setupFSBackend(cfg)
-			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.backend).String()
-			assert.Equal(t, "spi.wrapper", storageType)
+			assert.Equal(t, "*spi.PrometheusWrapper", storageType)
+		})
+		t.Run("backend is wrapped in validating wrapper", func(t *testing.T) {
+			err := client.backend.SavePrivateKey(context.Background(), "../not-allowed", nil)
+			assert.EqualError(t, err, "invalid key ID: ../not-allowed")
 		})
 
 		t.Run("ok - vault backend is wrapped", func(t *testing.T) {
@@ -211,10 +217,10 @@ func TestCrypto_setupBackend(t *testing.T) {
 			defer s.Close()
 			client := createCrypto(t)
 			client.config.Vault.Address = s.URL
-			err := client.setupVaultBackend(cfg)
+			err := client.Configure(cfg)
 			require.NoError(t, err)
 			storageType := reflect.TypeOf(client.backend).String()
-			assert.Equal(t, "spi.wrapper", storageType)
+			assert.Equal(t, "*spi.PrometheusWrapper", storageType)
 		})
 	})
 }
@@ -265,4 +271,29 @@ func createCrypto(t *testing.T) *Crypto {
 		db:      orm.NewTestDatabase(t),
 	}
 	return &c
+}
+
+func TestCrypto_StartAndShutdown(t *testing.T) {
+	t.Run("metrics", func(t *testing.T) {
+		storageEngine := storage.NewTestStorageEngine(t)
+		instance := NewCryptoInstance(storageEngine)
+		err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Strictmode = false
+		}))
+		require.NoError(t, err)
+		err = instance.Start()
+		require.NoError(t, err)
+
+		// Generate some metrics
+		_, _, err = instance.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
+			return "hello", nil
+		})
+		require.NoError(t, err)
+
+		stats := test.PrometheusStats(t)
+		assert.Contains(t, stats, "crypto_storage_op_duration_seconds_count{op=\"new_private_key\"} 1")
+
+		err = instance.Shutdown()
+		assert.NoError(t, err)
+	})
 }
