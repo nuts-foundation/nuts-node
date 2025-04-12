@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/prometheus/client_golang/prometheus"
 	bboltLib "go.etcd.io/bbolt"
 	"os"
 	"path"
@@ -41,11 +42,12 @@ var DefaultBBoltOptions = []stoabs.Option{
 }
 
 type bboltDatabase struct {
-	datadir         string
-	config          BBoltConfig
-	ctx             context.Context
-	cancel          context.CancelFunc
-	shutdownWatcher *sync.WaitGroup
+	datadir              string
+	config               BBoltConfig
+	ctx                  context.Context
+	cancel               context.CancelFunc
+	shutdownWatcher      *sync.WaitGroup
+	prometheusCollectors []prometheus.Collector
 }
 
 // BBoltConfig specifies config for BBolt databases.
@@ -78,13 +80,22 @@ func createBBoltDatabase(datadir string, config BBoltConfig) (*bboltDatabase, er
 	return &result, nil
 }
 
-func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
+func (b *bboltDatabase) createStore(moduleName string, storeName string) (stoabs.KVStore, error) {
 	fullStoreName := path.Join(moduleName, storeName)
 	log.Logger().
 		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
-	store, err := bbolt.CreateBBoltStore(databasePath, DefaultBBoltOptions...)
+	store, err := bbolt.CreateBBoltStore(databasePath, append(DefaultBBoltOptions, stoabs.WithPrometheus(func(collectors []prometheus.Collector) {
+		b.prometheusCollectors = append(b.prometheusCollectors, collectors...)
+		for _, collector := range collectors {
+			if err := prometheus.Register(collector); err != nil {
+				log.Logger().
+					WithError(err).
+					Errorf("Unable to register BBolt metrics collector")
+			}
+		}
+	}))...)
 	if store != nil {
 		b.startBackup(fullStoreName, store)
 	}
@@ -194,4 +205,7 @@ func (b bboltDatabase) close() {
 	b.cancel()
 	// Wait for backup processes to finish
 	b.shutdownWatcher.Wait()
+	for _, collector := range b.prometheusCollectors {
+		_ = prometheus.Unregister(collector)
+	}
 }

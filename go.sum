@@ -372,6 +372,8 @@ github.com/nuts-foundation/go-leia/v4 v4.1.0 h1:5Jo9c5hL4G6IP4JTI/UpPfpY6BILlHbd
 github.com/nuts-foundation/go-leia/v4 v4.1.0/go.mod h1:tYveGED8tSbQYhZNv2DVTc51c2zEWmSF+MG96PAtalY=
 github.com/nuts-foundation/go-stoabs v1.11.0 h1:q18jVruPdFcVhodDrnKuhq/24i0pUC/YXgzJS0glKUU=
 github.com/nuts-foundation/go-stoabs v1.11.0/go.mod h1:w2OgcHXO0Jl/vN1nG0ksApaeOaPOY3sSBJLaZz7cCY0=
+github.com/nuts-foundation/go-stoabs v1.11.1-0.20250408190531-235e4052bf31 h1:o0llzh8hZ+PycBP8LlOxX9iA7vIPWfWlm2z+Sx7bdd0=
+github.com/nuts-foundation/go-stoabs v1.11.1-0.20250408190531-235e4052bf31/go.mod h1:iEAbX/AsINxJVyvxM/wPiF32+Kw3GXgSgoraVnSkBRs=
 github.com/nuts-foundation/sqlite v1.0.0 h1:gLKyVIHZqYfYpEy5Ji6vjNUH8rs0luiY3DWNcOSBBzM=
 github.com/nuts-foundation/sqlite v1.0.0/go.mod h1:2GHDXCw5Sul9L3h8T5k0+558scm4ol4iXG+wVyYqueI=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
@@ -412,6 +414,8 @@ github.com/prometheus/client_model v0.6.1 h1:ZKSh/rekM+n3CeS952MLRAdFwIKqeY8b62p
 github.com/prometheus/client_model v0.6.1/go.mod h1:OrxVMOVHjw3lKMa8+x6HeMGkHMQyHDk9E3jmP2AmGiY=
 github.com/prometheus/common v0.62.0 h1:xasJaQlnWAeyHdUBeGjXmutelfJHWMRr+Fg4QszZ2Io=
 github.com/prometheus/common v0.62.0/go.mod h1:vyBcEuLSvWos9B1+CyL7JZ2up+uFzXhkqml0W5zIY1I=
+github.com/prometheus/common v0.63.0 h1:YR/EIY1o3mEFP/kZCD7iDMnLPlGyuU2Gb3HIcXnA98k=
+github.com/prometheus/common v0.63.0/go.mod h1:VVFF/fBIoToEnWRVkYoXEkq3R3paCoxG9PXP74SnV18=
 github.com/prometheus/procfs v0.16.0 h1:xh6oHhKwnOJKMYiYBDWmkHqQPyiY40sny36Cmx2bbsM=
 github.com/prometheus/procfs v0.16.0/go.mod h1:8veyXUu3nGP7oaCxhX6yeaM5u4stL2FeMXnCqhDthZg=
 github.com/redis/go-redis/v9 v9.7.3 h1:YpPyAayJV+XErNsatSElgRZZVCwXX9QzkKYNvO7x0wM=

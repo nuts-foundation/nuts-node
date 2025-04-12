@@ -33,7 +33,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.15.0
 	github.com/nuts-foundation/go-leia/v4 v4.1.0
-	github.com/nuts-foundation/go-stoabs v1.11.0
+	github.com/nuts-foundation/go-stoabs v1.11.1-0.20250408190531-235e4052bf31
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.1
@@ -162,7 +162,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.2.0
 	github.com/privacybydesign/gabi v0.0.0-20221212095008-68a086907750 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/common v0.63.0 // indirect
 	github.com/prometheus/procfs v0.16.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
