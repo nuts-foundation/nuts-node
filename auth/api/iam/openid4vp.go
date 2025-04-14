@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"
@@ -92,7 +93,8 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, subject s
 
 	// additional JAR checks
 	// check if the audience is the verifier
-	if params.get(jwt.AudienceKey) != clientID.String() {
+	// TODO: Make this check required if JAR is used
+	if params.get(jwt.AudienceKey) != "" && params.get(jwt.AudienceKey) != clientID.String() {
 		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, fmt.Sprintf("invalid audience, expected: %s, was: %s", clientID.String(), params.get(jwt.AudienceKey))), redirectURL)
 	}
 	// we require PKCE (RFC7636) for authorization code flows
@@ -123,6 +125,9 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, subject s
 			Challenge:       params.get(oauth.CodeChallengeParam),
 			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
 		},
+	}
+	if params.get(oauth.LoginHintParam) != "" {
+		session.LoginHint = to.Ptr(params.get(oauth.LoginHintParam))
 	}
 	// create a client state for the verifier
 	state := crypto.GenerateNonce()
@@ -192,8 +197,20 @@ func (r Wrapper) nextOpenID4VPFlow(ctx context.Context, state string, session OA
 		// User wallet, make an openid4vp: request URL
 		redirectURL, err = r.createAuthorizationRequest(ctx, *session.OwnSubject, staticAuthorizationServerMetadata(), modifier)
 	} else {
+		// When determining the credential wallet (remote Authorization Server) to query, there's 2 possibilities:
+		// - The flow was initiated by the verifier, which is the case for OpenID Connect (acquire an id_token to authenticate a user from a remote organization).
+		//   We assume this is the case when there's a login_hint parameter that looks like a URL.
+		// - The flow was initiated by the wallet owner, which is the case for the "user access token flow" (acquire an access token for a user local to the organization, to consume a remote API).
+		var remoteAuthServerURL string
+		if session.LoginHint != nil &&
+			(strings.HasPrefix(strings.ToLower(*session.LoginHint), "https://") || strings.HasPrefix(strings.ToLower(*session.LoginHint), "http://")) {
+			remoteAuthServerURL = *session.LoginHint
+		} else {
+			remoteAuthServerURL = session.ClientID
+		}
+
 		// fetch openId configuration
-		configuration, innerErr := r.auth.IAMClient().OpenIDConfiguration(ctx, session.ClientID)
+		configuration, innerErr := r.auth.IAMClient().OpenIDConfiguration(ctx, remoteAuthServerURL)
 		if innerErr != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,

@@ -164,6 +164,8 @@ const (
 	CodeVerifierParam = "code_verifier"
 	// GrantTypeParam is the parameter name for the grant_type parameter. (RFC6749)
 	GrantTypeParam = "grant_type"
+	// LoginHintParam is the parameter name for the login_hint parameter. (OpenID Connect)
+	LoginHintParam = "login_hint"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
 	// PresentationDefParam is the parameter name for the OpenID4VP presentation_definition parameter. (OpenID4VP)

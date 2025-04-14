@@ -118,7 +118,18 @@ func (r Wrapper) createAccessToken(ctx context.Context, subject string, issuerUR
 }
 
 func (r Wrapper) createIDToken(ctx context.Context, subject string, issuer string, audience string, issueTime time.Time, token []VerifiablePresentation, definitions pe.WalletOwnerMapping) (string, error) {
-	claims := map[string]any{}
+	claims := map[string]any{
+		"iss":   issuer,
+		"aud":   audience,
+		"iat":   issueTime.Unix(),
+		"exp":   issueTime.Add(accessTokenValidity).Unix(),
+		"nonce": crypto.GenerateNonce(),
+		// TODO: Derive these from the authenticated user
+		"sub":   "1.2.3.4.5 (remote user identifier)",
+		"name":  "Dokter Jansen",
+		"email": "doctor@hospital.nl",
+		"roles": []string{"Verpleegkundige niveau 4"},
+	}
 
 	// TODO: use OpenID Configuration instead
 	dids, err := r.subjectManager.ListDIDs(ctx, subject)
