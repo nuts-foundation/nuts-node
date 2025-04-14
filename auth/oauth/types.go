@@ -32,6 +32,7 @@ import (
 // Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
+	IDToken     *string `json:"id_token,omitempty"`
 	DPoPKid     *string `json:"dpop_kid,omitempty"`
 	ExpiresAt   *int    `json:"expires_at,omitempty"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`

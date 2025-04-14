@@ -680,7 +680,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 		// a failing request could indicate a stolen authorization code. always burn a code once presented.
 		_ = r.oauthCodeStore().Delete(*request.Code)
 	}()
-	// check if code_verifier is present
+	// PKCE: check if code_verifier is present
 	if request.CodeVerifier == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing code_verifier parameter")
 	}
@@ -713,7 +713,7 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 
 	// All done, issue access token
 	issuerURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
+	response, err := r.createAccessToken(ctx, *oauthSession.OwnSubject, issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}

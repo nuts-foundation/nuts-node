@@ -25,6 +25,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"go.uber.org/mock/gomock"
@@ -447,7 +448,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 
 		require.NoError(t, err)
-		accessToken, err := ctx.client.createAccessToken(issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, dpopToken)
+		accessToken, err := ctx.client.createAccessToken(audit.TestContext(), "subject", issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, dpopToken)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)
@@ -470,7 +471,7 @@ func TestWrapper_createAccessToken(t *testing.T) {
 	})
 	t.Run("ok - bearer token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		accessToken, err := ctx.client.createAccessToken(issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, nil)
+		accessToken, err := ctx.client.createAccessToken(audit.TestContext(), "subject", issuerURL.String(), credentialSubjectID.String(), time.Now(), "everything", pexConsumer, nil)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken.AccessToken)

@@ -19,10 +19,12 @@
 package iam
 
 import (
+	"context"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
@@ -49,6 +51,9 @@ type AccessToken struct {
 	// The Policy Decision Point can use this map to make decisions without having to deal with PEX/VCs/VPs/SignatureValidation
 	InputDescriptorConstraintIdMap map[string]any `json:"inputdescriptor_constraint_id_map,omitempty"`
 
+	// IDToken is the OpenID Connect id_token.
+	IDToken string `json:"id_token,omitempty"`
+
 	// additional fields to support unforeseen policy decision requirements
 
 	// VPToken contains the VPs provided in the 'assertion' field of the s2s AT request.
@@ -59,8 +64,8 @@ type AccessToken struct {
 	PresentationDefinitions pe.WalletOwnerMapping `json:"presentation_definitions,omitempty"`
 }
 
-// createAccessToken is used in both the s2s and openid4vp flows
-func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
+// createAccessToken is used in the s2s, OpenID4VP and OpenID Connect flows
+func (r Wrapper) createAccessToken(ctx context.Context, subject string, issuerURL string, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
 	credentialMap, err := pexState.credentialMap()
 	if err != nil {
 		return nil, err
@@ -86,6 +91,13 @@ func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime 
 		accessToken.VPToken = append(accessToken.VPToken, envelope.Presentations...)
 	}
 
+	if Scope(scope).Contains("openid") {
+		accessToken.IDToken, err = r.createIDToken(ctx, subject, issuerURL, clientID, issueTime, accessToken.VPToken, accessToken.PresentationDefinitions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create id_token: %w", err)
+		}
+	}
+
 	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
@@ -93,6 +105,7 @@ func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime 
 	expiresIn := int(accessTokenValidity.Seconds())
 	tokenResponse := oauth.TokenResponse{
 		AccessToken: accessToken.Token,
+		IDToken:     &accessToken.IDToken,
 		ExpiresIn:   &expiresIn,
 		Scope:       &scope,
 		TokenType:   AccessTokenTypeBearer,
@@ -102,4 +115,26 @@ func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime 
 		tokenResponse.DPoPKid = to.Ptr(dpopToken.Kid)
 	}
 	return &tokenResponse, nil
+}
+
+func (r Wrapper) createIDToken(ctx context.Context, subject string, issuer string, audience string, issueTime time.Time, token []VerifiablePresentation, definitions pe.WalletOwnerMapping) (string, error) {
+	claims := map[string]any{}
+
+	// TODO: use OpenID Configuration instead
+	dids, err := r.subjectManager.ListDIDs(ctx, subject)
+	if err != nil {
+		return "", fmt.Errorf("failed to list DIDs: %w", err)
+	}
+	if len(dids) == 0 {
+		return "", fmt.Errorf("no DIDs found for subject %s", subject)
+	}
+	keyId, _, err := r.keyResolver.ResolveKey(dids[0], nil, resolver.AssertionMethod)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve key for did (%s): %w", dids[0].String(), err)
+	}
+	signedJWT, err := r.jwtSigner.SignJWT(ctx, claims, nil, keyId)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign JWT: %w", err)
+	}
+	return signedJWT, nil
 }
