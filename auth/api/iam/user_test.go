@@ -131,8 +131,8 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		assert.Equal(t, jwa.EC, sessionKey.KeyType())
 		// check for details of issued NutsEmployeeCredential
 		assert.Equal(t, "NutsEmployeeCredential", employeeCredentialTemplate.Type[0].String())
-		employeeCredentialSubject := employeeCredentialTemplate.CredentialSubject[0].(map[string]string)
-		assert.True(t, strings.HasPrefix(employeeCredentialSubject["id"], "did:jwk:"))
+		employeeCredentialSubject := employeeCredentialTemplate.CredentialSubject[0]
+		assert.True(t, strings.HasPrefix(employeeCredentialSubject["id"].(string), "did:jwk:"))
 		assert.Equal(t, userDetails.Id, employeeCredentialSubject["identifier"])
 		assert.Equal(t, userDetails.Name, employeeCredentialSubject["name"])
 		assert.Equal(t, userDetails.Role, employeeCredentialSubject["roleName"])
