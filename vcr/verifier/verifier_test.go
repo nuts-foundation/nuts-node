@@ -307,7 +307,7 @@ func TestVerifier_Verify(t *testing.T) {
 
 	t.Run("verify x509", func(t *testing.T) {
 		ura := "312312312"
-		certs, keys, err := pki.BuildCertChain(nil, ura)
+		certs, keys, err := pki.BuildCertChain(nil, ura, nil)
 		chain := pki.CertsToChain(certs)
 		signingCert := certs[0]
 		signingKey := keys[0]

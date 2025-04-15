@@ -545,8 +545,11 @@ paths:
         in: path
         description: URL encoded VC ID.
         required: true
-        schema:
-          type: string
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     delete:
       summary: Remove a VerifiableCredential from the holders wallet.
       description: |

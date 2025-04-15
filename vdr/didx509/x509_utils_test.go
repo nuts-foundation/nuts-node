@@ -37,7 +37,7 @@ import (
 func TestFindOtherNameValue(t *testing.T) {
 	key, certificate, err := pki.BuildRootCert()
 	require.NoError(t, err)
-	_, signingCert, err := pki.BuildSigningCert([]string{"123", "321"}, certificate, key, "4567")
+	_, signingCert, err := pki.BuildSigningCert([]string{"123", "321"}, certificate, key, "4567", nil)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -88,7 +88,7 @@ func TestFindCertificateByHash(t *testing.T) {
 		}
 		return base64.RawURLEncoding.EncodeToString(h)
 	}
-	chainCerts, _, err := pki.BuildCertChain([]string{"123"}, "")
+	chainCerts, _, err := pki.BuildCertChain([]string{"123"}, "", nil)
 	require.NoError(t, err)
 	type testCase struct {
 		name      string
@@ -186,7 +186,7 @@ func TestParseChain(t *testing.T) {
 		}
 		return &chain
 	}
-	certs, _, _ := pki.BuildCertChain([]string{"123"}, "")
+	certs, _, _ := pki.BuildCertChain([]string{"123"}, "", nil)
 
 	invalidCert := `Y29ycnVwdCBjZXJ0aWZpY2F0ZQo=`
 	invalidBase64 := `Hello, world!`

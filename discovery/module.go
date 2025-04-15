@@ -317,7 +317,10 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		return err
 	}
 	if !exists {
-		return errRetractionReferencesUnknownPresentation
+		if _, ok = m.serverDefinitions[serviceID]; ok { // only throw an error if acting as server for this service, see https://github.com/nuts-foundation/nuts-node/issues/3691
+			return errRetractionReferencesUnknownPresentation
+		}
+		log.Logger().Warnf("Ignored retraction (ID=%s) signed by (did=%s) for (service=%s) that references a VP (retractedJTI=%s) that does not exist (anymore).", presentation.ID, signerDID.String(), serviceID, retractJTI)
 	}
 	return nil
 }

@@ -23,8 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -845,6 +847,25 @@ func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, RemoveCredentialFromWallet204Response{}, response)
+	})
+	t.Run("#3761: prevent double-decode of credential ID", func(t *testing.T) {
+		const subject = "some-subject"
+		const credentialIDURIEncoded = "did:x509:0:sha256:GwlhBZuEFlSHXSRUXQuTs3_YpQxAahColwJJj35US1A::san:otherName:2.16.528.1.1007.99.2110-1-900025039-S-90000382-00.000-00000000::subject:L:%2527S-GRAVENHAGE:o:T%25C3%25A9st%2520Zorginstelling%252003%2316f51e20-0efb-44c8-a29d-fbbd42c26960"
+		// did:x509:0:sha256:GwlhBZuEFlSHXSRUXQuTs3_YpQxAahColwJJj35US1A::san:otherName:2.16.528.1.1007.99.2110-1-900025039-S-90000382-00.000-00000000::subject:L:%2527S-GRAVENHAGE:o:T%25C3%25A9st%2520Zorginstelling%252003%2316f51e20-0efb-44c8-a29d-fbbd42c26960
+		// did:x509:0:sha256:GwlhBZuEFlSHXSRUXQuTs3_YpQxAahColwJJj35US1A::san:otherName:2.16.528.1.1007.99.2110-1-900025039-S-90000382-00.000-00000000::subject:L:%27  S-GRAVENHAGE:o:T%C3%A9    st%20  Zorginstelling%20  03  #16f51e20-0efb-44c8-a29d-fbbd42c26960
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest("DELETE", "/internal/vcr/v2/holder/"+subject+"/vc/"+credentialIDURIEncoded, nil)
+		subjectDID := did.MustParseDID("did:web:example.com")
+		credentialID := ssi.MustParseURI("did:x509:0:sha256:GwlhBZuEFlSHXSRUXQuTs3_YpQxAahColwJJj35US1A::san:otherName:2.16.528.1.1007.99.2110-1-900025039-S-90000382-00.000-00000000::subject:L:%27S-GRAVENHAGE:o:T%C3%A9st%20Zorginstelling%2003#16f51e20-0efb-44c8-a29d-fbbd42c26960")
+
+		e := echo.New()
+		testContext := newMockContext(t)
+		testContext.client.Routes(e)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{subjectDID}, nil)
+		testContext.mockWallet.EXPECT().Remove(gomock.Any(), subjectDID, credentialID).Return(nil)
+		e.ServeHTTP(recorder, request)
+
+		assert.Equal(t, http.StatusNoContent, recorder.Code)
 	})
 	t.Run("error - credential not found", func(t *testing.T) {
 		testContext := newMockContext(t)

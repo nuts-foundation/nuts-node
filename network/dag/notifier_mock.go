@@ -56,17 +56,17 @@ func (mr *MockNotifierMockRecorder) Close() *gomock.Call {
 }
 
 // Finished mocks base method.
-func (m *MockNotifier) Finished(hash hash.SHA256Hash) error {
+func (m *MockNotifier) Finished(arg0 hash.SHA256Hash) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Finished", hash)
+	ret := m.ctrl.Call(m, "Finished", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Finished indicates an expected call of Finished.
-func (mr *MockNotifierMockRecorder) Finished(hash any) *gomock.Call {
+func (mr *MockNotifierMockRecorder) Finished(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finished", reflect.TypeOf((*MockNotifier)(nil).Finished), hash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Finished", reflect.TypeOf((*MockNotifier)(nil).Finished), arg0)
 }
 
 // GetFailedEvents mocks base method.

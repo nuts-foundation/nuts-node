@@ -214,7 +214,18 @@ func Test_Module_Register(t *testing.T) {
 			err = m.Register(ctx, testServiceID, vpAliceRetract)
 			assert.NoError(t, err)
 		})
-		t.Run("non-existent presentation", func(t *testing.T) {
+		t.Run("non-existent presentation as client", func(t *testing.T) {
+			m, testContext := setupModule(t, storageEngine, func(module *Module) {
+				// disable updater
+				module.config.Client.RefreshInterval = 0
+			})
+			testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil)
+			definition := m.serverDefinitions[testServiceID]
+			delete(m.serverDefinitions, testServiceID)
+			err := m.verifyRegistration(definition, vpAliceRetract)
+			assert.NoError(t, err)
+		})
+		t.Run("non-existent presentation as server", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)
 			err := m.Register(ctx, testServiceID, vpAliceRetract)
 			assert.ErrorIs(t, err, errRetractionReferencesUnknownPresentation)
