@@ -234,12 +234,14 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToken string) (*validationContext, error) {
 	validationCtx := &validationContext{rawJwtBearerToken: bearerToken}
 
+	parseAndValidateJwtBearerTokenStartTime := time.Now()
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
 	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
 	if err := s.parseAndValidateJwtBearerToken(validationCtx); err != nil {
 		return validationCtx, fmt.Errorf("jwt bearer token validation failed: %w", err)
 	}
+	log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(1) JWT bearer token parsing took: %s", time.Since(parseAndValidateJwtBearerTokenStartTime))
 
 	// check the maximum validity, according to RFC003 §5.2.1.4
 	if validationCtx.jwtBearerToken.Expiration().Sub(validationCtx.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
@@ -248,24 +250,32 @@ func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToke
 
 	// check the requester against the registry, according to RFC003 §5.2.1.3
 	// checks signing certificate and sets vendor, requesterName in validationContext
+	validateIssuerStartTime := time.Now()
 	if err := s.validateIssuer(validationCtx); err != nil {
 		return validationCtx, err
 	}
+	log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(2) JWT issuer validation took: %s", time.Since(validateIssuerStartTime))
 
 	// check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
+	validateSubjectStartTime := time.Now()
 	if err := s.validateSubject(ctx, validationCtx); err != nil {
 		return validationCtx, err
 	}
+	log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(3) JWT subject validation took: %s", time.Since(validateSubjectStartTime))
 
 	// Validate the AuthTokenContainer, according to RFC003 §5.2.1.5
+	getUserIdentityStartTime := time.Now()
 	usi, err := validationCtx.userIdentity()
+	log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(4) JWT user identity validation took: %s", time.Since(getUserIdentityStartTime))
 	if err != nil {
 		return validationCtx, err
 	}
 	if usi != nil {
+		verifyVPStartTime := time.Now()
 		if validationCtx.contractVerificationResult, err = s.contractNotary.VerifyVP(*usi, nil); err != nil {
 			return validationCtx, fmt.Errorf("identity verification failed: %w", err)
 		}
+		log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(5) VerifyVP took: %s", time.Since(verifyVPStartTime))
 
 		if validationCtx.contractVerificationResult.Validity() != contract.Valid {
 			return validationCtx, fmt.Errorf("identity validation failed: %s", validationCtx.contractVerificationResult.Reason())
@@ -288,9 +298,11 @@ func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToke
 	}
 
 	// validate the legal base, according to RFC003 §5.2.1.7
+	validateAuthorizationCredentialsStartTime := time.Now()
 	if err = s.validateAuthorizationCredentials(validationCtx); err != nil {
 		return validationCtx, err
 	}
+	log.Logger().Infof("METRIC (AT Issuer): validateAccessTokenRequest(6) JWT authorization credentials validation took: %s", time.Since(validateAuthorizationCredentialsStartTime))
 
 	return validationCtx, nil
 }
@@ -428,7 +440,9 @@ func (s *authzServer) validateSubject(ctx context.Context, validationCtx *valida
 // validate the authorization credentials according to §5.2.1.7
 func (s *authzServer) validateAuthorizationCredentials(context *validationContext) error {
 	// filter on authorization credentials
+	getVerifiableCredentialsStartTime := time.Now()
 	vcs, err := context.verifiableCredentials()
+	log.Logger().Infof("METRIC (AT Issuer): validateAuthorizationCredentials(1) get verifiableCredentials took: %s", time.Since(getVerifiableCredentialsStartTime))
 	if err != nil {
 		return fmt.Errorf(errInvalidVCClaim, err)
 	}
@@ -456,9 +470,11 @@ func (s *authzServer) validateAuthorizationCredentials(context *validationContex
 
 	for _, authCred := range vcs {
 		// first check if the VC is valid and if the signature is correct
+		verifyStartTime := time.Now()
 		if err := s.vcVerifier.Verify(authCred, true, true, &iat); err != nil {
 			return fmt.Errorf(errInvalidVCClaim, err)
 		}
+		log.Logger().Infof("METRIC (AT Issuer): validateAuthorizationCredentials(2) Verify VC took: %s", time.Since(verifyStartTime))
 
 		// The credential issuer equals the sub field of the JWT.
 		if authCred.Issuer.String() != sub {
