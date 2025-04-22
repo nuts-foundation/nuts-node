@@ -186,13 +186,17 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 	var oauthError *oauth.OAuth2Error
 	var result *oauth.TokenResponse
 
+	validationStartTime := time.Now()
 	validationCtx, err := s.validateAccessTokenRequest(ctx, request.RawJwtBearerToken)
+	log.Logger().Infof("METRIC (AT Issuer): Access token request validation took: %s (err=%v)", time.Since(validationStartTime), err)
 	if err != nil {
 		oauthError = &oauth.OAuth2Error{Code: "invalid_request", Description: err.Error()}
 	} else {
 		var accessToken string
 		var rawToken services.NutsAccessToken
+		buildingStartTime := time.Now()
 		accessToken, rawToken, err = s.buildAccessToken(ctx, *validationCtx.requester, *validationCtx.authorizer, validationCtx.purposeOfUse, validationCtx.contractVerificationResult, validationCtx.credentialIDs)
+		log.Logger().Infof("METRIC (AT Issuer): Access token building took: %s (err=%v)", time.Since(buildingStartTime), err)
 		if err == nil {
 			expires := int(rawToken.Expiration - rawToken.IssuedAt)
 			result = &oauth.TokenResponse{

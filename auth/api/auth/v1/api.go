@@ -287,7 +287,9 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		Credentials: request.Body.Credentials,
 	}
 
+	createJWTGrantStartTime := time.Now()
 	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
+	log.Logger().Infof("METRIC (AT Requester): JWT grant creation took: %s (err=%v)", time.Since(createJWTGrantStartTime), err)
 	if err != nil {
 		return nil, core.InvalidInputError("%w", err)
 	}
@@ -297,7 +299,9 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 		return nil, core.InvalidInputError("invalid authorization server endpoint: %s", jwtGrant.AuthorizationServerEndpoint)
 	}
 
+	requestAccessTokenStartTime := time.Now()
 	accessTokenResult, err := w.Auth.RelyingParty().RequestRFC003AccessToken(ctx, jwtGrant.BearerToken, *authServerEndpoint)
+	log.Logger().Infof("METRIC (AT Requester): Access token request took: %s (err=%v)", time.Since(requestAccessTokenStartTime), err)
 	if err != nil {
 		return nil, core.Error(http.StatusServiceUnavailable, "%w", err)
 	}
@@ -315,11 +319,13 @@ func (w Wrapper) CreateAccessToken(ctx context.Context, request CreateAccessToke
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
 
+	jwtGrantRegexpMatchStartTime := time.Now()
 	const jwtPattern = `^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$`
 	if matched, err := regexp.Match(jwtPattern, []byte(request.Body.Assertion)); !matched || err != nil {
 		errorResponse := AccessTokenRequestFailedResponse{Code: errOauthInvalidGrant, Description: "Assertion must be a valid encoded jwt"}
 		return CreateAccessToken400JSONResponse(errorResponse), nil
 	}
+	log.Logger().Infof("METRIC: Access token request JWT validation (regexp) took: %s", time.Since(jwtGrantRegexpMatchStartTime))
 
 	catRequest := services.CreateAccessTokenRequest{RawJwtBearerToken: request.Body.Assertion}
 	acResponse, oauthError := w.Auth.AuthzServer().CreateAccessToken(ctx, catRequest)

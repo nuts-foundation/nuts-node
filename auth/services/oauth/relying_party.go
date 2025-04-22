@@ -22,6 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"strings"
@@ -83,12 +84,14 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 		return nil, err
 	}
 
+	validateCredentialsStartTime := time.Now()
 	for _, verifiableCredential := range request.Credentials {
 		validator := credential.FindValidator(verifiableCredential, s.pkiValidator)
 		if err := validator.Validate(verifiableCredential); err != nil {
 			return nil, fmt.Errorf("invalid VerifiableCredential: %w", err)
 		}
 	}
+	log.Logger().Infof("METRIC (AT Requester): Access token request credentials validation took: %s", time.Since(validateCredentialsStartTime))
 
 	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
 	if err != nil {
