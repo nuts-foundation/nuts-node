@@ -178,9 +178,12 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		if err != nil {
 			return fmt.Errorf("could not validate issuer: %w", err)
 		}
+		startTime := time.Now()
+		defer func() {
+			log.Logger().Infof("METRIC: verifier.VerifySignature took %s", time.Since(startTime))
+		}()
 		return v.VerifySignature(credentialToVerify, validAt)
 	}
-
 	return nil
 }
 

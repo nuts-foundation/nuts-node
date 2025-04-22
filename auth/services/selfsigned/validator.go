@@ -26,6 +26,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -145,7 +146,9 @@ func (v validator) verifyVP(vp vc.VerifiablePresentation, validAt *time.Time) (c
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
+	searchStartTime := time.Now()
 	nutsOrgCreds, err := v.vcr.Search(context.TODO(), searchTerms, false, validAt)
+	log.Logger().Infof("METRIC: selfsigned validator.verifyVP: search took %s", time.Since(searchStartTime))
 	if err != nil {
 		resultErr = fmt.Errorf("unable to check NutsEmployeeCredential trust status using NutsOrganizationCredential: %w", err)
 		return

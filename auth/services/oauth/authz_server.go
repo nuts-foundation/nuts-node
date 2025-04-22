@@ -392,8 +392,10 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 		DocumentLoader:           s.jsonldManager.DocumentLoader(),
 		AllowUndefinedProperties: true,
 	}
-	for _, vc := range vcs {
+	for i, vc := range vcs {
+		startTime := time.Now()
 		document, err := reader.Read(vc)
+		log.Logger().Infof("METRIC (AT Issuer): validateIssuer Read VC (%d) took: %s", i, time.Since(startTime))
 		if err != nil {
 			return fmt.Errorf("could not expand credential to JSON-LD: %w", err)
 		}
