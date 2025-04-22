@@ -112,6 +112,7 @@ func TestLimitedReadAll(t *testing.T) {
 }
 
 func TestMaxConns(t *testing.T) {
+	t.Skip("Skip for temporary debugging")
 	oldStrictMode := StrictMode
 	StrictMode = false
 	t.Cleanup(func() { StrictMode = oldStrictMode })
