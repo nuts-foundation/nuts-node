@@ -89,5 +89,5 @@ jobs:
         with:
           context: development/dev-image
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: nutsfoundation/nuts-node:dev
