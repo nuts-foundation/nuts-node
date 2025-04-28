@@ -14,16 +14,12 @@ indices:
             "http://schema.org/organization",
             "http://schema.org/legalname",
           ]
-        tokenizer: whitespaceOrExact
-        transformer: cologne
       - iriPath:
           [
             "https://www.w3.org/2018/credentials#credentialSubject",
             "http://schema.org/organization",
             "http://schema.org/city",
           ]
-        tokenizer: whitespaceOrExact
-        transformer: cologne
   - name: index_organization
     parts:
       - iriPath:
