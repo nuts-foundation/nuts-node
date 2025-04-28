@@ -6,6 +6,16 @@ Release notes
 Peanut (v6.1.1)
 ***************
 
+Release date: 2025-04-28
+
+- Add index to the VCR credential store to improve response times to the auth/v1 API (#3802)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.1...v6.1.2
+
+***************
+Peanut (v6.1.1)
+***************
+
 Release date: 2025-04-09
 
 - Update go version to fix https://pkg.go.dev/vuln/GO-2025-3563
@@ -240,6 +250,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+***************
+Hazelnut update (v5.4.18)
+***************
+
+Release date: 2025-04-28
+
+- Add index to the VCR credential store to improve response times to the auth/v1 API (#3802)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.17...v5.4.18
 
 *************************
 Hazelnut update (v5.4.17)
