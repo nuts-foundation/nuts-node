@@ -15,6 +15,7 @@ on:
 
 jobs:
   e2e-test:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       packages: write
 
