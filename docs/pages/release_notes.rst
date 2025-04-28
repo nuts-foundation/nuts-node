@@ -3,7 +3,7 @@ Release notes
 #############
 
 ***************
-Peanut (v6.1.1)
+Peanut (v6.1.2)
 ***************
 
 Release date: 2025-04-28
