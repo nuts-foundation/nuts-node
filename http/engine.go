@@ -36,6 +36,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 const moduleName = "HTTP"
@@ -55,6 +63,7 @@ type Engine struct {
 	signingKeyResolver cryptoEngine.KeyResolver
 	serverShutdownCb   func()
 	config             Config
+	tp                 *sdktrace.TracerProvider
 }
 
 // Router returns the router of the HTTP engine, which can be used by other engines to register HTTP handlers.
@@ -90,6 +99,8 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
+	h.applyTracingMiddleware(h.server)
+
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)
 	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
@@ -103,7 +114,44 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	}
 }
 
+func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
+	echoServer.Use(otelecho.Middleware("nuts-node"))
+}
+
+// initTracer initializes the OpenTelemetry tracer.
+func (h *Engine) initTracer() error {
+	ctx := context.Background()
+
+	client := otlptracehttp.NewClient(
+		otlptracehttp.WithInsecure(), // use http connection with the collector (e.g. jaeger)
+	)
+	exporter, err := otlptrace.New(ctx, client)
+	if err != nil {
+		return fmt.Errorf("failed to create OTLP trace exporter: %w", err)
+	}
+
+	r, err := resource.Merge(
+		resource.Default(),
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("nuts-node"),
+		),
+	)
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(r),
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	h.tp = tp
+	return nil
+}
+
 func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {
+	h.initTracer()
+
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
@@ -156,6 +204,11 @@ func (h *Engine) Start() error {
 
 // Shutdown shuts down the HTTP engine.
 func (h *Engine) Shutdown() error {
+
+	if err := h.tp.Shutdown(context.Background()); err != nil {
+		log.Logger().Errorf("Error shutting down tracer provider: %v", err)
+	}
+
 	return h.server.Shutdown(context.Background())
 }
 
