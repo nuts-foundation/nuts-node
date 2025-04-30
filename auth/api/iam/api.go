@@ -29,13 +29,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -653,7 +654,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	set := jwk.NewSet()
 	var signingKey string
 	for _, currentDID := range dids {
-		kid, key, err := r.keyResolver.ResolveKey(currentDID, nil, resolver.AssertionMethod)
+		kid, key, err := r.keyResolver.ResolveKey(ctx, currentDID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,

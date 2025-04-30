@@ -24,6 +24,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -37,11 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"io/fs"
-	"net/http"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Flow is an active OpenID4VCI credential issuance flow.
@@ -306,7 +307,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	var signingKeyID string
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
 		signingKeyID = kid
-		return i.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
+		return i.keyResolver.ResolveKeyByID(ctx, kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return generateProofError(openid4vci.Error{

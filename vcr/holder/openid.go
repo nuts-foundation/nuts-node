@@ -22,9 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -192,7 +193,7 @@ func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
 }
 
 func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
-	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
+	keyID, _, err := h.resolver.ResolveKey(ctx, h.did, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
 	}

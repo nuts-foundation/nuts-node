@@ -41,6 +41,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"go.opentelemetry.io/otel"
 )
 
 const errInvalidIssuerFmt = "invalid jwt.issuer: %w"
@@ -228,12 +229,13 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 }
 
 func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToken string) (*validationContext, error) {
+
 	validationCtx := &validationContext{rawJwtBearerToken: bearerToken}
 
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
 	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
-	if err := s.parseAndValidateJwtBearerToken(validationCtx); err != nil {
+	if err := s.parseAndValidateJwtBearerToken(ctx, validationCtx); err != nil {
 		return validationCtx, fmt.Errorf("jwt bearer token validation failed: %w", err)
 	}
 
@@ -244,7 +246,7 @@ func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToke
 
 	// check the requester against the registry, according to RFC003 §5.2.1.3
 	// checks signing certificate and sets vendor, requesterName in validationContext
-	if err := s.validateIssuer(validationCtx); err != nil {
+	if err := s.validateIssuerWithContext(ctx, validationCtx); err != nil {
 		return validationCtx, err
 	}
 
@@ -344,6 +346,14 @@ func (s *authzServer) validateAudience(context *validationContext) error {
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the requester name/city which must match the login contract.
 func (s *authzServer) validateIssuer(vContext *validationContext) error {
+	return s.validateIssuerWithContext(context.Background(), vContext)
+}
+
+func (s *authzServer) validateIssuerWithContext(ctx context.Context, vContext *validationContext) error {
+	tr := otel.Tracer("github.com/nuts-foundation/nuts-node/auth/services/auth/oauth")
+	_, span := tr.Start(ctx, "validateIssuer")
+	defer span.End()
+
 	if requester, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	} else {
@@ -354,7 +364,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 	metadata := &resolver.ResolveMetadata{
 		ResolveTime: &validationTime,
 	}
-	if _, err := s.keyResolver.ResolveKeyByID(vContext.kid, metadata, resolver.NutsSigningKeyType); err != nil {
+	if _, err := s.keyResolver.ResolveKeyByID(ctx, vContext.kid, metadata, resolver.NutsSigningKeyType); err != nil {
 		return fmt.Errorf(errInvalidIssuerKeyFmt, err)
 	}
 
@@ -363,7 +373,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
-	vcs, err := s.vcFinder.Search(context.Background(), searchTerms, false, &validationTime)
+	vcs, err := s.vcFinder.Search(ctx, searchTerms, false, &validationTime)
 	if err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	}
@@ -372,6 +382,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 		return errors.New("requester has no trusted organization VC")
 	}
 
+	_, span2 := tr.Start(ctx, "expand issuer vcs")
 	reader := jsonld.Reader{
 		DocumentLoader:           s.jsonldManager.DocumentLoader(),
 		AllowUndefinedProperties: true,
@@ -389,6 +400,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 			city: orgCities[0].String(),
 		})
 	}
+	span2.End()
 
 	return nil
 }
@@ -406,7 +418,7 @@ func (s *authzServer) validateSubject(ctx context.Context, validationCtx *valida
 	validationCtx.authorizer = subject
 
 	iat := validationCtx.jwtBearerToken.IssuedAt()
-	signingKeyID, _, err := s.keyResolver.ResolveKey(*subject, &iat, resolver.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(ctx, *subject, &iat, resolver.NutsSigningKeyType)
 	if err != nil {
 		return err
 	}
@@ -475,19 +487,19 @@ func (s *authzServer) validateAuthorizationCredentials(context *validationContex
 }
 
 // parseAndValidateJwtBearerToken validates the jwt signature and returns the containing claims
-func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext) error {
+func (s *authzServer) parseAndValidateJwtBearerToken(ctx context.Context, validationCtx *validationContext) error {
 	var kidHdr string
-	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
+	token, err := nutsCrypto.ParseJWT(validationCtx.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		kidHdr = kid
-		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
+		return s.keyResolver.ResolveKeyByID(ctx, kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return err
 	}
 
 	// this should be ok since it has already succeeded before
-	context.jwtBearerToken = token
-	context.kid = kidHdr
+	validationCtx.jwtBearerToken = token
+	validationCtx.kid = kidHdr
 	return nil
 }
 
@@ -501,7 +513,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 		if !exists {
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
-		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
+		return s.keyResolver.ResolveKeyByID(ctx, kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return nil, err
@@ -562,7 +574,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	}
 
 	// Sign with the private key of the issuer
-	signingKeyID, _, err := s.keyResolver.ResolveKey(authorizer, &issueTime, resolver.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(ctx, authorizer, &issueTime, resolver.NutsSigningKeyType)
 	if err != nil {
 		return "", accessToken, err
 	}

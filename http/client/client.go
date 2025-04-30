@@ -23,10 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
@@ -66,7 +68,7 @@ func limitedReadAll(reader io.Reader) ([]byte, error) {
 func New(timeout time.Duration) *StrictHTTPClient {
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: SafeHttpTransport,
+			Transport: otelhttp.NewTransport(SafeHttpTransport),
 			Timeout:   timeout,
 		},
 	}
@@ -77,7 +79,7 @@ func New(timeout time.Duration) *StrictHTTPClient {
 func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: DefaultCachingTransport,
+			Transport: otelhttp.NewTransport(DefaultCachingTransport),
 			Timeout:   timeout,
 		},
 	}
@@ -88,10 +90,11 @@ func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 // As such, it can't be used in conjunction with the CachingRoundTripper.
 func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPClient {
 	transport := SafeHttpTransport.Clone()
+	otelTransport := otelhttp.NewTransport(transport)
 	transport.TLSClientConfig = tlsConfig
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: transport,
+			Transport: otelTransport,
 			Timeout:   timeout,
 		},
 	}

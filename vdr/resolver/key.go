@@ -19,14 +19,17 @@
 package resolver
 
 import (
+	"context"
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/go-did/did"
+	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"go.opentelemetry.io/otel"
 )
 
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
@@ -41,11 +44,11 @@ type KeyResolver interface {
 	// ResolveKeyByID looks up a specific key of the given RelationType and returns it as crypto.PublicKey.
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
-	ResolveKeyByID(keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error)
+	ResolveKeyByID(ctx context.Context, keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error)
 	// ResolveKey looks for a valid key of the given RelationType for the given DID, and returns its ID as string and the public key.
 	// If multiple keys are valid, the first one is returned.
 	// An ErrKeyNotFound is returned when no key (of the specified type) is found.
-	ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error)
+	ResolveKey(ctx context.Context, id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error)
 }
 
 // NutsKeyResolver is the interface for resolving keys from Nuts DID Documents,
@@ -65,7 +68,11 @@ type DIDKeyResolver struct {
 	Resolver DIDResolver
 }
 
-func (r DIDKeyResolver) ResolveKeyByID(keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error) {
+func (r DIDKeyResolver) ResolveKeyByID(ctx context.Context, keyID string, metadata *ResolveMetadata, relationType RelationType) (crypto.PublicKey, error) {
+	tr := otel.Tracer("github.com/nuts-foundation/nuts-node/vdr/resolver")
+	_, span := tr.Start(ctx, "ResolveKeyByID")
+	defer span.End()
+
 	holder, err := GetDIDFromURL(keyID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid key ID (id=%s): %w", keyID, err)
@@ -114,7 +121,7 @@ func (r DIDKeyResolver) baseUrl(doc *did.Document) (baseUrl *string) {
 	return baseUrl
 }
 
-func (r DIDKeyResolver) ResolveKey(id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error) {
+func (r DIDKeyResolver) ResolveKey(ctx context.Context, id did.DID, validAt *time.Time, relationType RelationType) (string, crypto.PublicKey, error) {
 	doc, _, err := r.Resolver.Resolve(id, &ResolveMetadata{
 		ResolveTime: validAt,
 	})

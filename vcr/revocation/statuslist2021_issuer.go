@@ -22,14 +22,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -156,7 +157,7 @@ func (cs *StatusList2021) Credential(ctx context.Context, issuerDID did.DID, pag
 	}
 
 	// resolve signing key outside of transaction
-	kid, _, err := cs.ResolveKey(issuerDID, nil, resolver.AssertionMethod)
+	kid, _, err := cs.ResolveKey(ctx, issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		// should never happen; credential confirmed to issued by this node
 		return nil, err
@@ -278,7 +279,7 @@ func (cs *StatusList2021) Entry(ctx context.Context, issuer did.DID, purpose Sta
 	}
 
 	// resolve signing key outside of transaction
-	kid, _, err := cs.ResolveKey(issuer, nil, resolver.AssertionMethod)
+	kid, _, err := cs.ResolveKey(ctx, issuer, nil, resolver.AssertionMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +403,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		// can't happen; own DB
 		return err
 	}
-	kid, _, err := cs.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
+	kid, _, err := cs.ResolveKey(ctx, *issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		// can't happen; credential confirmed to issued by this node
 		return err

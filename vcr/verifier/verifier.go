@@ -19,13 +19,15 @@
 package verifier
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -235,7 +237,7 @@ func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {
 	metadata := &resolver.ResolveMetadata{
 		ResolveTime: &revocation.Date,
 	}
-	pk, err := v.keyResolver.ResolveKeyByID(revocation.Proof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
+	pk, err := v.keyResolver.ResolveKeyByID(context.TODO(), revocation.Proof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve key for revocation: %w", err)
 	}

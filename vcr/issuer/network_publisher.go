@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -70,7 +71,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 		}
 	}
 
-	kid, _, err := p.keyResolver.ResolveKey(issuerDID.DID, nil, resolver.AssertionMethod)
+	kid, _, err := p.keyResolver.ResolveKey(ctx, issuerDID.DID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}
@@ -150,7 +151,7 @@ func (p networkPublisher) PublishRevocation(ctx context.Context, revocation cred
 	if err != nil {
 		return fmt.Errorf("invalid revocation issuer: %w", err)
 	}
-	kid, _, err := p.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
+	kid, _, err := p.keyResolver.ResolveKey(ctx, *issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return fmt.Errorf("could not resolve an assertion key for issuer: %w", err)
 	}

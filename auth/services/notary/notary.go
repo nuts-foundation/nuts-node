@@ -22,12 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
-	"github.com/nuts-foundation/nuts-node/core"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -106,7 +108,7 @@ func NewNotary(config Config, vcr vcr.VCR, keyResolver resolver.KeyResolver, key
 // If the duration is 0 than the default duration is used.
 func (n *notary) DrawUpContract(ctx context.Context, template contract.Template, orgID did.DID, validFrom time.Time, validDuration time.Duration, organizationCredential *vc.VerifiableCredential) (*contract.Contract, error) {
 	// Test if the org in managed by this node:
-	signingKeyID, _, err := n.keyResolver.ResolveKey(orgID, &validFrom, resolver.NutsSigningKeyType)
+	signingKeyID, _, err := n.keyResolver.ResolveKey(ctx, orgID, &validFrom, resolver.NutsSigningKeyType)
 	if errors.Is(err, resolver.ErrNotFound) {
 		return nil, services.InvalidContractRequestError{Message: "no valid organization credential at provided validFrom date"}
 	} else if err != nil {

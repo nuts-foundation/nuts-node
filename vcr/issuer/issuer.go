@@ -23,14 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -198,7 +199,7 @@ func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCreden
 	}
 
 	// immediately fail if we do not have the private key
-	keyURI, _, err := i.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
+	keyURI, _, err := i.keyResolver.ResolveKey(ctx, *issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		const errString = "failed to sign credential: could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:
@@ -377,7 +378,7 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 		return nil, fmt.Errorf("failed to extract issuer: %w", err)
 	}
 
-	keyURI, _, err := i.keyResolver.ResolveKey(*issuerDID, nil, resolver.AssertionMethod)
+	keyURI, _, err := i.keyResolver.ResolveKey(ctx, *issuerDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		const errString = "failed to revoke credential (%s): could not resolve an assertionKey for issuer: %w"
 		// Differentiate between a DID document not found and some other error:

@@ -24,15 +24,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/piprate/json-gold/ld"
 	"maps"
 	"net/http"
 	"net/url"
 	"slices"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/piprate/json-gold/ld"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -142,7 +143,9 @@ func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint s
 func (c *OpenID4VPClient) AuthorizationServerMetadata(ctx context.Context, oauthIssuer string) (*oauth.AuthorizationServerMetadata, error) {
 	iamClient := c.httpClient
 	// the wallet/client acts as authorization server
+	fmt.Println("oauthIssuer", oauthIssuer)
 	metadata, err := iamClient.OAuthAuthorizationServerMetadata(ctx, oauthIssuer)
+	fmt.Println("metadata", metadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve remote OAuth Authorization Server metadata: %w", err)
 	}
@@ -366,7 +369,7 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {
 	// find the key to sign the DPoP token with
-	keyID, _, err := c.keyResolver.ResolveKey(requester, nil, resolver.AssertionMethod)
+	keyID, _, err := c.keyResolver.ResolveKey(ctx, requester, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", "", err
 	}

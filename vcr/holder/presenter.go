@@ -23,6 +23,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -37,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
-	"strings"
-	"time"
 )
 
 type presenter struct {
@@ -104,7 +105,7 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 		}
 	}
 
-	kid, _, err := p.keyResolver.ResolveKey(*signerDID, nil, resolver.NutsSigningKeyType)
+	kid, _, err := p.keyResolver.ResolveKey(ctx, *signerDID, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve assertion key for signing VP (did=%s): %w", *signerDID, err)
 	}

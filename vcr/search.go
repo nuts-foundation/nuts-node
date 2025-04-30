@@ -23,13 +23,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/sirupsen/logrus"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v4"
@@ -52,6 +54,10 @@ type SearchTerm struct {
 }
 
 func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrusted bool, resolveTime *time.Time) ([]vc.VerifiableCredential, error) {
+	tr := otel.Tracer("github.com/nuts-foundation/nuts-node/vcr")
+	_, span := tr.Start(ctx, "Search for credentials")
+	defer span.End()
+
 	query := leia.Query{}
 	var VCs = make([]vc.VerifiableCredential, 0)
 
@@ -89,6 +95,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 			return nil, fmt.Errorf("unable to parse credential from db: %w", err)
 		}
 
+		_, span := tr.Start(ctx, "Verify found credential")
 		if err = c.verifier.Verify(foundCredential, allowUntrusted, false, resolveTime); err == nil {
 			VCs = append(VCs, foundCredential)
 		} else {
@@ -98,6 +105,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 				Trace("Encountered invalid VC, omitting from search results.")
 			verifyErrors[err.Error()]++
 		}
+		span.End()
 	}
 
 	// Print debug log if we found invalid credentials, make a distinction between different errors

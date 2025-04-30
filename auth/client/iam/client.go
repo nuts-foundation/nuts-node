@@ -24,15 +24,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -293,9 +294,9 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 }
 
 func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
-	return func(context context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
+	return func(ctx context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
 		keyID := signature.ProtectedHeaders().KeyID()
-		publicKey, err := hb.keyResolver.ResolveKeyByID(keyID, nil, resolver.AssertionMethod)
+		publicKey, err := hb.keyResolver.ResolveKeyByID(ctx, keyID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)
 		}

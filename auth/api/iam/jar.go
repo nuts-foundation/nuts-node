@@ -23,6 +23,8 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"net/url"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -30,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
 )
 
 // requestObjectModifier is a function that modifies the Claims/params of an unsigned or signed (JWT) OAuth2 request
@@ -105,7 +106,7 @@ func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	keyId, _, err := j.keyResolver.ResolveKey(*clientDID, nil, resolver.AssertionMethod)
+	keyId, _, err := j.keyResolver.ResolveKey(ctx, *clientDID, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", err
 	}
@@ -152,7 +153,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	token, err := cryptoNuts.ParseJWT(rawToken, func(kid string) (crypto.PublicKey, error) {
 		var err error
 		signerKid = kid
-		publicKey, err = j.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+		publicKey, err = j.keyResolver.ResolveKeyByID(ctx, kid, nil, resolver.AssertionMethod)
 		return publicKey, err
 	}, jwt.WithValidate(true))
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"io"
 	"net/http"
 )
@@ -100,6 +101,7 @@ func CreateHTTPInternalClient(cfg ClientConfig, generator AuthorizationTokenGene
 	var result *httpRequestDoerAdapter
 	client := &http.Client{}
 	client.Timeout = cfg.Timeout
+	client.Transport = otelhttp.NewTransport(http.DefaultTransport)
 
 	result = &httpRequestDoerAdapter{
 		fn: client.Do,

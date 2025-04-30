@@ -22,10 +22,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -97,7 +98,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 
 	keyVals := claimsFromRequest(request, endpointURL)
 
-	signingKeyID, _, err := s.keyResolver.ResolveKey(*requester, nil, resolver.NutsSigningKeyType)
+	signingKeyID, _, err := s.keyResolver.ResolveKey(ctx, *requester, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
 	}

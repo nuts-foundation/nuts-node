@@ -176,7 +176,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
-	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
+	kid, _, err := r.keyResolver.ResolveKey(ctx, holderDid, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
 	}

@@ -19,6 +19,7 @@
 package verifier
 
 import (
+	"context"
 	crypt "crypto"
 	"errors"
 	"fmt"
@@ -107,7 +108,7 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
 	metadata := &resolver.ResolveMetadata{
 		ResolveTime: at,
 	}
-	signingKey, err := sv.keyResolver.ResolveKeyByID(ldProof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
+	signingKey, err := sv.keyResolver.ResolveKeyByID(context.TODO(), ldProof.VerificationMethod.String(), metadata, resolver.NutsSigningKeyType)
 	if err != nil {
 		return fmt.Errorf("unable to resolve valid signing key: %w", err)
 	}
@@ -157,5 +158,5 @@ func (sv *signatureVerifier) resolveSigningKey(kid string, issuer string, metada
 	if strings.HasPrefix(kid, "did:jwk:") && !strings.Contains(kid, "#") {
 		kid += "#0"
 	}
-	return sv.keyResolver.ResolveKeyByID(kid, metadata, resolver.NutsSigningKeyType)
+	return sv.keyResolver.ResolveKeyByID(context.TODO(), kid, metadata, resolver.NutsSigningKeyType)
 }

@@ -24,9 +24,10 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -58,7 +59,7 @@ func (pal PAL) Encrypt(keyResolver resolver.KeyResolver) (EncryptedPAL, error) {
 	var recipients [][]byte
 	for _, recipient := range pal {
 		recipients = append(recipients, []byte(recipient.String()))
-		_, rawKak, err := keyResolver.ResolveKey(recipient, nil, resolver.KeyAgreement)
+		_, rawKak, err := keyResolver.ResolveKey(context.TODO(), recipient, nil, resolver.KeyAgreement)
 		if err != nil {
 			return nil, fmt.Errorf("unable to resolve keyAgreement key (recipient=%s): %w", recipient, err)
 		}

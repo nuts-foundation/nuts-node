@@ -27,7 +27,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nuts-foundation/go-did"
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -95,7 +95,7 @@ type SignFn func(ctx context.Context, unsignedCredential vc.VerifiableCredential
 
 // ResolveKeyFn resolves the key used SignFn to sign the StatusList2021Credential.
 // The vcr.issuer injects its keyResolver.ResolveAssertionKey here.
-type ResolveKeyFn func(issuerDID did.DID, at *time.Time, relationType resolver.RelationType) (string, crypto.PublicKey, error)
+type ResolveKeyFn func(ctx context.Context, issuerDID did.DID, at *time.Time, relationType resolver.RelationType) (string, crypto.PublicKey, error)
 
 var _ StatusList2021Issuer = (*StatusList2021)(nil)
 var _ StatusList2021Verifier = (*StatusList2021)(nil)
