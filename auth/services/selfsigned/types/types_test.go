@@ -55,7 +55,7 @@ func TestSession_CredentialSubject(t *testing.T) {
 		}
 		res := s.CredentialSubject()
 		require.Len(t, res, 1)
-		subject := res[0].(map[string]interface{})
+		subject := res[0]
 		// subject is an organization and contains information about the employer
 		require.Equal(t, "did:nuts:123", subject["id"])
 		require.Equal(t, "Organization", subject["type"])
