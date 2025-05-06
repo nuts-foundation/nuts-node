@@ -560,7 +560,7 @@ func (r *SqlManager) Rollback(ctx context.Context) {
 		groupedChanges := make(map[string][]orm.DIDChangeLog)
 		// find all DIDChangeLog inner join with DIDDocumentVersion where document.updated_at < now - 1 minute
 		// note: any changes to this query needs to manually be tested in all supported DBs
-		err := tx.Preload("DIDDocumentVersion").Preload("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("updated_at < ?", updatedAt)).Find(&changes).Error
+		err := tx.Preload("DIDDocumentVersion").InnerJoins("DIDDocumentVersion.DID").InnerJoins("DIDDocumentVersion", tx.Where("updated_at < ?", updatedAt)).Find(&changes).Error
 		if err != nil {
 			return err
 		}
