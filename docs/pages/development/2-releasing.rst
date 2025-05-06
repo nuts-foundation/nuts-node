@@ -82,7 +82,7 @@ Add branch protection to the new branch on Github.
 
 **read the docs**
 
-Go to `https://app.readthedocs.org/projects/nuts-node/`_ and click on ``+ Add version`` to add the new branch to the available documentation versions on `https://nuts-node.readthedocs.io/`_.
+Go to `app.readthedocs.org/projects/nuts-node <https://app.readthedocs.org/projects/nuts-node/>`_ and click on ``+ Add version`` to add the new branch to the available documentation versions on `nuts-node.readthedocs.io <https://nuts-node.readthedocs.io/>`_.
 
 **Automated tests**
 
