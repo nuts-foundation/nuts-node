@@ -201,8 +201,8 @@ func TestPresentationSubmission_Resolve(t *testing.T) {
 	vc1 := credentialToJSONLD(vc.VerifiableCredential{
 		ID:             &id1,
 		ExpirationDate: &now,
-		CredentialSubject: []interface{}{
-			map[string]interface{}{
+		CredentialSubject: []map[string]any{
+			{
 				// weird field for testing error case: parsing credentialSubject as JSON-LD Verifiable Credential
 				// (expirationDate must be a JSON string containing a valid XML date-time)
 				"expirationDate": "yesterday",

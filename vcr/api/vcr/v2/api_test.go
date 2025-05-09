@@ -51,7 +51,7 @@ import (
 
 var holderDID = did.MustParseDID("did:web:example.com:iam:123")
 var credentialID = ssi.MustParseURI("did:web:example.com:iam:456#1")
-var testVC = vc.VerifiableCredential{ID: &credentialID, CredentialSubject: []interface{}{map[string]interface{}{"ID": holderDID.String()}}}
+var testVC = vc.VerifiableCredential{ID: &credentialID, CredentialSubject: []map[string]any{{"id": holderDID.String()}}}
 
 func TestWrapper_IssueVC(t *testing.T) {
 
@@ -62,7 +62,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 		Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		Type:              []ssi.URI{credentialType},
 		Issuer:            issuerURI,
-		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		CredentialSubject: []map[string]any{{"id": "did:nuts:456"}},
 	}
 
 	t.Run("ok with an actual credential - minimal", func(t *testing.T) {
@@ -323,7 +323,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 				Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 				Type:              []ssi.URI{credentialType},
 				Issuer:            ssi.MustParseURI("did:web:example.com:iam:123"),
-				CredentialSubject: []interface{}{map[string]interface{}{"id": "did:web:example.com:iam:456"}},
+				CredentialSubject: []map[string]any{{"id": "did:web:example.com:iam:456"}},
 			}
 
 			t.Run("ok with statuslist", func(t *testing.T) {
@@ -355,7 +355,7 @@ func TestWrapper_IssueVC(t *testing.T) {
 					Type:              []ssi.URI{credentialType},
 					Issuer:            ssi.MustParseURI("did:web:example.com:iam:123"),
 					ExpirationDate:    &now,
-					CredentialSubject: []interface{}{map[string]interface{}{"id": "did:web:example.com:iam:456"}},
+					CredentialSubject: []map[string]any{{"id": "did:web:example.com:iam:456"}},
 				}
 
 				nowStr := now.Format(time.RFC3339)
@@ -496,7 +496,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		ID:                &vcID,
 		Type:              []ssi.URI{testCredential},
 		Issuer:            issuerID,
-		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		CredentialSubject: []map[string]any{{"id": "did:nuts:456"}},
 	}
 
 	t.Run("ok - with subject, no results", func(t *testing.T) {
@@ -620,7 +620,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 	expectedVC := vc.VerifiableCredential{
 		Type:              []ssi.URI{credentialType},
 		Issuer:            issuerURI,
-		CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:456"}},
+		CredentialSubject: []map[string]any{{"id": "did:nuts:456"}},
 	}
 
 	expectedVerifyRequest := VCVerificationRequest{
@@ -661,7 +661,7 @@ func TestWrapper_VerifyVC(t *testing.T) {
 		expectedVC := vc.VerifiableCredential{
 			Type:              []ssi.URI{credentialType},
 			Issuer:            issuerURI,
-			CredentialSubject: []interface{}{map[string]interface{}{"id": "did:nuts:123"}},
+			CredentialSubject: []map[string]any{{"id": "did:nuts:123"}},
 		}
 
 		expectedVerifyRequest := VCVerificationRequest{
@@ -916,7 +916,7 @@ func TestWrapper_CreateVP(t *testing.T) {
 	verifiableCredential := vc.VerifiableCredential{
 		Type:              []ssi.URI{credentialType},
 		Issuer:            issuerURI,
-		CredentialSubject: []interface{}{map[string]interface{}{"id": subjectDID.String()}},
+		CredentialSubject: []map[string]any{{"id": subjectDID.String()}},
 	}
 	result := &vc.VerifiablePresentation{}
 	expectedresponse := CreateVP200JSONResponse(*result)

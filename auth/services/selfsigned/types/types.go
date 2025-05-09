@@ -44,7 +44,7 @@ type Session struct {
 	Employee  Employee
 }
 
-func (s Session) CredentialSubject() []interface{} {
+func (s Session) CredentialSubject() []map[string]any {
 	subject := EmployeeIdentityCredentialSubject{
 		BaseCredentialSubject: credential.BaseCredentialSubject{
 			ID: s.Employer,
@@ -62,9 +62,9 @@ func (s Session) CredentialSubject() []interface{} {
 		},
 	}
 	data, _ := json.Marshal(subject)
-	result := map[string]interface{}{}
+	result := map[string]any{}
 	_ = json.Unmarshal(data, &result)
-	return []interface{}{result}
+	return []map[string]any{result}
 }
 
 // HumanReadableContract returns the contract text without the contract type (e.g. "NL:LoginContract:v3")

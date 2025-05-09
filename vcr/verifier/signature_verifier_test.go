@@ -341,10 +341,10 @@ func testUraCredential(did string, ura string) (*vc.VerifiableCredential, error)
 	credential.IssuanceDate = time.Now()
 	exp := time.Now().Add(time.Hour * 24 * 365 * 12)
 	credential.ExpirationDate = &exp
-	subject := map[string]interface{}{}
+	subject := map[string]any{}
 	subject["id"] = did
 	subject["uraNumber"] = ura
-	credential.CredentialSubject = []interface{}{subject}
+	credential.CredentialSubject = []map[string]any{subject}
 	return credential, nil
 }
 
