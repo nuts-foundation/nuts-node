@@ -135,7 +135,12 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		Data:     []byte("{}"),
 		KeyTypes: keyUsageFlag,
 	}
-	doc, err := docManager.CreateOrUpdate(sqlDidAlice, []orm.VerificationMethod{vm}, nil)
+	doc, err := docManager.CreateOrUpdate(sqlDidAlice, []orm.VerificationMethod{vm}, []orm.Service{
+		{
+			ID:   "#1",
+			Data: []byte("{}"),
+		},
+	})
 	require.NoError(t, err)
 
 	t.Run("found", func(t *testing.T) {
@@ -145,6 +150,8 @@ func TestSqlDIDDocumentManager_Latest(t *testing.T) {
 		assert.Equal(t, doc.ID, latest.ID)
 		require.Len(t, latest.VerificationMethods, 1)
 		assert.Equal(t, keyUsageFlag, doc.VerificationMethods[0].KeyTypes)
+		require.Len(t, latest.Services, 1)
+		assert.Equal(t, []byte("{}"), doc.Services[0].Data)
 	})
 	t.Run("not found", func(t *testing.T) {
 		latest, err := docManager.Latest(did.MustParseDID("did:web:example.com:iam:unknown"), nil)
