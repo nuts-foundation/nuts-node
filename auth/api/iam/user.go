@@ -180,8 +180,8 @@ func (r Wrapper) issueEmployeeCredential(ctx context.Context, session user.Sessi
 		Issuer:         issuerDID,
 		IssuanceDate:   issuanceDate,
 		ExpirationDate: &expirationDate,
-		CredentialSubject: []interface{}{
-			map[string]string{
+		CredentialSubject: []map[string]any{
+			{
 				"id":         session.Wallet.DID.String(),
 				"identifier": userDetails.Id,
 				"name":       userDetails.Name,

@@ -512,8 +512,8 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			// and the VC issuer must equal the VP holder.
 			selfAssertedCredential := vc.VerifiableCredential{
 				Issuer: subjectDID.URI(),
-				CredentialSubject: []interface{}{
-					map[string]interface{}{
+				CredentialSubject: []map[string]any{
+					{
 						"id": subjectDID.String(),
 					},
 				},

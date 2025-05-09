@@ -131,7 +131,7 @@ func createVerifiableCredential() vcr.VerifiableCredential {
 		},
 		Issuer:            ssi.MustParseURI("did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey"),
 		IssuanceDate:      issuanceDate,
-		CredentialSubject: []interface{}{"subject"},
+		CredentialSubject: []map[string]any{{"id": "subject"}},
 		Proof:             []interface{}{"because"},
 	}
 }

@@ -308,7 +308,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("VC without credentialSubject.id", func(t *testing.T) {
 			ctx := newTestClient(t)
 			presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, vc.VerifiableCredential{
-				CredentialSubject: []interface{}{map[string]string{}},
+				CredentialSubject: []map[string]any{{}},
 			})
 
 			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
@@ -353,8 +353,8 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		// This indicates the client presented credentials that don't actually match the presentation definition,
 		// which could indicate a malicious client.
 		otherVerifiableCredential := vc.VerifiableCredential{
-			CredentialSubject: []interface{}{
-				map[string]interface{}{
+			CredentialSubject: []map[string]any{
+				{
 					"id": subjectDID.String(),
 					// just for demonstration purposes, what matters is that the credential does not match the presentation definition.
 					"IsAdministrator": true,
