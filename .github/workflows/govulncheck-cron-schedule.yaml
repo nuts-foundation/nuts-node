@@ -42,7 +42,7 @@ jobs:
 
       - name: notify slack
         # this uses our own 'Github notifications' app in slack
-        uses: slackapi/slack-github-action@v2.0.0
+        uses: slackapi/slack-github-action@v2.1.0
         if: ${{ failure() }} # only run this steps if one of the previous steps has failed
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
