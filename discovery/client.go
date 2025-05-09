@@ -229,7 +229,7 @@ func (r *clientRegistrationManager) registerPresentation(ctx context.Context, su
 	return r.client.Register(ctx, service.Endpoint, *presentation)
 }
 
-func (r *clientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]interface{}) (*vc.VerifiablePresentation, error) {
+func (r *clientRegistrationManager) findCredentialsAndBuildPresentation(ctx context.Context, subjectDID did.DID, service ServiceDefinition, parameters map[string]any) (*vc.VerifiablePresentation, error) {
 	credentials, err := r.vcr.Wallet().List(ctx, subjectDID)
 	if err != nil {
 		return nil, err
@@ -239,7 +239,7 @@ func (r *clientRegistrationManager) findCredentialsAndBuildPresentation(ctx cont
 		registrationCredential = vc.VerifiableCredential{
 			Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
-			CredentialSubject: []interface{}{parameters},
+			CredentialSubject: []map[string]any{parameters},
 		}
 		credentials = append(credentials, credential.AutoCorrectSelfAttestedCredential(registrationCredential, subjectDID))
 	}
