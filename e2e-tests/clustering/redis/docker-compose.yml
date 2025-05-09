@@ -1,6 +1,6 @@
 services:
   redisA:
-    image: &image redis:latest
+    image: &image redis:7
     command: redis-server /redis/conf/redis.conf
     volumes:
       - "./master:/redis/conf:ro"
@@ -22,23 +22,23 @@ services:
     image: *image
     depends_on:
       - redisA
-    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/A:/usr/local/etc/redis"
+      - "./sentinel/A:/redis/conf:rw"
   sentinelB:
     image: *image
     depends_on:
       - redisA
-    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/B:/usr/local/etc/redis"
+      - "./sentinel/B:/redis/conf:rw"
   sentinelC:
     image: *image
     depends_on:
       - redisA
-    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    command: redis-sentinel /redis/conf/sentinel.conf
     volumes:
-      - "./sentinel/C:/usr/local/etc/redis"
+      - "./sentinel/C:/redis/conf:rw"
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
