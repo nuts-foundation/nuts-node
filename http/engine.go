@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/json"
 	"net"
 	"net/http"
 	"os"
@@ -107,6 +108,7 @@ func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {
 	echoServer := echo.New()
 	echoServer.HideBanner = true
 	echoServer.HidePort = true
+	echoServer.JSONSerializer = &json.SonnetJSONSerializer{}
 
 	// ErrorHandler
 	echoServer.HTTPErrorHandler = core.CreateHTTPErrorHandler()
