@@ -2,9 +2,8 @@
 name: 'Build Native Binaries'
 
 on:
-  push:
-    tags:
-      - 'tmp*'
+  release:
+    types: [released]
 
 # cancel build action if superseded by new commit on same branch
 concurrency:
