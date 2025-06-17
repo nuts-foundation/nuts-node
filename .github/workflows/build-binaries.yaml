@@ -1,0 +1,57 @@
+---
+name: 'Build Native Binaries'
+
+on:
+  push:
+    tags:
+      - 'tmp*'
+
+# cancel build action if superseded by new commit on same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [ 'amd64', 'arm64' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version params
+        id: version
+        shell: bash
+        run: |
+          echo "git_commit=$(echo ${GITHUB_SHA})" >> $GITHUB_OUTPUT
+          echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+          echo "git_version=$(git name-rev --tags --name-only $(git rev-parse HEAD))" >> $GITHUB_OUTPUT
+
+      - uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
+        with:
+          semver_only: true
+
+      - name: Print version params
+        run: |
+          echo "Commit: ${{ steps.version.outputs.git_commit }}"
+          echo "Branch: ${{ steps.version.outputs.git_branch }}"
+          echo "Version: ${{ steps.version.outputs.git_version }}"
+          echo "Latest tag: ${{ steps.get-latest-tag.outputs.tag }}"
+          echo "This tag: ${{ github.ref }}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          # use go version from go.mod.
+          go-version-file: 'go.mod'
+
+      - name: Build
+        run: |
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -o nuts-linux-${{ matrix.arch }}  -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o nuts-linux-${{ matrix.arch }}
+      - name:  Upload binary
+        uses: |
+          gh release upload ${{ steps.version.outputs.git_version }} nuts-linux-${{ matrix.arch }}
+          
