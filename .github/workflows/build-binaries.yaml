@@ -52,6 +52,6 @@ jobs:
         run: |
           GOOS=linux GOARCH=${{ matrix.arch }} go build -o nuts-linux-${{ matrix.arch }}  -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o nuts-linux-${{ matrix.arch }}
       - name:  Upload binary
-        uses: |
+        run: |
           gh release upload ${{ steps.version.outputs.git_version }} nuts-linux-${{ matrix.arch }}
           
