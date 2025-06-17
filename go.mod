@@ -59,7 +59,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/driver/mysql v1.5.7
+	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlserver v1.6.0
 	schneider.vip/problem v1.9.1
