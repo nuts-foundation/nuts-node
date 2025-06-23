@@ -24,6 +24,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"slices"
+	"strings"
 )
 
 // DIDDocument is an alias
@@ -85,3 +87,13 @@ const (
 	AccessTokenTypeBearer = "Bearer"
 	AccessTokenTypeDPoP   = "DPoP"
 )
+
+type Scope string
+
+func (s Scope) Contains(scope string) bool {
+	if s == "" {
+		return false
+	}
+	scopes := strings.Split(scope, " ")
+	return slices.Contains(scopes, string(s))
+}

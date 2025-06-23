@@ -222,6 +222,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 	switch request.Body.GrantType {
 	case oauth.AuthorizationCodeGrantType:
 		// Options:
+		// - OpenID Connect
 		// - OpenID4VCI
 		// - OpenID4VP
 		// verifier DID is taken from code->oauthSession storage
@@ -469,11 +470,22 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 // handleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 // The caller must ensure ownDID is actually owned by this node.
 func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, ownMetadata oauth.AuthorizationServerMetadata, request url.URL) (HandleAuthorizeRequestResponseObject, error) {
-	// parse and validate as JAR (RFC9101, JWT Authorization Request)
-	requestObject, err := r.jar.Parse(ctx, ownMetadata, request.Query())
-	if err != nil {
-		// already an oauth.OAuth2Error
-		return nil, err
+	query := request.Query()
+	var requestObject oauthParameters
+	if query.Get(oauth.RequestParam) != "" || query.Get(oauth.RequestURIParam) != "" {
+		// parse and validate as JAR (RFC9101, JWT Authorization Request)
+		var err error
+		requestObject, err = r.jar.Parse(ctx, ownMetadata, query)
+		if err != nil {
+			// already an oauth.OAuth2Error
+			return nil, err
+		}
+	} else {
+		// TODO: Do we want to allow non-JAR requests?
+		requestObject = oauthParameters{}
+		for k, v := range query {
+			requestObject[k] = v
+		}
 	}
 
 	switch requestObject.get(oauth.ResponseTypeParam) {
