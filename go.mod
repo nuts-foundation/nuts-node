@@ -17,7 +17,7 @@ require (
 	github.com/goodsign/monday v1.0.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.20.0
-	github.com/knadh/koanf/parsers/yaml v1.0.0
+	github.com/knadh/koanf/parsers/yaml v1.1.0
 	github.com/knadh/koanf/providers/env v1.1.0
 	github.com/knadh/koanf/providers/file v1.2.0
 	github.com/knadh/koanf/providers/posflag v1.0.1
@@ -215,6 +215,7 @@ require (
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/rs/zerolog v1.26.1 // indirect
+	go.yaml.in/yaml/v3 v3.0.3 // indirect
 	golang.org/x/exp v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
 	modernc.org/libc v1.65.10 // indirect
 )
