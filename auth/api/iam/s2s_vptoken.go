@@ -109,7 +109,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
+	response, err := r.createAccessToken(ctx, subject, issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}
