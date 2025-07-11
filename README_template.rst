@@ -15,12 +15,12 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
     :target: https://nuts-node.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/test_coverage
-    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/test_coverage
+.. image:: https://qlty.sh/gh/nuts-foundation/projects/nuts-node/coverage.svg
+    :target: https://qlty.sh/gh/nuts-foundation/projects/nuts-node
     :alt: Code coverage
 
-.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/maintainability
-    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
+.. image:: https://qlty.sh/gh/nuts-foundation/projects/nuts-node/maintainability.svg
+    :target: https://qlty.sh/gh/nuts-foundation/projects/nuts-node
     :alt: Maintainability
 
 .. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml/badge.svg
