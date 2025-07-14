@@ -54,15 +54,6 @@ jobs:
           name: Remove test, mock and generated code
           command: |
             cat c_raw.out | grep -v generated | grep -v mock | grep -v test > c.out
-      # Run coverage report for Qlty
-      - run:
-          name: Setup Qlty test-reporter
-          command: |
-            mkdir -p tmp/
-            # download test reporter as a static binary
-            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./tmp/cc-test-reporter
-            chmod +x ./tmp/cc-test-reporter
-            ./tmp/cc-test-reporter before-build
       # Qlty Coverage Orb
       - qlty/coverage_publish:
           files: c.out
