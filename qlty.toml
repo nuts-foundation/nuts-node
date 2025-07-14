@@ -40,6 +40,7 @@ exclude_patterns = [
   "**/templates/**",
   "**/testdata/**",
   "**/vendor/**", "**/generated.go", "**/test/**/*.go", "**/test.go", "**/*_test.go", "**/test*.go", "**/mock/**/*.go", "**/mock.go", "**/*_mock.go", "docs/**/*.go", "codegen/**/*.go", "**/*.pb.go", "e2e-tests/**/*.go",
+  "**/docs/**",
 ]
 
 test_patterns = [
