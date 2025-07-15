@@ -15,7 +15,7 @@ on:
 
 jobs:
   e2e-test:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event.pull_request.merged || github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       packages: write
 
