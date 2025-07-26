@@ -47,12 +47,6 @@ Install ``protoc``:
   | MacOS: ``brew install protobuf``
   | Linux: ``apt install -y protobuf-compiler``
 
-Install Go tools:
-
-.. code-block:: shell
-
-  make install-tools
-
 Generating code:
 
 To regenerate all code run the ``run-generators`` target from the makefile or use one of the following for a specific group
