@@ -41,7 +41,7 @@ var webTemplates embed.FS
 // donePagePathTemplate is the path to the done page, %s is the session ID
 const donePagePathTemplate = `./%s`
 
-// PageParams is the data that is passed to the template
+// PageData is the data that is passed to the template
 type PageData struct {
 	Session types.Session
 }

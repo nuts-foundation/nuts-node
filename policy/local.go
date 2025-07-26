@@ -149,7 +149,7 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 	return nil
 }
 
-// validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
+// validatingWalletOwnerMapping is an alias for PresentationDefinition that validates the JSON on unmarshal.
 type validatingWalletOwnerMapping pe.WalletOwnerMapping
 
 func (v *validatingWalletOwnerMapping) UnmarshalJSON(data []byte) error {
