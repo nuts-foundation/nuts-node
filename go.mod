@@ -11,7 +11,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/avast/retry-go/v4 v4.6.1
 	github.com/cbroglie/mustache v1.4.0
-	github.com/chromedp/chromedp v0.13.7
+	github.com/chromedp/chromedp v0.14.0
 	github.com/dlclark/regexp2 v1.11.5
 	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/goodsign/monday v1.0.2
@@ -83,7 +83,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chromedp/cdproto v0.0.0-20250403032234-65de8f5d025b // indirect
+	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
@@ -210,7 +210,7 @@ require (
 
 require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
-	github.com/go-json-experiment/json v0.0.0-20250211171154-1ae217ad3535 // indirect
+	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
