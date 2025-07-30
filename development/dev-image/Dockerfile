@@ -1,7 +1,9 @@
 FROM nutsfoundation/nuts-node:master AS nutsnode
-FROM debian:buster-slim
+FROM debian:stable-slim
 
-RUN apt-get update && apt-get install -y curl sudo musl
+RUN apt-get update && \
+    apt-get install -y curl sudo musl && \
+    rm -rf /var/lib/apt/lists/*
 RUN curl -sL https://aka.ms/DevTunnelCliInstall | bash
 
 COPY entrypoint.sh /
