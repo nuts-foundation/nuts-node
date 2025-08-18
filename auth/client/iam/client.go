@@ -21,7 +21,7 @@ package iam
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -361,7 +361,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 		return nil, err
 	}
 	var credential CredentialResponse
-	if err = json.NewDecoder(response.Body).Decode(&credential); err != nil {
+	if err = json.UnmarshalRead(response.Body, &credential); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return &credential, nil

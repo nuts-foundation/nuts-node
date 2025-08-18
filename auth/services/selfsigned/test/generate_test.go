@@ -20,7 +20,7 @@ package test
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/util"

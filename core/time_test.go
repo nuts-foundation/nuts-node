@@ -17,7 +17,7 @@
 package core
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"

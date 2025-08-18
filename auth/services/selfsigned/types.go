@@ -19,7 +19,7 @@
 package selfsigned
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"github.com/nuts-foundation/go-did/vc"
 )

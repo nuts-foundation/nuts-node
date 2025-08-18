@@ -23,7 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"

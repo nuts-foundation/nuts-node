@@ -22,7 +22,7 @@ package vcr
 import (
 	"context"
 	"crypto/sha1"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"

@@ -20,7 +20,8 @@ package v2
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/sirupsen/logrus"
 	"sort"
@@ -66,7 +67,7 @@ func (w *Wrapper) SearchVCs(ctx context.Context, request SearchVCsRequestObject)
 	}
 
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		documentAsJson, _ := json.MarshalIndent(document, "", " ")
+		documentAsJson, _ := json.Marshal(document, jsontext.WithIndent("  "))
 		log.Logger().Debugf("Expanded JSON-LD search query:\n%s", string(documentAsJson))
 	}
 

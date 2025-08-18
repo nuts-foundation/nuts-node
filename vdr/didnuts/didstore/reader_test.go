@@ -20,7 +20,7 @@ package didstore
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"

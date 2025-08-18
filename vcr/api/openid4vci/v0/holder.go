@@ -20,7 +20,7 @@ package v0
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"

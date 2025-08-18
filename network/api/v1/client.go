@@ -20,7 +20,7 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/nuts-node/network/transport"
 	"io"
 	"net/http"

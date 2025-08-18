@@ -21,7 +21,7 @@ package oauth
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"time"

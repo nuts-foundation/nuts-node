@@ -21,7 +21,7 @@ package didweb
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"

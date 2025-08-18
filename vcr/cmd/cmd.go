@@ -19,7 +19,8 @@
 package cmd
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -201,7 +202,7 @@ func issueVC() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			formattedVC, _ := json.MarshalIndent(issuedVC, "", "  ")
+			formattedVC, _ := json.Marshal(issuedVC, jsontext.WithIndent("  "))
 			cmd.Println(string(formattedVC))
 			return nil
 		},

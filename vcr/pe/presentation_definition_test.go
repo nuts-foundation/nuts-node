@@ -23,7 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"embed"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"

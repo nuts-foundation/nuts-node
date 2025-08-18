@@ -20,7 +20,7 @@ package hash
 
 import (
 	"encoding"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"

@@ -23,7 +23,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/sha1"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/vcr/test"

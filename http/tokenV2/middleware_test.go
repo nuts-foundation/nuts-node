@@ -25,7 +25,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	b64 "encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"

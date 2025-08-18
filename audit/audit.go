@@ -21,7 +21,7 @@ package audit
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"strings"

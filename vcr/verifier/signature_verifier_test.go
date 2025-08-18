@@ -29,7 +29,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"

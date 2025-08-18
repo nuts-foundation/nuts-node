@@ -21,7 +21,7 @@ package azure
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"

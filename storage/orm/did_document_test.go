@@ -19,7 +19,7 @@
 package orm
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

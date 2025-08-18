@@ -21,7 +21,7 @@ package cmd
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"

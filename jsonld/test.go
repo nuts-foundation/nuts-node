@@ -20,7 +20,7 @@
 package jsonld
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/vcr/assets"

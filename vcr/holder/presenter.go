@@ -20,7 +20,7 @@ package holder
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"

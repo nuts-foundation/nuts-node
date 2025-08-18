@@ -21,7 +21,7 @@ package vcr
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nats-io/nats.go"

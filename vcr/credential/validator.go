@@ -22,7 +22,7 @@ package credential
 import (
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwk"

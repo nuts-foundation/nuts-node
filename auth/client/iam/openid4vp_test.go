@@ -21,7 +21,7 @@ package iam
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"

@@ -18,7 +18,7 @@
 
 package iam
 
-import "encoding/json"
+import "encoding/json/v2"
 
 var _ json.Marshaler = IntrospectAccessToken200JSONResponse{}
 

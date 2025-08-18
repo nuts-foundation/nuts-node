@@ -19,7 +19,7 @@
 package v1
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"

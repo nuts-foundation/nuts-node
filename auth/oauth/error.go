@@ -20,7 +20,7 @@ package oauth
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"html/template"
 	"net/http"

@@ -19,7 +19,7 @@
 package v2
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"

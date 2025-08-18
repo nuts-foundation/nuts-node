@@ -22,7 +22,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/go-did/did"

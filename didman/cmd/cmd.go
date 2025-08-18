@@ -19,7 +19,8 @@
 package cmd
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/didman/api/v1"
@@ -71,7 +72,7 @@ func addService() *cobra.Command {
 				return fmt.Errorf("unable to register service: %w", err)
 			}
 
-			resultJSON, _ := json.MarshalIndent(result, "", "  ")
+			resultJSON, _ := json.Marshal(result, jsontext.WithIndent("  "))
 			cmd.Println(string(resultJSON))
 
 			return nil

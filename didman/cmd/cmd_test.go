@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	v1 "github.com/nuts-foundation/nuts-node/didman/api/v1"

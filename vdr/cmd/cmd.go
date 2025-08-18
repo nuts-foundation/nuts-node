@@ -20,7 +20,8 @@ package cmd
 
 import (
 	"bufio"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
@@ -95,7 +96,7 @@ func createCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("unable to create new DID: %v", err)
 			}
-			bytes, _ := json.MarshalIndent(oneOrMoreDoc, "", "  ")
+			bytes, _ := json.Marshal(oneOrMoreDoc, jsontext.WithIndent("  "))
 			cmd.Println(string(bytes))
 			return nil
 		},
@@ -190,7 +191,7 @@ func resolveCmd() *cobra.Command {
 				}
 			}
 			for _, o := range toPrint {
-				bytes, _ := json.MarshalIndent(o, "", "  ")
+				bytes, _ := json.Marshal(o, jsontext.WithIndent("  "))
 				cmd.Printf("%s\n", string(bytes))
 			}
 
@@ -223,11 +224,11 @@ func conflictedCmd() *cobra.Command {
 
 			for _, doc := range conflictedDocs {
 				if printDocument {
-					bytes, _ := json.MarshalIndent(doc.Document, "", "  ")
+					bytes, _ := json.Marshal(doc.Document, jsontext.WithIndent("  "))
 					cmd.Printf("%s\n", string(bytes))
 				}
 				if printMetadata {
-					bytes, _ := json.MarshalIndent(doc.DocumentMetadata, "", "  ")
+					bytes, _ := json.Marshal(doc.DocumentMetadata, jsontext.WithIndent("  "))
 					cmd.Printf("%s\n", string(bytes))
 				}
 			}
@@ -274,7 +275,7 @@ func addVerificationMethodCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to add a new verification method to DID document: %s", err.Error())
 			}
-			bytes, _ := json.MarshalIndent(verificationMethod, "", "  ")
+			bytes, _ := json.Marshal(verificationMethod, jsontext.WithIndent("  "))
 			cmd.Printf("%s\n", string(bytes))
 			return nil
 		},
@@ -327,7 +328,7 @@ func addKeyAgreementKeyCmd() *cobra.Command {
 				return fmt.Errorf("error while updating the DID document: %w", err)
 			}
 
-			bytes, _ := json.MarshalIndent(document, "", "  ")
+			bytes, _ := json.Marshal(document, jsontext.WithIndent("  "))
 			cmd.Printf("%s\n", string(bytes))
 			return nil
 		},

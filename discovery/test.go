@@ -23,7 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"

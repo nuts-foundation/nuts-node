@@ -21,7 +21,7 @@ package transport
 import (
 	"bytes"
 	"crypto/x509"
-	"encoding/json"
+	"encoding/json/v2"
 	"encoding/pem"
 	"errors"
 	"fmt"

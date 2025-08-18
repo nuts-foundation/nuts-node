@@ -21,7 +21,7 @@ package events
 
 import (
 	"encoding/base64"
-	"encoding/json"
+	"encoding/json/v2"
 
 	"github.com/nuts-foundation/nuts-node/network/dag"
 )

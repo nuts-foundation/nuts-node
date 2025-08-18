@@ -21,7 +21,7 @@ package issuer
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"gorm.io/gorm"

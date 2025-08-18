@@ -19,7 +19,7 @@
 package iam
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

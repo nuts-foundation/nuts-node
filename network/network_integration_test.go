@@ -21,7 +21,7 @@ package network
 import (
 	"context"
 	"crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/google/uuid"
 	testPKI "github.com/nuts-foundation/nuts-node/test/pki"

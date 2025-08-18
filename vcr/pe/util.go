@@ -19,7 +19,7 @@
 package pe
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"

@@ -21,7 +21,7 @@ package didman
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/audit"

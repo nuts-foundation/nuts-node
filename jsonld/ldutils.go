@@ -20,7 +20,7 @@ package jsonld
 
 import (
 	"embed"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"

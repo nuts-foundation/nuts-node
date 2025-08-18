@@ -21,7 +21,7 @@ package verifier
 import (
 	"context"
 	"crypto/sha1"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/stretchr/testify/require"

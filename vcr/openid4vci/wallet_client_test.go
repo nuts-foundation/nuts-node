@@ -20,7 +20,7 @@ package openid4vci
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/url"

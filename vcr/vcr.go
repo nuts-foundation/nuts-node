@@ -21,7 +21,7 @@ package vcr
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"

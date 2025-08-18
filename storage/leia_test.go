@@ -21,7 +21,7 @@ package storage
 import (
 	"context"
 	"crypto/sha1"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-leia/v4"

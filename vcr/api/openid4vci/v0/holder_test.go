@@ -20,7 +20,7 @@ package v0
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"

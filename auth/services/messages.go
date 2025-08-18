@@ -19,7 +19,7 @@
 package services
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 
 	"github.com/nuts-foundation/go-did/vc"
 	irma "github.com/privacybydesign/irmago"

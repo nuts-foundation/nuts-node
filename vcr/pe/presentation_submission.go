@@ -19,7 +19,7 @@
 package pe
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/PaesslerAG/jsonpath"

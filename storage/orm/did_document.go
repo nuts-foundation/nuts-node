@@ -19,7 +19,7 @@
 package orm
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"time"
 
 	"github.com/google/uuid"

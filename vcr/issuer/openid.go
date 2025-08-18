@@ -21,7 +21,7 @@ package issuer
 import (
 	"context"
 	crypt "crypto"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"

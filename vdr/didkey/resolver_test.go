@@ -26,7 +26,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multicodec"
 	"github.com/nuts-foundation/go-did/did"

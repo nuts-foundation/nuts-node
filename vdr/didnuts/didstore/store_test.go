@@ -21,7 +21,7 @@ package didstore
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"github.com/alicebob/miniredis/v2"
 	ssi "github.com/nuts-foundation/go-did"

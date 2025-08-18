@@ -20,7 +20,7 @@ package iam
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"net/http"
 	"net/url"

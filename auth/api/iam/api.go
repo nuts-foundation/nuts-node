@@ -26,7 +26,8 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core/to"
@@ -1012,6 +1013,6 @@ func (r Wrapper) determineClientDID(ctx context.Context, authServerMetadata oaut
 func accessTokenRequestCacheKey(request RequestServiceAccessTokenRequestObject) string {
 	request.Params.CacheControl = nil
 	hash := sha256.New()
-	_ = json.NewEncoder(hash).Encode(request)
+	_ = json.MarshalEncode(jsontext.NewEncoder(hash), request)
 	return hex.EncodeToString(hash.Sum(nil))
 }

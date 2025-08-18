@@ -20,7 +20,7 @@ package notary
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
