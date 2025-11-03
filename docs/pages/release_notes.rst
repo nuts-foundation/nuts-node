@@ -3,7 +3,7 @@ Release notes
 #############
 
 ***************
-Peanut (v6.1.4)
+Peanut (v6.1.6)
 ***************
 
 Release date: 2025-11-03
@@ -16,6 +16,28 @@ Release date: 2025-11-03
   https://pkg.go.dev/vuln/GO-2025-4012,
   https://pkg.go.dev/vuln/GO-2025-4013, and
   https://pkg.go.dev/vuln/GO-2025-4014
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.5...v6.1.6
+
+***************
+Peanut (v6.1.5)
+***************
+
+Release date: 2025-09-05
+
+- Update deps on v6.1 branch by @stevenvegt in [#3898](https://github.com/nuts-foundation/nuts-node/pull/3898)
+- fix: Resolve GO-2025-3849 vuln on V6.1 by @confiks in [#3902](https://github.com/nuts-foundation/nuts-node/pull/3902)
+- fix vuln from go-viper by @woutslakhorst in [#3917](https://github.com/nuts-foundation/nuts-node/pull/3917)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.4...v6.1.5
+
+***************
+Peanut (v6.1.4)
+***************
+
+Release date: 2025-07-01
+
+- Build and publish binaries to GH Releases [#3849](https://github.com/nuts-foundation/nuts-node/pull/3849) by @reinkrul in [#3859](https://github.com/nuts-foundation/nuts-node/pull/3859)
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.3...v6.1.4
 
