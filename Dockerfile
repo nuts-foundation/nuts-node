@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.24.6-alpine AS builder
+FROM golang:1.25.3-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -21,7 +21,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.22.0
+FROM alpine:3.22.2
 RUN apk update \
   && apk add --no-cache \
              tzdata \
