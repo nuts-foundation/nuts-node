@@ -13,7 +13,7 @@ jobs:
   build:
     parallelism: 8
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.25
     steps:
       - checkout
 
@@ -37,7 +37,7 @@ jobs:
 
   report:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.25
     steps:
       - checkout
       - attach_workspace:
