@@ -24,15 +24,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/piprate/json-gold/ld"
 	"maps"
 	"net/http"
 	"net/url"
 	"slices"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/piprate/json-gold/ld"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -60,11 +62,12 @@ type OpenID4VPClient struct {
 	wallet           holder.Wallet
 	ldDocumentLoader ld.DocumentLoader
 	subjectManager   didsubject.Manager
+	policyBackend    policy.PDPBackend
 }
 
 // NewClient returns an implementation of Holder
 func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode:  strictMode,
@@ -77,6 +80,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectMa
 		subjectManager:   subjectManager,
 		strictMode:       strictMode,
 		wallet:           wallet,
+		policyBackend:    policyBackend,
 	}
 }
 
@@ -242,17 +246,33 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, err
 	}
 
-	// get the presentation definition from the verifier
-	parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
-	if err != nil {
+	// LSPxNuts: get the presentation definition from local definitions, if available
+	var presentationDefinition *pe.PresentationDefinition
+	presentationDefinitionMap, err := c.policyBackend.PresentationDefinitions(ctx, scopes)
+	if errors.Is(err, policy.ErrNotFound) {
+		// not found locally, get from verifier
+		// get the presentation definition from the verifier
+		parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
+		if err != nil {
+			return nil, err
+		}
+		presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
+			"scope": scopes,
+		})
+		presentationDefinition, err = c.PresentationDefinition(ctx, presentationDefinitionURL.String())
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
-	}
-	presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-		"scope": scopes,
-	})
-	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL.String())
-	if err != nil {
-		return nil, err
+	} else {
+		// found locally
+		if len(presentationDefinitionMap) != 1 {
+			return nil, fmt.Errorf("expected exactly one presentation definition for scope '%s', found %d", scopes, len(presentationDefinitionMap))
+		}
+		for _, pd := range presentationDefinitionMap {
+			presentationDefinition = &pd
+		}
 	}
 
 	params := holder.BuildParams{

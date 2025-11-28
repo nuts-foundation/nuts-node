@@ -19,6 +19,8 @@
 package auth
 
 import (
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
@@ -28,7 +30,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
 )
 
 func TestAuth_Configure(t *testing.T) {
@@ -47,7 +48,7 @@ func TestAuth_Configure(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock, nil)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
@@ -61,7 +62,7 @@ func TestAuth_Configure(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock)
+		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock, nil)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
 	})
@@ -119,7 +120,7 @@ func TestAuth_IAMClient(t *testing.T) {
 		vdrInstance := vdr.NewMockVDR(ctrl)
 		vdrInstance.EXPECT().Resolver().AnyTimes()
 
-		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, jsonld.NewTestJSONLDManager(t), pkiMock)
+		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, jsonld.NewTestJSONLDManager(t), pkiMock, nil)
 
 		assert.NotNil(t, i.IAMClient())
 	})
