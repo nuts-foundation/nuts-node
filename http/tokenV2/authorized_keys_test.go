@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testEmptyAuthorizedKeys ensures an empty authorized_keys file is properly parsed
+// TestEmptyAuthorizedKeys ensures an empty authorized_keys file is properly parsed
 func TestEmptyAuthorizedKeys(t *testing.T) {
 	keys, err := parseAuthorizedKeys([]byte(""))
 	assert.Empty(t, keys)
