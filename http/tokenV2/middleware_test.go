@@ -681,7 +681,7 @@ func TestValidJWTECDSAES384(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestValidJWTECDSAES384 ensures a valid JWT signed by an ECDSA 384-bit key authorizes a request
+// TestValidJWTECDSAES512 ensures a valid JWT signed by an ECDSA 512-bit key authorizes a request
 func TestValidJWTECDSAES512(t *testing.T) {
 	// Generate a new test key and jwt serializer
 	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P521(), jwa.ES512)
