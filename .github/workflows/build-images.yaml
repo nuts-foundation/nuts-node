@@ -5,11 +5,13 @@ on:
   push:
     branches:
       - master
+      - lspxnuts
     tags:
       - 'v*'
   pull_request:
     branches:
       - master
+      - lspxnuts
 
 # cancel build action if superseded by new commit on same branch
 concurrency:
