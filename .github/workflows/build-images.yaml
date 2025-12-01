@@ -53,7 +53,7 @@ jobs:
           images: nutsfoundation/nuts-node
           tags: |
             # generate 'master' tag for the master branch
-            type=ref,event=branch,enable={{is_default_branch}},prefix=
+            type=ref,event=branch,enable=true,prefix=
             # generate 5.2.1 tag
             type=semver,pattern={{version}}
           flavor: |
