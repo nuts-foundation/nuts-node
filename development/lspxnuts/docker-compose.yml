@@ -6,7 +6,17 @@ services:
       - "18081:8081"
     environment:
       NUTS_STRICTMODE: false
-    #volumes:
-    #  - "./definitions/:/opt/nuts/definitions:ro"
+      NUTS_URL: "https://nuts.nl"
+      NUTS_AUTH_CONTRACTVALIDATORS: dummy
+      NUTS_HTTP_INTERNAL_ADDRESS: ":8081"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
+
+  nutsadmin:
+    image: "nutsfoundation/nuts-admin:main"
+    environment:
+      - NUTS_NODE_ADDRESS=http://nutsnode:8081
+    ports:
+      - "1405:1305"
+    depends_on:
+      - nutsnode
