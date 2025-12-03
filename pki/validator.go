@@ -29,6 +29,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var _ Validator = (*validator)(nil)
@@ -89,7 +92,18 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 // newValidator returns a new PKI (crl/denylist) validator.
 func newValidator(config Config) (*validator, error) {
 	// we do not use our safe http client here since we're downloading from a trusted resource
-	return newValidatorWithHTTPClient(config, &http.Client{Timeout: syncTimeout})
+	var transport http.RoundTripper = http.DefaultTransport
+	if core.TracingEnabled() {
+		transport = otelhttp.NewTransport(http.DefaultTransport,
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return "pki: " + r.Method + " " + r.URL.Path
+			}))
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   syncTimeout,
+	}
+	return newValidatorWithHTTPClient(config, httpClient)
 }
 
 // NewValidatorWithHTTPClient returns a new instance with a pre-configured HTTP client

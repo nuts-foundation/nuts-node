@@ -22,9 +22,11 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // HttpResponseBodyLogClipAt is the maximum length of a response body to log.
@@ -98,8 +100,17 @@ func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 // If the given authorization token builder is non-nil, it calls it and passes the resulting token as bearer token with requests.
 func CreateHTTPInternalClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
 	var result *httpRequestDoerAdapter
-	client := &http.Client{}
-	client.Timeout = cfg.Timeout
+	var transport http.RoundTripper = http.DefaultTransport
+	if TracingEnabled() {
+		transport = otelhttp.NewTransport(http.DefaultTransport,
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return "internal-api: " + r.Method + " " + r.URL.Path
+			}))
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   cfg.Timeout,
+	}
 
 	result = &httpRequestDoerAdapter{
 		fn: client.Do,

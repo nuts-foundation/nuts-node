@@ -23,10 +23,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
@@ -42,6 +44,11 @@ func init() {
 	SafeHttpTransport.MaxConnsPerHost = 5
 	// set DefaultCachingTransport to SafeHttpTransport so it is set even when caching is disabled
 	DefaultCachingTransport = SafeHttpTransport
+}
+
+// httpSpanName formats span names for outbound HTTP requests.
+func httpSpanName(_ string, r *http.Request) string {
+	return "http-client: " + r.Method + " " + r.URL.Path
 }
 
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
@@ -63,21 +70,33 @@ func limitedReadAll(reader io.Reader) ([]byte, error) {
 }
 
 // New creates a new HTTP client with the given timeout.
+// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func New(timeout time.Duration) *StrictHTTPClient {
+	transport := getTransport(SafeHttpTransport)
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: SafeHttpTransport,
+			Transport: transport,
 			Timeout:   timeout,
 		},
 	}
 }
 
+// getTransport wraps the given transport with OpenTelemetry instrumentation if tracing is enabled.
+func getTransport(base http.RoundTripper) http.RoundTripper {
+	if core.TracingEnabled() {
+		return otelhttp.NewTransport(base, otelhttp.WithSpanNameFormatter(httpSpanName))
+	}
+	return base
+}
+
 // NewWithCache creates a new HTTP client with the given timeout.
 // It uses the DefaultCachingTransport as the underlying transport.
+// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func NewWithCache(timeout time.Duration) *StrictHTTPClient {
+	transport := getTransport(DefaultCachingTransport)
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: DefaultCachingTransport,
+			Transport: transport,
 			Timeout:   timeout,
 		},
 	}
@@ -86,12 +105,13 @@ func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 // NewWithTLSConfig creates a new HTTP client with the given timeout and TLS configuration.
 // It copies the http.DefaultTransport and sets the TLSClientConfig to the given tls.Config.
 // As such, it can't be used in conjunction with the CachingRoundTripper.
+// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPClient {
 	transport := SafeHttpTransport.Clone()
 	transport.TLSClientConfig = tlsConfig
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: transport,
+			Transport: getTransport(transport),
 			Timeout:   timeout,
 		},
 	}

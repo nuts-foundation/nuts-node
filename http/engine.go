@@ -36,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 const moduleName = "HTTP"
@@ -90,6 +91,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
+	h.applyTracingMiddleware(h.server)
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)
 	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
@@ -101,6 +103,19 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)
 	}
+}
+
+func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
+	// Only apply tracing middleware if tracing is enabled
+	if !core.TracingEnabled() {
+		return
+	}
+	skipper := func(c echo.Context) bool {
+		// Skip health/metrics/status endpoints to reduce noise
+		path := c.Request().URL.Path
+		return matchesPath(path, HealthPath) || matchesPath(path, MetricsPath) || matchesPath(path, StatusPath)
+	}
+	echoServer.Use(otelecho.Middleware(moduleName, otelecho.WithSkipper(skipper)))
 }
 
 func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {

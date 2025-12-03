@@ -22,10 +22,11 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"os"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -57,6 +58,8 @@ type System struct {
 	Context context.Context
 	// ContextCancel is a function to signal the system should shut down.
 	ContextCancel context.CancelFunc
+	// tracingShutdown is the shutdown function for OpenTelemetry tracing
+	tracingShutdown func(context.Context) error
 }
 
 var coreLogger = logrus.StandardLogger().WithField(LogFieldModule, "core")
@@ -111,13 +114,25 @@ func (system *System) Shutdown() error {
 		}
 		coreLogger.Infof("Stopped %s", name)
 	}
+	// Shutdown tracing last to ensure all logs are flushed
+	if system.tracingShutdown != nil {
+		if err := system.tracingShutdown(context.Background()); err != nil {
+			coreLogger.WithError(err).Error("Failed to shutdown tracing")
+		}
+	}
 	return nil
 }
 
 // Configure configures all engines in the system.
 func (system *System) Configure() error {
+	// Set up tracing first, so all logs (including engine configuration) go to the configured destination
+	tracingShutdown, err := SetupTracing(system.Config.Tracing)
+	if err != nil {
+		return fmt.Errorf("failed to setup tracing: %w", err)
+	}
+	system.tracingShutdown = tracingShutdown
+
 	coreLogger.Debugf("Creating datadir: %s", system.Config.Datadir)
-	var err error
 	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}

@@ -23,13 +23,16 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"net/http"
+	"path/filepath"
+	"time"
+
 	vault "github.com/hashicorp/vault/api"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"path/filepath"
-	"time"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const privateKeyPathName = "nuts-private-keys"
@@ -110,6 +113,17 @@ func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (cryp
 func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig := vault.DefaultConfig()
 	vaultConfig.Timeout = cfg.Timeout
+
+	// Add tracing if enabled
+	if core.TracingEnabled() {
+		vaultConfig.HttpClient.Transport = otelhttp.NewTransport(
+			vaultConfig.HttpClient.Transport,
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return "vault: " + r.Method + " " + r.URL.Path
+			}),
+		)
+	}
+
 	client, err := vault.NewClient(vaultConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize Vault client: %w", err)

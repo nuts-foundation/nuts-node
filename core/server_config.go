@@ -72,7 +72,8 @@ type ServerConfig struct {
 	LegacyTLS TLSConfig `koanf:"network"`
 	// HTTP exists to expose http.clientipheader to the nuts-network layer.
 	// This header should contaisn the client IP address for logging. Can be removed together with the nuts-network
-	HTTP      HTTPConfig `koanf:"http"`
+	HTTP      HTTPConfig    `koanf:"http"`
+	Tracing   TracingConfig `koanf:"tracing"`
 	configMap *koanf.Koanf
 }
 
@@ -85,6 +86,15 @@ type HTTPConfig struct {
 type HTTPClientConfig struct {
 	// Timeout specifies the timeout for HTTP requests.
 	Timeout time.Duration `koanf:"timeout"`
+}
+
+// TracingConfig contains settings for OpenTelemetry tracing.
+type TracingConfig struct {
+	// Endpoint is the OTLP collector endpoint (e.g., "localhost:4318" for HTTP).
+	// When empty, tracing is disabled. When set, logs are sent to both stdout and the OTLP endpoint.
+	Endpoint string `koanf:"endpoint"`
+	// Insecure disables TLS for the OTLP connection.
+	Insecure bool `koanf:"insecure"`
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
@@ -274,6 +284,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.offload", string(defaultCfg.TLS.Offload), fmt.Sprintf("Whether to enable TLS offloading for incoming gRPC connections. "+
 		"Enable by setting it to '%s'. If enabled 'tls.certheader' must be configured as well.", OffloadIncomingTLS))
 	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.")
+	flagSet.String("tracing.endpoint", defaultCfg.Tracing.Endpoint, "OTLP collector endpoint for OpenTelemetry tracing (e.g., 'localhost:4318'). When empty, tracing is disabled.")
+	flagSet.Bool("tracing.insecure", defaultCfg.Tracing.Insecure, "Disable TLS for the OTLP connection.")
 
 	return flagSet
 }

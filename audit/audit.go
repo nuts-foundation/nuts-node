@@ -23,9 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -60,6 +62,15 @@ const auditLogLevel = "audit"
 // auditLoggerInstance is the logger for auditing. Do not use directly, call auditLogger() instead.
 var auditLoggerInstance *logrus.Logger
 var initAuditLoggerOnce = &sync.Once{}
+
+func init() {
+	// Register callback so core.SetupTracing can add hooks to the audit logger.
+	// This is needed because the audit logger is a separate logrus instance,
+	// and we can't import audit from core due to circular dependencies.
+	core.RegisterAuditLogHook = func(hook logrus.Hook) {
+		auditLogger().AddHook(hook)
+	}
+}
 
 // auditLogger returns the initialized logger instance intended for audit logging.
 func auditLogger() *logrus.Logger {
