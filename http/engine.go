@@ -115,7 +115,12 @@ func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
 		path := c.Request().URL.Path
 		return matchesPath(path, HealthPath) || matchesPath(path, MetricsPath) || matchesPath(path, StatusPath)
 	}
-	echoServer.Use(otelecho.Middleware(moduleName, otelecho.WithSkipper(skipper)))
+	// Use nuts-node's own TracerProvider to ensure spans are attributed to "nuts-node" service,
+	// even when embedded in another application that has its own TracerProvider.
+	echoServer.Use(otelecho.Middleware(moduleName,
+		otelecho.WithSkipper(skipper),
+		otelecho.WithTracerProvider(core.GetTracerProvider()),
+	))
 }
 
 func (h *Engine) createEchoServer(ipHeader string) (EchoServer, error) {

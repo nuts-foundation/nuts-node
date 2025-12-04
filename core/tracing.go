@@ -44,6 +44,10 @@ const serviceName = "nuts-node"
 // tracingEnabled is set to true when OpenTelemetry tracing is configured.
 var tracingEnabled atomic.Bool
 
+// nutsTracerProvider holds nuts-node's own TracerProvider.
+// This is used instead of the global when nuts-node is embedded in another application.
+var nutsTracerProvider *trace.TracerProvider
+
 // TracingEnabled returns true if OpenTelemetry tracing is configured.
 func TracingEnabled() bool {
 	return tracingEnabled.Load()
@@ -53,6 +57,16 @@ func TracingEnabled() bool {
 // Exported for testing only; do not call from production code.
 func SetTracingEnabled(enabled bool) {
 	tracingEnabled.Store(enabled)
+}
+
+// GetTracerProvider returns nuts-node's TracerProvider.
+// This should be used by nuts-node components instead of otel.GetTracerProvider()
+// to ensure spans are attributed to "nuts-node" service.
+func GetTracerProvider() oteltrace.TracerProvider {
+	if nutsTracerProvider != nil {
+		return nutsTracerProvider
+	}
+	return otel.GetTracerProvider()
 }
 
 // RegisterAuditLogHook is a function that registers a logrus hook with the audit logger.
@@ -135,7 +149,16 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 		trace.WithResource(res),
 	)
 	shutdownFuncs = append(shutdownFuncs, tracerProvider.Shutdown)
-	otel.SetTracerProvider(tracerProvider)
+
+	// Store nuts-node's provider for use by GetTracerProvider()
+	nutsTracerProvider = tracerProvider
+
+	// Only set as global if no other provider exists (i.e., not embedded).
+	// When embedded, the parent application owns the global provider.
+	_, hasParentProvider := otel.GetTracerProvider().(*trace.TracerProvider)
+	if !hasParentProvider {
+		otel.SetTracerProvider(tracerProvider)
+	}
 
 	// Set up OTLP log exporter
 	logOpts := []otlploghttp.Option{

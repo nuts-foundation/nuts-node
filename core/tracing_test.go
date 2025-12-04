@@ -42,6 +42,16 @@ func TestSetupTracing(t *testing.T) {
 	})
 }
 
+func TestGetTracerProvider(t *testing.T) {
+	t.Run("returns global provider when nutsTracerProvider is nil", func(t *testing.T) {
+		// Reset state
+		nutsTracerProvider = nil
+
+		provider := GetTracerProvider()
+		assert.NotNil(t, provider)
+	})
+}
+
 func TestTracingLogrusHook(t *testing.T) {
 	hook := &tracingLogrusHook{}
 
