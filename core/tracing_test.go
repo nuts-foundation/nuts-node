@@ -100,7 +100,6 @@ func TestTracingLogrusHook(t *testing.T) {
 	})
 }
 
-
 func TestFormatValue(t *testing.T) {
 	t.Run("string value", func(t *testing.T) {
 		result := formatValue("test")
