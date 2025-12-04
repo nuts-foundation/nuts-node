@@ -17,10 +17,12 @@ echo ""
 echo "------------------------------------"
 echo "Creating Nuts subject..."
 echo "------------------------------------"
-REQUEST="{\"subject\":\"${SUBJECT_NAME}\"}"
+#REQUEST="{\"subject\":\"${SUBJECT_NAME}\"}"
+REQUEST="{}"
 RESPONSE=$(echo $REQUEST | curl -s -X POST --data-binary @- ${NUTS_NODE_URL}/internal/vdr/v2/subject --header "Content-Type: application/json")
 
 # Extract DID from response
+SUBJECT_NAME=$(echo $RESPONSE | jq -r '.subject')
 DID=$(echo $RESPONSE | jq -r '.documents[0].id')
 
 if [ -z "$DID" ] || [ "$DID" = "null" ]; then
@@ -83,12 +85,59 @@ else
 fi
 
 echo ""
+echo "------------------------------------"
+echo "Issuing MandaatCredential..."
+echo "------------------------------------"
+
+# Issue a self-issued MandaatCredential
+MANDAAT_REQUEST=$(cat <<EOF
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1"
+  ],
+  "type": ["VerifiableCredential", "MandaatCredential"],
+  "issuer": "${DID}",
+  "credentialSubject": {
+    "id": "${DID}",
+    "mandator": {
+      "name": "${SUBJECT_NAME}",
+      "role": "healthcare_provider"
+    }
+  },
+  "withStatusList2021Revocation": false,
+  "format": "jwt_vc"
+}
+EOF
+)
+
+MANDAAT_RESPONSE=$(echo "$MANDAAT_REQUEST" | curl -s -w "\n%{http_code}" \
+  -X POST --data-binary @- \
+  ${NUTS_NODE_URL}/internal/vcr/v2/issuer/vc \
+  -H "Content-Type:application/json")
+
+MANDAAT_HTTP_CODE=$(echo "$MANDAAT_RESPONSE" | tail -n 1)
+MANDAAT_BODY=$(echo "$MANDAAT_RESPONSE" | sed '$d')
+
+if [ "$MANDAAT_HTTP_CODE" -eq 200 ]; then
+  echo "✓ MandaatCredential successfully issued"
+  echo "  Credential: ${MANDAAT_BODY}"
+else
+  echo "ERROR: Failed to issue MandaatCredential (HTTP $MANDAAT_HTTP_CODE)"
+  echo "Response: $MANDAAT_BODY"
+  exit 1
+fi
+
+echo ""
 echo "======================================"
 echo "Setup completed successfully!"
 echo "======================================"
 echo "Subject: ${SUBJECT_NAME}"
 echo "DID: ${DID}"
 echo ""
-echo "You can now use this credential for OAuth2 flows."
+echo "Credentials issued:"
+echo "  ✓ X509Credential"
+echo "  ✓ MandaatCredential (ID: ${MANDAAT_ID})"
+echo ""
+echo "You can now use these credentials for OAuth2 flows."
 echo ""
 
