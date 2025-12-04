@@ -21,8 +21,6 @@ package client
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -30,6 +28,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStrictHTTPClient(t *testing.T) {
@@ -73,6 +75,9 @@ func TestStrictHTTPClient(t *testing.T) {
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("sets TLS config", func(t *testing.T) {
+			original := core.TracingEnabled()
+			core.SetTracingEnabled(false) // ensure we can cast to *http.Transport
+			t.Cleanup(func() { core.SetTracingEnabled(original) })
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
@@ -196,4 +201,50 @@ func TestCaching(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, int32(1), total.Load())
+}
+
+func TestGetTransport(t *testing.T) {
+	t.Run("wraps transport when tracing enabled", func(t *testing.T) {
+		original := core.TracingEnabled()
+		core.SetTracingEnabled(true)
+		t.Cleanup(func() { core.SetTracingEnabled(original) })
+
+		transport := getTransport(SafeHttpTransport)
+
+		// Should not be the same as SafeHttpTransport (it's wrapped)
+		assert.NotEqual(t, SafeHttpTransport, transport)
+	})
+
+	t.Run("returns base transport when tracing disabled", func(t *testing.T) {
+		original := core.TracingEnabled()
+		core.SetTracingEnabled(false)
+		t.Cleanup(func() { core.SetTracingEnabled(original) })
+
+		transport := getTransport(SafeHttpTransport)
+
+		assert.Equal(t, SafeHttpTransport, transport)
+	})
+}
+
+func TestNew(t *testing.T) {
+	t.Run("wraps transport when tracing enabled", func(t *testing.T) {
+		original := core.TracingEnabled()
+		core.SetTracingEnabled(true)
+		t.Cleanup(func() { core.SetTracingEnabled(original) })
+
+		client := New(time.Second)
+
+		// Transport should be wrapped (not equal to SafeHttpTransport)
+		assert.NotEqual(t, SafeHttpTransport, client.client.Transport)
+	})
+
+	t.Run("uses SafeHttpTransport when tracing disabled", func(t *testing.T) {
+		original := core.TracingEnabled()
+		core.SetTracingEnabled(false)
+		t.Cleanup(func() { core.SetTracingEnabled(original) })
+
+		client := New(time.Second)
+
+		assert.Equal(t, SafeHttpTransport, client.client.Transport)
+	})
 }

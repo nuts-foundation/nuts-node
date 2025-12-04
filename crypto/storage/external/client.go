@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // StorageType is the name of this storage type, used in health check reports and configuration.
@@ -82,8 +83,19 @@ func NewAPIClient(config Config) (spi.Storage, error) {
 	if _, err := url.ParseRequestURI(config.Address); err != nil {
 		return nil, err
 	}
-	client, _ := NewClientWithResponses(config.Address, WithHTTPClient(&http.Client{Timeout: config.Timeout}))
-	return &APIClient{httpClient: client}, nil
+	var transport http.RoundTripper = http.DefaultTransport
+	if core.TracingEnabled() {
+		transport = otelhttp.NewTransport(http.DefaultTransport,
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return "crypto-storage: " + r.Method + " " + r.URL.Path
+			}))
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   config.Timeout,
+	}
+	apiClient, _ := NewClientWithResponses(config.Address, WithHTTPClient(httpClient))
+	return &APIClient{httpClient: apiClient}, nil
 }
 
 func (c APIClient) GetPrivateKey(ctx context.Context, keyName string, _ string) (crypto.Signer, error) {
