@@ -32,12 +32,12 @@ require (
 	github.com/nats-io/nats.go v1.45.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.17.0
-	github.com/nuts-foundation/go-leia/v4 v4.1.0
+	github.com/nuts-foundation/go-leia/v4 v4.2.0
 	github.com/nuts-foundation/go-stoabs v1.11.0
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.2
-	github.com/piprate/json-gold v0.6.0
+	github.com/piprate/json-gold v0.7.0
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/privacybydesign/irmago v0.18.1
 	github.com/prometheus/client_golang v1.23.0
@@ -174,9 +174,9 @@ require (
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/templexxx/cpu v0.0.9 // indirect
 	github.com/templexxx/xorsimd v0.4.1 // indirect
-	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/timshannon/bolthold v0.0.0-20210913165410-232392fc8a6a // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
