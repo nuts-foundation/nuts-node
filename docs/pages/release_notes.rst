@@ -312,6 +312,17 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 *************************
+Hazelnut update (v5.4.21)
+*************************
+
+Release date: 2025-12-04
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2025-4175,
+  https://pkg.go.dev/vuln/GO-2025-4155
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.20...v5.4.21
+
+
+*************************
 Hazelnut update (v5.4.20)
 *************************
 
