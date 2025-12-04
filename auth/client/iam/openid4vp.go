@@ -329,10 +329,16 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID)
-	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, scopes)
+	if slices.Contains(metadata.GrantTypesSupported, oauth.JWTBearerGrantType) {
+		// use JWT bearer grant type (e.g. authenticating at LSP GtK)
+		data.Set(oauth.GrantTypeParam, oauth.JWTBearerGrantType)
+	} else {
+		// use VP token grant type (as per Nuts RFC021) as default and fallback
+		data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
+	}
 
 	// create DPoP header
 	var dpopHeader string

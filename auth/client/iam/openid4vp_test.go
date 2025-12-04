@@ -325,6 +325,21 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
 	})
+	t.Run("grant_type urn:ietf:params:oauth:grant-type:jwt-bearer", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		// Set the authorization server to support JWT Bearer grant type
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JWTBearerGrantType}
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
+		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil)
+
+		assert.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.keyResolver.EXPECT().ResolveKey(primaryWalletDID, nil, resolver.NutsSigningKeyType).Return(primaryKID, nil, nil)
