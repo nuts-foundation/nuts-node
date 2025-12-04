@@ -328,7 +328,7 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 
 	// Add OpenTelemetry tracing to GORM if tracing is enabled
 	if core.TracingEnabled() {
-		if err := e.sqlDB.Use(otelgorm.NewPlugin()); err != nil {
+		if err := e.sqlDB.Use(otelgorm.NewPlugin(otelgorm.WithTracerProvider(core.GetTracerProvider()))); err != nil {
 			return fmt.Errorf("failed to add GORM tracing plugin: %w", err)
 		}
 	}

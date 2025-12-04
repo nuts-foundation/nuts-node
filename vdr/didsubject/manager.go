@@ -63,8 +63,8 @@ func New(db *gorm.DB, methodManagers map[string]MethodManager, keyStore nutsCryp
 	}
 }
 
-func (r *SqlManager) List(_ context.Context) (map[string][]did.DID, error) {
-	sqlDIDManager := NewDIDManager(r.DB)
+func (r *SqlManager) List(ctx context.Context) (map[string][]did.DID, error) {
+	sqlDIDManager := NewDIDManager(r.DB.WithContext(ctx))
 	dids, err := sqlDIDManager.All()
 	if err != nil {
 		return nil, err
