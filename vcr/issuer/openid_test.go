@@ -21,6 +21,10 @@ package issuer
 import (
 	"context"
 	"errors"
+	"net/http"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -33,9 +37,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"testing"
-	"time"
 )
 
 var issuerDID = did.MustParseDID("did:nuts:issuer")
@@ -67,7 +68,7 @@ func TestNew(t *testing.T) {
 		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.NoError(t, err)
-		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
+		assert.Len(t, iss.(*openidHandler).credentialConfigurationsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
@@ -93,10 +94,14 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
 		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/credential", metadata.CredentialEndpoint)
-		require.Len(t, metadata.CredentialsSupported, 3)
-		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
-		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
-		assert.Equal(t, metadata.CredentialsSupported[0]["credential_definition"],
+		require.Len(t, metadata.CredentialConfigurationsSupported, 3)
+		// Check that NutsAuthorizationCredential is present as a configuration ID
+		authzConfig, ok := metadata.CredentialConfigurationsSupported["NutsAuthorizationCredential"]
+		require.True(t, ok, "NutsAuthorizationCredential should be in credential_configurations_supported")
+		authzConfigMap := authzConfig.(map[string]interface{})
+		assert.Equal(t, "ldp_vc", authzConfigMap["format"])
+		require.Len(t, authzConfigMap["cryptographic_binding_methods_supported"], 1)
+		assert.Equal(t, authzConfigMap["credential_definition"],
 			map[string]interface{}{
 				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
 				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},

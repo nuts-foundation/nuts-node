@@ -21,9 +21,10 @@ package oauth
 
 import (
 	"encoding/json"
+	"net/url"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -382,7 +383,7 @@ type OAuthClientMetadata struct {
 	/*********** OpenID4VCI ***********/
 
 	// CredentialOfferEndpoint contains a URL where the pre-authorized_code flow offers a credential.
-	// https://openid.bitbucket.io/connect/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
+	// https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-client-metadata
 	// TODO: openid4vci duplicate. Also defined on /.well-known/openid-credential-wallet to be /n2n/identity/{did}/openid4vci/credential_offer
 	CredentialOfferEndpoint string `json:"credential_offer_endpoint,omitempty"`
 
