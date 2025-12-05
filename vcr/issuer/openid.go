@@ -125,7 +125,7 @@ func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 	}
 
 	// deepcopy the i.credentialConfigurationsSupported map to prevent concurrent access to the map.
-	metadata.CredentialConfigurationsSupported = deepcopyMap(i.credentialConfigurationsSupported)
+	metadata.CredentialConfigurationsSupported = deepcopy(i.credentialConfigurationsSupported)
 
 	return metadata
 }
@@ -493,12 +493,12 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 	return err
 }
 
-func deepcopyMap(src map[string]interface{}) map[string]interface{} {
+func deepcopy(src map[string]interface{}) map[string]interface{} {
 	dst := make(map[string]interface{}, len(src))
 	for k, v := range src {
 		// Deep copy nested maps if needed
 		if nestedMap, ok := v.(map[string]interface{}); ok {
-			dst[k] = deepcopyMap(nestedMap)
+			dst[k] = deepcopy(nestedMap)
 		} else {
 			dst[k] = v
 		}
