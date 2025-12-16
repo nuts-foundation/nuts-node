@@ -23,6 +23,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -37,8 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
-	"strings"
-	"time"
 )
 
 type presenter struct {
@@ -128,15 +129,16 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	}
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
+	type VPAlias vc.VerifiablePresentation
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
-		"vp": vc.VerifiablePresentation{
+		"vp": VPAlias(vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
 			Holder:               options.Holder,
 			VerifiableCredential: credentials,
-		},
+		}),
 	}
 	if options.ProofOptions.Nonce != nil {
 		claims["nonce"] = *options.ProofOptions.Nonce
