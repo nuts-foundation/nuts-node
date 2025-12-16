@@ -9,6 +9,9 @@ services:
       NUTS_URL: "https://nuts.nl"
       NUTS_AUTH_CONTRACTVALIDATORS: dummy
       NUTS_HTTP_INTERNAL_ADDRESS: ":8081"
+      NUTS_POLICY_DIRECTORY: /opt/nuts/policies
+    volumes:
+      - ./policies:/opt/nuts/policies:ro
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
 
