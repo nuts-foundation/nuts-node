@@ -1,7 +1,7 @@
 services:
   nutsnode:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:lspxnuts}"
-    pull_policy: always
+    #pull_policy: always
     ports:
       - "18081:8081"
     environment:
