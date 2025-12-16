@@ -29,13 +29,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"go.uber.org/mock/gomock"
-	"io"
-	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
@@ -120,6 +121,7 @@ func TestSignJWT(t *testing.T) {
 
 func TestParseJWT(t *testing.T) {
 	t.Run("unsupported algorithm", func(t *testing.T) {
+		t.Skip("LSPxNuts: enabled RS256 support")
 		rsaKey := test.GenerateRSAKey()
 		token := jwt.New()
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
@@ -581,7 +583,7 @@ func TestCrypto_convertHeaders(t *testing.T) {
 
 func Test_isAlgorithmSupported(t *testing.T) {
 	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256))
-	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256))
+	assert.True(t, jwx.IsAlgorithmSupported(jwa.RS256))
 	assert.False(t, jwx.IsAlgorithmSupported(""))
 }
 
