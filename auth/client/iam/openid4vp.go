@@ -239,16 +239,20 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	useDPoP bool, additionalCredentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	policyId string, useDPoP bool, additionalCredentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
 		return nil, err
 	}
 
+	// if no policyId is provided, use the scopes as policyId
+	if policyId == "" {
+		policyId = scopes
+	}
 	// LSPxNuts: get the presentation definition from local definitions, if available
 	var presentationDefinition *pe.PresentationDefinition
-	presentationDefinitionMap, err := c.policyBackend.PresentationDefinitions(ctx, scopes)
+	presentationDefinitionMap, err := c.policyBackend.PresentationDefinitions(ctx, policyId)
 	if errors.Is(err, policy.ErrNotFound) {
 		// not found locally, get from verifier
 		// get the presentation definition from the verifier
@@ -257,7 +261,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 			return nil, err
 		}
 		presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-			"scope": scopes,
+			"scope": policyId,
 		})
 		presentationDefinition, err = c.PresentationDefinition(ctx, presentationDefinitionURL.String())
 		if err != nil {
@@ -268,7 +272,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	} else {
 		// found locally
 		if len(presentationDefinitionMap) != 1 {
-			return nil, fmt.Errorf("expected exactly one presentation definition for scope '%s', found %d", scopes, len(presentationDefinitionMap))
+			return nil, fmt.Errorf("expected exactly one presentation definition for policy/scope '%s', found %d", policyId, len(presentationDefinitionMap))
 		}
 		for _, pd := range presentationDefinitionMap {
 			presentationDefinition = &pd
