@@ -20,6 +20,9 @@ package holder
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -39,8 +42,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
-	"time"
 )
 
 func TestPresenter_buildPresentation(t *testing.T) {
@@ -162,6 +163,12 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			assert.NotNil(t, result.JWT())
 			nonce, _ := result.JWT().Get("nonce")
 			assert.Empty(t, nonce)
+
+			t.Run("type must be an array", func(t *testing.T) {
+				rawVP := result.JWT().PrivateClaims()["vp"].(map[string]any)
+				typeProp := rawVP["type"].([]any)
+				assert.Equal(t, []any{"VerifiablePresentation"}, typeProp)
+			})
 		})
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
