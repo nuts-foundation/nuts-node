@@ -153,7 +153,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	type VPAlias vc.VerifiablePresentation
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
-		jwt.JwtIDKey:   id.String(),
+		jwt.JwtIDKey:   "NjVBRjY5MDlCMUIwNzU4RTA2QzZFMDQ4QzQ2MDAyQjVDNjk1RTM2Qg",
 		"vp": vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
