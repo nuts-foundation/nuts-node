@@ -154,12 +154,12 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   "NjVBRjY5MDlCMUIwNzU4RTA2QzZFMDQ4QzQ2MDAyQjVDNjk1RTM2Qg",
-		"vp": vc.VerifiablePresentation{
+		"vp": VPAlias(vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
 			Holder:               options.Holder,
 			VerifiableCredential: credentials,
-		},
+		}),
 	}
 	if options.ProofOptions.Nonce != nil {
 		claims["nonce"] = *options.ProofOptions.Nonce
