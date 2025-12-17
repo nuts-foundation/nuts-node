@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -110,16 +112,35 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 		return nil, fmt.Errorf("unable to resolve assertion key for signing VP (did=%s): %w", *signerDID, err)
 	}
 
+	var vp *vc.VerifiablePresentation
 	switch options.Format {
 	case JWTPresentationFormat:
-		return p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid)
+		vp, err = p.buildJWTPresentation(ctx, *signerDID, credentials, options, kid)
+		if err != nil {
+			return nil, err
+		}
 	case "":
 		fallthrough
 	case JSONLDPresentationFormat:
-		return p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid)
+		vp, err = p.buildJSONLDPresentation(ctx, *signerDID, credentials, options, kid)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported presentation proof format: %s", options.Format)
 	}
+
+	tmpFile, err := os.CreateTemp(os.TempDir(), "vp-*.txt")
+	if err != nil {
+		return nil, fmt.Errorf("unable to create temp file for VP debug output: %w", err)
+	}
+	defer tmpFile.Close()
+	_, err = tmpFile.WriteString(vp.Raw())
+	if err != nil {
+		return nil, fmt.Errorf("unable to write VP debug output to temp file: %w", err)
+	}
+	log.Logger().Infof("Created VP stored in temp file: %s", tmpFile.Name())
+	return vp, nil
 }
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
