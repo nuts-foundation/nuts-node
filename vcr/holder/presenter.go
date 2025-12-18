@@ -55,7 +55,9 @@ type vpJWT struct {
 	vc.VerifiablePresentation
 }
 
-// MarshalJSON marshals the VP ensuring the 'type' and '@context' fields are always arrays in JWT format
+// MarshalJSON marshals the VP ensuring certain fields are always arrays in JWT format.
+// According to W3C VC spec, when a VP is in JWT format, the following fields must always be arrays:
+// - 'type', '@context', 'verifiableCredential', and 'proof' (even when containing a single value)
 func (v vpJWT) MarshalJSON() ([]byte, error) {
 	// Marshal the underlying VP to a map
 	vpBytes, err := v.VerifiablePresentation.MarshalJSON()
@@ -91,6 +93,31 @@ func (v vpJWT) MarshalJSON() ([]byte, error) {
 			// Already an array, keep as is
 		case []string:
 			// Already a string array, keep as is
+		}
+	}
+
+	// Ensure 'verifiableCredential' is always an array
+	if vcVal, ok := vpMap["verifiableCredential"]; ok {
+		switch vc := vcVal.(type) {
+		case string:
+			// Convert single string to array
+			vpMap["verifiableCredential"] = []string{vc}
+		case map[string]interface{}:
+			// Convert single object to array
+			vpMap["verifiableCredential"] = []interface{}{vc}
+		case []interface{}:
+			// Already an array, keep as is
+		}
+	}
+
+	// Ensure 'proof' is always an array
+	if proofVal, ok := vpMap["proof"]; ok {
+		switch p := proofVal.(type) {
+		case map[string]interface{}:
+			// Convert single object to array
+			vpMap["proof"] = []interface{}{p}
+		case []interface{}:
+			// Already an array, keep as is
 		}
 	}
 
