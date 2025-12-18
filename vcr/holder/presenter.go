@@ -48,6 +48,55 @@ type presenter struct {
 	keyResolver    resolver.KeyResolver
 }
 
+// vpJWT is a wrapper around vc.VerifiablePresentation to ensure proper JSON marshaling for JWT VPs.
+// When marshaling a VP into JWT format, the 'type' field must always be an array according to the W3C spec,
+// even when it contains a single value. The go-did library's default marshaling optimizes single values to strings.
+type vpJWT struct {
+	vc.VerifiablePresentation
+}
+
+// MarshalJSON marshals the VP ensuring the 'type' and '@context' fields are always arrays in JWT format
+func (v vpJWT) MarshalJSON() ([]byte, error) {
+	// Marshal the underlying VP to a map
+	vpBytes, err := v.VerifiablePresentation.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	var vpMap map[string]interface{}
+	if err := json.Unmarshal(vpBytes, &vpMap); err != nil {
+		return nil, err
+	}
+
+	// Ensure 'type' is always an array
+	if typeVal, ok := vpMap["type"]; ok {
+		switch t := typeVal.(type) {
+		case string:
+			// Convert single string to array
+			vpMap["type"] = []string{t}
+		case []interface{}:
+			// Already an array, keep as is
+		case []string:
+			// Already a string array, keep as is
+		}
+	}
+
+	// Ensure '@context' is always an array
+	if ctxVal, ok := vpMap["@context"]; ok {
+		switch c := ctxVal.(type) {
+		case string:
+			// Convert single string to array
+			vpMap["@context"] = []string{c}
+		case []interface{}:
+			// Already an array, keep as is
+		case []string:
+			// Already a string array, keep as is
+		}
+	}
+
+	return json.Marshal(vpMap)
+}
+
 func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
 	params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
@@ -129,16 +178,15 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	}
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
-	type VPAlias vc.VerifiablePresentation
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
-		"vp": VPAlias(vc.VerifiablePresentation{
+		"vp": vpJWT{vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
 			Holder:               options.Holder,
 			VerifiableCredential: credentials,
-		}),
+		}},
 	}
 	if options.ProofOptions.Nonce != nil {
 		claims["nonce"] = *options.ProofOptions.Nonce
