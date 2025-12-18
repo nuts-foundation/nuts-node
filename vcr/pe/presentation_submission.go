@@ -22,13 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
-	"strings"
 )
 
 // ParsePresentationSubmission validates the given JSON and parses it into a PresentationSubmission.
@@ -136,8 +137,8 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we might need to fix the mapping paths.
 
 	// todo the check below actually depends on the format of the credential and not the format of the VP
-	if len(signInstruction.Mappings) == 1 {
-		signInstruction.Mappings[0].Path = "$.verifiableCredential"
+	if format == vc.JWTPresentationProofFormat && len(signInstruction.Mappings) == 1 {
+		signInstruction.Mappings[0].Path = "$.verifiableCredential[0]"
 	}
 
 	// Just 1 VP, no nesting needed
