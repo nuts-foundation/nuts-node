@@ -194,15 +194,16 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	}
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
+	type VPAlias vc.VerifiablePresentation
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
-		"vp": vpJWT{vc.VerifiablePresentation{
+		"vp": VPAlias(vc.VerifiablePresentation{
 			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
 			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
 			Holder:               options.Holder,
 			VerifiableCredential: credentials,
-		}},
+		}),
 	}
 	if options.ProofOptions.Nonce != nil {
 		claims["nonce"] = *options.ProofOptions.Nonce

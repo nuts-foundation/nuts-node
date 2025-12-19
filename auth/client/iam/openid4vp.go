@@ -329,6 +329,10 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		}
 	}
 
+	println("===== VP =====")
+	println(vp.Raw())
+	println("===== Submission =====")
+	println(string(presentationSubmission))
 	log.Logger().Infof("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
 	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
