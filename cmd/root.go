@@ -122,7 +122,7 @@ func startServer(ctx context.Context, system *core.System) error {
 	logrus.Info(fmt.Sprintf("Build info: \n%s", core.BuildInfo()))
 	logrus.Info(fmt.Sprintf("Config: \n%s", system.Config.PrintConfig()))
 
-	// check config on all engines
+	// check config on all engines (also initializes tracing)
 	if err := system.Configure(); err != nil {
 		return err
 	}
