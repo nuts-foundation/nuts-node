@@ -24,15 +24,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/piprate/json-gold/ld"
 	"maps"
 	"net/http"
 	"net/url"
 	"slices"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/piprate/json-gold/ld"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -328,7 +329,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		}
 	}
 
-	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
+	log.Logger().Infof("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
 	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.

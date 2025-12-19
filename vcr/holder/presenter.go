@@ -97,25 +97,14 @@ func (v vpJWT) MarshalJSON() ([]byte, error) {
 	}
 
 	// Ensure 'verifiableCredential' is always an array
-	//if vcVal, ok := vpMap["verifiableCredential"]; ok {
-	//	switch vc := vcVal.(type) {
-	//	case string:
-	//		// Convert single string to array
-	//		vpMap["verifiableCredential"] = []string{vc}
-	//	case map[string]interface{}:
-	//		// Convert single object to array
-	//		vpMap["verifiableCredential"] = []interface{}{vc}
-	//	case []interface{}:
-	//		// Already an array, keep as is
-	//	}
-	//}
-
-	// Ensure 'proof' is always an array
-	if proofVal, ok := vpMap["proof"]; ok {
-		switch p := proofVal.(type) {
+	if vcVal, ok := vpMap["verifiableCredential"]; ok {
+		switch vc := vcVal.(type) {
+		case string:
+			// Convert single string to array
+			vpMap["verifiableCredential"] = []string{vc}
 		case map[string]interface{}:
 			// Convert single object to array
-			vpMap["proof"] = []interface{}{p}
+			vpMap["verifiableCredential"] = []interface{}{vc}
 		case []interface{}:
 			// Already an array, keep as is
 		}
