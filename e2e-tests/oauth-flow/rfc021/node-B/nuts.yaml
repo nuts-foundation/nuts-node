@@ -1,5 +1,5 @@
 url: https://nodeB
-verbosity: debug
+verbosity: trace
 strictmode: false
 internalratelimiter: false
 http:
