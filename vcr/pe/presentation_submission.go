@@ -134,11 +134,15 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	}
 
 	// the verifiableCredential property in Verifiable Presentations can be a single VC or an array of VCs when represented in JSON.
-	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we might need to fix the mapping paths.
-
-	// todo the check below actually depends on the format of the credential and not the format of the VP
-	if format == vc.JWTPresentationProofFormat && len(signInstruction.Mappings) == 1 {
-		signInstruction.Mappings[0].Path = "$.verifiableCredential[0]"
+	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we need to fix the mapping paths.
+	if len(signInstruction.Mappings) == 1 {
+		if format == vc.JWTPresentationProofFormat {
+			// JWT VP always has an array of VCs
+			signInstruction.Mappings[0].Path = "$.verifiableCredential[0]"
+		} else {
+			// JSON-LD VP with single VC has single VC in verifiableCredential
+			signInstruction.Mappings[0].Path = "$.verifiableCredential"
+		}
 	}
 
 	// Just 1 VP, no nesting needed

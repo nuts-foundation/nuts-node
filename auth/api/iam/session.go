@@ -19,10 +19,12 @@
 package iam
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/url"
+
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -121,7 +123,20 @@ func (v *PEXConsumer) fulfill(submission pe.PresentationSubmission, envelope pe.
 		return errors.New("presentation definition is already fulfilled")
 	}
 
-	_, err := submission.Validate(envelope, *definition)
+	// Marshal and println VP (envelope) and submission
+	jsonData, err := envelope.MarshalJSON()
+	if err != nil {
+		return fmt.Errorf("could not marshal presentation exchange envelope: %w", err)
+	}
+	fmt.Printf("Received PEX Envelope: %s\n", string(jsonData))
+
+	jsonData, err = json.Marshal(submission)
+	if err != nil {
+		return fmt.Errorf("could not marshal presentation submission: %w", err)
+	}
+	fmt.Printf("Received Presentation Submission: %s\n", string(jsonData))
+
+	_, err = submission.Validate(envelope, *definition)
 	if err != nil {
 		return fmt.Errorf("presentation submission does not conform to presentation definition (id=%s)", definition.Id)
 	}

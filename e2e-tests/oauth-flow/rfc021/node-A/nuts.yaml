@@ -1,5 +1,5 @@
 url: https://nodeA
-verbosity: trace
+verbosity: debug
 strictmode: false
 internalratelimiter: false
 http:
