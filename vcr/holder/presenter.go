@@ -129,7 +129,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	}
 	id := did.DIDURL{DID: subjectDID}
 	id.Fragment = strings.ToLower(uuid.NewString())
-	type VPAlias = vc.VerifiablePresentation
+	type VPAlias vc.VerifiablePresentation
 	claims := map[string]interface{}{
 		jwt.SubjectKey: subjectDID.String(),
 		jwt.JwtIDKey:   id.String(),
