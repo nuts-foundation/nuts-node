@@ -18,7 +18,7 @@ jobs:
         arch: [ 'amd64', 'arm64' ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set version params
         id: version
@@ -35,7 +35,7 @@ jobs:
           echo "Version: ${{ steps.version.outputs.git_version }}"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
 
