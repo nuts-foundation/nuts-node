@@ -20,6 +20,9 @@ package holder
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -39,8 +42,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
-	"time"
 )
 
 func TestPresenter_buildPresentation(t *testing.T) {
@@ -162,7 +163,33 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			assert.NotNil(t, result.JWT())
 			nonce, _ := result.JWT().Get("nonce")
 			assert.Empty(t, nonce)
+
+			t.Run("#3957: Verifiable Presentation type is marshalled incorrectly in JWT format", func(t *testing.T) {
+				t.Run("make sure the fix is backwards compatible", func(t *testing.T) {
+					vp := vc.VerifiablePresentation{
+						Type: []ssi.URI{ssi.MustParseURI("VerifiablePresentation")},
+					}
+					t.Run("sanity check: regular JSON marshalling yields type: string", func(t *testing.T) {
+						data, err := vp.MarshalJSON()
+						require.NoError(t, err)
+						assert.Contains(t, string(data), `"type":"VerifiablePresentation"`)
+					})
+				})
+				vpAsMap := result.JWT().PrivateClaims()["vp"].(map[string]any)
+				t.Run("make sure type now marshalls as array", func(t *testing.T) {
+					typeProp := vpAsMap["type"].([]any)
+					assert.Equal(t, []any{"VerifiablePresentation"}, typeProp)
+				})
+				t.Run("make sure the VP can be unmarshalled", func(t *testing.T) {
+					presentation, err := vc.ParseVerifiablePresentation(result.Raw())
+					require.NoError(t, err)
+					assert.Equal(t, result.ID.String(), presentation.ID.String())
+					assert.Len(t, presentation.Type, 1)
+					assert.Equal(t, "VerifiablePresentation", presentation.Type[0].String())
+				})
+			})
 		})
+
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
