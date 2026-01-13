@@ -24,6 +24,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -37,11 +43,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"io/fs"
-	"net/http"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 // Flow is an active OpenID4VCI credential issuance flow.
@@ -107,14 +108,14 @@ func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitions
 }
 
 type openidHandler struct {
-	issuerIdentifierURL  string
-	issuerDID            did.DID
-	definitionsDIR       string
-	credentialsSupported []map[string]interface{}
-	keyResolver          resolver.KeyResolver
-	store                OpenIDStore
-	walletClientCreator  func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
-	httpClient           core.HTTPRequestDoer
+	issuerIdentifierURL               string
+	issuerDID                         did.DID
+	definitionsDIR                    string
+	credentialConfigurationsSupported map[string]interface{}
+	keyResolver                       resolver.KeyResolver
+	store                             OpenIDStore
+	walletClientCreator               func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
+	httpClient                        core.HTTPRequestDoer
 }
 
 func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
@@ -123,8 +124,8 @@ func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/openid4vci/credential"),
 	}
 
-	// deepcopy the i.credentialsSupported slice to prevent concurrent access to the slice.
-	metadata.CredentialsSupported = deepcopy(i.credentialsSupported)
+	// deepcopy the i.credentialConfigurationsSupported map to prevent concurrent access to the map.
+	metadata.CredentialConfigurationsSupported = deepcopy(i.credentialConfigurationsSupported)
 
 	return metadata
 }
@@ -443,8 +444,9 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 }
 
 func (i *openidHandler) loadCredentialDefinitions() error {
+	i.credentialConfigurationsSupported = make(map[string]interface{})
 
-	// retrieve the definitions from assets and add to the list of CredentialsSupported
+	// retrieve the definitions from assets and add to the map of CredentialConfigurationsSupported
 	definitionsDir, err := assets.FS.ReadDir("definitions")
 	if err != nil {
 		return err
@@ -459,7 +461,9 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 		if err != nil {
 			return err
 		}
-		i.credentialsSupported = append(i.credentialsSupported, definitionMap)
+		// Use the filename (without extension) as the credential configuration ID
+		configID := definition.Name()[:len(definition.Name())-len(filepath.Ext(definition.Name()))]
+		i.credentialConfigurationsSupported[configID] = definitionMap
 	}
 
 	// now add all credential definition from config.DefinitionsDIR
@@ -478,7 +482,9 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 				if err != nil {
 					return fmt.Errorf("failed to parse credential definition from %s: %w", path, err)
 				}
-				i.credentialsSupported = append(i.credentialsSupported, definitionMap)
+				// Use the filename (without extension) as the credential configuration ID
+				configID := d.Name()[:len(d.Name())-len(filepath.Ext(d.Name()))]
+				i.credentialConfigurationsSupported[configID] = definitionMap
 			}
 			return nil
 		})
@@ -487,12 +493,14 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 	return err
 }
 
-func deepcopy(src []map[string]interface{}) []map[string]interface{} {
-	dst := make([]map[string]interface{}, len(src))
-	for i := range src {
-		dst[i] = make(map[string]interface{})
-		for k, v := range src[i] {
-			dst[i][k] = v
+func deepcopy(src map[string]interface{}) map[string]interface{} {
+	dst := make(map[string]interface{}, len(src))
+	for k, v := range src {
+		// Deep copy nested maps if needed
+		if nestedMap, ok := v.(map[string]interface{}); ok {
+			dst[k] = deepcopy(nestedMap)
+		} else {
+			dst[k] = v
 		}
 	}
 	return dst

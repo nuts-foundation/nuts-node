@@ -20,6 +20,7 @@ package openid4vci
 
 import (
 	"errors"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 )
@@ -49,7 +50,7 @@ func (cd *CredentialDefinition) Validate(isOffer bool) error {
 // CredentialDefinition is assumed to be valid, see ValidateCredentialDefinition.
 func ValidateDefinitionWithCredential(credential vc.VerifiableCredential, definition CredentialDefinition) error {
 	// From spec: When the format value is ldp_vc, ..., including credential_definition object, MUST NOT be processed using JSON-LD rules.
-	// https://openid.bitbucket.io/connect/editors-draft/openid-4-verifiable-credential-issuance-1_0.html#name-format-identifier-2
+	// https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-format-profiles
 
 	// compare contexts. The credential may contain extra contexts for signatures or proofs
 	if len(credential.Context) < len(definition.Context) || !isSubset(credential.Context, definition.Context) {

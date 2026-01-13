@@ -21,8 +21,9 @@
 package openid4vci
 
 import (
-	ssi "github.com/nuts-foundation/go-did"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
 )
 
 // PreAuthorizedCodeGrant is the grant type used for pre-authorized code grant from the OpenID4VCI specification.
@@ -62,8 +63,9 @@ type CredentialIssuerMetadata struct {
 	// CredentialEndpoint defines where the wallet can send a request to retrieve a credential.
 	CredentialEndpoint string `json:"credential_endpoint"`
 
-	// CredentialsSupported defines metadata about which credential types the credential issuer can issue.
-	CredentialsSupported []map[string]interface{} `json:"credentials_supported"`
+	// CredentialConfigurationsSupported defines metadata about the credential configurations supported by the credential issuer.
+	// This replaces credentials_supported from draft versions.
+	CredentialConfigurationsSupported map[string]interface{} `json:"credential_configurations_supported"`
 }
 
 // OAuth2ClientMetadata defines the OAuth2 Client Metadata, extended with OpenID4VCI parameters.
