@@ -887,6 +887,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		request.Params.CacheControl = to.Ptr("no-cache")
 		// Initial call to populate cache
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(response, nil).Times(2)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(response, nil).Times(2)
+>>>>>>> ebe25beb (work)
 		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
 		// Test call to check cache is bypassed
@@ -908,6 +911,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			ExpiresIn:   to.Ptr(900),
 		}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(response, nil)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(response, nil)
+>>>>>>> ebe25beb (work)
 
 		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -947,6 +953,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			cacheKey := accessTokenRequestCacheKey(request)
 			_ = ctx.client.accessTokenCache().Delete(cacheKey)
 			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
+=======
+			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
+>>>>>>> ebe25beb (work)
 
 			otherToken, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -964,6 +973,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			TokenType:           &tokenTypeBearer,
 		}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", false, nil, nil).Return(&oauth.TokenResponse{}, nil)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", false, nil).Return(&oauth.TokenResponse{}, nil)
+>>>>>>> ebe25beb (work)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
@@ -973,6 +985,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		ctx := newTestClient(t)
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
+>>>>>>> ebe25beb (work)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -982,6 +997,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(nil, pe.ErrNoCredentials)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(nil, pe.ErrNoCredentials)
+>>>>>>> ebe25beb (work)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
@@ -999,6 +1017,10 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "first"}, nil)
 		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "second"}, nil)
+=======
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(&oauth.TokenResponse{AccessToken: "first"}, nil)
+		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, nil).Return(&oauth.TokenResponse{AccessToken: "second"}, nil)
+>>>>>>> ebe25beb (work)
 
 		token1, err := ctx.client.RequestServiceAccessToken(nil, request)
 		require.NoError(t, err)
@@ -1024,6 +1046,9 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			}
 			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
 			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, *body.Credentials, nil).Return(response, nil)
+=======
+			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", "", true, *body.Credentials).Return(response, nil)
+>>>>>>> ebe25beb (work)
 
 			_, err := ctx.client.RequestServiceAccessToken(nil, request)
 
