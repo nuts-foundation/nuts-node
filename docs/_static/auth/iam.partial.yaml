@@ -32,6 +32,8 @@ paths:
                   type: string
                 client_id:
                   type: string
+                client_assertion:
+                  type: string
                 assertion:
                   type: string
                 presentation_submission:
