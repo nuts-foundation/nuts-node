@@ -29,13 +29,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -233,6 +234,15 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
+		}
+	case oauth.JWTBearerGrantType:
+		// NL Generic Functions Authentication flow
+		if request.Body.Assertion == nil || request.Body.Scope == nil ||
+			request.Body.ClientId == nil || request.Body.ClientAssertion == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "missing required parameters",
+			}
 		}
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
@@ -774,7 +784,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		useDPoP = false
 	}
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	var policyId string
+	if request.Body.PolicyId != nil {
+		policyId = *request.Body.PolicyId
+	}
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, policyId, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
