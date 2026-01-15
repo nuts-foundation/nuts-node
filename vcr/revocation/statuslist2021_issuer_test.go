@@ -403,3 +403,43 @@ func toMap(t testing.TB, obj any) (result map[string]any) {
 	require.NoError(t, json.Unmarshal(bs, &result))
 	return
 }
+
+func TestStatusList2021_GetRevocation(t *testing.T) {
+	s := newTestStatusList2021(t, aliceDID, bobDID)
+	testCtx := audit.TestContext()
+
+	credentialID := ssi.MustParseURI("did:web:example.com:iam:alice#123")
+
+	t.Run("ok - not revoked", func(t *testing.T) {
+		revocation, err := s.GetRevocation(credentialID)
+
+		assert.NoError(t, err)
+		assert.Nil(t, revocation)
+	})
+
+	t.Run("ok - revoked", func(t *testing.T) {
+		// First get an entry and revoke it
+		entry, err := s.Entry(testCtx, aliceDID, StatusPurposeRevocation)
+		require.NoError(t, err)
+
+		err = s.Revoke(testCtx, credentialID, *entry)
+		require.NoError(t, err)
+
+		// Now check if it's revoked
+		revocation, err := s.GetRevocation(credentialID)
+
+		assert.NoError(t, err)
+		require.NotNil(t, revocation)
+		assert.Equal(t, StatusPurposeRevocation, revocation.Purpose)
+		assert.False(t, revocation.RevokedAt.IsZero(), "RevokedAt should not be zero")
+	})
+
+	t.Run("ok - different credential not revoked", func(t *testing.T) {
+		otherCredentialID := ssi.MustParseURI("did:web:example.com:iam:alice#456")
+
+		revocation, err := s.GetRevocation(otherCredentialID)
+
+		assert.NoError(t, err)
+		assert.Nil(t, revocation)
+	})
+}

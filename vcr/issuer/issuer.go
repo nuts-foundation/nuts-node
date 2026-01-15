@@ -23,14 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -91,6 +92,35 @@ type issuer struct {
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
 	statusList       revocation.StatusList2021Issuer
+}
+
+func (i issuer) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	// did:nuts; use store.GetRevocation()
+	// otherwise, use statusList
+	credentialDIDURL, err := did.ParseDIDURL(credentialID.String())
+	if err != nil {
+		return nil, err
+	}
+	if credentialDIDURL.Method == didnuts.MethodName {
+		return i.store.GetRevocation(credentialID)
+	}
+	cred, err := i.store.GetCredential(credentialID)
+	if err != nil {
+		return nil, err
+	}
+	rev, err := i.statusList.GetRevocation(credentialID)
+	if err != nil {
+		return nil, err
+	}
+	if rev == nil {
+		return nil, types.ErrNotFound
+	}
+	return &credential.Revocation{
+		Issuer:  cred.Issuer,
+		Subject: credentialID,
+		Reason:  rev.Purpose,
+		Date:    rev.RevokedAt,
+	}, nil
 }
 
 // Issue creates a new credential, signs, stores it.
