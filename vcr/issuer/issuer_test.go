@@ -24,10 +24,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"path"
 	"testing"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -614,6 +615,125 @@ _:c14n0 <https://www.w3.org/2018/credentials#issuer> <did:nuts:123> .
 		})
 	})
 }
+
+func Test_issuer_GetRevocation(t *testing.T) {
+	nutsCredentialID := ssi.MustParseURI("did:nuts:issuer#38E90E8C-F7E5-4333-B63A-F9DD155A0272")
+	webCredentialID := ssi.MustParseURI("did:web:example.com#12345678-1234-1234-1234-123456789012")
+
+	t.Run("did:nuts credential", func(t *testing.T) {
+		t.Run("ok - revoked", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			expectedRevocation := &credential.Revocation{
+				Issuer:  nutsIssuerDID.URI(),
+				Subject: nutsCredentialID,
+				Reason:  "test reason",
+				Date:    time.Now(),
+			}
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetRevocation(nutsCredentialID).Return(expectedRevocation, nil)
+
+			sut := issuer{store: store}
+
+			result, err := sut.GetRevocation(nutsCredentialID)
+
+			assert.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, expectedRevocation, result)
+		})
+
+		t.Run("ok - not revoked", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetRevocation(nutsCredentialID).Return(nil, vcr.ErrNotFound)
+
+			sut := issuer{store: store}
+
+			result, err := sut.GetRevocation(nutsCredentialID)
+
+			assert.ErrorIs(t, err, vcr.ErrNotFound)
+			assert.Nil(t, result)
+		})
+	})
+
+	t.Run("did:web credential", func(t *testing.T) {
+		issuerDID := did.MustParseDID("did:web:example.com")
+		testCredential := &vc.VerifiableCredential{
+			ID:     &webCredentialID,
+			Issuer: issuerDID.URI(),
+		}
+
+		t.Run("ok - revoked", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			revokedAt := time.Now()
+			statusListRevocation := &revocation.Revocation{
+				Purpose:   revocation.StatusPurposeRevocation,
+				RevokedAt: revokedAt,
+			}
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetCredential(webCredentialID).Return(testCredential, nil)
+
+			statusList := revocation.NewMockStatusList2021Issuer(ctrl)
+			statusList.EXPECT().GetRevocation(webCredentialID).Return(statusListRevocation, nil)
+
+			sut := issuer{store: store, statusList: statusList}
+
+			result, err := sut.GetRevocation(webCredentialID)
+
+			assert.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, issuerDID.URI(), result.Issuer)
+			assert.Equal(t, webCredentialID, result.Subject)
+			assert.Equal(t, revocation.StatusPurposeRevocation, result.Reason)
+			assert.Equal(t, revokedAt, result.Date)
+		})
+
+		t.Run("ok - not revoked", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetCredential(webCredentialID).Return(testCredential, nil)
+
+			statusList := revocation.NewMockStatusList2021Issuer(ctrl)
+			statusList.EXPECT().GetRevocation(webCredentialID).Return(nil, nil)
+
+			sut := issuer{store: store, statusList: statusList}
+
+			result, err := sut.GetRevocation(webCredentialID)
+
+			assert.ErrorIs(t, err, vcr.ErrNotFound)
+			assert.Nil(t, result)
+		})
+
+		t.Run("error - credential not found", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetCredential(webCredentialID).Return(nil, vcr.ErrNotFound)
+
+			sut := issuer{store: store}
+
+			result, err := sut.GetRevocation(webCredentialID)
+
+			assert.ErrorIs(t, err, vcr.ErrNotFound)
+			assert.Nil(t, result)
+		})
+	})
+
+	t.Run("error - invalid credential ID", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+
+		sut := issuer{store: NewMockStore(ctrl)}
+
+		result, err := sut.GetRevocation(ssi.MustParseURI("not-a-did"))
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
 func Test_issuer_revokeNetwork(t *testing.T) {
 	credentialID := "did:nuts:issuer#38E90E8C-F7E5-4333-B63A-F9DD155A0272"
 	credentialURI := ssi.MustParseURI(credentialID)
