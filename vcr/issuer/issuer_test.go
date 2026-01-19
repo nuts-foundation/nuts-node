@@ -655,6 +655,33 @@ func Test_issuer_GetRevocation(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Nil(t, result)
 		})
+
+		t.Run("ok - multiple revocations (returns first)", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			firstRevocation := credential.Revocation{
+				Issuer:  nutsIssuerDID.URI(),
+				Subject: nutsCredentialID,
+				Reason:  "first reason",
+				Date:    time.Now().Add(-time.Hour),
+			}
+			secondRevocation := credential.Revocation{
+				Issuer:  nutsIssuerDID.URI(),
+				Subject: nutsCredentialID,
+				Reason:  "second reason",
+				Date:    time.Now(),
+			}
+
+			store := NewMockStore(ctrl)
+			store.EXPECT().GetRevocation(nutsCredentialID).Return([]credential.Revocation{firstRevocation, secondRevocation}, nil)
+
+			sut := issuer{store: store}
+
+			result, err := sut.GetRevocation(nutsCredentialID)
+
+			assert.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, &firstRevocation, result)
+		})
 	})
 
 	t.Run("did:web credential", func(t *testing.T) {
