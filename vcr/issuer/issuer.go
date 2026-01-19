@@ -102,8 +102,16 @@ func (i issuer) GetRevocation(credentialID ssi.URI) (*credential.Revocation, err
 		return nil, err
 	}
 	if credentialDIDURL.Method == didnuts.MethodName {
-		return i.store.GetRevocation(credentialID)
+		revocations, err := i.store.GetRevocation(credentialID)
+		if err != nil {
+			return nil, err
+		}
+		if len(revocations) == 0 {
+			return nil, nil
+		}
+		return &revocations[0], nil
 	}
+	// other DID method; use statusList
 	cred, err := i.store.GetCredential(credentialID)
 	if err != nil {
 		return nil, err
@@ -113,7 +121,7 @@ func (i issuer) GetRevocation(credentialID ssi.URI) (*credential.Revocation, err
 		return nil, err
 	}
 	if rev == nil {
-		return nil, types.ErrNotFound
+		return nil, nil
 	}
 	return &credential.Revocation{
 		Issuer:  cred.Issuer,
@@ -441,17 +449,11 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 // isRevoked returns false if no credential.Revocation can be found, all other cases default to true.
 // Only applies to did:nuts revocations.
 func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
-	_, err := i.store.GetRevocation(credentialID)
-	switch err {
-	case nil: // revocation found
-		return true, nil
-	case types.ErrMultipleFound:
-		return true, nil
-	case types.ErrNotFound:
-		return false, nil
-	default:
+	revocations, err := i.store.GetRevocation(credentialID)
+	if err != nil {
 		return true, err
 	}
+	return len(revocations) > 0, nil
 }
 
 func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
@@ -516,7 +518,7 @@ func (c combinedStore) StoreCredential(vc vc.VerifiableCredential) error {
 	return c.otherDIDsStore.StoreCredential(vc)
 }
 
-func (c combinedStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (c combinedStore) GetRevocation(id ssi.URI) ([]credential.Revocation, error) {
 	if strings.HasPrefix(id.String(), "did:nuts:") {
 		return c.didNutsStore.GetRevocation(id)
 	}

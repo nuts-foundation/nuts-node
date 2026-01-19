@@ -240,10 +240,10 @@ func (mr *MockStoreMockRecorder) GetCredential(id any) *gomock.Call {
 }
 
 // GetRevocation mocks base method.
-func (m *MockStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (m *MockStore) GetRevocation(id ssi.URI) ([]credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRevocation", id)
-	ret0, _ := ret[0].(*credential.Revocation)
+	ret0, _ := ret[0].([]credential.Revocation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

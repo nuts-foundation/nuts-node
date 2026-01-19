@@ -29,7 +29,7 @@ var ErrNotFound = errors.New("credential not found")
 // ErrStatusNotFound is returned when the credential does not contain the desired credential status
 var ErrStatusNotFound = errors.New("credential contains no (relevant) status")
 
-// ErrMultipleFound is returned when multiple credentials or revocations are found for the same ID.
+// ErrMultipleFound is returned when multiple credentials are found for the same ID.
 var ErrMultipleFound = errors.New("multiple found")
 
 // ErrRevoked is returned when a credential has been revoked and the required action requires it to not be revoked.
