@@ -26,7 +26,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 $db_dc up -d
-$db_dc up --wait nodeA nodeA-backend nodeB nodeB-backend
+$db_dc up --wait nodeA nodeA-backend nodeB nodeB-backend jaeger
 
 echo "------------------------------------"
 echo "Registering vendors..."
@@ -140,7 +140,10 @@ cat << EOF
 EOF
 )
 # Request access token
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json")
+# Include traceparent header to verify OpenTelemetry tracing works across both nodes
+TRACE_ID=$(openssl rand -hex 16)
+TRACEPARENT="00-${TRACE_ID}-$(openssl rand -hex 8)-01"
+RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json" -H "traceparent: $TRACEPARENT")
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
   echo "access token stored in ./node-B/accesstoken.txt"
@@ -228,6 +231,14 @@ if [ "${RESPONSE}" == "Unauthorized" ]; then
 else
   echo "FAILED: Retrieved data with revoked credential" 1>&2
   echo $RESPONSE
+  exitWithDockerLogs 1
+fi
+
+echo "------------------------------------"
+echo "Verifying trace in Jaeger..."
+echo "------------------------------------"
+# Verify trace contains spans from both nodeA and nodeB, proving distributed tracing works
+if ! assertJaegerTraceContainsServices "http://localhost:16686" "$TRACE_ID" "nodeA,nodeB"; then
   exitWithDockerLogs 1
 fi
 

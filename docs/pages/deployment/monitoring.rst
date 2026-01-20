@@ -204,6 +204,7 @@ Configuration options:
 
 * ``tracing.endpoint`` - OTLP HTTP endpoint (e.g., ``localhost:4318``). Tracing is disabled when empty.
 * ``tracing.insecure`` - Disable TLS for the OTLP connection (default: ``false``). Only use in trusted networks or development environments, as trace data may contain sensitive information.
+* ``tracing.servicename`` - Service name reported to the tracing backend (default: ``nuts-node``). Useful for distinguishing multiple instances in distributed tracing.
 
 What is traced
 ==============

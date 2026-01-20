@@ -95,6 +95,9 @@ type TracingConfig struct {
 	Endpoint string `koanf:"endpoint"`
 	// Insecure disables TLS for the OTLP connection.
 	Insecure bool `koanf:"insecure"`
+	// ServiceName is the name of the service reported to the tracing backend.
+	// Defaults to "nuts-node" if not specified.
+	ServiceName string `koanf:"servicename"`
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
@@ -286,6 +289,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("tls.certheader", defaultCfg.TLS.ClientCertHeaderName, "Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.")
 	flagSet.String("tracing.endpoint", defaultCfg.Tracing.Endpoint, "OTLP collector endpoint for OpenTelemetry tracing (e.g., 'localhost:4318'). When empty, tracing is disabled.")
 	flagSet.Bool("tracing.insecure", defaultCfg.Tracing.Insecure, "Disable TLS for the OTLP connection.")
+	flagSet.String("tracing.servicename", defaultCfg.Tracing.ServiceName, "Service name reported to the tracing backend. Defaults to 'nuts-node'.")
 
 	return flagSet
 }

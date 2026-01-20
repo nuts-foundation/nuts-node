@@ -188,3 +188,33 @@ urlencode() {
     local raw="$1"
     jq -nr --arg raw "$raw" '$raw|@uri'
 }
+
+# assertJaegerTraceContainsServices verifies that a trace exists in Jaeger with spans from specified services
+# Retries up to 3 times to allow for trace batching/export delays
+# Args: Jaeger URL, trace ID, comma-separated list of expected service names (e.g., "nodeA,nodeB")
+function assertJaegerTraceContainsServices() {
+  JAEGER_URL=$1
+  TRACE_ID=$2
+  EXPECTED_SERVICES=$3
+  for i in {1..3}; do
+    RESPONSE=$(curl -s "$JAEGER_URL/api/traces/$TRACE_ID")
+    TRACE_COUNT=$(echo "$RESPONSE" | jq '.data | length')
+    if [ "$TRACE_COUNT" -gt 0 ]; then
+      # Get unique services from the trace
+      ACTUAL_SERVICES=$(echo "$RESPONSE" | jq -r '[.data[0].processes[].serviceName] | unique | sort | join(",")')
+      # Sort expected services for comparison
+      SORTED_EXPECTED=$(echo "$EXPECTED_SERVICES" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
+      if [ "$ACTUAL_SERVICES" == "$SORTED_EXPECTED" ]; then
+        SPAN_COUNT=$(echo "$RESPONSE" | jq '.data[0].spans | length')
+        echo "Verified trace '$TRACE_ID' contains $SPAN_COUNT spans from services: $ACTUAL_SERVICES"
+        return 0
+      else
+        echo "FAILED: Trace '$TRACE_ID' found but services are '$ACTUAL_SERVICES', expected '$SORTED_EXPECTED'" 1>&2
+        return 1
+      fi
+    fi
+    sleep 1
+  done
+  echo "FAILED: Trace '$TRACE_ID' not found in Jaeger after 3 attempts" 1>&2
+  return 1
+}

@@ -39,7 +39,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-const serviceName = "nuts-node"
+const defaultServiceName = "nuts-node"
 
 // tracingEnabled is set to true when OpenTelemetry tracing is configured.
 var tracingEnabled atomic.Bool
@@ -119,6 +119,10 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 	))
 
 	// Set up resource with service info
+	serviceName := cfg.ServiceName
+	if serviceName == "" {
+		serviceName = defaultServiceName
+	}
 	version := Version()
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -192,6 +196,7 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 
 	logrus.WithFields(logrus.Fields{
 		"endpoint": cfg.Endpoint,
+		"service":  serviceName,
 		"version":  version,
 	}).Info("OpenTelemetry tracing initialized")
 
