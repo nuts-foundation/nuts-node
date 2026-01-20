@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -143,26 +144,24 @@ func (s leiaIssuerStore) StoreRevocation(revocation credential.Revocation) error
 	return s.revokedCollection().Add([]leia.Document{revocationAsBytes})
 }
 
-func (s leiaIssuerStore) GetRevocation(subject ssi.URI) (*credential.Revocation, error) {
+func (s leiaIssuerStore) GetRevocation(subject ssi.URI) ([]credential.Revocation, error) {
 	query := leia.New(leia.Eq(leia.NewJSONPath(credential.RevocationSubjectPath), leia.MustParseScalar(subject.String())))
 
 	results, err := s.revokedCollection().Find(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("error while getting revocation by id: %w", err)
 	}
-	if len(results) == 0 {
-		return nil, types.ErrNotFound
-	}
-	if len(results) > 1 {
-		return nil, types.ErrMultipleFound
-	}
-	result := results[0]
-	revocation := &credential.Revocation{}
-	if err := json.Unmarshal(result, revocation); err != nil {
-		return nil, err
+
+	revocations := make([]credential.Revocation, 0, len(results))
+	for _, result := range results {
+		revocation := credential.Revocation{}
+		if err := json.Unmarshal(result, &revocation); err != nil {
+			return nil, err
+		}
+		revocations = append(revocations, revocation)
 	}
 
-	return revocation, nil
+	return revocations, nil
 }
 
 func (s leiaIssuerStore) Close() error {

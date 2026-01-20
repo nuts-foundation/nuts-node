@@ -22,14 +22,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -455,6 +456,32 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		}
 		return tx.Clauses(clause.OnConflict{UpdateAll: true}).Create(credRecord).Error
 	})
+}
+
+// GetRevocation checks if the credential, issued locally, was revoked.
+// Returns the revocation information if the credential is revoked, or nil if not revoked.
+// Returns an error if the database query fails.
+func (cs *StatusList2021) GetRevocation(credentialID ssi.URI) (*Revocation, error) {
+	var result struct {
+		StatusPurpose string
+		RevokedAt     int64
+	}
+	err := cs.db.Model(&revocationRecord{}).
+		Select("status_list_credential.status_purpose, status_list_entry.created_at").
+		Joins("JOIN status_list_credential ON status_list_entry.status_list_credential = status_list_credential.subject_id").
+		Where("status_list_entry.credential_id = ?", credentialID.String()).
+		First(&result).
+		Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &Revocation{
+		Purpose:   result.StatusPurpose,
+		RevokedAt: time.Unix(result.RevokedAt, 0),
+	}, nil
 }
 
 func (cs *StatusList2021) statusListURL(issuer did.DID, page int) string {
