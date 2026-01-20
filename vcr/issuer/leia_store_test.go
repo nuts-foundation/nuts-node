@@ -23,14 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"testing"
+
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"path"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 
@@ -213,7 +214,8 @@ func Test_leiaIssuerStore_StoreRevocation(t *testing.T) {
 		result, err := store.GetRevocation(subjectID)
 
 		assert.NoError(t, err)
-		assert.Equal(t, revocation, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, *revocation, result[0])
 	})
 }
 
@@ -227,19 +229,20 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 		result, err := store.GetRevocation(subjectID)
 
 		assert.NoError(t, err)
-		assert.Equal(t, revocation, result)
+		require.Len(t, result, 1)
+		assert.Equal(t, *revocation, result[0])
 	})
 
-	t.Run("it returns a ErrNotFound when revocation could not be found", func(t *testing.T) {
+	t.Run("it returns an empty slice when revocation could not be found", func(t *testing.T) {
 		unknownSubjectID := ssi.MustParseURI("did:nuts:456#ab-cde")
 
 		result, err := store.GetRevocation(unknownSubjectID)
 
-		assert.ErrorIs(t, err, types.ErrNotFound)
-		assert.Nil(t, result)
+		assert.NoError(t, err)
+		assert.Empty(t, result)
 	})
 
-	t.Run("it fails when multiple revocations exist", func(t *testing.T) {
+	t.Run("it returns multiple revocations when they exist", func(t *testing.T) {
 		duplicateSubjectID := ssi.MustParseURI("did:nuts:456#ab-duplicate")
 		revocation := &credential.Revocation{Subject: duplicateSubjectID}
 		for i := 0; i < 2; i++ {
@@ -249,8 +252,8 @@ func Test_leiaIssuerStore_GetRevocation(t *testing.T) {
 
 		result, err := store.GetRevocation(duplicateSubjectID)
 
-		assert.ErrorIs(t, err, types.ErrMultipleFound)
-		assert.Nil(t, result)
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
 	})
 }
 
