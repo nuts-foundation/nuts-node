@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
@@ -107,7 +108,7 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 
 func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
 	// Only apply tracing middleware if tracing is enabled
-	if !core.TracingEnabled() {
+	if !tracing.Enabled() {
 		return
 	}
 	skipper := func(c echo.Context) bool {
@@ -119,7 +120,7 @@ func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
 	// even when embedded in another application that has its own TracerProvider.
 	echoServer.Use(otelecho.Middleware(moduleName,
 		otelecho.WithSkipper(skipper),
-		otelecho.WithTracerProvider(core.GetTracerProvider()),
+		otelecho.WithTracerProvider(tracing.GetTracerProvider()),
 	))
 }
 

@@ -58,8 +58,6 @@ type System struct {
 	Context context.Context
 	// ContextCancel is a function to signal the system should shut down.
 	ContextCancel context.CancelFunc
-	// tracingShutdown is the shutdown function for OpenTelemetry tracing
-	tracingShutdown func(context.Context) error
 }
 
 var coreLogger = logrus.StandardLogger().WithField(LogFieldModule, "core")
@@ -98,6 +96,7 @@ func (system *System) Start() error {
 }
 
 // Shutdown shuts down all engines in the system.
+// Engines are shut down in reverse order of registration.
 func (system *System) Shutdown() error {
 	var engines []Runnable
 	system.VisitEngines(func(engine Engine) {
@@ -114,26 +113,14 @@ func (system *System) Shutdown() error {
 		}
 		coreLogger.Infof("Stopped %s", name)
 	}
-	// Shutdown tracing last to ensure all logs are flushed
-	if system.tracingShutdown != nil {
-		if err := system.tracingShutdown(context.Background()); err != nil {
-			coreLogger.WithError(err).Error("Failed to shutdown tracing")
-		}
-	}
 	return nil
 }
 
 // Configure configures all engines in the system.
+// Engines are configured in order of registration (tracing engine should be first).
 func (system *System) Configure() error {
-	// Set up tracing first, so all logs (including engine configuration) go to the configured destination
-	tracingShutdown, err := SetupTracing(system.Config.Tracing)
-	if err != nil {
-		return fmt.Errorf("failed to setup tracing: %w", err)
-	}
-	system.tracingShutdown = tracingShutdown
-
 	coreLogger.Debugf("Creating datadir: %s", system.Config.Datadir)
-	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
 	return system.VisitEnginesE(func(engine Engine) error {
@@ -141,13 +128,12 @@ func (system *System) Configure() error {
 		name := engineName(engine)
 		if m, ok := engine.(Configurable); ok {
 			coreLogger.Debugf("Configuring %s", name)
-			err = m.Configure(*system.Config)
+			if err := m.Configure(*system.Config); err != nil {
+				return fmt.Errorf("unable to configure %s: %w", name, err)
+			}
 			coreLogger.Debugf("Configured %s", name)
 		}
-		if err != nil {
-			err = fmt.Errorf("unable to configure %s: %w", name, err)
-		}
-		return err
+		return nil
 	})
 }
 

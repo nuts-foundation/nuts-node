@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -115,7 +116,7 @@ func configureVaultClient(cfg Config) (*vault.Client, error) {
 	vaultConfig.Timeout = cfg.Timeout
 
 	// Add tracing if enabled
-	if core.TracingEnabled() {
+	if tracing.Enabled() {
 		vaultConfig.HttpClient.Transport = otelhttp.NewTransport(
 			vaultConfig.HttpClient.Transport,
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {

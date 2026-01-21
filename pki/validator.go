@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -93,7 +93,7 @@ func newRevocationList(cert *x509.Certificate) *revocationList {
 func newValidator(config Config) (*validator, error) {
 	// we do not use our safe http client here since we're downloading from a trusted resource
 	var transport http.RoundTripper = http.DefaultTransport
-	if core.TracingEnabled() {
+	if tracing.Enabled() {
 		transport = otelhttp.NewTransport(http.DefaultTransport,
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 				return "pki: " + r.Method + " " + r.URL.Path

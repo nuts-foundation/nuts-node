@@ -1,6 +1,6 @@
 /*
  * Nuts node
- * Copyright (C) 2025 Nuts community
+ * Copyright (C) 2026 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,20 +17,23 @@
  *
  */
 
-package core
+package tracing
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync/atomic"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/bridges/otellogrus"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -39,24 +42,134 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-const defaultServiceName = "nuts-node"
+const (
+	moduleName         = "Tracing"
+	defaultServiceName = "nuts-node"
+)
 
-// tracingEnabled is set to true when OpenTelemetry tracing is configured.
-var tracingEnabled atomic.Bool
+// enabled is set to true when OpenTelemetry tracing is configured.
+var enabled atomic.Bool
 
 // nutsTracerProvider holds nuts-node's own TracerProvider.
 // This is used instead of the global when nuts-node is embedded in another application.
 var nutsTracerProvider *trace.TracerProvider
 
-// TracingEnabled returns true if OpenTelemetry tracing is configured.
-func TracingEnabled() bool {
-	return tracingEnabled.Load()
+// registerAuditLogHook is a function that registers a logrus hook with the audit logger.
+// It is set by the audit package during init() to avoid circular imports.
+// Go guarantees imported packages initialize before the importing package, so audit's init()
+// runs after tracing's package-level vars are initialized but before Configure().
+var registerAuditLogHook func(hook logrus.Hook) = func(logrus.Hook) {}
+
+// RegisterAuditLogHook sets the function that registers a logrus hook with the audit logger.
+// This is called by the audit package during initialization to avoid circular imports.
+func RegisterAuditLogHook(fn func(hook logrus.Hook)) {
+	registerAuditLogHook = fn
 }
 
-// SetTracingEnabled sets the tracing enabled flag.
+// New creates a new tracing engine instance.
+func New() *Engine {
+	return &Engine{}
+}
+
+// Engine is the engine that manages OpenTelemetry tracing.
+// It must be registered first to ensure tracing is active before other engines start,
+// and shut down last (due to reverse shutdown order) to capture all logs/spans.
+type Engine struct {
+	config   Config
+	shutdown func(context.Context) error
+}
+
+// Name returns the engine name.
+func (e *Engine) Name() string {
+	return moduleName
+}
+
+// Config returns the engine configuration.
+func (e *Engine) Config() any {
+	return &e.config
+}
+
+// Configure sets up OpenTelemetry tracing with the configured endpoint.
+func (e *Engine) Configure(_ core.ServerConfig) error {
+	shutdown, err := setupTracing(e.config)
+	if err != nil {
+		return fmt.Errorf("failed to setup tracing: %w", err)
+	}
+	e.shutdown = shutdown
+	return nil
+}
+
+// Start is a no-op since tracing is already active after Configure.
+func (e *Engine) Start() error {
+	return nil
+}
+
+// Shutdown stops the tracing exporters and flushes any remaining spans/logs.
+// Hooks remain registered but become no-ops after the OTEL providers are shut down.
+func (e *Engine) Shutdown() error {
+	// Reset global state
+	enabled.Store(false)
+	nutsTracerProvider = nil
+	core.TracingHTTPTransport = nil
+
+	// Call the shutdown function to flush and close exporters
+	// After this, any hook calls to logger.Emit() become no-ops per OTEL spec.
+	if e.shutdown != nil {
+		return e.shutdown(context.Background())
+	}
+	return nil
+}
+
+// CheckHealth returns the health status of the tracing subsystem.
+// When tracing is not configured or not running, no health entry is returned (not applicable).
+// When enabled and running, we return UP since we successfully initialized - we can't easily
+// verify OTLP endpoint connectivity as spans are exported asynchronously.
+func (e *Engine) CheckHealth() map[string]core.Health {
+	if e.config.Endpoint == "" || !enabled.Load() {
+		// Tracing is not configured or not running, don't report health
+		return nil
+	}
+	// Tracing is configured and running
+	return map[string]core.Health{
+		"otlp": {
+			Status:  core.HealthStatusUp,
+			Details: e.config.Endpoint,
+		},
+	}
+}
+
+// Diagnostics returns diagnostic information about the tracing configuration.
+func (e *Engine) Diagnostics() []core.DiagnosticResult {
+	isEnabled := e.config.Endpoint != ""
+	return []core.DiagnosticResult{
+		core.DiagnosticResultMap{
+			Title: "tracing",
+			Items: []core.DiagnosticResult{
+				core.GenericDiagnosticResult{Title: "enabled", Outcome: isEnabled},
+				core.GenericDiagnosticResult{Title: "endpoint", Outcome: e.config.Endpoint},
+				core.GenericDiagnosticResult{Title: "service_name", Outcome: e.resolvedServiceName()},
+				core.GenericDiagnosticResult{Title: "insecure", Outcome: e.config.Insecure},
+			},
+		},
+	}
+}
+
+func (e *Engine) resolvedServiceName() string {
+	if e.config.ServiceName != "" {
+		return e.config.ServiceName
+	}
+	return defaultServiceName
+}
+
+// Enabled returns true if OpenTelemetry tracing is configured.
+func Enabled() bool {
+	return enabled.Load()
+}
+
+// SetEnabled sets the tracing enabled flag.
 // Exported for testing only; do not call from production code.
-func SetTracingEnabled(enabled bool) {
-	tracingEnabled.Store(enabled)
+func SetEnabled(value bool) {
+	enabled.Store(value)
 }
 
 // GetTracerProvider returns nuts-node's TracerProvider.
@@ -69,22 +182,18 @@ func GetTracerProvider() oteltrace.TracerProvider {
 	return otel.GetTracerProvider()
 }
 
-// RegisterAuditLogHook is a function that registers a logrus hook with the audit logger.
-// It is set by the audit package during initialization to avoid circular imports.
-var RegisterAuditLogHook func(hook logrus.Hook) = func(logrus.Hook) {}
-
-// SetupTracing initializes OpenTelemetry tracing with the given configuration.
+// setupTracing initializes OpenTelemetry tracing with the given configuration.
 // Returns a shutdown function that should be called on application exit.
 // If cfg.Endpoint is empty, tracing is disabled and a no-op shutdown function is returned.
 // When tracing is enabled, logs are sent to both stdout and the OTLP endpoint.
-func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err error) {
+func setupTracing(cfg Config) (shutdown func(context.Context) error, err error) {
 	if cfg.Endpoint == "" {
 		logrus.Info("Tracing disabled (no endpoint configured)")
 		return func(context.Context) error { return nil }, nil
 	}
 
 	// Enable tracing flag for HTTP clients and other components
-	tracingEnabled.Store(true)
+	enabled.Store(true)
 
 	ctx := context.Background()
 	var shutdownFuncs []func(context.Context) error
@@ -101,6 +210,7 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 
 	// Handle errors by cleaning up already-created resources
 	handleErr := func(err error) (func(context.Context) error, error) {
+		enabled.Store(false)
 		shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		_ = shutdown(shutdownCtx)
@@ -123,7 +233,7 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 	if serviceName == "" {
 		serviceName = defaultServiceName
 	}
-	version := Version()
+	version := core.Version()
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),
@@ -164,6 +274,15 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 		otel.SetTracerProvider(tracerProvider)
 	}
 
+	// Set up HTTP transport wrapper for core package (avoids circular import)
+	core.TracingHTTPTransport = func(transport http.RoundTripper) http.RoundTripper {
+		return otelhttp.NewTransport(transport,
+			otelhttp.WithTracerProvider(tracerProvider),
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				return "internal-api: " + r.Method + " " + r.URL.Path
+			}))
+	}
+
 	// Set up OTLP log exporter
 	logOpts := []otlploghttp.Option{
 		otlploghttp.WithEndpoint(cfg.Endpoint),
@@ -184,15 +303,18 @@ func SetupTracing(cfg TracingConfig) (shutdown func(context.Context) error, err 
 	)
 	shutdownFuncs = append(shutdownFuncs, loggerProvider.Shutdown)
 
-	// Create OTEL hook for sending logs via OTLP (logs go to both stdout and OTLP)
-	otelHook := &OtelLogrusHook{logger: loggerProvider.Logger(serviceName)}
+	// Create hooks for log correlation and OTLP export
+	// Uses official otellogrus bridge: https://pkg.go.dev/go.opentelemetry.io/contrib/bridges/otellogrus
+	traceContextHook := &tracingLogrusHook{}
+	otelHook := otellogrus.NewHook(serviceName, otellogrus.WithLoggerProvider(loggerProvider))
+
+	// Add hooks to standard logger (logs go to both stdout and OTLP)
+	logrus.AddHook(traceContextHook)
 	logrus.AddHook(otelHook)
 
-	// Also add trace context to stdout logs
-	logrus.AddHook(&tracingLogrusHook{})
-
-	// Register hook with audit logger (which uses its own logger instance)
-	RegisterAuditLogHook(otelHook)
+	// Register same hooks with audit logger (which uses its own logger instance)
+	registerAuditLogHook(traceContextHook)
+	registerAuditLogHook(otelHook)
 
 	logrus.WithFields(logrus.Fields{
 		"endpoint": cfg.Endpoint,
@@ -222,63 +344,4 @@ func (h *tracingLogrusHook) Fire(entry *logrus.Entry) error {
 	entry.Data["trace_id"] = spanCtx.TraceID().String()
 	entry.Data["span_id"] = spanCtx.SpanID().String()
 	return nil
-}
-
-// OtelLogrusHook is a logrus hook that sends logs to an OTLP endpoint.
-// It is exported so other loggers (like the audit logger) can use it.
-type OtelLogrusHook struct {
-	logger otellog.Logger
-}
-
-func (h *OtelLogrusHook) Levels() []logrus.Level {
-	return logrus.AllLevels
-}
-
-func (h *OtelLogrusHook) Fire(entry *logrus.Entry) error {
-	ctx := entry.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	// Convert logrus level to otel severity
-	var severity otellog.Severity
-	switch entry.Level {
-	case logrus.TraceLevel:
-		severity = otellog.SeverityTrace
-	case logrus.DebugLevel:
-		severity = otellog.SeverityDebug
-	case logrus.InfoLevel:
-		severity = otellog.SeverityInfo
-	case logrus.WarnLevel:
-		severity = otellog.SeverityWarn
-	case logrus.ErrorLevel:
-		severity = otellog.SeverityError
-	case logrus.FatalLevel, logrus.PanicLevel:
-		severity = otellog.SeverityFatal
-	default:
-		severity = otellog.SeverityInfo
-	}
-
-	// Build log record
-	record := otellog.Record{}
-	record.SetTimestamp(entry.Time)
-	record.SetSeverity(severity)
-	record.SetBody(otellog.StringValue(entry.Message))
-
-	// Add logrus fields as attributes
-	attrs := make([]otellog.KeyValue, 0, len(entry.Data))
-	for k, v := range entry.Data {
-		attrs = append(attrs, otellog.String(k, formatValue(v)))
-	}
-	record.AddAttributes(attrs...)
-
-	h.logger.Emit(ctx, record)
-	return nil
-}
-
-func formatValue(v any) string {
-	if err, ok := v.(error); ok {
-		return err.Error()
-	}
-	return fmt.Sprintf("%v", v)
 }

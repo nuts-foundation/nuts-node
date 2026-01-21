@@ -29,7 +29,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,9 +75,9 @@ func TestStrictHTTPClient(t *testing.T) {
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("sets TLS config", func(t *testing.T) {
-			original := core.TracingEnabled()
-			core.SetTracingEnabled(false) // ensure we can cast to *http.Transport
-			t.Cleanup(func() { core.SetTracingEnabled(original) })
+			original := tracing.Enabled()
+			tracing.SetEnabled(false) // ensure we can cast to *http.Transport
+			t.Cleanup(func() { tracing.SetEnabled(original) })
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
@@ -205,9 +205,9 @@ func TestCaching(t *testing.T) {
 
 func TestGetTransport(t *testing.T) {
 	t.Run("wraps transport when tracing enabled", func(t *testing.T) {
-		original := core.TracingEnabled()
-		core.SetTracingEnabled(true)
-		t.Cleanup(func() { core.SetTracingEnabled(original) })
+		original := tracing.Enabled()
+		tracing.SetEnabled(true)
+		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		transport := getTransport(SafeHttpTransport)
 
@@ -216,9 +216,9 @@ func TestGetTransport(t *testing.T) {
 	})
 
 	t.Run("returns base transport when tracing disabled", func(t *testing.T) {
-		original := core.TracingEnabled()
-		core.SetTracingEnabled(false)
-		t.Cleanup(func() { core.SetTracingEnabled(original) })
+		original := tracing.Enabled()
+		tracing.SetEnabled(false)
+		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		transport := getTransport(SafeHttpTransport)
 
@@ -228,9 +228,9 @@ func TestGetTransport(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	t.Run("wraps transport when tracing enabled", func(t *testing.T) {
-		original := core.TracingEnabled()
-		core.SetTracingEnabled(true)
-		t.Cleanup(func() { core.SetTracingEnabled(original) })
+		original := tracing.Enabled()
+		tracing.SetEnabled(true)
+		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		client := New(time.Second)
 
@@ -239,9 +239,9 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("uses SafeHttpTransport when tracing disabled", func(t *testing.T) {
-		original := core.TracingEnabled()
-		core.SetTracingEnabled(false)
-		t.Cleanup(func() { core.SetTracingEnabled(original) })
+		original := tracing.Enabled()
+		tracing.SetEnabled(false)
+		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		client := New(time.Second)
 

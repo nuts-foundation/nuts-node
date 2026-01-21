@@ -26,8 +26,12 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+// TracingHTTPTransport wraps an http.RoundTripper with OpenTelemetry tracing instrumentation.
+// It is set by the tracing package when tracing is enabled, and nil when disabled.
+// This callback pattern avoids circular imports between core and tracing packages.
+var TracingHTTPTransport func(http.RoundTripper) http.RoundTripper
 
 // HttpResponseBodyLogClipAt is the maximum length of a response body to log.
 // If the response body is longer than this, it will be truncated.
@@ -101,11 +105,8 @@ func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 func CreateHTTPInternalClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
 	var result *httpRequestDoerAdapter
 	var transport http.RoundTripper = http.DefaultTransport
-	if TracingEnabled() {
-		transport = otelhttp.NewTransport(http.DefaultTransport,
-			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
-				return "internal-api: " + r.Method + " " + r.URL.Path
-			}))
+	if TracingHTTPTransport != nil {
+		transport = TracingHTTPTransport(transport)
 	}
 	client := &http.Client{
 		Transport: transport,

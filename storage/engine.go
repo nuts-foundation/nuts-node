@@ -33,6 +33,7 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
 	"github.com/nuts-foundation/sqlite"
 	"github.com/pressly/goose/v3"
@@ -327,8 +328,8 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	}
 
 	// Add OpenTelemetry tracing to GORM if tracing is enabled
-	if core.TracingEnabled() {
-		if err := e.sqlDB.Use(otelgorm.NewPlugin(otelgorm.WithTracerProvider(core.GetTracerProvider()))); err != nil {
+	if tracing.Enabled() {
+		if err := e.sqlDB.Use(otelgorm.NewPlugin(otelgorm.WithTracerProvider(tracing.GetTracerProvider()))); err != nil {
 			return fmt.Errorf("failed to add GORM tracing plugin: %w", err)
 		}
 	}

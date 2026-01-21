@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
@@ -84,7 +85,7 @@ func NewAPIClient(config Config) (spi.Storage, error) {
 		return nil, err
 	}
 	var transport http.RoundTripper = http.DefaultTransport
-	if core.TracingEnabled() {
+	if tracing.Enabled() {
 		transport = otelhttp.NewTransport(http.DefaultTransport,
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 				return "crypto-storage: " + r.Method + " " + r.URL.Path
