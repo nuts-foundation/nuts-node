@@ -28,15 +28,20 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // resetGlobalState resets global state for test isolation.
 func resetGlobalState() {
 	enabled.Store(false)
-	nutsTracerProvider = nil
+	nutsTracerProvider.Store(nil)
 	core.TracingHTTPTransport = nil
+	// Reset global TracerProvider to noop provider to avoid test interference
+	otel.SetTracerProvider(noop.NewTracerProvider())
 }
 
 func TestSetupTracing(t *testing.T) {
@@ -50,7 +55,7 @@ func TestSetupTracing(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, shutdown)
 		assert.False(t, Enabled(), "tracing should not be enabled when endpoint is empty")
-		assert.Nil(t, nutsTracerProvider, "provider should not be set when disabled")
+		assert.Nil(t, nutsTracerProvider.Load(), "provider should not be set when disabled")
 		assert.Nil(t, core.TracingHTTPTransport, "HTTP transport should not be set when disabled")
 		// Shutdown should be a no-op
 		assert.NoError(t, shutdown(context.Background()))
@@ -72,7 +77,7 @@ func TestSetupTracing(t *testing.T) {
 
 		// Verify global state is set up correctly
 		assert.True(t, Enabled(), "tracing should be enabled")
-		assert.NotNil(t, nutsTracerProvider, "provider should be set")
+		assert.NotNil(t, nutsTracerProvider.Load(), "provider should be set")
 		assert.NotNil(t, core.TracingHTTPTransport, "HTTP transport should be set")
 
 		// Verify HTTP transport wrapper works
@@ -81,25 +86,64 @@ func TestSetupTracing(t *testing.T) {
 		assert.NotEqual(t, http.DefaultTransport, wrappedTransport, "transport should be wrapped")
 	})
 
+	t.Run("uses parent TracerProvider when embedded", func(t *testing.T) {
+		resetGlobalState()
+
+		// Simulate parent application setting up its own TracerProvider and propagator
+		parentProvider := sdktrace.NewTracerProvider()
+		parentPropagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{})
+		t.Cleanup(func() {
+			_ = parentProvider.Shutdown(context.Background())
+			resetGlobalState()
+		})
+		otel.SetTracerProvider(parentProvider)
+		otel.SetTextMapPropagator(parentPropagator)
+
+		cfg := Config{
+			Endpoint: "localhost:4318",
+			Insecure: true,
+		}
+
+		shutdown, err := setupTracing(cfg)
+
+		require.NoError(t, err)
+		require.NotNil(t, shutdown)
+		t.Cleanup(func() { _ = shutdown(context.Background()) })
+
+		// Tracing should be enabled
+		assert.True(t, Enabled(), "tracing should be enabled in embedded mode")
+
+		// In embedded mode, nutsTracerProvider should stay nil
+		assert.Nil(t, nutsTracerProvider.Load(), "should not create own provider when embedded")
+
+		// GetTracerProvider should return the parent's provider
+		assert.Equal(t, parentProvider, GetTracerProvider(), "should use parent's TracerProvider")
+
+		// Parent's propagator should not be overwritten
+		assert.Equal(t, parentPropagator, otel.GetTextMapPropagator(), "should not overwrite parent's propagator")
+
+		// HTTP transport should still be set up (using parent's provider via GetTracerProvider)
+		assert.NotNil(t, core.TracingHTTPTransport, "HTTP transport should be set")
+	})
 }
 
 func TestGetTracerProvider(t *testing.T) {
 	t.Run("returns global provider when nutsTracerProvider is nil", func(t *testing.T) {
-		originalProvider := nutsTracerProvider
-		t.Cleanup(func() { nutsTracerProvider = originalProvider })
+		originalProvider := nutsTracerProvider.Load()
+		t.Cleanup(func() { nutsTracerProvider.Store(originalProvider) })
 
-		nutsTracerProvider = nil
+		nutsTracerProvider.Store(nil)
 
 		provider := GetTracerProvider()
 		assert.NotNil(t, provider)
 	})
 
 	t.Run("returns nuts provider when set", func(t *testing.T) {
-		originalProvider := nutsTracerProvider
-		t.Cleanup(func() { nutsTracerProvider = originalProvider })
+		originalProvider := nutsTracerProvider.Load()
+		t.Cleanup(func() { nutsTracerProvider.Store(originalProvider) })
 
 		customProvider := sdktrace.NewTracerProvider()
-		nutsTracerProvider = customProvider
+		nutsTracerProvider.Store(customProvider)
 
 		provider := GetTracerProvider()
 		assert.Equal(t, customProvider, provider, "should return nuts-node's provider when set")
@@ -131,6 +175,10 @@ func TestTracingLogrusHook(t *testing.T) {
 	})
 
 	t.Run("adds trace context when span is valid", func(t *testing.T) {
+		// Enable tracing for this test (hook checks enabled flag)
+		enabled.Store(true)
+		t.Cleanup(func() { enabled.Store(false) })
+
 		hook := &tracingLogrusHook{}
 		// Create a valid span context
 		traceID, _ := trace.TraceIDFromHex("0102030405060708090a0b0c0d0e0f10")
@@ -257,7 +305,7 @@ func TestEngine(t *testing.T) {
 
 		// Simulate enabled state with all global variables set
 		enabled.Store(true)
-		nutsTracerProvider = sdktrace.NewTracerProvider()
+		nutsTracerProvider.Store(sdktrace.NewTracerProvider())
 		core.TracingHTTPTransport = func(rt http.RoundTripper) http.RoundTripper { return rt }
 
 		engine := New()
@@ -265,7 +313,7 @@ func TestEngine(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.False(t, Enabled(), "enabled should be false after shutdown")
-		assert.Nil(t, nutsTracerProvider, "nutsTracerProvider should be nil after shutdown")
+		assert.Nil(t, nutsTracerProvider.Load(), "nutsTracerProvider should be nil after shutdown")
 		assert.Nil(t, core.TracingHTTPTransport, "TracingHTTPTransport should be nil after shutdown")
 	})
 }
