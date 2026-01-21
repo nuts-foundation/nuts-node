@@ -122,6 +122,7 @@ func configureVaultClient(cfg Config) (*vault.Client, error) {
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 				return "vault: " + r.Method + " " + r.URL.Path
 			}),
+			otelhttp.WithTracerProvider(tracing.GetTracerProvider()),
 		)
 	}
 

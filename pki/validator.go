@@ -97,7 +97,9 @@ func newValidator(config Config) (*validator, error) {
 		transport = otelhttp.NewTransport(http.DefaultTransport,
 			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 				return "pki: " + r.Method + " " + r.URL.Path
-			}))
+			}),
+			otelhttp.WithTracerProvider(tracing.GetTracerProvider()),
+		)
 	}
 	httpClient := &http.Client{
 		Transport: transport,

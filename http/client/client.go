@@ -85,7 +85,10 @@ func New(timeout time.Duration) *StrictHTTPClient {
 // getTransport wraps the given transport with OpenTelemetry instrumentation if tracing is enabled.
 func getTransport(base http.RoundTripper) http.RoundTripper {
 	if tracing.Enabled() {
-		return otelhttp.NewTransport(base, otelhttp.WithSpanNameFormatter(httpSpanName))
+		return otelhttp.NewTransport(base,
+			otelhttp.WithSpanNameFormatter(httpSpanName),
+			otelhttp.WithTracerProvider(tracing.GetTracerProvider()),
+		)
 	}
 	return base
 }
