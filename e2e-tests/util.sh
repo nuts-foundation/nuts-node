@@ -189,32 +189,53 @@ urlencode() {
     jq -nr --arg raw "$raw" '$raw|@uri'
 }
 
-# assertJaegerTraceContainsServices verifies that a trace exists in Jaeger with spans from specified services
-# Retries up to 3 times to allow for trace batching/export delays
-# Args: Jaeger URL, trace ID, comma-separated list of expected service names (e.g., "nodeA,nodeB")
-function assertJaegerTraceContainsServices() {
-  JAEGER_URL=$1
-  TRACE_ID=$2
-  EXPECTED_SERVICES=$3
-  for i in {1..3}; do
-    RESPONSE=$(curl -s "$JAEGER_URL/api/traces/$TRACE_ID")
-    TRACE_COUNT=$(echo "$RESPONSE" | jq '.data | length')
-    if [ "$TRACE_COUNT" -gt 0 ]; then
-      # Get unique services from the trace
-      ACTUAL_SERVICES=$(echo "$RESPONSE" | jq -r '[.data[0].processes[].serviceName] | unique | sort | join(",")')
-      # Sort expected services for comparison
-      SORTED_EXPECTED=$(echo "$EXPECTED_SERVICES" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
-      if [ "$ACTUAL_SERVICES" == "$SORTED_EXPECTED" ]; then
-        SPAN_COUNT=$(echo "$RESPONSE" | jq '.data[0].spans | length')
-        echo "Verified trace '$TRACE_ID' contains $SPAN_COUNT spans from services: $ACTUAL_SERVICES"
-        return 0
-      else
-        echo "FAILED: Trace '$TRACE_ID' found but services are '$ACTUAL_SERVICES', expected '$SORTED_EXPECTED'" 1>&2
+# assertJaegerTrace verifies a trace exists with expected services and span patterns
+# Fetches trace once and validates all expectations
+# Args: Jaeger URL, trace ID, expected services (space-separated), span patterns (space-separated)
+function assertJaegerTrace() {
+  local jaeger_url=$1
+  local trace_id=$2
+  local expected_services=$3
+  local expected_patterns=$4
+
+  for attempt in {1..5}; do
+    local response=$(curl -s -m 10 "$jaeger_url/api/traces/$trace_id")
+    local trace_count=$(echo "$response" | jq '.data | length')
+
+    if [ "$trace_count" -eq 0 ]; then
+      sleep 1
+      continue
+    fi
+
+    local actual_services=$(echo "$response" | jq -r '[.data[0].processes[].serviceName] | unique | sort | join(",")')
+    local span_names=$(echo "$response" | jq -r '.data[0].spans[].operationName')
+
+    # Check each expected service is present
+    for svc in $expected_services; do
+      if ! echo "$actual_services" | grep -q "$svc"; then
+        echo "FAILED: Trace '$trace_id' missing service '$svc' (found: $actual_services)" 1>&2
         return 1
       fi
+    done
+
+    # Check each expected span pattern is present
+    local missing=""
+    for pattern in $expected_patterns; do
+      if ! echo "$span_names" | grep -q "$pattern"; then
+        missing="$missing $pattern"
+      fi
+    done
+    if [ -n "$missing" ]; then
+      echo "FAILED: Trace '$trace_id' missing spans:$missing" 1>&2
+      echo "Available: $(echo "$span_names" | sort -u | tr '\n' ', ')" 1>&2
+      return 1
     fi
-    sleep 1
+
+    local span_count=$(echo "$response" | jq '.data[0].spans | length')
+    echo "Verified trace '$trace_id': $span_count spans from $actual_services"
+    return 0
   done
-  echo "FAILED: Trace '$TRACE_ID' not found in Jaeger after 3 attempts" 1>&2
+
+  echo "FAILED: Trace '$trace_id' not found after 5 attempts" 1>&2
   return 1
 }

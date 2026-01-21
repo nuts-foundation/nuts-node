@@ -237,8 +237,8 @@ fi
 echo "------------------------------------"
 echo "Verifying trace in Jaeger..."
 echo "------------------------------------"
-# Verify trace contains spans from both nodeA and nodeB, proving distributed tracing works
-if ! assertJaegerTraceContainsServices "http://localhost:16686" "$TRACE_ID" "nodeA,nodeB"; then
+# Verify distributed tracing: trace spans from both nodes with expected components (gorm, http-client)
+if ! assertJaegerTrace "http://localhost:16686" "$TRACE_ID" "nodeA nodeB" "gorm.Query http-client"; then
   exitWithDockerLogs 1
 fi
 
