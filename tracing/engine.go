@@ -47,6 +47,9 @@ const (
 	defaultServiceName = "nuts-node"
 )
 
+// TODO: Global static vars have caused testing issues before, requiring moves to instantiated types.
+// These may need to change to dependency-injected style later if similar issues arise.
+
 // enabled is set to true when OpenTelemetry tracing is configured.
 var enabled atomic.Bool
 
