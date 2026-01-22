@@ -71,7 +71,6 @@ func limitedReadAll(reader io.Reader) ([]byte, error) {
 }
 
 // New creates a new HTTP client with the given timeout.
-// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func New(timeout time.Duration) *StrictHTTPClient {
 	transport := getTransport(SafeHttpTransport)
 	return &StrictHTTPClient{
@@ -95,7 +94,6 @@ func getTransport(base http.RoundTripper) http.RoundTripper {
 
 // NewWithCache creates a new HTTP client with the given timeout.
 // It uses the DefaultCachingTransport as the underlying transport.
-// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 	transport := getTransport(DefaultCachingTransport)
 	return &StrictHTTPClient{
@@ -109,7 +107,6 @@ func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 // NewWithTLSConfig creates a new HTTP client with the given timeout and TLS configuration.
 // It copies the http.DefaultTransport and sets the TLSClientConfig to the given tls.Config.
 // As such, it can't be used in conjunction with the CachingRoundTripper.
-// If tracing is enabled, the transport will be wrapped with OpenTelemetry instrumentation.
 func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPClient {
 	transport := SafeHttpTransport.Clone()
 	transport.TLSClientConfig = tlsConfig
