@@ -50,6 +50,9 @@ type Issuer interface {
 	// StatusList returns the StatusList2021Credential tracking status list revocations for this issuer at /iam/issuerID/status/page.
 	// Returns types.ErrNotFound when no credential statuses have been published using the issuer and page combination.
 	StatusList(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error)
+	// GetRevocation returns a revocation for a credential ID.
+	// Returns nil when no revocation is found.
+	GetRevocation(id ssi.URI) (*credential.Revocation, error)
 	CredentialSearcher
 }
 
@@ -63,10 +66,9 @@ type Store interface {
 	GetCredential(id ssi.URI) (*vc.VerifiableCredential, error)
 	// StoreCredential writes a VC to storage.
 	StoreCredential(vc vc.VerifiableCredential) error
-	// GetRevocation returns a revocation for a credential ID
-	// Returns a types.ErrNotFound when the revocation is not in the store
-	// Returns a types.ErrMultipleFound when there are multiple revocations for this credential ID in the store
-	GetRevocation(id ssi.URI) (*credential.Revocation, error)
+	// GetRevocation returns all revocations for a credential ID.
+	// Returns an empty slice when no revocations are found.
+	GetRevocation(id ssi.URI) ([]credential.Revocation, error)
 	// StoreRevocation writes a revocation to storage.
 	StoreRevocation(r credential.Revocation) error
 	CredentialSearcher
