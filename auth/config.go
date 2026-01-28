@@ -26,20 +26,30 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                  IrmaConfig                  `koanf:"irma"`
-	HTTPTimeout           int                         `koanf:"http.timeout"`
-	ClockSkew             int                         `koanf:"clockskew"`
-	ContractValidators    []string                    `koanf:"contractvalidators"`
-	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
-	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	Irma                             IrmaConfig                             `koanf:"irma"`
+	HTTPTimeout                      int                                    `koanf:"http.timeout"`
+	ClockSkew                        int                                    `koanf:"clockskew"`
+	ContractValidators               []string                               `koanf:"contractvalidators"`
+	AccessTokenLifeSpan              int                                    `koanf:"accesstokenlifespan"`
+	AuthorizationEndpoint            AuthorizationEndpointConfig            `koanf:"authorizationendpoint"`
+	OpenID4VCIAuthorizationEndpoint  OpenID4VCIAuthorizationEndpointConfig  `koanf:"openid4vci"`
 }
 
 type AuthorizationEndpointConfig struct {
-	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize), used for:
-	// - As OpenID4VP verifier: to authenticate clients (that initiate the Authorized Code flow) using OpenID4VP
+	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize) for OpenID4VP flows.
+	// This controls:
+	// - As OpenID4VP verifier: to authenticate clients using OpenID4VP
 	// - As OpenID4VP wallet: to authenticate verifiers using OpenID4VP
-	// - As OpenID4VCI wallet: to support dynamic credential requests (currently not supported)
-	// Disabling the authorization endpoint will also disable to callback endpoint and removes the endpoint from the metadata.
+	// Note: OpenID4VCI flows are controlled separately by OpenID4VCIAuthorizationEndpoint.Enabled
+	Enabled bool `koanf:"enabled"`
+}
+
+type OpenID4VCIAuthorizationEndpointConfig struct {
+	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize) for OpenID4VCI flows.
+	// This controls:
+	// - As OpenID4VCI wallet: to support authorization code flow for credential issuance
+	// When enabled, the authorization endpoint will accept response_type=code for OpenID4VCI flows.
+	// Disabling this will prevent OpenID4VCI authorization flows but will not affect the VCR OpenID4VCI issuer/wallet functionality.
 	Enabled bool `koanf:"enabled"`
 }
 
