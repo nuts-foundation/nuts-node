@@ -484,12 +484,14 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, own
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
 
-		// Check if OpenID4VCI authorization endpoint is enabled for code flow
-		if !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
+		// Check if authorization endpoint is enabled for code flow.
+		// Since we can't distinguish between the two use cases at this point (see TODO below),
+		// we allow the request if either OpenID4VP or OpenID4VCI is enabled.
+		if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
 			redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
-				Description: "authorization endpoint for OpenID4VCI is disabled",
+				Description: "authorization endpoint is disabled",
 				RedirectURI: redirectURI,
 			}
 		}
@@ -511,7 +513,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, own
 				RedirectURI: redirectURI,
 			}
 		}
-		
+
 		// non-spec: if the scheme is openid4vp (URL starts with openid4vp:), the OpenID4VP request should be handled by a user wallet, rather than an organization wallet.
 		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
 		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).

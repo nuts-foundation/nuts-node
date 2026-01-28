@@ -257,20 +257,14 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint is disabled")
 		assert.Nil(t, response)
 	})
-	t.Run("OpenID4VCI disabled, response_type=code - should fail", func(t *testing.T) {
-		ctx := newCustomTestClient(t, verifierURL, true, false) // Only OpenID4VP enabled
+	t.Run("OpenID4VCI and OpenID4VP disabled, response_type=code - should fail", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false, false) // Both disabled
 
-		// HandleAuthorizeRequest
-		requestParams := oauthParameters{
-			oauth.RedirectURIParam:  "https://example.com",
-			oauth.ResponseTypeParam: oauth.CodeResponseType,
-		}
-		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
-
+		// This should fail at the outer check (before parsing) since both configs are disabled
 		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"key": "test_value"}),
 			HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
 
-		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint for OpenID4VCI is disabled")
+		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint is disabled")
 		assert.Nil(t, res)
 	})
 	t.Run("OpenID4VP disabled, response_type=vp_token - should fail", func(t *testing.T) {
