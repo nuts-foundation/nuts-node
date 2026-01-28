@@ -64,7 +64,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	flags.Bool(ConfAuthEndpointEnabled, defs.AuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint for OpenID4VP flows. "+
 		"This flag might be removed in a future version (or its default become 'true') as the implementation of OpenID4VP matures.")
-	flags.Bool(ConfOpenID4VCIAuthEndpointEnabled, defs.OpenID4VCIAuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint for OpenID4VCI flows. "+
+	flags.Bool(ConfOpenID4VCIAuthEndpointEnabled, defs.OpenID4VCI.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint for OpenID4VCI flows. "+
 		"This flag might be removed in a future version (or its default become 'true') as the implementation of OpenID4VCI matures.")
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 

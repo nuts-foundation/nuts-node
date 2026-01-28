@@ -26,13 +26,13 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                             IrmaConfig                             `koanf:"irma"`
-	HTTPTimeout                      int                                    `koanf:"http.timeout"`
-	ClockSkew                        int                                    `koanf:"clockskew"`
-	ContractValidators               []string                               `koanf:"contractvalidators"`
-	AccessTokenLifeSpan              int                                    `koanf:"accesstokenlifespan"`
-	AuthorizationEndpoint            AuthorizationEndpointConfig            `koanf:"authorizationendpoint"`
-	OpenID4VCIAuthorizationEndpoint  OpenID4VCIAuthorizationEndpointConfig  `koanf:"openid4vci"`
+	Irma                  IrmaConfig                  `koanf:"irma"`
+	HTTPTimeout           int                         `koanf:"http.timeout"`
+	ClockSkew             int                         `koanf:"clockskew"`
+	ContractValidators    []string                    `koanf:"contractvalidators"`
+	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
+	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	OpenID4VCI            OpenID4VCIConfig            `koanf:"openid4vci"`
 }
 
 type AuthorizationEndpointConfig struct {
@@ -40,11 +40,11 @@ type AuthorizationEndpointConfig struct {
 	// This controls:
 	// - As OpenID4VP verifier: to authenticate clients using OpenID4VP
 	// - As OpenID4VP wallet: to authenticate verifiers using OpenID4VP
-	// Note: OpenID4VCI flows are controlled separately by OpenID4VCIAuthorizationEndpoint.Enabled
+	// Note: OpenID4VCI flows are controlled separately by OpenID4VCI.Enabled
 	Enabled bool `koanf:"enabled"`
 }
 
-type OpenID4VCIAuthorizationEndpointConfig struct {
+type OpenID4VCIConfig struct {
 	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize) for OpenID4VCI flows.
 	// This controls:
 	// - As OpenID4VCI wallet: to support authorization code flow for credential issuance

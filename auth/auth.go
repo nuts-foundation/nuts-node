@@ -95,7 +95,7 @@ func (auth *Auth) AuthorizationEndpointEnabled() bool {
 
 // OpenID4VCIAuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled for OpenID4VCI flows.
 func (auth *Auth) OpenID4VCIAuthorizationEndpointEnabled() bool {
-	return auth.config.OpenID4VCIAuthorizationEndpoint.Enabled
+	return auth.config.OpenID4VCI.Enabled
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
