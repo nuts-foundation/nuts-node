@@ -1634,7 +1634,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, openid4vpEnabled bool
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
 	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(openid4vpEnabled).AnyTimes()
-	authnServices.EXPECT().OpenID4VCIAuthorizationEndpointEnabled().Return(openid4vciEnabled).AnyTimes()
+	authnServices.EXPECT().OpenID4VCIEnabled().Return(openid4vciEnabled).AnyTimes()
 
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()

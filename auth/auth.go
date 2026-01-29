@@ -93,8 +93,8 @@ func (auth *Auth) AuthorizationEndpointEnabled() bool {
 	return auth.config.AuthorizationEndpoint.Enabled
 }
 
-// OpenID4VCIAuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled for OpenID4VCI flows.
-func (auth *Auth) OpenID4VCIAuthorizationEndpointEnabled() bool {
+// OpenID4VCIEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled for OpenID4VCI flows.
+func (auth *Auth) OpenID4VCIEnabled() bool {
 	return auth.config.OpenID4VCI.Enabled
 }
 

@@ -29,13 +29,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -254,7 +255,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
 	// Callback endpoint is only used by flows initiated through the authorization endpoint.
 	// It's used by both OpenID4VP and OpenID4VCI flows
-	if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
+	if !r.auth.OpenID4VPEnabled() && !r.auth.OpenID4VCIEnabled() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "callback endpoint is disabled",
@@ -298,8 +299,14 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 	// continue flow
 	switch oauthSession.ClientFlow {
 	case credentialRequestClientFlow:
+		if !r.auth.OpenID4VCIEnabled() {
+			return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "openid4vci is disabled"), oauthSession.redirectURI())
+		}
 		return r.handleOpenID4VCICallback(ctx, *request.Params.Code, oauthSession)
 	case accessTokenRequestClientFlow:
+		if !r.auth.OpenID4VPEnabled() {
+			return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "openid4vp is disabled"), oauthSession.redirectURI())
+		}
 		return r.handleCallback(ctx, *request.Params.Code, oauthSession)
 	default:
 		// programming error, should never happen
@@ -446,7 +453,7 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
 	// Check if either OpenID4VP or OpenID4VCI authorization endpoint is enabled
-	if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
+	if !r.auth.OpenID4VPEnabled() && !r.auth.OpenID4VCIEnabled() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "authorization endpoint is disabled",
@@ -487,7 +494,7 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, own
 		// Check if authorization endpoint is enabled for code flow.
 		// Since we can't distinguish between the two use cases at this point (see TODO below),
 		// we allow the request if either OpenID4VP or OpenID4VCI is enabled.
-		if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
+		if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIEnabled() {
 			redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
@@ -641,7 +648,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
 	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
 	// Remove authorization endpoint from metadata if both OpenID4VP and OpenID4VCI authorization endpoints are disabled
-	if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIAuthorizationEndpointEnabled() {
+	if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
 	return &md, nil

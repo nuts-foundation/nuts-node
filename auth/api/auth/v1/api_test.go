@@ -74,7 +74,7 @@ func (m *mockAuthClient) AuthorizationEndpointEnabled() bool {
 	return true
 }
 
-func (m *mockAuthClient) OpenID4VCIAuthorizationEndpointEnabled() bool {
+func (m *mockAuthClient) OpenID4VCIEnabled() bool {
 	return true
 }
 
