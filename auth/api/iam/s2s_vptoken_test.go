@@ -301,7 +301,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
-		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or contained credential(s) are invalid")
+		assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or credential(s) verification failed")
 		assert.Nil(t, resp)
 	})
 	t.Run("proof of ownership", func(t *testing.T) {

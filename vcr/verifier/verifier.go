@@ -22,10 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -44,7 +45,7 @@ const (
 	maxSkew = 5 * time.Second
 )
 
-var errVerificationMethodNotOfIssuer = errors.New("verification method is not of issuer")
+var errVerificationMethodNotOfIssuer = newVerificationError("verification method is not of issuer")
 
 // verifier implements the Verifier interface.
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
@@ -62,8 +63,8 @@ type verifier struct {
 
 // VerificationError is used to describe a VC/VP verification failure.
 type VerificationError struct {
-	msg  string
-	args []interface{}
+	Msg  string
+	Args []interface{}
 }
 
 // Is checks whether the given error is a VerificationError as well.
@@ -73,15 +74,19 @@ func (e VerificationError) Is(other error) bool {
 }
 
 func newVerificationError(msg string, args ...interface{}) error {
-	return VerificationError{msg: msg, args: args}
+	return VerificationError{Msg: msg, Args: args}
 }
 
-func toVerificationError(cause error) error {
-	return VerificationError{msg: cause.Error()}
+func ToVerificationError(cause error) error {
+	return VerificationError{Msg: cause.Error()}
 }
 
 func (e VerificationError) Error() string {
-	return fmt.Errorf("verification error: "+e.msg, e.args...).Error()
+	const msg = "presentation(s) or credential(s) verification failed"
+	if e.Msg == "" {
+		return msg
+	}
+	return fmt.Errorf(msg+": "+e.Msg, e.Args...).Error()
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
