@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -751,9 +752,18 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.Credentials != nil {
 		credentials = *request.Body.Credentials
 	}
+
+	if request.Body.IdToken != nil {
+		idTokenCredential, err := credential.CreateDeziIDTokenCredential(*request.Body.IdToken)
+		if err != nil {
+			return nil, core.InvalidInputError("failed to create id_token credential: %w", err)
+		}
+		credentials = append(credentials, *idTokenCredential)
+	}
+
 	// assert that self-asserted credentials do not contain an issuer or credentialSubject.id. These values must be set
 	// by the nuts-node to build the correct wallet for a DID. See https://github.com/nuts-foundation/nuts-node/issues/3696
-	// As a sideeffect it is no longer possible to pass signed credentials to this API.
+	// As a side effect it is no longer possible to pass signed credentials to this API.
 	for _, cred := range credentials {
 		var credentialSubject []map[string]interface{}
 		if err := cred.UnmarshalCredentialSubject(&credentialSubject); err != nil {

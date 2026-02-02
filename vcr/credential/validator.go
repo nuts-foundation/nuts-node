@@ -25,6 +25,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -33,8 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
-	"strings"
 )
 
 // Validator is the interface specific VC verification.
@@ -381,5 +382,56 @@ func validatePolicyAssertions(issuer did.DID, credential vc.VerifiableCredential
 		}
 	}
 
+	return nil
+}
+
+// DeziIDTokenCredentialValidator validates DeziIDTokenCredential, according to (TODO: add spec).
+type deziIDTokenCredentialValidator struct {
+}
+
+func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	type proofType struct {
+		Type string `json:"type"`
+		JWT  string `json:"jwt"`
+	}
+	proofs := []proofType{}
+	if err := credential.UnmarshalProofValue(&proofs); err != nil {
+		return fmt.Errorf("%w: invalid proof format: %w", errValidation, err)
+	}
+	if len(proofs) != 1 {
+		return fmt.Errorf("%w: expected exactly one proof, got %d", errValidation, len(proofs))
+	}
+	proof := proofs[0]
+	if proof.Type != "DeziIDJWT" {
+		return fmt.Errorf("%w: invalid proof type: expected 'DeziIDJWT', got '%s'", errValidation, proof.Type)
+	}
+	if err := d.validateDeziToken(credential, proof.JWT); err != nil {
+		return fmt.Errorf("%w: invalid Dezi id_token: %w", errValidation, err)
+	}
+	return (defaultCredentialValidator{}).Validate(credential)
+}
+
+func (d deziIDTokenCredentialValidator) validateDeziToken(credential vc.VerifiableCredential, serialized string) error {
+	//headers, err := crypto.ExtractProtectedHeaders(serialized)
+	//if err != nil {
+	//	return fmt.Errorf("invalid JWT headers: %w", err)
+	//}
+	//chain := cert.Chain{}
+	//for i, s := range headers["x5c"].([]string) {
+	//
+	//}
+	//
+	//token, err := jwt.ParseString(serialized, jws.WithKeyProvider(jws.))
+	//if err != nil {
+	//	return err
+	//}
+	//// TODO: Verify deziToken signature
+	//if !token.NotBefore().Equal(credential.IssuanceDate) {
+	//	return errors.New("id_token 'nbf' does not match credential 'issuanceDate'")
+	//}
+	//if !token.Expiration().Equal(*credential.ExpirationDate) {
+	//	return errors.New("id_token 'exp' does not match credential 'expirationDate'")
+	//}
+	// TODO: implement rest of checks
 	return nil
 }
