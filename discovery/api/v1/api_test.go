@@ -20,7 +20,12 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/url"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -30,9 +35,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"net/url"
-	"testing"
 )
 
 const (
@@ -164,6 +166,8 @@ func TestWrapper_SearchPresentations(t *testing.T) {
 			ServiceID: serviceID,
 		})
 
+		js, _ := json.MarshalIndent(response, "", "  ")
+		println(string(js))
 		assert.NoError(t, err)
 		assert.IsType(t, SearchPresentations200JSONResponse{}, response)
 		actual := response.(SearchPresentations200JSONResponse)
