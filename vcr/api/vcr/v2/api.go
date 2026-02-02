@@ -253,9 +253,15 @@ func (w *Wrapper) SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRe
 	if err != nil {
 		return nil, err
 	}
-	result, err := w.vcsWithRevocationsToSearchResults(foundVCs)
-	if err != nil {
-		return nil, err
+
+	result := make([]SearchVCResult, len(foundVCs))
+	for i, resolvedVC := range foundVCs {
+		var revocation *Revocation
+		revocation, err := w.VCR.Issuer().GetRevocation(*resolvedVC.ID)
+		if err != nil && !errors.Is(err, vcrTypes.ErrNotFound) {
+			return nil, err
+		}
+		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
 	}
 	return SearchIssuedVCs200JSONResponse(SearchVCResults{result}), nil
 }
