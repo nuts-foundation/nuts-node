@@ -24,11 +24,12 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
+	"strings"
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
-	"strings"
-	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -99,6 +100,220 @@ func TestParsePresentationDefinition(t *testing.T) {
 	t.Run("missing id", func(t *testing.T) {
 		_, err := ParsePresentationDefinition([]byte(`{"input_descriptors":[]}`))
 		assert.ErrorContains(t, err, `missing properties: "id"`)
+	})
+}
+
+func TestDeziIDTokenCredential(t *testing.T) {
+	// Create a simple Dezi id_token (JWT)
+	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	token := jwt.New()
+	_ = token.Set(jwt.NotBeforeKey, 1701933627)
+	_ = token.Set(jwt.ExpirationKey, 1701933697)
+	_ = token.Set("initials", "B.B.")
+	_ = token.Set("surname", "Jansen")
+	_ = token.Set("surname_prefix", "van der")
+	_ = token.Set("Dezi_id", "900000009")
+	_ = token.Set("relations", []map[string]interface{}{
+		{
+			"entity_name": "Zorgaanbieder",
+			"roles":       []string{"01.041", "30.000"},
+			"ura":         "87654321",
+		},
+	})
+	signedToken, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+
+	// Create DeziIDTokenCredential using the helper function
+	credentialMap := map[string]any{
+		"@context": []any{
+			"https://www.w3.org/2018/credentials/v1",
+		},
+		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
+		"issuanceDate":   token.NotBefore().Format("2006-01-02T15:04:05Z07:00"),
+		"expirationDate": token.Expiration().Format("2006-01-02T15:04:05Z07:00"),
+		"credentialSubject": map[string]any{
+			"@type":      "DeziIDTokenSubject",
+			"identifier": "87654321",
+			"name":       "Zorgaanbieder",
+			"employee": map[string]any{
+				"@type":         "HealthcareWorker",
+				"identifier":    "900000009",
+				"initials":      "B.B.",
+				"surnamePrefix": "van der",
+				"surname":       "Jansen",
+				"roles":         []string{"01.041", "30.000"},
+			},
+		},
+		"proof": map[string]any{
+			"type": "DeziIDJWT",
+			"jwt":  string(signedToken),
+		},
+	}
+	data, _ := json.Marshal(credentialMap)
+	cred, err := vc.ParseVerifiableCredential(string(data))
+	require.NoError(t, err)
+
+	t.Run("matching credential", func(t *testing.T) {
+		// Create a presentation definition that matches DeziIDTokenCredential
+		pd, err := ParsePresentationDefinition([]byte(`{
+		  "id": "pd_dezi_id_token_credential",
+		  "name": "Dezi ID Token",
+		  "purpose": "Request a Dezi ID Token credential",
+		  "input_descriptors": [
+			{
+			  "id": "id_dezi_credential",
+			  "constraints": {
+				"fields": [
+				  {
+					"path": [
+					  "$.type"
+					],
+					"filter": {
+					  "type": "string",
+					  "const": "DeziIDTokenCredential"
+					}
+				  },
+				  {
+					"id": "employee_identifier",
+					"path": [
+					  "$.credentialSubject.employee.identifier"
+					],
+					"filter": {
+					  "type": "string"
+					}
+				  },
+				  {
+					"id": "employee_initials",
+					"path": [
+					  "$.credentialSubject.employee.initials"
+					],
+					"filter": {
+					  "type": "string"
+					}
+				  }
+				]
+			  }
+			}
+		  ]
+		}`))
+		require.NoError(t, err)
+
+		// Test matching
+		credentials, mappingObjects, err := pd.Match([]vc.VerifiableCredential{*cred})
+
+		require.NoError(t, err)
+		require.Len(t, credentials, 1)
+		require.Len(t, mappingObjects, 1)
+
+		// Test field resolution
+		credMap := map[string]vc.VerifiableCredential{
+			"id_dezi_credential": *cred,
+		}
+		fieldValues, err := pd.ResolveConstraintsFields(credMap)
+		require.NoError(t, err)
+		require.Len(t, fieldValues, 2)
+		assert.Equal(t, "900000009", fieldValues["employee_identifier"])
+		assert.Equal(t, "B.B.", fieldValues["employee_initials"])
+	})
+
+	t.Run("non-matching credential type", func(t *testing.T) {
+		pd, err := ParsePresentationDefinition([]byte(`{
+		  "id": "pd_other_credential",
+		  "input_descriptors": [
+			{
+			  "id": "other_credential",
+			  "constraints": {
+				"fields": [
+				  {
+					"path": ["$.type"],
+					"filter": {
+					  "type": "string",
+					  "const": "SomeOtherCredential"
+					}
+				  }
+				]
+			  }
+			}
+		  ]
+		}`))
+		require.NoError(t, err)
+
+		credentials, mappingObjects, err := pd.Match([]vc.VerifiableCredential{*cred})
+
+		assert.Error(t, err)
+		assert.Empty(t, credentials)
+		assert.Empty(t, mappingObjects)
+	})
+
+	t.Run("matching with organization identifier", func(t *testing.T) {
+		pd, err := ParsePresentationDefinition([]byte(`{
+		  "id": "pd_dezi_with_org",
+		  "input_descriptors": [
+			{
+			  "id": "dezi_org_credential",
+			  "constraints": {
+				"fields": [
+				  {
+					"path": ["$.type"],
+					"filter": {
+					  "type": "string",
+					  "const": "DeziIDTokenCredential"
+					}
+				  },
+				  {
+					"id": "organization_identifier",
+					"path": ["$.credentialSubject.identifier"],
+					"filter": {
+					  "type": "string",
+					  "const": "87654321"
+					}
+				  }
+				]
+			  }
+			}
+		  ]
+		}`))
+		require.NoError(t, err)
+
+		credentials, mappingObjects, err := pd.Match([]vc.VerifiableCredential{*cred})
+
+		require.NoError(t, err)
+		require.Len(t, credentials, 1)
+		require.Len(t, mappingObjects, 1)
+	})
+
+	t.Run("matching employee roles", func(t *testing.T) {
+		pd, err := ParsePresentationDefinition([]byte(`{
+		  "id": "pd_dezi_with_roles",
+		  "input_descriptors": [
+			{
+			  "id": "dezi_roles_credential",
+			  "constraints": {
+				"fields": [
+				  {
+					"path": ["$.type"],
+					"filter": {
+					  "type": "string",
+					  "const": "DeziIDTokenCredential"
+					}
+				  },
+				  {
+					"id": "employee_roles",
+					"path": ["$.credentialSubject.employee.roles[*]"],
+					"filter": {
+					  "type": "string"
+					}
+				  }
+				]
+			  }
+			}
+		  ]
+		}`))
+		require.NoError(t, err)
+
+		credentials, _, err := pd.Match([]vc.VerifiableCredential{*cred})
+
+		require.NoError(t, err)
+		require.Len(t, credentials, 1)
 	})
 }
 

@@ -388,11 +388,12 @@ func TestVerifier_Verify(t *testing.T) {
 	})
 	t.Run("DeziIDTokenCredential", func(t *testing.T) {
 		ctx := newMockContext(t)
-		validAt := time.Now()
+		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return(nil, ErrNotFound)
+		validAt := time.Date(2023, 12, 7, 7, 20, 27, 0, time.UTC)
 
 		cred, _ := createDeziCredential(t, "did:web:example.com")
 
-		err := ctx.verifier.Verify(*cred, false, true, &validAt)
+		err := ctx.verifier.Verify(*cred, true, true, &validAt)
 		assert.NoError(t, err)
 	})
 }
@@ -934,17 +935,19 @@ func createDeziCredential(t *testing.T, holderDID string) (*vc.VerifiableCredent
 	signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, key))
 	require.NoError(t, err)
 
+	println(string(signed))
+
 	credentialMap := map[string]any{
 		"@context": []any{
 			"https://www.w3.org/2018/credentials/v1",
 		},
 		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
-		"issuer":         "https://max.proeftuin.Dezi-online.rdobeheer.nl",
+		"issuer":         holderDID,
+		"id":             holderDID + "#1",
 		"issuanceDate":   token.NotBefore().Format(time.RFC3339Nano),
 		"expirationDate": token.Expiration().Format(time.RFC3339Nano),
 		"credentialSubject": map[string]any{
 			"@type":      "DeziIDTokenSubject",
-			"id":         holderDID,
 			"identifier": "87654321",
 			"name":       "Zorgaanbieder",
 			"employee": map[string]any{

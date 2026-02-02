@@ -28,10 +28,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -415,26 +412,26 @@ func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredent
 }
 
 func (d deziIDTokenCredentialValidator) validateDeziToken(credential vc.VerifiableCredential, serialized string) error {
-	headers, err := crypto.ExtractProtectedHeaders(serialized)
-	if err != nil {
-		return fmt.Errorf("invalid JWT headers: %w", err)
-	}
-	chain := cert.Chain{}
-	for i, s := range headers["x5c"].([]string) {
-
-	}
-
-	token, err := jwt.ParseString(serialized, jws.WithKeyProvider(jws.))
-	if err != nil {
-		return err
-	}
-	// TODO: Verify deziToken signature
-	if !token.NotBefore().Equal(credential.IssuanceDate) {
-		return errors.New("id_token 'nbf' does not match credential 'issuanceDate'")
-	}
-	if !token.Expiration().Equal(*credential.ExpirationDate) {
-		return errors.New("id_token 'exp' does not match credential 'expirationDate'")
-	}
+	//headers, err := crypto.ExtractProtectedHeaders(serialized)
+	//if err != nil {
+	//	return fmt.Errorf("invalid JWT headers: %w", err)
+	//}
+	//chain := cert.Chain{}
+	//for i, s := range headers["x5c"].([]string) {
+	//
+	//}
+	//
+	//token, err := jwt.ParseString(serialized, jws.WithKeyProvider(jws.))
+	//if err != nil {
+	//	return err
+	//}
+	//// TODO: Verify deziToken signature
+	//if !token.NotBefore().Equal(credential.IssuanceDate) {
+	//	return errors.New("id_token 'nbf' does not match credential 'issuanceDate'")
+	//}
+	//if !token.Expiration().Equal(*credential.ExpirationDate) {
+	//	return errors.New("id_token 'exp' does not match credential 'expirationDate'")
+	//}
 	// TODO: implement rest of checks
 	return nil
 }
