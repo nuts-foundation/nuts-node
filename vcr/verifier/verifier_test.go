@@ -21,9 +21,6 @@ package verifier
 import (
 	"context"
 	"crypto"
-	"crypto/sha1"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -34,11 +31,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/segmentio/asm/base64"
-
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -47,7 +39,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -391,7 +385,7 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return(nil, ErrNotFound)
 		validAt := time.Date(2023, 12, 7, 7, 20, 27, 0, time.UTC)
 
-		cred, _ := createDeziCredential(t, "did:web:example.com")
+		cred := createDeziCredential(t, "did:web:example.com")
 
 		err := ctx.verifier.Verify(*cred, true, true, &validAt)
 		assert.NoError(t, err)
@@ -876,66 +870,11 @@ func newMockContext(t *testing.T) mockContext {
 }
 
 // createDeziIDToken creates a signed Dezi id_token according to https://www.dezi.nl/documenten/2024/05/08/koppelvlakspecificatie-dezi-online-koppelvlak-1_-platformleverancier
-func createDeziCredential(t *testing.T, holderDID string) (*vc.VerifiableCredential, *x509.Certificate) {
-	keyPair, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
+func createDeziCredential(t *testing.T, holderDID string) *vc.VerifiableCredential {
+	exp := time.Unix(1701933697, 0)
+	iat := time.Unix(1701933627, 0)
+	idToken, err := credential.CreateTestDeziIDToken(iat, exp)
 	require.NoError(t, err)
-
-	key, err := jwk.FromRaw(keyPair.PrivateKey)
-	require.NoError(t, err)
-
-	// Set the key ID and x5t (X.509 thumbprint)
-	x5t := sha1.Sum(keyPair.Leaf.Raw)
-	err = key.Set(jwk.KeyIDKey, base64.StdEncoding.EncodeToString(x5t[:]))
-	require.NoError(t, err)
-	err = key.Set(jwk.X509CertThumbprintKey, base64.StdEncoding.EncodeToString(x5t[:]))
-	require.NoError(t, err)
-	err = key.Set(jwk.AlgorithmKey, "RS256")
-	require.NoError(t, err)
-
-	// Build the JWT token
-	token := jwt.New()
-
-	// Set claims from the DeziIDTokenCredential payload
-	err = token.Set(jwt.AudienceKey, "006fbf34-a80b-4c81-b6e9-593600675fb2")
-	require.NoError(t, err)
-	err = token.Set(jwt.ExpirationKey, time.Unix(1701933697, 0))
-	require.NoError(t, err)
-	err = token.Set(jwt.NotBeforeKey, time.Unix(1701933627, 0))
-	require.NoError(t, err)
-	err = token.Set(jwt.IssuerKey, "https://max.proeftuin.Dezi-online.rdobeheer.nl")
-	require.NoError(t, err)
-
-	// Set custom claims
-	err = token.Set("initials", "B.B.")
-	require.NoError(t, err)
-	err = token.Set("json_schema", "https://max.proeftuin.Dezi-online.rdobeheer.nl/json_schema.json")
-	require.NoError(t, err)
-	err = token.Set("loa_authn", "http://eidas.europa.eu/LoA/high")
-	require.NoError(t, err)
-	err = token.Set("loa_Dezi", "http://eidas.europa.eu/LoA/high")
-	require.NoError(t, err)
-	err = token.Set("relations", []map[string]interface{}{
-		{
-			"entity_name": "Zorgaanbieder",
-			"roles":       []string{"01.041", "30.000", "01.010", "01.011"},
-			"ura":         "87654321",
-		},
-	})
-	require.NoError(t, err)
-	err = token.Set("surname", "Jansen")
-	require.NoError(t, err)
-	err = token.Set("surname_prefix", "van der")
-	require.NoError(t, err)
-	err = token.Set("Dezi_id", "900000009")
-	require.NoError(t, err)
-	err = token.Set("x5c", []string{base64.StdEncoding.EncodeToString(keyPair.Leaf.Raw)})
-	require.NoError(t, err)
-
-	// Sign the token using jwt.Sign
-	signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, key))
-	require.NoError(t, err)
-
-	println(string(signed))
 
 	credentialMap := map[string]any{
 		"@context": []any{
@@ -944,8 +883,8 @@ func createDeziCredential(t *testing.T, holderDID string) (*vc.VerifiableCredent
 		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
 		"issuer":         holderDID,
 		"id":             holderDID + "#1",
-		"issuanceDate":   token.NotBefore().Format(time.RFC3339Nano),
-		"expirationDate": token.Expiration().Format(time.RFC3339Nano),
+		"issuanceDate":   iat.Format(time.RFC3339Nano),
+		"expirationDate": exp.Format(time.RFC3339Nano),
 		"credentialSubject": map[string]any{
 			"@type":      "DeziIDTokenSubject",
 			"identifier": "87654321",
@@ -961,12 +900,12 @@ func createDeziCredential(t *testing.T, holderDID string) (*vc.VerifiableCredent
 		},
 		"proof": map[string]any{
 			"type": "DeziIDJWT",
-			"jwt":  string(signed),
+			"jwt":  string(idToken),
 		},
 	}
 	data, err := json.Marshal(credentialMap)
 	require.NoError(t, err)
 	cred, err := vc.ParseVerifiableCredential(string(data))
 	require.NoError(t, err)
-	return cred, keyPair.Leaf
+	return cred
 }

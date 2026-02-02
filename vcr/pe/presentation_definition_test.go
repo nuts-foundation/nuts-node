@@ -26,9 +26,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -104,23 +106,10 @@ func TestParsePresentationDefinition(t *testing.T) {
 }
 
 func TestDeziIDTokenCredential(t *testing.T) {
-	// Create a simple Dezi id_token (JWT)
-	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	token := jwt.New()
-	_ = token.Set(jwt.NotBeforeKey, 1701933627)
-	_ = token.Set(jwt.ExpirationKey, 1701933697)
-	_ = token.Set("initials", "B.B.")
-	_ = token.Set("surname", "Jansen")
-	_ = token.Set("surname_prefix", "van der")
-	_ = token.Set("Dezi_id", "900000009")
-	_ = token.Set("relations", []map[string]interface{}{
-		{
-			"entity_name": "Zorgaanbieder",
-			"roles":       []string{"01.041", "30.000"},
-			"ura":         "87654321",
-		},
-	})
-	signedToken, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+	iat := time.Unix(1701933627, 0)
+	exp := time.Unix(1701933697, 0)
+	token, err := credential.CreateTestDeziIDToken(iat, exp)
+	require.NoError(t, err)
 
 	// Create DeziIDTokenCredential using the helper function
 	credentialMap := map[string]any{
@@ -128,8 +117,8 @@ func TestDeziIDTokenCredential(t *testing.T) {
 			"https://www.w3.org/2018/credentials/v1",
 		},
 		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
-		"issuanceDate":   token.NotBefore().Format("2006-01-02T15:04:05Z07:00"),
-		"expirationDate": token.Expiration().Format("2006-01-02T15:04:05Z07:00"),
+		"issuanceDate":   iat.Format("2006-01-02T15:04:05Z07:00"),
+		"expirationDate": exp.Format("2006-01-02T15:04:05Z07:00"),
 		"credentialSubject": map[string]any{
 			"@type":      "DeziIDTokenSubject",
 			"identifier": "87654321",
@@ -145,7 +134,7 @@ func TestDeziIDTokenCredential(t *testing.T) {
 		},
 		"proof": map[string]any{
 			"type": "DeziIDJWT",
-			"jwt":  string(signedToken),
+			"jwt":  string(token),
 		},
 	}
 	data, _ := json.Marshal(credentialMap)
