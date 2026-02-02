@@ -403,7 +403,7 @@ func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredent
 	}
 	proof := proofs[0]
 	if proof.Type != "DeziIDJWT" {
-		return fmt.Errorf("%w: invalid proof type: expected 'DeziIDToken', got '%s'", errValidation, proof.Type)
+		return fmt.Errorf("%w: invalid proof type: expected 'DeziIDJWT', got '%s'", errValidation, proof.Type)
 	}
 	if err := d.validateDeziToken(credential, proof.JWT); err != nil {
 		return fmt.Errorf("%w: invalid Dezi id_token: %w", errValidation, err)
