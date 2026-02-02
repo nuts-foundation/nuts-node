@@ -244,6 +244,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
+		return r.handleJWTBearerAccessTokenRequest(ctx, request.SubjectID, *request.Body.Scope, *request.Body.ClientId, *request.Body.ClientAssertion, *request.Body.Assertion)
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {
