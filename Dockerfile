@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.25.5-alpine AS builder
+FROM golang:1.25.6-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
