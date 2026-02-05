@@ -3,6 +3,16 @@ Release notes
 #############
 
 ***************
+Peanut (v6.1.8)
+***************
+
+Release date: 2026-02-02
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2026-4340
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.7...v6.1.8
+
+***************
 Peanut (v6.1.7)
 ***************
 
@@ -310,6 +320,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.22)
+*************************
+
+Release date: 2026-02-04
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2026-4340
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.21...v5.4.22
 
 *************************
 Hazelnut update (v5.4.21)
