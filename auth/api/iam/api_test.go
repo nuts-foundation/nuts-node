@@ -273,7 +273,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			oauth.CodeChallengeParam:       "code_challenge",
 			oauth.CodeChallengeMethodParam: "S256",
 		}
-		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
+		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"request_uri": []string{"jar-uri"}}).Return(requestParams, nil)
 
 		// handleAuthorizeRequestFromHolder
 		expectedURL := "https://example.com/authorize?client_id=https://example.com/oauth2/verifier&request_uri=https://example.com/oauth2/verifier/request.jwt/&request_uri_method=get"
@@ -305,7 +305,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			return req
 		})
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"key": "test_value"}),
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"request_uri": "jar-uri"}),
 			HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
 
 		require.NoError(t, err)
@@ -348,7 +348,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 			ClientState: "state",
 			RedirectURI: "https://example.com/iam/holder/cb",
 		})
-		callCtx, _ := user.CreateTestSession(requestContext(nil), holderSubjectID)
+		callCtx, _ := user.CreateTestSession(requestContext(map[string]interface{}{oauth.RequestURIParam: "jar-uri"}), holderSubjectID)
 		clientMetadata := oauth.OAuthClientMetadata{VPFormats: oauth.DefaultOpenIDSupportedFormats()}
 		ctx.iamClient.EXPECT().ClientMetadata(gomock.Any(), "https://example.com/.well-known/authorization-server/oauth2/verifier").Return(&clientMetadata, nil)
 		pdEndpoint := "https://example.com/oauth2/verifier/presentation_definition?scope=test"
@@ -373,7 +373,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 		}
 		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), gomock.Any()).Return(requestParams, nil)
 
-		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{}),
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{oauth.RequestURIParam: "jar-uri"}),
 			HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
 
 		requireOAuthError(t, err, oauth.UnsupportedResponseType, "")

@@ -32,6 +32,7 @@ import (
 // Through With() and Get() additional parameters (for OpenID4VCI, for instance) can be set and retrieved.
 type TokenResponse struct {
 	AccessToken string  `json:"access_token"`
+	IDToken     *string `json:"id_token,omitempty"`
 	DPoPKid     *string `json:"dpop_kid,omitempty"`
 	ExpiresAt   *int    `json:"expires_at,omitempty"`
 	ExpiresIn   *int    `json:"expires_in,omitempty"`
@@ -163,6 +164,8 @@ const (
 	CodeVerifierParam = "code_verifier"
 	// GrantTypeParam is the parameter name for the grant_type parameter. (RFC6749)
 	GrantTypeParam = "grant_type"
+	// LoginHintParam is the parameter name for the login_hint parameter. (OpenID Connect)
+	LoginHintParam = "login_hint"
 	// NonceParam is the parameter name for the nonce parameter
 	NonceParam = "nonce"
 	// PresentationDefParam is the parameter name for the OpenID4VP presentation_definition parameter. (OpenID4VP)

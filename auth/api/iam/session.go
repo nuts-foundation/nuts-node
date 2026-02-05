@@ -46,6 +46,8 @@ type OAuthSession struct {
 	Scope                       string                             `json:"scope,omitempty"`
 	SessionID                   string                             `json:"session_id,omitempty"`
 	TokenEndpoint               string                             `json:"token_endpoint,omitempty"`
+	// LoginHint is the OpenID Connect login_hint parameter that is passed to the authorization server.
+	LoginHint *string `json:"login_hint,omitempty"`
 	// IssuerURL is the URL that identifies the OAuth2 Authorization Server according to RFC 8414 (Authorization Server Metadata).
 	IssuerURL string `json:"issuer_url,omitempty"`
 	UseDPoP   bool   `json:"use_dpop,omitempty"`
