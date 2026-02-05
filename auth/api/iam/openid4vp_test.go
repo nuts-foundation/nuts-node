@@ -41,7 +41,6 @@ import (
 )
 
 var holderDID = did.MustParseDID("did:web:example.com:iam:holder")
-var holderDIDAlt = did.MustParseDID("did:web:example.com:iam:holder_alt")
 var issuerDID = did.MustParseDID("did:web:example.com:iam:issuer")
 var holderURL = test.MustParseURL("https://example.com/oauth2/holder")
 var issuerURL = test.MustParseURL("https://example.com/oauth2/issuer")

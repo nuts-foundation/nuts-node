@@ -137,6 +137,10 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	clientID := baseURL.String()
 	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
+	if oauthSession.OwnDID == nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "missing wallet DID in session"), appCallbackURI)
+	}
+
 	// use code to request access token from remote token endpoint
 	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
