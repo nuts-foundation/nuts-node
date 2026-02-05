@@ -140,6 +140,12 @@ type ServiceAccessTokenRequest struct {
 	// - proof/signature (MUST be omitted; integrity protection is covered by the VP's proof/signature)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
+	// PolicyId (Optional) The ID of the policy to use when requesting the access token.
+	// If set the presentation definition is resolved from the policy with this ID.
+	// This allows you to specify scopes that don't resolve to a presentation definition automatically.
+	// If not set, the scope is used to resolve the presentation definition.
+	PolicyId *string `json:"policy_id,omitempty"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
