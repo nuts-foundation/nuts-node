@@ -19,6 +19,8 @@
 package issuer
 
 import (
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -28,7 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
-	"testing"
 )
 
 func Test_sqlStore_Diagnostics(t *testing.T) {
@@ -71,10 +72,10 @@ func Test_sqlStore_GetCredential(t *testing.T) {
 }
 
 func Test_sqlStore_GetRevocation(t *testing.T) {
-	// not supported, always returns error
+	// not supported, always returns empty slice
 	result, err := sqlStore{}.GetRevocation(ssi.MustParseURI("did:nuts:revocation:123"))
-	require.ErrorIs(t, err, types.ErrNotFound)
-	require.Nil(t, result)
+	require.NoError(t, err)
+	require.Empty(t, result)
 }
 
 func Test_sqlStore_SearchCredential(t *testing.T) {

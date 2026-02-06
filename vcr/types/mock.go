@@ -42,15 +42,15 @@ func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 }
 
 // StoreCredential mocks base method.
-func (m *MockWriter) StoreCredential(vc vc.VerifiableCredential, validAt *time.Time) error {
+func (m *MockWriter) StoreCredential(arg0 vc.VerifiableCredential, validAt *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc, validAt)
+	ret := m.ctrl.Call(m, "StoreCredential", arg0, validAt)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockWriterMockRecorder) StoreCredential(vc, validAt any) *gomock.Call {
+func (mr *MockWriterMockRecorder) StoreCredential(arg0, validAt any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), vc, validAt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockWriter)(nil).StoreCredential), arg0, validAt)
 }

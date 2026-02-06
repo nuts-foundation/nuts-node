@@ -15,16 +15,17 @@ on:
 
 jobs:
   e2e-test:
+    if: ${{ github.event.pull_request.merged || github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       packages: write
 
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           # use go version from go.mod.
           go-version-file: 'go.mod'

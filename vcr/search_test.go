@@ -79,8 +79,7 @@ func TestVCR_Search(t *testing.T) {
 		require.Len(t, searchResult, 1)
 
 		cs := searchResult[0].CredentialSubject[0]
-		m := cs.(map[string]interface{})
-		c := m["human"].(map[string]interface{})
+		c := cs["human"].(map[string]interface{})
 		assert.Equal(t, "fair", c["hairColour"])
 	})
 	t.Run("ok - default (exact match)", func(t *testing.T) {

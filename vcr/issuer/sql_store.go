@@ -20,6 +20,7 @@ package issuer
 
 import (
 	"errors"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -125,6 +126,6 @@ func (s sqlStore) StoreRevocation(_ credential.Revocation) error {
 	return errors.New("StoreRevocation() not supported for SQL store")
 }
 
-func (s sqlStore) GetRevocation(_ ssi.URI) (*credential.Revocation, error) {
-	return nil, types.ErrNotFound
+func (s sqlStore) GetRevocation(_ ssi.URI) ([]credential.Revocation, error) {
+	return []credential.Revocation{}, nil
 }

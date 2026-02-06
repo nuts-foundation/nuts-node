@@ -176,19 +176,19 @@ func init() {
 			"familyName": "Jomper",
 		},
 	}, nil)
-	vpBob = createPresentationCustom(bobDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+	vpBob = createPresentationCustom(bobDID, func(claims map[string]any, vp *vc.VerifiablePresentation) {
 		claims[jwt.AudienceKey] = []string{testServiceID}
 	}, vcBob)
 }
 
-func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject map[string]interface{}, claimVisitor func(map[string]interface{})) vc.VerifiableCredential {
+func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject map[string]any, claimVisitor func(map[string]any)) vc.VerifiableCredential {
 	vcID := did.DIDURL{DID: issuerDID}
 	vcID.Fragment = uuid.NewString()
 	vcIDURI := vcID.URI()
 	issuanceDate := time.Now()
 	expirationDate := issuanceDate.Add(time.Hour * 24)
 	if credentialSubject == nil {
-		credentialSubject = make(map[string]interface{})
+		credentialSubject = make(map[string]any)
 	}
 	credentialSubject["id"] = subjectDID.String()
 	result, err := vc.CreateJWTVerifiableCredential(context.Background(), vc.VerifiableCredential{
@@ -197,8 +197,8 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 		Issuer:            issuerDID.URI(),
 		IssuanceDate:      issuanceDate,
 		ExpirationDate:    &expirationDate,
-		CredentialSubject: []interface{}{credentialSubject},
-	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+		CredentialSubject: []map[string]any{credentialSubject},
+	}, func(ctx context.Context, claims map[string]any, headers map[string]any) (string, error) {
 		if claimVisitor != nil {
 			claimVisitor(claims)
 		}
@@ -210,11 +210,11 @@ func createCredential(issuerDID did.DID, subjectDID did.DID, credentialSubject m
 	return *result
 }
 
-func createHolderCredential(subjectDID did.DID, credentialSubject map[string]interface{}) vc.VerifiableCredential {
+func createHolderCredential(subjectDID did.DID, credentialSubject map[string]any) vc.VerifiableCredential {
 	c := vc.VerifiableCredential{
 		Context:           []ssi.URI{vc.VCContextV1URI(), credential.NutsV1ContextURI},
 		Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), credential.DiscoveryRegistrationCredentialTypeV1URI()},
-		CredentialSubject: []interface{}{credentialSubject},
+		CredentialSubject: []map[string]any{credentialSubject},
 	}
 	c = credential.AutoCorrectSelfAttestedCredential(c, subjectDID)
 	// serialize/deserialize

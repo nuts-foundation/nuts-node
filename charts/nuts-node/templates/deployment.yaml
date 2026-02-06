@@ -5,6 +5,8 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 spec:
+  strategy:
+    type: Recreate
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
@@ -19,6 +21,9 @@ spec:
       {{- end }}
       labels:
         {{- include "chart.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{ toYaml . | indent 8 }}
+        {{- end }}
     spec:
       volumes:
         - name: nuts-config
@@ -44,6 +49,9 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+          {{- with .Values.extraEnv }}
+            {{ toYaml . | nindent 12 }}
+          {{- end }}
             - name: NUTS_CONFIGFILE
               value: "/opt/nuts/nuts.yaml"
         {{- if .Values.storage}}

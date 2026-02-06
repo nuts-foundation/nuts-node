@@ -16,6 +16,7 @@ data
 
 # Editors
 .idea
+.run
 
 # MacOS
 .DS_Store

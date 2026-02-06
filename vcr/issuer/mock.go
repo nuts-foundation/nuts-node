@@ -97,6 +97,21 @@ func (m *MockIssuer) EXPECT() *MockIssuerMockRecorder {
 	return m.recorder
 }
 
+// GetRevocation mocks base method.
+func (m *MockIssuer) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRevocation", id)
+	ret0, _ := ret[0].(*credential.Revocation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRevocation indicates an expected call of GetRevocation.
+func (mr *MockIssuerMockRecorder) GetRevocation(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRevocation", reflect.TypeOf((*MockIssuer)(nil).GetRevocation), id)
+}
+
 // Issue mocks base method.
 func (m *MockIssuer) Issue(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()
@@ -225,10 +240,10 @@ func (mr *MockStoreMockRecorder) GetCredential(id any) *gomock.Call {
 }
 
 // GetRevocation mocks base method.
-func (m *MockStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (m *MockStore) GetRevocation(id ssi.URI) ([]credential.Revocation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRevocation", id)
-	ret0, _ := ret[0].(*credential.Revocation)
+	ret0, _ := ret[0].([]credential.Revocation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -255,17 +270,17 @@ func (mr *MockStoreMockRecorder) SearchCredential(credentialType, issuer, subjec
 }
 
 // StoreCredential mocks base method.
-func (m *MockStore) StoreCredential(vc vc.VerifiableCredential) error {
+func (m *MockStore) StoreCredential(arg0 vc.VerifiableCredential) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreCredential", vc)
+	ret := m.ctrl.Call(m, "StoreCredential", arg0)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StoreCredential indicates an expected call of StoreCredential.
-func (mr *MockStoreMockRecorder) StoreCredential(vc any) *gomock.Call {
+func (mr *MockStoreMockRecorder) StoreCredential(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockStore)(nil).StoreCredential), vc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreCredential", reflect.TypeOf((*MockStore)(nil).StoreCredential), arg0)
 }
 
 // StoreRevocation mocks base method.
