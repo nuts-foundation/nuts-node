@@ -31,6 +31,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test/pki"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
@@ -154,7 +157,7 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
-		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com")
+		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com", 15*time.Minute)
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)
@@ -858,7 +861,7 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	db := orm.NewTestDatabase(t)
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, ""), nil).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, "", time.Minute*15), nil).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
