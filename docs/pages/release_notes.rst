@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.23)
+*************************
+
+Release date: 2026-02-09
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2026-4337
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.22...v5.4.23
+
+*************************
 Hazelnut update (v5.4.22)
 *************************
 
