@@ -3,6 +3,39 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.0)
+****************
+
+Release date: 2026-02-09
+
+## New features
+* feat(tracing): add OpenTelemetry tracing support by @JorisHeadease in https://github.com/nuts-foundation/nuts-node/pull/3946
+* Build and publish binaries to GH Releases by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3849
+
+## What's Changed
+* Use root user in performance analyzer by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3775
+* Add index on subject with org credential by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/3802
+* Update CODEOWNERS by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3809
+* dropped support for 6.0 and add support for 6.1 by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3804
+* fix links in docs by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3810
+* disable e2e tests for PRs from forks by @woutslakhorst in https://github.com/nuts-foundation/nuts-node/pull/3803
+* set redis to v7 for cluster test by @woutslakhorst in https://github.com/nuts-foundation/nuts-node/pull/3818
+* VDR: Use join instead of N+1 query for one-to-X relations by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3815
+* migrate codeclimate to qlty by @woutslakhorst in https://github.com/nuts-foundation/nuts-node/pull/3875
+* reenable e2e tests on master by @woutslakhorst in https://github.com/nuts-foundation/nuts-node/pull/3876
+* Upgrade dev-image Dockerfile to stable-slim by @confiks in https://github.com/nuts-foundation/nuts-node/pull/3886
+* feat: add extraEnv to helm chart values by @dmeijboom in https://github.com/nuts-foundation/nuts-node/pull/3924
+* Set deployment strategy to "Recreate" in nuts-node Helm chart deployment by @rolandgroen in https://github.com/nuts-foundation/nuts-node/pull/3936
+* feat: add pod labels to helm chart values. by @nollidnosnhoj in https://github.com/nuts-foundation/nuts-node/pull/3935
+* #3967: get credential status from local store for issued VCs (did:web) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3969
+* #3986: Pass correct wallet DID in OpenID4VCI proofs by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3987
+
+## New Contributors
+* @nollidnosnhoj made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/3935
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.10...v6.2.0
+
+****************
 Peanut (v6.1.10)
 ****************
 
