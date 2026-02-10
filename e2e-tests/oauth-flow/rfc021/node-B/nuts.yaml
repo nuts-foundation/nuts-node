@@ -2,6 +2,9 @@ url: https://nodeB
 verbosity: debug
 strictmode: false
 internalratelimiter: false
+tracing:
+  endpoint: jaeger:4318
+  insecure: true
 http:
   log: metadata-and-body
   internal:

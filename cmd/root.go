@@ -62,6 +62,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	storageCmd "github.com/nuts-foundation/nuts-node/storage/cmd"
+	"github.com/nuts-foundation/nuts-node/tracing"
+	tracingCmd "github.com/nuts-foundation/nuts-node/tracing/cmd"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	openid4vciAPI "github.com/nuts-foundation/nuts-node/vcr/api/openid4vci/v0"
 	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
@@ -225,6 +227,9 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	system.RegisterRoutes(&discoveryServerAPI.Wrapper{Server: discoveryInstance})
 
 	// Register engines
+	// Tracing engine MUST be registered first to ensure tracing is active before other engines configure/start,
+	// and shuts down last (due to reverse shutdown order) to capture all logs/spans.
+	system.RegisterEngine(tracing.New())
 	// without dependencies
 	system.RegisterEngine(pkiInstance)
 	system.RegisterEngine(storageInstance)
@@ -341,6 +346,7 @@ func serverConfigFlags() *pflag.FlagSet {
 	set.AddFlagSet(goldenHammerCmd.FlagSet())
 	set.AddFlagSet(discoveryCmd.FlagSet())
 	set.AddFlagSet(policy.FlagSet())
+	set.AddFlagSet(tracingCmd.FlagSet())
 
 	return set
 }
