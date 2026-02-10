@@ -217,6 +217,12 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
 	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
+		if errors.Is(err, didsubject.ErrSubjectNotFound) {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: err.Error(),
+			}
+		}
 		return nil, err
 	}
 	switch request.Body.GrantType {
