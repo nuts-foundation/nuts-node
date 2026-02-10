@@ -244,6 +244,12 @@ type VPVerificationResult struct {
 	Validity bool `json:"validity"`
 }
 
+// GetCredentialsInWalletParams defines parameters for GetCredentialsInWallet.
+type GetCredentialsInWalletParams struct {
+	// SkipValidation If true, returns all credentials in the wallet regardless of their validation status (expired/revoked). Default is false.
+	SkipValidation *bool `form:"skipValidation,omitempty" json:"skipValidation,omitempty"`
+}
+
 // SearchIssuedVCsParams defines parameters for SearchIssuedVCs.
 type SearchIssuedVCsParams struct {
 	// CredentialType The type of the credential
@@ -483,7 +489,7 @@ type ClientInterface interface {
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCredentialsInWallet request
-	GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	GetCredentialsInWallet(ctx context.Context, subjectID string, params *GetCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// LoadVCWithBody request with any body
 	LoadVCWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -563,8 +569,8 @@ func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, req
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetCredentialsInWalletRequest(c.Server, subjectID)
+func (c *Client) GetCredentialsInWallet(ctx context.Context, subjectID string, params *GetCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetCredentialsInWalletRequest(c.Server, subjectID, params)
 	if err != nil {
 		return nil, err
 	}
@@ -856,7 +862,7 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 }
 
 // NewGetCredentialsInWalletRequest generates requests for GetCredentialsInWallet
-func NewGetCredentialsInWalletRequest(server string, subjectID string) (*http.Request, error) {
+func NewGetCredentialsInWalletRequest(server string, subjectID string, params *GetCredentialsInWalletParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -876,6 +882,28 @@ func NewGetCredentialsInWalletRequest(server string, subjectID string) (*http.Re
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.SkipValidation != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "skipValidation", runtime.ParamLocationQuery, *params.SkipValidation); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -1463,7 +1491,7 @@ type ClientWithResponsesInterface interface {
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
 	// GetCredentialsInWalletWithResponse request
-	GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
+	GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, params *GetCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
 
 	// LoadVCWithBodyWithResponse request with any body
 	LoadVCWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
@@ -2013,8 +2041,8 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 }
 
 // GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
-func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
-	rsp, err := c.GetCredentialsInWallet(ctx, subjectID, reqEditors...)
+func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, params *GetCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
+	rsp, err := c.GetCredentialsInWallet(ctx, subjectID, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -2803,7 +2831,7 @@ type ServerInterface interface {
 	CreateVP(ctx echo.Context) error
 	// List all Verifiable Credentials in the holder's wallet.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
-	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
+	GetCredentialsInWallet(ctx echo.Context, subjectID string, params GetCredentialsInWalletParams) error
 	// Load a VerifiableCredential into the holders wallet.
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx echo.Context, subjectID string) error
@@ -2871,8 +2899,17 @@ func (w *ServerInterfaceWrapper) GetCredentialsInWallet(ctx echo.Context) error 
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCredentialsInWalletParams
+	// ------------- Optional query parameter "skipValidation" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "skipValidation", ctx.QueryParams(), &params.SkipValidation)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter skipValidation: %s", err))
+	}
+
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetCredentialsInWallet(ctx, subjectID)
+	err = w.Handler.GetCredentialsInWallet(ctx, subjectID, params)
 	return err
 }
 
@@ -3169,6 +3206,7 @@ func (response CreateVPdefaultApplicationProblemPlusJSONResponse) VisitCreateVPR
 
 type GetCredentialsInWalletRequestObject struct {
 	SubjectID string `json:"subjectID"`
+	Params    GetCredentialsInWalletParams
 }
 
 type GetCredentialsInWalletResponseObject interface {
@@ -3796,10 +3834,11 @@ func (sh *strictHandler) CreateVP(ctx echo.Context) error {
 }
 
 // GetCredentialsInWallet operation middleware
-func (sh *strictHandler) GetCredentialsInWallet(ctx echo.Context, subjectID string) error {
+func (sh *strictHandler) GetCredentialsInWallet(ctx echo.Context, subjectID string, params GetCredentialsInWalletParams) error {
 	var request GetCredentialsInWalletRequestObject
 
 	request.SubjectID = subjectID
+	request.Params = params
 
 	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
 		return sh.ssi.GetCredentialsInWallet(ctx.Request().Context(), request.(GetCredentialsInWalletRequestObject))

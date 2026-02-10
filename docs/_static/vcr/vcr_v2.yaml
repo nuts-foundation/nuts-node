@@ -495,6 +495,14 @@ paths:
       operationId: getCredentialsInWallet
       tags:
         - credential
+      parameters:
+        - name: skipValidation
+          in: query
+          description: If true, returns all credentials in the wallet regardless of their validation status (expired/revoked). Default is false.
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         "200":
           description: The list of credentials in the wallet is returned.

@@ -829,6 +829,38 @@ func TestWrapper_GetCredentialsInWallet(t *testing.T) {
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
 	})
+	t.Run("skipValidation=true", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().ListAll(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
+
+		skipValidation := true
+		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
+			SubjectID: subjectID,
+			Params: GetCredentialsInWalletParams{
+				SkipValidation: &skipValidation,
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetCredentialsInWallet200JSONResponse([]vc.VerifiableCredential{testVC}), response)
+	})
+	t.Run("skipValidation=false", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().List(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
+
+		skipValidation := false
+		response, err := testContext.client.GetCredentialsInWallet(testContext.requestCtx, GetCredentialsInWalletRequestObject{
+			SubjectID: subjectID,
+			Params: GetCredentialsInWalletParams{
+				SkipValidation: &skipValidation,
+			},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetCredentialsInWallet200JSONResponse([]vc.VerifiableCredential{testVC}), response)
+	})
 }
 
 func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {

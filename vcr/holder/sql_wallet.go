@@ -139,6 +139,10 @@ func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCr
 	return validCredentials, nil
 }
 
+func (h sqlWallet) ListAll(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return h.walletStore.list(holderDID)
+}
+
 func (h sqlWallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {
 	err := h.walletStore.remove(holderDID, credentialID)
 	if err == nil {

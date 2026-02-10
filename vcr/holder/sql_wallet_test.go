@@ -227,6 +227,56 @@ func Test_sqlWallet_List(t *testing.T) {
 	})
 }
 
+func Test_sqlWallet_ListAll(t *testing.T) {
+	ctx := context.Background()
+	storageEngine := storage.NewTestStorageEngine(t)
+	t.Run("empty", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+
+		list, err := sut.ListAll(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.NotNil(t, list)
+		assert.Empty(t, list)
+	})
+	t.Run("not empty", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
+		require.NoError(t, err)
+
+		list, err := sut.ListAll(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+	})
+	t.Run("expired credential is returned", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrCredentialNotValidAtTime}, nil, storageEngine)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
+		require.NoError(t, err)
+
+		list, err := sut.ListAll(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1, "ListAll should return expired credentials")
+		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+	})
+	t.Run("revoked credential is returned", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrRevoked}, nil, storageEngine)
+		expected := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected, createCredential(vdr.TestMethodDIDB.String()))
+		require.NoError(t, err)
+
+		list, err := sut.ListAll(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1, "ListAll should return revoked credentials")
+		assert.Equal(t, expected.ID.String(), list[0].ID.String())
+	})
+}
+
 func Test_sqlWallet_Diagnostics(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("empty wallet", func(t *testing.T) {

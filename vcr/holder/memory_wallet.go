@@ -77,6 +77,10 @@ func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.Verifiabl
 	return m.credentials[holderDID], nil
 }
 
+func (m memoryWallet) ListAll(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return m.credentials[holderDID], nil
+}
+
 func (m memoryWallet) Remove(_ context.Context, _ did.DID, _ ssi.URI) error {
 	return errors.New("memory wallet is read-only")
 }

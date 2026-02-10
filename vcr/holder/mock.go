@@ -120,6 +120,21 @@ func (mr *MockWalletMockRecorder) List(ctx, holderDID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockWallet)(nil).List), ctx, holderDID)
 }
 
+// ListAll mocks base method.
+func (m *MockWallet) ListAll(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAll", ctx, holderDID)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAll indicates an expected call of ListAll.
+func (mr *MockWalletMockRecorder) ListAll(ctx, holderDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAll", reflect.TypeOf((*MockWallet)(nil).ListAll), ctx, holderDID)
+}
+
 // Put mocks base method.
 func (m *MockWallet) Put(ctx context.Context, credentials ...vc.VerifiableCredential) error {
 	m.ctrl.T.Helper()

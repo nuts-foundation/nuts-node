@@ -56,6 +56,11 @@ type Wallet interface {
 	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
+	// ListAll returns all credentials in the wallet for the given holder without validation.
+	// This includes expired and revoked credentials.
+	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
+	ListAll(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
+
 	// Remove removes the given credential from the wallet.
 	// If the credential is not in the wallet, it returns ErrNotFound.
 	Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error
