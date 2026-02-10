@@ -33,9 +33,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// maxAgeExternal is the maximum age of external StatusList2021Credentials. If older than this we try to refresh.
-const maxAgeExternal = 15 * time.Minute
-
 // Verify StatusList2021 returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
 func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) error {
@@ -117,7 +114,7 @@ func (cs *StatusList2021) statusList(statusListCredential string) (*credentialRe
 	// TODO: renewal criteria need to be reconsidered if we add other purposes. A 'suspension' may have been canceled
 	// renew expired certificates
 	if (cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now())) || // expired
-		time.Unix(cr.CreatedAt, 0).Add(maxAgeExternal).Before(time.Now()) { // older than 15 min
+		time.Unix(cr.CreatedAt, 0).Add(cs.maxAge).Before(time.Now()) { // older than 15 min
 		crUpdated, err := cs.update(statusListCredential)
 		if err == nil {
 			return crUpdated, nil

@@ -22,9 +22,10 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -34,7 +35,7 @@ import (
 
 // newTestStatusList2021 returns a StatusList2021 that does not Sign or VerifySignature, with a SQLite db containing the dids, and no http-client.
 func newTestStatusList2021(t testing.TB, dids ...did.DID) *StatusList2021 {
-	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil, "https://example.com")
+	cs := NewStatusList2021(storage.NewTestStorageEngine(t).GetSQLDatabase(), nil, "https://example.com", 15*time.Minute)
 	cs.Sign = noopSign
 	cs.ResolveKey = noopResolveKey
 	cs.VerifySignature = noopSignVerify

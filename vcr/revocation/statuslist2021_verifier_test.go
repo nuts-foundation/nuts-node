@@ -180,7 +180,7 @@ func TestStatusList2021_statusList(t *testing.T) {
 	t.Run("ok - exceeded max age", func(t *testing.T) {
 		cs, _, ts := testSetup(t, false)
 		cr, cir := makeRecords(ts.URL)
-		cr.CreatedAt = time.Now().Add(-2 * maxAgeExternal).Unix()
+		cr.CreatedAt = time.Now().Add(-2 * cs.maxAge).Unix()
 		require.NoError(t, cs.db.Create(&cr).Error)
 
 		actualCR, err := cs.statusList(cir.SubjectID)
