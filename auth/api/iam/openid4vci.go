@@ -95,6 +95,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		AuthorizationServerMetadata: authzServerMetadata,
 		ClientFlow:                  credentialRequestClientFlow,
 		OwnSubject:                  &request.SubjectID,
+		OwnDID:                      walletDID,
 		RedirectURI:                 request.Body.RedirectUri,
 		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
@@ -136,18 +137,18 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	clientID := baseURL.String()
 	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
-	// use code to request access token from remote token endpoint
-	clientDID, err := r.determineClientDID(ctx, *oauthSession.AuthorizationServerMetadata, *oauthSession.OwnSubject)
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while determining client ID: %s", err.Error())), appCallbackURI)
+	if oauthSession.OwnDID == nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "missing wallet DID in session"), appCallbackURI)
 	}
+
+	// use code to request access token from remote token endpoint
 	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
 	// make proof and collect credential
-	proofJWT, err := r.openid4vciProof(ctx, *clientDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
+	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
@@ -156,7 +157,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
 	// validate credential
-	// TODO: check that issued credential is bound to DID that requested it (OwnSubject)???
+	// TODO: check that issued credential is bound to DID that requested it (OwnDID)???
 	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), appCallbackURI)
