@@ -1431,7 +1431,7 @@ func TestWrapper_subjectExists(t *testing.T) {
 
 		err := ctx.client.subjectExists(context.Background(), unknownSubjectID)
 
-		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+		requireOAuthError(t, err, oauth.InvalidRequest, "subject not found")
 	})
 	t.Run("subject exists", func(t *testing.T) {
 		ctx := newTestClient(t)
