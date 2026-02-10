@@ -455,11 +455,11 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 	}
 
 	credentials := make([]vc.VerifiableCredential, 0)
-	skipValidation := request.Params.SkipValidation != nil && *request.Params.SkipValidation
+	includeInactive := request.Params.IncludeInactive != nil && *request.Params.IncludeInactive
 	for _, did := range dids {
 		var creds []vc.VerifiableCredential
 		var err error
-		if skipValidation {
+		if includeInactive {
 			creds, err = w.VCR.Wallet().ListAll(ctx, did)
 		} else {
 			creds, err = w.VCR.Wallet().List(ctx, did)

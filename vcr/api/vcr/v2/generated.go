@@ -246,8 +246,8 @@ type VPVerificationResult struct {
 
 // GetCredentialsInWalletParams defines parameters for GetCredentialsInWallet.
 type GetCredentialsInWalletParams struct {
-	// SkipValidation If true, returns all credentials in the wallet regardless of their validation status (expired/revoked). Default is false.
-	SkipValidation *bool `form:"skipValidation,omitempty" json:"skipValidation,omitempty"`
+	// IncludeInactive If true, returns all credentials in the wallet including inactive ones (expired/revoked). Default is false.
+	IncludeInactive *bool `form:"include_inactive,omitempty" json:"include_inactive,omitempty"`
 }
 
 // SearchIssuedVCsParams defines parameters for SearchIssuedVCs.
@@ -887,9 +887,9 @@ func NewGetCredentialsInWalletRequest(server string, subjectID string, params *G
 	if params != nil {
 		queryValues := queryURL.Query()
 
-		if params.SkipValidation != nil {
+		if params.IncludeInactive != nil {
 
-			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "skipValidation", runtime.ParamLocationQuery, *params.SkipValidation); err != nil {
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "include_inactive", runtime.ParamLocationQuery, *params.IncludeInactive); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -2901,11 +2901,11 @@ func (w *ServerInterfaceWrapper) GetCredentialsInWallet(ctx echo.Context) error 
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetCredentialsInWalletParams
-	// ------------- Optional query parameter "skipValidation" -------------
+	// ------------- Optional query parameter "include_inactive" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "skipValidation", ctx.QueryParams(), &params.SkipValidation)
+	err = runtime.BindQueryParameter("form", true, false, "include_inactive", ctx.QueryParams(), &params.IncludeInactive)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter skipValidation: %s", err))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter include_inactive: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

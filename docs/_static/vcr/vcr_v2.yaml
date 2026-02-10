@@ -496,9 +496,9 @@ paths:
       tags:
         - credential
       parameters:
-        - name: skipValidation
+        - name: include_inactive
           in: query
-          description: If true, returns all credentials in the wallet regardless of their validation status (expired/revoked). Default is false.
+          description: If true, returns all credentials in the wallet including inactive ones (expired/revoked). Default is false.
           required: false
           schema:
             type: boolean
