@@ -382,6 +382,19 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 }
 
 func TestWrapper_HandleTokenRequest(t *testing.T) {
+	t.Run("unknown subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		res, err := ctx.client.HandleTokenRequest(nil, HandleTokenRequestRequestObject{
+			SubjectID: unknownSubjectID,
+			Body: &HandleTokenRequestFormdataRequestBody{
+				GrantType: oauth.VpTokenGrantType,
+			},
+		})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "subject not found")
+		assert.Nil(t, res)
+	})
 	t.Run("unsupported grant type", func(t *testing.T) {
 		ctx := newTestClient(t)
 
