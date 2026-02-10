@@ -88,14 +88,14 @@ func (w *Wrapper) Routes(router core.EchoRouter) {
 	router.Use(cache.MaxAge(5*time.Minute, cacheControlMaxAgeURLs...).Handle)
 }
 
-func (r Wrapper) GetTenantWebDID(_ context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
+func (r Wrapper) GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error) {
 	ownDID := r.requestedWebDID(request.Id)
 	document, err := r.VDR.ResolveManaged(ownDID)
 	if err != nil {
 		if resolver.IsFunctionalResolveError(err) {
 			return GetTenantWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
+		log.Logger().WithContext(ctx).WithError(err).Errorf("Could not resolve tenant did:web: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetTenantWebDID200JSONResponse(*document), nil
@@ -108,7 +108,7 @@ func (r Wrapper) GetRootWebDID(ctx context.Context, _ GetRootWebDIDRequestObject
 		if resolver.IsFunctionalResolveError(err) {
 			return GetRootWebDID404Response{}, nil
 		}
-		log.Logger().WithError(err).Errorf("Could not resolve root did:web: %s", ownDID.String())
+		log.Logger().WithContext(ctx).WithError(err).Errorf("Could not resolve root did:web: %s", ownDID.String())
 		return nil, errors.New("unable to resolve DID")
 	}
 	return GetRootWebDID200JSONResponse(*document), nil

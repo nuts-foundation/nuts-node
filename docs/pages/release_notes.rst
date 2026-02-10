@@ -2,6 +2,28 @@
 Release notes
 #############
 
+****************
+Peanut (v6.1.10)
+****************
+
+Release date: 2026-02-09
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2026-4337
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.9...v6.1.10
+
+***************
+Peanut (v6.1.9)
+***************
+
+Release date: 2026-02-06
+
+- get credential status from local store for issued VCs (did:web) by @reinkrul in #3969
+- Pass correct wallet DID in OpenID4VCI proofs by @reinkrul in #3987
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.8...v6.1.9
+
+
 ***************
 Peanut (v6.1.8)
 ***************
@@ -322,6 +344,16 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 *************************
+Hazelnut update (v5.4.23)
+*************************
+
+Release date: 2026-02-09
+
+- Update Go version to fix https://pkg.go.dev/vuln/GO-2026-4337
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.22...v5.4.23
+
+*************************
 Hazelnut update (v5.4.22)
 *************************
 
@@ -340,7 +372,6 @@ Release date: 2025-12-04
 - Update Go version to fix https://pkg.go.dev/vuln/GO-2025-4175,
   https://pkg.go.dev/vuln/GO-2025-4155
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.20...v5.4.21
-
 
 *************************
 Hazelnut update (v5.4.20)
