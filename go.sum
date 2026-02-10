@@ -724,8 +724,8 @@ google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda h1:
 google.golang.org/genproto/googleapis/rpc v0.0.0-20251029180050-ab9386a59fda/go.mod h1:7i2o+ce6H/6BluujYR+kqX3GKH+dChPTQU19wjRPiGk=
 google.golang.org/grpc v1.78.0 h1:K1XZG/yGDJnzMdd/uZHAkVqJE+xIDOcmdSFZkBUicNc=
 google.golang.org/grpc v1.78.0/go.mod h1:I47qjTo4OKbMkjA/aOOwxDIiPSBofUtQUI5EfpWvW7U=
-google.golang.org/protobuf v1.36.10 h1:AYd7cD/uASjIL6Q9LiTjz8JLcrh/88q5UObnmY3aOOE=
-google.golang.org/protobuf v1.36.10/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
+google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
+google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 h1:rz88vn1OH2B9kKorR+QCrcuw6WbizVwahU2Y9Q09xqU=
 gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3/go.mod h1:vJmfdx2L0+30M90zUd0GCjLV14Ip3ZgWR5+MV1qljOo=
 gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3 h1:pSSZonNnrORBQXIm3kl6P9EQTNqVds9zszK/BXbOItg=
