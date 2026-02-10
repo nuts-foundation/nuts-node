@@ -26,20 +26,25 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                  IrmaConfig                  `koanf:"irma"`
-	HTTPTimeout           int                         `koanf:"http.timeout"`
-	ClockSkew             int                         `koanf:"clockskew"`
-	ContractValidators    []string                    `koanf:"contractvalidators"`
-	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
-	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	Irma                IrmaConfig       `koanf:"irma"`
+	HTTPTimeout         int              `koanf:"http.timeout"`
+	ClockSkew           int              `koanf:"clockskew"`
+	ContractValidators  []string         `koanf:"contractvalidators"`
+	AccessTokenLifeSpan int              `koanf:"accesstokenlifespan"`
+	OpenID4VCI          OpenID4VCIConfig `koanf:"openid4vci"`
+	OpenID4VP           OpenID4VPConfig  `koanf:"openid4vp"`
 }
 
-type AuthorizationEndpointConfig struct {
-	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize), used for:
-	// - As OpenID4VP verifier: to authenticate clients (that initiate the Authorized Code flow) using OpenID4VP
-	// - As OpenID4VP wallet: to authenticate verifiers using OpenID4VP
-	// - As OpenID4VCI wallet: to support dynamic credential requests (currently not supported)
-	// Disabling the authorization endpoint will also disable to callback endpoint and removes the endpoint from the metadata.
+type OpenID4VPConfig struct {
+	// Enabled is a flag to enable or disable OpenID4VP support:
+	// - As OpenID4VP verifier: to authenticate clients using OpenID4VP
+	// - As OpenID4VP wallet: to respond to OpenID4VP requests to from OpenID4VP verifiers.
+	Enabled bool `koanf:"enabled"`
+}
+
+type OpenID4VCIConfig struct {
+	// Enabled is a flag to enable OpenID4VCI support.
+	// If enabled, credential issuance can be requested for local wallets through OpenID4VCI.
 	Enabled bool `koanf:"enabled"`
 }
 

@@ -88,9 +88,14 @@ func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL
 }
 
-// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
+// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled for OpenID4VP flows.
 func (auth *Auth) AuthorizationEndpointEnabled() bool {
 	return auth.config.AuthorizationEndpoint.Enabled
+}
+
+// OpenID4VCIEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled for OpenID4VCI flows.
+func (auth *Auth) OpenID4VCIEnabled() bool {
+	return auth.config.OpenID4VCI.Enabled
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.

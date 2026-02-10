@@ -90,7 +90,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.NotEmpty(t, res.(OAuthAuthorizationServerMetadata200JSONResponse).AuthorizationEndpoint)
 	})
 	t.Run("authorization endpoint disabled", func(t *testing.T) {
-		ctx := newCustomTestClient(t, verifierURL, false)
+		ctx := newCustomTestClient(t, verifierURL, false, false)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{SubjectID: verifierSubject})
 
@@ -101,7 +101,7 @@ func TestWrapper_OAuthAuthorizationServerMetadata(t *testing.T) {
 	t.Run("base URL (prepended before /iam)", func(t *testing.T) {
 		//	200
 		baseURL := test.MustParseURL("https://example.com/base")
-		ctx := newCustomTestClient(t, baseURL, false)
+		ctx := newCustomTestClient(t, baseURL, false, false)
 
 		res, err := ctx.client.OAuthAuthorizationServerMetadata(nil, OAuthAuthorizationServerMetadataRequestObject{SubjectID: verifierSubject})
 
@@ -250,12 +250,38 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
-		ctx := newCustomTestClient(t, verifierURL, false)
+		ctx := newCustomTestClient(t, verifierURL, false, false)
 
 		response, err := ctx.client.HandleAuthorizeRequest(nil, HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint is disabled")
 		assert.Nil(t, response)
+	})
+	t.Run("OpenID4VCI and OpenID4VP disabled, response_type=code - should fail", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false, false) // Both disabled
+
+		// This should fail at the outer check (before parsing) since both configs are disabled
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"key": "test_value"}),
+			HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint is disabled")
+		assert.Nil(t, res)
+	})
+	t.Run("OpenID4VP disabled, response_type=vp_token - should fail", func(t *testing.T) {
+		ctx := newCustomTestClient(t, verifierURL, false, true) // Only OpenID4VCI enabled
+
+		// HandleAuthorizeRequest
+		requestParams := oauthParameters{
+			oauth.RedirectURIParam:  "https://example.com",
+			oauth.ResponseTypeParam: oauth.VPTokenResponseType,
+		}
+		ctx.jar.EXPECT().Parse(gomock.Any(), gomock.Any(), url.Values{"key": []string{"test_value"}}).Return(requestParams, nil)
+
+		res, err := ctx.client.HandleAuthorizeRequest(requestContext(map[string]interface{}{"key": "test_value"}),
+			HandleAuthorizeRequestRequestObject{SubjectID: verifierSubject})
+
+		requireOAuthError(t, err, oauth.InvalidRequest, "authorization endpoint for OpenID4VP is disabled")
+		assert.Nil(t, res)
 	})
 	t.Run("ok - response_type=code", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -428,7 +454,7 @@ func TestWrapper_Callback(t *testing.T) {
 		TokenEndpoint: "https://example.com/token",
 	}
 	t.Run("disabled", func(t *testing.T) {
-		ctx := newCustomTestClient(t, verifierURL, false)
+		ctx := newCustomTestClient(t, verifierURL, false, false)
 
 		response, err := ctx.client.Callback(nil, CallbackRequestObject{SubjectID: holderSubjectID})
 
@@ -1579,10 +1605,10 @@ type testCtx struct {
 
 func newTestClient(t testing.TB) *testCtx {
 	publicURL, _ := url.Parse("https://example.com")
-	return newCustomTestClient(t, publicURL, true)
+	return newCustomTestClient(t, publicURL, true, true)
 }
 
-func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled bool) *testCtx {
+func newCustomTestClient(t testing.TB, publicURL *url.URL, openid4vpEnabled bool, openid4vciEnabled bool) *testCtx {
 	ctrl := gomock.NewController(t)
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
@@ -1607,7 +1633,8 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
-	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
+	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(openid4vpEnabled).AnyTimes()
+	authnServices.EXPECT().OpenID4VCIEnabled().Return(openid4vciEnabled).AnyTimes()
 
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), unknownSubjectID).Return(nil, didsubject.ErrSubjectNotFound).AnyTimes()
