@@ -20,7 +20,6 @@ package holder
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -128,13 +127,15 @@ func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCr
 	// now validate credentials and remove invalid ones
 	validCredentials := make([]vc.VerifiableCredential, 0, len(credentials))
 	for _, credential := range credentials {
+		validCredentials = append(validCredentials, credential)
+		// TODO: Disabled for now in project GF, because we want to actively demo with expired credentials.
 		// we only want to check expiration and revocation status
-		if err = h.verifier.Verify(credential, true, false, nil); err == nil {
-			validCredentials = append(validCredentials, credential)
-		} else if !errors.Is(err, types.ErrCredentialNotValidAtTime) && !errors.Is(err, types.ErrRevoked) {
-			// a possible technical error has occurred that should be logged.
-			log.Logger().WithError(err).WithField(core.LogFieldCredentialID, credential.ID).Warn("unable to verify credential")
-		}
+		//if err = h.verifier.Verify(credential, true, false, nil); err == nil {
+		//	validCredentials = append(validCredentials, credential)
+		//} else if !errors.Is(err, types.ErrCredentialNotValidAtTime) && !errors.Is(err, types.ErrRevoked) {
+		//	// a possible technical error has occurred that should be logged.
+		//	log.Logger().WithError(err).WithField(core.LogFieldCredentialID, credential.ID).Warn("unable to verify credential")
+		//}
 	}
 
 	return validCredentials, nil
