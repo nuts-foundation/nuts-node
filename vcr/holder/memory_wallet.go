@@ -77,6 +77,8 @@ func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.Verifiabl
 	return m.credentials[holderDID], nil
 }
 
+// ListAll returns all credentials for the given holder.
+// For memory wallet, this is identical to List since the memory wallet doesn't perform validation.
 func (m memoryWallet) ListAll(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
 	return m.credentials[holderDID], nil
 }
