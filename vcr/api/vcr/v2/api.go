@@ -473,20 +473,20 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 		return nil, err
 	}
 
-	var creds []vc.VerifiableCredential
+	var allCreds []vc.VerifiableCredential
 	for _, did := range dids {
 		creds, err := w.VCR.Wallet().SearchCredential(ctx, did)
 		if err != nil {
 			return nil, err
 		}
-		creds = append(creds, creds...)
+		allCreds = append(allCreds, creds...)
 	}
 
-	searchResults, err := w.vcsWithRevocationsToSearchResults(creds)
+	searchResults, err := w.vcsWithRevocationsToSearchResults(allCreds)
 	if err != nil {
 		return nil, err
 	}
-	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{searchResults}), nil
+	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: searchResults}), nil
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
