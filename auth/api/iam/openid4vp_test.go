@@ -21,11 +21,15 @@ package iam
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/http/user"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -35,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -461,7 +466,7 @@ func TestWrapper_HandleAuthorizeResponse(t *testing.T) {
 
 			_, err := ctx.client.HandleAuthorizeResponse(context.Background(), baseRequest())
 
-			oauthErr := assertOAuthError(t, err, "presentation(s) or contained credential(s) are invalid")
+			oauthErr := assertOAuthError(t, err, "presentation(s) or credential(s) verification failed")
 			assert.Equal(t, "https://example.com/iam/holder/cb", oauthErr.RedirectURI.String())
 		})
 		t.Run("expired session", func(t *testing.T) {
@@ -964,5 +969,38 @@ func putNonce(ctx *testCtx, nonce string) {
 
 func putCodeSession(ctx *testCtx, code string, oauthSession OAuthSession) {
 	_ = ctx.client.oauthCodeStore().Put(code, oauthSession)
+}
 
+func Test_verificationErrorDescription(t *testing.T) {
+	t.Run("DID not found error", func(t *testing.T) {
+		err := resolver.ErrNotFound
+		result := verificationErrorDescription(err)
+		assert.Equal(t, "presentation(s) or credential(s) verification failed: unable to find the DID document", result)
+	})
+
+	t.Run("Key not found error", func(t *testing.T) {
+		err := resolver.ErrKeyNotFound
+		result := verificationErrorDescription(err)
+		assert.Equal(t, "presentation(s) or credential(s) verification failed: key not found in DID document", result)
+	})
+
+	t.Run("Wrapped DID resolution error", func(t *testing.T) {
+		err := fmt.Errorf("unable to resolve valid signing key: %w", resolver.ErrNotFound)
+		result := verificationErrorDescription(err)
+		assert.Equal(t, "presentation(s) or credential(s) verification failed: unable to resolve valid signing key: unable to find the DID document", result)
+	})
+
+	t.Run("Generic error returns default message", func(t *testing.T) {
+		err := errors.New("some other error")
+		result := verificationErrorDescription(err)
+		assert.Equal(t, "presentation(s) or credential(s) verification failed", result)
+	})
+
+	t.Run("VerificationError", func(t *testing.T) {
+		err := verifier.VerificationError{
+			Msg: "some verification error",
+		}
+		result := verificationErrorDescription(err)
+		assert.Equal(t, "presentation(s) or credential(s) verification failed: some verification error", result)
+	})
 }

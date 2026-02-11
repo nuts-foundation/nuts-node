@@ -59,7 +59,7 @@ func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCre
 func (sv *signatureVerifier) VerifyVPSignature(presentation vc.VerifiablePresentation, validateAt *time.Time) error {
 	signerDID, err := credential.PresentationSigner(presentation)
 	if err != nil {
-		return toVerificationError(err)
+		return ToVerificationError(err)
 	}
 
 	switch presentation.Format() {
@@ -100,7 +100,7 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
 		validAt = *at
 	}
 	if !ldProof.ValidAt(validAt, maxSkew) {
-		return toVerificationError(types.ErrPresentationNotValidAtTime)
+		return ToVerificationError(types.ErrPresentationNotValidAtTime)
 	}
 
 	// find key
@@ -132,7 +132,11 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 			return nil, err
 		}
 		metadata.JwtProtectedHeaders = headers
-		return sv.resolveSigningKey(kid, issuer, metadata)
+		key, err := sv.resolveSigningKey(kid, issuer, metadata)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve signing key: %w", err)
+		}
+		return key, err
 	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
 		if at == nil {
 			return time.Now()
@@ -140,7 +144,7 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 		return *at
 	})))
 	if err != nil {
-		return fmt.Errorf("unable to validate JWT signature: %w", err)
+		return newVerificationError("unable to validate JWT signature: %w", err)
 	}
 	if keyID != "" && strings.Split(keyID, "#")[0] != issuer {
 		return errVerificationMethodNotOfIssuer

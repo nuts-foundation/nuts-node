@@ -1160,15 +1160,15 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, verifier.VerificationError{})
-		errMsg := "verification error: "
-		expectedRepsonse := VerifyVP200JSONResponse(VPVerificationResult{
+		errMsg := "presentation(s) or credential(s) verification failed"
+		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Message:  &errMsg,
 			Validity: false,
 		})
 
 		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
-		assert.Equal(t, expectedRepsonse, response)
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 }

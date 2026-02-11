@@ -23,8 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,6 +30,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -547,7 +548,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, presentationWithHolder, true, true, nil)
 
-			assert.EqualError(t, err, "verification error: presentation holder must equal credential subject")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: presentation holder must equal credential subject")
 			assert.Empty(t, vcs)
 		})
 		t.Run("JWT expired", func(t *testing.T) {
@@ -557,7 +558,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			validAt := time.Date(2023, 10, 21, 12, 0, 0, 0, time.UTC)
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, &validAt)
 
-			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: \"exp\" not satisfied")
 			assert.Empty(t, vcs)
 		})
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {
@@ -579,7 +580,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, nil)
 
-			assert.EqualError(t, err, "verification error: credential(s) must be presented by subject")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: credential(s) must be presented by subject")
 			assert.Empty(t, vcs)
 		})
 	})
@@ -688,7 +689,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.doVerifyVP(mockVerifier, vp, true, true, &validAt)
 
-			assert.EqualError(t, err, "verification error: presentation not valid at given time")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: presentation not valid at given time")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - VC verification fails", func(t *testing.T) {
@@ -720,7 +721,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - signing key unknown", func(t *testing.T) {
@@ -749,7 +750,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: presenter is credential subject: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: presenter is credential subject: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - no proof", func(t *testing.T) {
@@ -763,7 +764,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "verification error: presenter is credential subject: presentation should have exactly 1 proof, got 0")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: presenter is credential subject: presentation should have exactly 1 proof, got 0")
 			assert.Empty(t, vcs)
 		})
 	})
