@@ -569,6 +569,39 @@ paths:
           description: Credential has been removed from the wallet.
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/holder/{subjectID}/vc/search:
+    parameters:
+      - name: subjectID
+        in: path
+        description: Subject ID of the wallet owner at this node.
+        required: true
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+    get:
+      summary: "Searches for verifiable credentials in the holder's wallet"
+      description: >
+        The SearchVCResult contains a list of matching credentials in the wallet regardless of validity.
+        This allows applications to build a listing of all credentials in wallets, regardless of its status (expired/revoked).
+        The entry may contain a revocation if the credential has been revoked with a credential of type CredentialRevocation.
+
+        error returns:
+        * 404 - Subject not found
+        * 500 - An error occurred while processing the request
+      operationId: "searchCredentialsInWallet"
+      tags:
+        - credential
+      responses:
+        "200":
+          description: A list of matching credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchVCResults'
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     VerifiableCredential:

@@ -30,6 +30,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/google/uuid"
@@ -427,7 +428,7 @@ func (cs *StatusList2021) Revoke(ctx context.Context, credentialID ssi.URI, entr
 		err = tx.Create(&revocation).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrDuplicatedKey) {
-				return errRevoked // already revoked
+				return types.ErrRevoked // already revoked
 			}
 			return err
 		}

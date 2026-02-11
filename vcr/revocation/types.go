@@ -52,9 +52,6 @@ var statusList2021CredentialTypeURI = ssi.MustParseURI(StatusList2021CredentialT
 // errNotFound wraps types.ErrNotFound to clarify which StatusList2021Credential is not found
 var errNotFound = fmt.Errorf("status list: %w", types.ErrNotFound)
 
-// errRevoked wraps types.ErrRevoked to clarify the source of the error
-var errRevoked = fmt.Errorf("status list: %w", types.ErrRevoked)
-
 // errUnsupportedPurpose limits current usage to 'revocation'
 var errUnsupportedPurpose = errors.New("status list: purpose not supported")
 
