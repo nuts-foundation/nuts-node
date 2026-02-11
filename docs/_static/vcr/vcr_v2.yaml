@@ -491,7 +491,9 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     get:
-      summary: List all Verifiable Credentials in the holder's wallet.
+      summary: >
+        List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials.
+        If you want to list all credentials regardless of their validity, use the search API.
       operationId: getCredentialsInWallet
       tags:
         - credential

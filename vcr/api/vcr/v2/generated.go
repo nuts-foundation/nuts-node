@@ -2933,7 +2933,7 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// List all Verifiable Credentials in the holder's wallet.
+	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
 	// Load a VerifiableCredential into the holders wallet.
@@ -3899,7 +3899,7 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// List all Verifiable Credentials in the holder's wallet.
+	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
 	// Load a VerifiableCredential into the holders wallet.
