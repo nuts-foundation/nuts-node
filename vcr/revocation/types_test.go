@@ -22,9 +22,10 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"

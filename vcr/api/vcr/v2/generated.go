@@ -490,6 +490,9 @@ type ClientInterface interface {
 
 	LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SearchCredentialsInWallet request
+	SearchCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveCredentialFromWallet request
 	RemoveCredentialFromWallet(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -589,6 +592,18 @@ func (c *Client) LoadVCWithBody(ctx context.Context, subjectID string, contentTy
 
 func (c *Client) LoadVC(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewLoadVCRequest(c.Server, subjectID, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) SearchCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchCredentialsInWalletRequest(c.Server, subjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -926,6 +941,37 @@ func NewLoadVCRequestWithBody(server string, subjectID string, contentType strin
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSearchCredentialsInWalletRequest generates requests for SearchCredentialsInWallet
+func NewSearchCredentialsInWalletRequest(server string, subjectID string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = subjectID
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/vc/search", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -1470,6 +1516,9 @@ type ClientWithResponsesInterface interface {
 
 	LoadVCWithResponse(ctx context.Context, subjectID string, body LoadVCJSONRequestBody, reqEditors ...RequestEditorFn) (*LoadVCResponse, error)
 
+	// SearchCredentialsInWalletWithResponse request
+	SearchCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*SearchCredentialsInWalletResponse, error)
+
 	// RemoveCredentialFromWalletWithResponse request
 	RemoveCredentialFromWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error)
 
@@ -1608,6 +1657,38 @@ func (r LoadVCResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r LoadVCResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type SearchCredentialsInWalletResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *SearchVCResults
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchCredentialsInWalletResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchCredentialsInWalletResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2038,6 +2119,15 @@ func (c *ClientWithResponses) LoadVCWithResponse(ctx context.Context, subjectID 
 	return ParseLoadVCResponse(rsp)
 }
 
+// SearchCredentialsInWalletWithResponse request returning *SearchCredentialsInWalletResponse
+func (c *ClientWithResponses) SearchCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*SearchCredentialsInWalletResponse, error) {
+	rsp, err := c.SearchCredentialsInWallet(ctx, subjectID, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchCredentialsInWalletResponse(rsp)
+}
+
 // RemoveCredentialFromWalletWithResponse request returning *RemoveCredentialFromWalletResponse
 func (c *ClientWithResponses) RemoveCredentialFromWalletWithResponse(ctx context.Context, subjectID string, id string, reqEditors ...RequestEditorFn) (*RemoveCredentialFromWalletResponse, error) {
 	rsp, err := c.RemoveCredentialFromWallet(ctx, subjectID, id, reqEditors...)
@@ -2292,6 +2382,48 @@ func ParseLoadVCResponse(rsp *http.Response) (*LoadVCResponse, error) {
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchCredentialsInWalletResponse parses an HTTP response from a SearchCredentialsInWalletWithResponse call
+func ParseSearchCredentialsInWalletResponse(rsp *http.Response) (*SearchCredentialsInWalletResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchCredentialsInWalletResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SearchVCResults
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
 			// Detail A human-readable explanation specific to this occurrence of the problem.
@@ -2801,12 +2933,15 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// List all Verifiable Credentials in the holder's wallet.
+	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
 	// Load a VerifiableCredential into the holders wallet.
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx echo.Context, subjectID string) error
+	// Searches for verifiable credentials in the holder's wallet
+	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
+	SearchCredentialsInWallet(ctx echo.Context, subjectID string) error
 	// Remove a VerifiableCredential from the holders wallet.
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx echo.Context, subjectID string, id string) error
@@ -2888,6 +3023,21 @@ func (w *ServerInterfaceWrapper) LoadVC(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.LoadVC(ctx, subjectID)
+	return err
+}
+
+// SearchCredentialsInWallet converts echo context to params.
+func (w *ServerInterfaceWrapper) SearchCredentialsInWallet(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
+
+	subjectID = ctx.Param("subjectID")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.SearchCredentialsInWallet(ctx, subjectID)
 	return err
 }
 
@@ -3114,6 +3264,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
 	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.GetCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.LoadVC)
+	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc/search", wrapper.SearchCredentialsInWallet)
 	router.DELETE(baseURL+"/internal/vcr/v2/holder/:subjectID/vc/:id", wrapper.RemoveCredentialFromWallet)
 	router.POST(baseURL+"/internal/vcr/v2/issuer/vc", wrapper.IssueVC)
 	router.GET(baseURL+"/internal/vcr/v2/issuer/vc/search", wrapper.SearchIssuedVCs)
@@ -3237,6 +3388,44 @@ type LoadVCdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response LoadVCdefaultApplicationProblemPlusJSONResponse) VisitLoadVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type SearchCredentialsInWalletRequestObject struct {
+	SubjectID string `json:"subjectID"`
+}
+
+type SearchCredentialsInWalletResponseObject interface {
+	VisitSearchCredentialsInWalletResponse(w http.ResponseWriter) error
+}
+
+type SearchCredentialsInWallet200JSONResponse SearchVCResults
+
+func (response SearchCredentialsInWallet200JSONResponse) VisitSearchCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SearchCredentialsInWalletdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response SearchCredentialsInWalletdefaultApplicationProblemPlusJSONResponse) VisitSearchCredentialsInWalletResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -3710,12 +3899,15 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// List all Verifiable Credentials in the holder's wallet.
+	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
 	// Load a VerifiableCredential into the holders wallet.
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
+	// Searches for verifiable credentials in the holder's wallet
+	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
+	SearchCredentialsInWallet(ctx context.Context, request SearchCredentialsInWalletRequestObject) (SearchCredentialsInWalletResponseObject, error)
 	// Remove a VerifiableCredential from the holders wallet.
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error)
@@ -3845,6 +4037,31 @@ func (sh *strictHandler) LoadVC(ctx echo.Context, subjectID string) error {
 		return err
 	} else if validResponse, ok := response.(LoadVCResponseObject); ok {
 		return validResponse.VisitLoadVCResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// SearchCredentialsInWallet operation middleware
+func (sh *strictHandler) SearchCredentialsInWallet(ctx echo.Context, subjectID string) error {
+	var request SearchCredentialsInWalletRequestObject
+
+	request.SubjectID = subjectID
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.SearchCredentialsInWallet(ctx.Request().Context(), request.(SearchCredentialsInWalletRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SearchCredentialsInWallet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(SearchCredentialsInWalletResponseObject); ok {
+		return validResponse.VisitSearchCredentialsInWalletResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

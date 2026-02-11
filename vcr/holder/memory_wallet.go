@@ -21,6 +21,7 @@ package holder
 import (
 	"context"
 	"errors"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -74,6 +75,10 @@ func (m memoryWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID,
 }
 
 func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return m.credentials[holderDID], nil
+}
+
+func (m memoryWallet) SearchCredential(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
 	return m.credentials[holderDID], nil
 }
 
