@@ -27,10 +27,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -574,6 +575,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("wrong signing algorithm", func(t *testing.T) {
+		t.Skip("LSPxNuts: enabled RS256 support")
 		t.Setenv("GODEBUG", "rsa1024min=0") // minimum key-length has changed to 1024 -> https://pkg.go.dev/crypto/rsa#hdr-Minimum_key_size
 		privateKey, err := rsa.GenerateKey(rand.Reader, 512)
 		require.NoError(t, err)

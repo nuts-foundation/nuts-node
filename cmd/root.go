@@ -23,12 +23,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"runtime/pprof"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authAPIv1 "github.com/nuts-foundation/nuts-node/auth/api/auth/v1"
@@ -201,11 +202,11 @@ func CreateSystem(shutdownCallback context.CancelFunc) *core.System {
 	credentialInstance := vcr.NewVCRInstance(cryptoInstance, vdrInstance, networkInstance, jsonld, eventManager, storageInstance, pkiInstance)
 	didmanInstance := didman.NewDidmanInstance(vdrInstance, credentialInstance, jsonld)
 	discoveryInstance := discovery.New(storageInstance, credentialInstance, vdrInstance, vdrInstance)
-	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance)
+	policyInstance := policy.New()
+	authInstance := auth.NewAuthInstance(auth.DefaultConfig(), vdrInstance, vdrInstance, credentialInstance, cryptoInstance, didmanInstance, jsonld, pkiInstance, policyInstance)
 	statusEngine := status.NewStatusEngine(system)
 	metricsEngine := core.NewMetricsEngine()
 	goldenHammer := golden_hammer.New(vdrInstance, didmanInstance)
-	policyInstance := policy.New()
 
 	// Register HTTP routes
 	didKeyResolver := resolver.DIDKeyResolver{Resolver: vdrInstance.Resolver()}

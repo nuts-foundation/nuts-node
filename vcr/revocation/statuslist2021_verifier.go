@@ -25,16 +25,12 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"gorm.io/gorm/clause"
 )
-
-// maxAgeExternal is the maximum age of external StatusList2021Credentials. If older than this we try to refresh.
-const maxAgeExternal = 15 * time.Minute
 
 // Verify StatusList2021 returns a types.ErrRevoked when the credentialStatus contains a 'StatusList2021Entry' that can be resolved and lists the credential as 'revoked'
 // Other credentialStatus type/statusPurpose are ignored. Verification may fail with other non-standardized errors.
@@ -105,6 +101,7 @@ func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) err
 func (cs *StatusList2021) statusList(statusListCredential string) (*credentialRecord, error) {
 	cr, err := cs.loadCredential(statusListCredential)
 	if err != nil {
+		log.Logger().WithError(err).Warnf("Failed to load StatusList2021Credential from database, fetching from issuer (url=%s)", statusListCredential)
 		// assume any error means we don't have the credential, so try fetching remote
 		return cs.update(statusListCredential)
 	}
@@ -114,23 +111,11 @@ func (cs *StatusList2021) statusList(statusListCredential string) (*credentialRe
 		return cr, nil
 	}
 
-	// TODO: renewal criteria need to be reconsidered if we add other purposes. A 'suspension' may have been canceled
-	// renew expired certificates
-	if (cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now())) || // expired
-		time.Unix(cr.CreatedAt, 0).Add(maxAgeExternal).Before(time.Now()) { // older than 15 min
-		crUpdated, err := cs.update(statusListCredential)
-		if err == nil {
-			return crUpdated, nil
-		}
-		// use known StatusList2021Credential if we can't fetch a new one, even if it is older/expired
-		if cr.Expires != nil && time.Unix(*cr.Expires, 0).Before(time.Now()) {
-			// log warning if using expired StatusList2021Credential
-			log.Logger().WithError(err).WithField(core.LogFieldCredentialSubject, statusListCredential).
-				Info("Validating credentialStatus using expired StatusList2021Credential")
-		}
+	// PROJECT-GF: for demo purposes, we always update the statuslist credentials, so we can demo revocation.
+	crUpdated, err := cs.update(statusListCredential)
+	if err == nil {
+		return crUpdated, nil
 	}
-
-	// return credentialRecord, which could be outdated but is the best information available.
 	return cr, nil
 }
 

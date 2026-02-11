@@ -24,6 +24,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/pki"
@@ -32,11 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"io/fs"
-	"net/http"
-	"path"
-	"strings"
-	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -229,7 +230,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		networkPublisher = issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	}
 
-	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout), config.URL)
+	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout), config.URL, c.config.Verifier.Revocation.MaxAge)
 	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status, c.pkiProvider)
 

@@ -22,10 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -122,7 +123,6 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 		if revoked {
 			return types.ErrRevoked
 		}
-
 	}
 
 	// Check the credentialStatus if the credential is revoked
@@ -162,6 +162,10 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check signature
+	// DeziIDTokenCredential: signature is verified by Dezi id_token inside the credential. Signature verification is skipped here.
+	if credentialToVerify.IsType(credential.DeziIDTokenCredentialTypeURI) {
+		checkSignature = false
+	}
 	if checkSignature {
 		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
 		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}

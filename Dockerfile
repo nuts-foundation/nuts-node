@@ -25,7 +25,10 @@ FROM alpine:3.23.3
 RUN apk update \
   && apk add --no-cache \
              tzdata \
-             curl
+             curl \
+             ca-certificates
+COPY pki/cacerts/* /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \

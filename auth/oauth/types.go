@@ -21,9 +21,10 @@ package oauth
 
 import (
 	"encoding/json"
+	"net/url"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -205,6 +206,8 @@ const (
 	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
+	// JWTBearerGrantType is the grant_type for the jwt-bearer grant type. (RFC7523)
+	JWTBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 )
 
 // response types

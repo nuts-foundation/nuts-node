@@ -1,0 +1,25 @@
+services:
+  nutsnode:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:lspxnuts}"
+    #pull_policy: always
+    ports:
+      - "18081:8081"
+    environment:
+      NUTS_STRICTMODE: false
+      NUTS_URL: "https://nuts.nl"
+      NUTS_AUTH_CONTRACTVALIDATORS: dummy
+      NUTS_HTTP_INTERNAL_ADDRESS: ":8081"
+      NUTS_POLICY_DIRECTORY: /opt/nuts/policies
+    volumes:
+      - ./policies:/opt/nuts/policies:ro
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+
+  nutsadmin:
+    image: "nutsfoundation/nuts-admin:main"
+    environment:
+      - NUTS_NODE_ADDRESS=http://nutsnode:8081
+    ports:
+      - "1405:1305"
+    depends_on:
+      - nutsnode

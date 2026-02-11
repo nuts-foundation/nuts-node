@@ -23,11 +23,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"strings"
 )
 
 const (
@@ -108,6 +109,7 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	validatedChains, err := validationCert.Verify(x509.VerifyOptions{
 		Intermediates: core.NewCertPool(trustStore.IntermediateCAs),
 		Roots:         core.NewCertPool(trustStore.RootCAs),
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("did:509 certificate chain validation failed: %w", err)

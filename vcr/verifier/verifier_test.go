@@ -23,8 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,6 +30,9 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -154,7 +155,7 @@ func TestVerifier_Verify(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
-		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com")
+		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com", 15*time.Minute)
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, _ string) (*vc.VerifiableCredential, error) {
 			bs, err := json.Marshal(unsignedCredential)
@@ -305,7 +306,7 @@ func TestVerifier_Verify(t *testing.T) {
 		assert.EqualError(t, err, "verifiable credential must list at most 2 types")
 	})
 
-	t.Run("verify x509", func(t *testing.T) {
+	t.Run("X509Credential", func(t *testing.T) {
 		ura := "312312312"
 		certs, keys, err := pki.BuildCertChain(nil, ura, nil)
 		chain := pki.CertsToChain(certs)
@@ -379,6 +380,16 @@ func TestVerifier_Verify(t *testing.T) {
 			err = ctx.verifier.Verify(*cred, false, true, &validAt)
 			assert.ErrorIs(t, err, expectedError)
 		})
+	})
+	t.Run("DeziIDTokenCredential", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return(nil, ErrNotFound)
+		validAt := time.Date(2023, 12, 7, 7, 20, 27, 0, time.UTC)
+
+		cred := createDeziCredential(t, "did:web:example.com")
+
+		err := ctx.verifier.Verify(*cred, true, true, &validAt)
+		assert.NoError(t, err)
 	})
 }
 
@@ -848,7 +859,7 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	db := orm.NewTestDatabase(t)
-	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, ""), nil).(*verifier)
+	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, "", time.Minute*15), nil).(*verifier)
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,
@@ -857,4 +868,45 @@ func newMockContext(t *testing.T) mockContext {
 		store:       verifierStore,
 		trustConfig: trustConfig,
 	}
+}
+
+// createDeziIDToken creates a signed Dezi id_token according to https://www.dezi.nl/documenten/2024/05/08/koppelvlakspecificatie-dezi-online-koppelvlak-1_-platformleverancier
+func createDeziCredential(t *testing.T, holderDID string) *vc.VerifiableCredential {
+	exp := time.Unix(1701933697, 0)
+	iat := time.Unix(1701933627, 0)
+	idToken, err := credential.CreateTestDeziIDToken(iat, exp)
+	require.NoError(t, err)
+
+	credentialMap := map[string]any{
+		"@context": []any{
+			"https://www.w3.org/2018/credentials/v1",
+		},
+		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
+		"issuer":         holderDID,
+		"id":             holderDID + "#1",
+		"issuanceDate":   iat.Format(time.RFC3339Nano),
+		"expirationDate": exp.Format(time.RFC3339Nano),
+		"credentialSubject": map[string]any{
+			"@type":      "DeziIDTokenSubject",
+			"identifier": "87654321",
+			"name":       "Zorgaanbieder",
+			"employee": map[string]any{
+				"@type":         "HealthcareWorker",
+				"identifier":    "900000009",
+				"initials":      "B.B.",
+				"surnamePrefix": "van der",
+				"surname":       "Jansen",
+				"roles":         []string{"01.041", "30.000", "01.010", "01.011"},
+			},
+		},
+		"proof": map[string]any{
+			"type": "DeziIDJWT",
+			"jwt":  string(idToken),
+		},
+	}
+	data, err := json.Marshal(credentialMap)
+	require.NoError(t, err)
+	cred, err := vc.ParseVerifiableCredential(string(data))
+	require.NoError(t, err)
+	return cred
 }
