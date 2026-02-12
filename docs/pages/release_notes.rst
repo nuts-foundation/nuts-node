@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.1.11)
+****************
+
+Release date: 2026-02-12
+
+- Update Docker alpine base image to 3.23.3
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.10...v6.1.11
+
+****************
 Peanut (v6.1.10)
 ****************
 
