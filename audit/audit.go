@@ -23,9 +23,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"strings"
 	"sync"
+
+	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -60,6 +62,15 @@ const auditLogLevel = "audit"
 // auditLoggerInstance is the logger for auditing. Do not use directly, call auditLogger() instead.
 var auditLoggerInstance *logrus.Logger
 var initAuditLoggerOnce = &sync.Once{}
+
+func init() {
+	// Register callback so tracing can add hooks to the audit logger.
+	// This is needed because the audit logger is a separate logrus instance,
+	// and we can't import audit from tracing due to circular dependencies.
+	tracing.RegisterAuditLogHook(func(hook logrus.Hook) {
+		auditLogger().AddHook(hook)
+	})
+}
 
 // auditLogger returns the initialized logger instance intended for audit logging.
 func auditLogger() *logrus.Logger {
@@ -180,7 +191,7 @@ func Log(ctx context.Context, logger *logrus.Entry, eventName string) *logrus.En
 		panic("audit: eventName is empty")
 	}
 
-	return auditLogger().WithFields(logger.Data).
+	return auditLogger().WithContext(ctx).WithFields(logger.Data).
 		WithField("actor", info.Actor).
 		WithField("operation", info.Operation).
 		WithField("event", eventName)

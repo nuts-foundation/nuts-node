@@ -23,14 +23,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -91,6 +92,43 @@ type issuer struct {
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
 	statusList       revocation.StatusList2021Issuer
+}
+
+func (i issuer) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
+	// did:nuts; use store.GetRevocation()
+	// otherwise, use statusList
+	credentialDIDURL, err := did.ParseDIDURL(credentialID.String())
+	if err != nil {
+		return nil, err
+	}
+	if credentialDIDURL.Method == didnuts.MethodName {
+		revocations, err := i.store.GetRevocation(credentialID)
+		if err != nil {
+			return nil, err
+		}
+		if len(revocations) == 0 {
+			return nil, nil
+		}
+		return &revocations[0], nil
+	}
+	// other DID method; use statusList
+	cred, err := i.store.GetCredential(credentialID)
+	if err != nil {
+		return nil, err
+	}
+	rev, err := i.statusList.GetRevocation(credentialID)
+	if err != nil {
+		return nil, err
+	}
+	if rev == nil {
+		return nil, nil
+	}
+	return &credential.Revocation{
+		Issuer:  cred.Issuer,
+		Subject: credentialID,
+		Reason:  rev.Purpose,
+		Date:    rev.RevokedAt,
+	}, nil
 }
 
 // Issue creates a new credential, signs, stores it.
@@ -411,17 +449,11 @@ func (i issuer) buildRevocation(ctx context.Context, credentialID ssi.URI) (*cre
 // isRevoked returns false if no credential.Revocation can be found, all other cases default to true.
 // Only applies to did:nuts revocations.
 func (i issuer) isRevoked(credentialID ssi.URI) (bool, error) {
-	_, err := i.store.GetRevocation(credentialID)
-	switch err {
-	case nil: // revocation found
-		return true, nil
-	case types.ErrMultipleFound:
-		return true, nil
-	case types.ErrNotFound:
-		return false, nil
-	default:
+	revocations, err := i.store.GetRevocation(credentialID)
+	if err != nil {
 		return true, err
 	}
+	return len(revocations) > 0, nil
 }
 
 func (i issuer) SearchCredential(credentialType ssi.URI, issuer did.DID, subject *ssi.URI) ([]vc.VerifiableCredential, error) {
@@ -486,7 +518,7 @@ func (c combinedStore) StoreCredential(vc vc.VerifiableCredential) error {
 	return c.otherDIDsStore.StoreCredential(vc)
 }
 
-func (c combinedStore) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (c combinedStore) GetRevocation(id ssi.URI) ([]credential.Revocation, error) {
 	if strings.HasPrefix(id.String(), "did:nuts:") {
 		return c.didNutsStore.GetRevocation(id)
 	}

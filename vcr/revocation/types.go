@@ -65,6 +65,14 @@ const (
 	statusPurposeSuspension = "suspension" // currently not supported
 )
 
+// Revocation contains information about a revoked credential.
+type Revocation struct {
+	// Purpose is the reason for the revocation (e.g., "revocation", "suspension")
+	Purpose string
+	// RevokedAt is the time when the credential was revoked (Unix timestamp)
+	RevokedAt time.Time
+}
+
 // StatusList2021Issuer is the issuer side of StatusList2021
 type StatusList2021Issuer interface {
 	// Credential provides a valid StatusList2021Credential with subject ID derived from the issuer and page.
@@ -78,6 +86,10 @@ type StatusList2021Issuer interface {
 	// The credentialID allows reverse search of revocations, its issuer is NOT verified against the entry issuer or VC.
 	// Returns types.ErrRevoked if already revoked, or types.ErrNotFound when the entry.StatusListCredential is unknown.
 	Revoke(ctx context.Context, credentialID ssi.URI, entry StatusList2021Entry) error
+	// GetRevocation checks if the credential, issued locally, was revoked.
+	// Returns the revocation information if the credential is revoked, or nil if not revoked.
+	// Returns an error if the database query fails.
+	GetRevocation(credentialID ssi.URI) (*Revocation, error)
 }
 
 // StatusList2021Verifier is the verifier side of StatusList2021

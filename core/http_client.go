@@ -22,10 +22,16 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+
+	"github.com/sirupsen/logrus"
 )
+
+// TracingHTTPTransport wraps an http.RoundTripper with OpenTelemetry tracing instrumentation.
+// It is set by the tracing package when tracing is enabled, and nil when disabled.
+// This callback pattern avoids circular imports between core and tracing packages.
+var TracingHTTPTransport func(http.RoundTripper) http.RoundTripper
 
 // HttpResponseBodyLogClipAt is the maximum length of a response body to log.
 // If the response body is longer than this, it will be truncated.
@@ -98,8 +104,14 @@ func (w httpRequestDoerAdapter) Do(req *http.Request) (*http.Response, error) {
 // If the given authorization token builder is non-nil, it calls it and passes the resulting token as bearer token with requests.
 func CreateHTTPInternalClient(cfg ClientConfig, generator AuthorizationTokenGenerator) (HTTPRequestDoer, error) {
 	var result *httpRequestDoerAdapter
-	client := &http.Client{}
-	client.Timeout = cfg.Timeout
+	var transport http.RoundTripper = http.DefaultTransport
+	if TracingHTTPTransport != nil {
+		transport = TracingHTTPTransport(transport)
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   cfg.Timeout,
+	}
 
 	result = &httpRequestDoerAdapter{
 		fn: client.Do,

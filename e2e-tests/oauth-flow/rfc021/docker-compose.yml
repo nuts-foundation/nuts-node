@@ -1,10 +1,21 @@
 services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.76.0
+    ports:
+      - "16686:16686"  # Jaeger API (used for trace verification)
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686"]
+      interval: 1s
   nodeA-backend:
     image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
     ports:
       - "18081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_TRACING_SERVICENAME: nodeA
+      OTEL_BSP_SCHEDULE_DELAY: "1000"  # Flush traces every 1s for faster e2e test verification
+    depends_on:
+      - jaeger
     volumes:
       - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeA-backend-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
@@ -33,6 +44,10 @@ services:
       - "28081:8081"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_TRACING_SERVICENAME: nodeB
+      OTEL_BSP_SCHEDULE_DELAY: "1000"  # Flush traces every 1s for faster e2e test verification
+    depends_on:
+      - jaeger
     volumes:
       - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"

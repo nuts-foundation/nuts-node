@@ -23,12 +23,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -518,7 +519,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 	t.Run("ok - without subject, 1 result", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
-		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(nil, verifier.ErrNotFound)
+		testContext.mockIssuer.EXPECT().GetRevocation(vcID).Return(nil, types.ErrNotFound)
 		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
@@ -535,7 +536,7 @@ func TestWrapper_SearchIssuedVCs(t *testing.T) {
 		revocation := &Revocation{Reason: "because of reasons"}
 		testContext := newMockContext(t)
 		testContext.mockIssuer.EXPECT().SearchCredential(testCredential, *issuerDID, nil).Return([]VerifiableCredential{foundVC}, nil)
-		testContext.mockVerifier.EXPECT().GetRevocation(vcID).Return(revocation, nil)
+		testContext.mockIssuer.EXPECT().GetRevocation(vcID).Return(revocation, nil)
 		expectedResponse := SearchIssuedVCs200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: foundVC, Revocation: revocation}}})
 		params := SearchIssuedVCsParams{
 			CredentialType: "TestCredential",
