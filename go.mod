@@ -194,7 +194,7 @@ require (
 	gorm.io/gorm v1.31.1
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.44.3
+	modernc.org/sqlite v1.45.0
 	rsc.io/qr v0.2.0 // indirect
 )
 
