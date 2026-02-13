@@ -143,7 +143,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
-		options := PresentationOptions{Format: JWTPresentationFormat}
+		options := PresentationOptions{Format: JWTPresentationFormat, ProofOptions: proof.ProofOptions{Created: time.Now()}}
 		t.Run("ok - one VC", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
