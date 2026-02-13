@@ -21,13 +21,14 @@ package v2
 import (
 	"encoding/json"
 	"errors"
+	"testing"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -115,7 +116,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		// Not an organization VC, but doesn't matter
 		actualVC := test.ValidNutsAuthorizationCredential(t)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
-		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(actualVC).Return(nil, nil)
 		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
@@ -153,7 +154,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		// Not an organization VC, but doesn't matter
 		actualVC := test.ValidNutsAuthorizationCredential(t)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
-		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(actualVC).Return(nil, nil)
 		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
@@ -189,7 +190,7 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		// Not an organization VC, but doesn't matter
 		actualVC := test.ValidNutsAuthorizationCredential(t)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
-		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, nil)
+		ctx.mockVerifier.EXPECT().GetRevocation(actualVC).Return(nil, nil)
 		expectedResponse := SearchVCs200JSONResponse(SearchVCResults{[]SearchVCResult{{VerifiableCredential: actualVC}}})
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
@@ -312,12 +313,12 @@ func TestWrapper_SearchVCs(t *testing.T) {
 		// Not an organization VC, but doesn't matter
 		actualVC := test.ValidNutsAuthorizationCredential(t)
 		ctx.vcr.EXPECT().Search(ctx.requestCtx, searchTerms, false, gomock.Any()).Return([]vc.VerifiableCredential{actualVC}, nil)
-		ctx.mockVerifier.EXPECT().GetRevocation(*actualVC.ID).Return(nil, errors.New("failure"))
+		ctx.mockVerifier.EXPECT().GetRevocation(gomock.Any()).Return(nil, errors.New("failure"))
 
 		response, err := ctx.client.SearchVCs(ctx.requestCtx, SearchVCsRequestObject{Body: &request})
 
 		assert.Empty(t, response)
-		assert.EqualError(t, err, "failure")
+		assert.EqualError(t, err, "failed to get revocation for credential did:nuts:GvkzxsezHvEc8nGhgz6Xo3jbqkHwswLmWw3CYtCm7hAW#38E90E8C-F7E5-4333-B63A-F9DD155A0272: failure")
 	})
 }
 

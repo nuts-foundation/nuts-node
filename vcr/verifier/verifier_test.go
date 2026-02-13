@@ -23,8 +23,6 @@ import (
 	"crypto"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/test/pki"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,6 +30,10 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/test/pki"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -152,7 +154,7 @@ func TestVerifier_Verify(t *testing.T) {
 		// mock context
 		http.DefaultClient = ts.Client() // newMockContext sets credentialStatus.client to http.DefaultClient
 		ctx := newMockContext(t)
-		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{{}}, ErrNotFound).AnyTimes()
+		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return([]*credential.Revocation{}, ErrNotFound).AnyTimes()
 		db := storage.NewTestStorageEngine(t).GetSQLDatabase()
 		ctx.verifier.credentialStatus = revocation.NewStatusList2021(db, ts.Client(), "https://example.com")
 		ctx.verifier.credentialStatus.(*revocation.StatusList2021).VerifySignature = func(_ vc.VerifiableCredential, _ *time.Time) error { return nil } // don't check signatures on 'downloaded' StatusList2021Credentials
@@ -327,18 +329,6 @@ func TestVerifier_Verify(t *testing.T) {
 			validAt := time.Now()
 			err = ctx.verifier.Verify(*cred, false, true, &validAt)
 			assert.NoError(t, err)
-		})
-		t.Run("ok revoked", func(t *testing.T) {
-			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
-			assert.NoError(t, err)
-			ctx := newMockContext(t)
-			ctx.store.EXPECT().GetRevocations(*cred.ID)
-			for _, vcType := range cred.Type {
-				_ = ctx.trustConfig.AddTrust(vcType, cred.Issuer)
-			}
-			validAt := time.Now()
-			err = ctx.verifier.Verify(*cred, false, true, &validAt)
-			assert.EqualError(t, err, "credential is revoked")
 		})
 		t.Run("untrusted", func(t *testing.T) {
 			cred, err := buildX509Credential(chain, signingCert, rootCert, signingKey, ura)
@@ -798,30 +788,46 @@ func Test_verifier_IsRevoked(t *testing.T) {
 }
 
 func TestVerifier_GetRevocation(t *testing.T) {
-	rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
-	revocation := credential.Revocation{}
-	assert.NoError(t, json.Unmarshal(rawRevocation, &revocation))
+	cred := vc.VerifiableCredential{
+		Issuer: ssi.MustParseURI("did:web:example.com"),
+		ID:     to.Ptr(ssi.MustParseURI("http://example.com/credential/123")),
+	}
 
-	t.Run("it returns nil, ErrNotFound if no revocation is found", func(t *testing.T) {
-		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, ErrNotFound)
-		result, err := sut.verifier.GetRevocation(revocation.Subject)
-		assert.Equal(t, ErrNotFound, err)
-		assert.Nil(t, result)
+	t.Run("did:nuts", func(t *testing.T) {
+		rawRevocation, _ := os.ReadFile("../test/ld-revocation.json")
+		expected := credential.Revocation{}
+		assert.NoError(t, json.Unmarshal(rawRevocation, &expected))
+		t.Run("nothing if no revocation is found", func(t *testing.T) {
+			sut := newMockContext(t)
+			sut.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			result, err := sut.verifier.GetRevocation(cred)
+			assert.NoError(t, err)
+			assert.Nil(t, result)
+		})
+		t.Run("it returns the revocation if found", func(t *testing.T) {
+			sut := newMockContext(t)
+			sut.store.EXPECT().GetRevocations(*cred.ID).Return([]*credential.Revocation{&expected}, nil)
+			result, err := sut.verifier.GetRevocation(cred)
+			assert.NoError(t, err)
+			assert.Equal(t, expected, *result)
+		})
+		t.Run("it returns the error if the store returns an error", func(t *testing.T) {
+			sut := newMockContext(t)
+			sut.store.EXPECT().GetRevocations(*cred.ID).Return(nil, errors.New("foo"))
+			result, err := sut.verifier.GetRevocation(cred)
+			assert.EqualError(t, err, "foo")
+			assert.Nil(t, result)
+		})
 	})
-	t.Run("it returns the revocation if found", func(t *testing.T) {
-		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocations(revocation.Subject).Return([]*credential.Revocation{&revocation}, nil)
-		result, err := sut.verifier.GetRevocation(revocation.Subject)
-		assert.NoError(t, err)
-		assert.Equal(t, revocation, *result)
-	})
-	t.Run("it returns the error if the store returns an error", func(t *testing.T) {
-		sut := newMockContext(t)
-		sut.store.EXPECT().GetRevocations(revocation.Subject).Return(nil, errors.New("foo"))
-		result, err := sut.verifier.GetRevocation(revocation.Subject)
-		assert.EqualError(t, err, "foo")
-		assert.Nil(t, result)
+	t.Run("StatusList2021", func(t *testing.T) {
+		t.Run("not revoked", func(t *testing.T) {
+			sut := newMockContext(t)
+			sut.store.EXPECT().GetRevocations(*cred.ID).Return(nil, ErrNotFound)
+			actual, err := sut.verifier.GetRevocation(cred)
+			assert.NoError(t, err)
+			assert.Nil(t, actual)
+		})
+		// revoked test is very hard, and already tested as part of Verify()
 	})
 }
 
@@ -848,7 +854,9 @@ func newMockContext(t *testing.T) mockContext {
 	verifierStore := NewMockStore(ctrl)
 	trustConfig := trust.NewConfig(path.Join(io.TestDirectory(t), "trust.yaml"))
 	db := orm.NewTestDatabase(t)
+
 	verifier := NewVerifier(verifierStore, didResolver, keyResolver, jsonldManager, trustConfig, revocation.NewStatusList2021(db, nil, ""), nil).(*verifier)
+
 	return mockContext{
 		ctrl:        ctrl,
 		verifier:    verifier,

@@ -20,9 +20,10 @@ package verifier
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
 	"io"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -40,9 +41,9 @@ type Verifier interface {
 	VerifySignature(credentialToVerify vc.VerifiableCredential, at *time.Time) error
 	// IsRevoked checks if the credential is revoked
 	IsRevoked(credentialID ssi.URI) (bool, error)
-	// GetRevocation returns the first revocation by credential ID
-	// Returns an ErrNotFound when the revocation is not in the store
-	GetRevocation(id ssi.URI) (*credential.Revocation, error)
+	// GetRevocation returns the first revocation for the given credential.
+	// If the credential is not revoked, it returns no revocation and no error.
+	GetRevocation(cred vc.VerifiableCredential) (*credential.Revocation, error)
 	// RegisterRevocation stores the revocation in the store
 	// before storing the revocation gets validated
 	RegisterRevocation(revocation credential.Revocation) error

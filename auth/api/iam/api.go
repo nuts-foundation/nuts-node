@@ -973,7 +973,10 @@ func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
 		return err
 	}
 	if !exists {
-		return didsubject.ErrSubjectNotFound
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "subject not found",
+		}
 	}
 	return nil
 }

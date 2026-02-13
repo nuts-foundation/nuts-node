@@ -21,6 +21,9 @@ package holder
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -31,8 +34,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -227,6 +228,52 @@ func Test_sqlWallet_List(t *testing.T) {
 	})
 }
 
+func Test_sqlWallet_SearchCredential(t *testing.T) {
+	ctx := context.Background()
+	storageEngine := storage.NewTestStorageEngine(t)
+	t.Run("empty", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+
+		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.NotNil(t, list)
+		assert.Empty(t, list)
+	})
+	t.Run("returns all credentials including expired/revoked", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		// SearchCredential should not filter by validity, so we pass a testVerifier that would filter
+		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrCredentialNotValidAtTime}, nil, storageEngine)
+		expected1 := createCredential(vdr.TestMethodDIDA.String())
+		expected2 := createCredential(vdr.TestMethodDIDA.String())
+		err := sut.Put(ctx, expected1, expected2)
+		require.NoError(t, err)
+
+		// SearchCredential should return all credentials, even though they would be filtered by List
+		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+
+		// Compare with List which should filter them out
+		filteredList, err := sut.List(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, filteredList, 0)
+	})
+	t.Run("returns credentials from specified holder only", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		credA := createCredential(vdr.TestMethodDIDA.String())
+		credB := createCredential(vdr.TestMethodDIDB.String())
+		err := sut.Put(ctx, credA, credB)
+		require.NoError(t, err)
+
+		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, credA.ID.String(), list[0].ID.String())
+	})
+}
+
 func Test_sqlWallet_Diagnostics(t *testing.T) {
 	storageEngine := storage.NewTestStorageEngine(t)
 	t.Run("empty wallet", func(t *testing.T) {
@@ -395,7 +442,7 @@ func (t testVerifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	panic("implement me")
 }
 
-func (t testVerifier) GetRevocation(id ssi.URI) (*credential.Revocation, error) {
+func (t testVerifier) GetRevocation(cred vc.VerifiableCredential) (*credential.Revocation, error) {
 	panic("implement me")
 }
 
