@@ -102,6 +102,7 @@ func (v Signer) StartSigningSession(contract contract.Contract, _ map[string]int
 	}
 
 	// Start an IRMA session
+	// The empty string for requestor parameter is used because the nuts-node acts as a single requestor
 	sessionPointer, token, _, err := v.sessionHandler.StartSession(signatureRequest, func(result *server.SessionResult) {
 		log.Logger().Debug("Session done")
 		log.Logger().Trace(server.ToJson(result))
@@ -216,6 +217,7 @@ func printQrCode(qrcode string) {
 // signingSessionHandler is an abstraction for the Irma Server, mainly for enabling better testing
 type signingSessionHandler interface {
 	GetSessionResult(token irmago.RequestorToken) (*server.SessionResult, error)
+	// StartSession starts an IRMA session. The requestor parameter identifies the party requesting the session.
 	StartSession(request interface{}, handler server.SessionHandler, requestor string) (*irmago.Qr, irmago.RequestorToken, *irmago.FrontendSessionRequest, error)
 	HandlerFunc() http.HandlerFunc
 }
