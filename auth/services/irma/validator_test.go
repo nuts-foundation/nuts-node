@@ -48,7 +48,7 @@ func (m *mockIrmaClient) GetSessionResult(token irma.RequestorToken) (*irmaserve
 	return m.sessionResult, nil
 }
 
-func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
+func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler, requestor string) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
 	if m.err != nil {
 		return nil, "", nil, m.err
 	}
