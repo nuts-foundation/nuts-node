@@ -22,13 +22,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
-	"strings"
 )
 
 // ParsePresentationSubmission validates the given JSON and parses it into a PresentationSubmission.
@@ -133,11 +134,15 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	}
 
 	// the verifiableCredential property in Verifiable Presentations can be a single VC or an array of VCs when represented in JSON.
-	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we might need to fix the mapping paths.
-
-	// todo the check below actually depends on the format of the credential and not the format of the VP
+	// go-did always marshals a single VC as a single VC for JSON-LD VPs. So we need to fix the mapping paths.
 	if len(signInstruction.Mappings) == 1 {
-		signInstruction.Mappings[0].Path = "$.verifiableCredential"
+		if format == vc.JWTPresentationProofFormat {
+			// JWT VP always has an array of VCs
+			signInstruction.Mappings[0].Path = "$.verifiableCredential[0]"
+		} else {
+			// JSON-LD VP with single VC has single VC in verifiableCredential
+			signInstruction.Mappings[0].Path = "$.verifiableCredential"
+		}
 	}
 
 	// Just 1 VP, no nesting needed

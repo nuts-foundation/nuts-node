@@ -23,9 +23,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -37,8 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
-	"strings"
-	"time"
 )
 
 type presenter struct {
@@ -123,43 +122,22 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
 func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
-	headers := map[string]interface{}{
-		jws.TypeKey: "JWT",
-	}
-	id := did.DIDURL{DID: subjectDID}
-	id.Fragment = strings.ToLower(uuid.NewString())
-	claims := map[string]interface{}{
-		jwt.SubjectKey: subjectDID.String(),
-		jwt.JwtIDKey:   id.String(),
-		"vp": vc.VerifiablePresentation{
-			Context:              append([]ssi.URI{VerifiableCredentialLDContextV1}, options.AdditionalContexts...),
-			Type:                 append([]ssi.URI{VerifiablePresentationLDType}, options.AdditionalTypes...),
-			Holder:               options.Holder,
-			VerifiableCredential: credentials,
-		},
-	}
-	if options.ProofOptions.Nonce != nil {
-		claims["nonce"] = *options.ProofOptions.Nonce
-	}
-	if options.ProofOptions.Domain != nil {
-		claims[jwt.AudienceKey] = *options.ProofOptions.Domain
-	}
-	if options.ProofOptions.Created.IsZero() {
-		claims[jwt.NotBeforeKey] = time.Now().Unix()
-	} else {
-		claims[jwt.NotBeforeKey] = int(options.ProofOptions.Created.Unix())
-	}
+	exp := options.ProofOptions.Created.Add(1 * time.Hour)
 	if options.ProofOptions.Expires != nil {
-		claims[jwt.ExpirationKey] = int(options.ProofOptions.Expires.Unix())
+		exp = *options.ProofOptions.Expires
 	}
-	for claimName, value := range options.ProofOptions.AdditionalProperties {
-		claims[claimName] = value
-	}
-	token, err := p.signer.SignJWT(ctx, claims, headers, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sign JWT presentation: %w", err)
-	}
-	return vc.ParseVerifiablePresentation(token)
+	return vc.CreateJWTVerifiablePresentation(ctx, subjectDID.URI(), credentials, vc.PresentationOptions{
+		AdditionalContexts:        options.AdditionalContexts,
+		AdditionalTypes:           options.AdditionalTypes,
+		AdditionalProofProperties: options.ProofOptions.AdditionalProperties,
+		Holder:                    options.Holder,
+		Nonce:                     options.ProofOptions.Nonce,
+		Audience:                  options.ProofOptions.Domain,
+		IssuedAt:                  &options.ProofOptions.Created,
+		ExpiresAt:                 exp,
+	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
+		return p.signer.SignJWT(ctx, claims, headers, keyID)
+	})
 }
 
 func (p presenter) buildJSONLDPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
