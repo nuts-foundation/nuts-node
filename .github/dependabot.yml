@@ -20,9 +20,6 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    ignore:
-      - dependency-name: "golang"
-        update-types: ["version-update:semver-prerelease"]
 
   # Python (PRs disabled)
   - package-ecosystem: "pip"
