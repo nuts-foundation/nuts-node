@@ -22,10 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/revocation"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -114,30 +115,15 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check revocation status
-	if credentialToVerify.ID != nil {
-		revoked, err := v.IsRevoked(*credentialToVerify.ID)
-		if err != nil {
-			return err
-		}
-		if revoked {
-			return types.ErrRevoked
-		}
-
-	}
-
-	// Check the credentialStatus if the credential is revoked
-	err := v.credentialStatus.Verify(credentialToVerify)
+	rev, err := v.GetRevocation(credentialToVerify)
 	if err != nil {
 		// soft fail, only return an error when revocation is confirmed and log everything else
-		if errors.Is(err, types.ErrRevoked) {
-			return err
-		} else {
-			// TODO: what log level
-			bs, _ := json.Marshal(credentialToVerify)
-			log.Logger().WithError(err).WithField("credential", string(bs)).Info("CredentialStatus verification failed")
-		}
+		bs, _ := json.Marshal(credentialToVerify)
+		log.Logger().WithError(err).WithField("credential", string(bs)).Info("credential revocation verification failed")
 	}
-
+	if rev != nil {
+		return types.ErrRevoked
+	}
 	// Check trust status
 	if !allowUntrusted {
 		for _, t := range credentialToVerify.Type {
@@ -195,14 +181,33 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	return true, nil
 }
 
-func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
-	revocation, err := v.store.GetRevocations(credentialID)
-	if err != nil {
+func (v *verifier) GetRevocation(cred vc.VerifiableCredential) (*credential.Revocation, error) {
+	if cred.ID != nil {
+		var rev []*credential.Revocation
+		rev, err := v.store.GetRevocations(*cred.ID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			// revocation check error
+			return nil, err
+		}
+		if len(rev) > 0 {
+			// revoked
+			return rev[0], nil
+		}
+	}
+	// Check the credentialStatus if the credential is revoked
+	err := v.credentialStatus.Verify(cred)
+	if errors.Is(err, types.ErrRevoked) {
+		// revoked
+		return &credential.Revocation{
+			Issuer:  cred.Issuer,
+			Subject: *cred.ID,
+		}, nil
+	} else if err != nil {
+		// revocation check error
 		return nil, err
 	}
-
-	// GetRevocations returns ErrNotFound for len == 0
-	return revocation[0], nil
+	// no revocation found
+	return nil, nil
 }
 
 func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {

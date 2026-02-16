@@ -20,9 +20,6 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    ignore:
-      - dependency-name: "golang"
-        versions: ["*.*rc*"]
 
   # Python (PRs disabled)
   - package-ecosystem: "pip"
