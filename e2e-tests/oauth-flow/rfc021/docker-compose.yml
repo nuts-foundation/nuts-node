@@ -1,6 +1,6 @@
 services:
   jaeger:
-    image: jaegertracing/all-in-one:1.76.0
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.15.0
     ports:
       - "16686:16686"  # Jaeger API (used for trace verification)
     healthcheck:
