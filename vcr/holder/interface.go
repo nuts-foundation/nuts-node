@@ -20,6 +20,7 @@ package holder
 
 import (
 	"context"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -55,6 +56,12 @@ type Wallet interface {
 	// List returns all credentials in the wallet for the given holder.
 	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
+
+	// SearchCredential returns all credentials in the wallet for the given holder.
+	// Unlike List, which filters out expired and revoked credentials, SearchCredential returns all credentials
+	// regardless of their validity status (signature, expired/revoked).
+	// This can be used to find credentials that can be removed, e.g. because they are expired or revoked.
+	SearchCredential(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
 	// Remove removes the given credential from the wallet.
 	// If the credential is not in the wallet, it returns ErrNotFound.

@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"gorm.io/gorm/clause"
 )
 
@@ -92,7 +93,7 @@ func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) err
 			return err
 		}
 		if revoked {
-			return errRevoked
+			return types.ErrRevoked
 		}
 	}
 	return nil
