@@ -20,6 +20,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -71,6 +72,7 @@ type engine struct {
 	sqlDB              *gorm.DB
 	config             Config
 	sqlMigrationLogger goose.Logger
+	rdsIAMAuth         *rdsIAMAuthenticator
 }
 
 func (e *engine) Config() interface{} {
@@ -117,6 +119,11 @@ func (e *engine) CheckHealth() map[string]core.Health {
 }
 
 func (e *engine) Start() error {
+	// Start background token refresh for RDS IAM if enabled
+	if e.rdsIAMAuth != nil {
+		go e.refreshRDSIAMTokenPeriodically()
+		log.Logger().Debug("Started RDS IAM token refresh background task")
+	}
 	return nil
 }
 
@@ -248,19 +255,61 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		connectionString = sqliteConnectionString(e.datadir)
 	}
 
+	// Handle RDS IAM authentication if enabled
+	var err error
+	if e.config.SQL.RDSIAM.Enabled {
+		var authenticator *rdsIAMAuthenticator
+		connectionString, authenticator, err = modifyConnectionStringForRDSIAM(context.Background(), connectionString, e.config.SQL.RDSIAM)
+		if err != nil {
+			return fmt.Errorf("failed to configure RDS IAM authentication: %w", err)
+		}
+		e.rdsIAMAuth = authenticator
+		log.Logger().Info("AWS RDS IAM authentication enabled for SQL database")
+		log.Logger().Debugf("RDS IAM token length: %d characters", len(authenticator.currentToken))
+		log.Logger().Debugf("RDS IAM endpoint: %s", authenticator.endpoint)
+	}
+
 	// Find right SQL adapter for ORM and migrations
 	dbType := strings.Split(connectionString, ":")[0]
-	if dbType == "sqlite" {
+
+	switch dbType {
+	case "sqlite":
 		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
-	} else if dbType == "mysql" || dbType == "azuresql" {
+	case "mysql", "azuresql":
 		// These drivers need their connection string without the driver:// prefix.
 		idx := strings.Index(connectionString, "://")
 		connectionString = connectionString[idx+3:]
 	}
-	db, err := goose.OpenDBWithDriver(dbType, connectionString)
-	if err != nil {
-		return err
+	// For postgres, keep the full URL format (postgres://user:password@host...)
+
+	var db *sql.DB
+	if e.rdsIAMAuth != nil {
+		// For RDS IAM, use a custom connector that refreshes tokens automatically
+		connector, err := createRDSIAMConnector(dbType, connectionString, e.rdsIAMAuth)
+		if err != nil {
+			return fmt.Errorf("failed to create RDS IAM connector: %w", err)
+		}
+		db = sql.OpenDB(connector)
+		log.Logger().Info("Using RDS IAM connector for automatic token refresh")
+	} else {
+		// Normal connection without RDS IAM
+		var err error
+		db, err = goose.OpenDBWithDriver(dbType, connectionString)
+		if err != nil {
+			return err
+		}
 	}
+
+	// For RDS IAM authentication, set connection lifetime to be shorter than token refresh interval
+	// This ensures connections are closed and reopened with fresh tokens
+	if e.rdsIAMAuth != nil {
+		// Set max connection lifetime to 13 minutes (token refreshes every 14 minutes, valid for 15 minutes)
+		// This ensures all connections are closed before the token expires
+		maxLifetime := e.rdsIAMAuth.config.TokenRefreshInterval - time.Minute
+		db.SetConnMaxLifetime(maxLifetime)
+		log.Logger().Infof("RDS IAM: Set database connection max lifetime to %v", maxLifetime)
+	}
+
 	var dialect goose.Dialect
 	gormConfig := &gorm.Config{
 		TranslateError: true,
@@ -452,4 +501,24 @@ func (m logrusInfoLogWriter) Printf(format string, v ...interface{}) {
 
 func (m logrusInfoLogWriter) Fatalf(format string, v ...interface{}) {
 	log.Logger().Errorf(format, v...)
+}
+
+// refreshRDSIAMTokenPeriodically runs in the background and periodically refreshes the RDS IAM token
+func (e *engine) refreshRDSIAMTokenPeriodically() {
+	if e.rdsIAMAuth == nil {
+		return
+	}
+
+	ticker := time.NewTicker(e.rdsIAMAuth.config.TokenRefreshInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		// Refresh the token in the authenticator
+		// The connector will automatically use the fresh token for new connections
+		if err := e.rdsIAMAuth.refreshToken(context.Background()); err != nil {
+			log.Logger().WithError(err).Error("Failed to refresh RDS IAM token")
+		} else {
+			log.Logger().Info("Successfully refreshed RDS IAM token")
+		}
+	}
 }
