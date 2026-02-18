@@ -64,8 +64,7 @@ Edit your Nuts configuration file (e.g., `nuts.yaml`):
 storage:
   sql:
     # No password in the connection string!
-    connection: "postgres://nutsuser@your-db.region.rds.amazonaws.com:5432/nuts"
-    
+    connection: "postgres://nutsuser@your-db.region.rds.amazonaws.com:5432/nuts?sslmode=require"
     rdsiam:
       enabled: true
       region: "us-east-1"
@@ -141,7 +140,7 @@ aws rds describe-db-instances \
 ```yaml
 storage:
   sql:
-    connection: "postgres://nutsuser@mydb.us-east-1.rds.amazonaws.com:5432/nuts"
+    connection: "postgres://nutsuser@mydb.us-east-1.rds.amazonaws.com:5432/nuts?sslmode=require"
     rdsiam:
       enabled: true
       region: "us-east-1"
@@ -175,7 +174,7 @@ Use AWS credentials with cross-region access and specify the correct region:
 ```yaml
 storage:
   sql:
-    connection: "postgres://user@db.eu-west-1.rds.amazonaws.com:5432/nuts"
+    connection: "postgres://user@db.eu-west-1.rds.amazonaws.com:5432/nuts?sslmode=require"
     rdsiam:
       enabled: true
       region: "eu-west-1"

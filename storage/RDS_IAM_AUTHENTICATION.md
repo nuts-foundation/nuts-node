@@ -31,7 +31,7 @@ Add the following configuration to your Nuts node configuration file:
 ```yaml
 storage:
   sql:
-    connection: "postgres://iamuser@mydb.123456789012.us-east-1.rds.amazonaws.com:5432/mydatabase?sslmode=verify-full&sslrootcert=/etc/ssl/rds-ca-bundle.pem"
+    connection: "postgres://nutsuser@your-db.region.rds.amazonaws.com:5432/nuts?sslmode=verify-full&sslrootcert=/etc/ssl/rds-ca-bundle.pem"
     rdsiam:
       enabled: true
       region: "us-east-1"
@@ -275,7 +275,7 @@ export AWS_SECRET_ACCESS_KEY="your-secret-key"
 # Nuts node configuration with RDS IAM authentication
 storage:
   sql:
-    connection: "postgres://nutsuser@nuts-db.abcdef123456.us-east-1.rds.amazonaws.com:5432/nuts?sslmode=require"
+    connection: "postgres://nutsuser@your-db.region.rds.amazonaws.com:5432/nuts?sslmode=require"
     rdsiam:
       enabled: true
       region: "us-east-1"
