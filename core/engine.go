@@ -22,10 +22,11 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"os"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 )
 
 // Routable enables connecting a REST API to the echo server. The API wrappers should implement this interface
@@ -95,6 +96,7 @@ func (system *System) Start() error {
 }
 
 // Shutdown shuts down all engines in the system.
+// Engines are shut down in reverse order of registration.
 func (system *System) Shutdown() error {
 	var engines []Runnable
 	system.VisitEngines(func(engine Engine) {
@@ -115,10 +117,10 @@ func (system *System) Shutdown() error {
 }
 
 // Configure configures all engines in the system.
+// Engines are configured in order of registration (tracing engine should be first).
 func (system *System) Configure() error {
 	coreLogger.Debugf("Creating datadir: %s", system.Config.Datadir)
-	var err error
-	if err = os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
+	if err := os.MkdirAll(system.Config.Datadir, os.ModePerm); err != nil {
 		return fmt.Errorf("unable to create datadir (dir=%s): %w", system.Config.Datadir, err)
 	}
 	return system.VisitEnginesE(func(engine Engine) error {
@@ -126,13 +128,12 @@ func (system *System) Configure() error {
 		name := engineName(engine)
 		if m, ok := engine.(Configurable); ok {
 			coreLogger.Debugf("Configuring %s", name)
-			err = m.Configure(*system.Config)
+			if err := m.Configure(*system.Config); err != nil {
+				return fmt.Errorf("unable to configure %s: %w", name, err)
+			}
 			coreLogger.Debugf("Configured %s", name)
 		}
-		if err != nil {
-			err = fmt.Errorf("unable to configure %s: %w", name, err)
-		}
-		return err
+		return nil
 	})
 }
 

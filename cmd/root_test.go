@@ -165,7 +165,7 @@ func Test_CreateSystem(t *testing.T) {
 	system.VisitEngines(func(engine core.Engine) {
 		numEngines++
 	})
-	assert.Equal(t, 17, numEngines)
+	assert.Equal(t, 18, numEngines)
 }
 
 func Test_ClientCommand_ErrorHandlers(t *testing.T) {

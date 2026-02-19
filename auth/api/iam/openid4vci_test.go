@@ -21,10 +21,11 @@ package iam
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -190,6 +191,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		},
 		ClientFlow:               "openid4vci_credential_request",
 		OwnSubject:               &holderSubjectID,
+		OwnDID:                   &holderDID,
 		RedirectURI:              redirectUrl,
 		PKCEParams:               pkceParams,
 		TokenEndpoint:            tokenEndpoint,

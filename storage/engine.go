@@ -34,10 +34,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/sqlite"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlserver"
@@ -324,6 +326,14 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	default:
 		return errors.New("unsupported SQL database")
 	}
+
+	// Add OpenTelemetry tracing to GORM if tracing is enabled
+	if tracing.Enabled() {
+		if err := e.sqlDB.Use(otelgorm.NewPlugin(otelgorm.WithTracerProvider(tracing.GetTracerProvider()))); err != nil {
+			return fmt.Errorf("failed to add GORM tracing plugin: %w", err)
+		}
+	}
+
 	goose.SetVerbose(log.Logger().Level >= logrus.DebugLevel)
 	goose.SetLogger(e.sqlMigrationLogger)
 	if err != nil {
