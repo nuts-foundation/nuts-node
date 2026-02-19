@@ -31,14 +31,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/cert"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	testpki "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
-	"os"
-	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	ssi "github.com/nuts-foundation/go-did"
@@ -111,7 +112,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			}
 			sv := x509VerifierTestSetup(t)
 			err = sv.VerifySignature(*cred, nil)
-			assert.ErrorIs(t, err, expectedError)
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: failing ExtractProtectedHeaders")
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
@@ -160,7 +161,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 			err = sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT signature: could not verify message using any of the signatures or keys")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: could not verify message using any of the signatures or keys")
 		})
 		t.Run("expired token", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet, expires on Tue Oct 03 2023
@@ -174,7 +175,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			}
 			err := sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT signature: \"exp\" not satisfied")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: \"exp\" not satisfied")
 		})
 		t.Run("without kid header, derived from issuer", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet
@@ -203,7 +204,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			}
 			err := sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "unable to validate JWT signature: could not verify message using any of the signatures or keys")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: could not verify message using any of the signatures or keys")
 		})
 	})
 
@@ -257,7 +258,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 		err := sv.VerifySignature(vc2, nil)
 
-		assert.EqualError(t, err, "verification error: missing proof")
+		assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: missing proof")
 	})
 
 	t.Run("error - wrong jws in proof", func(t *testing.T) {

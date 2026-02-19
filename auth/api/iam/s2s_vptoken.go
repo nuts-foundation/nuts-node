@@ -101,7 +101,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidRequest,
-				Description:   "presentation(s) or contained credential(s) are invalid",
+				Description:   verificationErrorDescription(err),
 				InternalError: err,
 			}
 		}

@@ -36,6 +36,9 @@ func DefaultConfig() Config {
 				TokenRefreshInterval: 14 * time.Minute,
 			},
 		},
+		BBolt: BBoltConfig{
+			LockTimeout: time.Second,
+		},
 	}
 }
 
