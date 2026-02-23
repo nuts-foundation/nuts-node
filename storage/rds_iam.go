@@ -129,8 +129,6 @@ func modifyConnectionStringForRDSIAM(ctx context.Context, connectionString strin
 		return "", nil, fmt.Errorf("failed to inject RDS IAM token into connection string: %w", err)
 	}
 
-	log.Logger().Info("AWS RDS IAM authentication enabled for SQL database")
-
 	return modifiedConnectionString, authenticator, nil
 }
 
