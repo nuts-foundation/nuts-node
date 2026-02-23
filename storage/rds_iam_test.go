@@ -231,7 +231,7 @@ func TestModifyConnectionStringForRDSIAM_WithStubbedAWS(t *testing.T) {
 	assert.NotContains(t, modified, "old-password")
 
 	authenticator.lastRefresh = time.Now().Add(-2 * time.Millisecond)
-	next, err := authenticator.GetCurrentConnectionString(context.Background())
+	next, err := authenticator.getCurrentConnectionString(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 2, buildCalls)
 	assert.Contains(t, next, "iam-user:stub-token-2")

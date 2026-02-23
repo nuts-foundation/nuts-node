@@ -134,8 +134,8 @@ func modifyConnectionStringForRDSIAM(ctx context.Context, connectionString strin
 	return modifiedConnectionString, authenticator, nil
 }
 
-// GetCurrentConnectionString returns the connection string with the current (fresh) token
-func (a *rdsIAMAuthenticator) GetCurrentConnectionString(ctx context.Context) (string, error) {
+// getCurrentConnectionString returns the connection string with the current (fresh) token
+func (a *rdsIAMAuthenticator) getCurrentConnectionString(ctx context.Context) (string, error) {
 	// Refresh token if needed
 	if time.Since(a.lastRefresh) > a.config.TokenRefreshInterval {
 		if err := a.refreshToken(ctx); err != nil {
@@ -213,7 +213,7 @@ type rdsIAMConnector struct {
 // Connect implements driver.Connector
 func (c *rdsIAMConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	// Get fresh connection string with current token
-	connStr, err := c.authenticator.GetCurrentConnectionString(ctx)
+	connStr, err := c.authenticator.getCurrentConnectionString(ctx)
 	if err != nil {
 		return nil, err
 	}

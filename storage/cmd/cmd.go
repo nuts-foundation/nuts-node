@@ -19,8 +19,6 @@
 package cmd
 
 import (
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/spf13/pflag"
 )
@@ -57,8 +55,8 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("storage.sql.rdsiam.dbuser", defs.SQL.RDSIAM.DBUser, "Database username for IAM authentication. "+
 		"If not specified, the username from the connection string will be used. "+
 		"The database user must be created with IAM authentication enabled.")
-	flagSet.Duration("storage.sql.rdsiam.tokenrefreshinterval", 14*time.Minute, "Interval at which to refresh the IAM authentication token. "+
-		"RDS tokens are valid for 15 minutes, so the default is 14 minutes to ensure tokens are refreshed before expiry. "+
+	flagSet.Duration("storage.sql.rdsiam.tokenrefreshinterval", defs.SQL.RDSIAM.TokenRefreshInterval, "Interval at which to refresh the IAM authentication token. "+
+		"RDS tokens are valid for 15 minutes, so set this to ensure tokens are refreshed before expiry. "+
 		"Specified as Golang duration (e.g. 10m, 1h).")
 
 	// session
