@@ -21,6 +21,7 @@ package storage
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/v2"
@@ -92,4 +93,9 @@ func TestRDSIAMConfig_EnvironmentVariables(t *testing.T) {
 		assert.Equal(t, "eu-west-1", config.SQL.RDSIAM.Region)
 		assert.Equal(t, "nuts-node", config.SQL.RDSIAM.DBUser)
 	})
+}
+
+func TestDefaultConfig_RDSIAMTokenRefreshInterval(t *testing.T) {
+	config := DefaultConfig()
+	assert.Equal(t, 14*time.Minute, config.SQL.RDSIAM.TokenRefreshInterval)
 }

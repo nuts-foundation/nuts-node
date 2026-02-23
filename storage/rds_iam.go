@@ -27,11 +27,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import postgres driver for sql.Open
 	"github.com/nuts-foundation/nuts-node/storage/log"
 )
+
+var loadAWSConfigForRegion = func(ctx context.Context, region string) (aws.Config, error) {
+	return config.LoadDefaultConfig(ctx, config.WithRegion(region))
+}
+
+var buildRDSAuthToken = func(ctx context.Context, endpoint, region, dbUser string, credentials aws.CredentialsProvider) (string, error) {
+	return auth.BuildAuthToken(ctx, endpoint, region, dbUser, credentials)
+}
 
 // rdsIAMAuthenticator handles AWS RDS IAM authentication
 type rdsIAMAuthenticator struct {
@@ -44,10 +53,6 @@ type rdsIAMAuthenticator struct {
 
 // newRDSIAMAuthenticator creates a new RDS IAM authenticator
 func newRDSIAMAuthenticator(cfg RDSIAMConfig, endpoint, baseConnStr string) *rdsIAMAuthenticator {
-	if cfg.TokenRefreshInterval == 0 {
-		// Default to 14 minutes (tokens are valid for 15 minutes)
-		cfg.TokenRefreshInterval = 14 * time.Minute
-	}
 	return &rdsIAMAuthenticator{
 		config:               cfg,
 		endpoint:             endpoint,
@@ -69,13 +74,13 @@ func (a *rdsIAMAuthenticator) getToken(ctx context.Context) (string, error) {
 // refreshToken generates a new IAM authentication token
 func (a *rdsIAMAuthenticator) refreshToken(ctx context.Context) error {
 	// Load AWS configuration
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(a.config.Region))
+	cfg, err := loadAWSConfigForRegion(ctx, a.config.Region)
 	if err != nil {
 		return fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
 	// Build authentication token
-	authToken, err := auth.BuildAuthToken(ctx, a.endpoint, a.config.Region, a.config.DBUser, cfg.Credentials)
+	authToken, err := buildRDSAuthToken(ctx, a.endpoint, a.config.Region, a.config.DBUser, cfg.Credentials)
 	if err != nil {
 		return fmt.Errorf("failed to build auth token: %w", err)
 	}
@@ -99,9 +104,9 @@ func modifyConnectionStringForRDSIAM(ctx context.Context, connectionString strin
 	var err error
 
 	if strings.HasPrefix(connectionString, "postgres://") {
-		endpoint, modifiedConnectionString, err = parsePostgresConnectionString(connectionString, iamConfig)
+		endpoint, modifiedConnectionString, err = parseConnectionStringForRDSIAM(connectionString, iamConfig)
 	} else if strings.HasPrefix(connectionString, "mysql://") {
-		endpoint, modifiedConnectionString, err = parseMySQLConnectionString(connectionString, iamConfig)
+		endpoint, modifiedConnectionString, err = parseConnectionStringForRDSIAM(connectionString, iamConfig)
 	} else {
 		return "", nil, fmt.Errorf("RDS IAM authentication is only supported for postgres:// and mysql:// connection strings")
 	}
@@ -119,7 +124,10 @@ func modifyConnectionStringForRDSIAM(ctx context.Context, connectionString strin
 	}
 
 	// Inject token into connection string
-	modifiedConnectionString = injectPasswordIntoConnectionString(modifiedConnectionString, authenticator.currentToken)
+	modifiedConnectionString, err = injectPasswordIntoConnectionString(modifiedConnectionString, authenticator.currentToken)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to inject RDS IAM token into connection string: %w", err)
+	}
 
 	log.Logger().Info("AWS RDS IAM authentication enabled for SQL database")
 
@@ -136,76 +144,63 @@ func (a *rdsIAMAuthenticator) GetCurrentConnectionString(ctx context.Context) (s
 	}
 
 	// Inject current token into connection string
-	return injectPasswordIntoConnectionString(a.baseConnectionString, a.currentToken), nil
+	connectionString, err := injectPasswordIntoConnectionString(a.baseConnectionString, a.currentToken)
+	if err != nil {
+		return "", fmt.Errorf("failed to inject RDS IAM token into connection string: %w", err)
+	}
+
+	return connectionString, nil
 }
 
-// parsePostgresConnectionString parses a PostgreSQL connection string and extracts the endpoint
-func parsePostgresConnectionString(connectionString string, iamConfig RDSIAMConfig) (endpoint, modified string, err error) {
-	u, err := url.Parse(connectionString)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse postgres connection string: %w", err)
-	}
-
-	// Extract host:port as endpoint
-	endpoint = u.Host
-
-	// Remove password and set user if configured
+// parseConnectionStringForRDSIAM parses a connection string, extracts the endpoint and normalizes username/password for IAM usage.
+func parseConnectionStringForRDSIAM(connectionString string, iamConfig RDSIAMConfig) (endpoint, modified string, err error) {
+	var username *string
 	if iamConfig.DBUser != "" {
-		u.User = url.User(iamConfig.DBUser)
-	} else {
-		// Keep existing username, just remove password
-		if u.User != nil {
-			u.User = url.User(u.User.Username())
-		}
+		username = &iamConfig.DBUser
 	}
 
-	modified = u.String()
+	modified, endpoint, err = updateConnectionStringCredentials(connectionString, username, nil)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse connection string: %w", err)
+	}
+
 	return endpoint, modified, nil
 }
 
-// parseMySQLConnectionString parses a MySQL connection string and extracts the endpoint
-func parseMySQLConnectionString(connectionString string, iamConfig RDSIAMConfig) (endpoint, modified string, err error) {
-	// MySQL format: mysql://user:password@host:port/database?params
+// updateConnectionStringCredentials parses and updates username/password while preserving URL semantics.
+func updateConnectionStringCredentials(connectionString string, username *string, password *string) (modified, endpoint string, err error) {
 	u, err := url.Parse(connectionString)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to parse mysql connection string: %w", err)
+		return "", "", err
 	}
 
-	// Extract host:port as endpoint
 	endpoint = u.Host
 
-	// Remove password and set user if configured
-	if iamConfig.DBUser != "" {
-		u.User = url.User(iamConfig.DBUser)
-	} else {
-		// Keep existing username, just remove password
-		if u.User != nil {
-			u.User = url.User(u.User.Username())
-		}
+	finalUsername := ""
+	if username != nil {
+		finalUsername = *username
+	} else if u.User != nil {
+		finalUsername = u.User.Username()
 	}
 
-	modified = u.String()
-	return endpoint, modified, nil
+	if password != nil {
+		u.User = url.UserPassword(finalUsername, *password)
+	} else if finalUsername != "" || u.User != nil {
+		u.User = url.User(finalUsername)
+	}
+
+	return u.String(), endpoint, nil
 }
 
 // injectPasswordIntoConnectionString injects the password (token) into a connection string
-func injectPasswordIntoConnectionString(connectionString, password string) string {
-	u, err := url.Parse(connectionString)
+func injectPasswordIntoConnectionString(connectionString, password string) (string, error) {
+	modified, _, err := updateConnectionStringCredentials(connectionString, nil, &password)
 	if err != nil {
 		log.Logger().Errorf("Failed to parse connection string for password injection: %v", err)
-		return connectionString
+		return connectionString, err
 	}
 
-	// RDS IAM tokens contain special characters that are automatically URL-encoded by url.UserPassword
-	// Set password
-	if u.User != nil {
-		username := u.User.Username()
-		u.User = url.UserPassword(username, password)
-	} else {
-		u.User = url.UserPassword("", password)
-	}
-
-	return u.String()
+	return modified, nil
 }
 
 // rdsIAMConnector wraps a driver.Connector and refreshes IAM tokens before opening connections

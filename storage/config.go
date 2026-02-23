@@ -30,7 +30,13 @@ type Config struct {
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		SQL: SQLConfig{
+			RDSIAM: RDSIAMConfig{
+				TokenRefreshInterval: 14 * time.Minute,
+			},
+		},
+	}
 }
 
 // SQLConfig specifies config for the SQL storage engine.

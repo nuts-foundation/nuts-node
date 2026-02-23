@@ -122,7 +122,6 @@ func (e *engine) Start() error {
 	// Start background token refresh for RDS IAM if enabled
 	if e.rdsIAMAuth != nil {
 		go e.refreshRDSIAMTokenPeriodically()
-		log.Logger().Debug("Started RDS IAM token refresh background task")
 	}
 	return nil
 }
@@ -265,8 +264,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		}
 		e.rdsIAMAuth = authenticator
 		log.Logger().Info("AWS RDS IAM authentication enabled for SQL database")
-		log.Logger().Debugf("RDS IAM token length: %d characters", len(authenticator.currentToken))
-		log.Logger().Debugf("RDS IAM endpoint: %s", authenticator.endpoint)
 	}
 
 	// Find right SQL adapter for ORM and migrations
@@ -290,7 +287,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 			return fmt.Errorf("failed to create RDS IAM connector: %w", err)
 		}
 		db = sql.OpenDB(connector)
-		log.Logger().Info("Using RDS IAM connector for automatic token refresh")
 	} else {
 		// Normal connection without RDS IAM
 		var err error
@@ -307,7 +303,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		// This ensures all connections are closed before the token expires
 		maxLifetime := e.rdsIAMAuth.config.TokenRefreshInterval - time.Minute
 		db.SetConnMaxLifetime(maxLifetime)
-		log.Logger().Infof("RDS IAM: Set database connection max lifetime to %v", maxLifetime)
 	}
 
 	var dialect goose.Dialect
@@ -518,7 +513,7 @@ func (e *engine) refreshRDSIAMTokenPeriodically() {
 		if err := e.rdsIAMAuth.refreshToken(context.Background()); err != nil {
 			log.Logger().WithError(err).Error("Failed to refresh RDS IAM token")
 		} else {
-			log.Logger().Info("Successfully refreshed RDS IAM token")
+			log.Logger().Debug("Successfully refreshed RDS IAM token")
 		}
 	}
 }

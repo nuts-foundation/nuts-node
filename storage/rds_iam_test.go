@@ -20,14 +20,16 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestParsePostgresConnectionString(t *testing.T) {
+func TestParseConnectionStringForRDSIAM(t *testing.T) {
 	t.Run("extracts endpoint correctly", func(t *testing.T) {
 		connStr := "postgres://user:password@mydb.123456789012.us-east-1.rds.amazonaws.com:5432/mydb"
 		config := RDSIAMConfig{
@@ -36,7 +38,7 @@ func TestParsePostgresConnectionString(t *testing.T) {
 			DBUser:  "iamuser",
 		}
 
-		endpoint, modified, err := parsePostgresConnectionString(connStr, config)
+		endpoint, modified, err := parseConnectionStringForRDSIAM(connStr, config)
 		require.NoError(t, err)
 		assert.Equal(t, "mydb.123456789012.us-east-1.rds.amazonaws.com:5432", endpoint)
 		assert.Contains(t, modified, "iamuser")
@@ -50,15 +52,13 @@ func TestParsePostgresConnectionString(t *testing.T) {
 			Region:  "us-east-1",
 		}
 
-		endpoint, modified, err := parsePostgresConnectionString(connStr, config)
+		endpoint, modified, err := parseConnectionStringForRDSIAM(connStr, config)
 		require.NoError(t, err)
 		assert.Equal(t, "mydb.amazonaws.com:5432", endpoint)
 		assert.Contains(t, modified, "existinguser")
 		assert.NotContains(t, modified, "password")
 	})
-}
 
-func TestParseMySQLConnectionString(t *testing.T) {
 	t.Run("extracts endpoint correctly", func(t *testing.T) {
 		connStr := "mysql://user:password@mydb.123456789012.us-west-2.rds.amazonaws.com:3306/mydb"
 		config := RDSIAMConfig{
@@ -67,7 +67,7 @@ func TestParseMySQLConnectionString(t *testing.T) {
 			DBUser:  "iamuser",
 		}
 
-		endpoint, modified, err := parseMySQLConnectionString(connStr, config)
+		endpoint, modified, err := parseConnectionStringForRDSIAM(connStr, config)
 		require.NoError(t, err)
 		assert.Equal(t, "mydb.123456789012.us-west-2.rds.amazonaws.com:3306", endpoint)
 		assert.Contains(t, modified, "iamuser")
@@ -80,7 +80,8 @@ func TestInjectPasswordIntoConnectionString(t *testing.T) {
 		connStr := "postgres://user@mydb.amazonaws.com:5432/mydb"
 		token := "generatedtoken123"
 
-		result := injectPasswordIntoConnectionString(connStr, token)
+		result, err := injectPasswordIntoConnectionString(connStr, token)
+		require.NoError(t, err)
 		assert.Contains(t, result, "user:generatedtoken123")
 	})
 
@@ -88,9 +89,18 @@ func TestInjectPasswordIntoConnectionString(t *testing.T) {
 		connStr := "postgres://user:oldpassword@mydb.amazonaws.com:5432/mydb"
 		token := "newtoken456"
 
-		result := injectPasswordIntoConnectionString(connStr, token)
+		result, err := injectPasswordIntoConnectionString(connStr, token)
+		require.NoError(t, err)
 		assert.Contains(t, result, "user:newtoken456")
 		assert.NotContains(t, result, "oldpassword")
+	})
+
+	t.Run("returns error for malformed connection string", func(t *testing.T) {
+		connStr := "%"
+		token := "newtoken456"
+
+		_, err := injectPasswordIntoConnectionString(connStr, token)
+		require.Error(t, err)
 	})
 }
 
@@ -121,11 +131,12 @@ func TestModifyConnectionStringForRDSIAM(t *testing.T) {
 }
 
 func TestNewRDSIAMAuthenticator(t *testing.T) {
-	t.Run("sets default token refresh interval", func(t *testing.T) {
+	t.Run("uses configured token refresh interval", func(t *testing.T) {
 		config := RDSIAMConfig{
-			Enabled: true,
-			Region:  "us-east-1",
-			DBUser:  "testuser",
+			Enabled:              true,
+			Region:               "us-east-1",
+			DBUser:               "testuser",
+			TokenRefreshInterval: 14 * time.Minute,
 		}
 
 		auth := newRDSIAMAuthenticator(config, "localhost:5432", "postgres://testuser@localhost:5432/testdb")
@@ -147,6 +158,23 @@ func TestNewRDSIAMAuthenticator(t *testing.T) {
 
 func TestRDSIAMAuthenticator_GetToken(t *testing.T) {
 	t.Run("refreshes token when needed", func(t *testing.T) {
+		originalLoadAWSConfigForRegion := loadAWSConfigForRegion
+		originalBuildRDSAuthToken := buildRDSAuthToken
+		t.Cleanup(func() {
+			loadAWSConfigForRegion = originalLoadAWSConfigForRegion
+			buildRDSAuthToken = originalBuildRDSAuthToken
+		})
+
+		loadAWSConfigForRegion = func(ctx context.Context, region string) (aws.Config, error) {
+			return aws.Config{}, nil
+		}
+
+		buildCalls := 0
+		buildRDSAuthToken = func(ctx context.Context, endpoint, region, dbUser string, credentials aws.CredentialsProvider) (string, error) {
+			buildCalls++
+			return fmt.Sprintf("token-%d", buildCalls), nil
+		}
+
 		config := RDSIAMConfig{
 			Enabled:              true,
 			Region:               "us-east-1",
@@ -159,16 +187,52 @@ func TestRDSIAMAuthenticator_GetToken(t *testing.T) {
 		auth.lastRefresh = time.Now().Add(-2 * time.Millisecond)
 		auth.currentToken = "oldtoken"
 
-		// Note: This will succeed if AWS credentials are configured, fail otherwise
-		// We're testing that the refresh logic is triggered, not the actual AWS call
-		_, err := auth.getToken(context.Background())
-		// Either succeeds with valid AWS credentials or fails without them - both are acceptable
-		if err != nil {
-			// Expected in test environment without AWS credentials
-			t.Logf("Token refresh failed as expected without AWS credentials: %v", err)
-		} else {
-			// Token refresh succeeded with available AWS credentials
-			t.Logf("Token refresh succeeded with available AWS credentials")
-		}
+		token, err := auth.getToken(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, "token-1", token)
+		assert.Equal(t, 1, buildCalls)
 	})
+}
+
+func TestModifyConnectionStringForRDSIAM_WithStubbedAWS(t *testing.T) {
+	originalLoadAWSConfigForRegion := loadAWSConfigForRegion
+	originalBuildRDSAuthToken := buildRDSAuthToken
+	t.Cleanup(func() {
+		loadAWSConfigForRegion = originalLoadAWSConfigForRegion
+		buildRDSAuthToken = originalBuildRDSAuthToken
+	})
+
+	loadAWSConfigForRegion = func(ctx context.Context, region string) (aws.Config, error) {
+		return aws.Config{}, nil
+	}
+
+	buildCalls := 0
+	buildRDSAuthToken = func(ctx context.Context, endpoint, region, dbUser string, credentials aws.CredentialsProvider) (string, error) {
+		buildCalls++
+		assert.Equal(t, "mydb.example.com:5432", endpoint)
+		assert.Equal(t, "eu-west-1", region)
+		assert.Equal(t, "iam-user", dbUser)
+		return fmt.Sprintf("stub-token-%d", buildCalls), nil
+	}
+
+	connStr := "postgres://legacy:old-password@mydb.example.com:5432/nuts"
+	config := RDSIAMConfig{
+		Enabled:              true,
+		Region:               "eu-west-1",
+		DBUser:               "iam-user",
+		TokenRefreshInterval: 1 * time.Millisecond,
+	}
+
+	modified, authenticator, err := modifyConnectionStringForRDSIAM(context.Background(), connStr, config)
+	require.NoError(t, err)
+	require.NotNil(t, authenticator)
+	assert.Equal(t, 1, buildCalls)
+	assert.Contains(t, modified, "iam-user:stub-token-1")
+	assert.NotContains(t, modified, "old-password")
+
+	authenticator.lastRefresh = time.Now().Add(-2 * time.Millisecond)
+	next, err := authenticator.GetCurrentConnectionString(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 2, buildCalls)
+	assert.Contains(t, next, "iam-user:stub-token-2")
 }
