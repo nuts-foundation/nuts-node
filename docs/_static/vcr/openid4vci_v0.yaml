@@ -204,8 +204,10 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         "400":
           description: >
-            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_proof".
-            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+            Invalid request. Code can be "invalid_credential_request", "unknown_credential_configuration",
+            "unknown_credential_identifier", "invalid_proof", "invalid_nonce", "invalid_encryption_parameters",
+            or "credential_request_denied".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-8.3.1.2
           content:
             application/json:
               schema:
@@ -272,7 +274,7 @@ components:
       required:
         - credential_issuer
         - credential_endpoint
-        - credentials_supported
+        - credential_configurations_supported
       properties:
         credential_issuer:
           type: string
@@ -281,24 +283,28 @@ components:
         credential_endpoint:
           type: string
           example: "https://issuer.example/credential"
-        credentials_supported:
-          type: array
+        credential_configurations_supported:
+          type: object
           description: |
-            A JSON array containing a list of JSON objects, each of them representing metadata about a separate credential type that the Credential Issuer can issue.
-          items:
+            A JSON object containing credential configurations supported by the Credential Issuer.
+            The keys are credential_configuration_ids that can be referenced in credential offers.
+          additionalProperties:
             type: object
-            example:
+          example:
+            NutsAuthorizationCredential_ldp_vc:
               {
                 "format": "ldp_vc",
-                "@context": [
-                  "https://www.w3.org/2018/credentials/v1",
-                  "https://nuts.nl/credentials/v1"
-                ],
-                "type": [
-                  "VerifiableCredential",
-                  "NutsAuthorizationCredential"
-                ],
-                "cryptographic_binding_methods_supported": "did:nuts"
+                "credential_definition": {
+                  "@context": [
+                    "https://www.w3.org/2018/credentials/v1",
+                    "https://nuts.nl/credentials/v1"
+                  ],
+                  "type": [
+                    "VerifiableCredential",
+                    "NutsAuthorizationCredential"
+                  ]
+                },
+                "cryptographic_binding_methods_supported": ["did:nuts"]
               }
 
     OAuth2ClientMetadata:
@@ -370,16 +376,17 @@ components:
     CredentialRequest:
       type: object
       required:
-        - format
+        - credential_configuration_id
+      description: |
+        Per OpenID4VCI v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
+        Note: the v1.0 spec also allows format-based requests and credential_identifier, but this implementation
+        only accepts credential_configuration_id.
       properties:
-        format:
+        credential_configuration_id:
           type: string
           description: |
-            The format of the credential request. This MUST be one of the values specified in the "credentials_supported" array in the Credential Issuer Metadata.
-          example: "ldp_vc"
-        credential_definition:
-          type: object
-          description: JSON-LD object describing the requested credential.
+            References a credential configuration from the issuer's credential_configurations_supported metadata.
+          example: "NutsAuthorizationCredential_ldp_vc"
         proof:
           type: object
           required:
@@ -393,9 +400,9 @@ components:
               type: string
               description: |
                 String with a JWS [RFC7515] as proof of possession.
-                
+
                 The fields of the JWT may look like this:
-                
+
                 {
                   "typ": "openid4vci-proof+jwt",
                   "alg": "ES256",
@@ -408,17 +415,7 @@ components:
                 }
       example:
         {
-          "format": "ldp_vc",
-          "credential_definition": {
-            "@context": [
-              "https://www.w3.org/2018/credentials/v1",
-              "https://nuts.nl/credentials/v1"
-            ],
-            "type": [
-              "VerifiableCredential",
-              "NutsAuthorizationCredential"
-            ],
-          },
+          "credential_configuration_id": "NutsAuthorizationCredential_ldp_vc",
           "proof": {
             "proof_type": "jwt",
             "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
@@ -443,12 +440,7 @@ components:
           example: 900
     CredentialResponse:
       type: object
-      required:
-        - format
       properties:
-        format:
-          type: string
-          example: "ldp_vc"
         credential:
           type: object
         c_nonce:
@@ -456,7 +448,6 @@ components:
           example: "fGFF7UkhLa"
       example:
         {
-          "format": "ldp_vc",
           "credential": {
             "@context": [
               "https://www.w3.org/2018/credentials/v1",
@@ -488,33 +479,24 @@ components:
       type: object
       required:
         - credential_issuer
-        - credentials
-        - grants # TODO: This should be optional according to https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
+        - credential_configuration_ids
       properties:
         credential_issuer:
           type: string
           example: "https://issuer.example"
-        credentials:
+        credential_configuration_ids:
           type: array
+          description: |
+            Array of credential configuration IDs that reference entries in the issuer's credential_configurations_supported metadata.
+          items:
+            type: string
         grants:
           type: object
       example:
         {
           "credential_issuer": "https://issuer.example",
-          "credentials": [
-            {
-              "format": "ldp_vc",
-              "credential_definition": {
-                "@context": [
-                  "https://www.w3.org/2018/credentials/v1",
-                  "https://nuts.nl/credentials/v1"
-                ],
-                "type": [
-                  "VerifiableCredential",
-                  "NutsAuthorizationCredential"
-                ]
-              }
-            }
+          "credential_configuration_ids": [
+            "NutsAuthorizationCredential_ldp_vc"
           ],
           "grants": {
             "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
