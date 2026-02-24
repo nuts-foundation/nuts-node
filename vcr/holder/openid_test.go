@@ -59,29 +59,52 @@ func Test_wallet_Metadata(t *testing.T) {
 
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	credentialOffer := openid4vci.CredentialOffer{
-		CredentialIssuer: issuerDID.String(),
-		Credentials:      offeredCredential(),
-		Grants: map[string]interface{}{
-			"some-other-grant": map[string]interface{}{},
-			"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-				"pre-authorized_code": "code",
+		CredentialIssuer:           issuerDID.String(),
+		CredentialConfigurationIds: []string{"HumanCredential_ldp_vc"},
+		Grants: openid4vci.CredentialOfferGrants{
+			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+				PreAuthorizedCode: "code",
 			},
 		},
 	}
 	metadata := openid4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   issuerDID.String(),
 		CredentialEndpoint: "credential-endpoint",
+		CredentialConfigurationsSupported: map[string]map[string]interface{}{
+			"HumanCredential_ldp_vc": {
+				"format": "ldp_vc",
+				"credential_definition": map[string]interface{}{
+					"@context": []interface{}{
+						"https://www.w3.org/2018/credentials/v1",
+						"http://example.org/credentials/V1",
+					},
+					"type": []interface{}{
+						"VerifiableCredential",
+						"HumanCredential",
+					},
+				},
+			},
+		},
 	}
 	nonce := "nonsens"
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().Metadata().Return(metadata)
+		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
 		tokenResponse := (&oauth.TokenResponse{AccessToken: "access-token", TokenType: "bearer"}).With("c_nonce", nonce)
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)
-		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+		// Verify that the holder sends credential_configuration_id (v1.0 preferred approach)
+		// instead of format + credential_definition
+		expectedRequest := openid4vci.CredentialRequest{
+			CredentialConfigurationId: "HumanCredential_ldp_vc",
+			Proof: &openid4vci.CredentialRequestProof{
+				Jwt:       "signed-jwt",
+				ProofType: "jwt",
+			},
+		}
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), expectedRequest, "access-token").
 			Return(&vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("http://example.org/credentials/V1")},
 				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("HumanCredential")},
@@ -115,26 +138,24 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("pre-authorized code grant", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
 		t.Run("no grants", func(t *testing.T) {
-			offer := openid4vci.CredentialOffer{Credentials: offeredCredential()}
+			offer := openid4vci.CredentialOffer{CredentialConfigurationIds: []string{"HumanCredential_ldp_vc"}}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
-				Credentials: offeredCredential(),
-				Grants: map[string]interface{}{
-					"some-other-grant": nil,
-				},
+				CredentialConfigurationIds: []string{"HumanCredential_ldp_vc"},
+				Grants:                     openid4vci.CredentialOfferGrants{},
 			}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
-		t.Run("invalid pre-authorized grant", func(t *testing.T) {
+		t.Run("empty pre-authorized code", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
-				Credentials: offeredCredential(),
-				Grants: map[string]interface{}{
-					"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-						"pre-authorized_code": nil,
+				CredentialConfigurationIds: []string{"HumanCredential_ldp_vc"},
+				Grants: openid4vci.CredentialOfferGrants{
+					PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+						PreAuthorizedCode: "",
 					},
 				},
 			}
@@ -142,23 +163,21 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 	})
-	t.Run("error - too many credentials in offer", func(t *testing.T) {
+	t.Run("error - too many credential_configuration_ids in offer", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
 
 		offer := openid4vci.CredentialOffer{
-			Credentials: []openid4vci.OfferedCredential{
-				offeredCredential()[0],
-				offeredCredential()[0],
-			},
+			CredentialConfigurationIds: []string{"HumanCredential_ldp_vc", "OtherCredential_ldp_vc"},
 		}
 		err := w.HandleCredentialOffer(audit.TestContext(), offer).(openid4vci.Error)
 
-		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential in credential offer")
+		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential_configuration_id in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - access token request fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
 		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(nil, errors.New("request failed"))
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
@@ -168,11 +187,12 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
-		require.EqualError(t, err, "invalid_token - unable to request access token: request failed")
+		require.EqualError(t, err, "server_error - unable to request access token: request failed")
 	})
 	t.Run("error - empty access token", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
 		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{}, nil)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
@@ -182,11 +202,12 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
-		require.EqualError(t, err, "invalid_token - access_token is missing")
+		require.EqualError(t, err, "server_error - access_token is missing")
 	})
 	t.Run("error - empty c_nonce", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
 		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{AccessToken: "foo"}, nil)
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
@@ -196,25 +217,25 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
-		require.EqualError(t, err, "invalid_token - c_nonce is missing")
+		require.EqualError(t, err, "server_error - c_nonce is missing")
 	})
-	t.Run("error - no credentials in offer", func(t *testing.T) {
+	t.Run("error - no credential_configuration_ids in offer", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{}).(openid4vci.Error)
 
-		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential in credential offer")
+		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential_configuration_id in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("error - can't issuer client (metadata can't be loaded)", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
-			CredentialIssuer: "http://localhost:87632",
-			Credentials:      offeredCredential(),
-			Grants: map[string]interface{}{
-				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-					"pre-authorized_code": "foo",
+			CredentialIssuer:           "http://localhost:87632",
+			CredentialConfigurationIds: []string{"HumanCredential_ldp_vc"},
+			Grants: openid4vci.CredentialOfferGrants{
+				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+					PreAuthorizedCode: "foo",
 				},
 			},
 		})
@@ -226,7 +247,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		offer := offeredCredential()[0]
 		ctrl := gomock.NewController(t)
 		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().Metadata().Return(metadata)
+		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
 		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return((&oauth.TokenResponse{AccessToken: "access-token"}).With("c_nonce", nonce), nil)
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
 			Context: offer.CredentialDefinition.Context,
@@ -247,28 +268,84 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		require.EqualError(t, err, "invalid_request - received credential does not match offer: credential does not match credential_definition: type mismatch")
 	})
 	t.Run("error - unsupported format", func(t *testing.T) {
-		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
+		ctrl := gomock.NewController(t)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer: issuerDID.String(),
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"TestCredential_unsupported": {
+					"format": "not supported",
+				},
+			},
+		})
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
-			Credentials: []openid4vci.OfferedCredential{{Format: "not supported"}},
+			CredentialConfigurationIds: []string{"TestCredential_unsupported"},
+			Grants: openid4vci.CredentialOfferGrants{
+				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+					PreAuthorizedCode: "foo",
+				},
+			},
 		}).(openid4vci.Error)
 
-		assert.EqualError(t, err, "unsupported_credential_type - credential offer: unsupported format 'not supported'")
-		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		assert.EqualError(t, err, "server_error - credential offer: unsupported format 'not supported'")
+		assert.Equal(t, http.StatusInternalServerError, err.StatusCode)
 	})
-	t.Run("error - credentialSubject not allowed in offer", func(t *testing.T) {
-		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
-		credentials := offeredCredential()
-		credentials[0].CredentialDefinition.CredentialSubject = new(map[string]interface{})
+	t.Run("credentialSubject in metadata does not block offer processing", func(t *testing.T) {
+		// v1.0 Appendix A.1.2: credentialSubject is allowed in metadata credential_configurations_supported
+		ctrl := gomock.NewController(t)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		metadataWithSubject := openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer: issuerDID.String(),
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"TestCredential_ldp_vc": {
+					"format": "ldp_vc",
+					"credential_definition": map[string]interface{}{
+						"@context":          []interface{}{"https://www.w3.org/2018/credentials/v1"},
+						"type":              []interface{}{"VerifiableCredential"},
+						"credentialSubject": map[string]interface{}{},
+					},
+				},
+			},
+		}
+		issuerAPIClient.EXPECT().Metadata().Return(metadataWithSubject).AnyTimes()
+		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return((&oauth.TokenResponse{AccessToken: "access-token"}).With("c_nonce", nonce), nil)
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(&vc.VerifiableCredential{
+			Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
+			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
+			Issuer:  issuerDID.URI(),
+		}, nil)
+		jwtSigner := crypto.NewMockJWTSigner(ctrl)
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-jwt", nil)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
+		credentialStore := types.NewMockWriter(ctrl)
+		credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).Return(nil)
 
-		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{Credentials: credentials}).(openid4vci.Error)
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, credentialStore, jwtSigner, keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
 
-		assert.EqualError(t, err, "invalid_request - credential offer: invalid credential_definition: credentialSubject not allowed in offer")
-		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
+			CredentialConfigurationIds: []string{"TestCredential_ldp_vc"},
+			Grants: openid4vci.CredentialOfferGrants{
+				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+					PreAuthorizedCode: "foo",
+				},
+			},
+		})
+
+		assert.NoError(t, err)
 	})
 }
 
-// offeredCredential returns a structure that can be used as CredentialOffer.Credentials,
+// offeredCredential returns a resolved credential configuration for testing.
 func offeredCredential() []openid4vci.OfferedCredential {
 	return []openid4vci.OfferedCredential{{
 		Format: vc.JSONLDCredentialProofFormat,
