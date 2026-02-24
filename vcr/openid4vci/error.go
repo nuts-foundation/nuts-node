@@ -22,32 +22,42 @@ package openid4vci
 type ErrorCode string
 
 const (
-	// InvalidRequest is returned when:
-	// - the Authorization Server does not expect a PIN in the pre-authorized flow but the client provides a PIN
-	// - the Authorization Server expects a PIN in the pre-authorized flow but the client does not provide a PIN
-	// - Credential Request was malformed. One or more of the parameters (i.e. format, proof) are missing or malformed.
+	// OAuth2 Token Endpoint error codes (RFC 6749)
+
+	// InvalidRequest is an OAuth2 error for malformed token requests.
 	InvalidRequest ErrorCode = "invalid_request"
-	// InvalidClient is returned when:
-	// - the client tried to send a Token Request with a Pre-Authorized Code without Client ID but the Authorization Server does not support anonymous access
+	// InvalidClient is returned when the client is not authorized.
 	InvalidClient ErrorCode = "invalid_client"
-	// InvalidGrant is returned when (in addition to cases defined by OAuth2):
-	// - the Authorization Server expects a PIN in the pre-authorized flow but the client provides the wrong PIN
-	// - the End-User provides the wrong Pre-Authorized Code or the Pre-Authorized Code has expired
+	// InvalidGrant is returned when the grant (e.g. pre-authorized code) is invalid or expired.
 	InvalidGrant ErrorCode = "invalid_grant"
-	// InvalidToken is returned when (in addition to cases defined by OAuth2):
-	// - Credential Request contains the wrong Access Token or the Access Token is missing
+	// InvalidToken is returned when the access token is invalid or missing (RFC 6750).
 	InvalidToken ErrorCode = "invalid_token"
-	// UnsupportedGrantType is returned when the Authorization Server does not support the requested grant type.
+	// UnsupportedGrantType is returned when the requested grant type is not supported.
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
-	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
+	// ServerError is returned when the server encounters an unexpected condition.
 	ServerError ErrorCode = "server_error"
-	// UnsupportedCredentialType is returned when the credential issuer does not support the requested credential type.
-	UnsupportedCredentialType ErrorCode = "unsupported_credential_type"
-	// UnsupportedCredentialFormat is returned when the credential issuer does not support the requested credential format.
-	UnsupportedCredentialFormat ErrorCode = "unsupported_credential_format"
-	// InvalidProof is returned when the Credential Request did not contain a proof,
-	// or proof was invalid, i.e. it was not bound to a Credential Issuer provided nonce
+
+	// OpenID4VCI v1.0 Credential Endpoint error codes (Section 8.3.1.2)
+
+	// InvalidCredentialRequest is returned when the Credential Request is missing a required parameter,
+	// includes an unsupported parameter or parameter value, or is otherwise malformed.
+	InvalidCredentialRequest ErrorCode = "invalid_credential_request"
+	// UnknownCredentialConfiguration is returned when the requested credential_configuration_id is unknown.
+	UnknownCredentialConfiguration ErrorCode = "unknown_credential_configuration"
+	// UnknownCredentialIdentifier is returned when the requested credential_identifier is unknown.
+	UnknownCredentialIdentifier ErrorCode = "unknown_credential_identifier"
+	// InvalidProof is returned when the proofs parameter is invalid: missing, one of the key proofs
+	// is invalid, or a key proof does not contain a c_nonce value.
 	InvalidProof ErrorCode = "invalid_proof"
+	// InvalidNonce is returned when at least one of the key proofs contains an invalid c_nonce value.
+	// The wallet should retrieve a new c_nonce value from the Nonce Endpoint (Section 7).
+	InvalidNonce ErrorCode = "invalid_nonce"
+	// InvalidEncryptionParameters is returned when the encryption parameters in the Credential Request
+	// are either invalid or missing when the issuer requires encrypted responses.
+	InvalidEncryptionParameters ErrorCode = "invalid_encryption_parameters"
+	// CredentialRequestDenied is returned when the Credential Request has not been accepted by the
+	// issuer. The wallet SHOULD treat this as unrecoverable.
+	CredentialRequestDenied ErrorCode = "credential_request_denied"
 )
 
 // Error is an error that signals the error was (probably) caused by the client (e.g. bad request),
