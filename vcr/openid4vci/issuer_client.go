@@ -101,13 +101,13 @@ func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request C
 	if err != nil {
 		return nil, fmt.Errorf("get credential request failed: %w", err)
 	}
-	// TODO: check format
+	// TODO: validate received credential matches the requested credential_configuration_id
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
 	if credentialResponse.Credential == nil {
 		return nil, errors.New("credential response does not contain a credential")
 	}
 	var credential vc.VerifiableCredential
-	credentialJSON, _ := json.Marshal(*credentialResponse.Credential)
+	credentialJSON, _ := json.Marshal(credentialResponse.Credential)
 	err = json.Unmarshal(credentialJSON, &credential)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal received credential: %w", err)

@@ -22,7 +22,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
@@ -36,8 +35,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	providerMetadata := new(ProviderMetadata)
 	walletMetadata := new(OAuth2ClientMetadata)
 	credentialResponse := CredentialResponse{
-		Format: vc.JSONLDCredentialProofFormat,
-		Credential: &map[string]interface{}{
+		Credential: map[string]interface{}{
 			"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
 			"type":              []string{"VerifiableCredential"},
 			"issuer":            "issuer",
