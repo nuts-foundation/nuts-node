@@ -62,8 +62,9 @@ type CredentialIssuerMetadata struct {
 	// CredentialEndpoint defines where the wallet can send a request to retrieve a credential.
 	CredentialEndpoint string `json:"credential_endpoint"`
 
-	// CredentialsSupported defines metadata about which credential types the credential issuer can issue.
-	CredentialsSupported []map[string]interface{} `json:"credentials_supported"`
+	// CredentialConfigurationsSupported defines metadata about which credential types the credential issuer can issue.
+	// The map is keyed by credential_configuration_id.
+	CredentialConfigurationsSupported map[string]map[string]interface{} `json:"credential_configurations_supported"`
 }
 
 // OAuth2ClientMetadata defines the OAuth2 Client Metadata, extended with OpenID4VCI parameters.
@@ -93,15 +94,26 @@ type ProviderMetadata struct {
 type CredentialOffer struct {
 	// CredentialIssuer defines the identifier of the credential issuer.
 	CredentialIssuer string `json:"credential_issuer"`
-	// Credentials defines the credentials offered by the issuer to the wallet.
-	Credentials []OfferedCredential `json:"credentials"`
+	// CredentialConfigurationIds defines references to credential configurations offered by the issuer.
+	// These IDs reference entries in the credential_configurations_supported metadata.
+	CredentialConfigurationIds []string `json:"credential_configuration_ids"`
 	// Grants defines the grants offered by the issuer to the wallet.
-	Grants map[string]interface{} `json:"grants"`
+	Grants CredentialOfferGrants `json:"grants"`
 }
 
-// OfferedCredential defines a single entry in the credentials array of a CredentialOffer. We currently do not support 'JSON string' offers.
+// CredentialOfferGrants defines the grant types in a credential offer.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
-// and https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-vc-secured-using-data-integ
+type CredentialOfferGrants struct {
+	PreAuthorizedCode *PreAuthorizedCodeParams `json:"urn:ietf:params:oauth:grant-type:pre-authorized_code,omitempty"`
+}
+
+// PreAuthorizedCodeParams defines the parameters for the pre-authorized code grant.
+type PreAuthorizedCodeParams struct {
+	PreAuthorizedCode string `json:"pre-authorized_code"`
+}
+
+// OfferedCredential represents a resolved credential configuration from issuer metadata.
+// It is used internally by the holder to validate offered credentials after resolving a credential_configuration_id.
 type OfferedCredential struct {
 	// Format specifies the credential format.
 	Format string `json:"format"`
@@ -110,11 +122,11 @@ type OfferedCredential struct {
 }
 
 // CredentialDefinition defines the 'credential_definition' for Format VerifiableCredentialJSONLDFormat
-// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-vc-secured-using-data-integ
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html Appendix A.1.2
 type CredentialDefinition struct {
 	Context           []ssi.URI               `json:"@context"`
 	Type              []ssi.URI               `json:"type"`
-	CredentialSubject *map[string]interface{} `json:"credentialSubject,omitempty"` // optional and currently not used
+	CredentialSubject map[string]interface{} `json:"credentialSubject,omitempty"` // optional and currently not used
 }
 
 // CredentialOfferResponse defines the response for credential offer requests.
@@ -126,10 +138,19 @@ type CredentialOfferResponse struct {
 
 // CredentialRequest defines the credential request sent by the wallet to the issuer.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request.
+// Per v1.0 Section 8.2, the request MUST contain ONE of:
+// - credential_configuration_id: references an entry in credential_configurations_supported
+// - format + format-specific parameters (e.g., credential_definition for ldp_vc)
 type CredentialRequest struct {
-	Format               string                  `json:"format"`
-	CredentialDefinition *CredentialDefinition   `json:"credential_definition,omitempty"`
-	Proof                *CredentialRequestProof `json:"proof,omitempty"`
+	// CredentialConfigurationId references a credential configuration from issuer metadata.
+	// When present, format and credential_definition should not be used.
+	CredentialConfigurationId string `json:"credential_configuration_id,omitempty"`
+	// Format specifies the credential format. Required when credential_configuration_id is not used.
+	Format string `json:"format,omitempty"`
+	// CredentialDefinition contains the credential definition for ldp_vc format.
+	CredentialDefinition *CredentialDefinition `json:"credential_definition,omitempty"`
+	// Proof contains the proof of possession of the key material.
+	Proof *CredentialRequestProof `json:"proof,omitempty"`
 }
 
 // CredentialRequestProof defines the proof of possession of key material when requesting a Credential.
@@ -142,9 +163,9 @@ type CredentialRequestProof struct {
 // CredentialResponse defines the response for credential requests.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
 type CredentialResponse struct {
-	Format     string                  `json:"format,omitempty"`
-	Credential *map[string]interface{} `json:"credential,omitempty"`
-	CNonce     *string                 `json:"c_nonce,omitempty"`
+	Credential      map[string]interface{} `json:"credential,omitempty"`
+	CNonce          *string                 `json:"c_nonce,omitempty"`
+	CNonceExpiresIn *int                    `json:"c_nonce_expires_in,omitempty"`
 }
 
 // Config holds the config for the OpenID4VCI credential issuer and wallet

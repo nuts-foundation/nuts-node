@@ -20,7 +20,6 @@ package openid4vci
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -89,8 +88,7 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	credentialRequest := CredentialRequest{
-		CredentialDefinition: &CredentialDefinition{},
-		Format:               vc.JSONLDCredentialProofFormat,
+		CredentialConfigurationId: "NutsOrganizationCredential_ldp_vc",
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
@@ -115,7 +113,7 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	})
 	t.Run("error - invalid credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
-		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credential: &map[string]interface{}{
+		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credential: map[string]interface{}{
 			"issuer": []string{"1", "2"}, // Invalid issuer
 		}})
 		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
