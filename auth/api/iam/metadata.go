@@ -33,20 +33,19 @@ import (
 
 func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                      "openid4vp:",
-		ClientIdSchemesSupported:                   clientIdSchemesSupported,
-		DIDMethodsSupported:                        supportedDIDMethods,
-		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                        grantTypesSupported,
-		Issuer:                                     "https://self-issued.me/v2",
-		PreAuthorizedGrantAnonymousAccessSupported: true,
-		PresentationDefinitionUriSupported:         to.Ptr(true),
-		RequireSignedRequestObject:                 true,
-		ResponseModesSupported:                     responseModesSupported,
-		ResponseTypesSupported:                     responseTypesSupported,
-		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
-		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
-		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
+		AuthorizationEndpoint:                  "openid4vp:",
+		ClientIdSchemesSupported:               clientIdSchemesSupported,
+		DIDMethodsSupported:                    supportedDIDMethods,
+		DPoPSigningAlgValuesSupported:          jwx.SupportedAlgorithmsAsStrings(),
+		GrantTypesSupported:                    grantTypesSupported,
+		Issuer:                                 "https://self-issued.me/v2",
+		PresentationDefinitionUriSupported:     to.Ptr(true),
+		RequireSignedRequestObject:             true,
+		ResponseModesSupported:                 responseModesSupported,
+		ResponseTypesSupported:                 responseTypesSupported,
+		VPFormats:                              oauth.DefaultOpenIDSupportedFormats(),
+		VPFormatsSupported:                     oauth.DefaultOpenIDSupportedFormats(),
+		RequestObjectSigningAlgValuesSupported: jwx.SupportedAlgorithmsAsStrings(),
 	}
 
 	if issuerURL != nil {
