@@ -22,13 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"net/http"
 	"time"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
@@ -82,27 +83,12 @@ func (h *openidHandler) Metadata() openid4vci.OAuth2ClientMetadata {
 // Error responses on the Credential Offer Endpoint are not defined in the OpenID4VCI spec,
 // so these are inferred of whatever makes sense.
 func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4vci.CredentialOffer) error {
-	// TODO: This check is too simplistic, there can be multiple credential offers,
-	//       but the issuer should only request the one it's interested in.
+	// TODO: This check is too simplistic, there can be multiple credential_configuration_ids,
+	//       but we only support one at a time.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
-	if len(offer.Credentials) != 1 {
+	if len(offer.CredentialConfigurationIds) != 1 {
 		return openid4vci.Error{
-			Err:        errors.New("there must be exactly 1 credential in credential offer"),
-			Code:       openid4vci.InvalidRequest,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-	offeredCredential := offer.Credentials[0]
-	if offeredCredential.Format != vc.JSONLDCredentialProofFormat {
-		return openid4vci.Error{
-			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
-			Code:       openid4vci.UnsupportedCredentialType,
-			StatusCode: http.StatusBadRequest,
-		}
-	}
-	if err := offeredCredential.CredentialDefinition.Validate(true); err != nil {
-		return openid4vci.Error{
-			Err:        fmt.Errorf("credential offer: %w", err),
+			Err:        errors.New("there must be exactly 1 credential_configuration_id in credential offer"),
 			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusBadRequest,
 		}
@@ -126,13 +112,38 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 
+	// Resolve the credential configuration from the issuer metadata
+	credentialConfigID := offer.CredentialConfigurationIds[0]
+	offeredCredential, err := h.resolveCredentialConfiguration(issuerClient.Metadata(), credentialConfigID)
+	if err != nil {
+		return openid4vci.Error{
+			Err:        fmt.Errorf("unable to resolve credential configuration: %w", err),
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+	if offeredCredential.Format != vc.JSONLDCredentialProofFormat {
+		return openid4vci.Error{
+			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
+			Code:       openid4vci.ServerError,
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	if err := offeredCredential.CredentialDefinition.Validate(false); err != nil {
+		return openid4vci.Error{
+			Err:        fmt.Errorf("credential offer: %w", err),
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
 	accessTokenResponse, err := issuerClient.RequestAccessToken(openid4vci.PreAuthorizedCodeGrant, map[string]string{
 		"pre-authorized_code": preAuthorizedCode,
 	})
 	if err != nil {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to request access token: %w", err),
-			Code:       openid4vci.InvalidToken,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -140,7 +151,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 	if accessTokenResponse.AccessToken == "" {
 		return openid4vci.Error{
 			Err:        errors.New("access_token is missing"),
-			Code:       openid4vci.InvalidToken,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
@@ -148,13 +159,13 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 	if accessTokenResponse.Get(oauth.CNonceParam) == "" {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("%s is missing", oauth.CNonceParam),
-			Code:       openid4vci.InvalidToken,
+			Code:       openid4vci.ServerError,
 			StatusCode: http.StatusInternalServerError,
 		}
 	}
 
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
-	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, offeredCredential.CredentialDefinition, accessTokenResponse)
+	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, credentialConfigID, accessTokenResponse)
 	if err != nil {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("unable to retrieve credential: %w", err),
@@ -180,18 +191,66 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 }
 
 func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
-	params, ok := offer.Grants[openid4vci.PreAuthorizedCodeGrant].(map[string]interface{})
-	if !ok {
+	if offer.Grants.PreAuthorizedCode == nil {
 		return ""
 	}
-	preAuthorizedCode, ok := params["pre-authorized_code"].(string)
-	if !ok {
-		return ""
-	}
-	return preAuthorizedCode
+	return offer.Grants.PreAuthorizedCode.PreAuthorizedCode
 }
 
-func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, offer *openid4vci.CredentialDefinition, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
+// resolveCredentialConfiguration resolves a credential_configuration_id to an OfferedCredential
+// by looking it up in the issuer metadata.
+func (h *openidHandler) resolveCredentialConfiguration(metadata openid4vci.CredentialIssuerMetadata, configID string) (*openid4vci.OfferedCredential, error) {
+	config, ok := metadata.CredentialConfigurationsSupported[configID]
+	if !ok {
+		return nil, fmt.Errorf("credential_configuration_id '%s' not found in issuer metadata", configID)
+	}
+
+	format, _ := config["format"].(string)
+	credDefMap, _ := config["credential_definition"].(map[string]interface{})
+
+	var credentialDef *openid4vci.CredentialDefinition
+	if credDefMap != nil {
+		credentialDef = &openid4vci.CredentialDefinition{}
+
+		// Parse @context
+		if contextRaw, ok := credDefMap["@context"].([]interface{}); ok {
+			for _, c := range contextRaw {
+				if cStr, ok := c.(string); ok {
+					u, err := ssi.ParseURI(cStr)
+					if err != nil {
+						return nil, fmt.Errorf("invalid @context URI %q: %w", cStr, err)
+					}
+					credentialDef.Context = append(credentialDef.Context, *u)
+				}
+			}
+		}
+
+		// Parse type
+		if typeRaw, ok := credDefMap["type"].([]interface{}); ok {
+			for _, t := range typeRaw {
+				if tStr, ok := t.(string); ok {
+					u, err := ssi.ParseURI(tStr)
+					if err != nil {
+						return nil, fmt.Errorf("invalid type URI %q: %w", tStr, err)
+					}
+					credentialDef.Type = append(credentialDef.Type, *u)
+				}
+			}
+		}
+
+		// Parse credentialSubject (optional in v1.0 metadata)
+		if credSubject, ok := credDefMap["credentialSubject"].(map[string]interface{}); ok {
+			credentialDef.CredentialSubject = credSubject
+		}
+	}
+
+	return &openid4vci.OfferedCredential{
+		Format:               format,
+		CredentialDefinition: credentialDef,
+	}, nil
+}
+
+func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, credentialConfigID string, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
 	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
@@ -211,9 +270,9 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 		return nil, fmt.Errorf("unable to sign request proof: %w", err)
 	}
 
+	// Use credential_configuration_id (v1.0 preferred approach) instead of format + credential_definition
 	credentialRequest := openid4vci.CredentialRequest{
-		CredentialDefinition: offer,
-		Format:               vc.JSONLDCredentialProofFormat,
+		CredentialConfigurationId: credentialConfigID,
 		Proof: &openid4vci.CredentialRequestProof{
 			Jwt:       proof,
 			ProofType: "jwt",
