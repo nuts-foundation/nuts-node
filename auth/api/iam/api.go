@@ -731,22 +731,23 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
-	tokenCache := r.accessTokenCache()
-	cacheKey := accessTokenRequestCacheKey(request)
-	if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
-		// try to retrieve token from cache
-		tokenCacheResult := new(TokenResponse)
-		err = tokenCache.Get(cacheKey, tokenCacheResult)
-		if err == nil {
-			// adjust tokenCacheResult.ExpiresIn to the remaining time
-			expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
-			tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
-			return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
-		} else if !errors.Is(err, storage.ErrNotFound) {
-			// only log error, don't fail
-			log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
-		}
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//tokenCache := r.accessTokenCache()
+	//cacheKey := accessTokenRequestCacheKey(request)
+	//if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
+	//	// try to retrieve token from cache
+	//	tokenCacheResult := new(TokenResponse)
+	//	err = tokenCache.Get(cacheKey, tokenCacheResult)
+	//	if err == nil {
+	//		// adjust tokenCacheResult.ExpiresIn to the remaining time
+	//		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+	//		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+	//		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
+	//	} else if !errors.Is(err, storage.ErrNotFound) {
+	//		// only log error, don't fail
+	//		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+	//	}
+	//}
 
 	var credentials []VerifiableCredential
 	if request.Body.Credentials != nil {
@@ -800,12 +801,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 	tokenResult.ExpiresAt = to.Ptr(int(time.Now().Add(ttl).Unix()))
 	// we reduce the ttl by accessTokenCacheOffset to make sure the token is expired when the cache expires
-	ttl -= accessTokenCacheOffset
-	err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
-	if err != nil {
-		// only log error, don't fail
-		log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//ttl -= accessTokenCacheOffset
+	//err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
+	//if err != nil {
+	//	// only log error, don't fail
+	//	log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
+	//}
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 
