@@ -21,11 +21,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/spf13/pflag"
-	"strings"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
@@ -40,6 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("vcr.openid4vci.definitionsdir", defs.OpenID4VCI.DefinitionsDIR, "Directory with the additional credential definitions the node could issue (experimental, may change without notice).")
 	flagSet.Bool("vcr.openid4vci.enabled", defs.OpenID4VCI.Enabled, "Enable issuing and receiving credentials over OpenID4VCI.")
 	flagSet.Duration("vcr.openid4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
+	flagSet.Duration("vcr.verifier.revocation.maxage", time.Minute*15, "Max age of revocation information. If the revocation information is older than this, it will be refreshed from the issuer. If set to 0 or negative, revocation information will always be refreshed.")
 
 	return flagSet
 }

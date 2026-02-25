@@ -1106,7 +1106,7 @@ func TestIssuer_StatusList(t *testing.T) {
 
 func newTestStatusList2021(t testing.TB, db *gorm.DB, signingKey crypto.PublicKey, dids ...did.DID) *revocation.StatusList2021 {
 	storage.AddDIDtoSQLDB(t, db, dids...)
-	cs := revocation.NewStatusList2021(db, nil, "https://example.com")
+	cs := revocation.NewStatusList2021(db, nil, "https://example.com", 15*time.Minute)
 	cs.Sign = func(_ context.Context, unsignedCredential vc.VerifiableCredential, kid string) (*vc.VerifiableCredential, error) {
 		unsignedCredential.ID, _ = ssi.ParseURI("test-credential")
 		bs, err := json.Marshal(unsignedCredential)

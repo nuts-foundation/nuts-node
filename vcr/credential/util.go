@@ -20,12 +20,14 @@ package credential
 
 import (
 	"errors"
+	"slices"
+	"time"
+
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"slices"
-	"time"
+	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // ResolveSubjectDID resolves the subject DID from the given credentials.
@@ -114,10 +116,22 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 
 // AutoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
 // These are provided through the API, and for convenience we set the required fields, if not already set.
-// It only does this for unsigned JSON-LD credentials. DO NOT USE THIS WITH JWT_VC CREDENTIALS.
+// It only does this for unsigned JSON-LD credentials and DeziIDTokenCredentials (derived proof). DO NOT USE THIS WITH JWT_VC CREDENTIALS.
 func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
 	if len(credential.Proof) > 0 {
-		return credential
+		var proof []proof.LDProof
+		_ = credential.UnmarshalProofValue(&proof)
+		isDeziTokenCredential := false
+		for _, p := range proof {
+			if p.Type == "DeziIDJWT" {
+				// derived proof, do the auto-correction
+				isDeziTokenCredential = true
+				break
+			}
+		}
+		if !isDeziTokenCredential {
+			return credential
+		}
 	}
 	if credential.ID == nil {
 		credential.ID, _ = ssi.ParseURI(uuid.NewString())

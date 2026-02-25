@@ -22,6 +22,7 @@ package credential
 import (
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -41,6 +42,8 @@ func FindValidator(credential vc.VerifiableCredential, pkiValidator pki.Validato
 				return nutsAuthorizationCredentialValidator{}
 			case X509CredentialType:
 				return x509CredentialValidator{pkiValidator: pkiValidator}
+			case DeziIDTokenCredentialTypeURI.String():
+				return deziIDTokenCredentialValidator{}
 			}
 		}
 	}
