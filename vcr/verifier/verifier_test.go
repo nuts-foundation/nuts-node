@@ -383,7 +383,8 @@ func TestVerifier_Verify(t *testing.T) {
 	t.Run("DeziIDTokenCredential", func(t *testing.T) {
 		ctx := newMockContext(t)
 		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return(nil, ErrNotFound)
-		validAt := time.Date(2023, 12, 7, 7, 20, 27, 0, time.UTC)
+		// Token is valid from 1701933627 (Dec 7, 2023 07:20:27) to 1701933697 (Dec 7, 2023 07:21:37)
+		validAt := time.Date(2023, 12, 7, 7, 21, 0, 0, time.UTC)
 
 		cred := createDeziCredential(t, "did:web:example.com")
 

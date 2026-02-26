@@ -117,6 +117,8 @@ func TestDeziIDTokenCredential(t *testing.T) {
 			"https://www.w3.org/2018/credentials/v1",
 		},
 		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
+		"id":             "urn:uuid:test-credential",
+		"issuer":         "https://max.proeftuin.Dezi-online.rdobeheer.nl",
 		"issuanceDate":   iat.Format("2006-01-02T15:04:05Z07:00"),
 		"expirationDate": exp.Format("2006-01-02T15:04:05Z07:00"),
 		"credentialSubject": map[string]any{
