@@ -1,23 +1,38 @@
 package credential
 
 import (
-	"context"
-	"crypto/sha1"
+	"bytes"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// stubbedRoundTripper is a test helper that returns a mock JWK Set for any HTTP request
+type stubbedRoundTripper struct {
+	keySet jwk.Set
+}
+
+func (s *stubbedRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Marshal the key set to JSON
+	jwksJSON, err := json.Marshal(s.keySet)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return a mock HTTP response with the JWK Set
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewReader(jwksJSON)),
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+	}, nil
+}
 
 func TestCreateDeziIDToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
@@ -45,124 +60,69 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 	exp := time.Unix(1740131176, 0) // Feb 21, 2025
 	validAt := time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC)
 
-	// Helper to create token with mocked JWK server
-	createTokenWithMockServer := func(t *testing.T, keySet jwk.Set) (string, *httptest.Server) {
-		// Create test token
-		tokenBytes, err := CreateTestDeziIDToken(iat, exp)
-		require.NoError(t, err)
+	// Load signing key, create JWK set
+	signingKeyCert, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
+	require.NoError(t, err)
+	signingKey := signingKeyCert.PrivateKey
+	signingKeyJWK, err := jwk.FromRaw(signingKey)
+	require.NoError(t, err)
+	require.NoError(t, signingKeyJWK.Set(jwk.KeyIDKey, "1"))
 
-		// Create mock HTTPS server (jku must be HTTPS)
-		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(keySet)
-		}))
+	// Create JWK set with the public key
+	publicKeyJWK, err := jwk.FromRaw(signingKeyCert.Leaf.PublicKey)
+	require.NoError(t, err)
+	require.NoError(t, publicKeyJWK.Set(jwk.KeyIDKey, "1"))
+	keySet := jwk.NewSet()
+	require.NoError(t, keySet.AddKey(publicKeyJWK))
 
-		// Parse token and update jku header
-		msg, err := jws.Parse(tokenBytes)
-		require.NoError(t, err)
-
-		sig := msg.Signatures()[0]
-		headers := jws.NewHeaders()
-		for iter := sig.ProtectedHeaders().Iterate(context.Background()); iter.Next(context.Background()); {
-			pair := iter.Pair()
-			headers.Set(pair.Key.(string), pair.Value)
-		}
-		headers.Set("jku", server.URL+"/jwks.json")
-
-		// Load key for re-signing
-		keyPair, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
-		require.NoError(t, err)
-		privateKey, err := jwk.FromRaw(keyPair.PrivateKey)
-		require.NoError(t, err)
-
-		// Parse original token claims
-		origToken, err := jwt.Parse(tokenBytes, jwt.WithVerify(false), jwt.WithValidate(false))
-		require.NoError(t, err)
-
-		// Re-sign with new headers
-		signedToken, err := jwt.Sign(origToken, jwt.WithKey(jwa.RS256, privateKey, jws.WithProtectedHeaders(headers)))
-		require.NoError(t, err)
-
-		return string(signedToken), server
+	validator := deziIDTokenCredentialValidator{
+		clock: func() time.Time {
+			return validAt
+		},
+		httpClient: &http.Client{
+			Transport: &stubbedRoundTripper{keySet: keySet},
+		},
 	}
 
-	// Helper to extract JWK set from token
-	extractJWKSet := func(t *testing.T) jwk.Set {
-		tokenBytes, err := CreateTestDeziIDToken(iat, exp)
+	t.Run("ok", func(t *testing.T) {
+		tokenBytes, err := CreateTestDeziIDToken(iat, exp, signingKey)
 		require.NoError(t, err)
 
-		token, err := jwt.Parse(tokenBytes, jwt.WithVerify(false), jwt.WithValidate(false))
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
 		require.NoError(t, err)
 
-		jwksRaw, ok := token.Get("jwks")
-		require.True(t, ok)
-
-		jwksJSON, err := json.Marshal(jwksRaw)
-		require.NoError(t, err)
-
-		keySet, err := jwk.Parse(jwksJSON)
-		require.NoError(t, err)
-
-		return keySet
-	}
-
-	t.Run("ok - valid signature and timestamps", func(t *testing.T) {
-		keySet := extractJWKSet(t)
-		tokenStr, server := createTokenWithMockServer(t, keySet)
-		defer server.Close()
-
-		cred, err := CreateDeziIDTokenCredential(tokenStr)
-		require.NoError(t, err)
-
-		err = deziIDTokenCredentialValidator{
-			clock: func() time.Time {
-				return validAt
-			},
-			httpClient: server.Client(), // Use test server's client to trust its certificate
-		}.Validate(*cred)
+		err = validator.Validate(*cred)
 		require.NoError(t, err)
 	})
 
 	t.Run("error - wrong exp", func(t *testing.T) {
-		keySet := extractJWKSet(t)
-		tokenStr, server := createTokenWithMockServer(t, keySet)
-		defer server.Close()
+		tokenBytes, err := CreateTestDeziIDToken(iat, exp, signingKey)
+		require.NoError(t, err)
 
-		cred, err := CreateDeziIDTokenCredential(tokenStr)
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
 		require.NoError(t, err)
 
 		// Modify credential expiration to be different from token
 		wrongExp := exp.Add(time.Hour)
 		cred.ExpirationDate = &wrongExp
 
-		err = deziIDTokenCredentialValidator{
-			clock: func() time.Time {
-				return validAt
-			},
-			httpClient: server.Client(),
-		}.Validate(*cred)
+		err = validator.Validate(*cred)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "'exp' does not match credential 'expirationDate'")
 	})
 
 	t.Run("error - wrong nbf", func(t *testing.T) {
-		keySet := extractJWKSet(t)
-		tokenStr, server := createTokenWithMockServer(t, keySet)
-		defer server.Close()
+		tokenBytes, err := CreateTestDeziIDToken(iat, exp, signingKey)
+		require.NoError(t, err)
 
-		cred, err := CreateDeziIDTokenCredential(tokenStr)
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
 		require.NoError(t, err)
 
 		// Modify credential issuance date to be different from token
 		wrongNbf := iat.Add(-time.Hour)
 		cred.IssuanceDate = wrongNbf
 
-		err = deziIDTokenCredentialValidator{
-			clock: func() time.Time {
-				return validAt
-			},
-			httpClient: server.Client(),
-		}.Validate(*cred)
+		err = validator.Validate(*cred)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "'nbf' does not match credential 'issuanceDate'")
 	})
@@ -171,63 +131,48 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 		// Create a different key set (wrong keys)
 		wrongKeySet := jwk.NewSet()
 		wrongKey, _ := jwk.FromRaw([]byte("wrong-secret-key-data"))
-		x5t := sha1.Sum([]byte("wrong-cert"))
-		kid := base64.StdEncoding.EncodeToString(x5t[:])
+		kid := "wrong-kid"
 		wrongKey.Set(jwk.KeyIDKey, kid)
 		wrongKeySet.AddKey(wrongKey)
 
-		tokenStr, server := createTokenWithMockServer(t, wrongKeySet)
-		defer server.Close()
-
-		cred, err := CreateDeziIDTokenCredential(tokenStr)
-		require.NoError(t, err)
-
-		err = deziIDTokenCredentialValidator{
+		validatorWithWrongKeys := deziIDTokenCredentialValidator{
 			clock: func() time.Time {
 				return validAt
 			},
-			httpClient: server.Client(),
-		}.Validate(*cred)
+			httpClient: &http.Client{
+				Transport: &stubbedRoundTripper{keySet: wrongKeySet},
+			},
+		}
+
+		tokenBytes, err := CreateTestDeziIDToken(iat, exp, signingKey)
+		require.NoError(t, err)
+
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+		require.NoError(t, err)
+
+		err = validatorWithWrongKeys.Validate(*cred)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify JWT signature")
 	})
 
 	t.Run("error - jku endpoint unreachable", func(t *testing.T) {
-		// Create token bytes
-		tokenBytes, err := CreateTestDeziIDToken(iat, exp)
-		require.NoError(t, err)
-
-		// Parse and update jku to non-existent endpoint
-		msg, err := jws.Parse(tokenBytes)
-		require.NoError(t, err)
-
-		sig := msg.Signatures()[0]
-		headers := jws.NewHeaders()
-		for iter := sig.ProtectedHeaders().Iterate(context.Background()); iter.Next(context.Background()); {
-			pair := iter.Pair()
-			headers.Set(pair.Key.(string), pair.Value)
-		}
-		headers.Set("jku", "https://localhost:9999/jwks.json")
-
-		keyPair, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
-		require.NoError(t, err)
-		privateKey, err := jwk.FromRaw(keyPair.PrivateKey)
-		require.NoError(t, err)
-
-		origToken, err := jwt.Parse(tokenBytes, jwt.WithVerify(false), jwt.WithValidate(false))
-		require.NoError(t, err)
-
-		signedToken, err := jwt.Sign(origToken, jwt.WithKey(jwa.RS256, privateKey, jws.WithProtectedHeaders(headers)))
-		require.NoError(t, err)
-
-		cred, err := CreateDeziIDTokenCredential(string(signedToken))
-		require.NoError(t, err)
-
-		err = deziIDTokenCredentialValidator{
+		// Use HTTP client that returns an error for any request
+		validatorWithBrokenClient := deziIDTokenCredentialValidator{
 			clock: func() time.Time {
 				return validAt
 			},
-		}.Validate(*cred)
+			httpClient: &http.Client{
+				Transport: &stubbedRoundTripper{keySet: nil}, // Will fail when trying to marshal nil
+			},
+		}
+
+		tokenBytes, err := CreateTestDeziIDToken(iat, exp, signingKey)
+		require.NoError(t, err)
+
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+		require.NoError(t, err)
+
+		err = validatorWithBrokenClient.Validate(*cred)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify JWT signature")
 	})

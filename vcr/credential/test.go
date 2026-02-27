@@ -1,57 +1,15 @@
 package credential
 
 import (
-	"crypto/sha1"
-	"crypto/tls"
-	"encoding/base64"
-	"encoding/json"
+	"crypto"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
-func CreateTestDeziIDToken(issuedAt time.Time, validUntil time.Time) ([]byte, error) {
-	keyPair, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
-	if err != nil {
-		return nil, err
-	}
-	key, err := jwk.FromRaw(keyPair.PrivateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create public key for the JWK Set
-	// Extract the public key from the certificate
-	publicKey, err := jwk.FromRaw(keyPair.Leaf.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// Set the key ID
-	x5t := sha1.Sum(keyPair.Leaf.Raw)
-	kid := base64.StdEncoding.EncodeToString(x5t[:])
-	if err := publicKey.Set(jwk.KeyIDKey, kid); err != nil {
-		return nil, err
-	}
-	if err := publicKey.Set(jwk.AlgorithmKey, jwa.RS256); err != nil {
-		return nil, err
-	}
-
-	// Create JWK Set with the public key
-	keySet := jwk.NewSet()
-	if err := keySet.AddKey(publicKey); err != nil {
-		return nil, err
-	}
-
-	// Marshal the JWK Set to JSON
-	jwksJSON, err := json.Marshal(keySet)
-	if err != nil {
-		return nil, err
-	}
-
+func CreateTestDeziIDToken(issuedAt time.Time, validUntil time.Time, key crypto.PrivateKey) ([]byte, error) {
 	claims := map[string]any{
 		jwt.AudienceKey:   "006fbf34-a80b-4c81-b6e9-593600675fb2",
 		jwt.ExpirationKey: validUntil.Unix(),
@@ -64,7 +22,6 @@ func CreateTestDeziIDToken(issuedAt time.Time, validUntil time.Time) ([]byte, er
 		"json_schema":     "https://max.proeftuin.Dezi-online.rdobeheer.nl/json_schema.json",
 		"loa_authn":       "http://eidas.europa.eu/LoA/high",
 		"loa_Dezi":        "http://eidas.europa.eu/LoA/high",
-		"jwks":            json.RawMessage(jwksJSON),
 		"relations": []map[string]interface{}{
 			{
 				"entity_name": "Zorgaanbieder",
@@ -80,12 +37,15 @@ func CreateTestDeziIDToken(issuedAt time.Time, validUntil time.Time) ([]byte, er
 		}
 	}
 
-	// Create headers with kid
 	headers := jws.NewHeaders()
-	if err := headers.Set(jwk.KeyIDKey, kid); err != nil {
-		return nil, err
+	for k, v := range map[string]any{
+		"alg": "RS256",
+		"kid": "1",
+		"jku": "https://example.com/jwks.json",
+	} {
+		if err := headers.Set(k, v); err != nil {
+			return nil, err
+		}
 	}
-
-	// Sign with the key ID in the header
 	return jwt.Sign(token, jwt.WithKey(jwa.RS256, key, jws.WithProtectedHeaders(headers)))
 }

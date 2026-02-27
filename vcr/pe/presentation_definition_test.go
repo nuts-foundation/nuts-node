@@ -108,7 +108,7 @@ func TestParsePresentationDefinition(t *testing.T) {
 func TestDeziIDTokenCredential(t *testing.T) {
 	iat := time.Unix(1701933627, 0)
 	exp := time.Unix(1701933697, 0)
-	token, err := credential.CreateTestDeziIDToken(iat, exp)
+	token, err := credential.CreateTestDeziIDToken(iat, exp, nil)
 	require.NoError(t, err)
 
 	// Create DeziIDTokenCredential using the helper function

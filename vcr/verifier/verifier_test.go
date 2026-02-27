@@ -874,7 +874,7 @@ func newMockContext(t *testing.T) mockContext {
 func createDeziCredential(t *testing.T, holderDID string) *vc.VerifiableCredential {
 	exp := time.Unix(1701933697, 0)
 	iat := time.Unix(1701933627, 0)
-	idToken, err := credential.CreateTestDeziIDToken(iat, exp)
+	idToken, err := credential.CreateTestDeziIDToken(iat, exp, nil)
 	require.NoError(t, err)
 
 	credentialMap := map[string]any{
