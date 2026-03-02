@@ -1,17 +1,24 @@
 package credential
 
 import (
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
+// CreateDeziIDTokenCredential creates a Verifiable Credential from a Dezi id_token JWT. It supports the following spec versions:
+// - april 2024
+// - 15 jan 2026/v0.7: https://www.dezi.nl/documenten/2024/04/24/koppelvlakspecificatie-dezi-voor-platform--en-softwareleveranciers
 func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCredential, error) {
 	// Parse without signature or time validation - those are validated elsewhere
 	idToken, err := jwt.Parse([]byte(idTokenSerialized), jwt.WithVerify(false), jwt.WithValidate(false))
@@ -28,14 +35,22 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 		return result
 	}
 
-	// Check if this is v0.7 format (has abonnee_nummer) or old format (has relations)
-	isV07 := getString("abonnee_nummer") != ""
+	// Check if this is v0.7 format (has abonnee_nummer) or 2024 format (has relations)
+	var version string
+	{
+		_, hasRelations := idToken.Get("relations")
+		if hasRelations {
+			version = "2024"
+		} else {
+			version = "0.7"
+		}
+	}
 
 	var orgURA, orgName, userID, initials, surname, surnamePrefix string
 	var roles []any
 
-	if isV07 {
-		// v0.7 spec format
+	switch version {
+	case "0.7":
 		orgURA = getString("abonnee_nummer")
 		if orgURA == "" {
 			return nil, fmt.Errorf("id_token missing 'abonnee_nummer' claim")
@@ -64,8 +79,7 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 		if rolCode != "" {
 			roles = []any{rolCode}
 		}
-	} else {
-		// Old format with relations
+	case "2024":
 		relationsRaw, _ := idToken.Get("relations")
 		relations, ok := relationsRaw.([]any)
 		if !ok || len(relations) != 1 {
@@ -101,6 +115,8 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 		if surnamePrefix == "" {
 			return nil, fmt.Errorf("id_token missing 'surname_prefix' claim")
 		}
+	default:
+		return nil, fmt.Errorf("unsupported Dezi id_token version: %s", version)
 	}
 
 	credentialMap := map[string]any{
@@ -126,36 +142,156 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 				"roles":         roles,
 			},
 		},
-		"proof": map[string]any{
-			"type": "DeziIDJWT",
-			"jwt":  idTokenSerialized,
+		"proof": deziProofType{
+			Type:    "DeziIDJWT",
+			JWT:     idTokenSerialized,
+			Version: version,
 		},
 	}
 	data, _ := json.Marshal(credentialMap)
 	return vc.ParseVerifiableCredential(string(data))
 }
 
-// deziIDTokenCredentialValidator validates DeziIDTokenCredential, according to (TODO: add spec).
+var _ Validator = deziIDTokenCredentialValidator{}
+
 type deziIDTokenCredentialValidator struct {
+	trustStore core.TrustStore
+}
+
+func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	proofType, err := parseDeziProofType(credential)
+	if err != nil {
+		return err
+	}
+	switch proofType.Version {
+	case "2024":
+		return deziIDToken2024CredentialValidator{
+			clock:      time.Now,
+			trustStore: d.trustStore,
+		}.Validate(credential)
+	case "0.7":
+		return deziIDToken07CredentialValidator{
+			clock: time.Now,
+		}.Validate(credential)
+	default:
+		return fmt.Errorf("%w: unsupported Dezi id_token version: %s", errValidation, proofType.Version)
+	}
+}
+
+var _ Validator = deziIDToken2024CredentialValidator{}
+
+// deziIDToken2024CredentialValidator validates DeziIDTokenCredential,
+// according to spec of april 2024 (uses x5c in JWT payload instead of jku header)
+type deziIDToken2024CredentialValidator struct {
+	clock      func() time.Time
+	trustStore core.TrustStore
+}
+
+func (d deziIDToken2024CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	proof, err := parseDeziProofType(credential)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
+	}
+
+	idToken, err := d.validateIDToken(credential, proof.JWT)
+	if err != nil {
+		return fmt.Errorf("%w: invalid Dezi id_token: %w", errValidation, err)
+	}
+
+	// Validate that token timestamps match credential dates
+	if !idToken.NotBefore().Equal(credential.IssuanceDate) {
+		return errors.New("id_token 'nbf' does not match credential 'issuanceDate'")
+	}
+	if !idToken.Expiration().Equal(*credential.ExpirationDate) {
+		return errors.New("id_token 'exp' does not match credential 'expirationDate'")
+	}
+
+	// Validate that the
+
+	return (defaultCredentialValidator{}).Validate(credential)
+}
+
+func (d deziIDToken2024CredentialValidator) validateIDToken(credential vc.VerifiableCredential, serialized string) (jwt.Token, error) {
+	// Parse without verification first to extract x5c from payload
+	token, err := jwt.Parse([]byte(serialized), jwt.WithVerify(false), jwt.WithValidate(false))
+	if err != nil {
+		return nil, fmt.Errorf("parse JWT: %w", err)
+	}
+
+	// After signature has been validated, token can be considered a valid JWT
+	err = d.validateSignature(token, err, serialized)
+	if err != nil {
+		return nil, fmt.Errorf("signature: %w", err)
+	}
+	return token, nil
+}
+
+func (d deziIDToken2024CredentialValidator) validateSignature(token jwt.Token, err error, serialized string) error {
+	// Extract x5c claim from payload (not header - this is non-standard but per 2024 spec)
+	x5cRaw, ok := token.Get("x5c")
+	if !ok {
+		return errors.New("missing 'x5c' claim in JWT payload")
+	}
+
+	x5cArray, ok := x5cRaw.([]interface{})
+	if !ok || len(x5cArray) == 0 {
+		return errors.New("'x5c' claim must be a non-empty array")
+	}
+
+	// Parse the certificate chain
+	var certChain [][]byte
+	for i, certData := range x5cArray {
+		certStr, ok := certData.(string)
+		if !ok {
+			return fmt.Errorf("'x5c[%d]' must be a string", i)
+		}
+		// x5c contains base64-encoded DER certificates
+		certBytes, err := base64.StdEncoding.DecodeString(certStr)
+		if err != nil {
+			return fmt.Errorf("decode 'x5c[%d]': %w", i, err)
+		}
+		certChain = append(certChain, certBytes)
+	}
+
+	if len(certChain) == 0 {
+		return errors.New("'x5c' certificate chain is empty")
+	}
+
+	// Parse the leaf certificate (first in chain)
+	leafCert, err := x509.ParseCertificate(certChain[0])
+	if err != nil {
+		return fmt.Errorf("parse signing certificate: %w", err)
+	}
+
+	_, err = leafCert.Verify(x509.VerifyOptions{
+		Roots:         core.NewCertPool(d.trustStore.RootCAs),
+		CurrentTime:   d.clock(),
+		Intermediates: core.NewCertPool(d.trustStore.IntermediateCAs),
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny}, // TODO: use more specific key usage if possible
+	})
+	if err != nil {
+		return fmt.Errorf("verify Dezi certificate chain: %w", err)
+	}
+
+	// Verify the JWT signature using the leaf certificate's public key
+	_, err = jwt.Parse([]byte(serialized), jwt.WithKey(jwa.RS256, leafCert.PublicKey), jwt.WithValidate(true), jwt.WithClock(jwt.ClockFunc(d.clock)))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// deziIDToken07CredentialValidator validates DeziIDTokenCredential,
+// according to v0.7 spec of 15-01-2026 (https://www.dezi.nl/documenten/2025/12/15/koppelvlakspecificatie-dezi-voor-platform--en-softwareleveranciers)
+type deziIDToken07CredentialValidator struct {
 	clock      func() time.Time
 	httpClient *http.Client // Optional HTTP client for fetching JWK Set (for testing)
 }
 
-func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredential) error {
-	type proofType struct {
-		Type string `json:"type"`
-		JWT  string `json:"jwt"`
-	}
-	proofs := []proofType{}
-	if err := credential.UnmarshalProofValue(&proofs); err != nil {
-		return fmt.Errorf("%w: invalid proof format: %w", errValidation, err)
-	}
-	if len(proofs) != 1 {
-		return fmt.Errorf("%w: expected exactly one proof, got %d", errValidation, len(proofs))
-	}
-	proof := proofs[0]
-	if proof.Type != "DeziIDJWT" {
-		return fmt.Errorf("%w: invalid proof type: expected 'DeziIDJWT', got '%s'", errValidation, proof.Type)
+func (d deziIDToken07CredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	proof, err := parseDeziProofType(credential)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errValidation, err)
 	}
 	if err := d.validateDeziToken(credential, proof.JWT); err != nil {
 		return fmt.Errorf("%w: invalid Dezi id_token: %w", errValidation, err)
@@ -163,7 +299,7 @@ func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredent
 	return (defaultCredentialValidator{}).Validate(credential)
 }
 
-func (d deziIDTokenCredentialValidator) validateDeziToken(credential vc.VerifiableCredential, serialized string) error {
+func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.VerifiableCredential, serialized string) error {
 	// Parse and verify the JWT
 	// - WithVerifyAuto(nil, ...) uses default jwk.Fetch and automatically fetches the JWK Set from the jku header URL
 	// - WithFetchWhitelist allows fetching from any https:// URL (Dezi endpoints)
@@ -194,4 +330,25 @@ func (d deziIDTokenCredentialValidator) validateDeziToken(credential vc.Verifiab
 	}
 	// TODO: implement rest of checks (claims)
 	return nil
+}
+
+type deziProofType struct {
+	Type    string `json:"type"`
+	JWT     string `json:"jwt"`
+	Version string `json:"version"`
+}
+
+func parseDeziProofType(credential vc.VerifiableCredential) (*deziProofType, error) {
+	var proofs []deziProofType
+	if err := credential.UnmarshalProofValue(&proofs); err != nil {
+		return nil, fmt.Errorf("invalid proof format: %w", err)
+	}
+	if len(proofs) != 1 {
+		return nil, fmt.Errorf("expected exactly one proof, got %d", len(proofs))
+	}
+	proof := &proofs[0]
+	if proof.Type != "DeziIDJWT" {
+		return nil, fmt.Errorf("invalid proof type: expected 'DeziIDJWT', got '%s'", proof.Type)
+	}
+	return proof, nil
 }

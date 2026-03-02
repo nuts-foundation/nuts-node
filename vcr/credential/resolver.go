@@ -43,7 +43,7 @@ func FindValidator(credential vc.VerifiableCredential, pkiValidator pki.Validato
 			case X509CredentialType:
 				return x509CredentialValidator{pkiValidator: pkiValidator}
 			case DeziIDTokenCredentialTypeURI.String():
-				return deziIDTokenCredentialValidator{}
+				return deziIDToken07CredentialValidator{}
 			}
 		}
 	}

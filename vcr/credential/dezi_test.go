@@ -3,13 +3,16 @@ package credential
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -75,7 +78,7 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 	keySet := jwk.NewSet()
 	require.NoError(t, keySet.AddKey(publicKeyJWK))
 
-	validator := deziIDTokenCredentialValidator{
+	validator := deziIDToken07CredentialValidator{
 		clock: func() time.Time {
 			return validAt
 		},
@@ -135,7 +138,7 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 		wrongKey.Set(jwk.KeyIDKey, kid)
 		wrongKeySet.AddKey(wrongKey)
 
-		validatorWithWrongKeys := deziIDTokenCredentialValidator{
+		validatorWithWrongKeys := deziIDToken07CredentialValidator{
 			clock: func() time.Time {
 				return validAt
 			},
@@ -157,7 +160,7 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 
 	t.Run("error - jku endpoint unreachable", func(t *testing.T) {
 		// Use HTTP client that returns an error for any request
-		validatorWithBrokenClient := deziIDTokenCredentialValidator{
+		validatorWithBrokenClient := deziIDToken07CredentialValidator{
 			clock: func() time.Time {
 				return validAt
 			},
@@ -175,5 +178,195 @@ func TestDeziIDTokenCredentialValidator(t *testing.T) {
 		err = validatorWithBrokenClient.Validate(*cred)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to verify JWT signature")
+	})
+}
+
+func TestDeziIDToken2024CredentialValidator(t *testing.T) {
+	// Test constants
+	iat := time.Unix(1732182376, 0) // Nov 21, 2024
+	exp := time.Unix(1740131176, 0) // Feb 21, 2025
+	validAt := time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC)
+
+	// Load signing key and certificate
+	signingKeyCert, err := tls.LoadX509KeyPair("../../test/pki/certificate-and-key.pem", "../../test/pki/certificate-and-key.pem")
+	require.NoError(t, err)
+	signingKey := signingKeyCert.PrivateKey
+
+	validator := deziIDToken2024CredentialValidator{
+		clock: func() time.Time {
+			return validAt
+		},
+	}
+
+	// Helper to create token with x5c in payload
+	createTokenWithX5C := func(t *testing.T, iat, exp time.Time, cert *tls.Certificate) []byte {
+		// Create JWT with x5c in payload (not header - per 2024 spec)
+		token := jwt.New()
+
+		claims := map[string]any{
+			jwt.AudienceKey:   "006fbf34-a80b-4c81-b6e9-593600675fb2",
+			jwt.ExpirationKey: exp.Unix(),
+			jwt.NotBeforeKey:  iat.Unix(),
+			jwt.IssuerKey:     "https://max.proeftuin.Dezi-online.rdobeheer.nl",
+			jwt.JwtIDKey:      "test-jwt-id",
+			"initials":        "B.B.",
+			"surname":         "Jansen",
+			"surname_prefix":  "van der",
+			"Dezi_id":         "900000009",
+			"relations": []map[string]interface{}{
+				{
+					"entity_name": "Zorgaanbieder",
+					"roles":       []string{"01.041"},
+					"ura":         "87654321",
+				},
+			},
+		}
+
+		// Add x5c to payload (base64-encoded DER certificate chain)
+		var x5cArray []string
+		for _, certBytes := range cert.Certificate {
+			x5cArray = append(x5cArray, base64.StdEncoding.EncodeToString(certBytes))
+		}
+		claims["x5c"] = x5cArray
+
+		for k, v := range claims {
+			require.NoError(t, token.Set(k, v))
+		}
+
+		// Sign with RS256
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, cert.PrivateKey))
+		require.NoError(t, err)
+
+		return signed
+	}
+
+	t.Run("ok - valid signature with x5c in payload", func(t *testing.T) {
+		tokenBytes := createTokenWithX5C(t, iat, exp, &signingKeyCert)
+
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+		require.NoError(t, err)
+
+		err = validator.Validate(*cred)
+		require.NoError(t, err)
+	})
+
+	t.Run("error - missing x5c in payload", func(t *testing.T) {
+		// Create token without x5c but with all required claims for parsing
+		token := jwt.New()
+		require.NoError(t, token.Set(jwt.ExpirationKey, exp.Unix()))
+		require.NoError(t, token.Set(jwt.NotBeforeKey, iat.Unix()))
+		require.NoError(t, token.Set(jwt.IssuerKey, "test"))
+		require.NoError(t, token.Set(jwt.JwtIDKey, "test-id"))
+		require.NoError(t, token.Set("Dezi_id", "900000009"))
+		require.NoError(t, token.Set("initials", "B.B."))
+		require.NoError(t, token.Set("surname", "Jansen"))
+		require.NoError(t, token.Set("surname_prefix", "van der"))
+		require.NoError(t, token.Set("relations", []map[string]interface{}{
+			{
+				"entity_name": "Zorgaanbieder",
+				"roles":       []string{"01.041"},
+				"ura":         "87654321",
+			},
+		}))
+
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signingKey))
+		require.NoError(t, err)
+
+		cred, err := CreateDeziIDTokenCredential(string(signed))
+		require.NoError(t, err)
+
+		err = validator.Validate(*cred)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing 'x5c' claim")
+	})
+
+	t.Run("error - invalid x5c format", func(t *testing.T) {
+		token := jwt.New()
+		require.NoError(t, token.Set(jwt.ExpirationKey, exp.Unix()))
+		require.NoError(t, token.Set(jwt.NotBeforeKey, iat.Unix()))
+		require.NoError(t, token.Set(jwt.IssuerKey, "test"))
+		require.NoError(t, token.Set(jwt.JwtIDKey, "test-id"))
+		require.NoError(t, token.Set("Dezi_id", "900000009"))
+		require.NoError(t, token.Set("initials", "B.B."))
+		require.NoError(t, token.Set("surname", "Jansen"))
+		require.NoError(t, token.Set("surname_prefix", "van der"))
+		require.NoError(t, token.Set("relations", []map[string]interface{}{
+			{
+				"entity_name": "Zorgaanbieder",
+				"roles":       []string{"01.041"},
+				"ura":         "87654321",
+			},
+		}))
+		require.NoError(t, token.Set("x5c", "not-an-array")) // Wrong format
+
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signingKey))
+		require.NoError(t, err)
+
+		cred, err := CreateDeziIDTokenCredential(string(signed))
+		require.NoError(t, err)
+
+		err = validator.Validate(*cred)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "'x5c' claim must be a non-empty array")
+	})
+
+	t.Run("error - invalid certificate in x5c", func(t *testing.T) {
+		token := jwt.New()
+		require.NoError(t, token.Set(jwt.ExpirationKey, exp.Unix()))
+		require.NoError(t, token.Set(jwt.NotBeforeKey, iat.Unix()))
+		require.NoError(t, token.Set(jwt.IssuerKey, "test"))
+		require.NoError(t, token.Set(jwt.JwtIDKey, "test-id"))
+		require.NoError(t, token.Set("Dezi_id", "900000009"))
+		require.NoError(t, token.Set("initials", "B.B."))
+		require.NoError(t, token.Set("surname", "Jansen"))
+		require.NoError(t, token.Set("surname_prefix", "van der"))
+		require.NoError(t, token.Set("relations", []map[string]interface{}{
+			{
+				"entity_name": "Zorgaanbieder",
+				"roles":       []string{"01.041"},
+				"ura":         "87654321",
+			},
+		}))
+		require.NoError(t, token.Set("x5c", []string{"invalid-base64!!!"}))
+
+		signed, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, signingKey))
+		require.NoError(t, err)
+
+		cred, err := CreateDeziIDTokenCredential(string(signed))
+		require.NoError(t, err)
+
+		err = validator.Validate(*cred)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to decode 'x5c")
+	})
+
+	t.Run("error - wrong exp", func(t *testing.T) {
+		tokenBytes := createTokenWithX5C(t, iat, exp, &signingKeyCert)
+
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+		require.NoError(t, err)
+
+		// Modify credential expiration
+		wrongExp := exp.Add(time.Hour)
+		cred.ExpirationDate = &wrongExp
+
+		err = validator.Validate(*cred)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "'exp' does not match credential 'expirationDate'")
+	})
+
+	t.Run("error - wrong nbf", func(t *testing.T) {
+		tokenBytes := createTokenWithX5C(t, iat, exp, &signingKeyCert)
+
+		cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+		require.NoError(t, err)
+
+		// Modify credential issuance date
+		wrongNbf := iat.Add(-time.Hour)
+		cred.IssuanceDate = wrongNbf
+
+		err = validator.Validate(*cred)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "'nbf' does not match credential 'issuanceDate'")
 	})
 }
