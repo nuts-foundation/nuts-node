@@ -99,9 +99,9 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 		}
 		orgName, _ = relation["entity_name"].(string)
 
-		userID = getString("Dezi_id")
+		userID = getString("uzi_id")
 		if userID == "" {
-			return nil, fmt.Errorf("id_token missing 'Dezi_id' claim")
+			return nil, fmt.Errorf("id_token missing 'uzi_id' claim")
 		}
 		initials = getString("initials")
 		if initials == "" {
@@ -155,7 +155,7 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 var _ Validator = deziIDTokenCredentialValidator{}
 
 type deziIDTokenCredentialValidator struct {
-	trustStore core.TrustStore
+	trustStore *core.TrustStore
 }
 
 func (d deziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -184,7 +184,7 @@ var _ Validator = deziIDToken2024CredentialValidator{}
 // according to spec of april 2024 (uses x5c in JWT payload instead of jku header)
 type deziIDToken2024CredentialValidator struct {
 	clock      func() time.Time
-	trustStore core.TrustStore
+	trustStore *core.TrustStore
 }
 
 func (d deziIDToken2024CredentialValidator) Validate(credential vc.VerifiableCredential) error {
@@ -233,14 +233,19 @@ func (d deziIDToken2024CredentialValidator) validateSignature(token jwt.Token, e
 		return errors.New("missing 'x5c' claim in JWT payload")
 	}
 
-	x5cArray, ok := x5cRaw.([]interface{})
-	if !ok || len(x5cArray) == 0 {
-		return errors.New("'x5c' claim must be a non-empty array")
+	var x5c []any
+	switch v := x5cRaw.(type) {
+	case []any:
+		x5c = v
+	case string:
+		x5c = []any{v}
+	default:
+		return errors.New("'x5c' claim must be either a string or an array of strings")
 	}
 
 	// Parse the certificate chain
 	var certChain [][]byte
-	for i, certData := range x5cArray {
+	for i, certData := range x5c {
 		certStr, ok := certData.(string)
 		if !ok {
 			return fmt.Errorf("'x5c[%d]' must be a string", i)

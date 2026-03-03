@@ -71,6 +71,14 @@ type TrustStore struct {
 	certificates    []*x509.Certificate
 }
 
+// PinCertificate adds the given certificate to the trust store as root certificate, without checking whether it forms a valid chain to some root.
+// This is useful for trusting pinned certificates.
+func (store *TrustStore) PinCertificate(certificate *x509.Certificate) {
+	store.certificates = append(store.certificates, certificate)
+	store.RootCAs = append(store.RootCAs, certificate)
+	store.CertPool.AddCert(certificate)
+}
+
 // Certificates returns a copy of the certificates within the CertPool
 func (store *TrustStore) Certificates() []*x509.Certificate {
 	return store.certificates[:]
