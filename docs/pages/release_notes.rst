@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.1.12)
+****************
+
+Release date: 2026-03-03
+
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.11...v6.1.12
+
+****************
 Peanut (v6.1.11)
 ****************
 
