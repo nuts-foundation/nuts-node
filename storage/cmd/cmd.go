@@ -27,6 +27,7 @@ import (
 func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("storage", pflag.ContinueOnError)
 	defs := storage.DefaultConfig()
+	flagSet.Duration("storage.bbolt.locktimeout", defs.BBolt.LockTimeout, "Maximum time to wait for acquiring a lock on the BBolt database before giving up and returning an error. Formatted as Golang duration (e.g. 1s, 1m).")
 	flagSet.String("storage.bbolt.backup.directory", defs.BBolt.Backup.Directory, "Target directory for BBolt database backups.")
 	flagSet.Duration("storage.bbolt.backup.interval", defs.BBolt.Backup.Interval, "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
 	flagSet.String("storage.redis.address", defs.Redis.Address, "Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.")

@@ -18,6 +18,8 @@
 
 package storage
 
+import "time"
+
 // Config specifies config for the storage engine.
 type Config struct {
 	BBolt BBoltConfig `koanf:"bbolt"`
@@ -26,5 +28,9 @@ type Config struct {
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
-	return Config{}
+	return Config{
+		BBolt: BBoltConfig{
+			LockTimeout: time.Second,
+		},
+	}
 }
