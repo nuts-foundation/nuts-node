@@ -21,14 +21,16 @@ package storage
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
-	"testing"
 )
 
 func NewTestStorageEngine(testDirectory string) Engine {
-	result := New()
+	result := New().(*engine)
+	result.config = DefaultConfig()
 	_ = result.Configure(core.TestServerConfig(core.ServerConfig{Datadir: testDirectory + "/data"}))
 	return result
 }

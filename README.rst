@@ -13,12 +13,12 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
     :target: https://nuts-node.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/test_coverage
-    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/test_coverage
+.. image:: https://qlty.sh/gh/nuts-foundation/projects/nuts-node/coverage.svg
+    :target: https://qlty.sh/gh/nuts-foundation/projects/nuts-node
     :alt: Code coverage
 
-.. image:: https://api.codeclimate.com/v1/badges/69f77bd34f3ac253cae0/maintainability
-    :target: https://codeclimate.com/github/nuts-foundation/nuts-node/maintainability
+.. image:: https://qlty.sh/gh/nuts-foundation/projects/nuts-node/maintainability.svg
+    :target: https://qlty.sh/gh/nuts-foundation/projects/nuts-node
     :alt: Maintainability
 
 .. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/build-images.yaml/badge.svg
@@ -241,6 +241,7 @@ The following options can be configured on the server:
     pki.maxupdatefailhours                    4                                                                                                                                                                                                                                                                                                                    Maximum number of hours that a denylist update can fail
     pki.softfail                              true                                                                                                                                                                                                                                                                                                                 Do not reject certificates if their revocation status cannot be established when softfail is true
     **Storage**
+    storage.bbolt.locktimeout                 1s                                                                                                                                                                                                                                                                                                                   Maximum time to wait for acquiring a lock on the BBolt database before giving up and returning an error. Formatted as Golang duration (e.g. 1s, 1m).
     storage.bbolt.backup.directory                                                                                                                                                                                                                                                                                                                                 Target directory for BBolt database backups.
     storage.bbolt.backup.interval             0s                                                                                                                                                                                                                                                                                                                   Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
     storage.redis.address                                                                                                                                                                                                                                                                                                                                          Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
