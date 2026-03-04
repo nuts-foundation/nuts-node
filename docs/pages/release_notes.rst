@@ -344,6 +344,15 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 *************************
+Hazelnut update (v5.4.24)
+*************************
+
+Release date: 2026-03-03
+
+- #4042: make BBolt database lock acquire time-out configurable
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+*************************
 Hazelnut update (v5.4.23)
 *************************
 
