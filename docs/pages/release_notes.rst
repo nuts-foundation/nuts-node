@@ -4,6 +4,14 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.24)
+*************************
+
+Release date: 2026-03-03
+
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+*************************
 Hazelnut update (v5.4.23)
 *************************
 
