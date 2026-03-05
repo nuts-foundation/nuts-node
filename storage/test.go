@@ -58,6 +58,7 @@ func NewTestStorageRedisEngineInDir(t testing.TB, dir string) (Engine, *miniredi
 
 func NewTestStorageEngineInDir(t testing.TB, dir string) Engine {
 	result := New().(*engine)
+	result.config = DefaultConfig()
 	// Prevent goose and gorm from logging database creation and applied schema migrations.
 	// These are logged on INFO, which is good for production but annoying in unit tests.
 	result.sqlMigrationLogger = nilGooseLogger{}
