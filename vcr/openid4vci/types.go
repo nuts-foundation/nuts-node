@@ -149,23 +149,30 @@ type CredentialRequest struct {
 	Format string `json:"format,omitempty"`
 	// CredentialDefinition contains the credential definition for ldp_vc format.
 	CredentialDefinition *CredentialDefinition `json:"credential_definition,omitempty"`
-	// Proof contains the proof of possession of the key material.
-	Proof *CredentialRequestProof `json:"proof,omitempty"`
+	// Proofs contains the proof(s) of possession of the key material.
+	// In v1.0 this uses `proofs` (plural) with a map of proof type to array of proofs.
+	Proofs *CredentialRequestProofs `json:"proofs,omitempty"`
 }
 
-// CredentialRequestProof defines the proof of possession of key material when requesting a Credential.
+// CredentialRequestProofs defines the proof(s) of possession of key material when requesting a Credential.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
-type CredentialRequestProof struct {
-	Jwt       string `json:"jwt"`
-	ProofType string `json:"proof_type"`
+// The structure is: {"jwt": ["eyJ...", ...]} where the key is the proof type and the value is an array.
+type CredentialRequestProofs struct {
+	Jwt []string `json:"jwt"`
 }
 
 // CredentialResponse defines the response for credential requests.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
+// In v1.0, when proofs (plural) is used in the request, the response uses `credentials` (array of wrapper objects).
+// Each element contains a `credential` key holding the actual issued credential.
 type CredentialResponse struct {
-	Credential      map[string]interface{} `json:"credential,omitempty"`
-	CNonce          *string                 `json:"c_nonce,omitempty"`
-	CNonceExpiresIn *int                    `json:"c_nonce_expires_in,omitempty"`
+	Credentials []CredentialResponseEntry `json:"credentials,omitempty"`
+}
+
+// CredentialResponseEntry is a single entry in the credentials array of a CredentialResponse.
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
+type CredentialResponseEntry struct {
+	Credential map[string]interface{} `json:"credential"`
 }
 
 // Config holds the config for the OpenID4VCI credential issuer and wallet

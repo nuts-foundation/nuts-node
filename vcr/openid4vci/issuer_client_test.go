@@ -108,13 +108,13 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 
 		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
 
-		require.EqualError(t, err, "credential response does not contain a credential")
+		require.EqualError(t, err, "credential response does not contain any credentials")
 		require.Nil(t, credential)
 	})
 	t.Run("error - invalid credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
-		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credential: map[string]interface{}{
-			"issuer": []string{"1", "2"}, // Invalid issuer
+		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credentials: []CredentialResponseEntry{
+			{Credential: map[string]interface{}{"issuer": []string{"1", "2"}}}, // Invalid issuer
 		}})
 		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)

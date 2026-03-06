@@ -189,14 +189,12 @@ func TestWrapper_RequestCredential(t *testing.T) {
 				Authorization: &authz,
 			},
 			Body: &RequestCredentialJSONRequestBody{
-				Format:               "ldp_vc",
-				CredentialDefinition: &openid4vci.CredentialDefinition{},
-				Proof:                nil,
+				CredentialConfigurationId: "NutsOrganizationCredential_ldp_vc",
 			},
 		})
 
 		require.NoError(t, err)
-		assert.NotNil(t, response.(RequestCredential200JSONResponse).Credential)
+		assert.NotEmpty(t, response.(RequestCredential200JSONResponse).Credentials)
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
