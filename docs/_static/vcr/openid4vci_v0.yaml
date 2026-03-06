@@ -384,21 +384,20 @@ components:
           description: |
             References a credential configuration from the issuer's credential_configurations_supported metadata.
           example: "NutsAuthorizationCredential_ldp_vc"
-        proof:
+        proofs:
           type: object
-          required:
-            - proof_type
-            - jwt
+          description: |
+            Object providing one or more proof of possessions of the cryptographic key material.
+            The key is the proof type (e.g., "jwt") and the value is an array of proofs.
           properties:
-            proof_type:
-              type: string
-              example: "jwt"
             jwt:
-              type: string
+              type: array
+              items:
+                type: string
               description: |
-                String with a JWS [RFC7515] as proof of possession.
+                Array of JWS [RFC7515] strings as proof of possession.
 
-                The fields of the JWT may look like this:
+                The fields of each JWT may look like this:
 
                 {
                   "typ": "openid4vci-proof+jwt",
@@ -413,9 +412,8 @@ components:
       example:
         {
           "credential_configuration_id": "NutsAuthorizationCredential_ldp_vc",
-          "proof": {
-            "proof_type": "jwt",
-            "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
+          "proofs": {
+            "jwt": ["eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"]
           }
         }
     ErrorResponse:
@@ -427,50 +425,53 @@ components:
           type: string
           description: Code identifying the error that occurred.
           example: "invalid_request"
-        c_nonce:
-          type: string
-          description: a string containing a new nonce value to be used for subsequent requests.
-          example: "tZignsnFbp"
-        c_nonce_expires_in:
-          type: integer
-          description: The lifetime in seconds of the nonce value.
-          example: 900
     CredentialResponse:
       type: object
+      description: |
+        Per OpenID4VCI v1.0 Section 8.3, the response contains a credentials array where each entry
+        is a wrapper object with a credential key holding the issued credential.
       properties:
-        credential:
-          type: object
-        c_nonce:
-          type: string
-          example: "fGFF7UkhLa"
+        credentials:
+          type: array
+          items:
+            type: object
+            required:
+              - credential
+            properties:
+              credential:
+                type: object
+                description: Contains one issued Credential.
       example:
         {
-          "credential": {
-            "@context": [
-              "https://www.w3.org/2018/credentials/v1",
-              "https://nuts.nl/credentials/v1"
-            ],
-            "id": "did:nuts:<care organization did>#123",
-            "type": [
-              "VerifiableCredential",
-              "NutsAuthorizationCredential"
-            ],
-            "issuer": "did:nuts:<care organization did>",
-            "issuanceDate": "2010-01-01T00:00:00Z",
-            "credentialSubject": {
-              "id": "did:nuts:<receiver care organization did>",
-              "patient": "bsn:999992",
-              "purposeOfUse": "careviewer"
-            },
-            "proof": {
-              "type": "Ed25519Signature2020",
-              "created": "2022-02-25T14:58:43Z",
-              "verificationMethod": "did:nuts:<care organization did>#key-1",
-              "proofPurpose": "assertionMethod",
-              "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+          "credentials": [
+            {
+              "credential": {
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "id": "did:nuts:<care organization did>#123",
+                "type": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ],
+                "issuer": "did:nuts:<care organization did>",
+                "issuanceDate": "2010-01-01T00:00:00Z",
+                "credentialSubject": {
+                  "id": "did:nuts:<receiver care organization did>",
+                  "patient": "bsn:999992",
+                  "purposeOfUse": "careviewer"
+                },
+                "proof": {
+                  "type": "Ed25519Signature2020",
+                  "created": "2022-02-25T14:58:43Z",
+                  "verificationMethod": "did:nuts:<care organization did>#key-1",
+                  "proofPurpose": "assertionMethod",
+                  "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+                }
+              }
             }
-          },
-          "c_nonce": "fGFF7UkhLa"
+          ]
         }
     CredentialOffer:
       type: object

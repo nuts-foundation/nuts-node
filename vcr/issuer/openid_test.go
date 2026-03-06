@@ -166,18 +166,17 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			"nonce": nonce,
 		}
 	}
-	createProof := func(headers, claims map[string]interface{}) *openid4vci.CredentialRequestProof {
+	createProofs := func(headers, claims map[string]interface{}) *openid4vci.CredentialRequestProofs {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"].(string))
 		require.NoError(t, err)
-		return &openid4vci.CredentialRequestProof{
-			Jwt:       proof,
-			ProofType: openid4vci.ProofTypeJWT,
+		return &openid4vci.CredentialRequestProofs{
+			Jwt: []string{proof},
 		}
 	}
 	createRequest := func(headers, claims map[string]interface{}, configID string) openid4vci.CredentialRequest {
 		return openid4vci.CredentialRequest{
 			CredentialConfigurationId: configID,
-			Proof:                     createProof(headers, claims),
+			Proofs:                    createProofs(headers, claims),
 		}
 	}
 
@@ -202,7 +201,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	t.Run("error - missing credential_configuration_id", func(t *testing.T) {
 		request := openid4vci.CredentialRequest{
-			Proof: createProof(createHeaders(), createClaims(cNonce)),
+			Proofs: createProofs(createHeaders(), createClaims(cNonce)),
 		}
 
 		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
@@ -220,43 +219,19 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		assert.Equal(t, openid4vci.UnknownCredentialConfiguration, err.(openid4vci.Error).Code)
 	})
 	t.Run("proof validation", func(t *testing.T) {
-		t.Run("unsupported proof type", func(t *testing.T) {
+		t.Run("missing proofs", func(t *testing.T) {
 			invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
-			invalidRequest.Proof.ProofType = "not-supported"
+			invalidRequest.Proofs = nil
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof type not supported")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proofs")
 			assert.Nil(t, response)
 		})
 		t.Run("jwt", func(t *testing.T) {
-			t.Run("missing proof", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
-				invalidRequest.Proof = nil
-
-				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proof")
-				assert.Nil(t, response)
-			})
-			t.Run("missing proof returns error with new c_nonce", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
-				invalidRequest.Proof = nil
-
-				_, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-				require.ErrorAs(t, err, new(openid4vci.Error))
-				cNonce := err.(openid4vci.Error).CNonce
-				assert.NotNil(t, cNonce)
-				assert.NotNil(t, err.(openid4vci.Error).CNonceExpiresIn)
-
-				flow, err := service.store.FindByReference(ctx, cNonceRefType, *cNonce)
-				require.NoError(t, err)
-				assert.NotNil(t, flow)
-			})
 			t.Run("invalid JWT", func(t *testing.T) {
 				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
-				invalidRequest.Proof.Jwt = "not a JWT"
+				invalidRequest.Proofs.Jwt = []string{"not a JWT"}
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -343,10 +318,6 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			assertProtocolError(t, err, http.StatusBadRequest, "invalid_nonce - unknown nonce")
 			assert.Nil(t, response)
-			// Per Section 8.3.1.2: invalid_nonce MUST include a fresh c_nonce
-			require.ErrorAs(t, err, new(openid4vci.Error))
-			assert.NotNil(t, err.(openid4vci.Error).CNonce)
-			assert.NotNil(t, err.(openid4vci.Error).CNonceExpiresIn)
 		})
 		t.Run("wrong nonce", func(t *testing.T) {
 			_, err := service.createOffer(ctx, issuedVC, "other")

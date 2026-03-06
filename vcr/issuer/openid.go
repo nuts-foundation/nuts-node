@@ -281,34 +281,27 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	credential := flow.Credentials[0] // there's always just one (at least for now)
 	wallet, _ := credential.SubjectDID()
 
-	// augment invalid_proof errors according to Section 8.3.2 of openid4vci spec
+	// In v1.0, error responses no longer contain c_nonce (wallet should use Nonce Endpoint).
+	// We still store a new c_nonce server-side so the wallet can retry after obtaining one.
 	generateProofError := func(err openid4vci.Error) error {
 		cnonce := crypto.GenerateNonce()
-		if err := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce); err != nil {
-			return err
+		if storeErr := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce); storeErr != nil {
+			return storeErr
 		}
-		expiry := int(TokenTTL.Seconds())
-		err.CNonce = &cnonce
-		err.CNonceExpiresIn = &expiry
 		return err
 	}
 
-	if request.Proof == nil {
+	if request.Proofs == nil || len(request.Proofs.Jwt) == 0 {
 		return generateProofError(openid4vci.Error{
-			Err:        errors.New("missing proof"),
+			Err:        errors.New("missing proofs"),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
 	}
-	if request.Proof.ProofType != openid4vci.ProofTypeJWT {
-		return generateProofError(openid4vci.Error{
-			Err:        errors.New("proof type not supported"),
-			Code:       openid4vci.InvalidProof,
-			StatusCode: http.StatusBadRequest,
-		})
-	}
+	// We only support single proof for now
+	proofJWT := request.Proofs.Jwt[0]
 	var signingKeyID string
-	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
+	token, err := crypto.ParseJWT(proofJWT, func(kid string) (crypt.PublicKey, error) {
 		signingKeyID = kid
 		return i.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(5*time.Second))
@@ -347,7 +340,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 
 	// Validate JWT type
 	// jwt.Parse does not provide the JWS headers, we have to parse it again as JWS to access those
-	message, err := jws.ParseString(request.Proof.Jwt)
+	message, err := jws.ParseString(proofJWT)
 	if err != nil {
 		// Should not fail
 		return err

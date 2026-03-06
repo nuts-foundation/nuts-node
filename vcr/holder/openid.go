@@ -156,13 +156,9 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 
-	if accessTokenResponse.Get(oauth.CNonceParam) == "" {
-		return openid4vci.Error{
-			Err:        fmt.Errorf("%s is missing", oauth.CNonceParam),
-			Code:       openid4vci.ServerError,
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
+	// Note: in v1.0, c_nonce is no longer in the token response (moved to optional Nonce Endpoint).
+	// For now we still pass the c_nonce from the token response if present (backwards compat with
+	// issuers that still include it), but we no longer require it.
 
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, credentialConfigID, accessTokenResponse)
@@ -260,9 +256,12 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 		"kid": keyID,                             // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
-		"aud":   issuerClient.Metadata().CredentialIssuer,
-		"iat":   nowFunc().Unix(),
-		"nonce": tokenResponse.Get(oauth.CNonceParam),
+		"aud": issuerClient.Metadata().CredentialIssuer,
+		"iat": nowFunc().Unix(),
+	}
+	// Include c_nonce in proof if available (from token response or future Nonce Endpoint)
+	if cNonce := tokenResponse.Get(oauth.CNonceParam); cNonce != "" {
+		claims["nonce"] = cNonce
 	}
 
 	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID)
@@ -273,9 +272,8 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 	// Use credential_configuration_id (v1.0 preferred approach) instead of format + credential_definition
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationId: credentialConfigID,
-		Proof: &openid4vci.CredentialRequestProof{
-			Jwt:       proof,
-			ProofType: "jwt",
+		Proofs: &openid4vci.CredentialRequestProofs{
+			Jwt: []string{proof},
 		},
 	}
 	return issuerClient.RequestCredential(ctx, credentialRequest, tokenResponse.AccessToken)

@@ -107,7 +107,7 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		return nil, err
 	}
 	return RequestCredential200JSONResponse(CredentialResponse{
-		Credential: credentialMap,
+		Credentials: []openid4vci.CredentialResponseEntry{{Credential: credentialMap}},
 	}), nil
 }
 

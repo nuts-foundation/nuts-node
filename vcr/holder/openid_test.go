@@ -99,9 +99,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		// instead of format + credential_definition
 		expectedRequest := openid4vci.CredentialRequest{
 			CredentialConfigurationId: "HumanCredential_ldp_vc",
-			Proof: &openid4vci.CredentialRequestProof{
-				Jwt:       "signed-jwt",
-				ProofType: "jwt",
+			Proofs: &openid4vci.CredentialRequestProofs{
+				Jwt: []string{"signed-jwt"},
 			},
 		}
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), expectedRequest, "access-token").
@@ -203,21 +202,6 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
 		require.EqualError(t, err, "server_error - access_token is missing")
-	})
-	t.Run("error - empty c_nonce", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
-		issuerAPIClient.EXPECT().Metadata().Return(metadata).AnyTimes()
-		issuerAPIClient.EXPECT().RequestAccessToken(gomock.Any(), gomock.Any()).Return(&oauth.TokenResponse{AccessToken: "foo"}, nil)
-
-		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
-		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
-			return issuerAPIClient, nil
-		}
-
-		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
-
-		require.EqualError(t, err, "server_error - c_nonce is missing")
 	})
 	t.Run("error - no credential_configuration_ids in offer", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)

@@ -38,9 +38,8 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 		// This is the simpler approach - just reference the configuration by ID
 		requestJSON := `{
 			"credential_configuration_id": "NutsAuthorizationCredential_ldp_vc",
-			"proof": {
-				"proof_type": "jwt",
-				"jwt": "eyJ..."
+			"proofs": {
+				"jwt": ["eyJ..."]
 			}
 		}`
 
@@ -50,7 +49,7 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 
 		assert.Equal(t, "NutsAuthorizationCredential_ldp_vc", request.CredentialConfigurationId)
 		assert.Empty(t, request.Format, "format should not be required when using credential_configuration_id")
-		assert.NotNil(t, request.Proof)
+		assert.NotNil(t, request.Proofs)
 	})
 
 	t.Run("request with format + credential_definition (explicit approach)", func(t *testing.T) {
@@ -61,9 +60,8 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 				"@context": ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"],
 				"type": ["VerifiableCredential", "NutsAuthorizationCredential"]
 			},
-			"proof": {
-				"proof_type": "jwt",
-				"jwt": "eyJ..."
+			"proofs": {
+				"jwt": ["eyJ..."]
 			}
 		}`
 
@@ -81,9 +79,8 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 	t.Run("marshaling request with credential_configuration_id omits format and credential_definition", func(t *testing.T) {
 		request := CredentialRequest{
 			CredentialConfigurationId: "NutsAuthorizationCredential_ldp_vc",
-			Proof: &CredentialRequestProof{
-				ProofType: "jwt",
-				Jwt:       "eyJ...",
+			Proofs: &CredentialRequestProofs{
+				Jwt: []string{"eyJ..."},
 			},
 		}
 
@@ -108,9 +105,8 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
 				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
 			},
-			Proof: &CredentialRequestProof{
-				ProofType: "jwt",
-				Jwt:       "eyJ...",
+			Proofs: &CredentialRequestProofs{
+				Jwt: []string{"eyJ..."},
 			},
 		}
 
@@ -250,12 +246,12 @@ func TestCredentialIssuerMetadata_V1Spec(t *testing.T) {
 }
 
 // TestCredentialResponse_V1Spec tests that CredentialResponse conforms to OpenID4VCI v1.0 Section 8.3
-// v1.0 removed the format field from the response (it was REQUIRED in Draft 11, removed in Draft 12+)
+// v1.0 uses `credentials` (array of wrapper objects with `credential` key) and c_nonce is no longer in the response.
 func TestCredentialResponse_V1Spec(t *testing.T) {
-	t.Run("response does not contain format field", func(t *testing.T) {
+	t.Run("response uses credentials array with credential wrapper", func(t *testing.T) {
 		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
 		response := CredentialResponse{
-			Credential: cred,
+			Credentials: []CredentialResponseEntry{{Credential: cred}},
 		}
 
 		jsonBytes, err := json.Marshal(response)
@@ -265,69 +261,23 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 		err = json.Unmarshal(jsonBytes, &parsed)
 		require.NoError(t, err)
 
-		_, hasFormat := parsed["format"]
-		assert.False(t, hasFormat, "format must not be present in v1.0 credential response")
-		assert.NotNil(t, parsed["credential"])
+		// Must use credentials (plural), not credential (singular) at top level
+		_, hasSingular := parsed["credential"]
+		assert.False(t, hasSingular, "must use credentials (plural) not credential (singular) at top level")
+
+		// Each element in credentials must be a wrapper with a "credential" key
+		credentialsArr, ok := parsed["credentials"].([]interface{})
+		require.True(t, ok, "credentials must be an array")
+		require.Len(t, credentialsArr, 1)
+		entry, ok := credentialsArr[0].(map[string]interface{})
+		require.True(t, ok, "each credentials entry must be an object")
+		assert.NotNil(t, entry["credential"], "each entry must have a credential key")
 	})
 
-	t.Run("c_nonce is absent when not set", func(t *testing.T) {
+	t.Run("response does not contain c_nonce fields", func(t *testing.T) {
 		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
 		response := CredentialResponse{
-			Credential: cred,
-		}
-
-		jsonBytes, err := json.Marshal(response)
-		require.NoError(t, err)
-
-		var parsed map[string]interface{}
-		err = json.Unmarshal(jsonBytes, &parsed)
-		require.NoError(t, err)
-
-		_, hasCNonce := parsed["c_nonce"]
-		assert.False(t, hasCNonce, "c_nonce must be absent when not set")
-	})
-
-	t.Run("c_nonce is present when set", func(t *testing.T) {
-		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
-		nonce := "some-nonce"
-		response := CredentialResponse{
-			Credential: cred,
-			CNonce:     &nonce,
-		}
-
-		jsonBytes, err := json.Marshal(response)
-		require.NoError(t, err)
-
-		var parsed map[string]interface{}
-		err = json.Unmarshal(jsonBytes, &parsed)
-		require.NoError(t, err)
-
-		assert.Equal(t, "some-nonce", parsed["c_nonce"])
-	})
-	t.Run("c_nonce_expires_in is present when set alongside c_nonce", func(t *testing.T) {
-		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
-		nonce := "some-nonce"
-		expiresIn := 300
-		response := CredentialResponse{
-			Credential:      cred,
-			CNonce:          &nonce,
-			CNonceExpiresIn: &expiresIn,
-		}
-
-		jsonBytes, err := json.Marshal(response)
-		require.NoError(t, err)
-
-		var parsed map[string]interface{}
-		err = json.Unmarshal(jsonBytes, &parsed)
-		require.NoError(t, err)
-
-		assert.Equal(t, "some-nonce", parsed["c_nonce"])
-		assert.Equal(t, float64(300), parsed["c_nonce_expires_in"])
-	})
-	t.Run("c_nonce_expires_in is absent when not set", func(t *testing.T) {
-		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
-		response := CredentialResponse{
-			Credential: cred,
+			Credentials: []CredentialResponseEntry{{Credential: cred}},
 		}
 
 		jsonBytes, err := json.Marshal(response)
