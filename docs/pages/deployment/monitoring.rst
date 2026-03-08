@@ -178,6 +178,62 @@ The Nuts service executable exports the following metric namespaces:
 * ``go_`` contains Go metrics related to the process
 * ``promhttp_`` contains metrics related to HTTP calls to the Nuts node's ``/metrics`` endpoint
 
+Tracing
+*******
+
+The Nuts node supports distributed tracing via OpenTelemetry. When enabled, it exports traces to an OTLP-compatible backend
+(e.g., Jaeger, Zipkin, .NET Aspire Dashboard, Grafana Tempo).
+
+Configuration
+=============
+
+Enable tracing by configuring the OTLP endpoint:
+
+.. code-block:: yaml
+
+    tracing:
+      endpoint: localhost:4318
+
+Or via environment variables:
+
+.. code-block:: shell
+
+    NUTS_TRACING_ENDPOINT=localhost:4318
+
+Configuration options:
+
+* ``tracing.endpoint`` - OTLP HTTP endpoint (e.g., ``localhost:4318``). Tracing is disabled when empty.
+* ``tracing.insecure`` - Disable TLS for the OTLP connection (default: ``false``). Only use in trusted networks or development environments, as trace data may contain sensitive information.
+* ``tracing.servicename`` - Service name reported to the tracing backend (default: ``nuts-node``). Useful for distinguishing multiple instances in distributed tracing.
+
+What is traced
+==============
+
+The following are automatically instrumented:
+
+* **Inbound HTTP requests** - All API calls to the Nuts node create spans (except ``/health``, ``/metrics``, ``/status``)
+* **Outbound HTTP requests** - HTTP calls to external services (e.g., fetching DID documents, OAuth flows)
+* **SQL database** - Database queries via GORM
+* **Hashicorp Vault** - Key storage operations when using Vault backend
+* **Log correlation** - Log entries include ``trace_id`` and ``span_id`` fields when tracing is enabled
+* **OTLP log export** - Logs are also exported to the OTLP backend for unified observability
+
+Trace context propagation
+=========================
+
+The Nuts node uses W3C Trace Context (``traceparent`` header) for propagating trace context across service boundaries.
+When calling the Nuts node from another traced service, include the ``traceparent`` header to link spans.
+
+Known limitations
+=================
+
+The following components are not yet instrumented:
+
+* **Azure Key Vault** - Azure managed keys backend is not instrumented. The Azure SDK supports OpenTelemetry via the ``azotel`` package (see `Azure SDK tracing <https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/tracing/azotel>`_).
+* **gRPC network layer** - P2P communication between nodes (``did:nuts``) does not include tracing as it's for v5 and deprecated
+
+These limitations may be addressed in future releases.
+
 CPU profiling
 *************
 

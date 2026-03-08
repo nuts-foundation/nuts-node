@@ -22,6 +22,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -39,7 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"time"
 )
 
 type sqlWallet struct {
@@ -137,6 +138,10 @@ func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCr
 	}
 
 	return validCredentials, nil
+}
+
+func (h sqlWallet) SearchCredential(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return h.walletStore.list(holderDID)
 }
 
 func (h sqlWallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {

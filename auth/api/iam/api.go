@@ -329,7 +329,7 @@ func callbackRequestToError(request CallbackRequestObject, redirectURI *url.URL)
 	return requestErr
 }
 
-func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {
+func (r Wrapper) RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error) {
 	// get access token from store
 	var token TokenResponse
 	err := r.accessTokenClientStore().Get(request.SessionID, &token)
@@ -347,7 +347,7 @@ func (r Wrapper) RetrieveAccessToken(_ context.Context, request RetrieveAccessTo
 	// change this when tokens can be cached
 	err = r.accessTokenClientStore().Delete(request.SessionID)
 	if err != nil {
-		log.Logger().WithError(err).Warn("Failed to delete access token")
+		log.Logger().WithContext(ctx).WithError(err).Warn("Failed to delete access token")
 	}
 	// return access token
 	return RetrieveAccessToken200JSONResponse(token), nil
@@ -988,7 +988,10 @@ func (r Wrapper) subjectExists(ctx context.Context, subjectID string) error {
 		return err
 	}
 	if !exists {
-		return didsubject.ErrSubjectNotFound
+		return oauth.OAuth2Error{
+			Code:        oauth.InvalidRequest,
+			Description: "subject not found",
+		}
 	}
 	return nil
 }

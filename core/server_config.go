@@ -25,15 +25,16 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/url"
+	"reflect"
+	"strings"
+	"time"
+
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"net/url"
-	"reflect"
-	"strings"
-	"time"
 )
 
 const defaultConfigFile = "./config/nuts.yaml"
