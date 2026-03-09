@@ -23,7 +23,6 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
-	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -163,6 +162,21 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
+// RequestNonce mocks base method.
+func (m *MockClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestNonce", ctx, nonceEndpoint)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestNonce indicates an expected call of RequestNonce.
+func (mr *MockClientMockRecorder) RequestNonce(ctx, nonceEndpoint any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestNonce", reflect.TypeOf((*MockClient)(nil).RequestNonce), ctx, nonceEndpoint)
+}
+
 // RequestObjectByGet mocks base method.
 func (m *MockClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	m.ctrl.T.Helper()
@@ -209,16 +223,16 @@ func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjec
 }
 
 // VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, proofJWT string) (*CredentialResponse, error) {
+func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, proofJWT string) (*CredentialResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, proofJWT)
+	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
 	ret0, _ := ret[0].(*CredentialResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // VerifiableCredentials indicates an expected call of VerifiableCredentials.
-func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT any) *gomock.Call {
+func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, proofJWT)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
 }

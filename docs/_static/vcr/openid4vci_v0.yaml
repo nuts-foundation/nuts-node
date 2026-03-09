@@ -6,8 +6,7 @@ info:
     name: GPLv3
     url: https://www.gnu.org/licenses/gpl-3.0.en.html
   description: >
-    This API implements OpenID 4 Verifiable Credential Issuance.
-    The specification is in draft and may change, thus this API might change as well.
+    This API implements OpenID 4 Verifiable Credential Issuance (v1.0).
 servers:
   - url: http://localhost:8081
     description: For internal-facing endpoints.
@@ -220,10 +219,37 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-        "403":
-          description: >
-            Insufficient privileges. Code will be "insufficient_scope".
-            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+  "/n2n/identity/{did}/openid4vci/nonce":
+    post:
+      tags:
+        - Issuer
+      summary: Request a fresh c_nonce value
+      description: >
+        Nonce Endpoint per OpenID4VCI v1.0 Section 7.
+        A Credential Issuer that requires c_nonce values MUST offer this endpoint.
+        The request has an empty body (Content-Length: 0) and requires no authentication.
+      operationId: requestNonce
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/NonceResponse"
+        "404":
+          description: Unknown issuer
           content:
             application/json:
               schema:
@@ -283,6 +309,12 @@ components:
         credential_endpoint:
           type: string
           example: "https://issuer.example/credential"
+        nonce_endpoint:
+          type: string
+          description: >
+            URL of the Nonce Endpoint where wallets can request a fresh c_nonce.
+            Per v1.0 Section 7, a Credential Issuer that requires c_nonce values MUST offer this endpoint.
+          example: "https://issuer.example/nonce"
         credential_configurations_supported:
           type: object
           description: |
@@ -361,17 +393,11 @@ components:
           description: |
             The lifetime in seconds of the access token.
           example: 3600
-        c_nonce:
-          type: string
-          description: |
-            JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
-          example: "tZignsnFbp"
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
           "token_type": "bearer",
-          "expires_in": 3600,
-          "c_nonce": "tZignsnFbp"
+          "expires_in": 3600
         }
     CredentialRequest:
       type: object
@@ -505,6 +531,18 @@ components:
             }
           }
         }
+    NonceResponse:
+      type: object
+      description: |
+        Response from the Nonce Endpoint per OpenID4VCI v1.0 Section 7.
+      required:
+        - c_nonce
+      properties:
+        c_nonce:
+          type: string
+          description: |
+            A fresh nonce value to be used in the proof of possession.
+          example: "wKI4LT17ac15ES9bw8ac4"
     CredentialOfferResponse:
       type: object
       description: |

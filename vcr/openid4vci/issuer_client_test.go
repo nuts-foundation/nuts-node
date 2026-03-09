@@ -126,6 +126,46 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	})
 }
 
+func Test_httpIssuerClient_RequestNonce(t *testing.T) {
+	ctx := context.Background()
+	httpClient := &http.Client{}
+	t.Run("ok", func(t *testing.T) {
+		setup := setupClientTest(t)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.NoError(t, err)
+		require.NotNil(t, nonceResponse)
+		assert.Equal(t, "test-nonce", nonceResponse.CNonce)
+	})
+	t.Run("error - no nonce endpoint in metadata", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.issuerMetadata.NonceEndpoint = ""
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.EqualError(t, err, "issuer does not advertise a nonce endpoint")
+		assert.Nil(t, nonceResponse)
+	})
+	t.Run("error - nonce endpoint returns error", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.nonceHandler = func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.ErrorContains(t, err, "nonce request failed")
+		assert.Nil(t, nonceResponse)
+	})
+}
+
 func Test_httpOAuth2Client_RequestAccessToken(t *testing.T) {
 	httpClient := &http.Client{}
 	params := map[string]string{"some-param": "some-value"}

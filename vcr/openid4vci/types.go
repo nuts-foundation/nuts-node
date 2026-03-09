@@ -62,9 +62,19 @@ type CredentialIssuerMetadata struct {
 	// CredentialEndpoint defines where the wallet can send a request to retrieve a credential.
 	CredentialEndpoint string `json:"credential_endpoint"`
 
+	// NonceEndpoint defines the URL of the Nonce Endpoint where wallets can request a fresh c_nonce.
+	// Per v1.0 Section 7, a Credential Issuer that requires c_nonce values MUST offer a Nonce Endpoint.
+	NonceEndpoint string `json:"nonce_endpoint,omitempty"`
+
 	// CredentialConfigurationsSupported defines metadata about which credential types the credential issuer can issue.
 	// The map is keyed by credential_configuration_id.
 	CredentialConfigurationsSupported map[string]map[string]interface{} `json:"credential_configurations_supported"`
+}
+
+// NonceResponse defines the response from the Nonce Endpoint.
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-nonce-endpoint
+type NonceResponse struct {
+	CNonce string `json:"c_nonce"`
 }
 
 // OAuth2ClientMetadata defines the OAuth2 Client Metadata, extended with OpenID4VCI parameters.

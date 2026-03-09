@@ -95,6 +95,7 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
 		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/credential", metadata.CredentialEndpoint)
+		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/nonce", metadata.NonceEndpoint)
 		require.Len(t, metadata.CredentialConfigurationsSupported, 3)
 		// Assert all 3 config IDs by name
 		for _, expectedID := range []string{
@@ -185,10 +186,12 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	service := requireNewTestHandler(t, keyResolver)
 	offer, err := service.createOffer(ctx, issuedVC, preAuthCode)
 	require.NoError(t, err)
-	accessToken, cNonce, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+	accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+	require.NoError(t, err)
+	nonce, err := service.HandleNonceRequest(ctx)
 	require.NoError(t, err)
 	configID := offer.CredentialConfigurationIds[0]
-	validRequest := createRequest(createHeaders(), createClaims(cNonce), configID)
+	validRequest := createRequest(createHeaders(), createClaims(nonce), configID)
 
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
@@ -201,7 +204,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	})
 	t.Run("error - missing credential_configuration_id", func(t *testing.T) {
 		request := openid4vci.CredentialRequest{
-			Proofs: createProofs(createHeaders(), createClaims(cNonce)),
+			Proofs: createProofs(createHeaders(), createClaims(nonce)),
 		}
 
 		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
@@ -210,7 +213,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		assert.EqualError(t, err, "invalid_credential_request - credential request must contain credential_configuration_id")
 	})
 	t.Run("error - unknown credential_configuration_id", func(t *testing.T) {
-		request := createRequest(createHeaders(), createClaims(cNonce), "NonExistent_ldp_vc")
+		request := createRequest(createHeaders(), createClaims(nonce), "NonExistent_ldp_vc")
 
 		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
 
@@ -253,7 +256,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				service := requireNewTestHandler(t, keyResolver)
 				otherOffer, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
 				require.NoError(t, err)
-				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
 				otherConfigID := otherOffer.CredentialConfigurationIds[0]
@@ -270,7 +273,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				service := requireNewTestHandler(t, keyResolver)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)
-				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
 				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
@@ -316,19 +319,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_nonce - unknown nonce")
-			assert.Nil(t, response)
-		})
-		t.Run("wrong nonce", func(t *testing.T) {
-			_, err := service.createOffer(ctx, issuedVC, "other")
-			require.NoError(t, err)
-			_, cNonce, err := service.HandleAccessTokenRequest(ctx, "other")
-			require.NoError(t, err)
-			invalidRequest := createRequest(createHeaders(), createClaims(cNonce), configID)
-
-			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_nonce - nonce not valid for access token")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_nonce - invalid or expired nonce")
 			assert.Nil(t, response)
 		})
 	})
@@ -338,6 +329,25 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		response, err := service.HandleCredentialRequest(ctx, validRequest, accessToken)
 
 		assertProtocolError(t, err, http.StatusUnauthorized, "invalid_token - unknown access token")
+		assert.Nil(t, response)
+	})
+	t.Run("credential issuer does not match", func(t *testing.T) {
+		store := storage.NewTestInMemorySessionDatabase(t)
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, store)
+		require.NoError(t, err)
+		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+		nonce, err := service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+		request := createRequest(createHeaders(), createClaims(nonce), configID)
+
+		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, &http.Client{}, keyResolver, store)
+		require.NoError(t, err)
+		response, err := otherService.HandleCredentialRequest(ctx, request, accessToken)
+
+		assertProtocolError(t, err, http.StatusBadRequest, "invalid_credential_request - credential issuer does not match given issuer")
 		assert.Nil(t, response)
 	})
 }
@@ -379,7 +389,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
-		accessToken, _, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
@@ -393,7 +403,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 
 		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, &http.Client{}, nil, store)
 		require.NoError(t, err)
-		accessToken, _, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
@@ -406,13 +416,128 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		_, err := service.createOffer(ctx, issuedVC, "some-other-code")
 		require.NoError(t, err)
 
-		accessToken, _, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_grant - unknown pre-authorized code")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		assert.Empty(t, accessToken)
+	})
+}
+
+func Test_memoryIssuer_HandleNonceRequest(t *testing.T) {
+	ctx := context.Background()
+	t.Run("ok", func(t *testing.T) {
+		service := requireNewTestHandler(t, nil)
+
+		nonce, err := service.HandleNonceRequest(ctx)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, nonce)
+	})
+}
+
+func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
+	keyStore := crypto.NewMemoryCryptoInstance(t)
+	ctx := audit.TestContext()
+	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
+	ctrl := gomock.NewController(t)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey, nil)
+
+	createHeaders := func() map[string]interface{} {
+		return map[string]interface{}{
+			"typ": openid4vci.JWTTypeOpenID4VCIProof,
+			"kid": keyID,
+		}
+	}
+	createClaims := func(nonce string) map[string]interface{} {
+		return map[string]interface{}{
+			"aud":   issuerIdentifier,
+			"iat":   time.Now().Unix(),
+			"nonce": nonce,
+		}
+	}
+	createProofs := func(headers, claims map[string]interface{}) *openid4vci.CredentialRequestProofs {
+		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"].(string))
+		require.NoError(t, err)
+		return &openid4vci.CredentialRequestProofs{
+			Jwt: []string{proof},
+		}
+	}
+
+	const preAuthCode = "some-secret-code"
+
+	t.Run("standalone nonce from Nonce Endpoint is accepted", func(t *testing.T) {
+		service := requireNewTestHandler(t, keyResolver)
+		_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Get a standalone nonce
+		standaloneNonce, err := service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+
+		configID := "ExampleCredential_ldp_vc"
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationId: configID,
+			Proofs:                    createProofs(createHeaders(), createClaims(standaloneNonce)),
+		}
+
+		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+	})
+	t.Run("proof skipped when credential config has no proof_types_supported", func(t *testing.T) {
+		// Create a handler with a credential config that lacks proof_types_supported
+		tmpDir := t.TempDir()
+		noProofDef := `{
+			"format": "ldp_vc",
+			"cryptographic_binding_methods_supported": ["did:nuts"],
+			"credential_definition": {
+				"@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/credentials/v1"],
+				"type": ["VerifiableCredential", "NoProofCredential"]
+			}
+		}`
+		err := os.WriteFile(filepath.Join(tmpDir, "NoProofCredential.json"), []byte(noProofDef), 0644)
+		require.NoError(t, err)
+
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, tmpDir, &http.Client{}, keyResolver, storage.NewTestInMemorySessionDatabase(t))
+		require.NoError(t, err)
+		handler := service.(*openidHandler)
+
+		noProofVC := vc.VerifiableCredential{
+			Issuer: issuerDID.URI(),
+			CredentialSubject: []map[string]any{
+				{"id": holderDID.String()},
+			},
+			Context: []ssi.URI{
+				ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+				ssi.MustParseURI("https://example.com/credentials/v1"),
+			},
+			Type: []ssi.URI{
+				ssi.MustParseURI("VerifiableCredential"),
+				ssi.MustParseURI("NoProofCredential"),
+			},
+		}
+
+		_, err = handler.createOffer(ctx, noProofVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := handler.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Request without proof should succeed
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationId: "NoProofCredential_ldp_vc",
+		}
+
+		response, err := handler.HandleCredentialRequest(ctx, request, accessToken)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
 	})
 }
 

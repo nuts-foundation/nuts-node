@@ -62,7 +62,6 @@ const (
 
 // Error is an error that signals the error was (probably) caused by the client (e.g. bad request),
 // or that the client can recover from the error (e.g. retry). Errors are specified by the OpenID4VCI specification.
-// Invalid proof errors may also add a new c_nonce that the client must use in the next credential request.
 type Error struct {
 	// Code is the error code as defined by the OpenID4VCI spec.
 	Code ErrorCode `json:"error"`

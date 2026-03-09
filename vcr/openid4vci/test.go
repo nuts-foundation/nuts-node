@@ -58,6 +58,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	clientTest.tokenHandler = clientTest.httpPostHandler(oauth.TokenResponse{AccessToken: "secret"})
 	clientTest.walletMetadataHandler = clientTest.httpGetHandler(walletMetadata)
 	clientTest.credentialOfferHandler = clientTest.httpGetHandler(CredentialOfferResponse{CredentialOfferStatusReceived})
+	clientTest.nonceHandler = clientTest.httpPostHandler(NonceResponse{CNonce: "test-nonce"})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/issuer"+CredentialIssuerMetadataWellKnownPath, func(writer http.ResponseWriter, request *http.Request) {
@@ -72,6 +73,9 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	mux.HandleFunc("/issuer/token", func(writer http.ResponseWriter, request *http.Request) {
 		clientTest.tokenHandler(writer, request)
 	})
+	mux.HandleFunc("/issuer/nonce", func(writer http.ResponseWriter, request *http.Request) {
+		clientTest.nonceHandler(writer, request)
+	})
 	mux.HandleFunc("/wallet/metadata", func(writer http.ResponseWriter, request *http.Request) {
 		clientTest.walletMetadataHandler(writer, request)
 	})
@@ -85,6 +89,7 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	issuerIdentifier := serverURL + "/issuer"
 	issuerMetadata.CredentialIssuer = issuerIdentifier
 	issuerMetadata.CredentialEndpoint = issuerIdentifier + "/credential"
+	issuerMetadata.NonceEndpoint = issuerIdentifier + "/nonce"
 	providerMetadata.Issuer = issuerIdentifier
 	providerMetadata.TokenEndpoint = issuerIdentifier + "/token"
 	return clientTest
@@ -130,6 +135,7 @@ type oidcClientTestContext struct {
 	credentialHandler       http.HandlerFunc
 	credentialOfferHandler  http.HandlerFunc
 	tokenHandler            http.HandlerFunc
+	nonceHandler            http.HandlerFunc
 	walletMetadataHandler   http.HandlerFunc
 	requests                []http.Request
 }

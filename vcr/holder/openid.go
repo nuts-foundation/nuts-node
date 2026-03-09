@@ -156,10 +156,6 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 
-	// Note: in v1.0, c_nonce is no longer in the token response (moved to optional Nonce Endpoint).
-	// For now we still pass the c_nonce from the token response if present (backwards compat with
-	// issuers that still include it), but we no longer require it.
-
 	retrieveCtx := audit.Context(ctx, "app-openid4vci", "VCR/OpenID4VCI", "RetrieveCredential")
 	credential, err := h.retrieveCredential(retrieveCtx, issuerClient, credentialConfigID, accessTokenResponse)
 	if err != nil {
@@ -211,26 +207,30 @@ func (h *openidHandler) resolveCredentialConfiguration(metadata openid4vci.Crede
 		// Parse @context
 		if contextRaw, ok := credDefMap["@context"].([]interface{}); ok {
 			for _, c := range contextRaw {
-				if cStr, ok := c.(string); ok {
-					u, err := ssi.ParseURI(cStr)
-					if err != nil {
-						return nil, fmt.Errorf("invalid @context URI %q: %w", cStr, err)
-					}
-					credentialDef.Context = append(credentialDef.Context, *u)
+				cStr, ok := c.(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid @context entry: expected string, got %T", c)
 				}
+				u, err := ssi.ParseURI(cStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid @context URI %q: %w", cStr, err)
+				}
+				credentialDef.Context = append(credentialDef.Context, *u)
 			}
 		}
 
 		// Parse type
 		if typeRaw, ok := credDefMap["type"].([]interface{}); ok {
 			for _, t := range typeRaw {
-				if tStr, ok := t.(string); ok {
-					u, err := ssi.ParseURI(tStr)
-					if err != nil {
-						return nil, fmt.Errorf("invalid type URI %q: %w", tStr, err)
-					}
-					credentialDef.Type = append(credentialDef.Type, *u)
+				tStr, ok := t.(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid type entry: expected string, got %T", t)
 				}
+				u, err := ssi.ParseURI(tStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid type URI %q: %w", tStr, err)
+				}
+				credentialDef.Type = append(credentialDef.Type, *u)
 			}
 		}
 
@@ -251,30 +251,49 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 	if err != nil {
 		return nil, err
 	}
-	headers := map[string]interface{}{
-		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": keyID,                             // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
-	}
-	claims := map[string]interface{}{
-		"aud": issuerClient.Metadata().CredentialIssuer,
-		"iat": nowFunc().Unix(),
-	}
-	// Include c_nonce in proof if available (from token response or future Nonce Endpoint)
-	if cNonce := tokenResponse.Get(oauth.CNonceParam); cNonce != "" {
-		claims["nonce"] = cNonce
-	}
 
-	proof, err := h.signer.SignJWT(ctx, claims, headers, keyID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sign request proof: %w", err)
-	}
+	const maxAttempts = 2
+	for attempt := range maxAttempts {
+		headers := map[string]interface{}{
+			"typ": openid4vci.JWTTypeOpenID4VCIProof,
+			"kid": keyID,
+		}
+		claims := map[string]interface{}{
+			"aud": issuerClient.Metadata().CredentialIssuer,
+			"iat": nowFunc().Unix(),
+		}
 
-	// Use credential_configuration_id (v1.0 preferred approach) instead of format + credential_definition
-	credentialRequest := openid4vci.CredentialRequest{
-		CredentialConfigurationId: credentialConfigID,
-		Proofs: &openid4vci.CredentialRequestProofs{
-			Jwt: []string{proof},
-		},
+		// Per v1.0 Section 7, fetch nonce from Nonce Endpoint when advertised
+		if issuerClient.Metadata().NonceEndpoint != "" {
+			nonceResponse, nonceErr := issuerClient.RequestNonce(ctx)
+			if nonceErr != nil {
+				return nil, fmt.Errorf("unable to request nonce: %w", nonceErr)
+			}
+			claims["nonce"] = nonceResponse.CNonce
+		}
+
+		proof, signErr := h.signer.SignJWT(ctx, claims, headers, keyID)
+		if signErr != nil {
+			return nil, fmt.Errorf("unable to sign request proof: %w", signErr)
+		}
+
+		credentialRequest := openid4vci.CredentialRequest{
+			CredentialConfigurationId: credentialConfigID,
+			Proofs: &openid4vci.CredentialRequestProofs{
+				Jwt: []string{proof},
+			},
+		}
+		credential, reqErr := issuerClient.RequestCredential(ctx, credentialRequest, tokenResponse.AccessToken)
+		if reqErr != nil {
+			// On invalid_nonce, fetch a fresh nonce and retry once (v1.0 Section 8.3.1.2)
+			var protocolErr openid4vci.Error
+			if attempt == 0 && errors.As(reqErr, &protocolErr) && protocolErr.Code == openid4vci.InvalidNonce {
+				log.Logger().Debug("Received invalid_nonce, retrying with fresh nonce")
+				continue
+			}
+			return nil, reqErr
+		}
+		return credential, nil
 	}
-	return issuerClient.RequestCredential(ctx, credentialRequest, tokenResponse.AccessToken)
+	return nil, errors.New("credential request failed after nonce retry")
 }

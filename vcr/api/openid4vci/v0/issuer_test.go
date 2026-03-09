@@ -22,7 +22,6 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	oauth2 "github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -109,7 +108,7 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
-		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), "code").Return("access-token", "c_nonce", nil)
+		oidcIssuer.EXPECT().HandleAccessTokenRequest(gomock.Any(), "code").Return("access-token", nil)
 		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
 		vdr := vdr.NewMockVDR(ctrl)
@@ -127,7 +126,6 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, "access-token", response.(RequestAccessToken200JSONResponse).AccessToken)
-		assert.Equal(t, "c_nonce", oauth2.TokenResponse(response.(RequestAccessToken200JSONResponse)).Get("c_nonce"))
 	})
 	t.Run("unknown tenant", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -166,6 +164,40 @@ func TestWrapper_RequestAccessToken(t *testing.T) {
 		assert.EqualError(t, protocolError, "unsupported_grant_type - unsupported grant type: unsupported")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		require.Nil(t, response)
+	})
+}
+
+func TestWrapper_RequestNonce(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		oidcIssuer := issuer.NewMockOpenIDHandler(ctrl)
+		oidcIssuer.EXPECT().HandleNonceRequest(gomock.Any()).Return("test-nonce-value", nil)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+		vdr := vdr.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(oidcIssuer, nil)
+		api := Wrapper{VCR: service, VDR: vdr}
+
+		response, err := api.RequestNonce(context.Background(), RequestNonceRequestObject{Did: issuerDID.String()})
+
+		require.NoError(t, err)
+		jsonResponse := response.(RequestNonce200JSONResponse)
+		assert.Equal(t, "test-nonce-value", jsonResponse.Body.CNonce)
+		assert.Equal(t, "no-store", jsonResponse.Headers.CacheControl)
+	})
+	t.Run("unknown tenant", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(false, nil)
+		vdr := vdr.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+		api := Wrapper{VDR: vdr}
+
+		_, err := api.RequestNonce(context.Background(), RequestNonceRequestObject{Did: issuerDID.String()})
+
+		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
 }
 

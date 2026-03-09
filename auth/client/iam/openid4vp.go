@@ -355,11 +355,15 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oa
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error) {
+func (c *OpenID4VPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
+	return c.httpClient.RequestNonce(ctx, nonceEndpoint)
+}
+
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*CredentialResponse, error) {
 	iamClient := c.httpClient
-	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT)
+	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
 	if err != nil {
-		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
+		return nil, err
 	}
 	return rsp, nil
 }
