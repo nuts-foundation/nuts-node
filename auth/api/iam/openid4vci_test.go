@@ -399,4 +399,29 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "failed to sign the JWT with kid (kid): signature failed")
 	})
+	t.Run("error - nil OwnDID in session", func(t *testing.T) {
+		ctx := newTestClient(t)
+		sessionNilDID := session
+		sessionNilDID.OwnDID = nil
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionNilDID)
+
+		assert.Nil(t, callback)
+		assert.ErrorContains(t, err, "missing wallet DID in session")
+	})
+	t.Run("error - empty credentials array", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&iam.CredentialResponse{
+			Credentials: []iam.CredentialResponseEntry{},
+		}, nil)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+
+		assert.Nil(t, callback)
+		assert.ErrorContains(t, err, "credential response does not contain any credentials")
+	})
 }
