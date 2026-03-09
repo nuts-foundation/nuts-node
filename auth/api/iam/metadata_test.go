@@ -32,21 +32,22 @@ import (
 func Test_authorizationServerMetadata(t *testing.T) {
 	presentationDefinitionURISupported := true
 	baseExpected := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:                  "https://example.com/oauth2/example/authorize",
-		TokenEndpoint:                          "https://example.com/oauth2/example/token",
-		ClientIdSchemesSupported:               []string{"entity_id"},
-		DIDMethodsSupported:                    []string{"test"},
-		DPoPSigningAlgValuesSupported:          jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                    []string{"authorization_code", "vp_token-bearer"},
-		Issuer:                                 "https://example.com/oauth2/example",
-		PresentationDefinitionEndpoint:         "https://example.com/oauth2/example/presentation_definition",
-		PresentationDefinitionUriSupported:     &presentationDefinitionURISupported,
-		RequireSignedRequestObject:             true,
-		ResponseTypesSupported:                 []string{"code", "vp_token"},
-		ResponseModesSupported:                 []string{"query", "direct_post"},
-		VPFormats:                              oauth.DefaultOpenIDSupportedFormats(),
-		VPFormatsSupported:                     oauth.DefaultOpenIDSupportedFormats(),
-		RequestObjectSigningAlgValuesSupported: jwx.SupportedAlgorithmsAsStrings(),
+		AuthorizationEndpoint:                      "https://example.com/oauth2/example/authorize",
+		TokenEndpoint:                              "https://example.com/oauth2/example/token",
+		ClientIdSchemesSupported:                   []string{"entity_id"},
+		DIDMethodsSupported:                        []string{"test"},
+		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
+		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer"},
+		Issuer:                                     "https://example.com/oauth2/example",
+		PreAuthorizedGrantAnonymousAccessSupported: true,
+		PresentationDefinitionEndpoint:             "https://example.com/oauth2/example/presentation_definition",
+		PresentationDefinitionUriSupported:         &presentationDefinitionURISupported,
+		RequireSignedRequestObject:                 true,
+		ResponseTypesSupported:                     []string{"code", "vp_token"},
+		ResponseModesSupported:                     []string{"query", "direct_post"},
+		VPFormats:                                  oauth.DefaultOpenIDSupportedFormats(),
+		VPFormatsSupported:                         oauth.DefaultOpenIDSupportedFormats(),
+		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	authServerUrl := test.MustParseURL("https://example.com/oauth2/example")
 	md := authorizationServerMetadata(authServerUrl, []string{"test"})
