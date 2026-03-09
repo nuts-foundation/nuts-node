@@ -45,6 +45,10 @@ var timeFunc = time.Now
 const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
 	walletDID, err := did.ParseDID(request.Body.WalletDid)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid wallet DID")
@@ -53,11 +57,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, err
 	} else if !owned {
 		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
-	}
-
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
 	}
 	// Parse the issuer
 	issuer := request.Body.Issuer

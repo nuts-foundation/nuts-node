@@ -112,6 +112,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		credentialStore := types.NewMockWriter(ctrl)
 		jwtSigner := crypto.NewMockJWTSigner(ctrl)
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"iss": holderDID.String(),
 			"aud": issuerDID.String(),
 			"iat": int64(1735689600),
 		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
@@ -171,6 +172,32 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential_configuration_id in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
+	t.Run("error - credential configuration missing format", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		metadataNoFormat := openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer:   issuerDID.String(),
+			CredentialEndpoint: "credential-endpoint",
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"ExampleCredential_ldp_vc": {
+					"credential_definition": map[string]interface{}{
+						"@context": []interface{}{"https://www.w3.org/2018/credentials/v1"},
+						"type":     []interface{}{"VerifiableCredential"},
+					},
+				},
+			},
+		}
+		issuerAPIClient.EXPECT().Metadata().Return(metadataNoFormat).AnyTimes()
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.ErrorContains(t, err, "credential configuration 'ExampleCredential_ldp_vc' is missing 'format' field")
 	})
 	t.Run("error - access token request fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -387,6 +414,7 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 			return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"iss":   holderDID.String(),
 			"aud":   issuerDID.String(),
 			"iat":   int64(1767225600),
 			"nonce": nonce,

@@ -197,7 +197,10 @@ func (h *openidHandler) resolveCredentialConfiguration(metadata openid4vci.Crede
 		return nil, fmt.Errorf("credential_configuration_id '%s' not found in issuer metadata", configID)
 	}
 
-	format, _ := config["format"].(string)
+	format, ok := config["format"].(string)
+	if !ok || format == "" {
+		return nil, fmt.Errorf("credential configuration '%s' is missing 'format' field", configID)
+	}
 	credDefMap, _ := config["credential_definition"].(map[string]interface{})
 
 	var credentialDef *openid4vci.CredentialDefinition
@@ -259,6 +262,7 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 			"kid": keyID,
 		}
 		claims := map[string]interface{}{
+			"iss": h.did.String(),
 			"aud": issuerClient.Metadata().CredentialIssuer,
 			"iat": nowFunc().Unix(),
 		}

@@ -395,7 +395,14 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		}
 	}
 
-	nonceValue := nonce.(string)
+	nonceValue, ok := nonce.(string)
+	if !ok {
+		return openid4vci.Error{
+			Err:        errors.New("nonce claim is not a string"),
+			Code:       openid4vci.InvalidProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
 
 	// Validate nonce from Nonce Endpoint (v1.0 Section 7)
 	if i.store.ConsumeNonce(ctx, nonceValue) {

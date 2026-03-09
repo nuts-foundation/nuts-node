@@ -539,6 +539,32 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 	})
+	t.Run("non-string nonce claim returns invalid_proof", func(t *testing.T) {
+		service := requireNewTestHandler(t, keyResolver)
+		_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Get a standalone nonce but put a number in the claim instead
+		_, err = service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+
+		configID := "ExampleCredential_ldp_vc"
+		claimsWithNumericNonce := map[string]interface{}{
+			"aud":   issuerIdentifier,
+			"iat":   time.Now().Unix(),
+			"nonce": 12345, // non-string
+		}
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationId: configID,
+			Proofs:                    createProofs(createHeaders(), claimsWithNumericNonce),
+		}
+
+		_, err = service.HandleCredentialRequest(ctx, request, accessToken)
+
+		assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce claim is not a string")
+	})
 }
 
 func assertProtocolError(t *testing.T, err error, statusCode int, message string) {
