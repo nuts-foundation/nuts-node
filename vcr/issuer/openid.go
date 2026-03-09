@@ -73,21 +73,23 @@ const TokenTTL = 15 * time.Minute
 
 const preAuthCodeRefType = "preauthcode"
 const accessTokenRefType = "accesstoken"
-const cNonceRefType = "c_nonce"
 
 // OpenIDHandler defines the interface for handling OpenID4VCI issuer operations.
 type OpenIDHandler interface {
 	// ProviderMetadata returns the OpenID Connect provider metadata.
 	ProviderMetadata() openid4vci.ProviderMetadata
 	// HandleAccessTokenRequest handles an OAuth2 access token request for the given issuer and pre-authorized code.
-	// It returns the access token and a c_nonce.
-	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error)
+	// It returns the access token.
+	HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, error)
 	// Metadata returns the OpenID4VCI credential issuer metadata for the given issuer.
 	Metadata() openid4vci.CredentialIssuerMetadata
 	// OfferCredential sends a credential offer to the specified wallet. It derives the issuer from the credential.
 	OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error
 	// HandleCredentialRequest requests a credential from the given issuer.
 	HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	// HandleNonceRequest handles a request to the Nonce Endpoint (v1.0 Section 7).
+	// It generates a standalone nonce and returns it.
+	HandleNonceRequest(ctx context.Context) (string, error)
 }
 
 // NewOpenIDHandler creates a new OpenIDHandler instance. The identifier is the Credential Issuer Identifier, e.g. https://example.com/issuer/
@@ -121,6 +123,7 @@ func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {
 	metadata := openid4vci.CredentialIssuerMetadata{
 		CredentialIssuer:   i.issuerIdentifierURL,
 		CredentialEndpoint: core.JoinURLPaths(i.issuerIdentifierURL, "/openid4vci/credential"),
+		NonceEndpoint:      core.JoinURLPaths(i.issuerIdentifierURL, "/openid4vci/nonce"),
 	}
 
 	// deepcopy the credentialConfigurationsSupported map to prevent concurrent access.
@@ -140,20 +143,20 @@ func (i *openidHandler) ProviderMetadata() openid4vci.ProviderMetadata {
 	}
 }
 
-func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error) {
+func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, error) {
 	flow, err := i.store.FindByReference(ctx, preAuthCodeRefType, preAuthorizedCode)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	if flow == nil {
-		return "", "", openid4vci.Error{
+		return "", openid4vci.Error{
 			Err:        errors.New("unknown pre-authorized code"),
 			Code:       openid4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if flow.IssuerID != i.issuerDID.String() {
-		return "", "", openid4vci.Error{
+		return "", openid4vci.Error{
 			Err:        errors.New("pre-authorized code not issued by this issuer"),
 			Code:       openid4vci.InvalidGrant,
 			StatusCode: http.StatusBadRequest,
@@ -162,12 +165,7 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 	accessToken := crypto.GenerateNonce()
 	err = i.store.StoreReference(ctx, flow.ID, accessTokenRefType, accessToken)
 	if err != nil {
-		return "", "", err
-	}
-	cNonce := crypto.GenerateNonce()
-	err = i.store.StoreReference(ctx, flow.ID, cNonceRefType, cNonce)
-	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	// PreAuthorizedCode is to be used just once
@@ -179,7 +177,7 @@ func (i *openidHandler) HandleAccessTokenRequest(ctx context.Context, preAuthori
 		// Just log it, nothing will break (since they'll be pruned after ttl anyway).
 		log.Logger().WithError(err).Error("Failed to delete pre-authorized code")
 	}
-	return accessToken, cNonce, nil
+	return accessToken, nil
 }
 
 func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.VerifiableCredential, walletIdentifier string) error {
@@ -274,29 +272,37 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request ope
 	return &credential, nil
 }
 
+func (i *openidHandler) HandleNonceRequest(ctx context.Context) (string, error) {
+	nonce := crypto.GenerateNonce()
+	if err := i.store.StoreNonce(ctx, nonce); err != nil {
+		return "", err
+	}
+	return nonce, nil
+}
+
 // validateProof validates the proof of the credential request. Aside from checks as specified by the spec,
 // it verifies the proof signature, and whether the signer is the intended wallet.
+// The validation is metadata-driven: proof is only required if the credential configuration
+// includes proof_types_supported. Nonce is only required if the issuer advertises a nonce_endpoint.
 // See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
 func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request openid4vci.CredentialRequest) error {
+	// Check if the credential configuration requires proof
+	credConfig, ok := i.credentialConfigurationsSupported[request.CredentialConfigurationId]
+	if ok {
+		if _, hasProofTypes := credConfig["proof_types_supported"]; !hasProofTypes {
+			return nil // no proof required for this credential configuration
+		}
+	}
+
 	credential := flow.Credentials[0] // there's always just one (at least for now)
 	wallet, _ := credential.SubjectDID()
 
-	// In v1.0, error responses no longer contain c_nonce (wallet should use Nonce Endpoint).
-	// We still store a new c_nonce server-side so the wallet can retry after obtaining one.
-	generateProofError := func(err openid4vci.Error) error {
-		cnonce := crypto.GenerateNonce()
-		if storeErr := i.store.StoreReference(ctx, flow.ID, cNonceRefType, cnonce); storeErr != nil {
-			return storeErr
-		}
-		return err
-	}
-
 	if request.Proofs == nil || len(request.Proofs.Jwt) == 0 {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("missing proofs"),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 	// We only support single proof for now
 	proofJWT := request.Proofs.Jwt[0]
@@ -306,20 +312,20 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		return i.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
 	}, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        err,
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
 	if signerDID, err := resolver.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer was signed by other DID than intended wallet: %s", signingKeyID),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 
 	// Validate audience
@@ -331,11 +337,11 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		}
 	}
 	if !audienceMatches {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 
 	// Validate JWT type
@@ -351,51 +357,48 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 	typ := message.Signatures()[0].ProtectedHeaders().Type()
 	if typ == "" {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("missing typ header"),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 	if typ != openid4vci.JWTTypeOpenID4VCIProof {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", openid4vci.JWTTypeOpenID4VCIProof, typ),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
+	}
+
+	// Nonce validation: only required if the issuer advertises a nonce_endpoint
+	metadata := i.Metadata()
+	if metadata.NonceEndpoint == "" {
+		return nil // no nonce required
 	}
 
 	// given the JWT typ, the nonce is in the 'nonce' claim
 	nonce, ok := token.Get("nonce")
 	if !ok {
-		return generateProofError(openid4vci.Error{
+		return openid4vci.Error{
 			Err:        errors.New("missing nonce claim"),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
-		})
+		}
 	}
 
-	// check if the nonce matches the one we sent in the offer
-	flowFromNonce, err := i.store.FindByReference(ctx, cNonceRefType, nonce.(string))
-	if err != nil {
-		return err
-	}
-	if flowFromNonce == nil {
-		return generateProofError(openid4vci.Error{
-			Err:        errors.New("unknown nonce"),
-			Code:       openid4vci.InvalidNonce,
-			StatusCode: http.StatusBadRequest,
-		})
-	}
-	if flowFromNonce.ID != flow.ID {
-		return generateProofError(openid4vci.Error{
-			Err:        errors.New("nonce not valid for access token"),
-			Code:       openid4vci.InvalidNonce,
-			StatusCode: http.StatusBadRequest,
-		})
+	nonceValue := nonce.(string)
+
+	// Validate nonce from Nonce Endpoint (v1.0 Section 7)
+	if i.store.ConsumeNonce(ctx, nonceValue) {
+		return nil
 	}
 
-	return nil
+	return openid4vci.Error{
+		Err:        errors.New("invalid or expired nonce"),
+		Code:       openid4vci.InvalidNonce,
+		StatusCode: http.StatusBadRequest,
+	}
 }
 
 func (i *openidHandler) createOffer(ctx context.Context, credential vc.VerifiableCredential, preAuthorizedCode string) (*openid4vci.CredentialOffer, error) {

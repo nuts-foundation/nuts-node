@@ -30,10 +30,12 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -81,8 +83,12 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	// Read and parse the authorization details
 	authorizationDetails := []byte("[]")
+	var credentialConfigID string
 	if len(request.Body.AuthorizationDetails) > 0 {
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
+		if id, ok := request.Body.AuthorizationDetails[0]["credential_configuration_id"].(string); ok {
+			credentialConfigID = id
+		}
 	}
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
@@ -102,7 +108,9 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
 		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
 		IssuerURL:                authzServerMetadata.Issuer,
-		IssuerCredentialEndpoint: credentialIssuerMetadata.CredentialEndpoint,
+		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
+		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
+		IssuerCredentialConfigurationId: credentialConfigID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -129,8 +137,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 }
 
 func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
-	// extract callback URI at calling app from OAuthSession
-	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
 	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
@@ -142,31 +148,49 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}
 
 	// use code to request access token from remote token endpoint
-	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
-	// make proof and collect credential
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+	// fetch nonce from the Nonce Endpoint (v1.0 Section 7)
+	var nonce string
+	if oauthSession.IssuerNonceEndpoint != "" {
+		nonce, err = r.auth.IAMClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+		if err != nil {
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+		}
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, response.AccessToken, proofJWT)
+
+	// build proof and request credential
+	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+		// on invalid_nonce: fetch a fresh nonce and retry once
+		var oidcErr openid4vci.Error
+		if errors.As(err, &oidcErr) && oidcErr.Code == openid4vci.InvalidNonce && oauthSession.IssuerNonceEndpoint != "" {
+			nonce, err = r.auth.IAMClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+			if err != nil {
+				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+			}
+			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+		}
+		if err != nil {
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+		}
 	}
-	// validate credential
-	// TODO: check that issued credential is bound to DID that requested it (OwnDID)???
-	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
+	if len(credentialResponse.Credentials) == 0 {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "credential response does not contain any credentials"), appCallbackURI)
+	}
+
+	credentialJSON := string(credentialResponse.Credentials[0].Credential)
+	credential, err := vc.ParseVerifiableCredential(credentialJSON)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentialJSON, err.Error())), appCallbackURI)
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), appCallbackURI)
 	}
-	// store credential in wallet
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), appCallbackURI)
@@ -174,6 +198,14 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	return Callback302Response{
 		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},
 	}, nil
+}
+
+func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, nonce string) (*iamclient.CredentialResponse, error) {
+	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, nonce)
+	if err != nil {
+		return nil, fmt.Errorf("error building proof: %w", err)
+	}
+	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, oauthSession.IssuerCredentialConfigurationId, proofJWT)
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
@@ -184,10 +216,6 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	headers := map[string]interface{}{
 		"typ": jwtTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
 		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
-	}
-	if err != nil {
-		// can't fail or would have failed before
-		return "", err
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),
