@@ -177,7 +177,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	}
 	createRequest := func(headers, claims map[string]interface{}, configID string) openid4vci.CredentialRequest {
 		return openid4vci.CredentialRequest{
-			CredentialConfigurationId: configID,
+			CredentialConfigurationID: configID,
 			Proofs:                    createProofs(headers, claims),
 		}
 	}
@@ -191,7 +191,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	require.NoError(t, err)
 	nonce, err := service.HandleNonceRequest(ctx)
 	require.NoError(t, err)
-	configID := offer.CredentialConfigurationIds[0]
+	configID := offer.CredentialConfigurationIDs[0]
 	validRequest := createRequest(createHeaders(), createClaims(nonce), configID)
 
 	t.Run("ok", func(t *testing.T) {
@@ -260,7 +260,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
-				otherConfigID := otherOffer.CredentialConfigurationIds[0]
+				otherConfigID := otherOffer.CredentialConfigurationIDs[0]
 				invalidRequest := createRequest(createHeaders(), createClaims(""), otherConfigID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
@@ -504,7 +504,7 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 
 		configID := "ExampleCredential_ldp_vc"
 		request := openid4vci.CredentialRequest{
-			CredentialConfigurationId: configID,
+			CredentialConfigurationID: configID,
 			Proofs:                    createProofs(createHeaders(), createClaims(standaloneNonce)),
 		}
 
@@ -553,7 +553,7 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 
 		// Request without proof should succeed
 		request := openid4vci.CredentialRequest{
-			CredentialConfigurationId: "NoProofCredential_ldp_vc",
+			CredentialConfigurationID: "NoProofCredential_ldp_vc",
 		}
 
 		response, err := handler.HandleCredentialRequest(ctx, request, accessToken)
@@ -580,7 +580,7 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 			"nonce": 12345, // non-string
 		}
 		request := openid4vci.CredentialRequest{
-			CredentialConfigurationId: configID,
+			CredentialConfigurationID: configID,
 			Proofs:                    createProofs(createHeaders(), claimsWithNumericNonce),
 		}
 

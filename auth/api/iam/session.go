@@ -57,8 +57,8 @@ type OAuthSession struct {
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
 	// IssuerNonceEndpoint: endpoint to request a fresh c_nonce in the OpenID4VCI flow (v1.0 Section 7)
 	IssuerNonceEndpoint string `json:"issuer_nonce_endpoint,omitempty"`
-	// IssuerCredentialConfigurationId: the credential_configuration_id for the credential request in the OpenID4VCI flow
-	IssuerCredentialConfigurationId string `json:"issuer_credential_configuration_id,omitempty"`
+	// IssuerCredentialConfigurationID: the credential_configuration_id for the credential request in the OpenID4VCI flow
+	IssuerCredentialConfigurationID string `json:"issuer_credential_configuration_id,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

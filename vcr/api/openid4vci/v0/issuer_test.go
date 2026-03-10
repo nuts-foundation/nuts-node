@@ -221,7 +221,7 @@ func TestWrapper_RequestCredential(t *testing.T) {
 				Authorization: &authz,
 			},
 			Body: &RequestCredentialJSONRequestBody{
-				CredentialConfigurationId: "NutsOrganizationCredential_ldp_vc",
+				CredentialConfigurationID: "NutsOrganizationCredential_ldp_vc",
 			},
 		})
 

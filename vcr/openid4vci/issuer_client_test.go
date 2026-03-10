@@ -88,7 +88,7 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	credentialRequest := CredentialRequest{
-		CredentialConfigurationId: "NutsOrganizationCredential_ldp_vc",
+		CredentialConfigurationID: "NutsOrganizationCredential_ldp_vc",
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
