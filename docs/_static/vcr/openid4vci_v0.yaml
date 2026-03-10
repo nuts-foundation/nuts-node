@@ -369,6 +369,12 @@ components:
           description: |
             URL of the authorization server's token endpoint [RFC6749].
           example: https://issuer.example.com/token
+        pre-authorized_grant_anonymous_access_supported:
+          type: boolean
+          description: |
+            Indicates whether anonymous access (requests without client_id) is supported
+            for pre-authorized code grant flows.
+          example: true
 
     TokenResponse:
       type: object
@@ -434,6 +440,7 @@ components:
                   "kid": "did:nuts:ebfeb1f712ebc6f1c276e12ec21#keys-1"
                 }.
                 {
+                  "iss": "did:nuts:ebfeb1f712ebc6f1c276e12ec21",
                   "aud": "https://credential-issuer.example.com",
                   "iat": 1659145924,
                   "nonce": "tZignsnFbp"
@@ -519,6 +526,30 @@ components:
             type: string
         grants:
           type: object
+          description: |
+            Grant types the issuer offers for this credential. Currently only pre-authorized code is supported.
+          properties:
+            "urn:ietf:params:oauth:grant-type:pre-authorized_code":
+              type: object
+              required:
+                - pre-authorized_code
+              properties:
+                pre-authorized_code:
+                  type: string
+                  description: The pre-authorized code for the credential offer.
+                tx_code:
+                  type: object
+                  description: |
+                    Optional transaction code descriptor. When present, the wallet must provide a user-entered
+                    PIN when exchanging the pre-authorized code at the token endpoint.
+                  properties:
+                    input_mode:
+                      type: string
+                      enum: [numeric, text]
+                    length:
+                      type: integer
+                    description:
+                      type: string
       example:
         {
           "credential_issuer": "https://issuer.example",
