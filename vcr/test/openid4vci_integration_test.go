@@ -142,7 +142,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	t.Run("error from service layer (unknown access token)", func(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", issuer.Metadata().CredentialEndpoint, bytes.NewReader(requestBody))
 		httpRequest.Header.Set("Content-Type", "application/json")
-		httpRequest.Header.Set("Authentication", "Bearer not-a-valid-token")
+		httpRequest.Header.Set("Authorization", "Bearer not-a-valid-token")
 
 		httpResponse, err := http.DefaultClient.Do(httpRequest)
 

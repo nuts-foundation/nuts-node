@@ -122,6 +122,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
+		t.Cleanup(func() { nowFunc = time.Now })
 
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, credentialStore, jwtSigner, keyResolver).(*openidHandler)
 		w.issuerClientCreator = func(_ context.Context, httpClient core.HTTPRequestDoer, credentialIssuerIdentifier string) (openid4vci.IssuerAPIClient, error) {
@@ -172,6 +173,25 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		assert.EqualError(t, err, "invalid_request - there must be exactly 1 credential_configuration_id in credential offer")
 		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
+	t.Run("error - credential_configuration_id not found in metadata", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		emptyMetadata := openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer:                  issuerDID.String(),
+			CredentialEndpoint:                "credential-endpoint",
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{},
+		}
+		issuerAPIClient.EXPECT().Metadata().Return(emptyMetadata).AnyTimes()
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.ErrorContains(t, err, "credential_configuration_id 'ExampleCredential_ldp_vc' not found in issuer metadata")
 	})
 	t.Run("error - credential configuration missing format", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -413,6 +433,7 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
+		t.Cleanup(func() { nowFunc = time.Now })
 		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
 			"iss":   holderDID.String(),
 			"aud":   issuerDID.String(),
@@ -445,11 +466,19 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)
-		// First credential request fails with invalid_nonce
-		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+		// First credential request (with stale nonce) fails with invalid_nonce
+		firstCredReq := openid4vci.CredentialRequest{
+			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			Proofs:                    &openid4vci.CredentialRequestProofs{Jwt: []string{"signed-jwt-1"}},
+		}
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), firstCredReq, "access-token").
 			Return(nil, openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: http.StatusBadRequest})
-		// Retry succeeds
-		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+		// Retry with fresh nonce succeeds
+		retryCredReq := openid4vci.CredentialRequest{
+			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			Proofs:                    &openid4vci.CredentialRequestProofs{Jwt: []string{"signed-jwt-2"}},
+		}
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), retryCredReq, "access-token").
 			Return(&vc.VerifiableCredential{
 				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("https://example.com/credentials/v1")},
 				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("ExampleCredential")},
@@ -460,8 +489,21 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
-		// Two sign calls: one for each attempt
-		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "key-id").Return("signed-jwt", nil).Times(2)
+		t.Cleanup(func() { nowFunc = time.Now })
+		// First attempt uses the stale nonce
+		firstSign := jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"iss":   holderDID.String(),
+			"aud":   issuerDID.String(),
+			"iat":   int64(1767225600),
+			"nonce": "stale-nonce",
+		}, gomock.Any(), "key-id").Return("signed-jwt-1", nil)
+		// Retry uses the fresh nonce
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"iss":   holderDID.String(),
+			"aud":   issuerDID.String(),
+			"iat":   int64(1767225600),
+			"nonce": nonce,
+		}, gomock.Any(), "key-id").Return("signed-jwt-2", nil).After(firstSign)
 		keyResolver := resolver.NewMockKeyResolver(ctrl)
 		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
 
@@ -475,6 +517,36 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
 		require.NoError(t, err)
+	})
+	t.Run("error - invalid_nonce retry also fails", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadataWithNonce).AnyTimes()
+		first := issuerAPIClient.EXPECT().RequestNonce(gomock.Any()).Return(&openid4vci.NonceResponse{CNonce: "stale-nonce"}, nil)
+		issuerAPIClient.EXPECT().RequestNonce(gomock.Any()).Return(&openid4vci.NonceResponse{CNonce: "also-stale"}, nil).After(first)
+		tokenResponse := &oauth.TokenResponse{AccessToken: "access-token", TokenType: "bearer"}
+		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
+			"pre-authorized_code": "code",
+		}).Return(tokenResponse, nil)
+		// Both credential requests fail
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+			Return(nil, openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: http.StatusBadRequest})
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), gomock.Any(), "access-token").
+			Return(nil, openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: http.StatusBadRequest})
+
+		jwtSigner := crypto.NewMockJWTSigner(ctrl)
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "key-id").Return("signed-jwt", nil).Times(2)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, jwtSigner, keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.EqualError(t, err, "server_error - unable to retrieve credential: invalid_nonce")
 	})
 	t.Run("error - nonce endpoint request fails", func(t *testing.T) {
 		ctrl := gomock.NewController(t)

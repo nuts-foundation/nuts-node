@@ -534,19 +534,6 @@ components:
                 pre-authorized_code:
                   type: string
                   description: The pre-authorized code for the credential offer.
-                tx_code:
-                  type: object
-                  description: |
-                    Optional transaction code descriptor. When present, the wallet must provide a user-entered
-                    PIN when exchanging the pre-authorized code at the token endpoint.
-                  properties:
-                    input_mode:
-                      type: string
-                      enum: [numeric, text]
-                    length:
-                      type: integer
-                    description:
-                      type: string
       example:
         {
           "credential_issuer": "https://issuer.example",
