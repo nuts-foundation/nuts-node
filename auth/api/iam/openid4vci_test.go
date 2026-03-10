@@ -324,6 +324,16 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error fetching nonce for retry")
 	})
+	t.Run("error - initial nonce request fails", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return("", errors.New("nonce endpoint unavailable"))
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+
+		assert.Nil(t, callback)
+		assert.ErrorContains(t, err, "error fetching nonce from")
+	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
