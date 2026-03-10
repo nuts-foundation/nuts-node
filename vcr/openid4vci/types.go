@@ -108,7 +108,7 @@ type CredentialOffer struct {
 	// These IDs reference entries in the credential_configurations_supported metadata.
 	CredentialConfigurationIds []string `json:"credential_configuration_ids"`
 	// Grants defines the grants offered by the issuer to the wallet.
-	Grants CredentialOfferGrants `json:"grants"`
+	Grants *CredentialOfferGrants `json:"grants,omitempty"`
 }
 
 // CredentialOfferGrants defines the grant types in a credential offer.

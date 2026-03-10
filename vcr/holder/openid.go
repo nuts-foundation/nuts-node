@@ -183,7 +183,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 }
 
 func getPreAuthorizedCodeFromOffer(offer openid4vci.CredentialOffer) string {
-	if offer.Grants.PreAuthorizedCode == nil {
+	if offer.Grants == nil || offer.Grants.PreAuthorizedCode == nil {
 		return ""
 	}
 	return offer.Grants.PreAuthorizedCode.PreAuthorizedCode

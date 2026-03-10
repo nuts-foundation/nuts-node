@@ -62,7 +62,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	credentialOffer := openid4vci.CredentialOffer{
 		CredentialIssuer:           issuerDID.String(),
 		CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
-		Grants: openid4vci.CredentialOfferGrants{
+		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: "code",
 			},
@@ -145,7 +145,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
 				CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
-				Grants:                     openid4vci.CredentialOfferGrants{},
+				Grants:                     nil,
 			}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
@@ -153,7 +153,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		t.Run("empty pre-authorized code", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
 				CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
-				Grants: openid4vci.CredentialOfferGrants{
+				Grants: &openid4vci.CredentialOfferGrants{
 					PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 						PreAuthorizedCode: "",
 					},
@@ -263,7 +263,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
 			CredentialIssuer:           "http://localhost:87632",
 			CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
-			Grants: openid4vci.CredentialOfferGrants{
+			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
 				},
@@ -316,7 +316,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
 			CredentialConfigurationIds: []string{"TestCredential_unsupported"},
-			Grants: openid4vci.CredentialOfferGrants{
+			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
 				},
@@ -364,7 +364,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
 			CredentialConfigurationIds: []string{"TestCredential_ldp_vc"},
-			Grants: openid4vci.CredentialOfferGrants{
+			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
 				},
@@ -379,7 +379,7 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 	credentialOffer := openid4vci.CredentialOffer{
 		CredentialIssuer:           issuerDID.String(),
 		CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
-		Grants: openid4vci.CredentialOfferGrants{
+		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: "code",
 			},
