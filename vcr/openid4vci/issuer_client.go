@@ -156,6 +156,9 @@ func (h defaultIssuerAPIClient) RequestNonce(ctx context.Context) (*NonceRespons
 	if err != nil {
 		return nil, fmt.Errorf("nonce request failed: %w", err)
 	}
+	if nonceResponse.CNonce == "" {
+		return nil, errors.New("nonce endpoint returned empty c_nonce")
+	}
 	return &nonceResponse, nil
 }
 

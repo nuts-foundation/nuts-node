@@ -248,7 +248,7 @@ func (hb HTTPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (st
 	if err != nil {
 		return "", err
 	}
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	response, err := hb.httpClient.Do(request)
 	if err != nil {
 		return "", fmt.Errorf("nonce request failed: %w", err)
 	}
@@ -265,6 +265,9 @@ func (hb HTTPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (st
 	}
 	if err = json.Unmarshal(data, &nonceResponse); err != nil {
 		return "", fmt.Errorf("unable to unmarshal nonce response: %w", err)
+	}
+	if nonceResponse.CNonce == "" {
+		return "", errors.New("nonce endpoint returned empty c_nonce")
 	}
 	return nonceResponse.CNonce, nil
 }

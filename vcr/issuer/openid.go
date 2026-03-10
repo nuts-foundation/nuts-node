@@ -319,6 +319,15 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		}
 	}
 
+	// Validate iss claim matches the expected wallet DID (v1.0 Appendix F.1)
+	if token.Issuer() != wallet.String() {
+		return openid4vci.Error{
+			Err:        fmt.Errorf("proof iss claim does not match expected wallet: %s", token.Issuer()),
+			Code:       openid4vci.InvalidProof,
+			StatusCode: http.StatusBadRequest,
+		}
+	}
+
 	// Proof must be signed by wallet to which it was offered (proof signer == offer receiver)
 	if signerDID, err := resolver.GetDIDFromURL(signingKeyID); err != nil || signerDID.String() != wallet.String() {
 		return openid4vci.Error{
@@ -417,7 +426,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 	offer := openid4vci.CredentialOffer{
 		CredentialIssuer:           i.issuerIdentifierURL,
 		CredentialConfigurationIds: []string{credentialConfigID},
-		Grants: openid4vci.CredentialOfferGrants{
+		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: preAuthorizedCode,
 			},
@@ -510,9 +519,14 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 }
 
 func deepcopyMap(src map[string]map[string]interface{}) map[string]map[string]interface{} {
-	data, _ := json.Marshal(src)
+	data, err := json.Marshal(src)
+	if err != nil {
+		panic("deepcopyMap: marshal failed: " + err.Error())
+	}
 	var dst map[string]map[string]interface{}
-	_ = json.Unmarshal(data, &dst)
+	if err = json.Unmarshal(data, &dst); err != nil {
+		panic("deepcopyMap: unmarshal failed: " + err.Error())
+	}
 	return dst
 }
 
@@ -587,7 +601,7 @@ func matchesCredential(config map[string]interface{}, credential vc.VerifiableCr
 	for _, configType := range types {
 		typeStr, ok := configType.(string)
 		if !ok {
-			continue
+			return false
 		}
 		found := false
 		for _, credType := range credential.Type {
@@ -608,7 +622,7 @@ func matchesCredential(config map[string]interface{}, credential vc.VerifiableCr
 	for _, configCtx := range contexts {
 		ctxStr, ok := configCtx.(string)
 		if !ok {
-			continue
+			return false
 		}
 		found := false
 		for _, credCtx := range credential.Context {

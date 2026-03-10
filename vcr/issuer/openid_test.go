@@ -162,6 +162,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	}
 	createClaims := func(nonce string) map[string]interface{} {
 		return map[string]interface{}{
+			"iss":   holderDID.String(),
 			"aud":   issuerIdentifier,
 			"iat":   time.Now().Unix(),
 			"nonce": nonce,
@@ -264,7 +265,27 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof iss claim does not match expected wallet: did:nuts:holder")
+				assert.Nil(t, response)
+			})
+			t.Run("iss claim does not match wallet DID", func(t *testing.T) {
+				service := requireNewTestHandler(t, keyResolver)
+				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+				require.NoError(t, err)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				require.NoError(t, err)
+
+				wrongIssClaims := map[string]interface{}{
+					"iss":   "did:nuts:wrong-issuer",
+					"aud":   issuerIdentifier,
+					"iat":   time.Now().Unix(),
+					"nonce": "",
+				}
+				invalidRequest := createRequest(createHeaders(), wrongIssClaims, configID)
+
+				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
+
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof iss claim does not match expected wallet: did:nuts:wrong-issuer")
 				assert.Nil(t, response)
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
@@ -454,6 +475,7 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 	}
 	createClaims := func(nonce string) map[string]interface{} {
 		return map[string]interface{}{
+			"iss":   holderDID.String(),
 			"aud":   issuerIdentifier,
 			"iat":   time.Now().Unix(),
 			"nonce": nonce,
@@ -552,6 +574,7 @@ func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
 
 		configID := "ExampleCredential_ldp_vc"
 		claimsWithNumericNonce := map[string]interface{}{
+			"iss":   holderDID.String(),
 			"aud":   issuerIdentifier,
 			"iat":   time.Now().Unix(),
 			"nonce": 12345, // non-string

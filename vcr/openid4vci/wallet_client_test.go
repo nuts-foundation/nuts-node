@@ -68,7 +68,7 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
 			CredentialConfigurationIds: []string{},
-			Grants: CredentialOfferGrants{
+			Grants: &CredentialOfferGrants{
 				PreAuthorizedCode: &PreAuthorizedCodeParams{
 					PreAuthorizedCode: "test-code",
 				},
@@ -100,7 +100,7 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
 			CredentialConfigurationIds: []string{},
-			Grants: CredentialOfferGrants{
+			Grants: &CredentialOfferGrants{
 				PreAuthorizedCode: &PreAuthorizedCodeParams{
 					PreAuthorizedCode: "test-code",
 				},
@@ -120,7 +120,7 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = client.OfferCredential(ctx, CredentialOffer{
 			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
 			CredentialConfigurationIds: []string{},
-			Grants: CredentialOfferGrants{
+			Grants: &CredentialOfferGrants{
 				PreAuthorizedCode: &PreAuthorizedCodeParams{
 					PreAuthorizedCode: "test-code",
 				},

@@ -152,7 +152,7 @@ func TestCredentialOffer_V1Spec(t *testing.T) {
 		offer := CredentialOffer{
 			CredentialIssuer:           "https://issuer.example.com",
 			CredentialConfigurationIds: []string{"NutsAuthorizationCredential_ldp_vc"},
-			Grants: CredentialOfferGrants{
+			Grants: &CredentialOfferGrants{
 				PreAuthorizedCode: &PreAuthorizedCodeParams{
 					PreAuthorizedCode: "secret123",
 				},
