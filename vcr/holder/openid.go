@@ -125,8 +125,8 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 	if offeredCredential.Format != vc.JSONLDCredentialProofFormat {
 		return openid4vci.Error{
 			Err:        fmt.Errorf("credential offer: unsupported format '%s'", offeredCredential.Format),
-			Code:       openid4vci.ServerError,
-			StatusCode: http.StatusInternalServerError,
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusBadRequest,
 		}
 	}
 	if err := offeredCredential.CredentialDefinition.Validate(false); err != nil {

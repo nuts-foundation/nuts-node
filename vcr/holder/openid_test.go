@@ -303,8 +303,8 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 			},
 		}).(openid4vci.Error)
 
-		assert.EqualError(t, err, "server_error - credential offer: unsupported format 'not supported'")
-		assert.Equal(t, http.StatusInternalServerError, err.StatusCode)
+		assert.EqualError(t, err, "invalid_request - credential offer: unsupported format 'not supported'")
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
 	})
 	t.Run("credentialSubject in metadata does not block offer processing", func(t *testing.T) {
 		// v1.0 Appendix A.1.2: credentialSubject is allowed in metadata credential_configurations_supported
