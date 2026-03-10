@@ -22,23 +22,25 @@ package openid4vci
 type ErrorCode string
 
 const (
-	// OAuth2 Token Endpoint error codes (RFC 6749)
-
-	// InvalidRequest is an OAuth2 error for malformed token requests.
+	// InvalidRequest is returned when:
+	// - the Authorization Server does not expect a PIN in the pre-authorized flow but the client provides a PIN
+	// - the Authorization Server expects a PIN in the pre-authorized flow but the client does not provide a PIN
+	// - Credential Request was malformed. One or more of the parameters (i.e. format, proof) are missing or malformed.
 	InvalidRequest ErrorCode = "invalid_request"
-	// InvalidClient is returned when the client is not authorized.
+	// InvalidClient is returned when:
+	// - the client tried to send a Token Request with a Pre-Authorized Code without Client ID but the Authorization Server does not support anonymous access
 	InvalidClient ErrorCode = "invalid_client"
-	// InvalidGrant is returned when the grant (e.g. pre-authorized code) is invalid or expired.
+	// InvalidGrant is returned when (in addition to cases defined by OAuth2):
+	// - the Authorization Server expects a PIN in the pre-authorized flow but the client provides the wrong PIN
+	// - the End-User provides the wrong Pre-Authorized Code or the Pre-Authorized Code has expired
 	InvalidGrant ErrorCode = "invalid_grant"
-	// InvalidToken is returned when the access token is invalid or missing (RFC 6750).
+	// InvalidToken is returned when (in addition to cases defined by OAuth2):
+	// - Credential Request contains the wrong Access Token or the Access Token is missing
 	InvalidToken ErrorCode = "invalid_token"
-	// UnsupportedGrantType is returned when the requested grant type is not supported.
+	// UnsupportedGrantType is returned when the Authorization Server does not support the requested grant type.
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
-	// ServerError is returned when the server encounters an unexpected condition.
+	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
 	ServerError ErrorCode = "server_error"
-
-	// OpenID4VCI v1.0 Credential Endpoint error codes (Section 8.3.1.2)
-
 	// InvalidCredentialRequest is returned when the Credential Request is missing a required parameter,
 	// includes an unsupported parameter or parameter value, or is otherwise malformed.
 	InvalidCredentialRequest ErrorCode = "invalid_credential_request"

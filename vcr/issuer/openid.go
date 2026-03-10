@@ -510,14 +510,12 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 }
 
 func deepcopyMap(src map[string]map[string]interface{}) map[string]map[string]interface{} {
-	// Safe to ignore errors: src is always built from JSON-deserialized data.
-	data, err := json.Marshal(src)
-	if err != nil {
-		panic("deepcopyMap: marshal failed: " + err.Error())
-	}
-	var dst map[string]map[string]interface{}
-	if err = json.Unmarshal(data, &dst); err != nil {
-		panic("deepcopyMap: unmarshal failed: " + err.Error())
+	dst := make(map[string]map[string]interface{}, len(src))
+	for k, v := range src {
+		dst[k] = make(map[string]interface{}, len(v))
+		for k2, v2 := range v {
+			dst[k][k2] = v2
+		}
 	}
 	return dst
 }
