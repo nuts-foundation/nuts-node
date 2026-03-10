@@ -226,7 +226,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// - OpenID4VCI
 		// - OpenID4VP
 		// verifier DID is taken from code->oauthSession storage
-		return r.handleAccessTokenRequest(ctx, *request.Body)
+		return r.handleAuthzCodeTokenRequest(ctx, *request.Body)
 	case oauth.PreAuthorizedCodeGrantType:
 		// Options:
 		// - OpenID4VCI
@@ -244,7 +244,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleJWTBearerAccessTokenRequest(ctx, request.SubjectID, *request.Body.Scope, *request.Body.ClientId, *request.Body.ClientAssertion, *request.Body.Assertion)
+		return r.handleJWTBearerTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.ClientAssertion, *request.Body.Assertion)
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {
@@ -253,7 +253,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		return r.handleRFC021VPTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
@@ -430,16 +430,20 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := ExtendedTokenIntrospectionResponse{
-		Active:                  true,
-		Cnf:                     cnf,
-		Iat:                     &iat,
-		Exp:                     &exp,
-		Iss:                     &token.Issuer,
-		ClientId:                &token.ClientId,
-		Scope:                   &token.Scope,
-		Vps:                     &token.VPToken,
-		PresentationDefinitions: &token.PresentationDefinitions,
-		PresentationSubmissions: &token.PresentationSubmissions,
+		Active:   true,
+		Cnf:      cnf,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
+	}
+	if token.PresentationDefinitions != nil {
+		response.PresentationDefinitions = &token.PresentationDefinitions
+	}
+	if token.PresentationSubmissions != nil {
+		response.PresentationSubmissions = &token.PresentationSubmissions
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -29,6 +30,66 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
+
+// CredentialProfileValidatorFunc is used to validate a presentation against a presentation definition, and extract the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
+type CredentialProfileValidatorFunc func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
+
+// SubmissionProfileValidator returns a CredentialProfileValidatorFunc that validates a presentation against the given presentation submission and presentation exchange envelope,
+// according to DIF Presentation Exchange.
+func SubmissionProfileValidator(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfileValidatorFunc {
+	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
+		pexConsumer := newPEXConsumer(credentialProfile)
+		if err := pexConsumer.fulfill(submission, pexEnvelope); err != nil {
+			return oauthError(oauth.InvalidRequest, err.Error())
+		}
+		credentialMap, err := pexConsumer.credentialMap()
+		if err != nil {
+			return err
+		}
+		fieldsMap, err := resolveInputDescriptorValues(pexConsumer.RequiredPresentationDefinitions, credentialMap)
+		if err != nil {
+			return err
+		}
+		accessToken.PresentationSubmissions = pexConsumer.Submissions
+		accessToken.PresentationDefinitions = pexConsumer.RequiredPresentationDefinitions
+		err = accessToken.AddInputDescriptorConstraintIdMap(fieldsMap)
+		if err != nil {
+			// Message returned to the client in ambiguous on purpose for security; it indicates misconfiguration on the server's side.
+			return oauthError(oauth.ServerError, "unable to fulfill presentation requirements", err)
+		}
+		accessToken.VPToken = append(accessToken.VPToken, pexEnvelope.Presentations...)
+		return nil
+	}
+}
+
+// BasicProfileValidator returns a CredentialProfileValidatorFunc that validates a presentation against the presentation definition(s).
+// It does not consume a Presentation Submission.
+func BasicProfileValidator(presentation VerifiablePresentation) CredentialProfileValidatorFunc {
+	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
+		creds, inputDescriptors, err := credentialProfile[pe.WalletOwnerOrganization].Match(presentation.VerifiableCredential)
+		if err != nil {
+			return oauthError(oauth.InvalidRequest, fmt.Sprintf("presentation does not match presentation definition"), err)
+		}
+		// Collect input descriptor field ID -> value map
+		// Will be ultimately returned as claims in the access token.
+		credentialMap := make(map[string]vc.VerifiableCredential, len(inputDescriptors))
+		for i, cred := range creds {
+			credentialMap[inputDescriptors[i].Id] = cred
+		}
+		fieldMap, err := credentialProfile[pe.WalletOwnerOrganization].ResolveConstraintsFields(credentialMap)
+		if err != nil {
+			// This should be impossible, since the Match() function performs the same checks.
+			return oauthError(oauth.ServerError, "unable to fulfill presentation requirements", err)
+		}
+		err = accessToken.AddInputDescriptorConstraintIdMap(fieldMap)
+		if err != nil {
+			// Message returned to the client in ambiguous on purpose for security; it indicates misconfiguration on the server's side.
+			return oauthError(oauth.ServerError, "unable to fulfill presentation requirements", err)
+		}
+		accessToken.VPToken = append(accessToken.VPToken, presentation)
+		return nil
+	}
+}
 
 // validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
 // All returned errors can be used as description in an OAuth2 error.
