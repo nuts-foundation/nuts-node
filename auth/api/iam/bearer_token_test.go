@@ -119,6 +119,196 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 	clientID := "https://example.com/oauth2/holder"
 
+	t.Run("shared code for all grant types", func(t *testing.T) {
+		validatorFunc := CredentialProfileValidatorFunc(func(_ context.Context, _ pe.WalletOwnerMapping, _ *AccessToken) error {
+			return nil
+		})
+		t.Run("missing presentation expiry date", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				require.NoError(t, token.Remove(jwt.ExpirationKey))
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+			require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
+		})
+		t.Run("missing presentation not before date", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				require.NoError(t, token.Remove(jwt.NotBeforeKey))
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+			require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
+		})
+		t.Run("missing presentation valid for too long", func(t *testing.T) {
+			ctx := newTestClient(t)
+			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+				require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
+			}, verifiableCredential)
+
+			_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+			require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 5s)")
+		})
+		t.Run("not all VPs have the same credential subject ID", func(t *testing.T) {
+			ctx := newTestClient(t)
+
+			secondSubjectID := did.MustParseDID("did:web:example.com:other")
+			secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, test.JWTNutsOrganizationCredential(t, secondSubjectID))
+
+			_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation, secondPresentation}, validatorFunc)
+			assert.EqualError(t, err, "invalid_request - not all presentations have the same credential subject ID")
+		})
+		t.Run("nonce", func(t *testing.T) {
+			t.Run("replay attack (nonce is reused)", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil).Times(2)
+
+				_, err := ctx.client.handleBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+				require.NoError(t, err)
+
+				_, err = ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+				assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
+			})
+			t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+				proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
+					proof.Domain = &issuerClientID
+					proof.Nonce = nil
+				})
+				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+				assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+			})
+			t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+				proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
+					proof.Domain = &issuerClientID
+					proof.Nonce = new(string)
+				})
+				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+				assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+			})
+			t.Run("JWT VP is missing nonce", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+					_ = token.Set(jwt.AudienceKey, issuerClientID)
+					_ = token.Remove("nonce")
+				}, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+			})
+			t.Run("JWT VP has empty nonce", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+					_ = token.Set(jwt.AudienceKey, issuerClientID)
+					_ = token.Set("nonce", "")
+				}, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+			})
+			t.Run("JWT VP nonce is not a string", func(t *testing.T) {
+				ctx := newTestClient(t)
+				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+					_ = token.Set(jwt.AudienceKey, issuerClientID)
+					_ = token.Set("nonce", true)
+				}, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
+			})
+		})
+		t.Run("audience", func(t *testing.T) {
+			t.Run("missing", func(t *testing.T) {
+				ctx := newTestClient(t)
+				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [] - presentation audience/domain is missing or does not match")
+			})
+			t.Run("not matching", func(t *testing.T) {
+				ctx := newTestClient(t)
+				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
+					require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
+				}, verifiableCredential)
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [did:example:other] - presentation audience/domain is missing or does not match")
+			})
+		})
+		t.Run("VP verification fails", func(t *testing.T) {
+			ctx := newTestClient(t)
+			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+
+			_, err := ctx.client.handleBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+			assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or credential(s) verification failed")
+		})
+		t.Run("proof of ownership", func(t *testing.T) {
+			t.Run("VC without credentialSubject.id", func(t *testing.T) {
+				ctx := newTestClient(t)
+				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, vc.VerifiableCredential{
+					CredentialSubject: []map[string]any{{}},
+				})
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+				assert.EqualError(t, err, `invalid_request - unable to get subject DID from VC: credential subjects have no ID`)
+			})
+			t.Run("signing key is not owned by credentialSubject.id", func(t *testing.T) {
+				ctx := newTestClient(t)
+				invalidProof := presentation.Proof[0].(map[string]interface{})
+				invalidProof["verificationMethod"] = "did:example:other#1"
+				verifiablePresentation := vc.VerifiablePresentation{
+					VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
+					Proof:                []interface{}{invalidProof},
+				}
+
+				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{verifiablePresentation}, validatorFunc)
+
+				assert.EqualError(t, err, `invalid_request - presentation signer is not credential subject`)
+			})
+		})
+		t.Run("unsupported scope", func(t *testing.T) {
+			ctx := newTestClient(t)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "everything").Return(nil, policy.ErrNotFound)
+
+			_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, "everything", []VerifiablePresentation{presentation}, validatorFunc)
+
+			assert.EqualError(t, err, `invalid_scope - not found - unsupported scope (everything) for presentation exchange: not found`)
+		})
+		t.Run("invalid DPoP header", func(t *testing.T) {
+			ctx := newTestClient(t)
+			httpRequest := &http.Request{Header: http.Header{"Dpop": []string{"invalid"}}}
+			httpRequest.Header.Set("DPoP", "invalid")
+			contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
+			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+
+			_, err := ctx.client.handleBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{presentation}, validatorFunc)
+
+			_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
+		})
+	})
 	t.Run("RFC021 vp_bearer token grant type", func(t *testing.T) {
 		t.Run("JSON-LD VP", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -134,36 +324,6 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			assert.Equal(t, requestedScope, *tokenResponse.Scope)
 			assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 			assert.NotEmpty(t, tokenResponse.AccessToken)
-		})
-		t.Run("missing presentation expiry date", func(t *testing.T) {
-			ctx := newTestClient(t)
-			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				require.NoError(t, token.Remove(jwt.ExpirationKey))
-			}, verifiableCredential)
-
-			_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-			require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
-		})
-		t.Run("missing presentation not before date", func(t *testing.T) {
-			ctx := newTestClient(t)
-			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				require.NoError(t, token.Remove(jwt.NotBeforeKey))
-			}, verifiableCredential)
-
-			_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-			require.EqualError(t, err, "invalid_request - presentation is missing creation or expiration date")
-		})
-		t.Run("missing presentation valid for too long", func(t *testing.T) {
-			ctx := newTestClient(t)
-			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-				require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour)))
-			}, verifiableCredential)
-
-			_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-			require.EqualError(t, err, "invalid_request - presentation is valid for too long (max 5s)")
 		})
 		t.Run("JWT VP", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -190,168 +350,12 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 			assert.Nil(t, resp)
 		})
-		t.Run("not all VPs have the same credential subject ID", func(t *testing.T) {
-			ctx := newTestClient(t)
-
-			secondSubjectID := did.MustParseDID("did:web:example.com:other")
-			secondPresentation := test.CreateJSONLDPresentation(t, secondSubjectID, proofVisitor, test.JWTNutsOrganizationCredential(t, secondSubjectID))
-			assertionJSON, _ := json.Marshal([]VerifiablePresentation{presentation, secondPresentation})
-
-			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, string(assertionJSON))
-			assert.EqualError(t, err, "invalid_request - not all presentations have the same credential subject ID")
-			assert.Nil(t, resp)
-		})
-		t.Run("nonce", func(t *testing.T) {
-			t.Run("replay attack (nonce is reused)", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil).Times(2)
-
-				_, err := ctx.client.handleRFC021VPTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-				require.NoError(t, err)
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-				assert.EqualError(t, err, "invalid_request - presentation nonce has already been used")
-				assert.Nil(t, resp)
-			})
-			t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-				proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
-					proof.Domain = &issuerClientID
-					proof.Nonce = nil
-				})
-				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-				assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
-				assert.Nil(t, resp)
-			})
-			t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-				proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
-					proof.Domain = &issuerClientID
-					proof.Nonce = new(string)
-				})
-				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, verifiableCredential)
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-				assert.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
-				assert.Nil(t, resp)
-			})
-			t.Run("JWT VP is missing nonce", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-					_ = token.Set(jwt.AudienceKey, issuerClientID)
-					_ = token.Remove("nonce")
-				}, verifiableCredential)
-
-				_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
-			})
-			t.Run("JWT VP has empty nonce", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-					_ = token.Set(jwt.AudienceKey, issuerClientID)
-					_ = token.Set("nonce", "")
-				}, verifiableCredential)
-
-				_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
-			})
-			t.Run("JWT VP nonce is not a string", func(t *testing.T) {
-				ctx := newTestClient(t)
-				ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-					_ = token.Set(jwt.AudienceKey, issuerClientID)
-					_ = token.Set("nonce", true)
-				}, verifiableCredential)
-
-				_, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				require.EqualError(t, err, "invalid_request - presentation has invalid/missing nonce")
-			})
-		})
-		t.Run("audience", func(t *testing.T) {
-			t.Run("missing", func(t *testing.T) {
-				ctx := newTestClient(t)
-				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, nil, verifiableCredential)
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [] - presentation audience/domain is missing or does not match")
-				assert.Nil(t, resp)
-			})
-			t.Run("not matching", func(t *testing.T) {
-				ctx := newTestClient(t)
-				presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
-					require.NoError(t, token.Set(jwt.AudienceKey, "did:example:other"))
-				}, verifiableCredential)
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				assert.EqualError(t, err, "invalid_request - expected: https://example.com/oauth2/issuer, got: [did:example:other] - presentation audience/domain is missing or does not match")
-				assert.Nil(t, resp)
-			})
-		})
-		t.Run("VP verification fails", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-
-			resp, err := ctx.client.handleRFC021VPTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-			assert.EqualError(t, err, "invalid_request - invalid - presentation(s) or credential(s) verification failed")
-			assert.Nil(t, resp)
-		})
-		t.Run("proof of ownership", func(t *testing.T) {
-			t.Run("VC without credentialSubject.id", func(t *testing.T) {
-				ctx := newTestClient(t)
-				presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, vc.VerifiableCredential{
-					CredentialSubject: []map[string]any{{}},
-				})
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-				assert.EqualError(t, err, `invalid_request - unable to get subject DID from VC: credential subjects have no ID`)
-				assert.Nil(t, resp)
-			})
-			t.Run("signing key is not owned by credentialSubject.id", func(t *testing.T) {
-				ctx := newTestClient(t)
-				invalidProof := presentation.Proof[0].(map[string]interface{})
-				invalidProof["verificationMethod"] = "did:example:other#1"
-				verifiablePresentation := vc.VerifiablePresentation{
-					VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
-					Proof:                []interface{}{invalidProof},
-				}
-				verifiablePresentationJSON, _ := verifiablePresentation.MarshalJSON()
-
-				resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, string(verifiablePresentationJSON))
-
-				assert.EqualError(t, err, `invalid_request - presentation signer is not credential subject`)
-				assert.Nil(t, resp)
-			})
-		})
 		t.Run("submission is not valid JSON", func(t *testing.T) {
 			ctx := newTestClient(t)
 
 			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, "not-a-valid-submission", presentation.Raw())
 
 			assert.EqualError(t, err, `invalid_request - invalid presentation submission: invalid character 'o' in literal null (expecting 'u')`)
-			assert.Nil(t, resp)
-		})
-		t.Run("unsupported scope", func(t *testing.T) {
-			ctx := newTestClient(t)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "everything").Return(nil, policy.ErrNotFound)
-
-			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, "everything", submissionJSON, presentation.Raw())
-
-			assert.EqualError(t, err, `invalid_scope - not found - unsupported scope (everything) for presentation exchange: not found`)
 			assert.Nil(t, resp)
 		})
 		t.Run("re-evaluation of presentation definition yields different credentials", func(t *testing.T) {
@@ -373,18 +377,6 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 
 			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation submission does not conform to presentation definition (id=)")
-			assert.Nil(t, resp)
-		})
-		t.Run("invalid DPoP header", func(t *testing.T) {
-			ctx := newTestClient(t)
-			httpRequest := &http.Request{Header: http.Header{"Dpop": []string{"invalid"}}}
-			httpRequest.Header.Set("DPoP", "invalid")
-			contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
-			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
-
-			resp, err := ctx.client.handleRFC021VPTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
-
-			_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
 			assert.Nil(t, resp)
 		})
 	})
