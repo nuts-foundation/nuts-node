@@ -34,17 +34,16 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	issuerMetadata := new(CredentialIssuerMetadata)
 	providerMetadata := new(ProviderMetadata)
 	walletMetadata := new(OAuth2ClientMetadata)
+	credentialJSON, _ := json.Marshal(map[string]interface{}{
+		"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
+		"type":              []string{"VerifiableCredential"},
+		"issuer":            "issuer",
+		"issuanceDate":      time.Now().Format(time.RFC3339),
+		"credentialSubject": map[string]interface{}{"id": "id"},
+	})
 	credentialResponse := CredentialResponse{
 		Credentials: []CredentialResponseEntry{
-			{
-				Credential: map[string]interface{}{
-					"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
-					"type":              []string{"VerifiableCredential"},
-					"issuer":            "issuer",
-					"issuanceDate":      time.Now().Format(time.RFC3339),
-					"credentialSubject": map[string]interface{}{"id": "id"},
-				},
-			},
+			{Credential: credentialJSON},
 		},
 	}
 	clientTest := &oidcClientTestContext{

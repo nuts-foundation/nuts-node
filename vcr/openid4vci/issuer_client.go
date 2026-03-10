@@ -107,8 +107,7 @@ func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request C
 	}
 	// We only support single credential issuance for now
 	var credential vc.VerifiableCredential
-	credentialJSON, _ := json.Marshal(credentialResponse.Credentials[0].Credential)
-	err = json.Unmarshal(credentialJSON, &credential)
+	err = json.Unmarshal(credentialResponse.Credentials[0].Credential, &credential)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal received credential: %w", err)
 	}
