@@ -510,13 +510,9 @@ func (i *openidHandler) loadCredentialDefinitions() error {
 }
 
 func deepcopyMap(src map[string]map[string]interface{}) map[string]map[string]interface{} {
-	dst := make(map[string]map[string]interface{}, len(src))
-	for k, v := range src {
-		dst[k] = make(map[string]interface{}, len(v))
-		for k2, v2 := range v {
-			dst[k][k2] = v2
-		}
-	}
+	data, _ := json.Marshal(src)
+	var dst map[string]map[string]interface{}
+	_ = json.Unmarshal(data, &dst)
 	return dst
 }
 
