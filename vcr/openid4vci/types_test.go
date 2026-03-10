@@ -28,14 +28,8 @@ import (
 )
 
 // TestCredentialRequest_V1Spec tests that CredentialRequest conforms to OpenID4VCI v1.0 Section 8.2
-// The spec states that credential request MUST contain ONE of:
-// - credential_configuration_id: string referencing metadata
-// - format + format-specific parameters (e.g., credential_definition for ldp_vc)
 func TestCredentialRequest_V1Spec(t *testing.T) {
-	t.Run("request with credential_configuration_id only (v1.0 preferred)", func(t *testing.T) {
-		// Per v1.0 Section 8.2: "credential_configuration_id: REQUIRED when the credential_configuration_id
-		// parameter was not present in the Credential Offer"
-		// This is the simpler approach - just reference the configuration by ID
+	t.Run("request with credential_configuration_id", func(t *testing.T) {
 		requestJSON := `{
 			"credential_configuration_id": "NutsAuthorizationCredential_ldp_vc",
 			"proofs": {
@@ -47,38 +41,13 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 		err := json.Unmarshal([]byte(requestJSON), &request)
 		require.NoError(t, err)
 
-		assert.Equal(t, "NutsAuthorizationCredential_ldp_vc", request.CredentialConfigurationId)
-		assert.Empty(t, request.Format, "format should not be required when using credential_configuration_id")
+		assert.Equal(t, "NutsAuthorizationCredential_ldp_vc", request.CredentialConfigurationID)
 		assert.NotNil(t, request.Proofs)
 	})
 
-	t.Run("request with format + credential_definition (explicit approach)", func(t *testing.T) {
-		// Per v1.0 Appendix A.1.2 for ldp_vc format
-		requestJSON := `{
-			"format": "ldp_vc",
-			"credential_definition": {
-				"@context": ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"],
-				"type": ["VerifiableCredential", "NutsAuthorizationCredential"]
-			},
-			"proofs": {
-				"jwt": ["eyJ..."]
-			}
-		}`
-
-		var request CredentialRequest
-		err := json.Unmarshal([]byte(requestJSON), &request)
-		require.NoError(t, err)
-
-		assert.Empty(t, request.CredentialConfigurationId)
-		assert.Equal(t, "ldp_vc", request.Format)
-		assert.NotNil(t, request.CredentialDefinition)
-		assert.Len(t, request.CredentialDefinition.Context, 2)
-		assert.Len(t, request.CredentialDefinition.Type, 2)
-	})
-
-	t.Run("marshaling request with credential_configuration_id omits format and credential_definition", func(t *testing.T) {
+	t.Run("marshaling only includes non-empty fields", func(t *testing.T) {
 		request := CredentialRequest{
-			CredentialConfigurationId: "NutsAuthorizationCredential_ldp_vc",
+			CredentialConfigurationID: "NutsAuthorizationCredential_ldp_vc",
 			Proofs: &CredentialRequestProofs{
 				Jwt: []string{"eyJ..."},
 			},
@@ -92,35 +61,6 @@ func TestCredentialRequest_V1Spec(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "NutsAuthorizationCredential_ldp_vc", parsed["credential_configuration_id"])
-		_, hasFormat := parsed["format"]
-		assert.False(t, hasFormat, "format must be absent when using credential_configuration_id")
-		_, hasCredDef := parsed["credential_definition"]
-		assert.False(t, hasCredDef, "credential_definition must be absent when using credential_configuration_id")
-	})
-
-	t.Run("marshaling request with format omits credential_configuration_id", func(t *testing.T) {
-		request := CredentialRequest{
-			Format: "ldp_vc",
-			CredentialDefinition: &CredentialDefinition{
-				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
-				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
-			},
-			Proofs: &CredentialRequestProofs{
-				Jwt: []string{"eyJ..."},
-			},
-		}
-
-		jsonBytes, err := json.Marshal(request)
-		require.NoError(t, err)
-
-		var parsed map[string]interface{}
-		err = json.Unmarshal(jsonBytes, &parsed)
-		require.NoError(t, err)
-
-		assert.Equal(t, "ldp_vc", parsed["format"])
-		assert.NotNil(t, parsed["credential_definition"])
-		_, hasConfigID := parsed["credential_configuration_id"]
-		assert.False(t, hasConfigID, "credential_configuration_id must be absent when using format")
 	})
 }
 
@@ -143,7 +83,7 @@ func TestCredentialOffer_V1Spec(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "https://issuer.example.com", offer.CredentialIssuer)
-		assert.Equal(t, []string{"NutsAuthorizationCredential_ldp_vc"}, offer.CredentialConfigurationIds)
+		assert.Equal(t, []string{"NutsAuthorizationCredential_ldp_vc"}, offer.CredentialConfigurationIDs)
 		require.NotNil(t, offer.Grants.PreAuthorizedCode)
 		assert.Equal(t, "secret123", offer.Grants.PreAuthorizedCode.PreAuthorizedCode)
 	})
@@ -151,7 +91,7 @@ func TestCredentialOffer_V1Spec(t *testing.T) {
 	t.Run("marshaling preserves v1.0 format", func(t *testing.T) {
 		offer := CredentialOffer{
 			CredentialIssuer:           "https://issuer.example.com",
-			CredentialConfigurationIds: []string{"NutsAuthorizationCredential_ldp_vc"},
+			CredentialConfigurationIDs: []string{"NutsAuthorizationCredential_ldp_vc"},
 			Grants: &CredentialOfferGrants{
 				PreAuthorizedCode: &PreAuthorizedCodeParams{
 					PreAuthorizedCode: "secret123",

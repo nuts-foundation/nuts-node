@@ -86,7 +86,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 	// TODO: This check is too simplistic, there can be multiple credential_configuration_ids,
 	//       but we only support one at a time.
 	//       See https://github.com/nuts-foundation/nuts-node/issues/2049
-	if len(offer.CredentialConfigurationIds) != 1 {
+	if len(offer.CredentialConfigurationIDs) != 1 {
 		return openid4vci.Error{
 			Err:        errors.New("there must be exactly 1 credential_configuration_id in credential offer"),
 			Code:       openid4vci.InvalidRequest,
@@ -113,7 +113,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 	}
 
 	// Resolve the credential configuration from the issuer metadata
-	credentialConfigID := offer.CredentialConfigurationIds[0]
+	credentialConfigID := offer.CredentialConfigurationIDs[0]
 	offeredCredential, err := h.resolveCredentialConfiguration(issuerClient.Metadata(), credentialConfigID)
 	if err != nil {
 		return openid4vci.Error{
@@ -282,7 +282,7 @@ func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient ope
 		}
 
 		credentialRequest := openid4vci.CredentialRequest{
-			CredentialConfigurationId: credentialConfigID,
+			CredentialConfigurationID: credentialConfigID,
 			Proofs: &openid4vci.CredentialRequestProofs{
 				Jwt: []string{proof},
 			},

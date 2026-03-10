@@ -125,7 +125,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	require.NoError(t, err)
 
 	requestBody, _ := json.Marshal(openid4vci.CredentialRequest{
-		CredentialConfigurationId: "NutsOrganizationCredential_ldp_vc",
+		CredentialConfigurationID: "NutsOrganizationCredential_ldp_vc",
 	})
 
 	t.Run("error from API layer (missing access token)", func(t *testing.T) {

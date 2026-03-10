@@ -104,9 +104,9 @@ type ProviderMetadata struct {
 type CredentialOffer struct {
 	// CredentialIssuer defines the identifier of the credential issuer.
 	CredentialIssuer string `json:"credential_issuer"`
-	// CredentialConfigurationIds defines references to credential configurations offered by the issuer.
+	// CredentialConfigurationIDs defines references to credential configurations offered by the issuer.
 	// These IDs reference entries in the credential_configurations_supported metadata.
-	CredentialConfigurationIds []string `json:"credential_configuration_ids"`
+	CredentialConfigurationIDs []string `json:"credential_configuration_ids"`
 	// Grants defines the grants offered by the issuer to the wallet.
 	Grants *CredentialOfferGrants `json:"grants,omitempty"`
 }
@@ -147,20 +147,12 @@ type CredentialOfferResponse struct {
 }
 
 // CredentialRequest defines the credential request sent by the wallet to the issuer.
-// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request.
-// Per v1.0 Section 8.2, the request MUST contain ONE of:
-// - credential_configuration_id: references an entry in credential_configurations_supported
-// - format + format-specific parameters (e.g., credential_definition for ldp_vc)
+// Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-request
+// Per v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
 type CredentialRequest struct {
-	// CredentialConfigurationId references a credential configuration from issuer metadata.
-	// When present, format and credential_definition should not be used.
-	CredentialConfigurationId string `json:"credential_configuration_id,omitempty"`
-	// Format specifies the credential format. Required when credential_configuration_id is not used.
-	Format string `json:"format,omitempty"`
-	// CredentialDefinition contains the credential definition for ldp_vc format.
-	CredentialDefinition *CredentialDefinition `json:"credential_definition,omitempty"`
+	// CredentialConfigurationID references a credential configuration from issuer metadata.
+	CredentialConfigurationID string `json:"credential_configuration_id,omitempty"`
 	// Proofs contains the proof(s) of possession of the key material.
-	// In v1.0 this uses `proofs` (plural) with a map of proof type to array of proofs.
 	Proofs *CredentialRequestProofs `json:"proofs,omitempty"`
 }
 

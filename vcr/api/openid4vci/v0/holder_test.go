@@ -87,7 +87,7 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 
 		credentialOffer := openid4vci.CredentialOffer{
 			CredentialIssuer:           issuerDID.String(),
-			CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+			CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "code",

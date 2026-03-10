@@ -408,8 +408,6 @@ components:
         - credential_configuration_id
       description: |
         Per OpenID4VCI v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
-        Note: the v1.0 spec also allows format-based requests and credential_identifier, but this implementation
-        only accepts credential_configuration_id.
       properties:
         credential_configuration_id:
           type: string

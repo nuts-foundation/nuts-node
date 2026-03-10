@@ -340,7 +340,7 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 
 // CredentialRequest represents the request to fetch a credential per OpenID4VCI v1.0 Section 8.2.
 type CredentialRequest struct {
-	CredentialConfigurationId string                 `json:"credential_configuration_id,omitempty"`
+	CredentialConfigurationID string                 `json:"credential_configuration_id,omitempty"`
 	Proofs                    CredentialRequestProofs `json:"proofs"`
 }
 
@@ -366,7 +366,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 	}
 
 	credentialRequest := CredentialRequest{
-		CredentialConfigurationId: credentialConfigID,
+		CredentialConfigurationID: credentialConfigID,
 		Proofs: CredentialRequestProofs{
 			Jwt: []string{proofJwt},
 		},

@@ -205,9 +205,9 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 }
 
 func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request openid4vci.CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
-	// v1.0 Section 8.2 allows credential_configuration_id, credential_identifier, or format-based requests.
+	// v1.0 Section 8.2 requires credential_configuration_id or credential_identifier (mutually exclusive).
 	// This implementation only accepts credential_configuration_id as a policy choice.
-	if request.CredentialConfigurationId == "" {
+	if request.CredentialConfigurationID == "" {
 		return nil, openid4vci.Error{
 			Err:        errors.New("credential request must contain credential_configuration_id"),
 			Code:       openid4vci.InvalidCredentialRequest,
@@ -248,9 +248,9 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request ope
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	if request.CredentialConfigurationId != expectedConfigID {
+	if request.CredentialConfigurationID != expectedConfigID {
 		return nil, openid4vci.Error{
-			Err:        fmt.Errorf("credential_configuration_id '%s' does not match offered '%s'", request.CredentialConfigurationId, expectedConfigID),
+			Err:        fmt.Errorf("credential_configuration_id '%s' does not match offered '%s'", request.CredentialConfigurationID, expectedConfigID),
 			Code:       openid4vci.UnknownCredentialConfiguration,
 			StatusCode: http.StatusBadRequest,
 		}
@@ -287,7 +287,7 @@ func (i *openidHandler) HandleNonceRequest(ctx context.Context) (string, error) 
 // See https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-proof-types
 func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request openid4vci.CredentialRequest) error {
 	// Check if the credential configuration requires proof
-	credConfig, ok := i.credentialConfigurationsSupported[request.CredentialConfigurationId]
+	credConfig, ok := i.credentialConfigurationsSupported[request.CredentialConfigurationID]
 	if ok {
 		if _, hasProofTypes := credConfig["proof_types_supported"]; !hasProofTypes {
 			return nil // no proof required for this credential configuration
@@ -425,7 +425,7 @@ func (i *openidHandler) createOffer(ctx context.Context, credential vc.Verifiabl
 
 	offer := openid4vci.CredentialOffer{
 		CredentialIssuer:           i.issuerIdentifierURL,
-		CredentialConfigurationIds: []string{credentialConfigID},
+		CredentialConfigurationIDs: []string{credentialConfigID},
 		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: preAuthorizedCode,

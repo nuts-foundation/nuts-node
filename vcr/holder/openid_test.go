@@ -61,7 +61,7 @@ func Test_wallet_Metadata(t *testing.T) {
 func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	credentialOffer := openid4vci.CredentialOffer{
 		CredentialIssuer:           issuerDID.String(),
-		CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+		CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: "code",
@@ -95,10 +95,9 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)
-		// Verify that the holder sends credential_configuration_id (v1.0 preferred approach)
-		// instead of format + credential_definition
+		// Verify that the holder sends credential_configuration_id in the credential request
 		expectedRequest := openid4vci.CredentialRequest{
-			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			CredentialConfigurationID: "ExampleCredential_ldp_vc",
 			Proofs: &openid4vci.CredentialRequestProofs{
 				Jwt: []string{"signed-jwt"},
 			},
@@ -138,13 +137,13 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 	t.Run("pre-authorized code grant", func(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil).(*openidHandler)
 		t.Run("no grants", func(t *testing.T) {
-			offer := openid4vci.CredentialOffer{CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"}}
+			offer := openid4vci.CredentialOffer{CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"}}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
 			require.EqualError(t, err, "invalid_grant - couldn't find (valid) pre-authorized code grant in credential offer")
 		})
 		t.Run("no pre-authorized grant", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
-				CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+				CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 				Grants:                     nil,
 			}
 			err := w.HandleCredentialOffer(audit.TestContext(), offer)
@@ -152,7 +151,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		})
 		t.Run("empty pre-authorized code", func(t *testing.T) {
 			offer := openid4vci.CredentialOffer{
-				CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+				CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 				Grants: &openid4vci.CredentialOfferGrants{
 					PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 						PreAuthorizedCode: "",
@@ -167,7 +166,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, nil, nil)
 
 		offer := openid4vci.CredentialOffer{
-			CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc", "OtherCredential_ldp_vc"},
+			CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc", "OtherCredential_ldp_vc"},
 		}
 		err := w.HandleCredentialOffer(audit.TestContext(), offer).(openid4vci.Error)
 
@@ -262,7 +261,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
 			CredentialIssuer:           "http://localhost:87632",
-			CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+			CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
@@ -315,7 +314,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		}
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
-			CredentialConfigurationIds: []string{"TestCredential_unsupported"},
+			CredentialConfigurationIDs: []string{"TestCredential_unsupported"},
 			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
@@ -363,7 +362,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 		}
 
 		err := w.HandleCredentialOffer(audit.TestContext(), openid4vci.CredentialOffer{
-			CredentialConfigurationIds: []string{"TestCredential_ldp_vc"},
+			CredentialConfigurationIDs: []string{"TestCredential_ldp_vc"},
 			Grants: &openid4vci.CredentialOfferGrants{
 				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 					PreAuthorizedCode: "foo",
@@ -378,7 +377,7 @@ func Test_wallet_HandleCredentialOffer(t *testing.T) {
 func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 	credentialOffer := openid4vci.CredentialOffer{
 		CredentialIssuer:           issuerDID.String(),
-		CredentialConfigurationIds: []string{"ExampleCredential_ldp_vc"},
+		CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
 		Grants: &openid4vci.CredentialOfferGrants{
 			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
 				PreAuthorizedCode: "code",
@@ -417,7 +416,7 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 			"pre-authorized_code": "code",
 		}).Return(tokenResponse, nil)
 		expectedRequest := openid4vci.CredentialRequest{
-			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			CredentialConfigurationID: "ExampleCredential_ldp_vc",
 			Proofs: &openid4vci.CredentialRequestProofs{
 				Jwt: []string{"signed-jwt"},
 			},
@@ -468,14 +467,14 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		}).Return(tokenResponse, nil)
 		// First credential request (with stale nonce) fails with invalid_nonce
 		firstCredReq := openid4vci.CredentialRequest{
-			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			CredentialConfigurationID: "ExampleCredential_ldp_vc",
 			Proofs:                    &openid4vci.CredentialRequestProofs{Jwt: []string{"signed-jwt-1"}},
 		}
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), firstCredReq, "access-token").
 			Return(nil, openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: http.StatusBadRequest})
 		// Retry with fresh nonce succeeds
 		retryCredReq := openid4vci.CredentialRequest{
-			CredentialConfigurationId: "ExampleCredential_ldp_vc",
+			CredentialConfigurationID: "ExampleCredential_ldp_vc",
 			Proofs:                    &openid4vci.CredentialRequestProofs{Jwt: []string{"signed-jwt-2"}},
 		}
 		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), retryCredReq, "access-token").
