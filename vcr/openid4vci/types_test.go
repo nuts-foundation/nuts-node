@@ -189,9 +189,9 @@ func TestCredentialIssuerMetadata_V1Spec(t *testing.T) {
 // v1.0 uses `credentials` (array of wrapper objects with `credential` key) and c_nonce is no longer in the response.
 func TestCredentialResponse_V1Spec(t *testing.T) {
 	t.Run("response uses credentials array with credential wrapper", func(t *testing.T) {
-		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
+		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
 		response := CredentialResponse{
-			Credentials: []CredentialResponseEntry{{Credential: cred}},
+			Credentials: []CredentialResponseEntry{{Credential: credJSON}},
 		}
 
 		jsonBytes, err := json.Marshal(response)
@@ -215,9 +215,9 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 	})
 
 	t.Run("response does not contain c_nonce fields", func(t *testing.T) {
-		cred := map[string]interface{}{"issuer": "did:nuts:issuer"}
+		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
 		response := CredentialResponse{
-			Credentials: []CredentialResponseEntry{{Credential: cred}},
+			Credentials: []CredentialResponseEntry{{Credential: credJSON}},
 		}
 
 		jsonBytes, err := json.Marshal(response)

@@ -20,7 +20,6 @@ package v0
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
@@ -100,13 +99,8 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		return nil, err
 	}
 	credentialJSON, _ := credential.MarshalJSON()
-	credentialMap := make(map[string]interface{})
-	err = json.Unmarshal(credentialJSON, &credentialMap)
-	if err != nil {
-		return nil, err
-	}
 	return RequestCredential200JSONResponse(CredentialResponse{
-		Credentials: []openid4vci.CredentialResponseEntry{{Credential: credentialMap}},
+		Credentials: []openid4vci.CredentialResponseEntry{{Credential: credentialJSON}},
 	}), nil
 }
 

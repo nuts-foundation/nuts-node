@@ -21,6 +21,7 @@
 package openid4vci
 
 import (
+	"encoding/json"
 	ssi "github.com/nuts-foundation/go-did"
 	"time"
 )
@@ -174,7 +175,7 @@ type CredentialResponse struct {
 // CredentialResponseEntry is a single entry in the credentials array of a CredentialResponse.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
 type CredentialResponseEntry struct {
-	Credential map[string]interface{} `json:"credential"`
+	Credential json.RawMessage `json:"credential"`
 }
 
 // Config holds the config for the OpenID4VCI credential issuer and wallet

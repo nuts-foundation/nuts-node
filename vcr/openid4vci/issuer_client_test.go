@@ -20,6 +20,7 @@ package openid4vci
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -113,8 +114,9 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	})
 	t.Run("error - invalid credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
+		invalidCredJSON, _ := json.Marshal(map[string]interface{}{"issuer": []string{"1", "2"}})
 		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credentials: []CredentialResponseEntry{
-			{Credential: map[string]interface{}{"issuer": []string{"1", "2"}}}, // Invalid issuer
+			{Credential: invalidCredJSON}, // Invalid issuer
 		}})
 		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)
