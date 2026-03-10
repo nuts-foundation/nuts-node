@@ -102,8 +102,6 @@ func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request C
 	if err != nil {
 		return nil, err
 	}
-	// TODO: validate received credential matches the requested credential_configuration_id
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
 	if len(credentialResponse.Credentials) == 0 {
 		return nil, errors.New("credential response does not contain any credentials")
 	}
