@@ -28,7 +28,6 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core/to"
 
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -207,8 +206,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	sessionWithoutNonce.IssuerNonceEndpoint = ""
 
 	tokenResponse := &oauth.TokenResponse{AccessToken: accessToken, TokenType: "Bearer"}
-	credentialResponse := iam.CredentialResponse{
-		Credentials: []iam.CredentialResponseEntry{{Credential: json.RawMessage(verifiableCredential.Raw())}},
+	credentialResponse := openid4vci.CredentialResponse{
+		Credentials: []openid4vci.CredentialResponseEntry{{Credential: json.RawMessage(verifiableCredential.Raw())}},
 	}
 	now := time.Now()
 	timeFunc = func() time.Time { return now }
@@ -363,8 +362,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&iam.CredentialResponse{
-			Credentials: []iam.CredentialResponseEntry{{Credential: json.RawMessage(`"super invalid"`)}},
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
+			Credentials: []openid4vci.CredentialResponseEntry{{Credential: json.RawMessage(`"super invalid"`)}},
 		}, nil)
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
@@ -425,8 +424,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&iam.CredentialResponse{
-			Credentials: []iam.CredentialResponseEntry{},
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
+			Credentials: []openid4vci.CredentialResponseEntry{},
 		}, nil)
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
