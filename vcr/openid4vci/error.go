@@ -41,23 +41,30 @@ const (
 	UnsupportedGrantType ErrorCode = "unsupported_grant_type"
 	// ServerError is returned when the Authorization Server encounters an unexpected condition that prevents it from fulfilling the request.
 	ServerError ErrorCode = "server_error"
-	// UnsupportedCredentialType is returned when the credential issuer does not support the requested credential type.
-	UnsupportedCredentialType ErrorCode = "unsupported_credential_type"
-	// UnsupportedCredentialFormat is returned when the credential issuer does not support the requested credential format.
-	UnsupportedCredentialFormat ErrorCode = "unsupported_credential_format"
-	// InvalidProof is returned when the Credential Request did not contain a proof,
-	// or proof was invalid, i.e. it was not bound to a Credential Issuer provided nonce
+	// InvalidCredentialRequest is returned when the Credential Request is missing a required parameter,
+	// includes an unsupported parameter or parameter value, or is otherwise malformed.
+	InvalidCredentialRequest ErrorCode = "invalid_credential_request"
+	// UnknownCredentialConfiguration is returned when the requested credential_configuration_id is unknown.
+	UnknownCredentialConfiguration ErrorCode = "unknown_credential_configuration"
+	// UnknownCredentialIdentifier is returned when the requested credential_identifier is unknown.
+	UnknownCredentialIdentifier ErrorCode = "unknown_credential_identifier"
+	// InvalidProof is returned when the proofs parameter is invalid: missing, one of the key proofs
+	// is invalid, or a key proof does not contain a c_nonce value.
 	InvalidProof ErrorCode = "invalid_proof"
+	// InvalidNonce is returned when at least one of the key proofs contains an invalid c_nonce value.
+	// The wallet should retrieve a new c_nonce value from the Nonce Endpoint (Section 7).
+	InvalidNonce ErrorCode = "invalid_nonce"
+	// InvalidEncryptionParameters is returned when the encryption parameters in the Credential Request
+	// are either invalid or missing when the issuer requires encrypted responses.
+	InvalidEncryptionParameters ErrorCode = "invalid_encryption_parameters"
+	// CredentialRequestDenied is returned when the Credential Request has not been accepted by the
+	// issuer. The wallet SHOULD treat this as unrecoverable.
+	CredentialRequestDenied ErrorCode = "credential_request_denied"
 )
 
 // Error is an error that signals the error was (probably) caused by the client (e.g. bad request),
 // or that the client can recover from the error (e.g. retry). Errors are specified by the OpenID4VCI specification.
-// Invalid proof errors may also add a new c_nonce that the client must use in the next credential request.
 type Error struct {
-	// CNonce is a random string that the client must send in the next credential request.
-	CNonce *string `json:"c_nonce,omitempty"`
-	// CNonceExpiresIn is the number of seconds until the c_nonce expires.
-	CNonceExpiresIn *int `json:"c_nonce_expires_in,omitempty"`
 	// Code is the error code as defined by the OpenID4VCI spec.
 	Code ErrorCode `json:"error"`
 	// Err is the underlying error, may be omitted. It is not intended to be returned to the client.

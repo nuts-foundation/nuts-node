@@ -3,8 +3,7 @@ info:
   title: OpenID4VCI Issuer API
   version: 0.0.0
   description: >
-    This API implements OpenID 4 Verifiable Credential Issuance.
-    The specification is in draft and may change, thus this API might change as well.
+    This API implements OpenID 4 Verifiable Credential Issuance (v1.0).
 servers:
   - url: http://localhost:8081
     description: For internal-facing endpoints.
@@ -201,8 +200,10 @@ paths:
                 "$ref": "#/components/schemas/ErrorResponse"
         "400":
           description: >
-            Invalid request. Code can be "invalid_request", "unsupported_credential_type", "unsupported_credential_format" or "invalid_proof".
-            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+            Invalid request. Code can be "invalid_credential_request", "unknown_credential_configuration",
+            "unknown_credential_identifier", "invalid_proof", "invalid_nonce", "invalid_encryption_parameters",
+            or "credential_request_denied".
+            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#section-8.3.1.2
           content:
             application/json:
               schema:
@@ -215,10 +216,37 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ErrorResponse"
-        "403":
-          description: >
-            Insufficient privileges. Code will be "insufficient_scope".
-            Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-error-response
+  "/n2n/identity/{did}/openid4vci/nonce":
+    post:
+      tags:
+        - Issuer
+      summary: Request a fresh c_nonce value
+      description: >
+        Nonce Endpoint per OpenID4VCI v1.0 Section 7.
+        A Credential Issuer that requires c_nonce values MUST offer this endpoint.
+        The request has an empty body (Content-Length: 0) and requires no authentication.
+      operationId: requestNonce
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+            example: did:nuts:123
+      responses:
+        "200":
+          description: OK
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/NonceResponse"
+        "404":
+          description: Unknown issuer
           content:
             application/json:
               schema:
@@ -269,7 +297,7 @@ components:
       required:
         - credential_issuer
         - credential_endpoint
-        - credentials_supported
+        - credential_configurations_supported
       properties:
         credential_issuer:
           type: string
@@ -278,24 +306,34 @@ components:
         credential_endpoint:
           type: string
           example: "https://issuer.example/credential"
-        credentials_supported:
-          type: array
+        nonce_endpoint:
+          type: string
+          description: >
+            URL of the Nonce Endpoint where wallets can request a fresh c_nonce.
+            Per v1.0 Section 7, a Credential Issuer that requires c_nonce values MUST offer this endpoint.
+          example: "https://issuer.example/nonce"
+        credential_configurations_supported:
+          type: object
           description: |
-            A JSON array containing a list of JSON objects, each of them representing metadata about a separate credential type that the Credential Issuer can issue.
-          items:
+            A JSON object containing credential configurations supported by the Credential Issuer.
+            The keys are credential_configuration_ids that can be referenced in credential offers.
+          additionalProperties:
             type: object
-            example:
+          example:
+            NutsAuthorizationCredential_ldp_vc:
               {
                 "format": "ldp_vc",
-                "@context": [
-                  "https://www.w3.org/2018/credentials/v1",
-                  "https://nuts.nl/credentials/v1"
-                ],
-                "type": [
-                  "VerifiableCredential",
-                  "NutsAuthorizationCredential"
-                ],
-                "cryptographic_binding_methods_supported": "did:nuts"
+                "credential_definition": {
+                  "@context": [
+                    "https://www.w3.org/2018/credentials/v1",
+                    "https://nuts.nl/credentials/v1"
+                  ],
+                  "type": [
+                    "VerifiableCredential",
+                    "NutsAuthorizationCredential"
+                  ]
+                },
+                "cryptographic_binding_methods_supported": ["did:nuts"]
               }
 
     OAuth2ClientMetadata:
@@ -328,6 +366,12 @@ components:
           description: |
             URL of the authorization server's token endpoint [RFC6749].
           example: https://issuer.example.com/token
+        pre-authorized_grant_anonymous_access_supported:
+          type: boolean
+          description: |
+            Indicates whether anonymous access (requests without client_id) is supported
+            for pre-authorized code grant flows.
+          example: true
 
     TokenResponse:
       type: object
@@ -352,73 +396,55 @@ components:
           description: |
             The lifetime in seconds of the access token.
           example: 3600
-        c_nonce:
-          type: string
-          description: |
-            JSON string containing a nonce to be used to create a proof of possession of key material when requesting a Credential. When received, the Wallet MUST use this nonce value for its subsequent credential requests until the Credential Issuer provides a fresh nonce.
-          example: "tZignsnFbp"
       example:
         {
           "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
           "token_type": "bearer",
-          "expires_in": 3600,
-          "c_nonce": "tZignsnFbp"
+          "expires_in": 3600
         }
     CredentialRequest:
       type: object
       required:
-        - format
+        - credential_configuration_id
+      description: |
+        Per OpenID4VCI v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
       properties:
-        format:
+        credential_configuration_id:
           type: string
           description: |
-            The format of the credential request. This MUST be one of the values specified in the "credentials_supported" array in the Credential Issuer Metadata.
-          example: "ldp_vc"
-        credential_definition:
+            References a credential configuration from the issuer's credential_configurations_supported metadata.
+          example: "NutsAuthorizationCredential_ldp_vc"
+        proofs:
           type: object
-          description: JSON-LD object describing the requested credential.
-        proof:
-          type: object
-          required:
-            - proof_type
-            - jwt
+          description: |
+            Object providing one or more proof of possessions of the cryptographic key material.
+            The key is the proof type (e.g., "jwt") and the value is an array of proofs.
           properties:
-            proof_type:
-              type: string
-              example: "jwt"
             jwt:
-              type: string
+              type: array
+              items:
+                type: string
               description: |
-                String with a JWS [RFC7515] as proof of possession.
-                
-                The fields of the JWT may look like this:
-                
+                Array of JWS [RFC7515] strings as proof of possession.
+
+                The fields of each JWT may look like this:
+
                 {
                   "typ": "openid4vci-proof+jwt",
                   "alg": "ES256",
                   "kid": "did:nuts:ebfeb1f712ebc6f1c276e12ec21#keys-1"
                 }.
                 {
+                  "iss": "did:nuts:ebfeb1f712ebc6f1c276e12ec21",
                   "aud": "https://credential-issuer.example.com",
                   "iat": 1659145924,
                   "nonce": "tZignsnFbp"
                 }
       example:
         {
-          "format": "ldp_vc",
-          "credential_definition": {
-            "@context": [
-              "https://www.w3.org/2018/credentials/v1",
-              "https://nuts.nl/credentials/v1"
-            ],
-            "type": [
-              "VerifiableCredential",
-              "NutsAuthorizationCredential"
-            ],
-          },
-          "proof": {
-            "proof_type": "jwt",
-            "jwt": "eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"
+          "credential_configuration_id": "NutsAuthorizationCredential_ldp_vc",
+          "proofs": {
+            "jwt": ["eyJraWQiOiJkaWQ6ZXhhbXBsZ...KPxgihac0aW9EkL1nOzM"]
           }
         }
     ErrorResponse:
@@ -430,88 +456,87 @@ components:
           type: string
           description: Code identifying the error that occurred.
           example: "invalid_request"
-        c_nonce:
-          type: string
-          description: a string containing a new nonce value to be used for subsequent requests.
-          example: "tZignsnFbp"
-        c_nonce_expires_in:
-          type: integer
-          description: The lifetime in seconds of the nonce value.
-          example: 900
     CredentialResponse:
       type: object
-      required:
-        - format
+      description: |
+        Per OpenID4VCI v1.0 Section 8.3, the response contains a credentials array where each entry
+        is a wrapper object with a credential key holding the issued credential.
       properties:
-        format:
-          type: string
-          example: "ldp_vc"
-        credential:
-          type: object
-        c_nonce:
-          type: string
-          example: "fGFF7UkhLa"
+        credentials:
+          type: array
+          items:
+            type: object
+            required:
+              - credential
+            properties:
+              credential:
+                type: object
+                description: Contains one issued Credential.
       example:
         {
-          "format": "ldp_vc",
-          "credential": {
-            "@context": [
-              "https://www.w3.org/2018/credentials/v1",
-              "https://nuts.nl/credentials/v1"
-            ],
-            "id": "did:nuts:<care organization did>#123",
-            "type": [
-              "VerifiableCredential",
-              "NutsAuthorizationCredential"
-            ],
-            "issuer": "did:nuts:<care organization did>",
-            "issuanceDate": "2010-01-01T00:00:00Z",
-            "credentialSubject": {
-              "id": "did:nuts:<receiver care organization did>",
-              "patient": "bsn:999992",
-              "purposeOfUse": "careviewer"
-            },
-            "proof": {
-              "type": "Ed25519Signature2020",
-              "created": "2022-02-25T14:58:43Z",
-              "verificationMethod": "did:nuts:<care organization did>#key-1",
-              "proofPurpose": "assertionMethod",
-              "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+          "credentials": [
+            {
+              "credential": {
+                "@context": [
+                  "https://www.w3.org/2018/credentials/v1",
+                  "https://nuts.nl/credentials/v1"
+                ],
+                "id": "did:nuts:<care organization did>#123",
+                "type": [
+                  "VerifiableCredential",
+                  "NutsAuthorizationCredential"
+                ],
+                "issuer": "did:nuts:<care organization did>",
+                "issuanceDate": "2010-01-01T00:00:00Z",
+                "credentialSubject": {
+                  "id": "did:nuts:<receiver care organization did>",
+                  "patient": "bsn:999992",
+                  "purposeOfUse": "careviewer"
+                },
+                "proof": {
+                  "type": "Ed25519Signature2020",
+                  "created": "2022-02-25T14:58:43Z",
+                  "verificationMethod": "did:nuts:<care organization did>#key-1",
+                  "proofPurpose": "assertionMethod",
+                  "proofValue": "zeEdUoM7m9cY8ZyTpey83yBKeBcmcvbyrEQzJ19rD2UXArU2U1jPGoEtrRvGYppdiK37GU4NBeoPakxpWhAvsVSt"
+                }
+              }
             }
-          },
-          "c_nonce": "fGFF7UkhLa"
+          ]
         }
     CredentialOffer:
       type: object
       required:
         - credential_issuer
-        - credentials
-        - grants # TODO: This should be optional according to https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer-parameters
+        - credential_configuration_ids
       properties:
         credential_issuer:
           type: string
           example: "https://issuer.example"
-        credentials:
+        credential_configuration_ids:
           type: array
+          description: |
+            Array of credential configuration IDs that reference entries in the issuer's credential_configurations_supported metadata.
+          items:
+            type: string
         grants:
           type: object
+          description: |
+            Grant types the issuer offers for this credential. Currently only pre-authorized code is supported.
+          properties:
+            "urn:ietf:params:oauth:grant-type:pre-authorized_code":
+              type: object
+              required:
+                - pre-authorized_code
+              properties:
+                pre-authorized_code:
+                  type: string
+                  description: The pre-authorized code for the credential offer.
       example:
         {
           "credential_issuer": "https://issuer.example",
-          "credentials": [
-            {
-              "format": "ldp_vc",
-              "credential_definition": {
-                "@context": [
-                  "https://www.w3.org/2018/credentials/v1",
-                  "https://nuts.nl/credentials/v1"
-                ],
-                "type": [
-                  "VerifiableCredential",
-                  "NutsAuthorizationCredential"
-                ]
-              }
-            }
+          "credential_configuration_ids": [
+            "NutsAuthorizationCredential_ldp_vc"
           ],
           "grants": {
             "urn:ietf:params:oauth:grant-type:pre-authorized_code": {
@@ -519,6 +544,18 @@ components:
             }
           }
         }
+    NonceResponse:
+      type: object
+      description: |
+        Response from the Nonce Endpoint per OpenID4VCI v1.0 Section 7.
+      required:
+        - c_nonce
+      properties:
+        c_nonce:
+          type: string
+          description: |
+            A fresh nonce value to be used in the proof of possession.
+          example: "wKI4LT17ac15ES9bw8ac4"
     CredentialOfferResponse:
       type: object
       description: |

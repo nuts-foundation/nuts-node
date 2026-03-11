@@ -20,11 +20,8 @@ package v0
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"net/http"
@@ -102,15 +99,25 @@ func (w Wrapper) RequestCredential(ctx context.Context, request RequestCredentia
 		return nil, err
 	}
 	credentialJSON, _ := credential.MarshalJSON()
-	credentialMap := make(map[string]interface{})
-	err = json.Unmarshal(credentialJSON, &credentialMap)
+	return RequestCredential200JSONResponse(CredentialResponse{
+		Credentials: []openid4vci.CredentialResponseEntry{{Credential: credentialJSON}},
+	}), nil
+}
+
+// RequestNonce handles a request to the Nonce Endpoint.
+func (w Wrapper) RequestNonce(ctx context.Context, request RequestNonceRequestObject) (RequestNonceResponseObject, error) {
+	issuerHandler, err := w.getIssuerHandler(ctx, request.Did)
 	if err != nil {
 		return nil, err
 	}
-	return RequestCredential200JSONResponse(CredentialResponse{
-		Credential: &credentialMap,
-		Format:     vc.JSONLDCredentialProofFormat,
-	}), nil
+	nonce, err := issuerHandler.HandleNonceRequest(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return RequestNonce200JSONResponse{
+		Body:    NonceResponse{CNonce: nonce},
+		Headers: RequestNonce200ResponseHeaders{CacheControl: "no-store"},
+	}, nil
 }
 
 // RequestAccessToken requests an OAuth2 access token from the given DID.
@@ -127,14 +134,14 @@ func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTo
 			StatusCode: http.StatusBadRequest,
 		}
 	}
-	accessToken, cNonce, err := issuerHandler.HandleAccessTokenRequest(ctx, request.Body.PreAuthorizedCode)
+	accessToken, err := issuerHandler.HandleAccessTokenRequest(ctx, request.Body.PreAuthorizedCode)
 	if err != nil {
 		return nil, err
 	}
 	expiresIn := int(issuer.TokenTTL.Seconds())
-	return RequestAccessToken200JSONResponse(*(&TokenResponse{
+	return RequestAccessToken200JSONResponse(TokenResponse{
 		AccessToken: accessToken,
 		ExpiresIn:   &expiresIn,
 		TokenType:   "bearer",
-	}).With(oauth.CNonceParam, cNonce)), nil
+	}), nil
 }
