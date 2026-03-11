@@ -308,6 +308,9 @@ type AuthorizationServerMetadata struct {
 
 	/* ******** JWT-Secured Authorization Request RFC9101 & OpenID Connect Core v1.0: §6. Passing Request Parameters as JWTs ******** */
 
+	// PushedAuthorizationRequestEndpoint is the URL of the pushed authorization request endpoint (RFC 9126).
+	PushedAuthorizationRequestEndpoint string `json:"pushed_authorization_request_endpoint,omitempty"`
+
 	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
 	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
 

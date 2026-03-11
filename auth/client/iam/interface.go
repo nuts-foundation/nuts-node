@@ -20,12 +20,19 @@ package iam
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
+
+// PARResponse holds the response from a Pushed Authorization Request (RFC 9126).
+type PARResponse struct {
+	RequestURI string `json:"request_uri"`
+	ExpiresIn  int    `json:"expires_in"`
+}
 
 // Client defines OpenID4VP client methods using the IAM OpenAPI Spec.
 type Client interface {
@@ -58,6 +65,8 @@ type Client interface {
 	RequestNonce(ctx context.Context, nonceEndpoint string) (string, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error)
+	// PushedAuthorizationRequest sends a Pushed Authorization Request (RFC 9126) to the given endpoint.
+	PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.
 	RequestObjectByGet(ctx context.Context, requestURI string) (string, error)
