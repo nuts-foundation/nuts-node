@@ -253,7 +253,6 @@ func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.Verifi
 	// - WithVerifyAuto(nil, ...) uses default jwk.Fetch and automatically fetches the JWK Set from the jku header URL
 	// - WithFetchWhitelist allows fetching from any https:// URL (Dezi endpoints)
 	// - WithHTTPClient allows using a custom HTTP client (for testing with self-signed certs)
-	// - WithValidate(false) skips exp/nbf validation since we validate those against credential dates
 	fetchOptions := []jwk.FetchOption{jwk.WithFetchWhitelist(jwk.WhitelistFunc(func(requestedURL string) bool {
 		return slices.Contains(d.allowedJKU, requestedURL)
 	}))}
@@ -266,7 +265,7 @@ func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.Verifi
 	token, err := jwt.Parse(
 		[]byte(serialized),
 		jwt.WithVerifyAuto(nil, fetchOptions...),
-		jwt.WithValidate(false),
+		jwt.WithClock(jwt.ClockFunc(d.clock)),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to verify JWT signature: %w", err)
