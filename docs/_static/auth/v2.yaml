@@ -414,6 +414,12 @@ components:
           type: string
           description: The scope that will be the service for which this access token can be used.
           example: eOverdracht-sender
+        id_token:
+          type: string
+          description: |
+            An optional ID Token (JWT) that represents the end-user.
+            This ID token is included in the Verifiable Presentation that is used to request the access token.
+            It currently only supports Dezi ID tokens.
         credentials:
           type: array
           description: |
