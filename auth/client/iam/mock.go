@@ -15,6 +15,7 @@ import (
 
 	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
+	openid4vci "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -223,10 +224,10 @@ func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjec
 }
 
 // VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, proofJWT string) (*CredentialResponse, error) {
+func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, proofJWT string) (*openid4vci.CredentialResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
-	ret0, _ := ret[0].(*CredentialResponse)
+	ret0, _ := ret[0].(*openid4vci.CredentialResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -43,6 +43,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
@@ -359,7 +360,7 @@ func (c *OpenID4VPClient) RequestNonce(ctx context.Context, nonceEndpoint string
 	return c.httpClient.RequestNonce(ctx, nonceEndpoint)
 }
 
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*CredentialResponse, error) {
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error) {
 	iamClient := c.httpClient
 	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
 	if err != nil {

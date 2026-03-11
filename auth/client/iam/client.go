@@ -337,36 +337,15 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-// CredentialRequest represents the request to fetch a credential per OpenID4VCI v1.0 Section 8.2.
-type CredentialRequest struct {
-	CredentialConfigurationID string                 `json:"credential_configuration_id,omitempty"`
-	Proofs                    CredentialRequestProofs `json:"proofs"`
-}
-
-// CredentialRequestProofs holds the proof(s) of possession keyed by proof type per v1.0 Section 8.2.
-type CredentialRequestProofs struct {
-	Jwt []string `json:"jwt"`
-}
-
-// CredentialResponse represents the response of a verifiable credential request per OpenID4VCI v1.0 Section 8.3.
-type CredentialResponse struct {
-	Credentials []CredentialResponseEntry `json:"credentials"`
-}
-
-// CredentialResponseEntry is a single entry in the credentials array.
-type CredentialResponseEntry struct {
-	Credential json.RawMessage `json:"credential"`
-}
-
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*CredentialResponse, error) {
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*openid4vci.CredentialResponse, error) {
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	credentialRequest := CredentialRequest{
+	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationID: credentialConfigID,
-		Proofs: CredentialRequestProofs{
+		Proofs: &openid4vci.CredentialRequestProofs{
 			Jwt: []string{proofJwt},
 		},
 	}
@@ -401,7 +380,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 		}
 		return nil, fmt.Errorf("credential request failed (status %d)", response.StatusCode)
 	}
-	var credentialResponse CredentialResponse
+	var credentialResponse openid4vci.CredentialResponse
 	if err = json.Unmarshal(responseBody, &credentialResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
