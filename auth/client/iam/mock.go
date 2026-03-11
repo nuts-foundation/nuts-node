@@ -11,6 +11,7 @@ package iam
 
 import (
 	context "context"
+	url "net/url"
 	reflect "reflect"
 
 	vc "github.com/nuts-foundation/go-did/vc"
@@ -161,6 +162,21 @@ func (m *MockClient) PresentationDefinition(ctx context.Context, endpoint string
 func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
+}
+
+// PushedAuthorizationRequest mocks base method.
+func (m *MockClient) PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PushedAuthorizationRequest", ctx, parEndpoint, params)
+	ret0, _ := ret[0].(*PARResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PushedAuthorizationRequest indicates an expected call of PushedAuthorizationRequest.
+func (mr *MockClientMockRecorder) PushedAuthorizationRequest(ctx, parEndpoint, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushedAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).PushedAuthorizationRequest), ctx, parEndpoint, params)
 }
 
 // RequestNonce mocks base method.

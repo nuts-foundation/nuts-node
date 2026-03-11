@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core/to"
 
+	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -194,6 +195,67 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 			},
 		})
 		assert.EqualError(t, err, "invalid authorization_details: credential_configuration_id \"unknown_config\" not found in issuer metadata")
+	})
+	t.Run("ok - uses PAR when endpoint advertised", func(t *testing.T) {
+		ctx := newTestClient(t)
+		parEndpoint := "https://auth.server/par"
+		authzMetadataWithPAR := oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint:              "https://auth.server/authorize",
+			TokenEndpoint:                      "https://auth.server/token",
+			ClientIdSchemesSupported:           clientIdSchemesSupported,
+			PushedAuthorizationRequestEndpoint: parEndpoint,
+		}
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadataWithPAR, nil)
+		ctx.iamClient.EXPECT().PushedAuthorizationRequest(gomock.Any(), parEndpoint, gomock.Any()).DoAndReturn(func(_ context.Context, _ string, params url.Values) (*iamclient.PARResponse, error) {
+			assert.Equal(t, oauth.CodeResponseType, params.Get(oauth.ResponseTypeParam))
+			assert.Equal(t, holderClientID, params.Get(oauth.ClientIDParam))
+			assert.NotEmpty(t, params.Get(oauth.StateParam))
+			assert.NotEmpty(t, params.Get(oauth.CodeChallengeParam))
+			return &iamclient.PARResponse{RequestURI: "urn:ietf:params:oauth:request_uri:xyz", ExpiresIn: 60}, nil
+		})
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, "auth.server", redirectUri.Host)
+		assert.Equal(t, "/authorize", redirectUri.Path)
+		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
+		assert.Equal(t, "urn:ietf:params:oauth:request_uri:xyz", redirectUri.Query().Get("request_uri"))
+		assert.Empty(t, redirectUri.Query().Get("state"), "state should not be in redirect when using PAR")
+		assert.Empty(t, redirectUri.Query().Get("code_challenge"), "code_challenge should not be in redirect when using PAR")
+	})
+	t.Run("error - PAR request fails", func(t *testing.T) {
+		ctx := newTestClient(t)
+		parEndpoint := "https://auth.server/par"
+		authzMetadataWithPAR := oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint:              "https://auth.server/authorize",
+			TokenEndpoint:                      "https://auth.server/token",
+			ClientIdSchemesSupported:           clientIdSchemesSupported,
+			PushedAuthorizationRequestEndpoint: parEndpoint,
+		}
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadataWithPAR, nil)
+		ctx.iamClient.EXPECT().PushedAuthorizationRequest(gomock.Any(), parEndpoint, gomock.Any()).Return(nil, errors.New("PAR failed"))
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "PAR request failed: PAR failed")
 	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {

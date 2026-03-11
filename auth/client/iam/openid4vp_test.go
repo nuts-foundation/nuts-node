@@ -527,6 +527,7 @@ type clientServerTestContext struct {
 	nonce                          func(writer http.ResponseWriter)
 	credentials                    func(writer http.ResponseWriter)
 	requestObjectJWT               func(writer http.ResponseWriter)
+	par                            func(writer http.ResponseWriter, request *http.Request)
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
@@ -650,6 +651,11 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 				ctx.requestObjectJWT(writer)
 				return
 			}
+		case "/par":
+			if ctx.par != nil {
+				ctx.par(writer, request)
+				return
+			}
 		}
 		writer.WriteHeader(http.StatusNotFound)
 	}
@@ -712,6 +718,56 @@ func TestIAMClient_RequestNonce(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Empty(t, nonce)
+	})
+}
+
+func TestIAMClient_PushedAuthorizationRequest(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.par = func(writer http.ResponseWriter, request *http.Request) {
+			assert.Equal(t, http.MethodPost, request.Method)
+			assert.Equal(t, "application/x-www-form-urlencoded", request.Header.Get("Content-Type"))
+			assert.NoError(t, request.ParseForm())
+			assert.Equal(t, "value1", request.PostFormValue("key1"))
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusCreated)
+			_, _ = writer.Write([]byte(`{"request_uri":"urn:ietf:params:oauth:request_uri:abc123","expires_in":60}`))
+		}
+
+		params := url.Values{"key1": {"value1"}}
+		response, err := ctx.client.PushedAuthorizationRequest(context.Background(), ctx.tlsServer.URL+"/par", params)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "urn:ietf:params:oauth:request_uri:abc123", response.RequestURI)
+		assert.Equal(t, 60, response.ExpiresIn)
+	})
+	t.Run("error - server returns error status", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.par = func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusBadRequest)
+			_, _ = writer.Write([]byte(`{"error":"invalid_request"}`))
+		}
+
+		response, err := ctx.client.PushedAuthorizationRequest(context.Background(), ctx.tlsServer.URL+"/par", url.Values{})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.ErrorContains(t, err, "PAR endpoint returned HTTP 400 (expected: 201)")
+	})
+	t.Run("error - response has invalid request_uri", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.par = func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusCreated)
+			_, _ = writer.Write([]byte(`{"request_uri":"https://evil.com/steal","expires_in":60}`))
+		}
+
+		response, err := ctx.client.PushedAuthorizationRequest(context.Background(), ctx.tlsServer.URL+"/par", url.Values{})
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+		assert.ErrorContains(t, err, "PAR response contains invalid request_uri")
 	})
 }
 

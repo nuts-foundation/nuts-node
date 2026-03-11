@@ -131,16 +131,34 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
-		oauth.ResponseTypeParam:         oauth.CodeResponseType,
-		oauth.StateParam:                state,
-		oauth.ClientIDParam:             clientID.String(),
-		oauth.ClientIDSchemeParam:       entityClientIDScheme,
-		oauth.AuthorizationDetailsParam: string(authorizationDetails),
-		oauth.RedirectURIParam:          redirectUri.String(),
-		oauth.CodeChallengeParam:        pkceParams.Challenge,
-		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
-	})
+	authzParams := url.Values{
+		oauth.ResponseTypeParam:         {oauth.CodeResponseType},
+		oauth.StateParam:                {state},
+		oauth.ClientIDParam:             {clientID.String()},
+		oauth.ClientIDSchemeParam:       {entityClientIDScheme},
+		oauth.AuthorizationDetailsParam: {string(authorizationDetails)},
+		oauth.RedirectURIParam:          {redirectUri.String()},
+		oauth.CodeChallengeParam:        {pkceParams.Challenge},
+		oauth.CodeChallengeMethodParam:  {pkceParams.ChallengeMethod},
+	}
+
+	var redirectUrl url.URL
+	if authzServerMetadata.PushedAuthorizationRequestEndpoint != "" {
+		parResponse, parErr := r.auth.IAMClient().PushedAuthorizationRequest(ctx, authzServerMetadata.PushedAuthorizationRequestEndpoint, authzParams)
+		if parErr != nil {
+			return nil, fmt.Errorf("PAR request failed: %w", parErr)
+		}
+		redirectUrl = nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
+			oauth.ClientIDParam: clientID.String(),
+			"request_uri":       parResponse.RequestURI,
+		})
+	} else {
+		params := make(map[string]string, len(authzParams))
+		for k, v := range authzParams {
+			params[k] = v[0]
+		}
+		redirectUrl = nutsHttp.AddQueryParams(*authorizationEndpoint, params)
+	}
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
 		RedirectURI: redirectUrl.String(),
