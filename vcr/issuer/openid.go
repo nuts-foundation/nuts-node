@@ -116,14 +116,14 @@ func NewOpenIDHandler(issuerDID did.DID, issuerIdentifierURL string, definitions
 }
 
 type openidHandler struct {
-	issuerIdentifierURL              string
-	issuerDID                        did.DID
-	definitionsDIR                   string
+	issuerIdentifierURL               string
+	issuerDID                         did.DID
+	definitionsDIR                    string
 	credentialConfigurationsSupported map[string]map[string]interface{}
-	keyResolver                      resolver.KeyResolver
-	store                            OpenIDStore
-	walletClientCreator              func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
-	httpClient                       core.HTTPRequestDoer
+	keyResolver                       resolver.KeyResolver
+	store                             OpenIDStore
+	walletClientCreator               func(ctx context.Context, httpClient core.HTTPRequestDoer, walletMetadataURL string) (openid4vci.WalletAPIClient, error)
+	httpClient                        core.HTTPRequestDoer
 }
 
 func (i *openidHandler) Metadata() openid4vci.CredentialIssuerMetadata {

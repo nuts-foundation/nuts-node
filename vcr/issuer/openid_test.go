@@ -701,7 +701,7 @@ func Test_generateCredentialConfigID(t *testing.T) {
 	})
 	t.Run("missing type", func(t *testing.T) {
 		defMap := map[string]interface{}{
-			"format": "ldp_vc",
+			"format":                "ldp_vc",
 			"credential_definition": map[string]interface{}{},
 		}
 		_, err := generateCredentialConfigID(defMap)

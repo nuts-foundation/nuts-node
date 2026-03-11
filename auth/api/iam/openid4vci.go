@@ -101,8 +101,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
-		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
-		IssuerURL:                authzServerMetadata.Issuer,
+		TokenEndpoint:                   authzServerMetadata.TokenEndpoint,
+		IssuerURL:                       authzServerMetadata.Issuer,
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
@@ -210,7 +210,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+		"kid": kid,                               // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),
