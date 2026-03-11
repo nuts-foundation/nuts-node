@@ -59,6 +59,8 @@ type OAuthSession struct {
 	IssuerNonceEndpoint string `json:"issuer_nonce_endpoint,omitempty"`
 	// IssuerCredentialConfigurationID: the credential_configuration_id for the credential request in the OpenID4VCI flow
 	IssuerCredentialConfigurationID string `json:"issuer_credential_configuration_id,omitempty"`
+	// ProofSigningAlgValuesSupported: algorithms the issuer accepts for proof JWTs (v1.0 Appendix F.1)
+	ProofSigningAlgValuesSupported []string `json:"proof_signing_alg_values_supported,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

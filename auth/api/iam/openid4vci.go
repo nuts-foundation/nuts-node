@@ -96,6 +96,16 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
 	redirectUri := clientID.JoinPath(oauth.CallbackPath)
+	// Extract proof_signing_alg_values_supported from the credential configuration (v1.0 Appendix F.1)
+	var proofSigningAlgValues []string
+	if credentialConfigID != "" {
+		if config, exists := credentialIssuerMetadata.CredentialConfigurationsSupported[credentialConfigID]; exists {
+			proofSigningAlgValues, err = openid4vci.ProofSigningAlgValues(config)
+			if err != nil {
+				return nil, core.Error(http.StatusFailedDependency, "%s", err)
+			}
+		}
+	}
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		AuthorizationServerMetadata: authzServerMetadata,
@@ -111,6 +121,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		ProofSigningAlgValuesSupported:  proofSigningAlgValues,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -201,17 +212,30 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 }
 
 func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, nonce string) (*openid4vci.CredentialResponse, error) {
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, nonce)
+	proofJWT, err := r.openid4vciProof(ctx, oauthSession, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
 	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, oauthSession.IssuerCredentialConfigurationID, proofJWT)
 }
 
-func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
-	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
+func (r *Wrapper) openid4vciProof(ctx context.Context, session *OAuthSession, nonce string) (string, error) {
+	if session.OwnDID == nil {
+		return "", errors.New("session has no holder DID")
+	}
+	holderDid := *session.OwnDID
+	kid, pubKey, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
+	}
+	if len(session.ProofSigningAlgValuesSupported) > 0 {
+		alg, algErr := crypto.SignatureAlgorithm(pubKey)
+		if algErr != nil {
+			return "", fmt.Errorf("failed to determine signing algorithm: %w", algErr)
+		}
+		if err = openid4vci.ValidateProofSigningAlg(alg.String(), session.ProofSigningAlgValuesSupported); err != nil {
+			return "", err
+		}
 	}
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
@@ -219,7 +243,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),
-		jwt.AudienceKey: audience, // Credential Issuer Identifier
+		jwt.AudienceKey: session.IssuerURL, // Credential Issuer Identifier
 		jwt.IssuedAtKey: timeFunc().Unix(),
 	}
 	if nonce != "" {

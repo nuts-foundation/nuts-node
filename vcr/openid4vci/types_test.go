@@ -232,6 +232,72 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 	})
 }
 
+func TestProofSigningAlgValues(t *testing.T) {
+	t.Run("returns values when present", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{
+					"proof_signing_alg_values_supported": []interface{}{"ES256", "ES384"},
+				},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"ES256", "ES384"}, result)
+	})
+	t.Run("returns nil when proof_types_supported absent", func(t *testing.T) {
+		config := map[string]interface{}{"format": "ldp_vc"}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("returns nil when jwt absent in proof_types_supported", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"cwt": map[string]interface{}{},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("error - jwt present but proof_signing_alg_values_supported absent", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		assert.Nil(t, result)
+		assert.EqualError(t, err, "issuer metadata has proof_types_supported.jwt but is missing proof_signing_alg_values_supported")
+	})
+	t.Run("skips non-string values in algorithm array", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{
+					"proof_signing_alg_values_supported": []interface{}{"ES256", 42, "ES384"},
+				},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"ES256", "ES384"}, result)
+	})
+}
+
+func TestValidateProofSigningAlg(t *testing.T) {
+	t.Run("ok - algorithm is supported", func(t *testing.T) {
+		assert.NoError(t, ValidateProofSigningAlg("ES256", []string{"ES256", "ES384"}))
+	})
+	t.Run("ok - no constraint when supportedAlgs is empty", func(t *testing.T) {
+		assert.NoError(t, ValidateProofSigningAlg("ES256", nil))
+	})
+	t.Run("error - algorithm not supported", func(t *testing.T) {
+		err := ValidateProofSigningAlg("ES256", []string{"ES384", "ES512"})
+		assert.EqualError(t, err, "signing algorithm ES256 is not supported by issuer (supported: ES384, ES512)")
+	})
+}
+
 // TestCredentialDefinition_Validation tests credential definition validation
 func TestCredentialDefinition_Validation(t *testing.T) {
 	t.Run("valid definition", func(t *testing.T) {
