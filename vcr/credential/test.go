@@ -9,7 +9,47 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwt"
 )
 
-func CreateTestDeziIDToken(issuedAt time.Time, validUntil time.Time, key crypto.PrivateKey) ([]byte, error) {
+func CreateTestDezi07IDToken(issuedAt time.Time, validUntil time.Time, key crypto.PrivateKey) ([]byte, error) {
+	claims := map[string]any{
+		jwt.JwtIDKey:      "test-jwt-id-07",
+		jwt.ExpirationKey: validUntil.Unix(),
+		jwt.NotBeforeKey:  issuedAt.Unix(),
+		jwt.IssuerKey:     "abonnee.dezi.nl",
+		"json_schema":     "https://www.dezi.nl/json_schemas/verklaring_v1.json",
+		"loa_dezi":        "http://eidas.europa.eu/LoA/high",
+		"verklaring_id":   "test-verklaring-id",
+		// v0.7 format claims
+		"dezi_nummer":    "123456789",
+		"voorletters":    "A.B.",
+		"voorvoegsel":    "van der",
+		"achternaam":     "Zorgmedewerker",
+		"abonnee_nummer": "87654321",
+		"abonnee_naam":   "Zorgaanbieder",
+		"rol_code":       "01.000",
+		"rol_naam":       "Arts",
+		"rol_code_bron":  "http://www.dezi.nl/rol_code_bron/big",
+	}
+	token := jwt.New()
+	for name, value := range claims {
+		if err := token.Set(name, value); err != nil {
+			return nil, err
+		}
+	}
+
+	headers := jws.NewHeaders()
+	for k, v := range map[string]any{
+		"alg": "RS256",
+		"kid": "1",
+		"jku": "https://example.com/jwks.json",
+	} {
+		if err := headers.Set(k, v); err != nil {
+			return nil, err
+		}
+	}
+	return jwt.Sign(token, jwt.WithKey(jwa.RS256, key, jws.WithProtectedHeaders(headers)))
+}
+
+func CreateTestDezi2024IDToken(issuedAt time.Time, validUntil time.Time, key crypto.PrivateKey) ([]byte, error) {
 	claims := map[string]any{
 		jwt.AudienceKey:   "006fbf34-a80b-4c81-b6e9-593600675fb2",
 		jwt.ExpirationKey: validUntil.Unix(),

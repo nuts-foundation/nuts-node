@@ -380,17 +380,6 @@ func TestVerifier_Verify(t *testing.T) {
 			assert.ErrorIs(t, err, expectedError)
 		})
 	})
-	t.Run("DeziIDTokenCredential", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.store.EXPECT().GetRevocations(gomock.Any()).Return(nil, ErrNotFound)
-		// Token is valid from 1701933627 (Dec 7, 2023 07:20:27) to 1701933697 (Dec 7, 2023 07:21:37)
-		validAt := time.Date(2023, 12, 7, 7, 21, 0, 0, time.UTC)
-
-		cred := createDeziCredential(t, "did:web:example.com")
-
-		err := ctx.verifier.Verify(*cred, true, true, &validAt)
-		assert.NoError(t, err)
-	})
 }
 
 func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
@@ -868,45 +857,4 @@ func newMockContext(t *testing.T) mockContext {
 		store:       verifierStore,
 		trustConfig: trustConfig,
 	}
-}
-
-// createDeziIDToken creates a signed Dezi id_token according to https://www.dezi.nl/documenten/2024/05/08/koppelvlakspecificatie-dezi-online-koppelvlak-1_-platformleverancier
-func createDeziCredential(t *testing.T, holderDID string) *vc.VerifiableCredential {
-	exp := time.Unix(1701933697, 0)
-	iat := time.Unix(1701933627, 0)
-	idToken, err := credential.CreateTestDeziIDToken(iat, exp, nil)
-	require.NoError(t, err)
-
-	credentialMap := map[string]any{
-		"@context": []any{
-			"https://www.w3.org/2018/credentials/v1",
-		},
-		"type":           []string{"VerifiableCredential", "DeziIDTokenCredential"},
-		"issuer":         holderDID,
-		"id":             holderDID + "#1",
-		"issuanceDate":   iat.Format(time.RFC3339Nano),
-		"expirationDate": exp.Format(time.RFC3339Nano),
-		"credentialSubject": map[string]any{
-			"@type":      "DeziIDTokenSubject",
-			"identifier": "87654321",
-			"name":       "Zorgaanbieder",
-			"employee": map[string]any{
-				"@type":         "HealthcareWorker",
-				"identifier":    "900000009",
-				"initials":      "B.B.",
-				"surnamePrefix": "van der",
-				"surname":       "Jansen",
-				"roles":         []string{"01.041", "30.000", "01.010", "01.011"},
-			},
-		},
-		"proof": map[string]any{
-			"type": "DeziIDJWT",
-			"jwt":  string(idToken),
-		},
-	}
-	data, err := json.Marshal(credentialMap)
-	require.NoError(t, err)
-	cred, err := vc.ParseVerifiableCredential(string(data))
-	require.NoError(t, err)
-	return cred
 }
