@@ -172,8 +172,10 @@ type CredentialRequestProofs struct {
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
 // In v1.0, when proofs (plural) is used in the request, the response uses `credentials` (array of wrapper objects).
 // Each element contains a `credential` key holding the actual issued credential.
+// When deferred issuance is used (Section 8.3), the response contains a `transaction_id` instead of credentials.
 type CredentialResponse struct {
-	Credentials []CredentialResponseEntry `json:"credentials,omitempty"`
+	Credentials   []CredentialResponseEntry `json:"credentials,omitempty"`
+	TransactionID string                    `json:"transaction_id,omitempty"`
 }
 
 // CredentialResponseEntry is a single entry in the credentials array of a CredentialResponse.
