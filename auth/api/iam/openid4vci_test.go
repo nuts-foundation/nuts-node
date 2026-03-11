@@ -44,28 +44,31 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		CredentialIssuer:     "issuer",
 		CredentialEndpoint:   "endpoint",
 		AuthorizationServers: []string{authServer},
-		Display:              nil,
+		CredentialConfigurationsSupported: map[string]map[string]interface{}{
+			"NutsOrganizationCredential_ldp_vc": {"format": "ldp_vc"},
+		},
+		Display: nil,
 	}
 	authzMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:    "https://auth.server/authorize",
 		TokenEndpoint:            "https://auth.server/token",
 		ClientIdSchemesSupported: clientIdSchemesSupported,
 	}
-	t.Run("ok", func(t *testing.T) {
+	t.Run("ok - locations injected when authorization_servers present", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
 			},
 		})
 		require.NoError(t, err)
-		require.NotNil(t, response) //RequestOid4vciCredentialIssuanceResponseObject
+		require.NotNil(t, response)
 		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
 		require.NoError(t, err)
 		assert.Equal(t, "auth.server", redirectUri.Host)
@@ -76,7 +79,118 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
-		assert.Equal(t, `[{"format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+		assert.Equal(t, `[{"credential_configuration_id":"NutsOrganizationCredential_ldp_vc","locations":["issuer"],"type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+	})
+	t.Run("ok - no locations when authorization_servers absent", func(t *testing.T) {
+		ctx := newTestClient(t)
+		metadataNoAS := oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   issuerClientID,
+			CredentialEndpoint: "endpoint",
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"NutsOrganizationCredential_ldp_vc": {"format": "ldp_vc"},
+			},
+		}
+		authzMetadataLocal := oauth.AuthorizationServerMetadata{
+			AuthorizationEndpoint:    "https://auth.server/authorize",
+			TokenEndpoint:            "https://auth.server/token",
+			ClientIdSchemesSupported: clientIdSchemesSupported,
+		}
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadataNoAS, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerClientID).Return(&authzMetadataLocal, nil)
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		require.NoError(t, err)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, `[{"credential_configuration_id":"NutsOrganizationCredential_ldp_vc","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+	})
+	t.Run("ok - unknown keys in authorization_details are stripped", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc", "evil_key": "injected"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		require.NoError(t, err)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, `[{"credential_configuration_id":"NutsOrganizationCredential_ldp_vc","locations":["issuer"],"type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+	})
+	t.Run("error - multiple authorization_details entries", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{
+					{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"},
+					{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"},
+				},
+				Issuer:      issuerClientID,
+				RedirectUri: redirectURI,
+				WalletDid:   holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "invalid authorization_details: exactly one entry is supported")
+	})
+	t.Run("error - authorization_details type is not openid_credential", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "invalid_type", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "invalid authorization_details: type must be \"openid_credential\"")
+	})
+	t.Run("error - authorization_details entry missing credential_configuration_id", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "invalid authorization_details: credential_configuration_id is required")
+	})
+	t.Run("error - credential_configuration_id not in issuer metadata", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "unknown_config"}},
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "invalid authorization_details: credential_configuration_id \"unknown_config\" not found in issuer metadata")
 	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
@@ -87,25 +201,25 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 				AuthorizationServers: []string{}, // empty
 				Display:              nil,
 			}
-			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, issuerClientID).Return(nil, assert.AnError)
-			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerClientID).Return(nil, assert.AnError)
+			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 			assert.ErrorIs(t, err, assert.AnError)
 		})
 
 		t.Run("error - none of the authorization servers can be reached", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, issuerClientID).Return(nil, assert.AnError)
-			ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(nil, assert.AnError)
+			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), issuerClientID).Return(nil, assert.AnError)
+			ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(nil, assert.AnError)
 
-			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 			assert.ErrorIs(t, err, assert.AnError)
 		})
 		t.Run("error - fetching credential issuer metadata fails", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(nil, assert.AnError)
-			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+			ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(nil, assert.AnError)
+			_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 			assert.ErrorIs(t, err, assert.AnError)
 		})
 	})
@@ -114,21 +228,21 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		req.Body.Issuer = ""
 		ctx := newTestClient(t)
 
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), req)
 
 		assert.EqualError(t, err, "issuer is empty")
 	})
 	t.Run("error - invalid authorization endpoint in metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
 		invalidAuthzMetadata := oauth.AuthorizationServerMetadata{
 			AuthorizationEndpoint:    ":",
 			TokenEndpoint:            "https://auth.server/token",
 			ClientIdSchemesSupported: []string{"did"},
 		}
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&invalidAuthzMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&invalidAuthzMetadata, nil)
 
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 
 		assert.EqualError(t, err, "failed to parse the authorization_endpoint: parse \":\": missing protocol scheme")
 	})
@@ -136,27 +250,27 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		metadata := metadata
 		metadata.CredentialEndpoint = ""
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 		assert.EqualError(t, err, "no credential_endpoint found")
 	})
 	t.Run("error - missing authorization_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		authzMetadata := authzMetadata
 		authzMetadata.AuthorizationEndpoint = ""
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 		assert.EqualError(t, err, "no authorization_endpoint found")
 	})
 	t.Run("error - missing token_endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		authzMetadata := authzMetadata
 		authzMetadata.TokenEndpoint = ""
-		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), requestCredentials(holderSubjectID, issuerClientID, redirectURI))
 		assert.EqualError(t, err, "no token_endpoint found")
 	})
 }
@@ -215,8 +329,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	t.Run("ok - with nonce endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		require.NoError(t, ctx.client.oauthClientStateStore().Put(state, &session))
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").DoAndReturn(func(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 			assert.Equal(t, map[string]interface{}{"typ": "openid4vci-proof+jwt", "kid": "kid"}, headers)
@@ -229,11 +343,11 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 			assert.Equal(t, expectedClaims, claims)
 			return "signed-proof", nil
 		})
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
-		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+		ctx.wallet.EXPECT().Put(gomock.Any(), *verifiableCredential)
 
-		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
+		callback, err := ctx.client.Callback(context.Background(), CallbackRequestObject{
 			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  to.Ptr(code),
@@ -248,18 +362,18 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	})
 	t.Run("ok - no nonce endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").DoAndReturn(func(_ context.Context, claims map[string]interface{}, headers map[string]interface{}, key interface{}) (string, error) {
 			_, hasNonce := claims["nonce"]
 			assert.False(t, hasNonce, "nonce should not be set when no nonce endpoint is configured")
 			return "signed-proof", nil
 		})
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
-		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+		ctx.wallet.EXPECT().Put(gomock.Any(), *verifiableCredential)
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionWithoutNonce)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &sessionWithoutNonce)
 
 		require.NoError(t, err)
 		assert.NotNil(t, callback)
@@ -269,20 +383,20 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		freshNonce := "fresh-nonce"
 		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
 
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		// first attempt fails with invalid_nonce
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil).Times(2)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof-1", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof-1").Return(nil, invalidNonceErr)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof-1").Return(nil, invalidNonceErr)
 		// retry with fresh nonce
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(freshNonce, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(freshNonce, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof-2", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof-2").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof-2").Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
-		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+		ctx.wallet.EXPECT().Put(gomock.Any(), *verifiableCredential)
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		require.NoError(t, err)
 		assert.NotNil(t, callback)
@@ -291,17 +405,17 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx := newTestClient(t)
 		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
 
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil).Times(2)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof-1", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof-1").Return(nil, invalidNonceErr)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof-1").Return(nil, invalidNonceErr)
 		// retry also fails
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return("fresh-nonce", nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return("fresh-nonce", nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof-2", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof-2").Return(nil, errors.New("still failing"))
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof-2").Return(nil, errors.New("still failing"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error while fetching the credential from endpoint")
@@ -310,34 +424,34 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx := newTestClient(t)
 		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
 
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(nil, invalidNonceErr)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(nil, invalidNonceErr)
 		// retry nonce fetch fails
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return("", errors.New("nonce endpoint down"))
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return("", errors.New("nonce endpoint down"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error fetching nonce for retry")
 	})
 	t.Run("error - initial nonce request fails", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return("", errors.New("nonce endpoint unavailable"))
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return("", errors.New("nonce endpoint unavailable"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error fetching nonce from")
 	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Error(t, err)
 		assert.Nil(t, callback)
@@ -345,65 +459,65 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	})
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(nil, errors.New("FAIL"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.EqualError(t, err, "server_error - error while fetching the credential from endpoint https://auth.server/credz, error: FAIL")
 	})
 	t.Run("err - invalid credential", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
 			Credentials: []openid4vci.CredentialResponseEntry{{Credential: json.RawMessage(`"super invalid"`)}},
 		}, nil)
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error while parsing the credential")
 	})
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil).Return(errors.New("FAIL"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.EqualError(t, err, "server_error - error while verifying the credential from issuer: did:web:example.com:iam:issuer, error: FAIL")
 	})
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("", nil, resolver.ErrKeyNotFound)
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "failed to resolve key for did (did:web:example.com:iam:holder): "+resolver.ErrKeyNotFound.Error())
 	})
 	t.Run("error - signature failure", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signature failed"))
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "failed to sign the JWT with kid (kid): signature failed")
@@ -413,22 +527,22 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		sessionNilDID := session
 		sessionNilDID.OwnDID = nil
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionNilDID)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &sessionNilDID)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "missing wallet DID in session")
 	})
 	t.Run("error - empty credentials array", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
-		ctx.iamClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
 			Credentials: []openid4vci.CredentialResponseEntry{},
 		}, nil)
 
-		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "credential response does not contain any credentials")
