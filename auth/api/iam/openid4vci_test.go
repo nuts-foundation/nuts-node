@@ -20,6 +20,9 @@ package iam
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"net/url"
@@ -531,6 +534,39 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "missing wallet DID in session")
+	})
+	t.Run("error - signing algorithm not supported by issuer", func(t *testing.T) {
+		ctx := newTestClient(t)
+		p256Key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		sessionAlgMismatch := session
+		sessionAlgMismatch.ProofSigningAlgValuesSupported = []string{"ES384"}
+
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", &p256Key.PublicKey, nil)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &sessionAlgMismatch)
+
+		assert.Nil(t, callback)
+		assert.ErrorContains(t, err, "signing algorithm ES256 is not supported by issuer (supported: ES384)")
+	})
+	t.Run("ok - algorithm validation skipped when proof_signing_alg_values_supported absent", func(t *testing.T) {
+		ctx := newTestClient(t)
+		sessionNoAlg := session
+		sessionNoAlg.ProofSigningAlgValuesSupported = nil
+
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&credentialResponse, nil)
+		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
+		ctx.wallet.EXPECT().Put(gomock.Any(), *verifiableCredential)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &sessionNoAlg)
+
+		require.NoError(t, err)
+		assert.NotNil(t, callback)
 	})
 	t.Run("error - empty credentials array", func(t *testing.T) {
 		ctx := newTestClient(t)

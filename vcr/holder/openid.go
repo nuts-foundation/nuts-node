@@ -250,9 +250,26 @@ func (h *openidHandler) resolveCredentialConfiguration(metadata openid4vci.Crede
 }
 
 func (h *openidHandler) retrieveCredential(ctx context.Context, issuerClient openid4vci.IssuerAPIClient, credentialConfigID string, tokenResponse *oauth.TokenResponse) (*vc.VerifiableCredential, error) {
-	keyID, _, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
+	keyID, pubKey, err := h.resolver.ResolveKey(h.did, nil, resolver.NutsSigningKeyType)
 	if err != nil {
 		return nil, err
+	}
+	if credentialConfigID != "" {
+		if config, exists := issuerClient.Metadata().CredentialConfigurationsSupported[credentialConfigID]; exists {
+			supportedAlgs, algErr := openid4vci.ProofSigningAlgValues(config)
+			if algErr != nil {
+				return nil, algErr
+			}
+			if len(supportedAlgs) > 0 {
+				alg, algErr := crypto.SignatureAlgorithm(pubKey)
+				if algErr != nil {
+					return nil, fmt.Errorf("failed to determine signing algorithm: %w", algErr)
+				}
+				if err = openid4vci.ValidateProofSigningAlg(alg.String(), supportedAlgs); err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	const maxAttempts = 2
