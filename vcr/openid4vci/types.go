@@ -135,8 +135,8 @@ type OfferedCredential struct {
 // CredentialDefinition defines the 'credential_definition' for Format VerifiableCredentialJSONLDFormat
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html Appendix A.1.2
 type CredentialDefinition struct {
-	Context           []ssi.URI               `json:"@context"`
-	Type              []ssi.URI               `json:"type"`
+	Context           []ssi.URI              `json:"@context"`
+	Type              []ssi.URI              `json:"type"`
 	CredentialSubject map[string]interface{} `json:"credentialSubject,omitempty"` // optional and currently not used
 }
 
