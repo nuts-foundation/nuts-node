@@ -405,11 +405,12 @@ type Redirect struct {
 
 // OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
 type OpenIDCredentialIssuerMetadata struct {
-	CredentialIssuer     string              `json:"credential_issuer"`
-	CredentialEndpoint   string              `json:"credential_endpoint"`
-	NonceEndpoint        string              `json:"nonce_endpoint,omitempty"`
-	AuthorizationServers []string            `json:"authorization_servers,omitempty"`
-	Display              []map[string]string `json:"display,omitempty"`
+	CredentialIssuer                  string                            `json:"credential_issuer"`
+	CredentialEndpoint                string                            `json:"credential_endpoint"`
+	NonceEndpoint                     string                            `json:"nonce_endpoint,omitempty"`
+	AuthorizationServers              []string                          `json:"authorization_servers,omitempty"`
+	CredentialConfigurationsSupported map[string]map[string]interface{} `json:"credential_configurations_supported,omitempty"`
+	Display                           []map[string]string               `json:"display,omitempty"`
 }
 
 // OpenIDConfiguration represents the OpenID configuration

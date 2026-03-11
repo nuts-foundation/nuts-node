@@ -76,13 +76,18 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Read and parse the authorization details
+	// Validate and process authorization details
 	authorizationDetails := []byte("[]")
 	var credentialConfigID string
 	if len(request.Body.AuthorizationDetails) > 0 {
-		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-		if id, ok := request.Body.AuthorizationDetails[0]["credential_configuration_id"].(string); ok {
-			credentialConfigID = id
+		var sanitized []map[string]interface{}
+		credentialConfigID, sanitized, err = validateAuthorizationDetails(request.Body.AuthorizationDetails, credentialIssuerMetadata)
+		if err != nil {
+			return nil, core.InvalidInputError("%s", err)
+		}
+		authorizationDetails, err = json.Marshal(sanitized)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal authorization_details: %w", err)
 		}
 	}
 	// Generate the state and PKCE
@@ -101,8 +106,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
-		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
-		IssuerURL:                authzServerMetadata.Issuer,
+		TokenEndpoint:                   authzServerMetadata.TokenEndpoint,
+		IssuerURL:                       authzServerMetadata.Issuer,
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
@@ -210,7 +215,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
+		"kid": kid,                               // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),
@@ -225,4 +230,38 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid, err)
 	}
 	return proofJwt, nil
+}
+
+// validateAuthorizationDetails validates the authorization_details entries per v1.0 Section 5.1.1.
+// It returns the credential_configuration_id and sanitized entries (only known keys, with locations injected).
+// Only a single entry is supported; multiple entries are rejected.
+func validateAuthorizationDetails(details []map[string]interface{}, metadata *oauth.OpenIDCredentialIssuerMetadata) (string, []map[string]interface{}, error) {
+	if len(details) != 1 {
+		return "", nil, errors.New("invalid authorization_details: exactly one entry is supported")
+	}
+	if len(metadata.CredentialConfigurationsSupported) == 0 {
+		return "", nil, errors.New("invalid authorization_details: issuer does not advertise any credential configurations")
+	}
+	entry := details[0]
+	typ, _ := entry["type"].(string)
+	if typ != "openid_credential" {
+		return "", nil, errors.New("invalid authorization_details: type must be \"openid_credential\"")
+	}
+	configID, ok := entry["credential_configuration_id"].(string)
+	if !ok || configID == "" {
+		return "", nil, errors.New("invalid authorization_details: credential_configuration_id is required")
+	}
+	if _, exists := metadata.CredentialConfigurationsSupported[configID]; !exists {
+		return "", nil, fmt.Errorf("invalid authorization_details: credential_configuration_id %q not found in issuer metadata", configID)
+	}
+	// Build sanitized entry with only known fields
+	sanitized := map[string]interface{}{
+		"type":                        typ,
+		"credential_configuration_id": configID,
+	}
+	// Inject locations when authorization_servers is present (v1.0 Section 5.1.1)
+	if len(metadata.AuthorizationServers) > 0 {
+		sanitized["locations"] = []string{metadata.CredentialIssuer}
+	}
+	return configID, []map[string]interface{}{sanitized}, nil
 }
