@@ -214,6 +214,32 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 		assert.NotNil(t, entry["credential"], "each entry must have a credential key")
 	})
 
+	t.Run("deferred response with transaction_id", func(t *testing.T) {
+		responseJSON := `{"transaction_id": "txn-abc"}`
+
+		var response CredentialResponse
+		err := json.Unmarshal([]byte(responseJSON), &response)
+		require.NoError(t, err)
+
+		assert.Equal(t, "txn-abc", response.TransactionID)
+		assert.Empty(t, response.Credentials)
+	})
+	t.Run("transaction_id omitted when empty", func(t *testing.T) {
+		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
+		response := CredentialResponse{
+			Credentials: []CredentialResponseEntry{{Credential: credJSON}},
+		}
+
+		jsonBytes, err := json.Marshal(response)
+		require.NoError(t, err)
+
+		var parsed map[string]interface{}
+		err = json.Unmarshal(jsonBytes, &parsed)
+		require.NoError(t, err)
+
+		_, hasTransactionID := parsed["transaction_id"]
+		assert.False(t, hasTransactionID, "transaction_id must be absent when empty")
+	})
 	t.Run("response does not contain c_nonce fields", func(t *testing.T) {
 		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
 		response := CredentialResponse{

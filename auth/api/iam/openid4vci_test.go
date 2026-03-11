@@ -568,6 +568,21 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, callback)
 	})
+	t.Run("error - deferred issuance not supported", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.iamClient.EXPECT().RequestNonce(gomock.Any(), nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(gomock.Any(), credEndpoint, accessToken, credentialConfigID, "signed-proof").Return(&openid4vci.CredentialResponse{
+			TransactionID: "txn-456",
+		}, nil)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(context.Background(), code, &session)
+
+		assert.Nil(t, callback)
+		assert.ErrorContains(t, err, "deferred credential issuance is not supported")
+	})
 	t.Run("error - empty credentials array", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)

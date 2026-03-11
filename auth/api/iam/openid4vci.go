@@ -189,6 +189,9 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 		}
 	}
+	if credentialResponse.TransactionID != "" {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "deferred credential issuance is not supported"), appCallbackURI)
+	}
 	if len(credentialResponse.Credentials) == 0 {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "credential response does not contain any credentials"), appCallbackURI)
 	}
