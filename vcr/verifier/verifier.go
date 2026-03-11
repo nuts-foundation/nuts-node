@@ -45,7 +45,7 @@ const (
 	maxSkew = 5 * time.Second
 )
 
-var errVerificationMethodNotOfIssuer = errors.New("verification method is not of issuer")
+var errVerificationMethodNotOfIssuer = newVerificationError("verification method is not of issuer")
 
 // verifier implements the Verifier interface.
 // It implements the generic methods for verifying verifiable credentials and verifiable presentations.
@@ -63,8 +63,8 @@ type verifier struct {
 
 // VerificationError is used to describe a VC/VP verification failure.
 type VerificationError struct {
-	msg  string
-	args []interface{}
+	Msg  string
+	Args []interface{}
 }
 
 // Is checks whether the given error is a VerificationError as well.
@@ -74,15 +74,19 @@ func (e VerificationError) Is(other error) bool {
 }
 
 func newVerificationError(msg string, args ...interface{}) error {
-	return VerificationError{msg: msg, args: args}
+	return VerificationError{Msg: msg, Args: args}
 }
 
-func toVerificationError(cause error) error {
-	return VerificationError{msg: cause.Error()}
+func ToVerificationError(cause error) error {
+	return VerificationError{Msg: cause.Error()}
 }
 
 func (e VerificationError) Error() string {
-	return fmt.Errorf("verification error: "+e.msg, e.args...).Error()
+	const msg = "presentation(s) or credential(s) verification failed"
+	if e.Msg == "" {
+		return msg
+	}
+	return fmt.Errorf(msg+": "+e.Msg, e.Args...).Error()
 }
 
 // NewVerifier creates a new instance of the verifier. It needs a key resolver for validating signatures.
@@ -115,29 +119,15 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check revocation status
-	if credentialToVerify.ID != nil {
-		revoked, err := v.IsRevoked(*credentialToVerify.ID)
-		if err != nil {
-			return err
-		}
-		if revoked {
-			return types.ErrRevoked
-		}
-	}
-
-	// Check the credentialStatus if the credential is revoked
-	err := v.credentialStatus.Verify(credentialToVerify)
+	rev, err := v.GetRevocation(credentialToVerify)
 	if err != nil {
 		// soft fail, only return an error when revocation is confirmed and log everything else
-		if errors.Is(err, types.ErrRevoked) {
-			return err
-		} else {
-			// TODO: what log level
-			bs, _ := json.Marshal(credentialToVerify)
-			log.Logger().WithError(err).WithField("credential", string(bs)).Info("CredentialStatus verification failed")
-		}
+		bs, _ := json.Marshal(credentialToVerify)
+		log.Logger().WithError(err).WithField("credential", string(bs)).Info("credential revocation verification failed")
 	}
-
+	if rev != nil {
+		return types.ErrRevoked
+	}
 	// Check trust status
 	if !allowUntrusted {
 		for _, t := range credentialToVerify.Type {
@@ -199,14 +189,33 @@ func (v *verifier) IsRevoked(credentialID ssi.URI) (bool, error) {
 	return true, nil
 }
 
-func (v *verifier) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
-	revocation, err := v.store.GetRevocations(credentialID)
-	if err != nil {
+func (v *verifier) GetRevocation(cred vc.VerifiableCredential) (*credential.Revocation, error) {
+	if cred.ID != nil {
+		var rev []*credential.Revocation
+		rev, err := v.store.GetRevocations(*cred.ID)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			// revocation check error
+			return nil, err
+		}
+		if len(rev) > 0 {
+			// revoked
+			return rev[0], nil
+		}
+	}
+	// Check the credentialStatus if the credential is revoked
+	err := v.credentialStatus.Verify(cred)
+	if errors.Is(err, types.ErrRevoked) {
+		// revoked
+		return &credential.Revocation{
+			Issuer:  cred.Issuer,
+			Subject: *cred.ID,
+		}, nil
+	} else if err != nil {
+		// revocation check error
 		return nil, err
 	}
-
-	// GetRevocations returns ErrNotFound for len == 0
-	return revocation[0], nil
+	// no revocation found
+	return nil, nil
 }
 
 func (v *verifier) RegisterRevocation(revocation credential.Revocation) error {

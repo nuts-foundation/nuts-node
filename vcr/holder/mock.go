@@ -152,3 +152,18 @@ func (mr *MockWalletMockRecorder) Remove(ctx, holderDID, credentialID any) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockWallet)(nil).Remove), ctx, holderDID, credentialID)
 }
+
+// SearchCredential mocks base method.
+func (m *MockWallet) SearchCredential(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchCredential", ctx, holderDID)
+	ret0, _ := ret[0].([]vc.VerifiableCredential)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchCredential indicates an expected call of SearchCredential.
+func (mr *MockWalletMockRecorder) SearchCredential(ctx, holderDID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockWallet)(nil).SearchCredential), ctx, holderDID)
+}

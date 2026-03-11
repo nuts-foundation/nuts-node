@@ -466,6 +466,29 @@ func (w *Wrapper) GetCredentialsInWallet(ctx context.Context, request GetCredent
 	return GetCredentialsInWallet200JSONResponse(credentials), nil
 }
 
+// SearchCredentialsInWallet handles the API request for searching credentials in the holder's wallet
+func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchCredentialsInWalletRequestObject) (SearchCredentialsInWalletResponseObject, error) {
+	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
+	if err != nil {
+		return nil, err
+	}
+
+	var allCreds []vc.VerifiableCredential
+	for _, did := range dids {
+		creds, err := w.VCR.Wallet().SearchCredential(ctx, did)
+		if err != nil {
+			return nil, err
+		}
+		allCreds = append(allCreds, creds...)
+	}
+
+	searchResults, err := w.vcsWithRevocationsToSearchResults(allCreds)
+	if err != nil {
+		return nil, err
+	}
+	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: searchResults}), nil
+}
+
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
 	// get DIDs for holder
 	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
@@ -532,9 +555,9 @@ func (w *Wrapper) vcsWithRevocationsToSearchResults(foundVCs []vc.VerifiableCred
 	result := make([]SearchVCResult, len(foundVCs))
 	for i, resolvedVC := range foundVCs {
 		var revocation *Revocation
-		revocation, err := w.VCR.Verifier().GetRevocation(*resolvedVC.ID)
-		if err != nil && !errors.Is(err, verifier.ErrNotFound) {
-			return nil, err
+		revocation, err := w.VCR.Verifier().GetRevocation(resolvedVC)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get revocation for credential %s: %w", resolvedVC.ID.String(), err)
 		}
 		result[i] = SearchVCResult{VerifiableCredential: resolvedVC, Revocation: revocation}
 	}

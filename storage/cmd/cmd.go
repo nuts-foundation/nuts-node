@@ -28,6 +28,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet := pflag.NewFlagSet("storage", pflag.ContinueOnError)
 	defs := storage.DefaultConfig()
 	// bbolt
+	flagSet.Duration("storage.bbolt.locktimeout", defs.BBolt.LockTimeout, "Maximum time to wait for acquiring a lock on the BBolt database before giving up and returning an error. Formatted as Golang duration (e.g. 1s, 1m).")
 	flagSet.String("storage.bbolt.backup.directory", defs.BBolt.Backup.Directory, "Target directory for BBolt database backups.")
 	flagSet.Duration("storage.bbolt.backup.interval", defs.BBolt.Backup.Interval, "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
 
@@ -47,6 +48,17 @@ func FlagSet() *pflag.FlagSet {
 		"If not set it, defaults to a SQLite database stored inside the configured data directory. "+
 		"Note: using SQLite is not recommended in production environments. "+
 		"If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').")
+	flagSet.Bool("storage.sql.rdsiam.enabled", defs.SQL.RDSIAM.Enabled, "Enable AWS RDS IAM authentication for the SQL database connection. "+
+		"When enabled, the node will use temporary IAM tokens instead of passwords. "+
+		"Requires the connection string to be a PostgreSQL or MySQL RDS endpoint without a password.")
+	flagSet.String("storage.sql.rdsiam.region", defs.SQL.RDSIAM.Region, "AWS region where the RDS instance is located (e.g., 'us-east-1). "+
+		"Required when RDS IAM authentication is enabled.")
+	flagSet.String("storage.sql.rdsiam.dbuser", defs.SQL.RDSIAM.DBUser, "Database username for IAM authentication. "+
+		"If not specified, the username from the connection string will be used. "+
+		"The database user must be created with IAM authentication enabled.")
+	flagSet.Duration("storage.sql.rdsiam.tokenrefreshinterval", defs.SQL.RDSIAM.TokenRefreshInterval, "Interval at which to refresh the IAM authentication token. "+
+		"RDS tokens are valid for 15 minutes, so set this to ensure tokens are refreshed before expiry. "+
+		"Specified as Golang duration (e.g. 10m, 1h).")
 
 	// session
 	flagSet.StringSlice("storage.session.memcached.address", defs.Session.Memcached.Address, "List of Memcached server addresses. These can be a simple 'host:port' or a Memcached connection URL with scheme, auth and other options.")
