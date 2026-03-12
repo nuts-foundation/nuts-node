@@ -156,7 +156,11 @@ type CredentialOfferResponse struct {
 // Per v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
 type CredentialRequest struct {
 	// CredentialConfigurationID references a credential configuration from issuer metadata.
+	// Mutually exclusive with CredentialIdentifier.
 	CredentialConfigurationID string `json:"credential_configuration_id,omitempty"`
+	// CredentialIdentifier references a specific credential from the token response's authorization_details.
+	// Mutually exclusive with CredentialConfigurationID. See v1.0 Section 8.2.
+	CredentialIdentifier string `json:"credential_identifier,omitempty"`
 	// Proofs contains the proof(s) of possession of the key material.
 	Proofs *CredentialRequestProofs `json:"proofs,omitempty"`
 }

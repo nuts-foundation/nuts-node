@@ -191,8 +191,11 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		}
 	}
 
+	// Check for credential_identifiers in the token response (v1.0 Section 6.2)
+	credentialIdentifier := extractCredentialIdentifier(tokenResponse)
+
 	// build proof and request credential
-	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 	if err != nil {
 		// on invalid_nonce: fetch a fresh nonce and retry once
 		var oidcErr openid4vci.Error
@@ -201,7 +204,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 			if err != nil {
 				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
 			}
-			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 		}
 		if err != nil {
 			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
@@ -232,12 +235,16 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}, nil
 }
 
-func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, nonce string) (*openid4vci.CredentialResponse, error) {
+func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, credentialIdentifier string, nonce string) (*openid4vci.CredentialResponse, error) {
 	proofJWT, err := r.openid4vciProof(ctx, oauthSession, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
-	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, oauthSession.IssuerCredentialConfigurationID, proofJWT)
+	credentialConfigID := oauthSession.IssuerCredentialConfigurationID
+	if credentialIdentifier != "" {
+		credentialConfigID = ""
+	}
+	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT)
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, session *OAuthSession, nonce string) (string, error) {
@@ -275,6 +282,35 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, session *OAuthSession, no
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid, err)
 	}
 	return proofJwt, nil
+}
+
+// extractCredentialIdentifier extracts the first credential_identifier from the token response's
+// authorization_details (v1.0 Section 6.2). Returns empty string if not present.
+// Only considers entries with type "openid_credential" per RFC 9396.
+// When multiple credential_identifiers are present, the first one is used.
+func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse) string {
+	authzDetails, ok := tokenResponse.GetRaw("authorization_details").([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, item := range authzDetails {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if typ, _ := entry["type"].(string); typ != "openid_credential" {
+			continue
+		}
+		identifiers, ok := entry["credential_identifiers"].([]interface{})
+		if !ok || len(identifiers) == 0 {
+			continue
+		}
+		identifier, ok := identifiers[0].(string)
+		if ok {
+			return identifier
+		}
+	}
+	return ""
 }
 
 // validateAuthorizationDetails validates the authorization_details entries per v1.0 Section 5.1.1.

@@ -779,7 +779,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, proofJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, "", proofJWT)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -794,7 +794,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			_, _ = writer.Write([]byte(`{"credentials": [{"credential": {"@context": ["https://www.w3.org/2018/credentials/v1"], "type": ["VerifiableCredential"]}}]}`))
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, proofJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, "", proofJWT)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -805,7 +805,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.credentials = nil
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, proofJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, "", proofJWT)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
@@ -818,7 +818,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			_, _ = writer.Write([]byte(`{"error": "invalid_nonce"}`))
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, proofJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, "", proofJWT)
 
 		assert.Nil(t, response)
 		require.Error(t, err)
@@ -834,7 +834,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			_, _ = writer.Write([]byte(`{"credentials": fail}`))
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, proofJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, credentialConfigID, "", proofJWT)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
