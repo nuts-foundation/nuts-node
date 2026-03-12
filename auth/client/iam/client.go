@@ -338,7 +338,39 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*openid4vci.CredentialResponse, error) {
+func (hb HTTPClient) PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, parEndpoint, strings.NewReader(params.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := hb.httpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("PAR request failed: %w", err)
+	}
+	defer response.Body.Close()
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PAR response: %w", err)
+	}
+	if response.StatusCode != http.StatusCreated {
+		bodySnippet := string(data)
+		if len(bodySnippet) > core.HttpResponseBodyLogClipAt {
+			bodySnippet = bodySnippet[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
+		}
+		return nil, fmt.Errorf("PAR endpoint returned HTTP %d (expected: 201): %s", response.StatusCode, bodySnippet)
+	}
+	var parResponse PARResponse
+	if err = json.Unmarshal(data, &parResponse); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal PAR response: %w", err)
+	}
+	if !strings.HasPrefix(parResponse.RequestURI, "urn:ietf:params:oauth:request_uri:") {
+		return nil, fmt.Errorf("PAR response contains invalid request_uri: %q", parResponse.RequestURI)
+	}
+	return &parResponse, nil
+}
+
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, credentialIdentifier string, proofJwt string) (*openid4vci.CredentialResponse, error) {
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
@@ -346,6 +378,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationID: credentialConfigID,
+		CredentialIdentifier:      credentialIdentifier,
 		Proofs: &openid4vci.CredentialRequestProofs{
 			Jwt: []string{proofJwt},
 		},

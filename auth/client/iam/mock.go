@@ -11,6 +11,7 @@ package iam
 
 import (
 	context "context"
+	url "net/url"
 	reflect "reflect"
 
 	vc "github.com/nuts-foundation/go-did/vc"
@@ -163,6 +164,21 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
+// PushedAuthorizationRequest mocks base method.
+func (m *MockClient) PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PushedAuthorizationRequest", ctx, parEndpoint, params)
+	ret0, _ := ret[0].(*PARResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PushedAuthorizationRequest indicates an expected call of PushedAuthorizationRequest.
+func (mr *MockClientMockRecorder) PushedAuthorizationRequest(ctx, parEndpoint, params any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PushedAuthorizationRequest", reflect.TypeOf((*MockClient)(nil).PushedAuthorizationRequest), ctx, parEndpoint, params)
+}
+
 // RequestNonce mocks base method.
 func (m *MockClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
 	m.ctrl.T.Helper()
@@ -224,16 +240,16 @@ func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjec
 }
 
 // VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, proofJWT string) (*openid4vci.CredentialResponse, error) {
+func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT string) (*openid4vci.CredentialResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
+	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT)
 	ret0, _ := ret[0].(*openid4vci.CredentialResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // VerifiableCredentials indicates an expected call of VerifiableCredentials.
-func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT any) *gomock.Call {
+func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT)
 }

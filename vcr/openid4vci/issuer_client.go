@@ -102,6 +102,10 @@ func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request C
 	if err != nil {
 		return nil, err
 	}
+	if credentialResponse.TransactionID != "" {
+		log.Logger().Warnf("Issuer returned deferred credential response (transaction_id: %s)", credentialResponse.TransactionID)
+		return nil, errors.New("deferred credential issuance is not supported")
+	}
 	if len(credentialResponse.Credentials) == 0 {
 		return nil, errors.New("credential response does not contain any credentials")
 	}

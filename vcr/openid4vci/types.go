@@ -22,8 +22,12 @@ package openid4vci
 
 import (
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
+	"fmt"
+	"slices"
+	"strings"
 	"time"
+
+	ssi "github.com/nuts-foundation/go-did"
 )
 
 // PreAuthorizedCodeGrant is the grant type used for pre-authorized code grant from the OpenID4VCI specification.
@@ -152,7 +156,11 @@ type CredentialOfferResponse struct {
 // Per v1.0 Section 8.2, the request identifies the credential using credential_configuration_id.
 type CredentialRequest struct {
 	// CredentialConfigurationID references a credential configuration from issuer metadata.
+	// Mutually exclusive with CredentialIdentifier.
 	CredentialConfigurationID string `json:"credential_configuration_id,omitempty"`
+	// CredentialIdentifier references a specific credential from the token response's authorization_details.
+	// Mutually exclusive with CredentialConfigurationID. See v1.0 Section 8.2.
+	CredentialIdentifier string `json:"credential_identifier,omitempty"`
 	// Proofs contains the proof(s) of possession of the key material.
 	Proofs *CredentialRequestProofs `json:"proofs,omitempty"`
 }
@@ -168,14 +176,54 @@ type CredentialRequestProofs struct {
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
 // In v1.0, when proofs (plural) is used in the request, the response uses `credentials` (array of wrapper objects).
 // Each element contains a `credential` key holding the actual issued credential.
+// When deferred issuance is used (Section 8.3), the response contains a `transaction_id` instead of credentials.
 type CredentialResponse struct {
-	Credentials []CredentialResponseEntry `json:"credentials,omitempty"`
+	Credentials   []CredentialResponseEntry `json:"credentials,omitempty"`
+	TransactionID string                    `json:"transaction_id,omitempty"`
 }
 
 // CredentialResponseEntry is a single entry in the credentials array of a CredentialResponse.
 // Specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-response
 type CredentialResponseEntry struct {
 	Credential json.RawMessage `json:"credential"`
+}
+
+// ProofSigningAlgValues extracts proof_signing_alg_values_supported from a credential configuration's
+// proof_types_supported.jwt section (v1.0 Appendix F.1).
+// Returns nil if proof_types_supported is absent or does not contain a jwt key.
+// Returns an error if jwt is present but proof_signing_alg_values_supported is missing (spec violation).
+func ProofSigningAlgValues(config map[string]interface{}) ([]string, error) {
+	proofTypes, ok := config["proof_types_supported"].(map[string]interface{})
+	if !ok {
+		return nil, nil
+	}
+	jwtConfig, ok := proofTypes["jwt"].(map[string]interface{})
+	if !ok {
+		return nil, nil
+	}
+	algValues, ok := jwtConfig["proof_signing_alg_values_supported"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("issuer metadata has proof_types_supported.jwt but is missing proof_signing_alg_values_supported")
+	}
+	result := make([]string, 0, len(algValues))
+	for _, v := range algValues {
+		if s, ok := v.(string); ok {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
+// ValidateProofSigningAlg checks that the given algorithm is in the issuer's supported list.
+// If supportedAlgs is empty, validation is skipped (issuer imposes no constraint).
+func ValidateProofSigningAlg(alg string, supportedAlgs []string) error {
+	if len(supportedAlgs) == 0 {
+		return nil
+	}
+	if !slices.Contains(supportedAlgs, alg) {
+		return fmt.Errorf("signing algorithm %s is not supported by issuer (supported: %s)", alg, strings.Join(supportedAlgs, ", "))
+	}
+	return nil
 }
 
 // Config holds the config for the OpenID4VCI credential issuer and wallet
