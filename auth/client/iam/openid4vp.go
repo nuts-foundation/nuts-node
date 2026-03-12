@@ -368,9 +368,9 @@ func (c *OpenID4VPClient) PushedAuthorizationRequest(ctx context.Context, parEnd
 	return c.httpClient.PushedAuthorizationRequest(ctx, parsedURL.String(), params)
 }
 
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error) {
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, credentialIdentifier string, proofJWT string) (*openid4vci.CredentialResponse, error) {
 	iamClient := c.httpClient
-	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
+	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT)
 	if err != nil {
 		return nil, err
 	}

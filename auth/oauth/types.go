@@ -101,6 +101,15 @@ func (t *TokenResponse) With(key string, value interface{}) *TokenResponse {
 	return t
 }
 
+// GetRaw returns the raw value of an additional parameter.
+// Returns nil if the key does not exist.
+func (t TokenResponse) GetRaw(key string) interface{} {
+	if t.additionalParams == nil {
+		return nil
+	}
+	return t.additionalParams[key]
+}
+
 // Get returns the value of the additional parameter with the given key as a string.
 // If the key does not exist or the value is not a string, it returns an empty string.
 // It should not be used to get any of the base parameters (access_token, expires_in, token_type, scope).

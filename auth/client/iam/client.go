@@ -370,7 +370,7 @@ func (hb HTTPClient) PushedAuthorizationRequest(ctx context.Context, parEndpoint
 	return &parResponse, nil
 }
 
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*openid4vci.CredentialResponse, error) {
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, credentialIdentifier string, proofJwt string) (*openid4vci.CredentialResponse, error) {
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
@@ -378,6 +378,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationID: credentialConfigID,
+		CredentialIdentifier:      credentialIdentifier,
 		Proofs: &openid4vci.CredentialRequestProofs{
 			Jwt: []string{proofJwt},
 		},

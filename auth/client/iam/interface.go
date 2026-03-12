@@ -64,7 +64,8 @@ type Client interface {
 	// RequestNonce requests a fresh c_nonce from the issuer's Nonce Endpoint (v1.0 Section 7).
 	RequestNonce(ctx context.Context, nonceEndpoint string) (string, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error)
+	// Either credentialConfigID or credentialIdentifier must be non-empty (mutually exclusive per v1.0 Section 8.2).
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, credentialIdentifier string, proofJWT string) (*openid4vci.CredentialResponse, error)
 	// PushedAuthorizationRequest sends a Pushed Authorization Request (RFC 9126) to the given endpoint.
 	PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
