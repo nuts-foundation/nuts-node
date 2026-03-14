@@ -1,0 +1,41 @@
+version: "3.7"
+services:
+  nodeA:
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:local}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
+      # Enable GC tracing for memory profiling
+      GODEBUG: "gctrace=1"
+      # Optional: Set GOGC and GOMEMLIMIT for testing
+      # GOGC: "200"
+      # GOMEMLIMIT: "340MiB"
+    ports:
+      - "11323:1323"
+      - "16060:6060"  # pprof profiling port
+    volumes:
+      - "./node-A/data:/opt/nuts/data"
+      - "./node-A/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+  nodeB:
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:local}"
+    environment:
+      NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
+      NUTS_NETWORK_NODEDID: "${NODE_B_DID}"
+      NUTS_NETWORK_BOOTSTRAPNODES: ${BOOTSTRAP_NODES}
+      # Enable GC tracing for memory profiling
+      GODEBUG: "gctrace=1"
+    ports:
+      - "21323:1323"
+      - "26060:6060"  # pprof profiling port
+    volumes:
+      - "./node-B/data:/opt/nuts/data"
+      - "./node-B/nuts.yaml:/opt/nuts/nuts.yaml:ro"
+      - "../../tls-certs/nodeB-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
+      - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    healthcheck:
+      interval: 1s # Make test run quicker by checking health status more often
+
