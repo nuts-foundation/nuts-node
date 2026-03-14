@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   nodeA:
-    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_A:-nutsfoundation/nuts-node:v5.4.24}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODE_A_DID}"
@@ -15,7 +15,7 @@ services:
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   nodeB:
-    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:master}"
+    image: "${IMAGE_NODE_B:-nutsfoundation/nuts-node:v5.4.24}"
     environment:
       NUTS_CONFIGFILE: /opt/nuts/nuts.yaml
       NUTS_NETWORK_NODEDID: "${NODE_B_DID}"
