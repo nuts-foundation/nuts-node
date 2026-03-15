@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.1.13)
+****************
+
+Release date: 2026-03-15
+
+- Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.12...v6.1.13
+
+****************
 Peanut (v6.1.12)
 ****************
 
