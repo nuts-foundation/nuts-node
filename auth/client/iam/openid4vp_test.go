@@ -892,6 +892,32 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 		assert.Nil(t, metadata)
 		assert.ErrorContains(t, err, "iat claim is required")
 	})
+	t.Run("error - signed_metadata missing credential_endpoint", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWT(t, ecKey, kid, map[string]interface{}{
+			"credential_issuer": "https://issuer.example.com",
+		})
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "credential_endpoint claim is required in signed metadata")
+	})
 }
 
 func createSignedMetadataJWT(t *testing.T, key *ecdsa.PrivateKey, kid string, claims map[string]interface{}) string {

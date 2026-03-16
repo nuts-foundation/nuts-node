@@ -325,7 +325,11 @@ func (hb HTTPClient) verifySignedMetadata(ctx context.Context, metadata *oauth.O
 	if ci, _ := claims["credential_issuer"].(string); ci != metadata.CredentialIssuer {
 		return fmt.Errorf("credential_issuer claim %q does not match metadata %q", ci, metadata.CredentialIssuer)
 	}
-	if ce, _ := claims["credential_endpoint"].(string); ce != "" && ce != metadata.CredentialEndpoint {
+	ce, _ := claims["credential_endpoint"].(string)
+	if ce == "" {
+		return fmt.Errorf("credential_endpoint claim is required in signed metadata")
+	}
+	if ce != metadata.CredentialEndpoint {
 		return fmt.Errorf("credential_endpoint claim %q does not match metadata %q", ce, metadata.CredentialEndpoint)
 	}
 	return nil
