@@ -21,6 +21,7 @@ package iam
 import (
 	"bytes"
 	"context"
+	stdcrypto "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -282,7 +283,52 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIs
 	if err != nil {
 		return nil, err
 	}
-	return &metadata, err
+	if metadata.SignedMetadata != "" {
+		if err = hb.verifySignedMetadata(ctx, &metadata); err != nil {
+			return nil, fmt.Errorf("signed_metadata verification failed: %w", err)
+		}
+	}
+	return &metadata, nil
+}
+
+// verifySignedMetadata verifies the signed_metadata JWT against the issuer's key (v1.0 Section 12.2.3).
+// It validates the JWT signature, typ header, required claims (sub, iat), and compares
+// key metadata claims (credential_issuer, credential_endpoint) against the unsigned metadata.
+func (hb HTTPClient) verifySignedMetadata(ctx context.Context, metadata *oauth.OpenIDCredentialIssuerMetadata) error {
+	// Verify typ header to prevent JWT type confusion attacks
+	typ, err := crypto.JWTTyp(metadata.SignedMetadata)
+	if err != nil {
+		return fmt.Errorf("invalid JWT: %w", err)
+	}
+	if typ != "openidvci-issuer-metadata+jwt" {
+		return fmt.Errorf("typ header must be openidvci-issuer-metadata+jwt, got %q", typ)
+	}
+	// Parse, verify signature, and validate standard claims using shared infrastructure
+	token, err := crypto.ParseJWT(metadata.SignedMetadata, func(kid string) (stdcrypto.PublicKey, error) {
+		return hb.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+	}, jwt.WithValidate(true), jwt.WithAcceptableSkew(5*time.Second))
+	if err != nil {
+		return fmt.Errorf("invalid JWT: %w", err)
+	}
+	// sub is REQUIRED, must match credential_issuer. iss is OPTIONAL per spec.
+	if token.Subject() != metadata.CredentialIssuer {
+		return fmt.Errorf("sub %q does not match credential_issuer %q", token.Subject(), metadata.CredentialIssuer)
+	}
+	if token.IssuedAt().IsZero() {
+		return fmt.Errorf("iat claim is required")
+	}
+	// Compare metadata claims from JWT payload against unsigned metadata
+	claims, err := token.AsMap(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to extract claims: %w", err)
+	}
+	if ci, _ := claims["credential_issuer"].(string); ci != metadata.CredentialIssuer {
+		return fmt.Errorf("credential_issuer claim %q does not match metadata %q", ci, metadata.CredentialIssuer)
+	}
+	if ce, _ := claims["credential_endpoint"].(string); ce != "" && ce != metadata.CredentialEndpoint {
+		return fmt.Errorf("credential_endpoint claim %q does not match metadata %q", ce, metadata.CredentialEndpoint)
+	}
+	return nil
 }
 
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {

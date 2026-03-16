@@ -423,6 +423,8 @@ type OpenIDCredentialIssuerMetadata struct {
 	AuthorizationServers              []string                          `json:"authorization_servers,omitempty"`
 	CredentialConfigurationsSupported map[string]map[string]interface{} `json:"credential_configurations_supported,omitempty"`
 	Display                           []map[string]string               `json:"display,omitempty"`
+	// SignedMetadata is a JWT containing signed issuer metadata for trust verification (v1.0 Section 12.2.3).
+	SignedMetadata string `json:"signed_metadata,omitempty"`
 }
 
 // OpenIDConfiguration represents the OpenID configuration

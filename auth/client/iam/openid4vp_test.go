@@ -20,10 +20,14 @@ package iam
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	test2 "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -40,6 +44,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	cryptoTest "github.com/nuts-foundation/nuts-node/crypto/test"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -486,8 +491,9 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			wallet:         wallet,
 			subjectManager: subjectManager,
 			httpClient: HTTPClient{
-				strictMode: false,
-				httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
+				strictMode:  false,
+				httpClient:  client.NewWithTLSConfig(10*time.Second, tlsConfig),
+				keyResolver: keyResolver,
 			},
 			jwtSigner:   jwtSigner,
 			keyResolver: keyResolver,
@@ -697,6 +703,238 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 		assert.Nil(t, response)
 		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
 	})
+	t.Run("ok - signed_metadata is verified", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWT(t, ecKey, kid, map[string]interface{}{
+			"credential_issuer":   "https://issuer.example.com",
+			"credential_endpoint": "https://issuer.example.com/credential",
+		})
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.openIDCredentialIssuerMetadata = issuerMetadata
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, "https://issuer.example.com", metadata.CredentialIssuer)
+	})
+	t.Run("error - signed_metadata JWT signature invalid", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     "invalid.jwt.token",
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "signed_metadata verification failed")
+	})
+	t.Run("error - signed_metadata sub mismatch", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWT(t, ecKey, kid, map[string]interface{}{
+			"credential_issuer":   "https://other-issuer.example.com",
+			"credential_endpoint": "https://issuer.example.com/credential",
+		})
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "sub")
+		assert.ErrorContains(t, err, "does not match credential_issuer")
+	})
+	t.Run("error - signed_metadata credential_endpoint mismatch", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWT(t, ecKey, kid, map[string]interface{}{
+			"credential_issuer":   "https://issuer.example.com",
+			"credential_endpoint": "https://evil.example.com/credential",
+		})
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "credential_endpoint claim")
+		assert.ErrorContains(t, err, "does not match metadata")
+	})
+	t.Run("error - signed_metadata wrong typ header", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWTCustom(t, ecKey, kid, "jwt", map[string]interface{}{
+			"iss":                 "https://issuer.example.com",
+			"sub":                 "https://issuer.example.com",
+			"credential_issuer":   "https://issuer.example.com",
+			"credential_endpoint": "https://issuer.example.com/credential",
+		}, true, true)
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "typ header must be openidvci-issuer-metadata+jwt")
+	})
+	t.Run("error - signed_metadata missing sub", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWTCustom(t, ecKey, kid, "openidvci-issuer-metadata+jwt", map[string]interface{}{
+			"iss":                 "https://issuer.example.com",
+			"credential_issuer":   "https://issuer.example.com",
+			"credential_endpoint": "https://issuer.example.com/credential",
+		}, true, true)
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "sub")
+		assert.ErrorContains(t, err, "does not match credential_issuer")
+	})
+	t.Run("error - signed_metadata missing iat", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ecKey := cryptoTest.GenerateECKey()
+		kid := "did:web:example.com#key-1"
+		signedJWT := createSignedMetadataJWTCustom(t, ecKey, kid, "openidvci-issuer-metadata+jwt", map[string]interface{}{
+			"sub":                 "https://issuer.example.com",
+			"credential_issuer":   "https://issuer.example.com",
+			"credential_endpoint": "https://issuer.example.com/credential",
+		}, false, false)
+		issuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:   "https://issuer.example.com",
+			CredentialEndpoint: "https://issuer.example.com/credential",
+			SignedMetadata:     signedJWT,
+		}
+		ctx.credentialIssuerMetadata = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			bytes, _ := json.Marshal(*issuerMetadata)
+			_, _ = writer.Write(bytes)
+		}
+		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(ecKey.Public(), nil)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, metadata)
+		assert.ErrorContains(t, err, "iat claim is required")
+	})
+}
+
+func createSignedMetadataJWT(t *testing.T, key *ecdsa.PrivateKey, kid string, claims map[string]interface{}) string {
+	t.Helper()
+	token := jwt.New()
+	for k, v := range claims {
+		require.NoError(t, token.Set(k, v))
+	}
+	if iss, ok := claims["credential_issuer"].(string); ok {
+		require.NoError(t, token.Set(jwt.IssuerKey, iss))
+		require.NoError(t, token.Set(jwt.SubjectKey, iss))
+	}
+	require.NoError(t, token.Set(jwt.IssuedAtKey, time.Now().Unix()))
+	require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour).Unix()))
+	hdrs := jws.NewHeaders()
+	require.NoError(t, hdrs.Set(jws.KeyIDKey, kid))
+	require.NoError(t, hdrs.Set(jws.TypeKey, "openidvci-issuer-metadata+jwt"))
+	signed, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, key, jws.WithProtectedHeaders(hdrs)))
+	require.NoError(t, err)
+	return string(signed)
+}
+
+// createSignedMetadataJWTCustom allows overriding specific JWT fields for negative tests.
+func createSignedMetadataJWTCustom(t *testing.T, key *ecdsa.PrivateKey, kid string, typ string, claims map[string]interface{}, setIat bool, setExp bool) string {
+	t.Helper()
+	token := jwt.New()
+	for k, v := range claims {
+		require.NoError(t, token.Set(k, v))
+	}
+	if setIat {
+		require.NoError(t, token.Set(jwt.IssuedAtKey, time.Now().Unix()))
+	}
+	if setExp {
+		require.NoError(t, token.Set(jwt.ExpirationKey, time.Now().Add(time.Hour).Unix()))
+	}
+	hdrs := jws.NewHeaders()
+	require.NoError(t, hdrs.Set(jws.KeyIDKey, kid))
+	if typ != "" {
+		require.NoError(t, hdrs.Set(jws.TypeKey, typ))
+	}
+	signed, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, key, jws.WithProtectedHeaders(hdrs)))
+	require.NoError(t, err)
+	return string(signed)
 }
 
 func TestIAMClient_RequestNonce(t *testing.T) {
