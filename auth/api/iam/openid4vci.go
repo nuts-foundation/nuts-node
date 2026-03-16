@@ -137,7 +137,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
 		TokenEndpoint:                   authzServerMetadata.TokenEndpoint,
-		IssuerURL:                       authzServerMetadata.Issuer,
+		IssuerURL:                       credentialIssuerMetadata.CredentialIssuer,
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
