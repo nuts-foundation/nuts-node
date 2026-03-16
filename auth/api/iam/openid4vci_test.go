@@ -65,7 +65,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -104,7 +104,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -122,7 +122,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc", "evil_key": "injected"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc", "evil_key": "injected"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -140,7 +140,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{
+				AuthorizationDetails: &[]map[string]interface{}{
 					{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"},
 					{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"},
 				},
@@ -158,7 +158,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "invalid_type", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "invalid_type", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -173,7 +173,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -188,7 +188,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "unknown_config"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "unknown_config"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -217,7 +217,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -249,13 +249,103 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
 			},
 		})
 		assert.EqualError(t, err, "PAR request failed: PAR failed")
+	})
+	t.Run("error - neither authorization_details nor scope provided", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				Issuer:      issuerClientID,
+				RedirectUri: redirectURI,
+				WalletDid:   holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, "either authorization_details or scope is required")
+	})
+	t.Run("ok - requests credential using scope", func(t *testing.T) {
+		ctx := newTestClient(t)
+		metadataWithScope := oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:     "issuer",
+			CredentialEndpoint:   "endpoint",
+			AuthorizationServers: []string{authServer},
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"NutsOrganizationCredential_ldp_vc": {"format": "ldp_vc", "scope": "nuts_org_credential"},
+			},
+		}
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadataWithScope, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		scope := "nuts_org_credential"
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				Scope:       &scope,
+				Issuer:      issuerClientID,
+				RedirectUri: redirectURI,
+				WalletDid:   holderDID.String(),
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		assert.Equal(t, "nuts_org_credential", redirectUri.Query().Get("scope"))
+		assert.Empty(t, redirectUri.Query().Get("authorization_details"), "authorization_details should not be present when only scope is used")
+	})
+	t.Run("error - scope not found in issuer credential configurations", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		scope := "unknown_scope"
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				Scope:       &scope,
+				Issuer:      issuerClientID,
+				RedirectUri: redirectURI,
+				WalletDid:   holderDID.String(),
+			},
+		})
+		assert.EqualError(t, err, `scope "unknown_scope" not found in issuer's credential configurations`)
+	})
+	t.Run("ok - both authorization_details and scope provided", func(t *testing.T) {
+		ctx := newTestClient(t)
+		metadataWithScope := oauth.OpenIDCredentialIssuerMetadata{
+			CredentialIssuer:     "issuer",
+			CredentialEndpoint:   "endpoint",
+			AuthorizationServers: []string{authServer},
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"NutsOrganizationCredential_ldp_vc":      {"format": "ldp_vc"},
+				"NutsOrganizationCredential_ldp_vc_v2":   {"format": "ldp_vc", "scope": "nuts_org_credential_v2"},
+			},
+		}
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(gomock.Any(), issuerClientID).Return(&metadataWithScope, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(gomock.Any(), authServer).Return(&authzMetadata, nil)
+		scope := "nuts_org_credential_v2"
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(context.Background(), RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+				Scope:                &scope,
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		assert.NotEmpty(t, redirectUri.Query().Get("authorization_details"), "authorization_details should be present")
+		assert.Equal(t, "nuts_org_credential_v2", redirectUri.Query().Get("scope"), "scope should be present")
 	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
@@ -344,9 +434,10 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 	return RequestOpenid4VCICredentialIssuanceRequestObject{
 		SubjectID: subjectID,
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-			Issuer:      issuer,
-			RedirectUri: redirectURI,
-			WalletDid:   holderDID.String(),
+			AuthorizationDetails: &[]map[string]interface{}{{"type": "openid_credential", "credential_configuration_id": "NutsOrganizationCredential_ldp_vc"}},
+			Issuer:               issuer,
+			RedirectUri:          redirectURI,
+			WalletDid:            holderDID.String(),
 		},
 	}
 }
@@ -782,5 +873,48 @@ func TestExtractCredentialIdentifier(t *testing.T) {
 		tokenResponse.With("authorization_details", []interface{}{"not-a-map"})
 
 		assert.Empty(t, extractCredentialIdentifier(tokenResponse))
+	})
+}
+
+func TestResolveCredentialConfigIDByScope(t *testing.T) {
+	t.Run("ok - finds matching config", func(t *testing.T) {
+		metadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"Degree": {"format": "jwt_vc_json", "scope": "UniversityDegree"},
+				"Other":  {"format": "ldp_vc"},
+			},
+		}
+		configID, err := resolveCredentialConfigIDByScope("UniversityDegree", metadata)
+		require.NoError(t, err)
+		assert.Equal(t, "Degree", configID)
+	})
+	t.Run("error - scope not found", func(t *testing.T) {
+		metadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"Other": {"format": "ldp_vc"},
+			},
+		}
+		_, err := resolveCredentialConfigIDByScope("unknown", metadata)
+		assert.EqualError(t, err, `scope "unknown" not found in issuer's credential configurations`)
+	})
+	t.Run("error - no configurations at all", func(t *testing.T) {
+		metadata := &oauth.OpenIDCredentialIssuerMetadata{}
+		_, err := resolveCredentialConfigIDByScope("test", metadata)
+		assert.EqualError(t, err, `scope "test" not found in issuer's credential configurations`)
+	})
+	t.Run("error - multiple scope values", func(t *testing.T) {
+		metadata := &oauth.OpenIDCredentialIssuerMetadata{
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"Degree":  {"format": "jwt_vc_json", "scope": "UniversityDegree"},
+				"License": {"format": "jwt_vc_json", "scope": "DriverLicense"},
+			},
+		}
+		_, err := resolveCredentialConfigIDByScope("UniversityDegree DriverLicense", metadata)
+		assert.EqualError(t, err, "invalid scope: exactly one scope value is supported, got 2")
+	})
+	t.Run("error - empty scope", func(t *testing.T) {
+		metadata := &oauth.OpenIDCredentialIssuerMetadata{}
+		_, err := resolveCredentialConfigIDByScope("", metadata)
+		assert.EqualError(t, err, "invalid scope: exactly one scope value is supported, got 0")
 	})
 }

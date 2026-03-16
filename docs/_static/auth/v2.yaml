@@ -129,7 +129,6 @@ paths:
             schema:
               required:
                 - issuer
-                - authorization_details
                 - redirect_uri
                 - wallet_did
               properties:
@@ -157,6 +156,13 @@ paths:
                         "credential_configuration_id": "UniversityDegreeCredential"
                       }
                     ]
+                scope:
+                  type: string
+                  description: |
+                    OAuth2 scope value mapped to a credential configuration in the issuer's metadata (v1.0 Section 5.1.2).
+                    The issuer's credential_configurations_supported must contain an entry with a matching 'scope' field.
+                    Can be used together with authorization_details; the issuer interprets them individually.
+                  example: UniversityDegree
                 redirect_uri:
                   type: string
                   description: |

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -76,12 +77,18 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Validate and process authorization details
-	authorizationDetails := []byte("[]")
+	// Validate authorization_details and/or scope (at least one must be provided)
+	hasAuthzDetails := request.Body.AuthorizationDetails != nil && len(*request.Body.AuthorizationDetails) > 0
+	hasScope := request.Body.Scope != nil && *request.Body.Scope != ""
+	if !hasAuthzDetails && !hasScope {
+		return nil, core.InvalidInputError("either authorization_details or scope is required")
+	}
+
+	var authorizationDetails []byte
 	var credentialConfigID string
-	if len(request.Body.AuthorizationDetails) > 0 {
+	if hasAuthzDetails {
 		var sanitized []map[string]interface{}
-		credentialConfigID, sanitized, err = validateAuthorizationDetails(request.Body.AuthorizationDetails, credentialIssuerMetadata)
+		credentialConfigID, sanitized, err = validateAuthorizationDetails(*request.Body.AuthorizationDetails, credentialIssuerMetadata)
 		if err != nil {
 			return nil, core.InvalidInputError("%s", err)
 		}
@@ -90,6 +97,19 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 			return nil, fmt.Errorf("failed to marshal authorization_details: %w", err)
 		}
 	}
+
+	// Resolve credential_configuration_id from scope (v1.0 Section 5.1.2)
+	if hasScope {
+		scopeConfigID, scopeErr := resolveCredentialConfigIDByScope(*request.Body.Scope, credentialIssuerMetadata)
+		if scopeErr != nil {
+			return nil, core.InvalidInputError("%s", scopeErr)
+		}
+		// Use scope's credential_configuration_id when authorization_details didn't provide one
+		if credentialConfigID == "" {
+			credentialConfigID = scopeConfigID
+		}
+	}
+
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
@@ -132,14 +152,19 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
 	authzParams := url.Values{
-		oauth.ResponseTypeParam:         {oauth.CodeResponseType},
-		oauth.StateParam:                {state},
-		oauth.ClientIDParam:             {clientID.String()},
-		oauth.ClientIDSchemeParam:       {entityClientIDScheme},
-		oauth.AuthorizationDetailsParam: {string(authorizationDetails)},
-		oauth.RedirectURIParam:          {redirectUri.String()},
-		oauth.CodeChallengeParam:        {pkceParams.Challenge},
-		oauth.CodeChallengeMethodParam:  {pkceParams.ChallengeMethod},
+		oauth.ResponseTypeParam:        {oauth.CodeResponseType},
+		oauth.StateParam:               {state},
+		oauth.ClientIDParam:            {clientID.String()},
+		oauth.ClientIDSchemeParam:      {entityClientIDScheme},
+		oauth.RedirectURIParam:         {redirectUri.String()},
+		oauth.CodeChallengeParam:       {pkceParams.Challenge},
+		oauth.CodeChallengeMethodParam: {pkceParams.ChallengeMethod},
+	}
+	if hasAuthzDetails {
+		authzParams.Set(oauth.AuthorizationDetailsParam, string(authorizationDetails))
+	}
+	if hasScope {
+		authzParams.Set(oauth.ScopeParam, *request.Body.Scope)
 	}
 
 	var redirectUrl url.URL
@@ -311,6 +336,25 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse) string {
 		}
 	}
 	return ""
+}
+
+// resolveCredentialConfigIDByScope finds the credential_configuration_id that matches the given scope
+// in the issuer's credential_configurations_supported (v1.0 Section 5.1.2).
+// Per the spec, scope is a space-separated list where each value maps to a credential configuration.
+// Only a single scope value is supported; multiple values are rejected (consistent with the
+// single-entry restriction for authorization_details).
+func resolveCredentialConfigIDByScope(scope string, metadata *oauth.OpenIDCredentialIssuerMetadata) (string, error) {
+	scopeValues := strings.Fields(scope)
+	if len(scopeValues) != 1 {
+		return "", fmt.Errorf("invalid scope: exactly one scope value is supported, got %d", len(scopeValues))
+	}
+	scopeValue := scopeValues[0]
+	for configID, config := range metadata.CredentialConfigurationsSupported {
+		if s, _ := config["scope"].(string); s == scopeValue {
+			return configID, nil
+		}
+	}
+	return "", fmt.Errorf("scope %q not found in issuer's credential configurations", scopeValue)
 }
 
 // validateAuthorizationDetails validates the authorization_details entries per v1.0 Section 5.1.1.
