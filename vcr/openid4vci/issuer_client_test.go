@@ -101,6 +101,17 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, credential)
 	})
+	t.Run("error - deferred issuance not supported", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{TransactionID: "txn-123"})
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
+
+		require.EqualError(t, err, "deferred credential issuance is not supported")
+		require.Nil(t, credential)
+	})
 	t.Run("error - no credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
 		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{})

@@ -206,7 +206,7 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
-	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
+	AuthorizationDetails *[]map[string]interface{} `json:"authorization_details,omitempty"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.
@@ -214,6 +214,11 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
+
+	// Scope OAuth2 scope value mapped to a credential configuration in the issuer's metadata (v1.0 Section 5.1.2).
+	// The issuer's credential_configurations_supported must contain an entry with a matching 'scope' field.
+	// Can be used together with authorization_details; the issuer interprets them individually.
+	Scope *string `json:"scope,omitempty"`
 
 	// WalletDid The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
 	WalletDid string `json:"wallet_did"`

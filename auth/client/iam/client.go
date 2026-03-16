@@ -21,6 +21,7 @@ package iam
 import (
 	"bytes"
 	"context"
+	stdcrypto "crypto"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -282,7 +283,56 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIs
 	if err != nil {
 		return nil, err
 	}
-	return &metadata, err
+	if metadata.SignedMetadata != "" {
+		if err = hb.verifySignedMetadata(ctx, &metadata); err != nil {
+			return nil, fmt.Errorf("signed_metadata verification failed: %w", err)
+		}
+	}
+	return &metadata, nil
+}
+
+// verifySignedMetadata verifies the signed_metadata JWT against the issuer's key (v1.0 Section 12.2.3).
+// It validates the JWT signature, typ header, required claims (sub, iat), and compares
+// key metadata claims (credential_issuer, credential_endpoint) against the unsigned metadata.
+func (hb HTTPClient) verifySignedMetadata(ctx context.Context, metadata *oauth.OpenIDCredentialIssuerMetadata) error {
+	// Verify typ header to prevent JWT type confusion attacks
+	typ, err := crypto.JWTTyp(metadata.SignedMetadata)
+	if err != nil {
+		return fmt.Errorf("invalid JWT: %w", err)
+	}
+	if typ != "openidvci-issuer-metadata+jwt" {
+		return fmt.Errorf("typ header must be openidvci-issuer-metadata+jwt, got %q", typ)
+	}
+	// Parse, verify signature, and validate standard claims using shared infrastructure
+	token, err := crypto.ParseJWT(metadata.SignedMetadata, func(kid string) (stdcrypto.PublicKey, error) {
+		return hb.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
+	}, jwt.WithValidate(true), jwt.WithAcceptableSkew(5*time.Second))
+	if err != nil {
+		return fmt.Errorf("invalid JWT: %w", err)
+	}
+	// sub is REQUIRED, must match credential_issuer. iss is OPTIONAL per spec.
+	if token.Subject() != metadata.CredentialIssuer {
+		return fmt.Errorf("sub %q does not match credential_issuer %q", token.Subject(), metadata.CredentialIssuer)
+	}
+	if token.IssuedAt().IsZero() {
+		return fmt.Errorf("iat claim is required")
+	}
+	// Compare metadata claims from JWT payload against unsigned metadata
+	claims, err := token.AsMap(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to extract claims: %w", err)
+	}
+	if ci, _ := claims["credential_issuer"].(string); ci != metadata.CredentialIssuer {
+		return fmt.Errorf("credential_issuer claim %q does not match metadata %q", ci, metadata.CredentialIssuer)
+	}
+	ce, _ := claims["credential_endpoint"].(string)
+	if ce == "" {
+		return fmt.Errorf("credential_endpoint claim is required in signed metadata")
+	}
+	if ce != metadata.CredentialEndpoint {
+		return fmt.Errorf("credential_endpoint claim %q does not match metadata %q", ce, metadata.CredentialEndpoint)
+	}
+	return nil
 }
 
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
@@ -338,7 +388,39 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*openid4vci.CredentialResponse, error) {
+func (hb HTTPClient) PushedAuthorizationRequest(ctx context.Context, parEndpoint string, params url.Values) (*PARResponse, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, parEndpoint, strings.NewReader(params.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := hb.httpClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("PAR request failed: %w", err)
+	}
+	defer response.Body.Close()
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read PAR response: %w", err)
+	}
+	if response.StatusCode != http.StatusCreated {
+		bodySnippet := string(data)
+		if len(bodySnippet) > core.HttpResponseBodyLogClipAt {
+			bodySnippet = bodySnippet[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
+		}
+		return nil, fmt.Errorf("PAR endpoint returned HTTP %d (expected: 201): %s", response.StatusCode, bodySnippet)
+	}
+	var parResponse PARResponse
+	if err = json.Unmarshal(data, &parResponse); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal PAR response: %w", err)
+	}
+	if !strings.HasPrefix(parResponse.RequestURI, "urn:ietf:params:oauth:request_uri:") {
+		return nil, fmt.Errorf("PAR response contains invalid request_uri: %q", parResponse.RequestURI)
+	}
+	return &parResponse, nil
+}
+
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, credentialIdentifier string, proofJwt string) (*openid4vci.CredentialResponse, error) {
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
@@ -346,6 +428,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationID: credentialConfigID,
+		CredentialIdentifier:      credentialIdentifier,
 		Proofs: &openid4vci.CredentialRequestProofs{
 			Jwt: []string{proofJwt},
 		},

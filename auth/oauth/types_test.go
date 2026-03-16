@@ -20,10 +20,11 @@ package oauth
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIssuerIdToWellKnown(t *testing.T) {
@@ -90,6 +91,26 @@ func TestTokenResponse_Get(t *testing.T) {
 	t.Run("nil map", func(t *testing.T) {
 		var tr TokenResponse
 		assert.Empty(t, tr.Get("c_nonce"))
+	})
+}
+
+func TestTokenResponse_GetRaw(t *testing.T) {
+	t.Run("nil map", func(t *testing.T) {
+		var tr TokenResponse
+		assert.Nil(t, tr.GetRaw("key"))
+	})
+	t.Run("returns stored value", func(t *testing.T) {
+		tr := TokenResponse{}
+		expected := []interface{}{"a", "b"}
+		tr.With("details", expected)
+
+		assert.Equal(t, expected, tr.GetRaw("details"))
+	})
+	t.Run("returns nil for missing key", func(t *testing.T) {
+		tr := TokenResponse{}
+		tr.With("other", "value")
+
+		assert.Nil(t, tr.GetRaw("missing"))
 	})
 }
 

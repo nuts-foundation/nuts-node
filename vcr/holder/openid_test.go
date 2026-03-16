@@ -20,6 +20,9 @@ package holder
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"testing"
@@ -565,6 +568,117 @@ func Test_wallet_RetrieveCredentialWithNonceEndpoint(t *testing.T) {
 		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
 
 		require.EqualError(t, err, "server_error - unable to retrieve credential: unable to request nonce: nonce request failed")
+	})
+}
+
+func Test_wallet_ProofSigningAlgValidation(t *testing.T) {
+	credentialOffer := openid4vci.CredentialOffer{
+		CredentialIssuer:           issuerDID.String(),
+		CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
+		Grants: &openid4vci.CredentialOfferGrants{
+			PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+				PreAuthorizedCode: "code",
+			},
+		},
+	}
+	t.Run("error - signing algorithm not supported by issuer", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		metadataAlgRestricted := openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer:   issuerDID.String(),
+			CredentialEndpoint: "credential-endpoint",
+			NonceEndpoint:      "https://issuer.example/nonce",
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"ExampleCredential_ldp_vc": {
+					"format": "ldp_vc",
+					"proof_types_supported": map[string]interface{}{
+						"jwt": map[string]interface{}{
+							"proof_signing_alg_values_supported": []interface{}{"ES384"},
+						},
+					},
+					"credential_definition": map[string]interface{}{
+						"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://example.com/credentials/v1"},
+						"type":     []interface{}{"VerifiableCredential", "ExampleCredential"},
+					},
+				},
+			},
+		}
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadataAlgRestricted).AnyTimes()
+		tokenResponse := &oauth.TokenResponse{AccessToken: "access-token", TokenType: "bearer"}
+		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
+			"pre-authorized_code": "code",
+		}).Return(tokenResponse, nil)
+
+		p256Key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", &p256Key.PublicKey, nil)
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, nil, crypto.NewMockJWTSigner(ctrl), keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.EqualError(t, err, "server_error - unable to retrieve credential: signing algorithm ES256 is not supported by issuer (supported: ES384)")
+	})
+	t.Run("ok - algorithm validation skipped when proof_types_supported absent", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		metadataNoProofTypes := openid4vci.CredentialIssuerMetadata{
+			CredentialIssuer:   issuerDID.String(),
+			CredentialEndpoint: "credential-endpoint",
+			NonceEndpoint:      "https://issuer.example/nonce",
+			CredentialConfigurationsSupported: map[string]map[string]interface{}{
+				"ExampleCredential_ldp_vc": {
+					"format": "ldp_vc",
+					"credential_definition": map[string]interface{}{
+						"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://example.com/credentials/v1"},
+						"type":     []interface{}{"VerifiableCredential", "ExampleCredential"},
+					},
+				},
+			},
+		}
+		issuerAPIClient := openid4vci.NewMockIssuerAPIClient(ctrl)
+		issuerAPIClient.EXPECT().Metadata().Return(metadataNoProofTypes).AnyTimes()
+		nonce := "nonce-from-endpoint"
+		issuerAPIClient.EXPECT().RequestNonce(gomock.Any()).Return(&openid4vci.NonceResponse{CNonce: nonce}, nil)
+		tokenResponse := &oauth.TokenResponse{AccessToken: "access-token", TokenType: "bearer"}
+		issuerAPIClient.EXPECT().RequestAccessToken("urn:ietf:params:oauth:grant-type:pre-authorized_code", map[string]string{
+			"pre-authorized_code": "code",
+		}).Return(tokenResponse, nil)
+		expectedRequest := openid4vci.CredentialRequest{
+			CredentialConfigurationID: "ExampleCredential_ldp_vc",
+			Proofs:                    &openid4vci.CredentialRequestProofs{Jwt: []string{"signed-jwt"}},
+		}
+		issuerAPIClient.EXPECT().RequestCredential(gomock.Any(), expectedRequest, "access-token").
+			Return(&vc.VerifiableCredential{
+				Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("https://example.com/credentials/v1")},
+				Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("ExampleCredential")},
+				Issuer:  issuerDID.URI()}, nil)
+
+		credentialStore := types.NewMockWriter(ctrl)
+		jwtSigner := crypto.NewMockJWTSigner(ctrl)
+		nowFunc = func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }
+		t.Cleanup(func() { nowFunc = time.Now })
+		jwtSigner.EXPECT().SignJWT(gomock.Any(), map[string]interface{}{
+			"iss":   holderDID.String(),
+			"aud":   issuerDID.String(),
+			"iat":   int64(1767225600),
+			"nonce": nonce,
+		}, gomock.Any(), "key-id").Return("signed-jwt", nil)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("key-id", nil, nil)
+
+		w := NewOpenIDHandler(holderDID, "https://holder.example.com", &http.Client{}, credentialStore, jwtSigner, keyResolver).(*openidHandler)
+		w.issuerClientCreator = func(_ context.Context, _ core.HTTPRequestDoer, _ string) (openid4vci.IssuerAPIClient, error) {
+			return issuerAPIClient, nil
+		}
+
+		credentialStore.EXPECT().StoreCredential(gomock.Any(), nil).Return(nil)
+
+		err := w.HandleCredentialOffer(audit.TestContext(), credentialOffer)
+
+		require.NoError(t, err)
 	})
 }
 

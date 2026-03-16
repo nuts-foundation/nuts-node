@@ -214,6 +214,32 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 		assert.NotNil(t, entry["credential"], "each entry must have a credential key")
 	})
 
+	t.Run("deferred response with transaction_id", func(t *testing.T) {
+		responseJSON := `{"transaction_id": "txn-abc"}`
+
+		var response CredentialResponse
+		err := json.Unmarshal([]byte(responseJSON), &response)
+		require.NoError(t, err)
+
+		assert.Equal(t, "txn-abc", response.TransactionID)
+		assert.Empty(t, response.Credentials)
+	})
+	t.Run("transaction_id omitted when empty", func(t *testing.T) {
+		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
+		response := CredentialResponse{
+			Credentials: []CredentialResponseEntry{{Credential: credJSON}},
+		}
+
+		jsonBytes, err := json.Marshal(response)
+		require.NoError(t, err)
+
+		var parsed map[string]interface{}
+		err = json.Unmarshal(jsonBytes, &parsed)
+		require.NoError(t, err)
+
+		_, hasTransactionID := parsed["transaction_id"]
+		assert.False(t, hasTransactionID, "transaction_id must be absent when empty")
+	})
 	t.Run("response does not contain c_nonce fields", func(t *testing.T) {
 		credJSON, _ := json.Marshal(map[string]interface{}{"issuer": "did:nuts:issuer"})
 		response := CredentialResponse{
@@ -229,6 +255,72 @@ func TestCredentialResponse_V1Spec(t *testing.T) {
 
 		_, hasExpiresIn := parsed["c_nonce_expires_in"]
 		assert.False(t, hasExpiresIn, "c_nonce_expires_in must be absent when not set")
+	})
+}
+
+func TestProofSigningAlgValues(t *testing.T) {
+	t.Run("returns values when present", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{
+					"proof_signing_alg_values_supported": []interface{}{"ES256", "ES384"},
+				},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"ES256", "ES384"}, result)
+	})
+	t.Run("returns nil when proof_types_supported absent", func(t *testing.T) {
+		config := map[string]interface{}{"format": "ldp_vc"}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("returns nil when jwt absent in proof_types_supported", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"cwt": map[string]interface{}{},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("error - jwt present but proof_signing_alg_values_supported absent", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		assert.Nil(t, result)
+		assert.EqualError(t, err, "issuer metadata has proof_types_supported.jwt but is missing proof_signing_alg_values_supported")
+	})
+	t.Run("skips non-string values in algorithm array", func(t *testing.T) {
+		config := map[string]interface{}{
+			"proof_types_supported": map[string]interface{}{
+				"jwt": map[string]interface{}{
+					"proof_signing_alg_values_supported": []interface{}{"ES256", 42, "ES384"},
+				},
+			},
+		}
+		result, err := ProofSigningAlgValues(config)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"ES256", "ES384"}, result)
+	})
+}
+
+func TestValidateProofSigningAlg(t *testing.T) {
+	t.Run("ok - algorithm is supported", func(t *testing.T) {
+		assert.NoError(t, ValidateProofSigningAlg("ES256", []string{"ES256", "ES384"}))
+	})
+	t.Run("ok - no constraint when supportedAlgs is empty", func(t *testing.T) {
+		assert.NoError(t, ValidateProofSigningAlg("ES256", nil))
+	})
+	t.Run("error - algorithm not supported", func(t *testing.T) {
+		err := ValidateProofSigningAlg("ES256", []string{"ES384", "ES512"})
+		assert.EqualError(t, err, "signing algorithm ES256 is not supported by issuer (supported: ES384, ES512)")
 	})
 }
 

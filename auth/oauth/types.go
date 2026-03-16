@@ -101,6 +101,15 @@ func (t *TokenResponse) With(key string, value interface{}) *TokenResponse {
 	return t
 }
 
+// GetRaw returns the raw value of an additional parameter.
+// Returns nil if the key does not exist.
+func (t TokenResponse) GetRaw(key string) interface{} {
+	if t.additionalParams == nil {
+		return nil
+	}
+	return t.additionalParams[key]
+}
+
 // Get returns the value of the additional parameter with the given key as a string.
 // If the key does not exist or the value is not a string, it returns an empty string.
 // It should not be used to get any of the base parameters (access_token, expires_in, token_type, scope).
@@ -308,6 +317,9 @@ type AuthorizationServerMetadata struct {
 
 	/* ******** JWT-Secured Authorization Request RFC9101 & OpenID Connect Core v1.0: §6. Passing Request Parameters as JWTs ******** */
 
+	// PushedAuthorizationRequestEndpoint is the URL of the pushed authorization request endpoint (RFC 9126).
+	PushedAuthorizationRequestEndpoint string `json:"pushed_authorization_request_endpoint,omitempty"`
+
 	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
 	RequireSignedRequestObject bool `json:"require_signed_request_object,omitempty"`
 
@@ -405,11 +417,14 @@ type Redirect struct {
 
 // OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
 type OpenIDCredentialIssuerMetadata struct {
-	CredentialIssuer     string              `json:"credential_issuer"`
-	CredentialEndpoint   string              `json:"credential_endpoint"`
-	NonceEndpoint        string              `json:"nonce_endpoint,omitempty"`
-	AuthorizationServers []string            `json:"authorization_servers,omitempty"`
-	Display              []map[string]string `json:"display,omitempty"`
+	CredentialIssuer                  string                            `json:"credential_issuer"`
+	CredentialEndpoint                string                            `json:"credential_endpoint"`
+	NonceEndpoint                     string                            `json:"nonce_endpoint,omitempty"`
+	AuthorizationServers              []string                          `json:"authorization_servers,omitempty"`
+	CredentialConfigurationsSupported map[string]map[string]interface{} `json:"credential_configurations_supported,omitempty"`
+	Display                           []map[string]string               `json:"display,omitempty"`
+	// SignedMetadata is a JWT containing signed issuer metadata for trust verification (v1.0 Section 12.2.3).
+	SignedMetadata string `json:"signed_metadata,omitempty"`
 }
 
 // OpenIDConfiguration represents the OpenID configuration

@@ -165,6 +165,18 @@ func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 	return hdrs.KeyID(), hdrs.Algorithm(), nil
 }
 
+// JWTTyp parses a JWT without validation and returns the 'typ' header.
+func JWTTyp(tokenString string) (string, error) {
+	j, err := jws.ParseString(tokenString)
+	if err != nil {
+		return "", err
+	}
+	if len(j.Signatures()) != 1 {
+		return "", errors.New("incorrect number of signatures in JWT")
+	}
+	return j.Signatures()[0].ProtectedHeaders().Type(), nil
+}
+
 // PublicKeyFunc defines a function that resolves a public key based on a kid
 type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
 

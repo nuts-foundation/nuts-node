@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -76,21 +77,55 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Read and parse the authorization details
-	authorizationDetails := []byte("[]")
+	// Validate authorization_details and/or scope (at least one must be provided)
+	hasAuthzDetails := request.Body.AuthorizationDetails != nil && len(*request.Body.AuthorizationDetails) > 0
+	hasScope := request.Body.Scope != nil && *request.Body.Scope != ""
+	if !hasAuthzDetails && !hasScope {
+		return nil, core.InvalidInputError("either authorization_details or scope is required")
+	}
+
+	var authorizationDetails []byte
 	var credentialConfigID string
-	if len(request.Body.AuthorizationDetails) > 0 {
-		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-		if id, ok := request.Body.AuthorizationDetails[0]["credential_configuration_id"].(string); ok {
-			credentialConfigID = id
+	if hasAuthzDetails {
+		var sanitized []map[string]interface{}
+		credentialConfigID, sanitized, err = validateAuthorizationDetails(*request.Body.AuthorizationDetails, credentialIssuerMetadata)
+		if err != nil {
+			return nil, core.InvalidInputError("%s", err)
+		}
+		authorizationDetails, err = json.Marshal(sanitized)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal authorization_details: %w", err)
 		}
 	}
+
+	// Resolve credential_configuration_id from scope (v1.0 Section 5.1.2)
+	if hasScope {
+		scopeConfigID, scopeErr := resolveCredentialConfigIDByScope(*request.Body.Scope, credentialIssuerMetadata)
+		if scopeErr != nil {
+			return nil, core.InvalidInputError("%s", scopeErr)
+		}
+		// Use scope's credential_configuration_id when authorization_details didn't provide one
+		if credentialConfigID == "" {
+			credentialConfigID = scopeConfigID
+		}
+	}
+
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
 	redirectUri := clientID.JoinPath(oauth.CallbackPath)
+	// Extract proof_signing_alg_values_supported from the credential configuration (v1.0 Appendix F.1)
+	var proofSigningAlgValues []string
+	if credentialConfigID != "" {
+		if config, exists := credentialIssuerMetadata.CredentialConfigurationsSupported[credentialConfigID]; exists {
+			proofSigningAlgValues, err = openid4vci.ProofSigningAlgValues(config)
+			if err != nil {
+				return nil, core.Error(http.StatusFailedDependency, "%s", err)
+			}
+		}
+	}
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		AuthorizationServerMetadata: authzServerMetadata,
@@ -102,10 +137,11 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
 		TokenEndpoint:                   authzServerMetadata.TokenEndpoint,
-		IssuerURL:                       authzServerMetadata.Issuer,
+		IssuerURL:                       credentialIssuerMetadata.CredentialIssuer,
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		ProofSigningAlgValuesSupported:  proofSigningAlgValues,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -115,16 +151,39 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
-		oauth.ResponseTypeParam:         oauth.CodeResponseType,
-		oauth.StateParam:                state,
-		oauth.ClientIDParam:             clientID.String(),
-		oauth.ClientIDSchemeParam:       entityClientIDScheme,
-		oauth.AuthorizationDetailsParam: string(authorizationDetails),
-		oauth.RedirectURIParam:          redirectUri.String(),
-		oauth.CodeChallengeParam:        pkceParams.Challenge,
-		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
-	})
+	authzParams := url.Values{
+		oauth.ResponseTypeParam:        {oauth.CodeResponseType},
+		oauth.StateParam:               {state},
+		oauth.ClientIDParam:            {clientID.String()},
+		oauth.ClientIDSchemeParam:      {entityClientIDScheme},
+		oauth.RedirectURIParam:         {redirectUri.String()},
+		oauth.CodeChallengeParam:       {pkceParams.Challenge},
+		oauth.CodeChallengeMethodParam: {pkceParams.ChallengeMethod},
+	}
+	if hasAuthzDetails {
+		authzParams.Set(oauth.AuthorizationDetailsParam, string(authorizationDetails))
+	}
+	if hasScope {
+		authzParams.Set(oauth.ScopeParam, *request.Body.Scope)
+	}
+
+	var redirectUrl url.URL
+	if authzServerMetadata.PushedAuthorizationRequestEndpoint != "" {
+		parResponse, parErr := r.auth.IAMClient().PushedAuthorizationRequest(ctx, authzServerMetadata.PushedAuthorizationRequestEndpoint, authzParams)
+		if parErr != nil {
+			return nil, fmt.Errorf("PAR request failed: %w", parErr)
+		}
+		redirectUrl = nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
+			oauth.ClientIDParam: clientID.String(),
+			"request_uri":       parResponse.RequestURI,
+		})
+	} else {
+		params := make(map[string]string, len(authzParams))
+		for k, v := range authzParams {
+			params[k] = v[0]
+		}
+		redirectUrl = nutsHttp.AddQueryParams(*authorizationEndpoint, params)
+	}
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
 		RedirectURI: redirectUrl.String(),
@@ -157,8 +216,11 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		}
 	}
 
+	// Check for credential_identifiers in the token response (v1.0 Section 6.2)
+	credentialIdentifier := extractCredentialIdentifier(tokenResponse)
+
 	// build proof and request credential
-	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 	if err != nil {
 		// on invalid_nonce: fetch a fresh nonce and retry once
 		var oidcErr openid4vci.Error
@@ -167,11 +229,14 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 			if err != nil {
 				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
 			}
-			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 		}
 		if err != nil {
 			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 		}
+	}
+	if credentialResponse.TransactionID != "" {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "deferred credential issuance is not supported"), appCallbackURI)
 	}
 	if len(credentialResponse.Credentials) == 0 {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "credential response does not contain any credentials"), appCallbackURI)
@@ -195,18 +260,35 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}, nil
 }
 
-func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, nonce string) (*openid4vci.CredentialResponse, error) {
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, nonce)
+func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, credentialIdentifier string, nonce string) (*openid4vci.CredentialResponse, error) {
+	proofJWT, err := r.openid4vciProof(ctx, oauthSession, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
-	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, oauthSession.IssuerCredentialConfigurationID, proofJWT)
+	credentialConfigID := oauthSession.IssuerCredentialConfigurationID
+	if credentialIdentifier != "" {
+		credentialConfigID = ""
+	}
+	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, credentialConfigID, credentialIdentifier, proofJWT)
 }
 
-func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
-	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
+func (r *Wrapper) openid4vciProof(ctx context.Context, session *OAuthSession, nonce string) (string, error) {
+	if session.OwnDID == nil {
+		return "", errors.New("session has no holder DID")
+	}
+	holderDid := *session.OwnDID
+	kid, pubKey, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
+	}
+	if len(session.ProofSigningAlgValuesSupported) > 0 {
+		alg, algErr := crypto.SignatureAlgorithm(pubKey)
+		if algErr != nil {
+			return "", fmt.Errorf("failed to determine signing algorithm: %w", algErr)
+		}
+		if err = openid4vci.ValidateProofSigningAlg(alg.String(), session.ProofSigningAlgValuesSupported); err != nil {
+			return "", err
+		}
 	}
 	headers := map[string]interface{}{
 		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
@@ -214,7 +296,7 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),
-		jwt.AudienceKey: audience, // Credential Issuer Identifier
+		jwt.AudienceKey: session.IssuerURL, // Credential Issuer Identifier
 		jwt.IssuedAtKey: timeFunc().Unix(),
 	}
 	if nonce != "" {
@@ -225,4 +307,86 @@ func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audien
 		return "", fmt.Errorf("failed to sign the JWT with kid (%s): %w", kid, err)
 	}
 	return proofJwt, nil
+}
+
+// extractCredentialIdentifier extracts the first credential_identifier from the token response's
+// authorization_details (v1.0 Section 6.2). Returns empty string if not present.
+// Only considers entries with type "openid_credential" per RFC 9396.
+// When multiple credential_identifiers are present, the first one is used.
+func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse) string {
+	authzDetails, ok := tokenResponse.GetRaw("authorization_details").([]interface{})
+	if !ok {
+		return ""
+	}
+	for _, item := range authzDetails {
+		entry, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if typ, _ := entry["type"].(string); typ != "openid_credential" {
+			continue
+		}
+		identifiers, ok := entry["credential_identifiers"].([]interface{})
+		if !ok || len(identifiers) == 0 {
+			continue
+		}
+		identifier, ok := identifiers[0].(string)
+		if ok {
+			return identifier
+		}
+	}
+	return ""
+}
+
+// resolveCredentialConfigIDByScope finds the credential_configuration_id that matches the given scope
+// in the issuer's credential_configurations_supported (v1.0 Section 5.1.2).
+// Per the spec, scope is a space-separated list where each value maps to a credential configuration.
+// Only a single scope value is supported; multiple values are rejected (consistent with the
+// single-entry restriction for authorization_details).
+func resolveCredentialConfigIDByScope(scope string, metadata *oauth.OpenIDCredentialIssuerMetadata) (string, error) {
+	scopeValues := strings.Fields(scope)
+	if len(scopeValues) != 1 {
+		return "", fmt.Errorf("invalid scope: exactly one scope value is supported, got %d", len(scopeValues))
+	}
+	scopeValue := scopeValues[0]
+	for configID, config := range metadata.CredentialConfigurationsSupported {
+		if s, _ := config["scope"].(string); s == scopeValue {
+			return configID, nil
+		}
+	}
+	return "", fmt.Errorf("scope %q not found in issuer's credential configurations", scopeValue)
+}
+
+// validateAuthorizationDetails validates the authorization_details entries per v1.0 Section 5.1.1.
+// It returns the credential_configuration_id and sanitized entries (only known keys, with locations injected).
+// Only a single entry is supported; multiple entries are rejected.
+func validateAuthorizationDetails(details []map[string]interface{}, metadata *oauth.OpenIDCredentialIssuerMetadata) (string, []map[string]interface{}, error) {
+	if len(details) != 1 {
+		return "", nil, errors.New("invalid authorization_details: exactly one entry is supported")
+	}
+	if len(metadata.CredentialConfigurationsSupported) == 0 {
+		return "", nil, errors.New("invalid authorization_details: issuer does not advertise any credential configurations")
+	}
+	entry := details[0]
+	typ, _ := entry["type"].(string)
+	if typ != "openid_credential" {
+		return "", nil, errors.New("invalid authorization_details: type must be \"openid_credential\"")
+	}
+	configID, ok := entry["credential_configuration_id"].(string)
+	if !ok || configID == "" {
+		return "", nil, errors.New("invalid authorization_details: credential_configuration_id is required")
+	}
+	if _, exists := metadata.CredentialConfigurationsSupported[configID]; !exists {
+		return "", nil, fmt.Errorf("invalid authorization_details: credential_configuration_id %q not found in issuer metadata", configID)
+	}
+	// Build sanitized entry with only known fields
+	sanitized := map[string]interface{}{
+		"type":                        typ,
+		"credential_configuration_id": configID,
+	}
+	// Inject locations when authorization_servers is present (v1.0 Section 5.1.1)
+	if len(metadata.AuthorizationServers) > 0 {
+		sanitized["locations"] = []string{metadata.CredentialIssuer}
+	}
+	return configID, []map[string]interface{}{sanitized}, nil
 }
