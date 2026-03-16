@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2022 Nuts community
+/* Copyright (C) 2022 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,16 +21,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/redis/go-redis/v9"
-	"strings"
-	"sync"
-	"time"
 )
 
 const storeShutdownTimeout = 5 * time.Second
+
+var LeiaQueryStatsCallback = leia.NoOpQueryStatsCallbacks
 
 // New creates a new instance of the storage engine.
 func New() Engine {
@@ -108,6 +111,27 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return fmt.Errorf("unable to configure BBolt database: %w", err)
 	}
 	e.databases = append(e.databases, bboltDB)
+
+	if e.config.Debug {
+		LeiaQueryStatsCallback = leia.QueryStatsCallbacks{
+			OnIndexProblem: func(stats leia.IndexStats) {
+				entry := log.Logger().
+					WithField("leia_collection", stats.Collection).
+					WithField("leia_documents_scanned", stats.DocumentsScanned).
+					WithField("leia_documents_scanned_bytes", stats.DocumentsScannedBytes).
+					WithField("leia_documents_matched", stats.DocumentsMatched).
+					WithField("leia_documents_matched_bytes", stats.DocumentsMatchedBytes).
+					WithField("leia_unindexed_fields", stats.UnindexedFields)
+				if stats.IndexUsed == "" {
+					entry.Warnf("leia: full table scan detected for query: %s", stats.Query)
+				} else {
+					entry.WithField("leia_index_used", stats.IndexUsed).
+						WithField("leia_filter_efficiency", stats.FilterEfficiency).
+						Warnf("leia: suboptimal index usage detected for query: %s", stats.Query)
+				}
+			},
+		}
+	}
 	return nil
 }
 

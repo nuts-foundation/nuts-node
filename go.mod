@@ -24,20 +24,20 @@ require (
 	github.com/nats-io/nats.go v1.48.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
-	github.com/nuts-foundation/go-leia/v4 v4.0.3
+	github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316183556-507bf1bdd4ff
 	github.com/nuts-foundation/go-stoabs v1.9.0
-	github.com/piprate/json-gold v0.5.1-0.20230111113000-6ddbe6e6f19f
+	github.com/piprate/json-gold v0.7.0
 	github.com/privacybydesign/irmago v0.17.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/cobra v1.8.0
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/cobra v1.8.1
+	github.com/spf13/pflag v1.0.6
 	github.com/stretchr/testify v1.10.0
 	github.com/twmb/murmur3 v1.1.8
-	go.etcd.io/bbolt v1.3.10
+	go.etcd.io/bbolt v1.4.3
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	go.uber.org/mock v0.4.0
@@ -184,7 +184,7 @@ require (
 	github.com/tdewolff/parse/v2 v2.6.8 // indirect
 	github.com/templexxx/cpu v0.1.0 // indirect
 	github.com/templexxx/xorsimd v0.4.2 // indirect
-	github.com/tidwall/gjson v1.17.0 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/timshannon/bolthold v0.0.0-20231129192944-dca5178aa629 // indirect

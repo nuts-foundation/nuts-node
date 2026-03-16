@@ -118,6 +118,7 @@ function readDiagnostic() {
 # Args:     issuing node HTTP address, issuer DID, subject DID
 # Returns:  the VC ID
 function createAuthCredential() {
+  local bsn=$(( (RANDOM * 32768 + RANDOM) % 900000000 + 100000000 ))
   printf '{
     "type": "NutsAuthorizationCredential",
     "issuer": "%s",
@@ -125,10 +126,10 @@ function createAuthCredential() {
       "id": "%s",
       "resources": [],
       "purposeOfUse": "example",
-      "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:123456780"
+      "subject": "urn:oid:2.16.840.1.113883.2.4.6.3:%s"
     },
    "visibility": "private"
-  }' "$2" "$3" | curl -s -X POST "$1/internal/vcr/v2/issuer/vc" -H "Content-Type: application/json" --data-binary @- | jq ".id" | sed "s/\"//g"
+  }' "$2" "$3" "$bsn" | curl -s -X POST "$1/internal/vcr/v2/issuer/vc" -H "Content-Type: application/json" --data-binary @- | jq ".id" | sed "s/\"//g"
 }
 
 # registerStringService registers a service on a DID document, with a string as serviceEndpoint

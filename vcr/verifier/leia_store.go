@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -42,7 +43,7 @@ type leiaVerifierStore struct {
 
 // NewLeiaVerifierStore creates a new instance of leiaVerifierStore which implements the Store interface.
 func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, error) {
-	store, err := leia.NewStore(dbPath)
+	store, err := leia.NewStore(dbPath, leia.WithQueryStatsCallbacks(storage.LeiaQueryStatsCallback))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaVerifierStore: %w", err)
 	}

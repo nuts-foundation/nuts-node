@@ -24,6 +24,8 @@ import "time"
 type Config struct {
 	BBolt BBoltConfig `koanf:"bbolt"`
 	Redis RedisConfig `koanf:"redis"`
+	// Debug specifies whether to enable debug logging for the storage engine, e.g. performance metrics and query logging.
+	Debug bool `koanf:"debug"`
 }
 
 // DefaultConfig returns the default configuration for the module.
