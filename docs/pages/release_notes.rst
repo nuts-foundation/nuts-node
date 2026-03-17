@@ -3,6 +3,36 @@ Release notes
 #############
 
 ****************
+Peanut (v6.1.13)
+****************
+
+Release date: 2026-03-15
+
+- Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.12...v6.1.13
+
+****************
+Peanut (v6.1.12)
+****************
+
+Release date: 2026-03-03
+
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.11...v6.1.12
+
+****************
+Peanut (v6.1.11)
+****************
+
+Release date: 2026-02-12
+
+- Update Docker alpine base image to 3.23.3
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.10...v6.1.11
+
+****************
 Peanut (v6.1.10)
 ****************
 
