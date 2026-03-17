@@ -21,6 +21,10 @@ package http
 import (
 	"bytes"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/mock"
@@ -28,9 +32,6 @@ import (
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 )
 
 func Test_requestLoggerMiddleware(t *testing.T) {
@@ -128,9 +129,9 @@ func Test_bodyLoggerMiddleware(t *testing.T) {
 		response := echo.NewResponse(responseRecorder, e)
 		response.Header().Set("Content-Type", "application/json")
 		echoMock := mock.NewMockContext(ctrl)
-		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) {
+		echoMock.EXPECT().String(gomock.Any(), gomock.Any()).Do(func(status int, data string) {
 			response.Status = status
-			response.Write([]byte(`"response"`))
+			response.Write([]byte(data))
 		})
 		echoMock.EXPECT().Request().MinTimes(1).Return(request)
 		echoMock.EXPECT().Response().MinTimes(1).Return(response)
@@ -140,13 +141,13 @@ func Test_bodyLoggerMiddleware(t *testing.T) {
 			return false
 		}, logger.WithFields(logrus.Fields{}))
 		err := logFunc(func(context echo.Context) error {
-			return context.NoContent(http.StatusNoContent)
+			return context.String(http.StatusOK, "response")
 		})(echoMock)
 
 		assert.NoError(t, err)
 		assert.Len(t, hook.Entries, 2)
 		assert.Equal(t, `HTTP request body: "request"`, hook.AllEntries()[0].Message)
-		assert.Equal(t, `HTTP response body: "response"`, hook.AllEntries()[1].Message)
+		assert.Equal(t, `HTTP response body: response`, hook.AllEntries()[1].Message)
 	})
 	t.Run("request and response not loggable", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
