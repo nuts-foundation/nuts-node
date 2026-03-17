@@ -37,7 +37,7 @@ require (
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.1.2
-	github.com/piprate/json-gold v0.7.0
+	github.com/piprate/json-gold v0.8.0
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/privacybydesign/irmago v0.18.1
 	github.com/prometheus/client_golang v1.23.2
@@ -236,6 +236,7 @@ require (
 	github.com/aws/smithy-go v1.24.0 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.5.0-default-no-op // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
+	github.com/cayleygraph/quad v1.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
