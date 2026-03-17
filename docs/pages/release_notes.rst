@@ -374,6 +374,14 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 *************************
+Hazelnut update (v5.4.25)
+*************************
+
+Release date: 2026-03-15
+
+- Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+*************************
 Hazelnut update (v5.4.24)
 *************************
 
