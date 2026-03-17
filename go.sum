@@ -569,14 +569,6 @@ github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c h1:Q2Naw
 github.com/nuts-foundation/did-ockam v0.0.0-20230313074753-fafd938c948c/go.mod h1:n0NQI71qGVVShnPDjYdCoNStEW0zZoVWbeSQ+esXuhs=
 github.com/nuts-foundation/go-did v0.5.1 h1:akc4OzNGHdnliJFoxnnSmUI7j1yKz/BHNi6sXiWX30A=
 github.com/nuts-foundation/go-did v0.5.1/go.mod h1:Aw1pIRyB9naQ8z/dc4rrPhn+nHx5LUcGysBGlezL528=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316113658-1fd795bcf817 h1:TcGmXyW1VU9Ckg2HHGKWNRhy/cZtQov9uQhURJ3lz34=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316113658-1fd795bcf817/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316153534-f1ac089074a8 h1:BRjYE17wIpN4PO3Nzzhc4+4GbmZ9cDUSucOqf95PLK4=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316153534-f1ac089074a8/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316182547-6a2fd3517635 h1:R4PDHsITaz8HasPSR5JZhlWXLufm/jAUd/hfiiPV3Kk=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316182547-6a2fd3517635/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316183556-507bf1bdd4ff h1:zpHjSo/RlRV1HSiuJsZXwkMXFip5DUkimunO6Q55iUw=
-github.com/nuts-foundation/go-leia/v4 v4.2.1-0.20260316183556-507bf1bdd4ff/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
 github.com/nuts-foundation/go-leia/v4 v4.3.0 h1:R0qGISIeg2q/PCQTC9cuoBtA6cFu4WBV2DbmSOWKZyM=
 github.com/nuts-foundation/go-leia/v4 v4.3.0/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
 github.com/nuts-foundation/go-stoabs v1.9.0 h1:zK+ugfolaJYyBvGwsRuavLVdycXk4Yw/1gI+tz17lWQ=

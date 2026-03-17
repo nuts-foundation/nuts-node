@@ -114,25 +114,27 @@ func (e *engine) Configure(config core.ServerConfig) error {
 
 	if e.config.Debug {
 		LeiaQueryStatsCallback = leia.QueryStatsCallbacks{
-			OnIndexProblem: func(stats leia.IndexStats) {
-				entry := log.Logger().
-					WithField("leia_collection", stats.Collection).
-					WithField("leia_documents_scanned", stats.DocumentsScanned).
-					WithField("leia_documents_scanned_bytes", stats.DocumentsScannedBytes).
-					WithField("leia_documents_matched", stats.DocumentsMatched).
-					WithField("leia_documents_matched_bytes", stats.DocumentsMatchedBytes).
-					WithField("leia_unindexed_fields", stats.UnindexedFields)
-				if stats.IndexUsed == "" {
-					entry.Warnf("leia: full table scan detected for query: %s", stats.Query)
-				} else {
-					entry.WithField("leia_index_used", stats.IndexUsed).
-						WithField("leia_filter_efficiency", stats.FilterEfficiency).
-						Warnf("leia: suboptimal index usage detected for query: %s", stats.Query)
-				}
-			},
+			OnIndexProblem: logLeiaQueryStats,
 		}
 	}
 	return nil
+}
+
+func logLeiaQueryStats(stats leia.IndexStats) {
+	entry := log.Logger().
+		WithField("leia_collection", stats.Collection).
+		WithField("leia_documents_scanned", stats.DocumentsScanned).
+		WithField("leia_documents_scanned_bytes", stats.DocumentsScannedBytes).
+		WithField("leia_documents_matched", stats.DocumentsMatched).
+		WithField("leia_documents_matched_bytes", stats.DocumentsMatchedBytes).
+		WithField("leia_unindexed_fields", stats.UnindexedFields)
+	if stats.IndexUsed == "" {
+		entry.Warnf("leia: full table scan detected for query: %s", stats.Query)
+	} else {
+		entry.WithField("leia_index_used", stats.IndexUsed).
+			WithField("leia_filter_efficiency", stats.FilterEfficiency).
+			Warnf("leia: suboptimal index usage detected for query: %s", stats.Query)
+	}
 }
 
 func (e *engine) GetProvider(moduleName string) Provider {
