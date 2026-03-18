@@ -29,12 +29,19 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/piprate/json-gold/ld"
 	"github.com/redis/go-redis/v9"
 )
 
 const storeShutdownTimeout = 5 * time.Second
 
-var LeiaQueryStatsCallback = leia.NoOpQueryStatsCallbacks
+// newDocumentStoreFunc is the function type for creating a new Leia document store.
+type newDocumentStoreFunc func(path string, documentLoader interface{}) (leia.Store, error)
+
+// NewDocumentStore is the factory function for creating Leia stores.
+var NewDocumentStore newDocumentStoreFunc = func(path string, documentLoader interface{}) (leia.Store, error) {
+	return createLeiaStore(path, documentLoader, false)
+}
 
 // New creates a new instance of the storage engine.
 func New() Engine {
@@ -112,12 +119,26 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	}
 	e.databases = append(e.databases, bboltDB)
 
-	if e.config.Debug {
-		LeiaQueryStatsCallback = leia.QueryStatsCallbacks{
+	NewDocumentStore = func(path string, documentLoader interface{}) (leia.Store, error) {
+		return createLeiaStore(path, documentLoader, e.config.Debug)
+	}
+
+	return nil
+}
+
+func createLeiaStore(path string, documentLoader interface{}, debug bool) (leia.Store, error) {
+	var options []leia.StoreOption
+	if debug {
+		options = append(options, leia.WithQueryStatsCallbacks(leia.QueryStatsCallbacks{
 			OnIndexProblem: logLeiaQueryStats,
+		}))
+	}
+	if documentLoader != nil {
+		if loader, ok := documentLoader.(ld.DocumentLoader); ok {
+			options = append(options, leia.WithDocumentLoader(loader))
 		}
 	}
-	return nil
+	return leia.NewStore(path, options...)
 }
 
 func logLeiaQueryStats(stats leia.IndexStats) {

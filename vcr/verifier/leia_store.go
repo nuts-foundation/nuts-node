@@ -43,7 +43,7 @@ type leiaVerifierStore struct {
 
 // NewLeiaVerifierStore creates a new instance of leiaVerifierStore which implements the Store interface.
 func NewLeiaVerifierStore(dbPath string, backupStore stoabs.KVStore) (Store, error) {
-	store, err := leia.NewStore(dbPath, leia.WithQueryStatsCallbacks(storage.LeiaQueryStatsCallback))
+	store, err := storage.NewDocumentStore(dbPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaVerifierStore: %w", err)
 	}
