@@ -26,7 +26,7 @@ require (
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
 	github.com/nuts-foundation/go-stoabs v1.9.0
-	github.com/piprate/json-gold v0.7.0
+	github.com/piprate/json-gold v0.8.0
 	github.com/privacybydesign/irmago v0.17.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
@@ -44,7 +44,7 @@ require (
 	golang.org/x/crypto v0.47.0
 	golang.org/x/time v0.14.0
 	google.golang.org/grpc v1.64.1
-	google.golang.org/protobuf v1.34.1
+	google.golang.org/protobuf v1.34.2
 	gopkg.in/Regis24GmbH/go-phonetics.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.1
 	schneider.vip/problem v1.9.1
@@ -69,6 +69,7 @@ require (
 	github.com/bwesterb/go-pow v1.0.0 // indirect
 	github.com/bwesterb/go-xmssmt v1.5.2 // indirect
 	github.com/bytedance/sonic v1.10.2 // indirect
+	github.com/cayleygraph/quad v1.3.0 // indirect
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -170,7 +171,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.9 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pquerna/cachecontrol v0.0.0-20180517163645-1555304b9b35 // indirect
+	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	github.com/privacybydesign/gabi v0.0.0-20221212095008-68a086907750 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
