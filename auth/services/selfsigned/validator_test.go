@@ -22,6 +22,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
@@ -33,9 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"go.uber.org/mock/gomock"
-	"os"
-	"testing"
-	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -176,7 +177,7 @@ func TestValidator_VerifyVP(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, contract.Invalid, result.Validity())
-		assert.Equal(t, "verification error: ", result.Reason())
+		assert.Equal(t, "presentation(s) or credential(s) verification failed", result.Reason())
 	})
 
 	t.Run("ok using in-memory DBs", func(t *testing.T) {

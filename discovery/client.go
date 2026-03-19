@@ -22,6 +22,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -36,9 +40,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"slices"
-	"strings"
-	"time"
 )
 
 // clientRegistrationManager is a client component, responsible for managing registrations on a Discovery Service.

@@ -1,0 +1,44 @@
+# Example Nuts Node Configuration with AWS RDS IAM Authentication
+
+# PostgreSQL RDS with IAM Authentication
+storage:
+  sql:
+    # Connection string without password - IAM tokens will be generated automatically
+    connection: "postgres://nutsuser@nuts-db.abc123.us-east-1.rds.amazonaws.com:5432/nuts_production"
+    
+    # AWS RDS IAM authentication configuration
+    rds_iam:
+      # Enable IAM authentication
+      enabled: true
+      
+      # AWS region where your RDS instance is located
+      region: "us-east-1"
+      
+      # Database username for IAM authentication
+      # This user must be created in the database with IAM authentication enabled
+      db_user: "nutsuser"
+      
+      # Optional: Token refresh interval (default is 14 minutes)
+      # RDS tokens expire after 15 minutes, so we refresh slightly before expiry
+      # token_refresh_interval: 14m
+
+# MySQL RDS with IAM Authentication (alternative example)
+# storage:
+#   sql:
+#     connection: "mysql://nutsuser@nuts-db.abc123.us-east-1.rds.amazonaws.com:3306/nuts_production"
+#     rds_iam:
+#       enabled: true
+#       region: "us-east-1"
+#       db_user: "nutsuser"
+
+# Note: AWS credentials should be provided via:
+# 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION)
+# 2. EC2 Instance Profile (recommended for production)
+# 3. AWS config file (~/.aws/credentials)
+#
+# The IAM role/user needs the following permission:
+# {
+#   "Effect": "Allow",
+#   "Action": "rds-db:connect",
+#   "Resource": "arn:aws:rds-db:REGION:ACCOUNT_ID:dbuser:RESOURCE_ID/USERNAME"
+# }

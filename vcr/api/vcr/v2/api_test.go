@@ -831,6 +831,66 @@ func TestWrapper_GetCredentialsInWallet(t *testing.T) {
 	})
 }
 
+func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
+	subjectID := "holder"
+	vcWithRevocation := testVC
+	vcWithRevocation.ID = &credentialID
+	revocationInfo := &Revocation{Reason: "test revocation"}
+
+	t.Run("ok - no results", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{}, nil)
+
+		response, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{
+			SubjectID: subjectID,
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: []SearchVCResult{}}), response)
+	})
+
+	t.Run("ok - not revoked", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
+		testContext.mockVerifier.EXPECT().GetRevocation(testVC).Return(nil, nil)
+
+		response, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{
+			SubjectID: subjectID,
+		})
+
+		assert.NoError(t, err)
+		expectedResult := SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: testVC}}}
+		assert.Equal(t, SearchCredentialsInWallet200JSONResponse(expectedResult), response)
+	})
+
+	t.Run("ok - revoked", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{vcWithRevocation}, nil)
+		// GetRevocation is then called to get the details
+		testContext.mockVerifier.EXPECT().GetRevocation(vcWithRevocation).Return(revocationInfo, nil)
+
+		response, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{
+			SubjectID: subjectID,
+		})
+
+		assert.NoError(t, err)
+		expectedResult := SearchVCResults{VerifiableCredentials: []SearchVCResult{{VerifiableCredential: vcWithRevocation, Revocation: revocationInfo}}}
+		assert.Equal(t, SearchCredentialsInWallet200JSONResponse(expectedResult), response)
+	})
+
+	t.Run("subject not found", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{}, didsubject.ErrSubjectNotFound)
+
+		_, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{SubjectID: subjectID})
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+}
+
 func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 	didNuts := did.MustParseDID("did:nuts:123")
 	didWeb := did.MustParseDID("did:web:example.com")
@@ -1160,15 +1220,15 @@ func TestWrapper_VerifyVP(t *testing.T) {
 		testContext := newMockContext(t)
 		request := VPVerificationRequest{VerifiablePresentation: vp}
 		testContext.mockVerifier.EXPECT().VerifyVP(vp, true, false, nil).Return(nil, verifier.VerificationError{})
-		errMsg := "verification error: "
-		expectedRepsonse := VerifyVP200JSONResponse(VPVerificationResult{
+		errMsg := "presentation(s) or credential(s) verification failed"
+		expectedResponse := VerifyVP200JSONResponse(VPVerificationResult{
 			Message:  &errMsg,
 			Validity: false,
 		})
 
 		response, err := testContext.client.VerifyVP(testContext.requestCtx, VerifyVPRequestObject{Body: &request})
 
-		assert.Equal(t, expectedRepsonse, response)
+		assert.Equal(t, expectedResponse, response)
 		assert.NoError(t, err)
 	})
 }

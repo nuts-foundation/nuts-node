@@ -6,11 +6,12 @@ Release notes
 Peanut (v6.2.0)
 ****************
 
-Release date: 2026-02-09
+Release date: 2026-03-21
 
 ## New features
 * feat(tracing): add OpenTelemetry tracing support by @JorisHeadease in https://github.com/nuts-foundation/nuts-node/pull/3946
 * Build and publish binaries to GH Releases by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3849
+* Add support for AWS IAM authentication to RDS instances by @wronghost in https://github.com/nuts-foundation/nuts-node/pull/4036
 
 ## What's Changed
 * Use root user in performance analyzer by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3775
@@ -29,11 +30,44 @@ Release date: 2026-02-09
 * feat: add pod labels to helm chart values. by @nollidnosnhoj in https://github.com/nuts-foundation/nuts-node/pull/3935
 * #3967: get credential status from local store for issued VCs (did:web) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3969
 * #3986: Pass correct wallet DID in OpenID4VCI proofs by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3987
+* #4042: allow BBolt lock timeout to be configured (backport to master) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4044
+* Surface DID resolution errors in VP verification failures by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3979
 
 ## New Contributors
 * @nollidnosnhoj made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/3935
+* @wronghost made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/4036
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.10...v6.2.0
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/V6.1...v6.2.0
+
+****************
+Peanut (v6.1.13)
+****************
+
+Release date: 2026-03-15
+
+- Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.12...v6.1.13
+
+****************
+Peanut (v6.1.12)
+****************
+
+Release date: 2026-03-03
+
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.11...v6.1.12
+
+****************
+Peanut (v6.1.11)
+****************
+
+Release date: 2026-02-12
+
+- Update Docker alpine base image to 3.23.3
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.10...v6.1.11
 
 ****************
 Peanut (v6.1.10)
@@ -375,6 +409,23 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.25)
+*************************
+
+Release date: 2026-03-15
+
+- Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+*************************
+Hazelnut update (v5.4.24)
+*************************
+
+Release date: 2026-03-03
+
+- #4042: make BBolt database lock acquire time-out configurable
+- Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
 
 *************************
 Hazelnut update (v5.4.23)
