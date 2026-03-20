@@ -23,7 +23,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+
 	"net/http"
 	"net/url"
 	"slices"
@@ -536,7 +540,7 @@ func (r Wrapper) handleAuthorizeResponseSubmission(ctx context.Context, request 
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidRequest,
-				Description:   "presentation(s) or contained credential(s) are invalid",
+				Description:   verificationErrorDescription(err),
 				InternalError: err,
 				RedirectURI:   callbackURI,
 			}
@@ -763,4 +767,21 @@ func oauthError(code oauth.ErrorCode, description string, internalError ...error
 		Description:   description,
 		InternalError: errors.Join(internalError...),
 	}
+}
+
+// verificationErrorDescription returns a more specific error description when DID resolution fails,
+// otherwise returns the generic error message. This improves user experience by providing actionable
+// error information for common DID resolution issues while maintaining security for other errors.
+func verificationErrorDescription(err error) string {
+	// Check for DID resolution errors
+	if errors.Is(err, verifier.VerificationError{}) {
+		return err.Error()
+	}
+	if errors.Is(err, resolver.ErrNotFound) || errors.Is(err, resolver.ErrKeyNotFound) || strings.Contains(err.Error(), "unable to resolve") ||
+		errors.Is(err, types.ErrStatusNotFound) || errors.Is(err, types.ErrRevoked) || errors.Is(err, types.ErrCredentialNotValidAtTime) || errors.Is(err, types.ErrPresentationNotValidAtTime) {
+		return verifier.ToVerificationError(err).Error()
+	}
+
+	// Default generic message for other errors
+	return "presentation(s) or credential(s) verification failed"
 }

@@ -22,15 +22,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
+	"sync"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	bboltLib "go.etcd.io/bbolt"
-	"os"
-	"path"
-	"sync"
-	"time"
 )
 
 const fileMode = 0640
@@ -52,6 +53,8 @@ type bboltDatabase struct {
 type BBoltConfig struct {
 	// Backup specifies backup config for the database.
 	Backup BBoltBackupConfig `koanf:"backup"`
+	// LockTimeout specifies the maximum time to wait for acquiring a lock on the database before giving up and returning an error.
+	LockTimeout time.Duration `koanf:"locktimeout"`
 }
 
 // BBoltBackupConfig specifies config for BBolt database backups.
@@ -84,7 +87,7 @@ func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.
 		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
-	store, err := bbolt.CreateBBoltStore(databasePath, DefaultBBoltOptions...)
+	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(b.config.LockTimeout))
 	if store != nil {
 		b.startBackup(fullStoreName, store)
 	}

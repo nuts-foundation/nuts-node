@@ -21,6 +21,11 @@ package storage
 import (
 	"context"
 	"errors"
+	"os"
+	"path"
+	"testing"
+	"time"
+
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -28,10 +33,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"path"
-	"testing"
-	"time"
 )
 
 const moduleName = "test"
@@ -45,10 +46,13 @@ func Test_bboltDatabase_performBackup(t *testing.T) {
 	ctx := context.Background()
 	datadir := io.TestDirectory(t)
 	backupDir := path.Join(datadir, "backups")
-	db, _ := createBBoltDatabase(datadir, BBoltConfig{BBoltBackupConfig{
-		Directory: backupDir,
-		// Not specifying interval: disables scheduled backup
-	}})
+	db, _ := createBBoltDatabase(datadir, BBoltConfig{
+		Backup: BBoltBackupConfig{
+			Directory: backupDir,
+			// Not specifying interval: disables scheduled backup
+		},
+		LockTimeout: time.Second,
+	})
 
 	t.Run("write some data, then backup, then assert the entry can be read", func(t *testing.T) {
 		store, _ := db.createStore(moduleName, storeName)
@@ -118,10 +122,13 @@ func Test_bboltDatabase_startBackup(t *testing.T) {
 		logrus.SetLevel(logrus.DebugLevel)
 		datadir := io.TestDirectory(t)
 		backupDir := path.Join(datadir, "backups")
-		db, _ := createBBoltDatabase(datadir, BBoltConfig{Backup: BBoltBackupConfig{
-			Directory: backupDir,
-			Interval:  100 * time.Millisecond,
-		}})
+		db, _ := createBBoltDatabase(datadir, BBoltConfig{
+			Backup: BBoltBackupConfig{
+				Directory: backupDir,
+				Interval:  100 * time.Millisecond,
+			},
+			LockTimeout: time.Second,
+		})
 
 		store, _ := db.createStore(moduleName, storeName)
 		defer store.Close(context.Background())
