@@ -21,8 +21,9 @@ package pe
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-did/vc"
 	"slices"
+
+	"github.com/nuts-foundation/go-did/vc"
 )
 
 // groupCandidates is a struct that holds all InputDescriptor/VC candidates for a group
@@ -177,7 +178,7 @@ func apply[S ~[]E, E selectable](list S, submissionRequirement SubmissionRequire
 			returnVCs = append(returnVCs, member.flatten()...)
 			index++
 		}
-		if index == *submissionRequirement.Max {
+		if submissionRequirement.Max != nil && index == *submissionRequirement.Max {
 			// we have enough to fulfill the max requirement, stop
 			break
 		}
