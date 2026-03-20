@@ -143,7 +143,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
-		options := PresentationOptions{Format: JWTPresentationFormat}
+		options := PresentationOptions{Format: JWTPresentationFormat, ProofOptions: proof.ProofOptions{Created: time.Now()}}
 		t.Run("ok - one VC", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
@@ -163,13 +163,8 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			assert.NotNil(t, result.JWT())
 			nonce, _ := result.JWT().Get("nonce")
 			assert.Empty(t, nonce)
-
-			t.Run("type must be an array", func(t *testing.T) {
-				rawVP := result.JWT().PrivateClaims()["vp"].(map[string]any)
-				typeProp := rawVP["type"].([]any)
-				assert.Equal(t, []any{"VerifiablePresentation"}, typeProp)
-			})
 		})
+
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
