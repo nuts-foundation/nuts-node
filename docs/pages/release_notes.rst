@@ -6,7 +6,7 @@ Release notes
 Peanut (v6.2.0)
 ****************
 
-Release date: 2026-03-21
+Release date: 2026-03-20
 
 ## New Contributors
 * @nollidnosnhoj made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/3935
