@@ -32,7 +32,7 @@ Release date: 2026-03-21
 * Set deployment strategy to "Recreate" in nuts-node Helm chart deployment by @rolandgroen in https://github.com/nuts-foundation/nuts-node/pull/3936
 * feat: add pod labels to helm chart values. by @nollidnosnhoj in https://github.com/nuts-foundation/nuts-node/pull/3935
 
-**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/V6.1...v6.2.0
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.13...v6.2.0
 
 ****************
 Peanut (v6.1.13)
