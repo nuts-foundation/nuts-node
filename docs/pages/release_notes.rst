@@ -3,6 +3,38 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.0)
+****************
+
+Release date: 2026-03-20
+
+## New Contributors
+* @nollidnosnhoj made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/3935
+* @wronghost made their first contribution in https://github.com/nuts-foundation/nuts-node/pull/4036
+
+## New features
+* feat(tracing): add OpenTelemetry tracing support by @JorisHeadease in https://github.com/nuts-foundation/nuts-node/pull/3946
+* Build and publish binaries to GH Releases by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3849
+* Add support for AWS IAM authentication to RDS instances by @wronghost in https://github.com/nuts-foundation/nuts-node/pull/4036
+* #4042: allow BBolt lock timeout to be configured (backport to master) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4044
+
+## What's Changed
+* Add index on subject with org credential by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/3802
+* VDR: Use join instead of N+1 query for one-to-X relations by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3815
+* #3967: get credential status from local store for issued VCs (did:web) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3969
+* #3986: Pass correct wallet DID in OpenID4VCI proofs by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3987
+* Surface DID resolution errors in VP verification failures by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/3979
+
+## Minor fixes/changes
+* Use root user in performance analyzer by @gerardsn in https://github.com/nuts-foundation/nuts-node/pull/3775
+* Upgrade dev-image Dockerfile to stable-slim by @confiks in https://github.com/nuts-foundation/nuts-node/pull/3886
+* feat: add extraEnv to helm chart values by @dmeijboom in https://github.com/nuts-foundation/nuts-node/pull/3924
+* Set deployment strategy to "Recreate" in nuts-node Helm chart deployment by @rolandgroen in https://github.com/nuts-foundation/nuts-node/pull/3936
+* feat: add pod labels to helm chart values. by @nollidnosnhoj in https://github.com/nuts-foundation/nuts-node/pull/3935
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.1.13...v6.2.0
+
+****************
 Peanut (v6.1.13)
 ****************
 
