@@ -209,4 +209,33 @@ func TestMatch(t *testing.T) {
 
 		assert.Empty(t, result)
 	})
+	t.Run("empty credentials list returns empty", func(t *testing.T) {
+		query := CredentialQuery{
+			ID:     "test",
+			Claims: []ClaimsQuery{{Path: []string{"credentialSubject", "id"}, Values: []any{"x"}}},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{})
+
+		assert.Empty(t, result)
+	})
+	t.Run("multiple credentials returns only matching ones", func(t *testing.T) {
+		match := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{{"patientId": "123"}},
+		}
+		noMatch := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{{"patientId": "456"}},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{noMatch, match, noMatch})
+
+		assert.Len(t, result, 1)
+		assert.Equal(t, match, result[0])
+	})
 }
