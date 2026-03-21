@@ -289,4 +289,38 @@ func TestMatch(t *testing.T) {
 
 		assert.Empty(t, result)
 	})
+	t.Run("claim without values matches if field exists", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "anything"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "patientId"}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("claim without values does not match if field missing", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"otherField": "value"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "patientId"}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Empty(t, result)
+	})
 }
