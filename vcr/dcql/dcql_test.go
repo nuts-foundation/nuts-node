@@ -135,4 +135,46 @@ func TestMatch(t *testing.T) {
 
 		assert.Empty(t, result)
 	})
+	t.Run("multiple claims use AND semantics — all match", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"patientId": "123",
+					"type":      "pharmacy",
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []string{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("multiple claims use AND semantics — one fails", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"patientId": "123",
+					"type":      "hospital",
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []string{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Empty(t, result)
+	})
 }
