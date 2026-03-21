@@ -67,4 +67,32 @@ func TestMatch(t *testing.T) {
 
 		assert.Empty(t, result)
 	})
+	t.Run("nested path resolves correctly", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"hasEnrollment": map[string]any{
+						"patient": map[string]any{
+							"identifier": map[string]any{
+								"value": "123456789",
+							},
+						},
+					},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{
+					Path:   []string{"credentialSubject", "hasEnrollment", "patient", "identifier", "value"},
+					Values: []any{"123456789"},
+				},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
 }
