@@ -47,4 +47,24 @@ func TestMatch(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, credential, result[0])
 	})
+	t.Run("single claim with non-matching value returns empty", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "123456789"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{
+					Path:   []string{"credentialSubject", "patientId"},
+					Values: []any{"999999999"},
+				},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Empty(t, result)
+	})
 }
