@@ -95,4 +95,44 @@ func TestMatch(t *testing.T) {
 
 		assert.Len(t, result, 1)
 	})
+	t.Run("multiple values use OR semantics", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"postalCode": "90210"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{
+					Path:   []string{"credentialSubject", "postalCode"},
+					Values: []any{"90210", "90211"},
+				},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("multiple values none matching returns empty", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"postalCode": "12345"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{
+					Path:   []string{"credentialSubject", "postalCode"},
+					Values: []any{"90210", "90211"},
+				},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Empty(t, result)
+	})
 }
