@@ -238,4 +238,55 @@ func TestMatch(t *testing.T) {
 		assert.Len(t, result, 1)
 		assert.Equal(t, match, result[0])
 	})
+	t.Run("integer value matching", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"age": float64(42)},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "age"}, Values: []any{float64(42)}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("boolean value matching", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"active": true},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "active"}, Values: []any{true}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
+	})
+	t.Run("boolean value mismatch", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"active": false},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"credentialSubject", "active"}, Values: []any{true}},
+			},
+		}
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Empty(t, result)
+	})
 }
