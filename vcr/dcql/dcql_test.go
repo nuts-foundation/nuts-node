@@ -44,8 +44,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.Equal(t, credential, result[0])
 	})
@@ -65,8 +66,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("nested path resolves correctly", func(t *testing.T) {
@@ -93,8 +95,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("multiple values use OR semantics", func(t *testing.T) {
@@ -113,8 +116,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("multiple values none matching returns empty", func(t *testing.T) {
@@ -133,8 +137,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("multiple claims use AND semantics — all match", func(t *testing.T) {
@@ -154,8 +159,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("multiple claims use AND semantics — one fails", func(t *testing.T) {
@@ -175,8 +181,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("missing field in credential does not match", func(t *testing.T) {
@@ -192,8 +199,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("empty credentialSubject does not match", func(t *testing.T) {
@@ -207,8 +215,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("empty credentials list returns empty", func(t *testing.T) {
@@ -217,8 +226,9 @@ func TestMatch(t *testing.T) {
 			Claims: []ClaimsQuery{{Path: []string{"credentialSubject", "id"}, Values: []any{"x"}}},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{})
+		result, err := Match(query, []vc.VerifiableCredential{})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("multiple credentials returns only matching ones", func(t *testing.T) {
@@ -235,8 +245,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{noMatch, match, noMatch})
+		result, err := Match(query, []vc.VerifiableCredential{noMatch, match, noMatch})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 		assert.Equal(t, match, result[0])
 	})
@@ -253,8 +264,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("boolean value matching", func(t *testing.T) {
@@ -270,8 +282,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("boolean value mismatch", func(t *testing.T) {
@@ -287,8 +300,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	t.Run("claim without values matches if field exists", func(t *testing.T) {
@@ -304,8 +318,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
 	t.Run("claim without values does not match if field missing", func(t *testing.T) {
@@ -321,8 +336,9 @@ func TestMatch(t *testing.T) {
 			},
 		}
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
 	// This test verifies that matching works correctly when both the query and credential
@@ -358,8 +374,40 @@ func TestMatch(t *testing.T) {
 		}`), &query)
 		require.NoError(t, err)
 
-		result := Match(query, []vc.VerifiableCredential{credential})
+		result, err := Match(query, []vc.VerifiableCredential{credential})
 
+		require.NoError(t, err)
 		assert.Len(t, result, 1)
+	})
+	t.Run("invalid credential query ID returns error", func(t *testing.T) {
+		query := CredentialQuery{
+			ID:     "invalid id!",
+			Claims: []ClaimsQuery{},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{})
+
+		assert.EqualError(t, err, "invalid credential query id: must consist of alphanumeric, underscore, or hyphen characters")
+	})
+	t.Run("empty credential query ID returns error", func(t *testing.T) {
+		query := CredentialQuery{
+			ID:     "",
+			Claims: []ClaimsQuery{},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{})
+
+		assert.EqualError(t, err, "invalid credential query id: must be a non-empty string")
+	})
+	t.Run("valid credential query ID with hyphens and underscores", func(t *testing.T) {
+		query := CredentialQuery{
+			ID:     "id_patient-enrollment_01",
+			Claims: []ClaimsQuery{},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
 	})
 }
