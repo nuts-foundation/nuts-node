@@ -43,6 +43,7 @@
 package dcql
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -120,34 +121,37 @@ func matchesClaim(claim ClaimsQuery, cred vc.VerifiableCredential) bool {
 	return false
 }
 
+// resolvePath resolves a Claims Path Pointer (OpenID4VP section 7) against a credential.
+// The path starts at the credential root. Returns nil if the path cannot be resolved.
 func resolvePath(path []string, cred vc.VerifiableCredential) any {
 	if len(path) == 0 {
 		return nil
 	}
-	// The first path element "credentialSubject" maps to the CredentialSubject field
-	if path[0] == "credentialSubject" {
-		if len(cred.CredentialSubject) == 0 {
-			return nil
-		}
-		return resolveInMap(path[1:], cred.CredentialSubject[0])
+	// Marshal credential to a generic JSON map so we can walk it from the root
+	data, err := json.Marshal(cred)
+	if err != nil {
+		return nil
 	}
-	return nil
+	var root map[string]any
+	if err := json.Unmarshal(data, &root); err != nil {
+		return nil
+	}
+	return resolveInValue(path, root)
 }
 
-func resolveInMap(path []string, m map[string]any) any {
-	if len(path) == 0 || m == nil {
-		return nil
-	}
-	value, ok := m[path[0]]
-	if !ok {
-		return nil
-	}
-	if len(path) == 1 {
+// resolveInValue resolves a path against an arbitrary JSON value.
+func resolveInValue(path []string, value any) any {
+	if len(path) == 0 {
 		return value
 	}
-	nested, ok := value.(map[string]any)
-	if !ok {
+	switch v := value.(type) {
+	case map[string]any:
+		child, ok := v[path[0]]
+		if !ok {
+			return nil
+		}
+		return resolveInValue(path[1:], child)
+	default:
 		return nil
 	}
-	return resolveInMap(path[1:], nested)
 }

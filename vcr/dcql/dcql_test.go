@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -373,6 +374,22 @@ func TestMatch(t *testing.T) {
 			]
 		}`), &query)
 		require.NoError(t, err)
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+	t.Run("path resolves root-level fields", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			Issuer: ssi.MustParseURI("did:x509:0:sha256:abc123"),
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []string{"issuer"}, Values: []any{"did:x509:0:sha256:abc123"}},
+			},
+		}
 
 		result, err := Match(query, []vc.VerifiableCredential{credential})
 
