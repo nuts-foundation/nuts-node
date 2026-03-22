@@ -19,10 +19,12 @@
 package dcql
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMatch(t *testing.T) {
@@ -322,5 +324,42 @@ func TestMatch(t *testing.T) {
 		result := Match(query, []vc.VerifiableCredential{credential})
 
 		assert.Empty(t, result)
+	})
+	// This test verifies that matching works correctly when both the query and credential
+	// are deserialized from JSON, as they would be in production. JSON unmarshalling can
+	// produce different Go types than hand-constructed structs (e.g., nested maps vs typed
+	// fields), so this catches type mismatches that unit tests with Go literals would miss.
+	t.Run("JSON-deserialized query matches JSON-deserialized credential", func(t *testing.T) {
+		var credential vc.VerifiableCredential
+		err := credential.UnmarshalJSON([]byte(`{
+			"type": ["VerifiableCredential", "PatientEnrollmentCredential"],
+			"credentialSubject": [{
+				"hasEnrollment": {
+					"patient": {
+						"identifier": {
+							"system": "http://fhir.nl/fhir/NamingSystem/bsn",
+							"value": "123456789"
+						}
+					}
+				}
+			}]
+		}`))
+		require.NoError(t, err)
+
+		var query CredentialQuery
+		err = json.Unmarshal([]byte(`{
+			"id": "id_patient_enrollment",
+			"claims": [
+				{
+					"path": ["credentialSubject", "hasEnrollment", "patient", "identifier", "value"],
+					"values": ["123456789"]
+				}
+			]
+		}`), &query)
+		require.NoError(t, err)
+
+		result := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.Len(t, result, 1)
 	})
 }
