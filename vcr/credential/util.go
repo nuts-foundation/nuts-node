@@ -27,13 +27,13 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
 // ResolveSubjectDID resolves the subject DID from the given credentials.
+// It skips credentials that don't have a credentialSubject.id (e.g., DeziUserCredential).
 // It returns an error if:
 // - the credentials do not have the same subject DID.
-// - the credentials do not have a subject DID.
+// - none of the credentials have a subject DID.
 func ResolveSubjectDID(credentials ...vc.VerifiableCredential) (*did.DID, error) {
 	var subjectID did.DID
 	for _, credential := range credentials {
@@ -119,17 +119,15 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 // It only does this for unsigned JSON-LD credentials and DeziUserCredentials (derived proof). DO NOT USE THIS WITH JWT_VC CREDENTIALS.
 func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
 	if len(credential.Proof) > 0 {
-		var proof []proof.LDProof
-		_ = credential.UnmarshalProofValue(&proof)
-		isDeziTokenCredential := false
-		for _, p := range proof {
-			if p.Type == "DeziIDJWT" {
-				// derived proof, do the auto-correction
-				isDeziTokenCredential = true
+		proofs, _ := credential.Proofs()
+		requiresCorrection := false
+		for _, p := range proofs {
+			if slices.Contains(DeziIDJWTProofTypes(), string(p.Type)) {
+				requiresCorrection = true
 				break
 			}
 		}
-		if !isDeziTokenCredential {
+		if !requiresCorrection {
 			return credential
 		}
 	}
