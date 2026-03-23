@@ -108,15 +108,27 @@ func matchesAll(claims []ClaimsQuery, cred vc.VerifiableCredential) bool {
 }
 
 func matchesClaim(claim ClaimsQuery, cred vc.VerifiableCredential) bool {
-	value := resolvePath(claim.Path, cred)
-	if value == nil {
+	resolved := resolvePath(claim.Path, cred)
+	if resolved == nil {
 		return false
 	}
 	if len(claim.Values) == 0 {
 		return true
 	}
+	// If resolved is a slice (from null wildcard), check if any element matches any expected value
+	if values, ok := resolved.([]any); ok {
+		for _, v := range values {
+			for _, expected := range claim.Values {
+				if v == expected {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	// Single value
 	for _, expected := range claim.Values {
-		if value == expected {
+		if resolved == expected {
 			return true
 		}
 	}
@@ -174,6 +186,27 @@ func resolveInValue(path []any, value any) any {
 	case float64:
 		// JSON unmarshalling produces float64 for numbers
 		return resolveArrayIndex(path[1:], value, int(element))
+	case nil:
+		// Null wildcard: select all elements of the array
+		arr, ok := value.([]any)
+		if !ok {
+			return nil
+		}
+		if len(path) == 1 {
+			// Wildcard is the last element — return all array values
+			return arr
+		}
+		// Wildcard with remaining path — resolve each element and collect results
+		var results []any
+		for _, item := range arr {
+			if resolved := resolveInValue(path[1:], item); resolved != nil {
+				results = append(results, resolved)
+			}
+		}
+		if len(results) == 0 {
+			return nil
+		}
+		return results
 	default:
 		return nil
 	}

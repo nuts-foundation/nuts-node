@@ -422,6 +422,97 @@ func TestMatch(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
+	t.Run("null wildcard matches value anywhere in array", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"roleCodes": []any{"01.015", "30.000", "17.000"},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// null wildcard selects all elements — match if "30.000" (Verpleegkundige) is anywhere in the array
+				{Path: []any{"credentialSubject", "roleCodes", nil}, Values: []any{"30.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+	t.Run("null wildcard does not match when value absent from array", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"roleCodes": []any{"01.015", "30.000", "17.000"},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// "89.000" (Dietist) is not in the array
+				{Path: []any{"credentialSubject", "roleCodes", nil}, Values: []any{"89.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("null wildcard in middle of path matches nested field in array elements", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"qualifications": []any{
+						map[string]any{"roleCode": "01.015", "name": "Huisarts"},
+						map[string]any{"roleCode": "30.000", "name": "Verpleegkundige"},
+						map[string]any{"roleCode": "17.000", "name": "Apotheker"},
+					},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Wildcard selects all qualifications, then match on nested roleCode
+				{Path: []any{"credentialSubject", "qualifications", nil, "roleCode"}, Values: []any{"30.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+	t.Run("null wildcard in middle of path does not match when nested field absent", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"qualifications": []any{
+						map[string]any{"roleCode": "01.015", "name": "Huisarts"},
+						map[string]any{"roleCode": "30.000", "name": "Verpleegkundige"},
+					},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// "89.000" (Dietist) is not in any qualification's roleCode
+				{Path: []any{"credentialSubject", "qualifications", nil, "roleCode"}, Values: []any{"89.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
 	t.Run("path resolves root-level fields", func(t *testing.T) {
 		credential := vc.VerifiableCredential{
 			Issuer: ssi.MustParseURI("did:x509:0:sha256:abc123"),
