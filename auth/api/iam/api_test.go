@@ -1002,6 +1002,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			holderSubjectID,
 			verifierURL.String(),
 			"first second",
+			"", // policyId
 			true,
 			gomock.Any(), // The id_token is converted to a DeziUserCredential
 		).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
