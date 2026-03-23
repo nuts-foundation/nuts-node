@@ -20,6 +20,9 @@ package pe
 
 import (
 	"encoding/json"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -27,8 +30,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestParsePresentationSubmission(t *testing.T) {
@@ -189,7 +190,7 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 			assert.Len(t, signInstruction.VerifiableCredentials, 1)
 			assert.Equal(t, holder1, signInstruction.Holder)
 			require.Len(t, submission.DescriptorMap, 1)
-			assert.Equal(t, "$.verifiableCredential", submission.DescriptorMap[0].Path)
+			assert.Equal(t, "$.verifiableCredential[0]", submission.DescriptorMap[0].Path)
 		})
 	})
 }

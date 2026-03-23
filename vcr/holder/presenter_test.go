@@ -20,6 +20,9 @@ package holder
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -39,8 +42,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"testing"
-	"time"
 )
 
 func TestPresenter_buildPresentation(t *testing.T) {
@@ -142,7 +143,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 		})
 	})
 	t.Run("JWT", func(t *testing.T) {
-		options := PresentationOptions{Format: JWTPresentationFormat}
+		options := PresentationOptions{Format: JWTPresentationFormat, ProofOptions: proof.ProofOptions{Created: time.Now()}}
 		t.Run("ok - one VC", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
@@ -163,6 +164,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			nonce, _ := result.JWT().Get("nonce")
 			assert.Empty(t, nonce)
 		})
+
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 

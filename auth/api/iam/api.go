@@ -29,13 +29,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -729,31 +731,48 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
-	tokenCache := r.accessTokenCache()
-	cacheKey := accessTokenRequestCacheKey(request)
-	if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
-		// try to retrieve token from cache
-		tokenCacheResult := new(TokenResponse)
-		err = tokenCache.Get(cacheKey, tokenCacheResult)
-		if err == nil {
-			// adjust tokenCacheResult.ExpiresIn to the remaining time
-			expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
-			tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
-			return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
-		} else if !errors.Is(err, storage.ErrNotFound) {
-			// only log error, don't fail
-			log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
-		}
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//tokenCache := r.accessTokenCache()
+	//cacheKey := accessTokenRequestCacheKey(request)
+	//if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
+	//	// try to retrieve token from cache
+	//	tokenCacheResult := new(TokenResponse)
+	//	err = tokenCache.Get(cacheKey, tokenCacheResult)
+	//	if err == nil {
+	//		// adjust tokenCacheResult.ExpiresIn to the remaining time
+	//		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+	//		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+	//		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
+	//	} else if !errors.Is(err, storage.ErrNotFound) {
+	//		// only log error, don't fail
+	//		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+	//	}
+	//}
 
 	var credentials []VerifiableCredential
 	if request.Body.Credentials != nil {
 		credentials = *request.Body.Credentials
 	}
+
+	idTokenCredentialIdx := -1
+	if request.Body.IdToken != nil {
+		idTokenCredential, err := credential.CreateDeziUserCredential(*request.Body.IdToken)
+		if err != nil {
+			return nil, core.InvalidInputError("failed to create id_token credential: %w", err)
+		}
+		credentials = append(credentials, *idTokenCredential)
+		idTokenCredentialIdx = len(credentials) - 1
+	}
+
 	// assert that self-asserted credentials do not contain an issuer or credentialSubject.id. These values must be set
 	// by the nuts-node to build the correct wallet for a DID. See https://github.com/nuts-foundation/nuts-node/issues/3696
-	// As a sideeffect it is no longer possible to pass signed credentials to this API.
-	for _, cred := range credentials {
+	// As a side effect it is no longer possible to pass signed credentials to this API.
+	for i, cred := range credentials {
+		// But not for id_token credentials, these are externally signed, meaning they have an issuer
+		if i == idTokenCredentialIdx {
+			continue
+		}
+
 		var credentialSubject []map[string]interface{}
 		if err := cred.UnmarshalCredentialSubject(&credentialSubject); err != nil {
 			// extremely unlikely
@@ -774,7 +793,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		useDPoP = false
 	}
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	var policyId string
+	if request.Body.PolicyId != nil {
+		policyId = *request.Body.PolicyId
+	}
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, policyId, useDPoP, credentials)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -785,12 +808,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 	tokenResult.ExpiresAt = to.Ptr(int(time.Now().Add(ttl).Unix()))
 	// we reduce the ttl by accessTokenCacheOffset to make sure the token is expired when the cache expires
-	ttl -= accessTokenCacheOffset
-	err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
-	if err != nil {
-		// only log error, don't fail
-		log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//ttl -= accessTokenCacheOffset
+	//err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
+	//if err != nil {
+	//	// only log error, don't fail
+	//	log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
+	//}
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 

@@ -27,7 +27,7 @@ import (
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
-var SupportedAlgorithms = []jwa.SignatureAlgorithm{jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
+var SupportedAlgorithms = []jwa.SignatureAlgorithm{jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512, jwa.RS256, jwa.PS256, jwa.PS384, jwa.PS512}
 
 const DefaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
 const DefaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
