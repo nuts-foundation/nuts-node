@@ -54,7 +54,7 @@ func TestCreateDeziIDToken(t *testing.T) {
 	t.Run("version 0.7", func(t *testing.T) {
 		const input = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjMyNWRlOWFiLTQzMzAtNGMwMS04MjRlLWQ5YmQwYzM3Y2NhMCIsImprdSI6Imh0dHBzOi8vW2V4dGVybiBlbmRwb2ludF0vandrcy5qc29uIiwidHlwIjoiSldUIn0.eyJqdGkiOiI2MWIxZmFmYy00ZWM3LTQ0ODktYTI4MC04ZDBhNTBhM2Q1YTkiLCJpc3MiOiJhYm9ubmVlLmRlemkubmwiLCJleHAiOjE3NDAxMzExNzYsIm5iZiI6MTczMjE4MjM3NiwianNvbl9zY2hlbWEiOiJodHRwczovL3d3dy5kZXppLm5sL2pzb25fc2NoZW1hcy92ZXJrbGFyaW5nX3YxLmpzb24iLCJsb2FfZGV6aSI6Imh0dHA6Ly9laWRhcy5ldXJvcGUuZXUvTG9BL2hpZ2giLCJ2ZXJrbGFyaW5nX2lkIjoiODUzOWY3NWQtNjM0Yy00N2RiLWJiNDEtMjg3OTFkZmQxZjhkIiwiZGV6aV9udW1tZXIiOiIxMjM0NTY3ODkiLCJ2b29ybGV0dGVycyI6IkEuQi4iLCJ2b29ydm9lZ3NlbCI6bnVsbCwiYWNodGVybmFhbSI6IlpvcmdtZWRld2Vya2VyIiwiYWJvbm5lZV9udW1tZXIiOiI4NzY1NDMyMSIsImFib25uZWVfbmFhbSI6IlpvcmdhYW5iaWVkZXIiLCJyb2xfY29kZSI6IjAxLjAwMCIsInJvbF9uYWFtIjoiQXJ0cyIsInJvbF9jb2RlX2Jyb24iOiJodHRwOi8vd3d3LmRlemkubmwvcm9sX2NvZGVfYnJvbi9iaWciLCJyZXZvY2F0aWVfY29udHJvbGVfdXJpIjoiaHR0cHM6Ly9hdXRoLmRlemkubmwvcmV2b2NhdGllLXN0YXR1cy92MS92ZXJrbGFyaW5nLzg1MzlmNzVkLTYzNGMtNDdkYi1iYjQxLTI4NzkxZGZkMWY4ZCJ9.vegszRMWJjE-SBpfPO9lxN_fEY814ezsXRYhLXorPq3j_B_wlv4A92saasdEWrTALbl9Shux0i6JvkbouqvZ_oJpOUfJxWFGFfGGCuiMhiz4k1zm665i98e2xTqFzqjQySu_gup3wYm24FmnzbHxy02RzM3pXvQCsk_jIfQ1YcUZmNmXa5hR4DEn4Z9STLHd2HwyL6IKafEGl-R_kgbAnArSHQvuLw0Fpx62QD0tr5d3PbzPirBdkuy4G1l0umb69EjZMZ5MyIl8Y_irhQ9IFomAeSlU_zZp6UojVIOnCY2gL5EMc_8B1PDC6R_C--quGoh14jiSOJAeYSf_9ETjgQ"
 
-		actual, err := CreateDeziIDTokenCredential(input)
+		actual, err := CreateDeziUserCredential(input)
 		require.NoError(t, err)
 
 		require.Len(t, actual.CredentialSubject, 1)
@@ -66,7 +66,9 @@ func TestCreateDeziIDToken(t *testing.T) {
 		assert.Equal(t, "A.B.", employee["initials"])
 		assert.Equal(t, "Zorgmedewerker", employee["surname"])
 		assert.Equal(t, "", employee["surnamePrefix"]) // voorvoegsel is null in this token
-		assert.Equal(t, []any{"01.000"}, employee["roles"])
+		assert.Equal(t, "01.000", employee["role"])
+		assert.Equal(t, "http://www.dezi.nl/rol_code_bron/big", employee["role_registry"])
+		assert.Equal(t, "Arts", employee["role_name"])
 
 		t.Run("from online test environment", func(t *testing.T) {
 			// Payload:
@@ -91,7 +93,7 @@ func TestCreateDeziIDToken(t *testing.T) {
 			//}
 			const input = "eyJhbGciOiJSUzI1NiIsImtpZCI6ImFlNDY4MjlkLWM4ZTgtNDhhMC1iZDZhLTIxYjhhMDdiOGNiMiIsInR5cCI6IkpXVCIsImprdSI6Imh0dHBzOi8vYWNjZXB0YXRpZS5hdXRoLmRlemkubmwvZGV6aS9qd2tzLmpzb24ifQ.eyJqc29uX3NjaGVtYSI6Imh0dHBzOi8vd3d3LmRlemkubmwvanNvbl9zY2hlbWFzL3YxL3ZlcmtsYXJpbmcuanNvbiIsImxvYV9kZXppIjoiaHR0cDovL2VpZGFzLmV1cm9wYS5ldS9Mb0EvaGlnaCIsImp0aSI6ImY0MTBiMjU1LTZiMDctNDE4Mi1hYzVjLWM0MWYwMmJkMzk5NSIsInZlcmtsYXJpbmdfaWQiOiIwZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJkZXppX251bW1lciI6IjkwMDAyMjE1OSIsInZvb3JsZXR0ZXJzIjoiSi4iLCJ2b29ydm9lZ3NlbCI6bnVsbCwiYWNodGVybmFhbSI6IjkwMDE3MzYyIiwiYWJvbm5lZV9udW1tZXIiOiI5MDAwMDM4MCIsImFib25uZWVfbmFhbSI6IlTDqXN0IFpvcmdpbnN0ZWxsaW5nIDAxIiwicm9sX2NvZGUiOiI5Mi4wMDAiLCJyb2xfbmFhbSI6Ik1vbmRoeWdpw6tuaXN0Iiwicm9sX2NvZGVfYnJvbiI6Imh0dHA6Ly93d3cuZGV6aS5ubC9yb2xfYnJvbi9iaWciLCJzdGF0dXNfdXJpIjoiaHR0cHM6Ly9hY2NlcHRhdGllLmF1dGguZGV6aS5ubC9zdGF0dXMvdjEvdmVya2xhcmluZy8wZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJuYmYiOjE3NzI2NjUyMDAsImV4cCI6MTc4MDYxMDQwMCwiaXNzIjoiaHR0cHM6Ly9hYm9ubmVlLmRlemkubmwifQ.ipR4stqmO8MOmmapukeQxIOVpwO_Ipjgy5BHjUsdCvuFObhVrj48AQCndtV48D_Ol1hXO4s9p4b-1epjEiobjEmEO0JQNU0BAOGG0eWl8MujfhzlDnmwo5AEtvdgTjlnBaLReVu1BJ8KYgc1DT7JhCukq9z5wZLqU1aqtETleX2-s-dNdTdwrUjJa1DvIgO-DQ_rCp-1tcfkr2rtyW16ztyI88Q2YdBkNGcG0if5aYZHpcQ4-121WBObUa0FhswS7EHni5Ru8KwZNq0HC8OLWw3YqLrYHTFe2K0GQjMtEO6zNxApbMXWKlgeWdf7Ry2rPpe2l9Z5NuMrFiB8JChZsQ"
 
-			actual, err := CreateDeziIDTokenCredential(input)
+			actual, err := CreateDeziUserCredential(input)
 			require.NoError(t, err)
 
 			require.Len(t, actual.CredentialSubject, 1)
@@ -103,7 +105,9 @@ func TestCreateDeziIDToken(t *testing.T) {
 			assert.Equal(t, "J.", employee["initials"])
 			assert.Equal(t, "90017362", employee["surname"])
 			assert.Equal(t, "", employee["surnamePrefix"]) // voorvoegsel is null in this token
-			assert.Equal(t, []any{"92.000"}, employee["roles"])
+			assert.Equal(t, "92.000", employee["role"])
+			assert.Equal(t, "http://www.dezi.nl/rol_bron/big", employee["role_registry"])
+			assert.Equal(t, "Mondhygiënist", employee["role_name"])
 		})
 	})
 }
@@ -213,7 +217,7 @@ func TestDeziIDToken07CredentialValidator(t *testing.T) {
 				deziAttestation = string(tokenBytes)
 			}
 
-			cred, err := CreateDeziIDTokenCredential(deziAttestation)
+			cred, err := CreateDeziUserCredential(deziAttestation)
 			require.NoError(t, err)
 
 			if tt.modifyCred != nil {
@@ -379,7 +383,7 @@ D9F1eUIqKct0yyJPPXH3lDkzqqtX4DLcopo=`
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tokenBytes := tt.createToken(t)
-			cred, err := CreateDeziIDTokenCredential(string(tokenBytes))
+			cred, err := CreateDeziUserCredential(string(tokenBytes))
 			require.NoError(t, err)
 
 			if tt.modifyCred != nil {

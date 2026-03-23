@@ -37,11 +37,13 @@ func (d DeziIDTokenSubject) MarshalJSON() ([]byte, error) {
 }
 
 type HealthcareWorker struct {
-	Identifier    string   `json:"identifier"`
-	Initials      string   `json:"initials"`
-	SurnamePrefix string   `json:"surnamePrefix"`
-	Surname       string   `json:"surname"`
-	Roles         []string `json:"roles"`
+	Identifier    string `json:"identifier"`
+	Initials      string `json:"initials"`
+	SurnamePrefix string `json:"surnamePrefix"`
+	Surname       string `json:"surname"`
+	Role          string `json:"role,omitempty"`
+	RoleRegistry  string `json:"role_registry,omitempty"`
+	RoleName      string `json:"role_name,omitempty"`
 }
 
 func (d HealthcareWorker) MarshalJSON() ([]byte, error) {
@@ -56,10 +58,10 @@ func (d HealthcareWorker) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// CreateDeziIDTokenCredential creates a Verifiable Credential from a Dezi id_token JWT. It supports the following spec versions:
+// CreateDeziUserCredential creates a Verifiable Credential from a Dezi id_token JWT. It supports the following spec versions:
 // - april 2024
 // - 15 jan 2026/v0.7: https://www.dezi.nl/documenten/2024/04/24/koppelvlakspecificatie-dezi-voor-platform--en-softwareleveranciers
-func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCredential, error) {
+func CreateDeziUserCredential(idTokenSerialized string) (*vc.VerifiableCredential, error) {
 	// Parse without signature or time validation - those are validated elsewhere
 	idToken, err := jwt.Parse([]byte(idTokenSerialized), jwt.WithVerify(false), jwt.WithValidate(false))
 	if err != nil {
@@ -71,41 +73,51 @@ func CreateDeziIDTokenCredential(idTokenSerialized string) (*vc.VerifiableCreden
 		return nil, err
 	}
 
+	// Determine proof type based on version
+	var proofTypeName string
+	switch version {
+	case "2024":
+		proofTypeName = "DeziIDJWT2024"
+	case "0.7":
+		proofTypeName = "DeziIDJWT07"
+	default:
+		return nil, fmt.Errorf("unsupported Dezi id_token version: %s", version)
+	}
+
 	credentialMap := map[string]any{
 		"@context": []any{
 			"https://www.w3.org/2018/credentials/v1",
 			// TODO: Create JSON-LD context?
 		},
-		"type":              []string{"VerifiableCredential", "DeziIDTokenCredential"},
+		"type":              []string{"VerifiableCredential", "DeziUserCredential"},
 		"id":                idToken.JwtID(),
 		"issuer":            idToken.Issuer(),
 		"issuanceDate":      idToken.NotBefore().Format(time.RFC3339Nano),
 		"expirationDate":    idToken.Expiration().Format(time.RFC3339Nano),
 		"credentialSubject": subject,
 		"proof": deziProofType{
-			Type:    "DeziIDJWT",
-			JWT:     idTokenSerialized,
-			Version: version,
+			Type: proofTypeName,
+			JWT:  idTokenSerialized,
 		},
 	}
 	data, _ := json.Marshal(credentialMap)
 	return vc.ParseVerifiableCredential(string(data))
 }
 
-var _ Validator = DeziIDTokenCredentialValidator{}
+var _ Validator = DeziUserCredentialValidator{}
 
-type DeziIDTokenCredentialValidator struct {
+type DeziUserCredentialValidator struct {
 	trustStore *core.TrustStore
 	// AllowedJKU is a list of allowed jku URLs for fetching JWK Sets (for v0.7 tokens), used to verify Dezi attestations.
 	AllowedJKU []string
 }
 
-func (d DeziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredential) error {
-	proofType, err := parseDeziProofType(credential)
+func (d DeziUserCredentialValidator) Validate(credential vc.VerifiableCredential) error {
+	_, version, err := parseDeziProofType(credential)
 	if err != nil {
 		return err
 	}
-	switch proofType.Version {
+	switch version {
 	case "2024":
 		return deziIDToken2024CredentialValidator{
 			clock:      time.Now,
@@ -117,7 +129,7 @@ func (d DeziIDTokenCredentialValidator) Validate(credential vc.VerifiableCredent
 			allowedJKU: d.AllowedJKU,
 		}.Validate(credential)
 	default:
-		return fmt.Errorf("%w: unsupported Dezi id_token version: %s", errValidation, proofType.Version)
+		return fmt.Errorf("%w: unsupported Dezi id_token version: %s", errValidation, version)
 	}
 }
 
@@ -131,7 +143,7 @@ type deziIDToken2024CredentialValidator struct {
 }
 
 func (d deziIDToken2024CredentialValidator) Validate(credential vc.VerifiableCredential) error {
-	proof, err := parseDeziProofType(credential)
+	proof, _, err := parseDeziProofType(credential)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
@@ -229,7 +241,7 @@ func (d deziIDToken2024CredentialValidator) validateSignature(token jwt.Token, e
 	return nil
 }
 
-// deziIDToken07CredentialValidator validates DeziIDTokenCredential,
+// deziIDToken07CredentialValidator validates DeziUserCredential,
 // according to v0.7 spec of 15-01-2026 (https://www.dezi.nl/documenten/2025/12/15/koppelvlakspecificatie-dezi-voor-platform--en-softwareleveranciers)
 type deziIDToken07CredentialValidator struct {
 	clock      func() time.Time
@@ -238,7 +250,7 @@ type deziIDToken07CredentialValidator struct {
 }
 
 func (d deziIDToken07CredentialValidator) Validate(credential vc.VerifiableCredential) error {
-	proof, err := parseDeziProofType(credential)
+	proof, _, err := parseDeziProofType(credential)
 	if err != nil {
 		return fmt.Errorf("%w: %w", errValidation, err)
 	}
@@ -300,38 +312,37 @@ func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.Verifi
 }
 
 type deziProofType struct {
-	Type    string `json:"type"`
-	JWT     string `json:"jwt"`
-	Version string `json:"version"`
+	Type string `json:"type"`
+	JWT  string `json:"jwt"`
 }
 
-func parseDeziProofType(credential vc.VerifiableCredential) (*deziProofType, error) {
+func parseDeziProofType(credential vc.VerifiableCredential) (*deziProofType, string, error) {
 	var proofs []deziProofType
 	if err := credential.UnmarshalProofValue(&proofs); err != nil {
-		return nil, fmt.Errorf("invalid proof format: %w", err)
+		return nil, "", fmt.Errorf("invalid proof format: %w", err)
 	}
 	if len(proofs) != 1 {
-		return nil, fmt.Errorf("expected exactly one proof, got %d", len(proofs))
+		return nil, "", fmt.Errorf("expected exactly one proof, got %d", len(proofs))
 	}
 	proof := &proofs[0]
-	if proof.Type != "DeziIDJWT" {
-		return nil, fmt.Errorf("invalid proof type: expected 'DeziIDJWT', got '%s'", proof.Type)
+
+	// Derive version from proof type
+	var version string
+	switch proof.Type {
+	case "DeziIDJWT2024":
+		version = "2024"
+	case "DeziIDJWT07":
+		version = "0.7"
+	default:
+		return nil, "", fmt.Errorf("invalid proof type: expected 'DeziIDJWT2024' or 'DeziIDJWT07', got '%s'", proof.Type)
 	}
-	return proof, nil
+
+	return proof, version, nil
 }
 
 // extractDeziIDTokenSubject extracts and validates the subject information from a Dezi id_token JWT.
 // It returns the DeziIDTokenSubject, the detected version ("2024" or "0.7"), and any error encountered.
 func extractDeziIDTokenSubject(idToken jwt.Token) (DeziIDTokenSubject, string, error) {
-	getString := func(claim string) string {
-		value, ok := idToken.Get(claim)
-		if !ok {
-			return ""
-		}
-		result, _ := value.(string)
-		return result
-	}
-
 	// Check if this is v0.7 format (has abonnee_nummer) or 2024 format (has relations)
 	var version string
 	{
@@ -343,85 +354,119 @@ func extractDeziIDTokenSubject(idToken jwt.Token) (DeziIDTokenSubject, string, e
 		}
 	}
 
-	var orgURA, orgName, userID, initials, surname, surnamePrefix string
-	var roles []string
-
 	switch version {
 	case "0.7":
-		orgURA = getString("abonnee_nummer")
-		if orgURA == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'abonnee_nummer' claim")
-		}
-		orgName = getString("abonnee_naam")
-		if orgName == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'abonnee_naam' claim")
-		}
-
-		userID = getString("dezi_nummer")
-		if userID == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'dezi_nummer' claim")
-		}
-		initials = getString("voorletters")
-		if initials == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'voorletters' claim")
-		}
-		surname = getString("achternaam")
-		if surname == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'achternaam' claim")
-		}
-		surnamePrefix = getString("voorvoegsel") // Can be null/empty in v0.7
-
-		// In v0.7, rol_code is a single string, not an array
-		rolCode := getString("rol_code")
-		if rolCode != "" {
-			roles = []string{rolCode}
-		}
+		return extractDezi07Subject(idToken)
 	case "2024":
-		relationsRaw, _ := idToken.Get("relations")
-		relations, ok := relationsRaw.([]any)
-		if !ok || len(relations) != 1 {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations' claim invalid or missing (expected array of objects with single item)")
-		}
-		relation, ok := relations[0].(map[string]any)
-		if !ok {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations' claim invalid or missing (expected array of objects with single item)")
-		}
-		rolesAny, ok := relation["roles"].([]any)
-		if !ok {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations[0].roles' claim invalid or missing (expected array of strings)")
-		}
-		for i, roleAny := range rolesAny {
-			role, ok := roleAny.(string)
-			if !ok {
-				return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations[0].roles[%d]' claim invalid (expected string)", i)
-			}
-			roles = append(roles, role)
-		}
-
-		orgURA, ok = relation["ura"].(string)
-		if !ok || orgURA == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations[0].ura' claim invalid or missing (expected non-empty string)")
-		}
-		orgName, _ = relation["entity_name"].(string)
-
-		userID = getString("dezi_nummer")
-		if userID == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'dezi_nummer' claim")
-		}
-		initials = getString("initials")
-		if initials == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'initials' claim")
-		}
-		surname = getString("surname")
-		if surname == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'surname' claim")
-		}
-		surnamePrefix = getString("surname_prefix")
-		if surnamePrefix == "" {
-			return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'surname_prefix' claim")
-		}
+		return extractDezi2024Subject(idToken)
 	default:
 		return DeziIDTokenSubject{}, "", fmt.Errorf("unsupported Dezi id_token version: %s", version)
+	}
+}
+
+// extractDezi07Subject extracts the subject from a v0.7 Dezi id_token
+func extractDezi07Subject(idToken jwt.Token) (DeziIDTokenSubject, string, error) {
+	getString := func(claim string) string {
+		value, ok := idToken.Get(claim)
+		if !ok {
+			return ""
+		}
+		result, _ := value.(string)
+		return result
+	}
+
+	orgURA := getString("abonnee_nummer")
+	if orgURA == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'abonnee_nummer' claim")
+	}
+	orgName := getString("abonnee_naam")
+	if orgName == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'abonnee_naam' claim")
+	}
+
+	userID := getString("dezi_nummer")
+	if userID == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'dezi_nummer' claim")
+	}
+	initials := getString("voorletters")
+	if initials == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'voorletters' claim")
+	}
+	surname := getString("achternaam")
+	if surname == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'achternaam' claim")
+	}
+	surnamePrefix := getString("voorvoegsel") // Can be null/empty in v0.7
+
+	role := getString("rol_code")
+	roleRegistry := getString("rol_code_bron")
+	roleName := getString("rol_naam")
+
+	return DeziIDTokenSubject{
+		Identifier: orgURA,
+		Name:       orgName,
+		Employee: HealthcareWorker{
+			Identifier:    userID,
+			Initials:      initials,
+			SurnamePrefix: surnamePrefix,
+			Surname:       surname,
+			Role:          role,
+			RoleRegistry:  roleRegistry,
+			RoleName:      roleName,
+		},
+	}, "0.7", nil
+}
+
+// extractDezi2024Subject extracts the subject from a 2024 Dezi id_token
+func extractDezi2024Subject(idToken jwt.Token) (DeziIDTokenSubject, string, error) {
+	getString := func(claim string) string {
+		value, ok := idToken.Get(claim)
+		if !ok {
+			return ""
+		}
+		result, _ := value.(string)
+		return result
+	}
+
+	relationsRaw, _ := idToken.Get("relations")
+	relations, ok := relationsRaw.([]any)
+	if !ok || len(relations) != 1 {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations' claim invalid or missing (expected array of objects with single item)")
+	}
+	relation, ok := relations[0].(map[string]any)
+	if !ok {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations' claim invalid or missing (expected array of objects with single item)")
+	}
+
+	orgURA, ok := relation["ura"].(string)
+	if !ok || orgURA == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token 'relations[0].ura' claim invalid or missing (expected non-empty string)")
+	}
+	orgName, _ := relation["entity_name"].(string)
+
+	userID := getString("dezi_nummer")
+	if userID == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'dezi_nummer' claim")
+	}
+	initials := getString("initials")
+	if initials == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'initials' claim")
+	}
+	surname := getString("surname")
+	if surname == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'surname' claim")
+	}
+	surnamePrefix := getString("surname_prefix")
+	if surnamePrefix == "" {
+		return DeziIDTokenSubject{}, "", fmt.Errorf("id_token missing 'surname_prefix' claim")
+	}
+
+	// In 2024 format, roles is an array - we'll take the first role for now
+	// TODO: Clarify how to handle multiple roles
+	var role string
+	rolesAny, ok := relation["roles"].([]any)
+	if ok && len(rolesAny) > 0 {
+		role, _ = rolesAny[0].(string)
 	}
 
 	return DeziIDTokenSubject{
@@ -432,7 +477,7 @@ func extractDeziIDTokenSubject(idToken jwt.Token) (DeziIDTokenSubject, string, e
 			Initials:      initials,
 			SurnamePrefix: surnamePrefix,
 			Surname:       surname,
-			Roles:         roles,
+			Role:          role,
 		},
-	}, version, nil
+	}, "2024", nil
 }

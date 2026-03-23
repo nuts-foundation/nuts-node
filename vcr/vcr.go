@@ -176,7 +176,7 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 			// in non-strict mode, allow Dezi attestations from acceptance environment
 			allowedJKU = append(allowedJKU, "https://acceptatie.auth.dezi.nl/dezi/jwks.json")
 		}
-		credential.DefaultDeziIDTokenCredentialValidator = credential.DeziIDTokenCredentialValidator{AllowedJKU: allowedJKU}
+		credential.DefaultDeziUserCredentialValidator = credential.DeziUserCredentialValidator{AllowedJKU: allowedJKU}
 	}
 
 	// create issuer store (to revoke)
