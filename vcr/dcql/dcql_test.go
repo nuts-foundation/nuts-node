@@ -20,6 +20,7 @@ package dcql
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
@@ -560,4 +561,43 @@ func TestMatch(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
+}
+
+func BenchmarkMatch_2000Credentials(b *testing.B) {
+	const count = 2000
+	credentials := make([]vc.VerifiableCredential, count)
+	for i := range credentials {
+		bsn := fmt.Sprintf("%09d", i)
+		credentials[i] = vc.VerifiableCredential{
+			Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("PatientEnrollmentCredential")},
+			CredentialSubject: []map[string]any{
+				{
+					"hasEnrollment": map[string]any{
+						"patient": map[string]any{
+							"identifier": map[string]any{
+								"system": "http://fhir.nl/fhir/NamingSystem/bsn",
+								"value":  bsn,
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+	// Worst case: target is the last credential
+	targetBsn := fmt.Sprintf("%09d", count-1)
+	query := CredentialQuery{
+		ID: "id_patient_enrollment",
+		Claims: []ClaimsQuery{
+			{
+				Path:   []any{"credentialSubject", "hasEnrollment", "patient", "identifier", "value"},
+				Values: []any{targetBsn},
+			},
+		},
+	}
+
+	b.ResetTimer()
+	for b.Loop() {
+		Match(query, credentials)
+	}
 }
