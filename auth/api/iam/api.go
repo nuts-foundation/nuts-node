@@ -755,7 +755,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	if request.Body.IdToken != nil {
-		idTokenCredential, err := credential.CreateDeziIDTokenCredential(*request.Body.IdToken)
+		idTokenCredential, err := credential.CreateDeziUserCredential(*request.Body.IdToken)
 		if err != nil {
 			return nil, core.InvalidInputError("failed to create id_token credential: %w", err)
 		}

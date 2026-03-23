@@ -4,7 +4,8 @@
       "format": {
         "ldp_vc": {
           "proof_type": [
-            "DeziIDJWT"
+            "DeziIDJWT2024",
+            "DeziIDJWT07"
           ]
         },
         "jwt_vc": {
@@ -84,7 +85,7 @@
                 ],
                 "filter": {
                   "type": "string",
-                  "const": "DeziIDTokenCredential"
+                  "const": "DeziUserCredential"
                 }
               },
               {

@@ -152,8 +152,8 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 	}
 
 	// Check signature
-	// DeziIDTokenCredential: signature is verified by Dezi id_token inside the credential. Signature verification is skipped here.
-	if credentialToVerify.IsType(credential.DeziIDTokenCredentialTypeURI) {
+	// DeziUserCredential: signature is verified by Dezi attestation ("verklaring") inside the credential. Signature verification is skipped here.
+	if credentialToVerify.IsType(credential.DeziUserCredentialTypeURI) {
 		checkSignature = false
 	}
 	if checkSignature {

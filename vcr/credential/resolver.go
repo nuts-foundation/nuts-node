@@ -30,6 +30,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
 
+var DefaultDeziUserCredentialValidator = DeziUserCredentialValidator{}
+
 // FindValidator finds the Validator the provided credential based on its Type
 // When no additional type is provided, it returns the default validator
 func FindValidator(credential vc.VerifiableCredential, pkiValidator pki.Validator) Validator {
@@ -42,8 +44,11 @@ func FindValidator(credential vc.VerifiableCredential, pkiValidator pki.Validato
 				return nutsAuthorizationCredentialValidator{}
 			case X509CredentialType:
 				return x509CredentialValidator{pkiValidator: pkiValidator}
-			case DeziIDTokenCredentialTypeURI.String():
-				return deziIDTokenCredentialValidator{}
+			case DeziUserCredentialTypeURI.String():
+				// TODO: This is an ugly pattern, and FindValidator() should probably be moved to the Verifier, but that's a big refactor.
+				//       As long as it's non-production/PoC code, this is fine.
+				// 	     Make nice when merging to master.
+				return DefaultDeziUserCredentialValidator
 			}
 		}
 	}

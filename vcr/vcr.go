@@ -166,6 +166,19 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 	// copy strictmode for openid4vci usage
 	c.strictmode = config.Strictmode
 
+	// TODO: Make this configurable when PoC phase using Dezi is over/merging to master.
+	//		 This is now an ugly shortcut.
+	{
+		// This configures from which URLs we allow fetching keys to validate Dezi attestations.
+		// It's important that in production environments, only keys from the Dezi production environment are allowed.
+		allowedJKU := []string{"https://auth.dezi.nl/dezi/jwks.json"}
+		if !c.strictmode {
+			// in non-strict mode, allow Dezi attestations from acceptance environment
+			allowedJKU = append(allowedJKU, "https://acceptatie.auth.dezi.nl/dezi/jwks.json")
+		}
+		credential.DefaultDeziUserCredentialValidator = credential.DeziUserCredentialValidator{AllowedJKU: allowedJKU}
+	}
+
 	// create issuer store (to revoke)
 	issuerStorePath := path.Join(c.datadir, "vcr", "issued-credentials.db")
 	issuerBackupStore, err := c.storageClient.GetProvider(ModuleName).GetKVStore("backup-issued-credentials", storage.PersistentStorageClass)
