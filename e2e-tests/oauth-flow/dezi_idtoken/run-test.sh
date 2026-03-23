@@ -75,40 +75,42 @@ echo "------------------------------------"
 RESPONSE=$(curl -X POST -s --data "token=$ACCESS_TOKEN" http://localhost:18081/internal/auth/v2/accesstoken/introspect)
 echo Introspection response: $RESPONSE
 
-# Check that it contains the following claims:
-# - "organization_ura_dezi":"87654321"
-# - "user_initials":"B.B."
-# - "user_roles":["01.041","30.000","01.010","01.011"]
-# - "user_surname":"Jansen"
-# - "user_surname_prefix":"van der"
-# - "user_uzi":"900000009"
-if [ "$(echo $RESPONSE | jq -r .organization_ura_dezi)" != "87654321" ]; then
+# Check that it contains the following claims from the Dezi token:
+# Token contains:
+# - "abonnee_nummer":"90000380" -> organization_ura_dezi
+# - "dezi_nummer":"900022159" -> user_uzi
+# - "voorletters":"J." -> user_initials
+# - "achternaam":"90017362" -> user_surname
+# - "voorvoegsel":null -> user_surname_prefix (empty)
+# - "rol_code":"92.000" -> user_role
+if [ "$(echo $RESPONSE | jq -r .organization_ura_dezi)" != "90000380" ]; then
   echo "FAILED: organization_ura_dezi invalid" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-if [ "$(echo $RESPONSE | jq -r .user_initials)" != "B.B." ]; then
+if [ "$(echo $RESPONSE | jq -r .user_initials)" != "J." ]; then
   echo "FAILED: user_initials invalid" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-USER_ROLES=$(echo $RESPONSE | jq -r '.user_roles | sort | join(",")')
-if [ "$USER_ROLES" != "01.010,01.011,01.041,30.000" ]; then
-  echo "FAILED: user_roles invalid" 1>&2
+if [ "$(echo $RESPONSE | jq -r .user_role)" != "92.000" ]; then
+  echo "FAILED: user_role invalid" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-if [ "$(echo $RESPONSE | jq -r .user_surname)" != "Jansen" ]; then
+if [ "$(echo $RESPONSE | jq -r .user_surname)" != "90017362" ]; then
   echo "FAILED: user_surname invalid" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-if [ "$(echo $RESPONSE | jq -r .user_surname_prefix)" != "van der" ]; then
-  echo "FAILED: user_surname_prefix invalid" 1>&2
+# voorvoegsel is null in the token, so user_surname_prefix should be empty or not present
+USER_SURNAME_PREFIX=$(echo $RESPONSE | jq -r .user_surname_prefix)
+if [ "$USER_SURNAME_PREFIX" != "" ] && [ "$USER_SURNAME_PREFIX" != "null" ]; then
+  echo "FAILED: user_surname_prefix should be empty, got: $USER_SURNAME_PREFIX" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
-if [ "$(echo $RESPONSE | jq -r .user_uzi)" != "900000009" ]; then
+if [ "$(echo $RESPONSE | jq -r .user_uzi)" != "900022159" ]; then
   echo "FAILED: user_uzi invalid" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1

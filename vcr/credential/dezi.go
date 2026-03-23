@@ -18,6 +18,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
+const DeziIDJWT07ProofType = "DeziIDJWT07"
+const DeziIDJWT2024ProofType = "DeziIDJWT2024"
+
+func DeziIDJWTProofTypes() []string {
+	return []string{DeziIDJWT07ProofType, DeziIDJWT2024ProofType}
+}
+
 type DeziIDTokenSubject struct {
 	Identifier string           `json:"identifier"`
 	Name       string           `json:"name,omitempty"`
@@ -77,9 +84,9 @@ func CreateDeziUserCredential(idTokenSerialized string) (*vc.VerifiableCredentia
 	var proofTypeName string
 	switch version {
 	case "2024":
-		proofTypeName = "DeziIDJWT2024"
+		proofTypeName = DeziIDJWT2024ProofType
 	case "0.7":
-		proofTypeName = "DeziIDJWT07"
+		proofTypeName = DeziIDJWT07ProofType
 	default:
 		return nil, fmt.Errorf("unsupported Dezi id_token version: %s", version)
 	}

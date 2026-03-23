@@ -134,9 +134,9 @@
                 }
               },
               {
-                "id": "user_roles",
+                "id": "user_role",
                 "path": [
-                  "$.credentialSubject.employee.roles"
+                  "$.credentialSubject.employee.role"
                 ],
                 "filter": {
                   "type": "string"
