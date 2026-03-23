@@ -42,6 +42,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("vcr.openid4vci.enabled", defs.OpenID4VCI.Enabled, "Enable issuing and receiving credentials over OpenID4VCI.")
 	flagSet.Duration("vcr.openid4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
 	flagSet.Duration("vcr.verifier.revocation.maxage", time.Minute*15, "Max age of revocation information. If the revocation information is older than this, it will be refreshed from the issuer. If set to 0 or negative, revocation information will always be refreshed.")
+	flagSet.StringSlice("vcr.dezi.allowedjku", defs.Dezi.AllowedJKU, "List of allowed JKU URLs for fetching Dezi attestation keys. If not set, defaults to production (https://auth.dezi.nl/dezi/jwks.json), and in non-strict mode also acceptance (https://acceptatie.auth.dezi.nl/dezi/jwks.json).")
 
 	return flagSet
 }
