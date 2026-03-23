@@ -63,8 +63,10 @@ type CredentialQuery struct {
 
 // ClaimsQuery represents a DCQL claims query as defined in OpenID4VP section 6.3.
 type ClaimsQuery struct {
-	// Path is a claims path pointer specifying the path to a claim within the credential.
-	Path []string `json:"path"`
+	// Path is a Claims Path Pointer (OpenID4VP section 7) specifying the path to a claim
+	// within the credential. Elements can be strings (key lookup), non-negative integers
+	// (array index), or nil (array wildcard).
+	Path []any `json:"path"`
 	// Values specifies the expected values of the claim. If present, the credential
 	// matches only if the claim value equals at least one of the values (OR semantics).
 	Values []any `json:"values,omitempty"`
@@ -123,7 +125,9 @@ func matchesClaim(claim ClaimsQuery, cred vc.VerifiableCredential) bool {
 
 // resolvePath resolves a Claims Path Pointer (OpenID4VP section 7) against a credential.
 // The path starts at the credential root. Returns nil if the path cannot be resolved.
-func resolvePath(path []string, cred vc.VerifiableCredential) any {
+// credentialSubject is treated as a single object (the first element of the array),
+// since in practice it always contains exactly one entry.
+func resolvePath(path []any, cred vc.VerifiableCredential) any {
 	if len(path) == 0 {
 		return nil
 	}
@@ -136,22 +140,52 @@ func resolvePath(path []string, cred vc.VerifiableCredential) any {
 	if err := json.Unmarshal(data, &root); err != nil {
 		return nil
 	}
+	// Unwrap credentialSubject from array to single object for ergonomic path access.
+	// The VC data model defines credentialSubject as an array, but in practice it always
+	// contains exactly one entry. This allows paths like ["credentialSubject", "patientId"]
+	// instead of ["credentialSubject", 0, "patientId"].
+	if cs, ok := root["credentialSubject"]; ok {
+		if arr, ok := cs.([]any); ok && len(arr) == 1 {
+			root["credentialSubject"] = arr[0]
+		}
+	}
 	return resolveInValue(path, root)
 }
 
-// resolveInValue resolves a path against an arbitrary JSON value.
-func resolveInValue(path []string, value any) any {
+// resolveInValue resolves a Claims Path Pointer (OpenID4VP section 7) against a JSON value.
+// Path elements can be: string (object key lookup), float64/int (array index), or nil (array wildcard).
+func resolveInValue(path []any, value any) any {
 	if len(path) == 0 {
 		return value
 	}
-	switch v := value.(type) {
-	case map[string]any:
-		child, ok := v[path[0]]
+	switch element := path[0].(type) {
+	case string:
+		m, ok := value.(map[string]any)
+		if !ok {
+			return nil
+		}
+		child, ok := m[element]
 		if !ok {
 			return nil
 		}
 		return resolveInValue(path[1:], child)
+	case int:
+		return resolveArrayIndex(path[1:], value, element)
+	case float64:
+		// JSON unmarshalling produces float64 for numbers
+		return resolveArrayIndex(path[1:], value, int(element))
 	default:
 		return nil
 	}
+}
+
+func resolveArrayIndex(remainingPath []any, value any, index int) any {
+	arr, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+	if index < 0 || index >= len(arr) {
+		return nil
+	}
+	return resolveInValue(remainingPath, arr[index])
 }

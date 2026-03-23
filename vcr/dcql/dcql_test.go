@@ -39,7 +39,7 @@ func TestMatch(t *testing.T) {
 			ID: "test",
 			Claims: []ClaimsQuery{
 				{
-					Path:   []string{"credentialSubject", "patientId"},
+					Path:   []any{"credentialSubject", "patientId"},
 					Values: []any{"123456789"},
 				},
 			},
@@ -61,7 +61,7 @@ func TestMatch(t *testing.T) {
 			ID: "test",
 			Claims: []ClaimsQuery{
 				{
-					Path:   []string{"credentialSubject", "patientId"},
+					Path:   []any{"credentialSubject", "patientId"},
 					Values: []any{"999999999"},
 				},
 			},
@@ -90,7 +90,7 @@ func TestMatch(t *testing.T) {
 			ID: "test",
 			Claims: []ClaimsQuery{
 				{
-					Path:   []string{"credentialSubject", "hasEnrollment", "patient", "identifier", "value"},
+					Path:   []any{"credentialSubject", "hasEnrollment", "patient", "identifier", "value"},
 					Values: []any{"123456789"},
 				},
 			},
@@ -111,7 +111,7 @@ func TestMatch(t *testing.T) {
 			ID: "test",
 			Claims: []ClaimsQuery{
 				{
-					Path:   []string{"credentialSubject", "postalCode"},
+					Path:   []any{"credentialSubject", "postalCode"},
 					Values: []any{"90210", "90211"},
 				},
 			},
@@ -132,7 +132,7 @@ func TestMatch(t *testing.T) {
 			ID: "test",
 			Claims: []ClaimsQuery{
 				{
-					Path:   []string{"credentialSubject", "postalCode"},
+					Path:   []any{"credentialSubject", "postalCode"},
 					Values: []any{"90210", "90211"},
 				},
 			},
@@ -155,8 +155,8 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
-				{Path: []string{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []any{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
 			},
 		}
 
@@ -177,8 +177,8 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
-				{Path: []string{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []any{"credentialSubject", "type"}, Values: []any{"pharmacy"}},
 			},
 		}
 
@@ -196,7 +196,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
 			},
 		}
 
@@ -212,7 +212,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
 			},
 		}
 
@@ -224,7 +224,7 @@ func TestMatch(t *testing.T) {
 	t.Run("empty credentials list returns empty", func(t *testing.T) {
 		query := CredentialQuery{
 			ID:     "test",
-			Claims: []ClaimsQuery{{Path: []string{"credentialSubject", "id"}, Values: []any{"x"}}},
+			Claims: []ClaimsQuery{{Path: []any{"credentialSubject", "id"}, Values: []any{"x"}}},
 		}
 
 		result, err := Match(query, []vc.VerifiableCredential{})
@@ -242,7 +242,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}, Values: []any{"123"}},
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
 			},
 		}
 
@@ -261,7 +261,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "age"}, Values: []any{float64(42)}},
+				{Path: []any{"credentialSubject", "age"}, Values: []any{float64(42)}},
 			},
 		}
 
@@ -279,7 +279,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "active"}, Values: []any{true}},
+				{Path: []any{"credentialSubject", "active"}, Values: []any{true}},
 			},
 		}
 
@@ -297,7 +297,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "active"}, Values: []any{true}},
+				{Path: []any{"credentialSubject", "active"}, Values: []any{true}},
 			},
 		}
 
@@ -315,7 +315,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}},
+				{Path: []any{"credentialSubject", "patientId"}},
 			},
 		}
 
@@ -333,7 +333,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"credentialSubject", "patientId"}},
+				{Path: []any{"credentialSubject", "patientId"}},
 			},
 		}
 
@@ -380,6 +380,48 @@ func TestMatch(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, result, 1)
 	})
+	t.Run("path with integer element resolves array index", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"roleCodes": []any{"01.015", "30.000", "17.000"},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Select the second role code (30.000 = Verpleegkundige)
+				{Path: []any{"credentialSubject", "roleCodes", 1}, Values: []any{"30.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+	t.Run("path with integer element does not match wrong index", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"roleCodes": []any{"01.015", "30.000", "17.000"},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Index 1 is "30.000" (Verpleegkundige), not "17.000" (Apotheker)
+				{Path: []any{"credentialSubject", "roleCodes", 1}, Values: []any{"17.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
 	t.Run("path resolves root-level fields", func(t *testing.T) {
 		credential := vc.VerifiableCredential{
 			Issuer: ssi.MustParseURI("did:x509:0:sha256:abc123"),
@@ -387,7 +429,7 @@ func TestMatch(t *testing.T) {
 		query := CredentialQuery{
 			ID: "test",
 			Claims: []ClaimsQuery{
-				{Path: []string{"issuer"}, Values: []any{"did:x509:0:sha256:abc123"}},
+				{Path: []any{"issuer"}, Values: []any{"did:x509:0:sha256:abc123"}},
 			},
 		}
 
