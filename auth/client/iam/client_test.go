@@ -127,9 +127,10 @@ func TestHTTPClient_PresentationDefinition(t *testing.T) {
 		_, err := client.PresentationDefinition(ctx, *pdUrl)
 
 		require.Error(t, err)
-		oauthErr, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
 		assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+		require.ErrorAs(t, err, new(oauth.RemoteOAuthError))
 	})
 }
 
@@ -169,10 +170,11 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
-		// check if the error is an OAuth error
-		oauthError, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
+		// check if the error is a remote OAuth error
+		var oauthError oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthError)
 		assert.Equal(t, oauth.InvalidRequest, oauthError.Code)
+		require.ErrorAs(t, err, new(oauth.RemoteOAuthError))
 	})
 	t.Run("error - generic server error", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusBadGateway, ResponseData: "offline"}
