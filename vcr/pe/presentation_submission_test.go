@@ -20,6 +20,7 @@ package pe
 
 import (
 	"encoding/json"
+	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -259,6 +260,20 @@ func TestPresentationSubmissionBuilder_SetCredentialSelector(t *testing.T) {
 		require.Len(t, receivedCandidates, 2)
 		assert.Equal(t, &id1, receivedCandidates[0].ID)
 		assert.Equal(t, &id2, receivedCandidates[1].ID)
+	})
+	t.Run("selector error propagates", func(t *testing.T) {
+		selectorErr := errors.New("no matching credential for this input descriptor")
+		errorSelector := func(_ InputDescriptor, _ []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+			return nil, selectorErr
+		}
+
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holder, []vc.VerifiableCredential{vc1})
+		builder.SetCredentialSelector(errorSelector)
+
+		_, _, err := builder.Build("ldp_vp")
+
+		assert.ErrorIs(t, err, selectorErr)
 	})
 }
 

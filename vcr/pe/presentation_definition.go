@@ -51,7 +51,16 @@ func ParsePresentationDefinition(raw []byte) (*PresentationDefinition, error) {
 
 // CredentialSelector picks one credential from a list of candidates that all match a given input descriptor.
 // It is called by matchConstraints after collecting all matching VCs for an input descriptor.
-// Returning nil indicates no credential was selected (input descriptor not fulfilled).
+//
+// Return values:
+//   - (*vc, nil): a credential was selected successfully.
+//   - (nil, nil): no credential was selected. The input descriptor is not fulfilled, which may
+//     be acceptable depending on submission requirements (e.g., pick rules with min: 0).
+//   - (nil, ErrNoCredentials): no candidates matched the selector's criteria.
+//   - (nil, ErrMultipleCredentials): multiple candidates matched but the selector requires exactly one.
+//
+// Selectors that enforce strict matching should return ErrNoCredentials or ErrMultipleCredentials.
+// Selectors that are lenient (like FirstMatchSelector) may return (nil, nil) to let the caller decide.
 type CredentialSelector func(descriptor InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error)
 
 // FirstMatchSelector is the default CredentialSelector that picks the first matching credential.
