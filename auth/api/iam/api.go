@@ -244,6 +244,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
+		log.Logger().Infof("Received vp_token grant request with client_id: %s, subject_id: %s, scope: %s, presentation_submission: %s, assertion: %s",
+			*request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
