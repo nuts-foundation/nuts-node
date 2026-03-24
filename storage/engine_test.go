@@ -28,9 +28,12 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	leia "github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/sirupsen/logrus"
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -327,5 +330,49 @@ func Test_engine_sessionDatabase(t *testing.T) {
 		}
 		dataDir := io.TestDirectory(t)
 		require.Error(t, e.Configure(core.ServerConfig{Datadir: dataDir}))
+	})
+}
+
+func Test_logLeiaQueryStats(t *testing.T) {
+	t.Run("full table scan logs warning without index", func(t *testing.T) {
+		hook := &logTest.Hook{}
+		logrus.AddHook(hook)
+		defer func() { logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{}) }()
+
+		logLeiaQueryStats(leia.IndexStats{
+			Collection:            "testCollection",
+			DocumentsScanned:      100,
+			DocumentsScannedBytes: 1000,
+			DocumentsMatched:      5,
+			DocumentsMatchedBytes: 50,
+			UnindexedFields:       []string{"field1", "field2"},
+			IndexUsed:             "",
+			FilterEfficiency:      0,
+		})
+
+		require.NotNil(t, hook.LastEntry())
+		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "full table scan")
+	})
+	t.Run("suboptimal index usage logs warning with index name", func(t *testing.T) {
+		hook := &logTest.Hook{}
+		logrus.AddHook(hook)
+		defer func() { logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{}) }()
+
+		logLeiaQueryStats(leia.IndexStats{
+			Collection:            "testCollection",
+			DocumentsScanned:      100,
+			DocumentsScannedBytes: 1000,
+			DocumentsMatched:      5,
+			DocumentsMatchedBytes: 50,
+			UnindexedFields:       []string{"field2"},
+			IndexUsed:             "field1_index",
+			FilterEfficiency:      0.05,
+		})
+
+		require.NotNil(t, hook.LastEntry())
+		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "suboptimal index")
+		assert.Equal(t, "field1_index", hook.LastEntry().Data["leia_index_used"])
 	})
 }
