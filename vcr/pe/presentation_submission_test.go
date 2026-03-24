@@ -194,6 +194,74 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	})
 }
 
+func TestPresentationSubmissionBuilder_SetCredentialSelector(t *testing.T) {
+	holder := did.MustParseDID("did:example:1")
+	id1 := ssi.MustParseURI("1")
+	id2 := ssi.MustParseURI("2")
+	// Both VCs have a "field" key — a broad PD will match both
+	vc1 := credentialToJSONLD(vc.VerifiableCredential{ID: &id1, CredentialSubject: []map[string]any{{"field": "a"}}})
+	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2, CredentialSubject: []map[string]any{{"field": "b"}}})
+
+	// PD with a single input descriptor that matches any VC with a "field" key
+	var pd PresentationDefinition
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "test",
+		"input_descriptors": [{
+			"id": "match_field",
+			"constraints": {
+				"fields": [{
+					"path": ["$.credentialSubject.field"]
+				}]
+			}
+		}]
+	}`), &pd))
+
+	t.Run("custom selector picks second credential", func(t *testing.T) {
+		lastSelector := func(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+			if len(candidates) == 0 {
+				return nil, nil
+			}
+			return &candidates[len(candidates)-1], nil
+		}
+
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
+		builder.SetCredentialSelector(lastSelector)
+
+		_, signInstruction, err := builder.Build("ldp_vp")
+
+		require.NoError(t, err)
+		require.Len(t, signInstruction.VerifiableCredentials, 1)
+		assert.Equal(t, &id2, signInstruction.VerifiableCredentials[0].ID)
+	})
+	t.Run("without selector uses first match (default)", func(t *testing.T) {
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
+
+		_, signInstruction, err := builder.Build("ldp_vp")
+
+		require.NoError(t, err)
+		require.Len(t, signInstruction.VerifiableCredentials, 1)
+		assert.Equal(t, &id1, signInstruction.VerifiableCredentials[0].ID)
+	})
+	t.Run("selector receives all matching candidates", func(t *testing.T) {
+		var receivedCandidates []vc.VerifiableCredential
+		spySelector := func(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+			receivedCandidates = candidates
+			return &candidates[0], nil
+		}
+
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
+		builder.SetCredentialSelector(spySelector)
+		builder.Build("ldp_vp")
+
+		require.Len(t, receivedCandidates, 2)
+		assert.Equal(t, &id1, receivedCandidates[0].ID)
+		assert.Equal(t, &id2, receivedCandidates[1].ID)
+	})
+}
+
 func TestPresentationSubmission_Resolve(t *testing.T) {
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")
