@@ -4,12 +4,25 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.26)
+*************************
+
+Release date: 2026-03-24
+
+- #4063: Enable storage.debug flag to enable go-leia performance logging by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+- Update json-gold to 0.8.0 for performance improvements
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.25...v5.4.26
+
+*************************
 Hazelnut update (v5.4.25)
 *************************
 
 Release date: 2026-03-15
 
 - Upgrade to Go 1.26.1 to fix GO-2026-4601, GO-2026-4602 and GO-2026-4603
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.24...v5.4.25
 
 *************************
 Hazelnut update (v5.4.24)
@@ -19,6 +32,8 @@ Release date: 2026-03-03
 
 - #4042: make BBolt database lock acquire time-out configurable
 - Update Nats server version to fix https://pkg.go.dev/vuln/GO-2026-4533
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.23...v5.4.24
 
 *************************
 Hazelnut update (v5.4.23)
