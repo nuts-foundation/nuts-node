@@ -62,6 +62,7 @@ The following options apply to the server commands below:
       --storage.bbolt.backup.directory string         Target directory for BBolt database backups.
       --storage.bbolt.backup.interval duration        Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
       --storage.bbolt.locktimeout duration            Maximum time to wait for acquiring a lock on the BBolt database before giving up and returning an error. Formatted as Golang duration (e.g. 1s, 1m). (default 1s)
+      --storage.debug                                 When true, enables extra logging of storage-layer problems (e.g. performance issues).
       --storage.redis.address string                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
       --storage.redis.database string                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
       --storage.redis.password string                 Redis database password. If set, it overrides the username in the connection URL.

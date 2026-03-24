@@ -24,15 +24,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/go-leia/v4"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didstore"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -258,7 +259,7 @@ func (c *vcr) createCredentialsStore() error {
 	if err != nil {
 		return err
 	}
-	credentialsStore, err := leia.NewStore(credentialsStorePath, leia.WithDocumentLoader(c.jsonldManager.DocumentLoader()))
+	credentialsStore, err := storage.NewDocumentStore(credentialsStorePath, c.jsonldManager.DocumentLoader())
 	if err != nil {
 		return err
 	}
