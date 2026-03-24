@@ -314,6 +314,8 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	}
 
 	// each additional credential can be used by each DID
+	// Apply AutoCorrectSelfAttestedCredential to set credentialSubject.id for credentials that don't have it set
+	// (e.g., Dezi credentials). This associates the credential with each wallet DID managed by the subject.
 	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
 	for _, subjectDID := range subjectDIDs {
 		for _, curr := range additionalCredentials {

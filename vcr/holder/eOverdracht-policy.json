@@ -1,0 +1,317 @@
+{
+  "eOverdracht-sender": {
+    "organization": {
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020",
+            "DeziIDJWT07"
+          ]
+        },
+        "jwt_vc": {
+          "alg": [
+            "PS256"
+          ]
+        },
+        "jwt_vp": {
+          "alg": [
+            "ES256"
+          ]
+        }
+      },
+      "id": "pd_any_care_organization",
+      "name": "Care organization",
+      "purpose": "Finding a care organization",
+      "submission_requirements": [
+        {
+          "name": "Required credentials",
+          "rule": "all",
+          "from": "required"
+        },
+        {
+          "name": "Optional credentials",
+          "rule": "pick",
+          "min": 0,
+          "max": 10,
+          "from": "optional"
+        }
+      ],
+      "input_descriptors": [
+        {
+          "id": "id_uzicert_uracredential",
+          "name": "Care organization identity from fake UZI-server certificate",
+          "purpose": "Finding a care organization for authorizing access to medical metadata.",
+          "group": ["required"],
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {
+                  "type": "string",
+                  "const": "X509Credential"
+                }
+              },
+              {
+                "id": "organization_id",
+                "path": ["$.credentialSubject[0].id", "$.credentialSubject.id"],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:web:.*"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject[0].subject.O",
+                  "$.credentialSubject.subject.O"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject[0].san.otherName",
+                  "$.credentialSubject.san.otherName"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^[0-9.]+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+$"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_dezicredential",
+          "group": ["optional"],
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "DeziUserCredential"
+                }
+              },
+              {
+                "id": "organization_ura_dezi",
+                "path": [
+                  "$.credentialSubject.identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_id",
+                "path": [
+                  "$.credentialSubject.employee.identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_initials",
+                "path": [
+                  "$.credentialSubject.employee.initials"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_surname",
+                "path": [
+                  "$.credentialSubject.employee.surname"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_surname_prefix",
+                "path": [
+                  "$.credentialSubject.employee.surnamePrefix"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_role",
+                "path": [
+                  "$.credentialSubject.employee.role"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "eOverdracht-receiver": {
+    "organization": {
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020"
+          ]
+        },
+        "jwt_vc": {
+          "alg": [
+            "PS256"
+          ]
+        },
+        "jwt_vp": {
+          "alg": [
+            "ES256"
+          ]
+        }
+      },
+      "id": "pd_any_care_organization",
+      "name": "Care organization",
+      "purpose": "Finding a care organization",
+      "submission_requirements": [
+        {
+          "name": "Required credentials",
+          "rule": "all",
+          "from": "required"
+        },
+        {
+          "name": "User identity",
+          "rule": "pick",
+          "min": 0,
+          "max": 10,
+          "from": "user-identity"
+        }
+      ],
+      "input_descriptors": [
+        {
+          "id": "id_uzicert_uracredential",
+          "name": "Care organization identity from fake UZI-server certificate",
+          "purpose": "Finding a care organization for authorizing access to medical metadata.",
+          "group": ["required"],
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {
+                  "type": "string",
+                  "const": "X509Credential"
+                }
+              },
+              {
+                "id": "organization_id",
+                "path": ["$.credentialSubject[0].id", "$.credentialSubject.id"],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:web:.*"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject[0].subject.O",
+                  "$.credentialSubject.subject.O"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject[0].san.otherName",
+                  "$.credentialSubject.san.otherName"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^[0-9.]+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+$"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_dezicredential",
+          "group": ["user-identity"],
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "DeziUserCredential"
+                }
+              },
+              {
+                "id": "organization_ura_dezi",
+                "path": [
+                  "$.credentialSubject.identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_id",
+                "path": [
+                  "$.credentialSubject.employee.identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_initials",
+                "path": [
+                  "$.credentialSubject.employee.initials"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_surname",
+                "path": [
+                  "$.credentialSubject.employee.surname"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_surname_prefix",
+                "path": [
+                  "$.credentialSubject.employee.surnamePrefix"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "user_role",
+                "path": [
+                  "$.credentialSubject.employee.role"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

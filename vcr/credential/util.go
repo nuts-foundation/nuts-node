@@ -115,10 +115,17 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 }
 
 // AutoCorrectSelfAttestedCredential sets the required fields for a self-attested credential.
-// These are provided through the API, and for convenience we set the required fields, if not already set.
+// These are provided through the API as "additional credentials", and for convenience we set the required fields, if not already set.
 // It only does this for unsigned JSON-LD credentials and DeziUserCredentials (derived proof). DO NOT USE THIS WITH JWT_VC CREDENTIALS.
+// 
+// For DeziUserCredentials, this is particularly important because they don't have a credentialSubject.id field initially.
+// The API layer calls this function to associate the credential with the wallet DID by setting credentialSubject.id = requester DID.
 func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, requester did.DID) vc.VerifiableCredential {
-	if len(credential.Proof) > 0 {
+	// Check if this is a DeziUserCredential - these always need correction regardless of proof type
+	isDeziCredential := credential.IsType(DeziUserCredentialTypeURI)
+	
+	if len(credential.Proof) > 0 && !isDeziCredential {
+		// Has proof but not a Dezi credential - only correct if it has a known Dezi proof type
 		proofs, _ := credential.Proofs()
 		requiresCorrection := false
 		for _, p := range proofs {
@@ -131,6 +138,7 @@ func AutoCorrectSelfAttestedCredential(credential vc.VerifiableCredential, reque
 			return credential
 		}
 	}
+	// No proof OR is Dezi credential OR has Dezi proof type -> apply correction
 	if credential.ID == nil {
 		credential.ID, _ = ssi.ParseURI(uuid.NewString())
 	}
