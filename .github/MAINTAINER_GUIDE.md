@@ -2,6 +2,8 @@
 
 This guide contains processes and procedures for maintaining the nuts-node repository.
 
+> **Note**: This guide is primarily aimed at AI agents to help them understand and repeat maintenance tasks consistently. Human maintainers can also use this as a reference.
+
 ## Table of Contents
 - [Syncing Release Notes from Release Branch to Master](#syncing-release-notes-from-release-branch-to-master)
 
