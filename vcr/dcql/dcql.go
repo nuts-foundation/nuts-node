@@ -45,6 +45,7 @@ package dcql
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -74,14 +75,24 @@ type ClaimsQuery struct {
 
 // Match evaluates a DCQL credential query against a list of verifiable credentials
 // and returns the credentials that match all claims in the query.
-// Returns an error if the query is invalid (e.g., invalid ID format).
+// Returns an error if the query is invalid (e.g., invalid ID format) or if a credential
+// cannot be processed.
+// Returns an empty slice (not an error) when no credentials match.
 func Match(query CredentialQuery, credentials []vc.VerifiableCredential) ([]vc.VerifiableCredential, error) {
 	if err := validateQuery(query); err != nil {
 		return nil, err
 	}
 	var result []vc.VerifiableCredential
 	for _, cred := range credentials {
-		if matchesAll(query.Claims, cred) {
+		root, err := credentialToMap(cred)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process credential: %w", err)
+		}
+		matched, err := matchesAll(query.Claims, root)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
 			result = append(result, cred)
 		}
 	}
@@ -89,136 +100,143 @@ func Match(query CredentialQuery, credentials []vc.VerifiableCredential) ([]vc.V
 }
 
 func validateQuery(query CredentialQuery) error {
-	if query.ID == "" {
-		return fmt.Errorf("invalid credential query id: must be a non-empty string")
-	}
 	if !validIDPattern.MatchString(query.ID) {
-		return fmt.Errorf("invalid credential query id: must consist of alphanumeric, underscore, or hyphen characters")
+		return fmt.Errorf("invalid credential query id: must be a non-empty string consisting of alphanumeric, underscore, or hyphen characters")
 	}
 	return nil
 }
 
-func matchesAll(claims []ClaimsQuery, cred vc.VerifiableCredential) bool {
-	for _, claim := range claims {
-		if !matchesClaim(claim, cred) {
-			return false
+// credentialToMap converts a credential to a generic JSON map for path resolution.
+// The Go VC struct models credentialSubject as []map[string]any, which marshals to a
+// JSON array. The DCQL spec examples treat credentialSubject as a single object — paths
+// use ["credentialSubject", "family_name"] without an array index (see OpenID4VP appendix D
+// and section B.1.2). We unwrap single-element arrays to match this convention.
+func credentialToMap(cred vc.VerifiableCredential) (map[string]any, error) {
+	data, err := json.Marshal(cred)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal credential: %w", err)
+	}
+	var root map[string]any
+	if err := json.Unmarshal(data, &root); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal credential: %w", err)
+	}
+	if cs, ok := root["credentialSubject"]; ok {
+		if arr, ok := cs.([]any); ok && len(arr) == 1 {
+			root["credentialSubject"] = arr[0]
 		}
 	}
-	return true
+	return root, nil
 }
 
-func matchesClaim(claim ClaimsQuery, cred vc.VerifiableCredential) bool {
-	resolved := resolvePath(claim.Path, cred)
+func matchesAll(claims []ClaimsQuery, root map[string]any) (bool, error) {
+	for _, claim := range claims {
+		matched, err := matchesClaim(claim, root)
+		if err != nil {
+			return false, err
+		}
+		if !matched {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func matchesClaim(claim ClaimsQuery, root map[string]any) (bool, error) {
+	resolved, err := resolveInValue(claim.Path, root)
+	if err != nil {
+		return false, err
+	}
 	if resolved == nil {
-		return false
+		return false, nil
 	}
 	if len(claim.Values) == 0 {
-		return true
+		return true, nil
 	}
-	// If resolved is a slice (from null wildcard), check if any element matches any expected value
-	if values, ok := resolved.([]any); ok {
-		for _, v := range values {
-			for _, expected := range claim.Values {
-				if v == expected {
-					return true
-				}
+	return containsExpectedValue(resolved, claim.Values), nil
+}
+
+// containsExpectedValue checks whether the resolved value matches any of the expected values.
+// If the value is a []any (from wildcard path resolution, possibly nested from multiple
+// wildcards), it recursively searches all levels.
+func containsExpectedValue(value any, expectedValues []any) bool {
+	if slice, ok := value.([]any); ok {
+		for _, elem := range slice {
+			if containsExpectedValue(elem, expectedValues) {
+				return true
 			}
 		}
 		return false
 	}
-	// Single value
-	for _, expected := range claim.Values {
-		if resolved == expected {
+	for _, expected := range expectedValues {
+		if value == expected {
 			return true
 		}
 	}
 	return false
 }
 
-// resolvePath resolves a Claims Path Pointer (OpenID4VP section 7) against a credential.
-// The path starts at the credential root. Returns nil if the path cannot be resolved.
-// credentialSubject is treated as a single object (the first element of the array),
-// since in practice it always contains exactly one entry.
-func resolvePath(path []any, cred vc.VerifiableCredential) any {
-	if len(path) == 0 {
-		return nil
-	}
-	// Marshal credential to a generic JSON map so we can walk it from the root
-	data, err := json.Marshal(cred)
-	if err != nil {
-		return nil
-	}
-	var root map[string]any
-	if err := json.Unmarshal(data, &root); err != nil {
-		return nil
-	}
-	// Unwrap credentialSubject from array to single object for ergonomic path access.
-	// The VC data model defines credentialSubject as an array, but in practice it always
-	// contains exactly one entry. This allows paths like ["credentialSubject", "patientId"]
-	// instead of ["credentialSubject", 0, "patientId"].
-	if cs, ok := root["credentialSubject"]; ok {
-		if arr, ok := cs.([]any); ok && len(arr) == 1 {
-			root["credentialSubject"] = arr[0]
-		}
-	}
-	return resolveInValue(path, root)
-}
-
 // resolveInValue resolves a Claims Path Pointer (OpenID4VP section 7) against a JSON value.
 // Path elements can be: string (object key lookup), float64/int (array index), or nil (array wildcard).
-func resolveInValue(path []any, value any) any {
+// Returns an error for invalid path elements (non-integer float, unsupported type).
+func resolveInValue(path []any, value any) (any, error) {
 	if len(path) == 0 {
-		return value
+		return value, nil
 	}
 	switch element := path[0].(type) {
 	case string:
 		m, ok := value.(map[string]any)
 		if !ok {
-			return nil
+			return nil, nil
 		}
 		child, ok := m[element]
 		if !ok {
-			return nil
+			return nil, nil
 		}
 		return resolveInValue(path[1:], child)
 	case int:
 		return resolveArrayIndex(path[1:], value, element)
 	case float64:
-		// JSON unmarshalling produces float64 for numbers
+		// JSON unmarshalling produces float64 for numbers. Validate it represents
+		// a non-negative integer before converting, to avoid silent truncation.
+		if element < 0 || math.Trunc(element) != element {
+			return nil, fmt.Errorf("invalid path element: %v is not a non-negative integer", element)
+		}
 		return resolveArrayIndex(path[1:], value, int(element))
 	case nil:
 		// Null wildcard: select all elements of the array
 		arr, ok := value.([]any)
 		if !ok {
-			return nil
+			return nil, nil
 		}
 		if len(path) == 1 {
-			// Wildcard is the last element — return all array values
-			return arr
+			return arr, nil
 		}
-		// Wildcard with remaining path — resolve each element and collect results
 		var results []any
 		for _, item := range arr {
-			if resolved := resolveInValue(path[1:], item); resolved != nil {
+			resolved, err := resolveInValue(path[1:], item)
+			if err != nil {
+				return nil, err
+			}
+			if resolved != nil {
 				results = append(results, resolved)
 			}
 		}
 		if len(results) == 0 {
-			return nil
+			return nil, nil
 		}
-		return results
+		return results, nil
 	default:
-		return nil
+		return nil, fmt.Errorf("invalid path element type: %T", element)
 	}
 }
 
-func resolveArrayIndex(remainingPath []any, value any, index int) any {
+func resolveArrayIndex(remainingPath []any, value any, index int) (any, error) {
 	arr, ok := value.([]any)
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	if index < 0 || index >= len(arr) {
-		return nil
+		return nil, nil
 	}
 	return resolveInValue(remainingPath, arr[index])
 }

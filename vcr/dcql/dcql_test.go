@@ -514,6 +514,42 @@ func TestMatch(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, result)
 	})
+	t.Run("nested wildcards match values in arrays of arrays", func(t *testing.T) {
+		// A credential with departments, each containing multiple employees with role codes
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"departments": []any{
+						map[string]any{
+							"employees": []any{
+								map[string]any{"roleCode": "01.015"},
+								map[string]any{"roleCode": "30.000"},
+							},
+						},
+						map[string]any{
+							"employees": []any{
+								map[string]any{"roleCode": "17.000"},
+								map[string]any{"roleCode": "04.000"},
+							},
+						},
+					},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Two wildcards: all departments → all employees → roleCode
+				// Should find "17.000" (Apotheker) in the second department
+				{Path: []any{"credentialSubject", "departments", nil, "employees", nil, "roleCode"}, Values: []any{"17.000"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
 	t.Run("path resolves root-level fields", func(t *testing.T) {
 		credential := vc.VerifiableCredential{
 			Issuer: ssi.MustParseURI("did:x509:0:sha256:abc123"),
@@ -538,7 +574,7 @@ func TestMatch(t *testing.T) {
 
 		_, err := Match(query, []vc.VerifiableCredential{})
 
-		assert.EqualError(t, err, "invalid credential query id: must consist of alphanumeric, underscore, or hyphen characters")
+		assert.ErrorContains(t, err, "invalid credential query id")
 	})
 	t.Run("empty credential query ID returns error", func(t *testing.T) {
 		query := CredentialQuery{
@@ -548,7 +584,41 @@ func TestMatch(t *testing.T) {
 
 		_, err := Match(query, []vc.VerifiableCredential{})
 
-		assert.EqualError(t, err, "invalid credential query id: must be a non-empty string")
+		assert.ErrorContains(t, err, "invalid credential query id")
+	})
+	t.Run("float path element that is not an integer returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"roles": []any{"01.015", "30.000"}},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "roles", float64(1.5)}, Values: []any{"30.000"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "invalid path element")
+	})
+	t.Run("boolean path element returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"field": "value"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", true}, Values: []any{"value"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "invalid path element type")
 	})
 	t.Run("valid credential query ID with hyphens and underscores", func(t *testing.T) {
 		query := CredentialQuery{
@@ -565,39 +635,54 @@ func TestMatch(t *testing.T) {
 
 func BenchmarkMatch_2000Credentials(b *testing.B) {
 	const count = 2000
+	roleCodes := []string{"01.015", "30.000", "17.000", "04.000", "89.000"}
 	credentials := make([]vc.VerifiableCredential, count)
 	for i := range credentials {
 		bsn := fmt.Sprintf("%09d", i)
+		ura := fmt.Sprintf("URA-%05d", i)
+		// Each credential has multiple identifiers and multiple qualifications with role codes
 		credentials[i] = vc.VerifiableCredential{
-			Type: []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("PatientEnrollmentCredential")},
+			Type:   []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("PatientEnrollmentCredential")},
+			Issuer: ssi.MustParseURI(fmt.Sprintf("did:x509:0:sha256:hash%d", i)),
 			CredentialSubject: []map[string]any{
 				{
-					"hasEnrollment": map[string]any{
-						"patient": map[string]any{
-							"identifier": map[string]any{
-								"system": "http://fhir.nl/fhir/NamingSystem/bsn",
-								"value":  bsn,
-							},
-						},
+					"identifier": []any{
+						map[string]any{"system": "http://fhir.nl/fhir/NamingSystem/ura", "value": ura},
+						map[string]any{"system": "http://fhir.nl/fhir/NamingSystem/bsn", "value": bsn},
+					},
+					"qualifications": []any{
+						map[string]any{"roleCode": roleCodes[i%len(roleCodes)], "name": "Role A"},
+						map[string]any{"roleCode": roleCodes[(i+1)%len(roleCodes)], "name": "Role B"},
+						map[string]any{"roleCode": roleCodes[(i+2)%len(roleCodes)], "name": "Role C"},
 					},
 				},
 			},
 		}
 	}
-	// Worst case: target is the last credential
+	// Worst case: target is the last credential. Multiple claims with wildcards.
 	targetBsn := fmt.Sprintf("%09d", count-1)
 	query := CredentialQuery{
 		ID: "id_patient_enrollment",
 		Claims: []ClaimsQuery{
+			// Wildcard over identifiers to find BSN
 			{
-				Path:   []any{"credentialSubject", "hasEnrollment", "patient", "identifier", "value"},
+				Path:   []any{"credentialSubject", "identifier", nil, "value"},
 				Values: []any{targetBsn},
+			},
+			// Wildcard over qualifications to find a specific role code
+			{
+				Path:   []any{"credentialSubject", "qualifications", nil, "roleCode"},
+				Values: []any{roleCodes[(count-1)%len(roleCodes)]},
 			},
 		},
 	}
 
 	b.ResetTimer()
+	var benchResult []vc.VerifiableCredential
 	for b.Loop() {
-		Match(query, credentials)
+		benchResult, _ = Match(query, credentials)
+	}
+	if len(benchResult) != 1 {
+		b.Fatalf("expected 1 match, got %d", len(benchResult))
 	}
 }

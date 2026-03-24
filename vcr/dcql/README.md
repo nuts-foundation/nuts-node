@@ -17,7 +17,9 @@ a best-effort way to improve user privacy, but MUST NOT rely on it for security 
 
 In our context, the node is selecting from its own wallet on behalf of the EHR. The matching
 is deterministic: if a credential matches the query, it is selected. If no credential matches,
-an error is returned. There is no privacy negotiation involved.
+an empty result is returned. The caller (e.g., the `CredentialSelector` in the PD matcher) is
+responsible for deciding whether an empty result is an error. There is no privacy negotiation
+involved.
 
 ## Supported subset
 
@@ -140,10 +142,11 @@ Both claims must match for a credential to be selected.
 
 ## Performance
 
-Benchmark on Apple M5, worst case (match last of 2000 credentials):
+Benchmark on Apple M5, worst case (match last of 2000 credentials, 2 claims with wildcards,
+each credential has multiple identifiers and qualifications):
 
 ```
-BenchmarkMatch_2000Credentials    ~14ms/op    ~15MB/op    ~290k allocs/op
+BenchmarkMatch_2000Credentials    ~24ms/op    ~24MB/op    ~504k allocs/op
 ```
 
 The cost is dominated by `json.Marshal`/`json.Unmarshal` per credential for generic root-level
