@@ -36,7 +36,7 @@ For AI-agentic Maintainers
 
 (and maybe for some human maintainers as well):
 
-Repository maintenance procedures and GitHub-specific documentation can be found in the `.github directory <.github/README.md>`_.
+Claude Code skill files for common maintenance tasks can be found in the `.claude/commands directory <.claude/commands>`_.
 
 Development
 ^^^^^^^^^^^
