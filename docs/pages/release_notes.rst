@@ -406,6 +406,17 @@ The following features have been deprecated:
 - VDR v1 API, replaced by VDR v2
 
 *************************
+Hazelnut update (v5.4.26)
+*************************
+
+Release date: 2026-03-24
+
+- #4063: Enable storage.debug flag to enable go-leia performance logging by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+- Update json-gold to 0.8.0 for performance improvements
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.25...v5.4.26
+
+*************************
 Hazelnut update (v5.4.25)
 *************************
 
