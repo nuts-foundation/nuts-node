@@ -2,9 +2,9 @@
 
 This directory contains GitHub-specific documentation and configuration for the nuts-node repository.
 
-## For Maintainers
+## For AI Agents
 
-- **[MAINTAINER_GUIDE.md](MAINTAINER_GUIDE.md)** - Processes and procedures for maintaining the repository (primarily for AI agents, but also useful for human maintainers)
+Claude Code skill files (custom slash commands) for common maintenance tasks are in [`.claude/commands/`](../.claude/commands/).
 
 ## For Contributors
 
