@@ -620,6 +620,94 @@ func TestMatch(t *testing.T) {
 
 		assert.ErrorContains(t, err, "invalid path element type")
 	})
+	t.Run("multiple credentialSubjects without index returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "123"},
+				{"patientId": "456"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "patientId"}, Values: []any{"123"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "index")
+	})
+	t.Run("multiple credentialSubjects with index works", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "123"},
+				{"patientId": "456"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", 1, "patientId"}, Values: []any{"456"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
+	t.Run("negative int path element returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"roles": []any{"01.015", "30.000"}},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "roles", -1}, Values: []any{"30.000"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "invalid path element")
+	})
+	t.Run("float64 exceeding MaxInt returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"roles": []any{"01.015"}},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "roles", float64(1e19)}, Values: []any{"01.015"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "invalid path element")
+	})
+	t.Run("empty path in claims query returns error", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"field": "value"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{}, Values: []any{"value"}},
+			},
+		}
+
+		_, err := Match(query, []vc.VerifiableCredential{credential})
+
+		assert.ErrorContains(t, err, "path must be a non-empty array")
+	})
 	t.Run("valid credential query ID with hyphens and underscores", func(t *testing.T) {
 		query := CredentialQuery{
 			ID:     "id_patient-enrollment_01",

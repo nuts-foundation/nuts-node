@@ -103,6 +103,11 @@ func validateQuery(query CredentialQuery) error {
 	if !validIDPattern.MatchString(query.ID) {
 		return fmt.Errorf("invalid credential query id: must be a non-empty string consisting of alphanumeric, underscore, or hyphen characters")
 	}
+	for i, claim := range query.Claims {
+		if len(claim.Path) == 0 {
+			return fmt.Errorf("claims[%d]: path must be a non-empty array", i)
+		}
+	}
 	return nil
 }
 
@@ -186,6 +191,11 @@ func resolveInValue(path []any, value any) (any, error) {
 	case string:
 		m, ok := value.(map[string]any)
 		if !ok {
+			// If the value is an array with >1 elements and the path uses a string key,
+			// the path is ambiguous — it needs an integer index to select an element.
+			if arr, isArr := value.([]any); isArr && len(arr) > 1 {
+				return nil, fmt.Errorf("path uses key '%s' on array with %d elements: use an integer index to select an element", element, len(arr))
+			}
 			return nil, nil
 		}
 		child, ok := m[element]
@@ -194,11 +204,14 @@ func resolveInValue(path []any, value any) (any, error) {
 		}
 		return resolveInValue(path[1:], child)
 	case int:
+		if element < 0 {
+			return nil, fmt.Errorf("invalid path element: %v is not a non-negative integer", element)
+		}
 		return resolveArrayIndex(path[1:], value, element)
 	case float64:
 		// JSON unmarshalling produces float64 for numbers. Validate it represents
-		// a non-negative integer before converting, to avoid silent truncation.
-		if element < 0 || math.Trunc(element) != element {
+		// a non-negative integer within int range before converting.
+		if element < 0 || math.Trunc(element) != element || element > float64(math.MaxInt) {
 			return nil, fmt.Errorf("invalid path element: %v is not a non-negative integer", element)
 		}
 		return resolveArrayIndex(path[1:], value, int(element))
