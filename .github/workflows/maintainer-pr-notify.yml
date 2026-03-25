@@ -6,17 +6,21 @@ on:
     branches:
       - master
 
+permissions: {}
+
 jobs:
   notify:
     name: Slack notification
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     if: |
       github.event.action != 'review_requested' &&
       !github.event.pull_request.draft &&
       contains(fromJSON('["woutslakhorst","reinkrul","gerardsn","stevenvegt"]'), github.event.pull_request.user.login)
     steps:
       - name: Send Slack message
-        uses: slackapi/slack-github-action@v3
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
@@ -38,18 +42,20 @@ jobs:
   notify-steven-re-review:
     name: Notify Steven on re-review request
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     if: |
       github.event.action == 'review_requested' &&
       github.event.requested_reviewer.login == 'stevenvegt'
     steps:
       - name: Send Slack message to Steven
-        uses: slackapi/slack-github-action@v3
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "channel": "#DS5VD66D9",
+              "channel": "#nuts-core-team",
               "text": "<@DS5VD66D9> Re-review requested\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
               "blocks": [
                 {
