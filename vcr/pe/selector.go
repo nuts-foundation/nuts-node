@@ -33,6 +33,7 @@ type fieldSelection struct {
 // named field ID values from the credential_selection parameter.
 func NewSelectionSelector(selection map[string]string, pd PresentationDefinition, fallback CredentialSelector) (CredentialSelector, error) {
 	descriptorSelections := make(map[string][]fieldSelection)
+	matchedKeys := make(map[string]bool)
 
 	for _, desc := range pd.InputDescriptors {
 		if desc.Constraints == nil {
@@ -47,25 +48,14 @@ func NewSelectionSelector(selection map[string]string, pd PresentationDefinition
 					fieldID:  *field.Id,
 					expected: expected,
 				})
+				matchedKeys[*field.Id] = true
 			}
 		}
 	}
 
 	// Validate all selection keys match at least one field ID in the PD.
 	for key := range selection {
-		found := false
-		for _, sels := range descriptorSelections {
-			for _, sel := range sels {
-				if sel.fieldID == key {
-					found = true
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-		if !found {
+		if !matchedKeys[key] {
 			return nil, fmt.Errorf("credential_selection key '%s' does not match any field id in the presentation definition", key)
 		}
 	}
