@@ -17,7 +17,6 @@ import (
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
 	core "github.com/nuts-foundation/nuts-node/core"
-	dcql "github.com/nuts-foundation/nuts-node/vcr/dcql"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -62,9 +61,9 @@ func (mr *MockWalletMockRecorder) BuildPresentation(ctx, credentials, options, s
 }
 
 // BuildSubmission mocks base method.
-func (m *MockWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialQueries []dcql.CredentialQuery, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (m *MockWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildSubmission", ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialQueries, params)
+	ret := m.ctrl.Call(m, "BuildSubmission", ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialSelection, params)
 	ret0, _ := ret[0].(*vc.VerifiablePresentation)
 	ret1, _ := ret[1].(*pe.PresentationSubmission)
 	ret2, _ := ret[2].(error)
@@ -72,9 +71,9 @@ func (m *MockWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, 
 }
 
 // BuildSubmission indicates an expected call of BuildSubmission.
-func (mr *MockWalletMockRecorder) BuildSubmission(ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialQueries, params any) *gomock.Call {
+func (mr *MockWalletMockRecorder) BuildSubmission(ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialSelection, params any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildSubmission", reflect.TypeOf((*MockWallet)(nil).BuildSubmission), ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialQueries, params)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildSubmission", reflect.TypeOf((*MockWallet)(nil).BuildSubmission), ctx, walletDIDs, additionalCredentials, presentationDefinition, credentialSelection, params)
 }
 
 // Diagnostics mocks base method.

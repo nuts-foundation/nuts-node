@@ -207,9 +207,9 @@ else
   exitWithDockerLogs 1
 fi
 
-echo "---------------------------------------"
-echo "Test credential_query (DCQL) selection..."
-echo "---------------------------------------"
+echo "-------------------------------------------"
+echo "Test credential_selection (named params)..."
+echo "-------------------------------------------"
 # Issue a second NutsOrganizationCredential with a different org name
 REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Second Org B.V.\", \"city\":\"Othertown\"}},\"withStatusList2021Revocation\": true}"
 VENDOR_B_CREDENTIAL_2=$(echo $REQUEST | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
@@ -231,23 +231,15 @@ else
   exitWithDockerLogs 1
 fi
 
-# Request access token with credential_query to select the second org credential
+# Request access token with credential_selection to select the second org credential
 REQUEST=$(
 cat << EOF
 {
   "authorization_server": "https://nodeA/oauth2/vendorA",
   "scope": "test",
-  "credential_query": [
-    {
-      "id": "id_nuts_care_organization_cred",
-      "claims": [
-        {
-          "path": ["credentialSubject", "organization", "name"],
-          "values": ["Second Org B.V."]
-        }
-      ]
-    }
-  ],
+  "credential_selection": {
+    "organization_name": "Second Org B.V."
+  },
   "credentials": [
       {
         "@context": [
@@ -267,20 +259,20 @@ EOF
 )
 RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json" -H "Cache-Control: no-cache")
 if echo $RESPONSE | grep -q "access_token"; then
-  echo "credential_query: access token obtained successfully"
+  echo "credential_selection: access token obtained successfully"
 else
-  echo "FAILED: Could not get access token with credential_query" 1>&2
+  echo "FAILED: Could not get access token with credential_selection" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi
 
 # Verify introspection contains the correct org (Second Org B.V.)
-DCQL_ACCESS_TOKEN=$(echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/')
-RESPONSE=$(curl -X POST -s --data "token=$DCQL_ACCESS_TOKEN" http://localhost:18081/internal/auth/v2/accesstoken/introspect_extended)
+SELECTION_ACCESS_TOKEN=$(echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/')
+RESPONSE=$(curl -X POST -s --data "token=$SELECTION_ACCESS_TOKEN" http://localhost:18081/internal/auth/v2/accesstoken/introspect_extended)
 if echo $RESPONSE | grep -q "Second Org B.V."; then
-  echo "credential_query: correct organization selected"
+  echo "credential_selection: correct organization selected"
 else
-  echo "FAILED: credential_query did not select the correct organization" 1>&2
+  echo "FAILED: credential_selection did not select the correct organization" 1>&2
   echo $RESPONSE
   exitWithDockerLogs 1
 fi

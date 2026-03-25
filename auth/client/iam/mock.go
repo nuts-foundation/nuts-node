@@ -15,7 +15,6 @@ import (
 
 	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
-	dcql "github.com/nuts-foundation/nuts-node/vcr/dcql"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -195,18 +194,18 @@ func (mr *MockClientMockRecorder) RequestObjectByPost(ctx, requestURI, walletMet
 }
 
 // RequestRFC021AccessToken mocks base method.
-func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, clientID, subjectDID, authServerURL, scopes string, useDPoP bool, credentials []vc.VerifiableCredential, credentialQueries []dcql.CredentialQuery) (*oauth.TokenResponse, error) {
+func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, clientID, subjectDID, authServerURL, scopes string, useDPoP bool, credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialQueries)
+	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // RequestRFC021AccessToken indicates an expected call of RequestRFC021AccessToken.
-func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialQueries any) *gomock.Call {
+func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialQueries)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection)
 }
 
 // VerifiableCredentials mocks base method.

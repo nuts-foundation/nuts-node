@@ -42,7 +42,6 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vcr/dcql"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -236,7 +235,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialQueries []dcql.CredentialQuery) (*oauth.TokenResponse, error) {
+	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
@@ -297,7 +296,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
 		}
 	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, *presentationDefinition, credentialQueries, params)
+	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, *presentationDefinition, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
