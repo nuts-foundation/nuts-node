@@ -55,10 +55,15 @@ involved.
 The path starts at the credential root, supporting top-level fields (`issuer`, `type`, etc.)
 as well as nested `credentialSubject` fields.
 
-`credentialSubject` is unwrapped from its Go array representation (`[]map[string]any`) to a
-single object. This allows paths like `["credentialSubject", "patientId"]` instead of
-`["credentialSubject", 0, "patientId"]`, since in practice `credentialSubject` always contains
-exactly one entry.
+`credentialSubject` handling: the W3C VC data model allows `credentialSubject` to be either a
+single object or an array. The Go VC struct always models it as `[]map[string]any`. The DCQL
+spec examples use paths without an array index (e.g., `["credentialSubject", "family_name"]`).
+
+- **Single credentialSubject** (common case): the array is automatically unwrapped to a single
+  object, so paths like `["credentialSubject", "patientId"]` work without an index.
+- **Multiple credentialSubjects** (rare): the path must include an explicit integer index to
+  select which subject, e.g., `["credentialSubject", 0, "patientId"]`. Using a string key on
+  an array with multiple elements returns an error.
 
 ## Examples
 
