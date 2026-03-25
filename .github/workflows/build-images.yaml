@@ -46,7 +46,7 @@ jobs:
 
       - name: Docker meta
         id: docker_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: nutsfoundation/nuts-node
           tags: |
@@ -71,7 +71,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
@@ -85,7 +85,7 @@ jobs:
 
       - name: Build and push development image
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master'}}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: development/dev-image
           push: true
