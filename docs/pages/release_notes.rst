@@ -3,6 +3,13 @@ Release notes
 #############
 
 ****************
+Unreleased
+****************
+
+## New features
+* #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+
+****************
 Peanut (v6.2.0)
 ****************
 

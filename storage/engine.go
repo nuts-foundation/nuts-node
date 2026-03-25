@@ -31,12 +31,14 @@ import (
 	"time"
 
 	_ "github.com/microsoft/go-mssqldb/azuread"
+	leia "github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/storage/log"
 	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
 	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/sqlite"
+	"github.com/piprate/json-gold/ld"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
@@ -49,6 +51,15 @@ import (
 )
 
 const storeShutdownTimeout = 5 * time.Second
+
+// newDocumentStoreFunc is the function type for creating a new Leia document store.
+type newDocumentStoreFunc func(path string, documentLoader interface{}) (leia.Store, error)
+
+// NewDocumentStore is the factory function for creating Leia stores.
+// It can be overridden in Configure() to inject the storage.debug setting.
+var NewDocumentStore newDocumentStoreFunc = func(path string, documentLoader interface{}) (leia.Store, error) {
+	return createLeiaStore(path, documentLoader, false)
+}
 
 // sqlSlowQueryThreshold specifies the threshold for logging slow SQL queries.
 // If SQL queries take longer than this threshold, they will be logged as warnings.
@@ -191,6 +202,10 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	}
 	e.databases = append(e.databases, bboltDB)
 
+	NewDocumentStore = func(path string, documentLoader interface{}) (leia.Store, error) {
+		return createLeiaStore(path, documentLoader, e.config.Debug)
+	}
+
 	// SQL storage
 	if err := e.initSQLDatabase(config.Strictmode); err != nil {
 		return fmt.Errorf("failed to initialize SQL database: %w", err)
@@ -225,6 +240,38 @@ func (e *engine) Configure(config core.ServerConfig) error {
 	}
 
 	return nil
+}
+
+func createLeiaStore(path string, documentLoader interface{}, debug bool) (leia.Store, error) {
+	var options []leia.StoreOption
+	if debug {
+		options = append(options, leia.WithQueryStatsCallbacks(leia.QueryStatsCallbacks{
+			OnIndexProblem: logLeiaQueryStats,
+		}))
+	}
+	if documentLoader != nil {
+		if loader, ok := documentLoader.(ld.DocumentLoader); ok {
+			options = append(options, leia.WithDocumentLoader(loader))
+		}
+	}
+	return leia.NewStore(path, options...)
+}
+
+func logLeiaQueryStats(stats leia.IndexStats) {
+	entry := log.Logger().
+		WithField("leia_collection", stats.Collection).
+		WithField("leia_documents_scanned", stats.DocumentsScanned).
+		WithField("leia_documents_scanned_bytes", stats.DocumentsScannedBytes).
+		WithField("leia_documents_matched", stats.DocumentsMatched).
+		WithField("leia_documents_matched_bytes", stats.DocumentsMatchedBytes).
+		WithField("leia_unindexed_fields", stats.UnindexedFields)
+	if stats.IndexUsed == "" {
+		entry.Warnf("leia: full table scan detected for query: %s", stats.Query)
+	} else {
+		entry.WithField("leia_index_used", stats.IndexUsed).
+			WithField("leia_filter_efficiency", stats.FilterEfficiency).
+			Warnf("leia: suboptimal index usage detected for query: %s", stats.Query)
+	}
 }
 
 func (e *engine) GetProvider(moduleName string) Provider {

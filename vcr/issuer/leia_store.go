@@ -47,7 +47,7 @@ type leiaIssuerStore struct {
 
 // NewLeiaIssuerStore creates a new instance of leiaIssuerStore which implements the Store interface.
 func NewLeiaIssuerStore(dbPath string, backupStore stoabs.KVStore) (Store, error) {
-	store, err := leia.NewStore(dbPath)
+	store, err := storage.NewDocumentStore(dbPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create leiaIssuerStore: %w", err)
 	}
