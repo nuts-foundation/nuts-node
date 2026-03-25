@@ -251,7 +251,7 @@ func TestParseDPoP(t *testing.T) {
 		_, err := Parse(dpopString)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "invalid DPoP token: missing htu claim")
+		assert.EqualError(t, err, "invalid DPoP token: invalid htu claim")
 	})
 	t.Run("non-string htm claim", func(t *testing.T) {
 		dpopToken := New(*request)
@@ -261,7 +261,7 @@ func TestParseDPoP(t *testing.T) {
 		_, err := Parse(dpopString)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "invalid DPoP token: missing htm claim")
+		assert.EqualError(t, err, "invalid DPoP token: invalid htm claim")
 	})
 }
 
