@@ -30,7 +30,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -158,18 +157,18 @@ func Parse(s string) (*DPoP, error) {
 	}
 	if v, ok := token.Get(HTUKey); !ok {
 		return nil, fmt.Errorf("%w: missing htu claim", ErrInvalidDPoP)
-	} else if s, ok := v.(string); !ok {
+	} else if htu, ok := v.(string); !ok {
 		return nil, fmt.Errorf("%w: invalid htu claim", ErrInvalidDPoP)
-	} else if s == "" {
+	} else if htu == "" {
 		return nil, fmt.Errorf("%w: missing htu claim", ErrInvalidDPoP)
-	} else if _, err := url.Parse(s); err != nil {
+	} else if _, err := url.Parse(htu); err != nil {
 		return nil, fmt.Errorf("%w: invalid htu claim: %w", ErrInvalidDPoP, err)
 	}
 	if v, ok := token.Get(HTMKey); !ok {
 		return nil, fmt.Errorf("%w: missing htm claim", ErrInvalidDPoP)
-	} else if s, ok := v.(string); !ok {
+	} else if htm, ok := v.(string); !ok {
 		return nil, fmt.Errorf("%w: invalid htm claim", ErrInvalidDPoP)
-	} else if s == "" {
+	} else if htm == "" {
 		return nil, fmt.Errorf("%w: missing htm claim", ErrInvalidDPoP)
 	}
 	if token.JwtID() == "" {
