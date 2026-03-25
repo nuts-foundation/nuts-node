@@ -22,6 +22,7 @@ import (
 	"context"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/vcr/dcql"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -45,7 +46,7 @@ type Client interface {
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
 	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
-		credentials []vc.VerifiableCredential) (*oauth.TokenResponse, error)
+		credentials []vc.VerifiableCredential, credentialQueries []dcql.CredentialQuery) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
 	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).

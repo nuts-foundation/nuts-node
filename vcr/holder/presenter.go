@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vcr/dcql"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
@@ -48,7 +49,7 @@ type presenter struct {
 }
 
 func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
-	params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	credentialQueries []dcql.CredentialQuery, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
@@ -56,6 +57,15 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	builder := presentationDefinition.PresentationSubmissionBuilder()
 	for holderDID, creds := range credentials {
 		builder.AddWallet(holderDID, creds)
+	}
+	// If DCQL credential queries are provided, create a selector that narrows
+	// credential selection per input descriptor.
+	if len(credentialQueries) > 0 {
+		selector, err := pe.NewDCQLSelector(credentialQueries, presentationDefinition, pe.FirstMatchSelector)
+		if err != nil {
+			return nil, nil, err
+		}
+		builder.SetCredentialSelector(selector)
 	}
 
 	// Find supported VP format, matching support from:

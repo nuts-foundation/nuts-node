@@ -315,7 +315,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
@@ -327,7 +327,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, vp)
@@ -339,7 +339,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		w := NewSQLWallet(nil, keyStore, testVerifier{}, jsonldManager, storageEngine)
 		_ = w.Put(context.Background(), credentials[nutsWalletDID]...)
 
-		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 	})
@@ -351,7 +351,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		keyResolver.EXPECT().ResolveKey(webWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.Nil(t, err)
 		assert.NotNil(t, vp)

@@ -134,6 +134,31 @@ type ServiceAccessTokenRequest struct {
 	// used to locate the OAuth2 Authorization Server metadata.
 	AuthorizationServer string `json:"authorization_server"`
 
+	// CredentialQuery Optional DCQL credential queries (per OpenID4VP section 6.1/6.3) to disambiguate credential
+	// selection when the wallet contains multiple credentials matching a single input descriptor.
+	// Each query's id MUST match an input descriptor ID in the Presentation Definition for the
+	// requested scope. The query's claims specify value filters for selecting the right credential.
+	//
+	// The DCQL filter must narrow to exactly one credential per input descriptor.
+	// Zero matches or multiple matches will result in an error.
+	CredentialQuery *[]struct {
+		// Claims Claims queries specifying value filters for credential selection.
+		Claims []struct {
+			// Path Claims Path Pointer (OpenID4VP section 7) specifying the path to a claim
+			// within the credential. Elements can be strings (key lookup), integers
+			// (array index), or null (array wildcard). Path starts at the credential root.
+			Path []interface{} `json:"path"`
+
+			// Values Expected values for the claim. The credential matches if the claim value
+			// equals at least one of the values (OR semantics).
+			Values *[]interface{} `json:"values,omitempty"`
+		} `json:"claims"`
+
+		// Id Identifier linking this query to a Presentation Definition input descriptor.
+		// Must consist of alphanumeric, underscore, or hyphen characters.
+		Id string `json:"id"`
+	} `json:"credential_query,omitempty"`
+
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.

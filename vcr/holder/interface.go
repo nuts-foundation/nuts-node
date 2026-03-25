@@ -25,6 +25,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/dcql"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 )
@@ -51,7 +52,9 @@ type Wallet interface {
 
 	// BuildSubmission builds a Verifiable Presentation based on the given presentation definition.
 	// additionalCredentials can be given to have the submission consider extra credentials that are not in the wallet.
-	BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
+	// credentialQueries optionally specifies DCQL credential queries to disambiguate credential selection
+	// when multiple credentials match a single input descriptor.
+	BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialQueries []dcql.CredentialQuery, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error)
 
 	// List returns all credentials in the wallet for the given holder.
 	// If the wallet does not contain any credentials for the given holder, it returns an empty list.

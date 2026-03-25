@@ -56,6 +56,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/dcql"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -773,8 +774,24 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
+	// Convert credential_query from generated types to dcql types
+	var credentialQueries []dcql.CredentialQuery
+	if request.Body.CredentialQuery != nil {
+		for _, q := range *request.Body.CredentialQuery {
+			query := dcql.CredentialQuery{ID: q.Id}
+			for _, c := range q.Claims {
+				claim := dcql.ClaimsQuery{Path: c.Path}
+				if c.Values != nil {
+					claim.Values = *c.Values
+				}
+				query.Claims = append(query.Claims, claim)
+			}
+			credentialQueries = append(credentialQueries, query)
+		}
+	}
+
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials)
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialQueries)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
