@@ -10,6 +10,16 @@ Unreleased
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 
 ****************
+Peanut (v6.2.1)
+****************
+
+Release date: 2026-03-25
+
+- Update NATS server to fix CVE-2026-33215, CVE-2026-33216, CVE-2026-33217, CVE-2026-33218, CVE-2026-33219, CVE-2026-33222, CVE-2026-33223, CVE-2026-33246, CVE-2026-33247, CVE-2026-33248, CVE-2026-33249
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.0...v6.2.1
+
+****************
 Peanut (v6.2.0)
 ****************
 
@@ -411,6 +421,27 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.27)
+*************************
+
+Release date: 2026-03-25
+
+- Update NATS server to fix CVE-2026-33215, CVE-2026-33216, CVE-2026-33217, CVE-2026-33218, CVE-2026-33219, CVE-2026-33222, CVE-2026-33223, CVE-2026-33246, CVE-2026-33247, CVE-2026-33248, CVE-2026-33249
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.26...v5.4.27
+
+*************************
+Hazelnut update (v5.4.26)
+*************************
+
+Release date: 2026-03-24
+
+- #4063: Enable storage.debug flag to enable go-leia performance logging by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+- Update json-gold to 0.8.0 for performance improvements
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.25...v5.4.26
 
 *************************
 Hazelnut update (v5.4.25)
