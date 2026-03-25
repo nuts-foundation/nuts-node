@@ -22,6 +22,7 @@ package pe
 import "errors"
 
 var ErrNoCredentials = errors.New("missing credentials")
+var ErrMultipleCredentials = errors.New("multiple matching credentials")
 
 // PresentationDefinitionClaimFormatDesignations (replaces generated one)
 type PresentationDefinitionClaimFormatDesignations map[string]map[string][]string
