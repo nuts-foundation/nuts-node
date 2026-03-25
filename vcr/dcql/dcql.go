@@ -112,10 +112,6 @@ func validateQuery(query CredentialQuery) error {
 }
 
 // credentialToMap converts a credential to a generic JSON map for path resolution.
-// The Go VC struct models credentialSubject as []map[string]any, which marshals to a
-// JSON array. The DCQL spec examples treat credentialSubject as a single object — paths
-// use ["credentialSubject", "family_name"] without an array index (see OpenID4VP appendix D
-// and section B.1.2). We unwrap single-element arrays to match this convention.
 func credentialToMap(cred vc.VerifiableCredential) (map[string]any, error) {
 	data, err := json.Marshal(cred)
 	if err != nil {
@@ -125,12 +121,66 @@ func credentialToMap(cred vc.VerifiableCredential) (map[string]any, error) {
 	if err := json.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal credential: %w", err)
 	}
-	if cs, ok := root["credentialSubject"]; ok {
-		if arr, ok := cs.([]any); ok && len(arr) == 1 {
-			root["credentialSubject"] = arr[0]
-		}
-	}
 	return root, nil
+}
+
+// normalizeCredentialSubjectPath adjusts a claims path for the credentialSubject field.
+// The Go VC struct models credentialSubject as []map[string]any. When marshalled to JSON:
+//   - Single element: serialized as a plain object (not an array)
+//   - Multiple elements: serialized as an array
+//
+// This function ensures the path works regardless of how credentialSubject was serialized:
+//   - Path without index on a single object: works as-is (no change needed)
+//   - Path with index 0 on a single object: strips the index so the path resolves against the object
+//   - Path without index on an array: inserts index 0 for single-element arrays
+//   - Path with index on an array: works as-is (no change needed)
+func normalizeCredentialSubjectPath(path []any, root map[string]any) []any {
+	if len(path) < 2 {
+		return path
+	}
+	key, ok := path[0].(string)
+	if !ok || key != "credentialSubject" {
+		return path
+	}
+	cs, ok := root["credentialSubject"]
+	if !ok {
+		return path
+	}
+
+	hasIndex := false
+	switch path[1].(type) {
+	case int, float64:
+		hasIndex = true
+	}
+
+	switch cs.(type) {
+	case map[string]any:
+		// Single credentialSubject serialized as object
+		if hasIndex {
+			// Strip the index — path like ["credentialSubject", 0, "field"]
+			// becomes ["credentialSubject", "field"]
+			normalized := make([]any, 0, len(path)-1)
+			normalized = append(normalized, path[0])
+			normalized = append(normalized, path[2:]...)
+			return normalized
+		}
+		// No index needed, path resolves directly against the object
+		return path
+	case []any:
+		// Multiple credentialSubjects serialized as array
+		arr := cs.([]any)
+		if !hasIndex && len(arr) == 1 {
+			// Insert index 0 for single-element array
+			normalized := make([]any, 0, len(path)+1)
+			normalized = append(normalized, path[0], 0)
+			normalized = append(normalized, path[1:]...)
+			return normalized
+		}
+		// Either already has index, or multiple elements (require index from caller)
+		return path
+	default:
+		return path
+	}
 }
 
 func matchesAll(claims []ClaimsQuery, root map[string]any) (bool, error) {
@@ -147,7 +197,8 @@ func matchesAll(claims []ClaimsQuery, root map[string]any) (bool, error) {
 }
 
 func matchesClaim(claim ClaimsQuery, root map[string]any) (bool, error) {
-	resolved, err := resolveInValue(claim.Path, root)
+	path := normalizeCredentialSubjectPath(claim.Path, root)
+	resolved, err := resolveInValue(path, root)
 	if err != nil {
 		return false, err
 	}

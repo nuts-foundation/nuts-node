@@ -620,6 +620,24 @@ func TestMatch(t *testing.T) {
 
 		assert.ErrorContains(t, err, "invalid path element type")
 	})
+	t.Run("single credentialSubject with explicit index 0 works", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "123"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", 0, "patientId"}, Values: []any{"123"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+	})
 	t.Run("multiple credentialSubjects without index returns error", func(t *testing.T) {
 		credential := vc.VerifiableCredential{
 			CredentialSubject: []map[string]any{
