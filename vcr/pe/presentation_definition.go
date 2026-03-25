@@ -56,10 +56,13 @@ func ParsePresentationDefinition(raw []byte) (*PresentationDefinition, error) {
 //   - (*vc, nil): a credential was selected successfully.
 //   - (nil, nil): no credential was selected. The input descriptor is not fulfilled, which may
 //     be acceptable depending on submission requirements (e.g., pick rules with min: 0).
-//   - (nil, ErrNoCredentials): no candidates matched the selector's criteria.
+//   - (nil, ErrNoCredentials): no candidates matched the selector's criteria. Treated as a soft
+//     failure: the input descriptor is not fulfilled, but submission requirements may still accept
+//     this (e.g., pick rules with min: 0).
 //   - (nil, ErrMultipleCredentials): multiple candidates matched but the selector requires exactly one.
+//     This is a hard failure — the match is aborted.
+//   - (nil, other error): any other error is a hard failure.
 //
-// Selectors that enforce strict matching should return ErrNoCredentials or ErrMultipleCredentials.
 // Selectors that are lenient (like FirstMatchSelector) may return (nil, nil) to let the caller decide.
 type CredentialSelector func(descriptor InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error)
 
@@ -184,7 +187,13 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 		// Use the selector to pick one credential from the candidates
 		selected, err := selector(*inputDescriptor, matchingVCs)
 		if err != nil {
-			return nil, err
+			if errors.Is(err, ErrNoCredentials) {
+				// Treat as "no match" — submission requirements may still accept this
+				// (e.g., pick rules with min: 0).
+				selected = nil
+			} else {
+				return nil, err
+			}
 		}
 		candidates = append(candidates, Candidate{
 			InputDescriptor: *inputDescriptor,
