@@ -145,3 +145,31 @@ func TestAuth_SupportedDIDMethods(t *testing.T) {
 		assert.Contains(t, (&Auth{configuredDIDMethods: []string{"web"}}).SupportedDIDMethods(), "web")
 	})
 }
+
+func TestAuth_OpenID4VPEnabled(t *testing.T) {
+	t.Run("false by default", func(t *testing.T) {
+		assert.False(t, (&Auth{}).OpenID4VPEnabled())
+	})
+	t.Run("true when auth.openid4vp.enabled is true", func(t *testing.T) {
+		a := &Auth{config: Config{OpenID4VP: OpenID4VPConfig{Enabled: true}}}
+		assert.True(t, a.OpenID4VPEnabled())
+	})
+	t.Run("true when deprecated auth.authorizationendpoint.enabled is true", func(t *testing.T) {
+		a := &Auth{config: Config{AuthorizationEndpoint: AuthorizationEndpointConfig{Enabled: true}}}
+		assert.True(t, a.OpenID4VPEnabled())
+	})
+}
+
+func TestAuth_OpenID4VCIEnabled(t *testing.T) {
+	t.Run("false by default", func(t *testing.T) {
+		assert.False(t, (&Auth{}).OpenID4VCIEnabled())
+	})
+	t.Run("true when auth.openid4vci.enabled is true", func(t *testing.T) {
+		a := &Auth{config: Config{OpenID4VCI: OpenID4VCIConfig{Enabled: true}}}
+		assert.True(t, a.OpenID4VCIEnabled())
+	})
+	t.Run("true when deprecated auth.authorizationendpoint.enabled is true", func(t *testing.T) {
+		a := &Auth{config: Config{AuthorizationEndpoint: AuthorizationEndpointConfig{Enabled: true}}}
+		assert.True(t, a.OpenID4VCIEnabled())
+	})
+}

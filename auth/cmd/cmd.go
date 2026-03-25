@@ -45,7 +45,14 @@ const ConfHTTPTimeout = "auth.http.timeout"
 const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 
 // ConfAuthEndpointEnabled is the config key for enabling the Auth v2 API's Authorization Endpoint
+// Deprecated: use ConfOpenID4VPEnabled and ConfOpenID4VCIEnabled instead.
 const ConfAuthEndpointEnabled = "auth.authorizationendpoint.enabled"
+
+// ConfOpenID4VPEnabled is the config key for enabling OpenID4VP
+const ConfOpenID4VPEnabled = "auth.openid4vp.enabled"
+
+// ConfOpenID4VCIEnabled is the config key for enabling OpenID4VCI (client)
+const ConfOpenID4VCIEnabled = "auth.openid4vci.enabled"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
@@ -60,7 +67,10 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	flags.Bool(ConfAuthEndpointEnabled, defs.AuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. "+
-		"This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.")
+		"Deprecated: use auth.openid4vp.enabled and auth.openid4vci.enabled instead.")
+	flags.Bool(ConfOpenID4VPEnabled, defs.OpenID4VP.Enabled, "enables OpenID4VP, allowing the node to act as an OpenID4VP verifier and wallet.")
+	flags.Bool(ConfOpenID4VCIEnabled, defs.OpenID4VCI.Enabled, "enables OpenID4VCI (client), allowing the node to act as an OpenID4VCI wallet.")
+	_ = flags.MarkDeprecated(ConfAuthEndpointEnabled, "use auth.openid4vp.enabled and auth.openid4vci.enabled instead")
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 
 	return flags

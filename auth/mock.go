@@ -43,20 +43,6 @@ func (m *MockAuthenticationServices) EXPECT() *MockAuthenticationServicesMockRec
 	return m.recorder
 }
 
-// AuthorizationEndpointEnabled mocks base method.
-func (m *MockAuthenticationServices) AuthorizationEndpointEnabled() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthorizationEndpointEnabled")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// AuthorizationEndpointEnabled indicates an expected call of AuthorizationEndpointEnabled.
-func (mr *MockAuthenticationServicesMockRecorder) AuthorizationEndpointEnabled() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationEndpointEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).AuthorizationEndpointEnabled))
-}
-
 // AuthzServer mocks base method.
 func (m *MockAuthenticationServices) AuthzServer() oauth.AuthorizationServer {
 	m.ctrl.T.Helper()
@@ -97,6 +83,34 @@ func (m *MockAuthenticationServices) IAMClient() iam.Client {
 func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
+}
+
+// OpenID4VCIEnabled mocks base method.
+func (m *MockAuthenticationServices) OpenID4VCIEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenID4VCIEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// OpenID4VCIEnabled indicates an expected call of OpenID4VCIEnabled.
+func (mr *MockAuthenticationServicesMockRecorder) OpenID4VCIEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenID4VCIEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).OpenID4VCIEnabled))
+}
+
+// OpenID4VPEnabled mocks base method.
+func (m *MockAuthenticationServices) OpenID4VPEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenID4VPEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// OpenID4VPEnabled indicates an expected call of OpenID4VPEnabled.
+func (mr *MockAuthenticationServicesMockRecorder) OpenID4VPEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenID4VPEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).OpenID4VPEnabled))
 }
 
 // PublicURL mocks base method.
