@@ -55,14 +55,14 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "channel": "#nuts-core-team",
-              "text": "<@DS5VD66D9> Re-review requested\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
+              "channel": "DS5VD66D9",
+              "text": "Re-review requested on <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "<@DS5VD66D9> Re-review requested\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>\nRequested by <https://github.com/${{ github.event.sender.login }}|${{ github.event.sender.login }}>"
+                    "text": "Re-review requested on <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>\nRequested by <https://github.com/${{ github.event.sender.login }}|${{ github.event.sender.login }}>"
                   }
                 }
               ]
