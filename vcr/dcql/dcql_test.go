@@ -726,6 +726,127 @@ func TestMatch(t *testing.T) {
 
 		assert.ErrorContains(t, err, "path must be a non-empty array")
 	})
+	t.Run("path ending at object does not panic on value comparison", func(t *testing.T) {
+		// When the path resolves to a map (non-comparable type), containsExpectedValue
+		// must not panic on == comparison. It should simply not match.
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{
+					"hasEnrollment": map[string]any{
+						"patient": map[string]any{
+							"name": "John",
+						},
+					},
+				},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Path stops at the object level, resolved value is a map
+				{Path: []any{"credentialSubject", "hasEnrollment", "patient"}, Values: []any{"John"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("single credentialSubject with non-zero index does not match", func(t *testing.T) {
+		// When credentialSubject is a single object and the path uses index 5,
+		// this should not match — only index 0 is valid for a single element.
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"patientId": "123"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", 5, "patientId"}, Values: []any{"123"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("null wildcard on non-array value does not match", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"name": "John"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// null wildcard on a string value — not an array
+				{Path: []any{"credentialSubject", "name", nil}, Values: []any{"John"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("integer index on non-array value does not match", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"name": "John"},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "name", 0}, Values: []any{"John"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("out-of-bounds array index does not match", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"roles": []any{"01.015"}},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				{Path: []any{"credentialSubject", "roles", 99}, Values: []any{"01.015"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+	t.Run("string key on non-map non-array value does not match", func(t *testing.T) {
+		credential := vc.VerifiableCredential{
+			CredentialSubject: []map[string]any{
+				{"count": float64(42)},
+			},
+		}
+		query := CredentialQuery{
+			ID: "test",
+			Claims: []ClaimsQuery{
+				// Trying to use a string key on a number
+				{Path: []any{"credentialSubject", "count", "sub"}, Values: []any{"x"}},
+			},
+		}
+
+		result, err := Match(query, []vc.VerifiableCredential{credential})
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
 	t.Run("valid credential query ID with hyphens and underscores", func(t *testing.T) {
 		query := CredentialQuery{
 			ID:     "id_patient-enrollment_01",
@@ -785,10 +906,10 @@ func BenchmarkMatch_2000Credentials(b *testing.B) {
 
 	b.ResetTimer()
 	var benchResult []vc.VerifiableCredential
+	var benchErr error
 	for b.Loop() {
-		benchResult, _ = Match(query, credentials)
+		benchResult, benchErr = Match(query, credentials)
 	}
-	if len(benchResult) != 1 {
-		b.Fatalf("expected 1 match, got %d", len(benchResult))
-	}
+	require.NoError(b, benchErr)
+	require.Len(b, benchResult, 1)
 }

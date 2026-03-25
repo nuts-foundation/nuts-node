@@ -157,6 +157,17 @@ func normalizeCredentialSubjectPath(path []any, root map[string]any) []any {
 	case map[string]any:
 		// Single credentialSubject serialized as object
 		if hasIndex {
+			// Only strip index 0 — higher indices cannot refer to a single object
+			isZero := false
+			switch idx := path[1].(type) {
+			case int:
+				isZero = idx == 0
+			case float64:
+				isZero = idx == 0
+			}
+			if !isZero {
+				return path
+			}
 			// Strip the index — path like ["credentialSubject", 0, "field"]
 			// becomes ["credentialSubject", "field"]
 			normalized := make([]any, 0, len(path)-1)
