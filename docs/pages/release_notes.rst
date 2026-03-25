@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.27)
+*************************
+
+Release date: 2026-03-25
+
+- Update NATS server to fix CVE-2026-33215, CVE-2026-33216, CVE-2026-33217, CVE-2026-33218, CVE-2026-33219, CVE-2026-33222, CVE-2026-33223, CVE-2026-33246, CVE-2026-33247, CVE-2026-33248, CVE-2026-33249
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.26...v5.4.27
+
+*************************
 Hazelnut update (v5.4.26)
 *************************
 
