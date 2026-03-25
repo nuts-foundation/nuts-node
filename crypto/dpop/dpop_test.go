@@ -243,6 +243,26 @@ func TestParseDPoP(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidDPoP)
 		assert.Contains(t, err.Error(), "invalid htu claim")
 	})
+	t.Run("non-string htu claim", func(t *testing.T) {
+		dpopToken := New(*request)
+		_ = dpopToken.Token.Set(HTUKey, 42)
+		dpopString, _ := dpopToken.Sign("kid", keyPair, alg)
+
+		_, err := Parse(dpopString)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DPoP token: missing htu claim")
+	})
+	t.Run("non-string htm claim", func(t *testing.T) {
+		dpopToken := New(*request)
+		_ = dpopToken.Token.Set(HTMKey, 42)
+		dpopString, _ := dpopToken.Sign("kid", keyPair, alg)
+
+		_, err := Parse(dpopString)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DPoP token: missing htm claim")
+	})
 }
 
 func TestDPoP_Match(t *testing.T) {
