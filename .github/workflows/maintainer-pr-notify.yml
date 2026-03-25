@@ -26,13 +26,20 @@ jobs:
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "*New PR from maintainer <@${{ github.event.pull_request.user.login }}>*\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
+              "text": ${{ toJSON(format('New PR from maintainer {0}: {1}', github.event.pull_request.user.login, github.event.pull_request.title)) }},
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*New PR from maintainer <https://github.com/${{ github.event.pull_request.user.login }}|${{ github.event.pull_request.user.login }}>*\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>"
+                    "text": ${{ toJSON(format('*New PR from maintainer <https://github.com/{0}|{0}>*', github.event.pull_request.user.login)) }}
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(format('<{0}|{1}>', github.event.pull_request.html_url, github.event.pull_request.title)) }}
                   }
                 }
               ]
