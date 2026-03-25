@@ -251,7 +251,9 @@ func strip(raw string) (string, error) {
 		return "", err
 	}
 	u.Scheme = "https"
-	u.Host = strings.Split(u.Host, ":")[0]
+	if host := u.Hostname(); host != "" {
+		u.Host = host
+	}
 	u.RawQuery = ""
 	u.Fragment = ""
 	return u.String(), nil
