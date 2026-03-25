@@ -2,7 +2,7 @@ name: Notify on maintainer PR
 
 on:
   pull_request:
-    types: [opened, ready_for_review, review_requested]
+    types: [opened, ready_for_review]
     branches:
       - master
 
@@ -15,18 +15,16 @@ jobs:
     permissions:
       pull-requests: read
     if: |
-      github.event.action != 'review_requested' &&
       !github.event.pull_request.draft &&
       contains(fromJSON('["woutslakhorst","reinkrul","gerardsn","stevenvegt"]'), github.event.pull_request.user.login)
     steps:
       - name: Send Slack message
         uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
           webhook-type: incoming-webhook
           payload: |
             {
-              "channel": "#nuts-core-team",
               "text": "*New PR from maintainer <@${{ github.event.pull_request.user.login }}>*\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
               "blocks": [
                 {
@@ -34,35 +32,6 @@ jobs:
                   "text": {
                     "type": "mrkdwn",
                     "text": "*New PR from maintainer <https://github.com/${{ github.event.pull_request.user.login }}|${{ github.event.pull_request.user.login }}>*\n<${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>"
-                  }
-                }
-              ]
-            }
-
-  notify-steven-re-review:
-    name: Notify Steven on re-review request
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    if: |
-      github.event.action == 'review_requested' &&
-      github.event.requested_reviewer.login == 'stevenvegt'
-    steps:
-      - name: Send Slack message to Steven
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "channel": "DS5VD66D9",
-              "text": "Re-review requested on <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Re-review requested on <${{ github.event.pull_request.html_url }}|${{ github.event.pull_request.title }}>\nRequested by <https://github.com/${{ github.event.sender.login }}|${{ github.event.sender.login }}>"
                   }
                 }
               ]
