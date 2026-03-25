@@ -94,10 +94,13 @@ func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request C
 	requestBody, _ := json.Marshal(request)
 
 	var credentialResponse CredentialResponse
-	httpRequest, _ := http.NewRequestWithContext(ctx, "POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
+	httpRequest, err := http.NewRequestWithContext(ctx, "POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("create credential request failed: %w", err)
+	}
 	httpRequest.Header.Add("Authorization", "Bearer "+accessToken)
 	httpRequest.Header.Add("Content-Type", "application/json")
-	err := httpDo(h.httpClient, httpRequest, &credentialResponse)
+	err = httpDo(h.httpClient, httpRequest, &credentialResponse)
 	if err != nil {
 		return nil, fmt.Errorf("get credential request failed: %w", err)
 	}
@@ -154,8 +157,10 @@ func loadOIDCProviderMetadata(ctx context.Context, identifier string, httpClient
 }
 
 func httpGet(ctx context.Context, httpClient core.HTTPRequestDoer, targetURL string, result interface{}) error {
-
-	httpRequest, _ := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+	httpRequest, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+	if err != nil {
+		return err
+	}
 	return httpDo(httpClient, httpRequest, result)
 }
 
@@ -208,10 +213,13 @@ func (c httpOAuth2Client) RequestAccessToken(grantType string, params map[string
 	for key, value := range params {
 		values.Add(key, value)
 	}
-	httpRequest, _ := http.NewRequestWithContext(context.Background(), "POST", c.metadata.TokenEndpoint, strings.NewReader(values.Encode()))
+	httpRequest, err := http.NewRequestWithContext(context.Background(), "POST", c.metadata.TokenEndpoint, strings.NewReader(values.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("create access token request failed: %w", err)
+	}
 	httpRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	var accessTokenResponse oauth.TokenResponse
-	err := httpDo(c.httpClient, httpRequest, &accessTokenResponse)
+	err = httpDo(c.httpClient, httpRequest, &accessTokenResponse)
 	if err != nil {
 		return nil, fmt.Errorf("request access token error: %w", err)
 	}
