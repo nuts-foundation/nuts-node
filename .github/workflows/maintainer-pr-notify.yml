@@ -15,6 +15,7 @@ jobs:
     permissions:
       pull-requests: read
     if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
       !github.event.pull_request.draft &&
       contains(fromJSON('["woutslakhorst","reinkrul","gerardsn","stevenvegt"]'), github.event.pull_request.user.login)
     steps:
