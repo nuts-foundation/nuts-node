@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
@@ -144,6 +145,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	if config.Strictmode && auth.config.Irma.SchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
+	}
+
+	if auth.config.AuthorizationEndpoint.Enabled {
+		log.Logger().Warn("auth.authorizationendpoint.enabled is deprecated, use auth.openid4vp.enabled and auth.openid4vci.enabled instead")
 	}
 
 	var err error

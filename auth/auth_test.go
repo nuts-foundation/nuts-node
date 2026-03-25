@@ -19,12 +19,14 @@
 package auth
 
 import (
+	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -64,6 +66,19 @@ func TestAuth_Configure(t *testing.T) {
 		i := NewAuthInstance(config, vdrInstance, nil, vcr.NewTestVCRInstance(t), crypto.NewMemoryCryptoInstance(t), nil, nil, pkiMock)
 
 		require.NoError(t, i.Configure(tlsServerConfig))
+	})
+
+	t.Run("deprecated auth.authorizationendpoint.enabled logs warning", func(t *testing.T) {
+		hook := &logTest.Hook{}
+		logrus.AddHook(hook)
+		defer func() { logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{}) }()
+		authCfg := TestConfig()
+		authCfg.AuthorizationEndpoint.Enabled = true
+		i := testInstance(t, authCfg)
+		require.NoError(t, i.Configure(tlsServerConfig))
+		require.NotNil(t, hook.LastEntry())
+		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "auth.authorizationendpoint.enabled is deprecated")
 	})
 
 	t.Run("error - IRMA config failure", func(t *testing.T) {
