@@ -11,7 +11,7 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
-  authorizationendpoint:
+  openid4vp:
     enabled: true
 policy:
   directory: /opt/nuts/policies
