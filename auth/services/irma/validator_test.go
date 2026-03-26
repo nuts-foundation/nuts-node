@@ -20,9 +20,10 @@ package irma
 
 import (
 	"encoding/base64"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -48,7 +49,7 @@ func (m *mockIrmaClient) GetSessionResult(token irma.RequestorToken) (*irmaserve
 	return m.sessionResult, nil
 }
 
-func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
+func (m *mockIrmaClient) StartSession(request interface{}, handler irmaservercore.SessionHandler, requestor string) (*irma.Qr, irma.RequestorToken, *irma.FrontendSessionRequest, error) {
 	if m.err != nil {
 		return nil, "", nil, m.err
 	}

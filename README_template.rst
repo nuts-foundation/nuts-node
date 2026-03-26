@@ -31,6 +31,13 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
 
+For AI-agentic Maintainers
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+(and maybe for some human maintainers as well):
+
+Claude Code skill files for common maintenance tasks can be found in the `.claude/commands directory <.claude/commands>`_.
+
 Development
 ^^^^^^^^^^^
 

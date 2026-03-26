@@ -116,6 +116,18 @@ affinity: {}
 #      existingSecret: nuts-node-redis-auth
 #      existingSecretPasswordKey: redis-password
 
+extraVolumes: []
+# extraVolumes:
+# - name: discovery-services
+#   configMap:
+#     name: nuts-discovery-services
+
+extraVolumeMounts: []
+# extraVolumeMounts:
+# - name: discovery-services
+#   mountPath: /nuts/discovery
+#   readOnly: true
+
 nuts:
   config:
     strictmode: true

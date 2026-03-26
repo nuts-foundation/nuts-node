@@ -35,6 +35,9 @@ spec:
         - name: nuts-data-pv
           persistentVolumeClaim:
             claimName: {{ .Release.Namespace }}-{{ .Release.Name }}-data-pvc
+        {{- if .Values.extraVolumes }}
+          {{- toYaml .Values.extraVolumes | nindent 8 }}
+        {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -84,6 +87,9 @@ spec:
               readOnly: true
             - name: nuts-data-pv
               mountPath: /opt/nuts/data
+            {{- if .Values.extraVolumeMounts }}
+              {{ toYaml .Values.extraVolumeMounts | nindent 12 }}
+            {{- end }}
           ports:
             - name: http-internal
               containerPort: {{ .Values.service.internal.internalPort | default 8081 }}

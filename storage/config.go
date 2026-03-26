@@ -26,6 +26,8 @@ type Config struct {
 	Redis   RedisConfig   `koanf:"redis"`
 	SQL     SQLConfig     `koanf:"sql"`
 	Session SessionConfig `koanf:"session"`
+	// Debug specifies whether to enable debug logging for the storage engine, e.g. performance metrics and query logging.
+	Debug bool `koanf:"debug"`
 }
 
 // DefaultConfig returns the default configuration for the module.
