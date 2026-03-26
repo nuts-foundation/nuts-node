@@ -26,11 +26,11 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                  IrmaConfig                  `koanf:"irma"`
-	HTTPTimeout           int                         `koanf:"http.timeout"`
-	ClockSkew             int                         `koanf:"clockskew"`
-	ContractValidators    []string                    `koanf:"contractvalidators"`
-	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
+	Irma                IrmaConfig `koanf:"irma"`
+	HTTPTimeout         int        `koanf:"http.timeout"`
+	ClockSkew           int        `koanf:"clockskew"`
+	ContractValidators  []string   `koanf:"contractvalidators"`
+	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
 	// Deprecated: use OpenID4VP.Enabled and OpenID4VCI.Enabled instead
 	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
 	OpenID4VP             OpenID4VPConfig             `koanf:"openid4vp"`
