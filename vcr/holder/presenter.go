@@ -122,10 +122,6 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
 func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
-	exp := options.ProofOptions.Created.Add(1 * time.Hour)
-	if options.ProofOptions.Expires != nil {
-		exp = *options.ProofOptions.Expires
-	}
 	return vc.CreateJWTVerifiablePresentation(ctx, subjectDID.URI(), credentials, vc.PresentationOptions{
 		AdditionalContexts:        options.AdditionalContexts,
 		AdditionalTypes:           options.AdditionalTypes,
@@ -134,7 +130,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 		Nonce:                     options.ProofOptions.Nonce,
 		Audience:                  options.ProofOptions.Domain,
 		IssuedAt:                  &options.ProofOptions.Created,
-		ExpiresAt:                 exp,
+		ExpiresAt:                 options.ProofOptions.Expires,
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 		return p.signer.SignJWT(ctx, claims, headers, keyID)
 	})

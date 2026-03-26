@@ -9,7 +9,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/avast/retry-go/v4 v4.6.1
+	github.com/avast/retry-go/v4 v4.7.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.15.1
 	github.com/dlclark/regexp2 v1.11.5
@@ -31,7 +31,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.11.15
 	github.com/nats-io/nats.go v1.49.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.18.0
+	github.com/nuts-foundation/go-did v0.18.1
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
 	github.com/nuts-foundation/go-stoabs v1.11.0
 	github.com/nuts-foundation/sqlite v1.0.0
@@ -191,7 +191,7 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
-	gorm.io/gorm v1.30.2
+	gorm.io/gorm v1.31.1
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.47.0
@@ -204,7 +204,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.20
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf
 	github.com/daangn/minimemcached v1.2.0
-	github.com/eko/gocache/lib/v4 v4.2.0
+	github.com/eko/gocache/lib/v4 v4.2.3
 	github.com/eko/gocache/store/go_cache/v4 v4.2.2
 	github.com/eko/gocache/store/memcache/v4 v4.2.4
 	github.com/eko/gocache/store/redis/v4 v4.2.2
