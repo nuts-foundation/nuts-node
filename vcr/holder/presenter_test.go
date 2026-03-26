@@ -176,7 +176,7 @@ func TestPresenter_buildPresentation(t *testing.T) {
 					})
 				})
 				vpAsMap := result.JWT().PrivateClaims()["vp"].(map[string]any)
-				t.Run("make sure type now marshalls as array", func(t *testing.T) {
+				t.Run("make sure type now marshals as array", func(t *testing.T) {
 					typeProp := vpAsMap["type"].([]any)
 					assert.Equal(t, []any{"VerifiablePresentation"}, typeProp)
 				})
