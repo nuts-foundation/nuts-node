@@ -58,7 +58,7 @@ These HTTP endpoints are available on ``:8080``.
 
    *Security*: HTTPS with **publicly trusted** server certificate (on proxy).
 
-* **/oauth2**: for accessing OAuth2 and OpenID services. ``/callback`` and ``/authorize`` are disabled by default on the Nuts node. They can be enabled by setting ``auth.authorizationendpoint.enabled`` to ``true``.
+* **/oauth2**: for accessing OAuth2 and OpenID services. ``/callback`` and ``/authorize`` are disabled by default on the Nuts node. They can be enabled by setting ``auth.openid4vci.enabled`` and/or ``auth.openid4vp.enabled`` to ``true``.
    Use this only for experimental OpenID4VCI and OpenID4VP use cases.
 
    *Users*: Verifiable Credential issuers and verifiers, OAuth2 client applications (e.g. other Nuts nodes, resource viewers)
