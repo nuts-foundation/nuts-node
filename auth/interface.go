@@ -40,8 +40,10 @@ type AuthenticationServices interface {
 	ContractNotary() services.ContractNotary
 	// PublicURL returns the public URL of the node.
 	PublicURL() *url.URL
-	// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
-	AuthorizationEndpointEnabled() bool
+	// OpenID4VPEnabled returns whether OpenID4VP is enabled.
+	OpenID4VPEnabled() bool
+	// OpenID4VCIEnabled returns whether OpenID4VCI (client) is enabled.
+	OpenID4VCIEnabled() bool
 	// SupportedDIDMethods lists the DID methods the Nuts node can resolve.
 	SupportedDIDMethods() []string
 }

@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
@@ -88,9 +89,16 @@ func (auth *Auth) PublicURL() *url.URL {
 	return auth.publicURL
 }
 
-// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
-func (auth *Auth) AuthorizationEndpointEnabled() bool {
-	return auth.config.AuthorizationEndpoint.Enabled
+// OpenID4VPEnabled returns whether OpenID4VP is enabled.
+// For backward compatibility, the old auth.authorizationendpoint.enabled flag also enables OpenID4VP.
+func (auth *Auth) OpenID4VPEnabled() bool {
+	return auth.config.OpenID4VP.Enabled || auth.config.AuthorizationEndpoint.Enabled
+}
+
+// OpenID4VCIEnabled returns whether OpenID4VCI (client) is enabled.
+// For backward compatibility, the old auth.authorizationendpoint.enabled flag also enables OpenID4VCI.
+func (auth *Auth) OpenID4VCIEnabled() bool {
+	return auth.config.OpenID4VCI.Enabled || auth.config.AuthorizationEndpoint.Enabled
 }
 
 // ContractNotary returns an implementation of the ContractNotary interface.
@@ -137,6 +145,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	if config.Strictmode && auth.config.Irma.SchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
+	}
+
+	if auth.config.AuthorizationEndpoint.Enabled {
+		log.Logger().Warn("auth.authorizationendpoint.enabled is deprecated, use auth.openid4vp.enabled and auth.openid4vci.enabled instead")
 	}
 
 	var err error

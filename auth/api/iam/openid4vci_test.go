@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +51,12 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		TokenEndpoint:            "https://auth.server/token",
 		ClientIdSchemesSupported: clientIdSchemesSupported,
 	}
+	t.Run("disabled", func(t *testing.T) {
+		ctx := newCustomTestClient(t, test.MustParseURL("https://example.com"), false, false)
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+		assert.EqualError(t, err, "OpenID4VCI is disabled")
+		assert.Nil(t, response)
+	})
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)

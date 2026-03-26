@@ -50,6 +50,8 @@ func TestFlagSet(t *testing.T) {
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaCorsOrigin,
 		ConfIrmaSchemeManager,
+		ConfOpenID4VCIEnabled,
+		ConfOpenID4VPEnabled,
 	}, keys)
 }
 

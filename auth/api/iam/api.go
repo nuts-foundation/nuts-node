@@ -252,7 +252,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
-	if !r.auth.AuthorizationEndpointEnabled() {
+	if !r.auth.OpenID4VPEnabled() && !r.auth.OpenID4VCIEnabled() {
 		// Callback endpoint is only used by flows initiated through the authorization endpoint.
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
@@ -444,7 +444,7 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	if !r.auth.AuthorizationEndpointEnabled() {
+	if !r.auth.OpenID4VPEnabled() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "authorization endpoint is disabled",
@@ -616,7 +616,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
 	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
-	if !r.auth.AuthorizationEndpointEnabled() {
+	if !r.auth.OpenID4VPEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
 	return &md, nil

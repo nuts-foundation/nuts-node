@@ -26,20 +26,40 @@ import (
 
 // Config holds all the configuration params
 type Config struct {
-	Irma                  IrmaConfig                  `koanf:"irma"`
-	HTTPTimeout           int                         `koanf:"http.timeout"`
-	ClockSkew             int                         `koanf:"clockskew"`
-	ContractValidators    []string                    `koanf:"contractvalidators"`
-	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
+	Irma                IrmaConfig `koanf:"irma"`
+	HTTPTimeout         int        `koanf:"http.timeout"`
+	ClockSkew           int        `koanf:"clockskew"`
+	ContractValidators  []string   `koanf:"contractvalidators"`
+	AccessTokenLifeSpan int        `koanf:"accesstokenlifespan"`
+	// Deprecated: use OpenID4VP.Enabled and OpenID4VCI.Enabled instead
 	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	OpenID4VP             OpenID4VPConfig             `koanf:"openid4vp"`
+	OpenID4VCI            OpenID4VCIConfig            `koanf:"openid4vci"`
 }
 
+// AuthorizationEndpointConfig is deprecated. Use OpenID4VPConfig and OpenID4VCIConfig instead.
 type AuthorizationEndpointConfig struct {
 	// Enabled is a flag to enable or disable the v2 API's Authorization Endpoint (/authorize), used for:
 	// - As OpenID4VP verifier: to authenticate clients (that initiate the Authorized Code flow) using OpenID4VP
 	// - As OpenID4VP wallet: to authenticate verifiers using OpenID4VP
-	// - As OpenID4VCI wallet: to support dynamic credential requests (currently not supported)
-	// Disabling the authorization endpoint will also disable to callback endpoint and removes the endpoint from the metadata.
+	// - As OpenID4VCI wallet: to support dynamic credential requests
+	// Deprecated: use auth.openid4vp.enabled and auth.openid4vci.enabled instead.
+	Enabled bool `koanf:"enabled"`
+}
+
+// OpenID4VPConfig holds configuration for the OpenID4VP protocol.
+type OpenID4VPConfig struct {
+	// Enabled controls whether OpenID4VP is enabled.
+	// When enabled, the node acts as an OpenID4VP verifier and wallet:
+	// - As OpenID4VP verifier: authenticate clients using OpenID4VP (Authorization Code Flow)
+	// - As OpenID4VP wallet: authenticate verifiers using OpenID4VP
+	Enabled bool `koanf:"enabled"`
+}
+
+// OpenID4VCIConfig holds configuration for the OpenID4VCI (client) protocol.
+type OpenID4VCIConfig struct {
+	// Enabled controls whether OpenID4VCI (client) is enabled.
+	// When enabled, the node acts as an OpenID4VCI wallet client, supporting dynamic credential requests.
 	Enabled bool `koanf:"enabled"`
 }
 

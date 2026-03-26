@@ -43,6 +43,9 @@ var timeFunc = time.Now
 const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
+	if !r.auth.OpenID4VCIEnabled() {
+		return nil, core.Error(http.StatusBadRequest, "OpenID4VCI is disabled")
+	}
 	walletDID, err := did.ParseDID(request.Body.WalletDid)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid wallet DID")

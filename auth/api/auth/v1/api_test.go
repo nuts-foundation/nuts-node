@@ -70,7 +70,11 @@ type mockAuthClient struct {
 	supportedDIDMethods []string
 }
 
-func (m *mockAuthClient) AuthorizationEndpointEnabled() bool {
+func (m *mockAuthClient) OpenID4VPEnabled() bool {
+	return true
+}
+
+func (m *mockAuthClient) OpenID4VCIEnabled() bool {
 	return true
 }
 

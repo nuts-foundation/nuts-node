@@ -9,7 +9,7 @@ http:
 auth:
   contractvalidators:
     - dummy
-  authorizationendpoint:
+  openid4vp:
     enabled: true
 policy:
   directory: /opt/nuts/policy
