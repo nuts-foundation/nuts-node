@@ -229,6 +229,40 @@ func TestParseDPoP(t *testing.T) {
 		require.Error(t, err)
 		assert.EqualError(t, err, "invalid DPoP token: jti claim too long")
 	})
+	t.Run("invalid htu claim URL", func(t *testing.T) {
+		// Regression test: url.Parse returns (nil, error) for invalid percent-encoded
+		// sequences. Without the fix, strip() dereferenced the nil pointer, panicking
+		// the server when Match() was called on a token with htu="%zz".
+		dpopToken := New(*request)
+		_ = dpopToken.Token.Set(HTUKey, "%zz")
+		dpopString, _ := dpopToken.Sign("kid", keyPair, alg)
+
+		_, err := Parse(dpopString)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidDPoP)
+		assert.Contains(t, err.Error(), "invalid htu claim")
+	})
+	t.Run("non-string htu claim", func(t *testing.T) {
+		dpopToken := New(*request)
+		_ = dpopToken.Token.Set(HTUKey, 42)
+		dpopString, _ := dpopToken.Sign("kid", keyPair, alg)
+
+		_, err := Parse(dpopString)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DPoP token: invalid htu claim")
+	})
+	t.Run("non-string htm claim", func(t *testing.T) {
+		dpopToken := New(*request)
+		_ = dpopToken.Token.Set(HTMKey, 42)
+		dpopString, _ := dpopToken.Sign("kid", keyPair, alg)
+
+		_, err := Parse(dpopString)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "invalid DPoP token: invalid htm claim")
+	})
 }
 
 func TestDPoP_Match(t *testing.T) {

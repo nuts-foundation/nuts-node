@@ -30,7 +30,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
@@ -156,10 +155,20 @@ func Parse(s string) (*DPoP, error) {
 	if token.IssuedAt().IsZero() {
 		return nil, fmt.Errorf("%w: missing iat claim", ErrInvalidDPoP)
 	}
-	if v, ok := token.Get(HTUKey); !ok || v == "" {
+	if v, ok := token.Get(HTUKey); !ok {
 		return nil, fmt.Errorf("%w: missing htu claim", ErrInvalidDPoP)
+	} else if htu, ok := v.(string); !ok {
+		return nil, fmt.Errorf("%w: invalid htu claim", ErrInvalidDPoP)
+	} else if htu == "" {
+		return nil, fmt.Errorf("%w: missing htu claim", ErrInvalidDPoP)
+	} else if _, err := url.Parse(htu); err != nil {
+		return nil, fmt.Errorf("%w: invalid htu claim: %w", ErrInvalidDPoP, err)
 	}
-	if v, ok := token.Get(HTMKey); !ok || v == "" {
+	if v, ok := token.Get(HTMKey); !ok {
+		return nil, fmt.Errorf("%w: missing htm claim", ErrInvalidDPoP)
+	} else if htm, ok := v.(string); !ok {
+		return nil, fmt.Errorf("%w: invalid htm claim", ErrInvalidDPoP)
+	} else if htm == "" {
 		return nil, fmt.Errorf("%w: missing htm claim", ErrInvalidDPoP)
 	}
 	if token.JwtID() == "" {
@@ -220,8 +229,14 @@ func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
 	if method != t.HTM() {
 		return false, fmt.Errorf("method mismatch, token: %s, given: %s", t.HTM(), method)
 	}
-	urlLeft := strip(t.HTU())
-	urlRight := strip(url)
+	urlLeft, err := strip(t.HTU())
+	if err != nil {
+		return false, fmt.Errorf("invalid htu claim: %w", err)
+	}
+	urlRight, err := strip(url)
+	if err != nil {
+		return false, fmt.Errorf("invalid url: %w", err)
+	}
 	if urlLeft != urlRight {
 		return false, fmt.Errorf("url mismatch, token: %s, given: %s", urlLeft, urlRight)
 	}
@@ -229,13 +244,18 @@ func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
 	return true, nil
 }
 
-func strip(raw string) string {
-	url, _ := url.Parse(raw)
-	url.Scheme = "https"
-	url.Host = strings.Split(url.Host, ":")[0]
-	url.RawQuery = ""
-	url.Fragment = ""
-	return url.String()
+func strip(raw string) (string, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", err
+	}
+	u.Scheme = "https"
+	if host := u.Hostname(); host != "" {
+		u.Host = host
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	return u.String(), nil
 }
 
 func (t DPoP) MarshalJSON() ([]byte, error) {
