@@ -33,7 +33,9 @@ type fieldSelection struct {
 // matching PD field ID values from the credential_selection parameter.
 // Only constant (equality) matching is supported; pattern-based filters are
 // already evaluated by matchConstraint before the selector runs.
-func NewFieldSelector(selection map[string]string, pd PresentationDefinition, fallback CredentialSelector) (CredentialSelector, error) {
+// Returns (nil, nil) for input descriptors without matching selection keys,
+// signalling the builder to apply its default selector.
+func NewFieldSelector(selection map[string]string, pd PresentationDefinition) (CredentialSelector, error) {
 	descriptorSelections := make(map[string][]fieldSelection)
 	matchedKeys := make(map[string]bool)
 
@@ -65,7 +67,7 @@ func NewFieldSelector(selection map[string]string, pd PresentationDefinition, fa
 	return func(descriptor InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
 		selections, ok := descriptorSelections[descriptor.Id]
 		if !ok {
-			return fallback(descriptor, candidates)
+			return nil, nil
 		}
 
 		var matched []vc.VerifiableCredential

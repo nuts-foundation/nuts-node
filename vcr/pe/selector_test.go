@@ -28,14 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// nopeSelector returns a fallback that fails the test if called.
-func nopeSelector(t *testing.T) CredentialSelector {
-	return func(_ InputDescriptor, _ []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-		t.Fatal("fallback selector should not be called")
-		return nil, nil
-	}
-}
-
 func TestNewFieldSelector(t *testing.T) {
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")
@@ -60,7 +52,7 @@ func TestNewFieldSelector(t *testing.T) {
 	t.Run("selection picks the right credential by field value", func(t *testing.T) {
 		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
-		}, pd, nopeSelector(t))
+		}, pd)
 		require.NoError(t, err)
 
 		result, err := selector(
@@ -75,7 +67,7 @@ func TestNewFieldSelector(t *testing.T) {
 	t.Run("zero matches returns ErrNoCredentials", func(t *testing.T) {
 		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "nonexistent",
-		}, pd, nopeSelector(t))
+		}, pd)
 		require.NoError(t, err)
 
 		_, err = selector(
@@ -92,7 +84,7 @@ func TestNewFieldSelector(t *testing.T) {
 		vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3, CredentialSubject: []map[string]any{{"patientId": "456"}}})
 		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
-		}, pd, nopeSelector(t))
+		}, pd)
 		require.NoError(t, err)
 
 		_, err = selector(
@@ -105,15 +97,15 @@ func TestNewFieldSelector(t *testing.T) {
 	t.Run("unknown selection key returns construction error", func(t *testing.T) {
 		_, err := NewFieldSelector(map[string]string{
 			"nonexistent_field": "value",
-		}, pd, FirstMatchSelector)
+		}, pd)
 
 		assert.ErrorContains(t, err, "nonexistent_field")
 	})
-	t.Run("no selection keys for descriptor falls back to default", func(t *testing.T) {
+	t.Run("no selection keys for descriptor returns nil nil", func(t *testing.T) {
 		// Selection targets patient_credential, but we call with a different descriptor.
 		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
-		}, pd, FirstMatchSelector)
+		}, pd)
 		require.NoError(t, err)
 
 		otherDescriptor := InputDescriptor{Id: "other_descriptor"}
@@ -122,10 +114,8 @@ func TestNewFieldSelector(t *testing.T) {
 			[]vc.VerifiableCredential{vc1, vc2},
 		)
 
-		require.NoError(t, err)
-		require.NotNil(t, result)
-		// FirstMatchSelector picks vc1
-		assert.Equal(t, &id1, result.ID)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
 	})
 	t.Run("multiple selection keys use AND semantics", func(t *testing.T) {
 		andPD := PresentationDefinition{
@@ -151,7 +141,7 @@ func TestNewFieldSelector(t *testing.T) {
 		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "123",
 			"org_city":   "Amsterdam",
-		}, andPD, nopeSelector(t))
+		}, andPD)
 		require.NoError(t, err)
 
 		result, err := selector(
@@ -196,7 +186,7 @@ func TestNewFieldSelector(t *testing.T) {
 		selector, err := NewFieldSelector(map[string]string{
 			"ura": "URA-002",
 			"bsn": "BSN-111",
-		}, multiPD, nopeSelector(t))
+		}, multiPD)
 		require.NoError(t, err)
 
 		// First descriptor: selects vcB (URA-002)
