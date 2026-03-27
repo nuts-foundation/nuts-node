@@ -24,15 +24,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	test2 "github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/http/client"
+	test2 "github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -309,6 +310,38 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 				assert.Equal(t, primaryWalletDID.URI(), additionalCredentials[primaryWalletDID][0].Issuer)
 				require.Len(t, additionalCredentials[secondaryWalletDID], 1)
 				assert.Equal(t, secondaryWalletDID.URI(), additionalCredentials[secondaryWalletDID][0].Issuer)
+				return createdVP, &pe.PresentationSubmission{}, nil
+			})
+
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, credentials)
+
+		assert.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "token", response.AccessToken)
+		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("with Dezi credential", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
+
+		// Create a Dezi credential from an id_token
+		idToken := "eyJhbGciOiJSUzI1NiIsImtpZCI6ImFlNDY4MjlkLWM4ZTgtNDhhMC1iZDZhLTIxYjhhMDdiOGNiMiIsInR5cCI6IkpXVCIsImprdSI6Imh0dHBzOi8vYWNjZXB0YXRpZS5hdXRoLmRlemkubmwvZGV6aS9qd2tzLmpzb24ifQ.eyJqc29uX3NjaGVtYSI6Imh0dHBzOi8vd3d3LmRlemkubmwvanNvbl9zY2hlbWFzL3YxL3ZlcmtsYXJpbmcuanNvbiIsImxvYV9kZXppIjoiaHR0cDovL2VpZGFzLmV1cm9wYS5ldS9Mb0EvaGlnaCIsImp0aSI6ImY0MTBiMjU1LTZiMDctNDE4Mi1hYzVjLWM0MWYwMmJkMzk5NSIsInZlcmtsYXJpbmdfaWQiOiIwZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJkZXppX251bW1lciI6IjkwMDAyMjE1OSIsInZvb3JsZXR0ZXJzIjoiSi4iLCJ2b29ydm9lZ3NlbCI6bnVsbCwiYWNodGVybmFhbSI6IjkwMDE3MzYyIiwiYWJvbm5lZV9udW1tZXIiOiI5MDAwMDM4MCIsImFib25uZWVfbmFhbSI6IlTDqXN0IFpvcmdpbnN0ZWxsaW5nIDAxIiwicm9sX2NvZGUiOiI5Mi4wMDAiLCJyb2xfbmFhbSI6Ik1vbmRoeWdpw6tuaXN0Iiwicm9sX2NvZGVfYnJvbiI6Imh0dHA6Ly93d3cuZGV6aS5ubC9yb2xfYnJvbi9iaWciLCJzdGF0dXNfdXJpIjoiaHR0cHM6Ly9hY2NlcHRhdGllLmF1dGguZGV6aS5ubC9zdGF0dXMvdjEvdmVya2xhcmluZy8wZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJuYmYiOjE3NzI2NjUyMDAsImV4cCI6MTc4MDYxMDQwMCwiaXNzIjoiaHR0cHM6Ly9hYm9ubmVlLmRlemkubmwifQ.ipR4stqmO8MOmmapukeQxIOVpwO_Ipjgy5BHjUsdCvuFObhVrj48AQCndtV48D_Ol1hXO4s9p4b-1epjEiobjEmEO0JQNU0BAOGG0eWl8MujfhzlDnmwo5AEtvdgTjlnBaLReVu1BJ8KYgc1DT7JhCukq9z5wZLqU1aqtETleX2-s-dNdTdwrUjJa1DvIgO-DQ_rCp-1tcfkr2rtyW16ztyI88Q2YdBkNGcG0if5aYZHpcQ4-121WBObUa0FhswS7EHni5Ru8KwZNq0HC8OLWw3YqLrYHTFe2K0GQjMtEO6zNxApbMXWKlgeWdf7Ry2rPpe2l9Z5NuMrFiB8JChZsQ"
+		deziCredential, err := credential.CreateDeziUserCredential(idToken)
+		require.NoError(t, err)
+
+		credentials := []vc.VerifiableCredential{*deziCredential}
+
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				// Assert Dezi credentials are NOT self-attested (they have an issuer)
+				require.Len(t, additionalCredentials, 2)
+				require.Len(t, additionalCredentials[primaryWalletDID], 1)
+				// Dezi credentials have their own issuer, not the wallet DID
+				assert.Equal(t, "https://abonnee.dezi.nl", additionalCredentials[primaryWalletDID][0].Issuer.String())
+				assert.Contains(t, additionalCredentials[primaryWalletDID][0].Type, ssi.MustParseURI("DeziUserCredential"))
+				require.Len(t, additionalCredentials[secondaryWalletDID], 1)
+				assert.Equal(t, "https://abonnee.dezi.nl", additionalCredentials[secondaryWalletDID][0].Issuer.String())
+				assert.Contains(t, additionalCredentials[secondaryWalletDID][0].Type, ssi.MustParseURI("DeziUserCredential"))
 				return createdVP, &pe.PresentationSubmission{}, nil
 			})
 

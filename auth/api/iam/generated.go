@@ -146,6 +146,10 @@ type ServiceAccessTokenRequest struct {
 	// - proof/signature (MUST be omitted; integrity protection is covered by the VP's proof/signature)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
+	// IdToken An optional ID Token (JWT) that represents the end-user.
+	// This ID token is included in the Verifiable Presentation that is used to request the access token.
+	IdToken *string `json:"id_token,omitempty"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 

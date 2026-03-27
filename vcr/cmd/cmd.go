@@ -21,11 +21,12 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/spf13/pflag"
-	"strings"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
@@ -40,6 +41,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("vcr.openid4vci.definitionsdir", defs.OpenID4VCI.DefinitionsDIR, "Directory with the additional credential definitions the node could issue (experimental, may change without notice).")
 	flagSet.Bool("vcr.openid4vci.enabled", defs.OpenID4VCI.Enabled, "Enable issuing and receiving credentials over OpenID4VCI.")
 	flagSet.Duration("vcr.openid4vci.timeout", time.Second*30, "Time-out for OpenID4VCI HTTP client operations.")
+	flagSet.StringSlice("vcr.dezi.allowedjku", defs.Dezi.AllowedJKU, "List of allowed JKU URLs for fetching Dezi attestation keys. If not set, defaults to production (https://auth.dezi.nl/dezi/jwks.json), and in non-strict mode also acceptance (https://acceptatie.auth.dezi.nl/dezi/jwks.json).")
 
 	return flagSet
 }
