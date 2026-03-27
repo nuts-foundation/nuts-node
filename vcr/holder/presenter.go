@@ -59,6 +59,9 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	}
 	// If credential selection is provided, create a selector that narrows
 	// credential selection per input descriptor by field ID values.
+	// FirstMatchSelector is the fallback for input descriptors not targeted
+	// by the selection keys — the caller only needs to specify keys for
+	// descriptors where they want deterministic, explicit credential selection.
 	if len(credentialSelection) > 0 {
 		selector, err := pe.NewFieldSelector(credentialSelection, presentationDefinition, pe.FirstMatchSelector)
 		if err != nil {

@@ -773,7 +773,8 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if request.Body.TokenType != nil && strings.EqualFold(string(*request.Body.TokenType), AccessTokenTypeBearer) {
 		useDPoP = false
 	}
-	// Extract credential_selection from request
+	// Extract credential_selection from request.
+	// nil is safe here: downstream code only reads via len() and range.
 	var credentialSelection map[string]string
 	if request.Body.CredentialSelection != nil {
 		credentialSelection = *request.Body.CredentialSelection

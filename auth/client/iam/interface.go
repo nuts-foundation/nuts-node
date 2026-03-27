@@ -44,6 +44,8 @@ type Client interface {
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
+	// credentials are additional VCs to include alongside wallet-stored credentials.
+	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
 	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
 
