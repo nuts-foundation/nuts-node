@@ -60,7 +60,7 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	// If credential selection is provided, create a selector that narrows
 	// credential selection per input descriptor by field ID values.
 	if len(credentialSelection) > 0 {
-		selector, err := pe.NewSelectionSelector(credentialSelection, presentationDefinition, pe.FirstMatchSelector)
+		selector, err := pe.NewFieldSelector(credentialSelection, presentationDefinition, pe.FirstMatchSelector)
 		if err != nil {
 			return nil, nil, err
 		}
