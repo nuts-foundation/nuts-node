@@ -21,7 +21,13 @@ package auth
 import (
 	"crypto/tls"
 	"errors"
+	"net/url"
+	"path"
+	"slices"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
@@ -30,10 +36,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/url"
-	"path"
-	"slices"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/notary"
@@ -58,6 +60,7 @@ type Auth struct {
 	relyingParty      oauth.RelyingParty
 	contractNotary    services.ContractNotary
 	serviceResolver   didman.CompoundServiceResolver
+	policyBackend     policy.PDPBackend
 	keyStore          crypto.KeyStore
 	vcr               vcr.VCR
 	pkiProvider       pki.Provider
@@ -100,12 +103,13 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
 func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubject.Manager, vcr vcr.VCR, keyStore crypto.KeyStore,
-	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
+	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider, policyBackend policy.PDPBackend) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
 		vdrInstance:     vdrInstance,
 		subjectManager:  subjectManager,
+		policyBackend:   policyBackend,
 		keyStore:        keyStore,
 		vcr:             vcr,
 		pkiProvider:     pkiProvider,
@@ -126,7 +130,7 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 
 func (auth *Auth) IAMClient() iam.Client {
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.strictMode, auth.httpClientTimeout)
+	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.policyBackend, auth.strictMode, auth.httpClientTimeout)
 }
 
 // Configure the Auth struct by creating a validator and create an Irma server

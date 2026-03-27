@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -33,17 +34,17 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// s2sMaxPresentationValidity defines the maximum validity of a presentation.
+// bearerTokenMaxPresentationValidity defines the maximum validity of a presentation.
 // This is to prevent replay attacks. The value is specified by Nuts RFC021, and excludes max. clock skew.
-const s2sMaxPresentationValidity = 5 * time.Second
+const bearerTokenMaxPresentationValidity = 5 * time.Second
 
-// s2sMaxClockSkew defines the maximum clock skew between nodes.
+// bearerTokenMaxClockSkew defines the maximum clock skew between nodes.
 // The value is specified by Nuts RFC021.
-const s2sMaxClockSkew = 5 * time.Second
+const bearerTokenMaxClockSkew = 5 * time.Second
 
-// handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
+// handleRFC021VPTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID string, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleRFC021VPTokenRequest(ctx context.Context, clientID string, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -59,8 +60,33 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionProfileValidator(*submission, *pexEnvelope))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+// handleJWTBearerTokenRequest handles the /token request with jwt_bearer grant type, as specified by RFC7523.
+func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, clientAssertion string, assertion string) (HandleTokenRequestResponseObject, error) {
+	presentation, err := vc.ParseVerifiablePresentation(assertion)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "assertion parameter is invalid",
+			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
+		}
+	}
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicProfileValidator(*presentation))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfileValidatorFunc) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
 			return nil, err
 		}
@@ -73,16 +99,27 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 			return nil, err
 		}
 	}
-	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, scope)
-	if err != nil {
-		return nil, err
-	}
-	pexConsumer := newPEXConsumer(walletOwnerMapping)
-	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, err.Error())
+
+	// For every scope, find the required Presentation Definition and validate the VP(s) according to the required credentials.
+	// TODO: tests for multiple scopes
+	accessToken := new(AccessToken)
+	scopes := strings.Split(scope, " ")
+	for _, currScope := range scopes {
+		if currScope == "" {
+			continue
+		}
+		walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, currScope)
+		if err != nil {
+			return nil, err
+		}
+		// Validate Verifiable Presentation according to the required credential profile.
+		// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
+		if err = profileValidator(ctx, walletOwnerMapping, accessToken); err != nil {
+			return nil, err
+		}
 	}
 
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
 		}
@@ -96,7 +133,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 	}
 
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
@@ -109,11 +146,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
-	if err != nil {
-		return nil, err
-	}
-	return HandleTokenRequest200JSONResponse(*response), nil
+	return r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *accessToken, dpopProof)
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
@@ -152,10 +185,10 @@ func validateS2SPresentationMaxValidity(presentation vc.VerifiablePresentation) 
 			Description: "presentation is missing creation or expiration date",
 		}
 	}
-	if expires.Sub(*created) > s2sMaxPresentationValidity {
+	if expires.Sub(*created) > bearerTokenMaxPresentationValidity {
 		return oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
-			Description: fmt.Sprintf("presentation is valid for too long (max %s)", s2sMaxPresentationValidity),
+			Description: fmt.Sprintf("presentation is valid for too long (max %s)", bearerTokenMaxPresentationValidity),
 		}
 	}
 	return nil
@@ -218,5 +251,5 @@ var s2sNonceKey = []string{"s2s", "nonce"}
 
 // s2sNonceStore is used by the authorization server for replay prevention by keeping track of used nonces in the s2s flow
 func (r Wrapper) s2sNonceStore() storage.SessionStore {
-	return r.storageEngine.GetSessionDatabase().GetStore(s2sMaxPresentationValidity+s2sMaxClockSkew, s2sNonceKey...)
+	return r.storageEngine.GetSessionDatabase().GetStore(bearerTokenMaxPresentationValidity+bearerTokenMaxClockSkew, s2sNonceKey...)
 }
