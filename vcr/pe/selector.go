@@ -29,9 +29,11 @@ type fieldSelection struct {
 	expected string
 }
 
-// NewSelectionSelector creates a CredentialSelector that filters candidates using
-// named field ID values from the credential_selection parameter.
-func NewSelectionSelector(selection map[string]string, pd PresentationDefinition, fallback CredentialSelector) (CredentialSelector, error) {
+// NewFieldSelector creates a CredentialSelector that filters candidates by
+// matching PD field ID values from the credential_selection parameter.
+// Only constant (equality) matching is supported; pattern-based filters are
+// already evaluated by matchConstraint before the selector runs.
+func NewFieldSelector(selection map[string]string, pd PresentationDefinition, fallback CredentialSelector) (CredentialSelector, error) {
 	descriptorSelections := make(map[string][]fieldSelection)
 	matchedKeys := make(map[string]bool)
 
@@ -72,7 +74,10 @@ func NewSelectionSelector(selection map[string]string, pd PresentationDefinition
 				continue
 			}
 			isMatch, values, err := matchConstraint(descriptor.Constraints, candidate)
-			if err != nil || !isMatch {
+			if err != nil {
+				return nil, fmt.Errorf("input descriptor '%s': %w", descriptor.Id, err)
+			}
+			if !isMatch {
 				continue
 			}
 			if matchesSelections(values, selections) {
@@ -96,11 +101,8 @@ func matchesSelections(values map[string]interface{}, selections []fieldSelectio
 		if !ok {
 			return false
 		}
-		if str, ok := resolved.(string); ok {
-			if str != sel.expected {
-				return false
-			}
-		} else if fmt.Sprintf("%v", resolved) != sel.expected {
+		str, ok := resolved.(string)
+		if !ok || str != sel.expected {
 			return false
 		}
 	}

@@ -36,7 +36,7 @@ func nopeSelector(t *testing.T) CredentialSelector {
 	}
 }
 
-func TestNewSelectionSelector(t *testing.T) {
+func TestNewFieldSelector(t *testing.T) {
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")
 	vc1 := credentialToJSONLD(vc.VerifiableCredential{ID: &id1, CredentialSubject: []map[string]any{{"patientId": "123"}}})
@@ -58,7 +58,7 @@ func TestNewSelectionSelector(t *testing.T) {
 	}
 
 	t.Run("selection picks the right credential by field value", func(t *testing.T) {
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
 		}, pd, nopeSelector(t))
 		require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestNewSelectionSelector(t *testing.T) {
 		assert.Equal(t, &id2, result.ID)
 	})
 	t.Run("zero matches returns ErrNoCredentials", func(t *testing.T) {
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "nonexistent",
 		}, pd, nopeSelector(t))
 		require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestNewSelectionSelector(t *testing.T) {
 		// without narrowing to one should fail.
 		id3 := ssi.MustParseURI("3")
 		vc3 := credentialToJSONLD(vc.VerifiableCredential{ID: &id3, CredentialSubject: []map[string]any{{"patientId": "456"}}})
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
 		}, pd, nopeSelector(t))
 		require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestNewSelectionSelector(t *testing.T) {
 		assert.ErrorIs(t, err, ErrMultipleCredentials)
 	})
 	t.Run("unknown selection key returns construction error", func(t *testing.T) {
-		_, err := NewSelectionSelector(map[string]string{
+		_, err := NewFieldSelector(map[string]string{
 			"nonexistent_field": "value",
 		}, pd, FirstMatchSelector)
 
@@ -111,7 +111,7 @@ func TestNewSelectionSelector(t *testing.T) {
 	})
 	t.Run("no selection keys for descriptor falls back to default", func(t *testing.T) {
 		// Selection targets patient_credential, but we call with a different descriptor.
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "456",
 		}, pd, FirstMatchSelector)
 		require.NoError(t, err)
@@ -148,7 +148,7 @@ func TestNewSelectionSelector(t *testing.T) {
 		idB := ssi.MustParseURI("B")
 		vcB := credentialToJSONLD(vc.VerifiableCredential{ID: &idB, CredentialSubject: []map[string]any{{"patientId": "123", "city": "Rotterdam"}}})
 
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"patient_id": "123",
 			"org_city":   "Amsterdam",
 		}, andPD, nopeSelector(t))
@@ -193,7 +193,7 @@ func TestNewSelectionSelector(t *testing.T) {
 		vcC := credentialToJSONLD(vc.VerifiableCredential{ID: &idC, CredentialSubject: []map[string]any{{"bsn": "BSN-111"}}})
 		vcD := credentialToJSONLD(vc.VerifiableCredential{ID: &idD, CredentialSubject: []map[string]any{{"bsn": "BSN-222"}}})
 
-		selector, err := NewSelectionSelector(map[string]string{
+		selector, err := NewFieldSelector(map[string]string{
 			"ura": "URA-002",
 			"bsn": "BSN-111",
 		}, multiPD, nopeSelector(t))
