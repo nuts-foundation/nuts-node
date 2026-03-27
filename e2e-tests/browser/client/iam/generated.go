@@ -128,6 +128,15 @@ type ServiceAccessTokenRequest struct {
 	// used to locate the OAuth2 Authorization Server metadata.
 	AuthorizationServer string `json:"authorization_server"`
 
+	// CredentialSelection Optional key-value mapping for credential selection when the wallet contains multiple
+	// credentials matching a single input descriptor. Each key must match a field id declared
+	// in the Presentation Definition's input descriptor constraints. The value narrows the
+	// match to credentials where that field equals the given value.
+	//
+	// The selection must narrow to exactly one credential per input descriptor.
+	// Zero matches or multiple matches will result in an error.
+	CredentialSelection *map[string]string `json:"credential_selection,omitempty"`
+
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
 	// They must be in the form of a Verifiable Credential in JSON form.
 	// The serialized form (JWT or JSON-LD) in the resulting Verifiable Presentation depends on the capability of the authorizing party.

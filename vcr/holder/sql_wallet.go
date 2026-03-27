@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
+
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/types"
@@ -79,7 +80,7 @@ type BuildParams struct {
 	Nonce string
 }
 
-func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	if credentials == nil {
 		credentials = make(map[did.DID][]vc.VerifiableCredential)
 	}
@@ -97,7 +98,7 @@ func (h sqlWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, cr
 		documentLoader: h.jsonldManager.DocumentLoader(),
 		signer:         h.keyStore,
 		keyResolver:    h.keyResolver,
-	}.buildSubmission(ctx, credentials, presentationDefinition, params)
+	}.buildSubmission(ctx, credentials, presentationDefinition, credentialSelection, params)
 }
 
 func (h sqlWallet) BuildPresentation(ctx context.Context, credentials []vc.VerifiableCredential, options PresentationOptions, signerDID *did.DID, validateVC bool) (*vc.VerifiablePresentation, error) {

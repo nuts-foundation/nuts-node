@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
@@ -59,7 +60,7 @@ func (m memoryWallet) BuildPresentation(ctx context.Context, credentials []vc.Ve
 	}.buildPresentation(ctx, signerDID, credentials, options)
 }
 
-func (m memoryWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+func (m memoryWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID, additionalCredentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition, credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	wallets := make(map[did.DID][]vc.VerifiableCredential)
 	for _, walletDID := range walletDIDs {
 		wallets[walletDID] = m.credentials[walletDID]
@@ -71,7 +72,7 @@ func (m memoryWallet) BuildSubmission(ctx context.Context, walletDIDs []did.DID,
 		documentLoader: m.documentLoader,
 		signer:         m.signer,
 		keyResolver:    m.keyResolver,
-	}.buildSubmission(ctx, wallets, presentationDefinition, params)
+	}.buildSubmission(ctx, wallets, presentationDefinition, credentialSelection, params)
 }
 
 func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
