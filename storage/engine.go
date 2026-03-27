@@ -71,6 +71,7 @@ func New() Engine {
 		storesMux:          &sync.Mutex{},
 		stores:             map[string]stoabs.Store{},
 		sqlMigrationLogger: logrusInfoLogWriter{},
+		config:             DefaultConfig(),
 	}
 }
 
