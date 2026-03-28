@@ -44,8 +44,14 @@ const ConfHTTPTimeout = "auth.http.timeout"
 // ConfAccessTokenLifeSpan defines how long (in seconds) an access token is valid
 const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 
-// ConfAuthEndpointEnabled is the config key for enabling the Auth v2 API's Authorization Endpoint
+// ConfAuthEndpointEnabled is the config key for enabling the Auth v2 API's Authorization Endpoint for OpenID4VP flows
 const ConfAuthEndpointEnabled = "auth.authorizationendpoint.enabled"
+
+// ConfOpenID4VCIEnabled is the config key for enabling OpenID4VCI.
+const ConfOpenID4VCIEnabled = "auth.openid4vci.enabled"
+
+// ConfOpenID4VPEnabled is the config key for enabling OpenID4VP.
+const ConfOpenID4VPEnabled = "auth.openid4vp.enabled"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
@@ -59,8 +65,8 @@ func FlagSet() *pflag.FlagSet {
 	flags.Int(ConfClockSkew, defs.ClockSkew, "allowed JWT Clock skew in milliseconds")
 	flags.Int(ConfAccessTokenLifeSpan, defs.AccessTokenLifeSpan, "defines how long (in seconds) an access token is valid. Uses default in strict mode.")
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
-	flags.Bool(ConfAuthEndpointEnabled, defs.AuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. "+
-		"This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.")
+	flags.Bool(ConfOpenID4VCIEnabled, defs.OpenID4VCI.Enabled, "enables OpenID4VCI (experimental) support, allowing credential issuance be requested for local wallets through OpenID4VCI.")
+	flags.Bool(ConfOpenID4VPEnabled, defs.OpenID4VP.Enabled, "enables OpenID4VCI (experimental) support, allowing; authentication of clients using OpenID4VP (as verifier) and responding to OpenID4VP requests from OpenID4VP verifiers (as wallet).")
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 
 	return flags

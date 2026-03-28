@@ -99,6 +99,20 @@ func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
 }
 
+// OpenID4VCIEnabled mocks base method.
+func (m *MockAuthenticationServices) OpenID4VCIEnabled() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenID4VCIEnabled")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// OpenID4VCIEnabled indicates an expected call of OpenID4VCIEnabled.
+func (mr *MockAuthenticationServicesMockRecorder) OpenID4VCIEnabled() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenID4VCIEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).OpenID4VCIEnabled))
+}
+
 // PublicURL mocks base method.
 func (m *MockAuthenticationServices) PublicURL() *url.URL {
 	m.ctrl.T.Helper()
