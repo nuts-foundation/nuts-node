@@ -36,7 +36,7 @@ require (
 	github.com/nuts-foundation/go-stoabs v1.11.0
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
-	github.com/oapi-codegen/runtime v1.1.2
+	github.com/oapi-codegen/runtime v1.3.1
 	github.com/piprate/json-gold v0.8.0
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/privacybydesign/irmago v0.19.2
@@ -245,7 +245,7 @@ require (
 	github.com/golang/mock v1.6.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/lestrrat-go/httprc/v3 v3.0.0 // indirect
 	github.com/lestrrat-go/jwx/v3 v3.0.10 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
