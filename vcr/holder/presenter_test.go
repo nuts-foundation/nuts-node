@@ -315,7 +315,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.NoError(t, err)
 		require.NotNil(t, vp)
@@ -327,7 +327,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 
 		w := NewSQLWallet(nil, keyStore, nil, jsonldManager, storageEngine)
 
-		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, vp)
@@ -339,9 +339,66 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		w := NewSQLWallet(nil, keyStore, testVerifier{}, jsonldManager, storageEngine)
 		_ = w.Put(context.Background(), credentials[nutsWalletDID]...)
 
-		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		_, _, err := w.BuildSubmission(ctx, []did.DID{nutsWalletDID}, nil, presentationDefinition, nil, BuildParams{Audience: verifierDID.String(), DIDMethods: []string{"test"}, Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
+	})
+	t.Run("ok - credential_selection narrows to correct credential", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil)
+
+		// Two NutsOrganizationCredentials with different org names, same subject DID
+		vc1 := test.ValidNutsOrganizationCredential(t) // org name: "Because we care B.V."
+		vc2JSON := `{
+			"@context": ["https://nuts.nl/credentials/v1","https://www.w3.org/2018/credentials/v1","https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json"],
+			"type": ["NutsOrganizationCredential", "VerifiableCredential"],
+			"issuer": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey",
+			"issuanceDate": "2022-06-01T15:34:40.65319+02:00",
+			"credentialSubject": {"id": "did:nuts:CuE3qeFGGLhEAS3gKzhMCeqd1dGa9at5JCbmCfyMU2Ey", "organization": {"name": "Second Org B.V.", "city": "Othertown"}}
+		}`
+		var vc2 vc.VerifiableCredential
+		require.NoError(t, vc2.UnmarshalJSON([]byte(vc2JSON)))
+
+		// PD with org_name field ID
+		pdWithSelection := pe.PresentationDefinition{
+			InputDescriptors: []*pe.InputDescriptor{
+				{
+					Id: "org_cred",
+					Constraints: &pe.Constraints{
+						Fields: []pe.Field{
+							{
+								Path:   []string{"$.type"},
+								Filter: &pe.Filter{Type: "string", Const: to.Ptr("NutsOrganizationCredential")},
+							},
+							{
+								Id:   to.Ptr("org_name"),
+								Path: []string{"$.credentialSubject.organization.name"},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		twoOrgCreds := map[did.DID][]vc.VerifiableCredential{
+			nutsWalletDID: {vc1, vc2},
+		}
+		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
+
+		vp, submission, err := w.buildSubmission(ctx, twoOrgCreds, pdWithSelection,
+			map[string]string{"org_name": "Second Org B.V."},
+			BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+
+		require.NoError(t, err)
+		require.NotNil(t, vp)
+		require.NotNil(t, submission)
+		// The VP should contain vc2 (Second Org B.V.), not vc1
+		require.Len(t, vp.VerifiableCredential, 1)
+		subjects := vp.VerifiableCredential[0].CredentialSubject
+		require.Len(t, subjects, 1)
+		assert.Equal(t, "Second Org B.V.", subjects[0]["organization"].(map[string]interface{})["name"])
 	})
 	t.Run("ok - empty presentation", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
@@ -351,7 +408,7 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		keyResolver.EXPECT().ResolveKey(webWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil).AnyTimes()
 		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
 
-		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+		vp, submission, err := w.buildSubmission(ctx, credentials, pe.PresentationDefinition{}, nil, BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
 
 		assert.Nil(t, err)
 		assert.NotNil(t, vp)

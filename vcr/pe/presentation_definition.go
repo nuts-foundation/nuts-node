@@ -184,7 +184,8 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				matchingVCs = append(matchingVCs, credential)
 			}
 		}
-		// Use the selector to pick one credential from the candidates
+		// Use the selector to pick one credential from the candidates.
+		// (nil, nil) means the selector has no opinion — fall back to FirstMatchSelector.
 		selected, err := selector(*inputDescriptor, matchingVCs)
 		if err != nil {
 			if errors.Is(err, ErrNoCredentials) {
@@ -192,6 +193,11 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				// (e.g., pick rules with min: 0).
 				selected = nil
 			} else {
+				return nil, err
+			}
+		} else if selected == nil && len(matchingVCs) > 0 {
+			selected, err = FirstMatchSelector(*inputDescriptor, matchingVCs)
+			if err != nil {
 				return nil, err
 			}
 		}
