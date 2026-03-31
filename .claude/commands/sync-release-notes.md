@@ -26,5 +26,5 @@ Steps:
 
      **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/vX.Y.Z-1...vX.Y.Z
      ```
-6. Use `report_progress` to commit with message `docs: add <version> release notes` and push.
+6. Create a new branch off master (e.g., `docs/add-<version>-release-notes-to-master`), commit with message `docs: add <version> release notes`, and push.
 7. Create a pull request targeting `master` with title `docs: add <version> release notes to master`.
