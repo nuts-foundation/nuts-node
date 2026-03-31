@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.28)
+*************************
+
+Release date: 2026-03-31
+
+- Update grpc-go to fix https://pkg.go.dev/vuln/GO-2026-4762
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.27...v5.4.28
+
+*************************
 Hazelnut update (v5.4.27)
 *************************
 
