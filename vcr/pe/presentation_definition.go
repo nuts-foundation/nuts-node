@@ -49,32 +49,6 @@ func ParsePresentationDefinition(raw []byte) (*PresentationDefinition, error) {
 	return &result, nil
 }
 
-// CredentialSelector picks one credential from a list of candidates that all match a given input descriptor.
-// It is called by matchConstraints after collecting all matching VCs for an input descriptor.
-//
-// Return values:
-//   - (*vc, nil): a credential was selected successfully.
-//   - (nil, nil): no credential was selected. The input descriptor is not fulfilled, which may
-//     be acceptable depending on submission requirements (e.g., pick rules with min: 0).
-//   - (nil, ErrNoCredentials): no candidates matched the selector's criteria. Treated as a soft
-//     failure: the input descriptor is not fulfilled, but submission requirements may still accept
-//     this (e.g., pick rules with min: 0).
-//   - (nil, ErrMultipleCredentials): multiple candidates matched but the selector requires exactly one.
-//     This is a hard failure — the match is aborted.
-//   - (nil, other error): any other error is a hard failure.
-//
-// Selectors that are lenient (like FirstMatchSelector) may return (nil, nil) to let the caller decide.
-type CredentialSelector func(descriptor InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error)
-
-// FirstMatchSelector is the default CredentialSelector that picks the first matching credential.
-// This preserves the existing behavior of matchConstraints.
-func FirstMatchSelector(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-	if len(candidates) == 0 {
-		return nil, nil
-	}
-	return &candidates[0], nil
-}
-
 // Candidate is a struct that holds the result of a match between an input descriptor and a VC
 // A non-matching VC also leads to a Candidate, but without a VC.
 type Candidate struct {

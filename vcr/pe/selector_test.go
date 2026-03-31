@@ -94,6 +94,36 @@ func TestNewFieldSelector(t *testing.T) {
 
 		assert.ErrorIs(t, err, ErrMultipleCredentials)
 	})
+	t.Run("matches numeric field values", func(t *testing.T) {
+		numPD := PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{
+				{
+					Id: "room_access",
+					Constraints: &Constraints{
+						Fields: []Field{
+							{Id: to.Ptr("floor"), Path: []string{"$.credentialSubject.floor"}},
+						},
+					},
+				},
+			},
+		}
+		idA := ssi.MustParseURI("A")
+		idB := ssi.MustParseURI("B")
+		// JSON numbers unmarshal to float64 in Go
+		vcA := credentialToJSONLD(vc.VerifiableCredential{ID: &idA, CredentialSubject: []map[string]any{{"floor": float64(1)}}})
+		vcB := credentialToJSONLD(vc.VerifiableCredential{ID: &idB, CredentialSubject: []map[string]any{{"floor": float64(3)}}})
+
+		selector, err := NewFieldSelector(map[string]string{
+			"floor": "3",
+		}, numPD)
+		require.NoError(t, err)
+
+		result, err := selector(*numPD.InputDescriptors[0], []vc.VerifiableCredential{vcA, vcB})
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, &idB, result.ID)
+	})
 	t.Run("unknown selection key returns construction error", func(t *testing.T) {
 		_, err := NewFieldSelector(map[string]string{
 			"nonexistent_field": "value",
