@@ -318,7 +318,7 @@ func (r Wrapper) handleAuthorizeRequestFromVerifier(ctx context.Context, subject
 			map[did.DID][]vc.VerifiableCredential{userSession.Wallet.DID: userSession.Wallet.Credentials},
 		)
 	}
-	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, nil, *presentationDefinition, buildParams)
+	vp, submission, err := targetWallet.BuildSubmission(ctx, []did.DID{walletDID}, nil, *presentationDefinition, nil, buildParams)
 	if err != nil {
 		if errors.Is(err, pe.ErrNoCredentials) {
 			return r.sendAndHandleDirectPostError(ctx, oauth.OAuth2Error{Code: oauth.InvalidRequest, Description: fmt.Sprintf("wallet could not fulfill requirements (PD ID: %s, wallet: %s): %s", presentationDefinition.Id, walletDID, err.Error())}, responseURI, state)
