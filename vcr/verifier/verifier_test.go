@@ -307,7 +307,7 @@ func TestVerifier_Verify(t *testing.T) {
 		assert.EqualError(t, err, "verifiable credential must list at most 2 types")
 	})
 
-	t.Run("verify x509", func(t *testing.T) {
+	t.Run("X509Credential", func(t *testing.T) {
 		ura := "312312312"
 		certs, keys, err := pki.BuildCertChain(nil, ura, nil)
 		chain := pki.CertsToChain(certs)
