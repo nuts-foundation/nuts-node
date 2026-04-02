@@ -66,10 +66,12 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		require.NoError(t, err)
 
 		err = client.OfferCredential(ctx, CredentialOffer{
-			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
-			Credentials:      []OfferedCredential{},
-			Grants: map[string]interface{}{
-				"grant_type": "pre-authorized_code",
+			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
+			CredentialConfigurationIDs: []string{},
+			Grants: &CredentialOfferGrants{
+				PreAuthorizedCode: &PreAuthorizedCodeParams{
+					PreAuthorizedCode: "test-code",
+				},
 			},
 		})
 
@@ -84,8 +86,10 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		err = json.Unmarshal([]byte(credentialOfferJSON), &credentialOffer)
 		require.NoError(t, err)
 		require.Equal(t, setup.issuerMetadata.CredentialIssuer, credentialOffer["credential_issuer"])
-		require.Equal(t, []interface{}{}, credentialOffer["credentials"])
-		require.Equal(t, map[string]interface{}{"grant_type": "pre-authorized_code"}, credentialOffer["grants"])
+		require.Equal(t, []interface{}{}, credentialOffer["credential_configuration_ids"])
+		grants := credentialOffer["grants"].(map[string]interface{})
+		preAuthGrant := grants[PreAuthorizedCodeGrant].(map[string]interface{})
+		require.Equal(t, "test-code", preAuthGrant["pre-authorized_code"])
 	})
 	t.Run("error - invalid response from wallet", func(t *testing.T) {
 		setup := setupClientTest(t)
@@ -94,10 +98,12 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		require.NoError(t, err)
 
 		err = client.OfferCredential(ctx, CredentialOffer{
-			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
-			Credentials:      []OfferedCredential{},
-			Grants: map[string]interface{}{
-				"grant_type": "pre-authorized_code",
+			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
+			CredentialConfigurationIDs: []string{},
+			Grants: &CredentialOfferGrants{
+				PreAuthorizedCode: &PreAuthorizedCodeParams{
+					PreAuthorizedCode: "test-code",
+				},
 			},
 		})
 
@@ -112,10 +118,12 @@ func Test_httpWalletClient_OfferCredential(t *testing.T) {
 		require.NoError(t, err)
 
 		err = client.OfferCredential(ctx, CredentialOffer{
-			CredentialIssuer: setup.issuerMetadata.CredentialIssuer,
-			Credentials:      []OfferedCredential{},
-			Grants: map[string]interface{}{
-				"grant_type": "pre-authorized_code",
+			CredentialIssuer:           setup.issuerMetadata.CredentialIssuer,
+			CredentialConfigurationIDs: []string{},
+			Grants: &CredentialOfferGrants{
+				PreAuthorizedCode: &PreAuthorizedCodeParams{
+					PreAuthorizedCode: "test-code",
+				},
 			},
 		})
 

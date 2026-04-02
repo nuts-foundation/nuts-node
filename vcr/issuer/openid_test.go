@@ -34,6 +34,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -54,11 +56,11 @@ var issuedVC = vc.VerifiableCredential{
 	},
 	Context: []ssi.URI{
 		ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
-		ssi.MustParseURI("http://example.org/credentials/V1"),
+		ssi.MustParseURI("https://example.com/credentials/v1"),
 	},
 	Type: []ssi.URI{
 		ssi.MustParseURI("VerifiableCredential"),
-		ssi.MustParseURI("HumanCredential"),
+		ssi.MustParseURI("ExampleCredential"),
 	},
 }
 
@@ -67,7 +69,7 @@ func TestNew(t *testing.T) {
 		iss, err := NewOpenIDHandler(issuerDID, issuerIdentifier, "./test/valid", nil, nil, storage.NewTestInMemorySessionDatabase(t))
 
 		require.NoError(t, err)
-		assert.Len(t, iss.(*openidHandler).credentialsSupported, 3)
+		assert.Len(t, iss.(*openidHandler).credentialConfigurationsSupported, 3)
 	})
 
 	t.Run("error - invalid json", func(t *testing.T) {
@@ -93,14 +95,44 @@ func Test_memoryIssuer_Metadata(t *testing.T) {
 
 		assert.Equal(t, "https://example.com/did:nuts:issuer", metadata.CredentialIssuer)
 		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/credential", metadata.CredentialEndpoint)
-		require.Len(t, metadata.CredentialsSupported, 3)
-		assert.Equal(t, "ldp_vc", metadata.CredentialsSupported[0]["format"])
-		require.Len(t, metadata.CredentialsSupported[0]["cryptographic_binding_methods_supported"], 1)
-		assert.Equal(t, metadata.CredentialsSupported[0]["credential_definition"],
+		assert.Equal(t, "https://example.com/did:nuts:issuer/openid4vci/nonce", metadata.NonceEndpoint)
+		require.Len(t, metadata.CredentialConfigurationsSupported, 3)
+		// Assert all 3 config IDs by name
+		for _, expectedID := range []string{
+			"NutsAuthorizationCredential_ldp_vc",
+			"NutsOrganizationCredential_ldp_vc",
+			"ExampleCredential_ldp_vc",
+		} {
+			_, ok := metadata.CredentialConfigurationsSupported[expectedID]
+			assert.True(t, ok, "expected config ID %s to be present", expectedID)
+		}
+		// Spot-check NutsAuthorizationCredential details
+		authCredConfig := metadata.CredentialConfigurationsSupported["NutsAuthorizationCredential_ldp_vc"]
+		assert.Equal(t, "ldp_vc", authCredConfig["format"])
+		require.Len(t, authCredConfig["cryptographic_binding_methods_supported"], 1)
+		assert.Equal(t, authCredConfig["credential_definition"],
 			map[string]interface{}{
-				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://www.nuts.nl/credentials/v1"},
+				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"},
 				"type":     []interface{}{"VerifiableCredential", "NutsAuthorizationCredential"},
 			})
+	})
+	t.Run("duplicate credential_configuration_id from external dir is rejected", func(t *testing.T) {
+		// Create a temp dir with a definition that duplicates a built-in config ID
+		tmpDir := t.TempDir()
+		duplicateDef := `{
+			"format": "ldp_vc",
+			"cryptographic_binding_methods_supported": ["did:nuts"],
+			"credential_definition": {
+				"@context": ["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"],
+				"type": ["VerifiableCredential", "NutsOrganizationCredential"]
+			}
+		}`
+		err := os.WriteFile(filepath.Join(tmpDir, "duplicate.json"), []byte(duplicateDef), 0644)
+		require.NoError(t, err)
+
+		_, err = NewOpenIDHandler(issuerDID, issuerIdentifier, tmpDir, &http.Client{}, nil, storage.NewTestInMemorySessionDatabase(t))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate credential_configuration_id 'NutsOrganizationCredential_ldp_vc'")
 	})
 }
 
@@ -130,41 +162,37 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	}
 	createClaims := func(nonce string) map[string]interface{} {
 		return map[string]interface{}{
+			"iss":   holderDID.String(),
 			"aud":   issuerIdentifier,
 			"iat":   time.Now().Unix(),
 			"nonce": nonce,
 		}
 	}
-	createRequest := func(headers, claims map[string]interface{}) openid4vci.CredentialRequest {
+	createProofs := func(headers, claims map[string]interface{}) *openid4vci.CredentialRequestProofs {
 		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"].(string))
 		require.NoError(t, err)
+		return &openid4vci.CredentialRequestProofs{
+			Jwt: []string{proof},
+		}
+	}
+	createRequest := func(headers, claims map[string]interface{}, configID string) openid4vci.CredentialRequest {
 		return openid4vci.CredentialRequest{
-			Format: vc.JSONLDCredentialProofFormat,
-			CredentialDefinition: &openid4vci.CredentialDefinition{
-				Context: []ssi.URI{
-					ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
-					ssi.MustParseURI("http://example.org/credentials/V1"),
-				},
-				Type: []ssi.URI{
-					ssi.MustParseURI("VerifiableCredential"),
-					ssi.MustParseURI("HumanCredential"),
-				},
-			},
-			Proof: &openid4vci.CredentialRequestProof{
-				Jwt:       proof,
-				ProofType: openid4vci.ProofTypeJWT,
-			},
+			CredentialConfigurationID: configID,
+			Proofs:                    createProofs(headers, claims),
 		}
 	}
 
 	const preAuthCode = "some-secret-code"
 
 	service := requireNewTestHandler(t, keyResolver)
-	_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+	offer, err := service.createOffer(ctx, issuedVC, preAuthCode)
 	require.NoError(t, err)
-	accessToken, cNonce, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+	accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 	require.NoError(t, err)
-	validRequest := createRequest(createHeaders(), createClaims(cNonce))
+	nonce, err := service.HandleNonceRequest(ctx)
+	require.NoError(t, err)
+	configID := offer.CredentialConfigurationIDs[0]
+	validRequest := createRequest(createHeaders(), createClaims(nonce), configID)
 
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
@@ -175,62 +203,39 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 		assert.Equal(t, issuerDID.URI(), response.Issuer)
 		auditLogs.AssertContains(t, "VCR", "VerifiableCredentialRetrievedEvent", audit.TestActor, "VC retrieved by wallet over OpenID4VCI")
 	})
-	t.Run("unsupported format", func(t *testing.T) {
-		request := createRequest(createHeaders(), createClaims(cNonce))
-		request.Format = "unsupported format"
+	t.Run("error - missing credential_configuration_id", func(t *testing.T) {
+		request := openid4vci.CredentialRequest{
+			Proofs: createProofs(createHeaders(), createClaims(nonce)),
+		}
 
 		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
 
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "unsupported_credential_type - credential request: unsupported format 'unsupported format'")
+		assert.EqualError(t, err, "invalid_credential_request - credential request must contain credential_configuration_id")
 	})
-	t.Run("invalid credential_definition", func(t *testing.T) {
-		request := createRequest(createHeaders(), createClaims(cNonce))
-		request.CredentialDefinition.Type = []ssi.URI{}
+	t.Run("error - unknown credential_configuration_id", func(t *testing.T) {
+		request := createRequest(createHeaders(), createClaims(nonce), "NonExistent_ldp_vc")
 
 		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
 
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "invalid_request - credential request: invalid credential_definition: missing type field")
+		require.ErrorAs(t, err, new(openid4vci.Error))
+		assert.Equal(t, openid4vci.UnknownCredentialConfiguration, err.(openid4vci.Error).Code)
 	})
 	t.Run("proof validation", func(t *testing.T) {
-		t.Run("unsupported proof type", func(t *testing.T) {
-			invalidRequest := createRequest(createHeaders(), createClaims(""))
-			invalidRequest.Proof.ProofType = "not-supported"
+		t.Run("missing proofs", func(t *testing.T) {
+			invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
+			invalidRequest.Proofs = nil
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof type not supported")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proofs")
 			assert.Nil(t, response)
 		})
 		t.Run("jwt", func(t *testing.T) {
-			t.Run("missing proof", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
-				invalidRequest.Proof = nil
-
-				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing proof")
-				assert.Nil(t, response)
-			})
-			t.Run("missing proof returns error with new c_nonce", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
-				invalidRequest.Proof = nil
-
-				_, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-				require.ErrorAs(t, err, new(openid4vci.Error))
-				cNonce := err.(openid4vci.Error).CNonce
-				assert.NotNil(t, cNonce)
-				assert.NotNil(t, err.(openid4vci.Error).CNonceExpiresIn)
-
-				flow, err := service.store.FindByReference(ctx, cNonceRefType, *cNonce)
-				require.NoError(t, err)
-				assert.NotNil(t, flow)
-			})
 			t.Run("invalid JWT", func(t *testing.T) {
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
-				invalidRequest.Proof.Jwt = "not a JWT"
+				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
+				invalidRequest.Proofs.Jwt = []string{"not a JWT"}
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -239,7 +244,9 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			})
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {
 				otherIssuedVC := vc.VerifiableCredential{
-					Issuer: issuerDID.URI(),
+					Issuer:  issuerDID.URI(),
+					Context: issuedVC.Context,
+					Type:    issuedVC.Type,
 					CredentialSubject: []map[string]any{
 						{
 							"id": "did:nuts:other-wallet",
@@ -248,16 +255,37 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				}
 
 				service := requireNewTestHandler(t, keyResolver)
-				_, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
+				otherOffer, err := service.createOffer(ctx, otherIssuedVC, preAuthCode)
 				require.NoError(t, err)
-				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				otherConfigID := otherOffer.CredentialConfigurationIDs[0]
+				invalidRequest := createRequest(createHeaders(), createClaims(""), otherConfigID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - credential offer was signed by other DID than intended wallet: did:nuts:holder#1")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof iss claim does not match expected wallet: did:nuts:holder")
+				assert.Nil(t, response)
+			})
+			t.Run("iss claim does not match wallet DID", func(t *testing.T) {
+				service := requireNewTestHandler(t, keyResolver)
+				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+				require.NoError(t, err)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				require.NoError(t, err)
+
+				wrongIssClaims := map[string]interface{}{
+					"iss":   "did:nuts:wrong-issuer",
+					"aud":   issuerIdentifier,
+					"iat":   time.Now().Unix(),
+					"nonce": "",
+				}
+				invalidRequest := createRequest(createHeaders(), wrongIssClaims, configID)
+
+				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
+
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - proof iss claim does not match expected wallet: did:nuts:wrong-issuer")
 				assert.Nil(t, response)
 			})
 			t.Run("signing key is unknown", func(t *testing.T) {
@@ -266,10 +294,10 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 				service := requireNewTestHandler(t, keyResolver)
 				_, err := service.createOffer(ctx, issuedVC, preAuthCode)
 				require.NoError(t, err)
-				accessToken, _, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+				accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
 				require.NoError(t, err)
 
-				invalidRequest := createRequest(createHeaders(), createClaims(""))
+				invalidRequest := createRequest(createHeaders(), createClaims(""), configID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -279,7 +307,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("typ header missing", func(t *testing.T) {
 				headers := createHeaders()
 				headers["typ"] = ""
-				invalidRequest := createRequest(headers, createClaims(""))
+				invalidRequest := createRequest(headers, createClaims(""), configID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -289,7 +317,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("typ header invalid", func(t *testing.T) {
 				headers := createHeaders()
 				delete(headers, "typ") // causes JWT library to set it to default ("JWT")
-				invalidRequest := createRequest(headers, createClaims(""))
+				invalidRequest := createRequest(headers, createClaims(""), configID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -299,7 +327,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {
 				claims := createClaims("")
 				claims["aud"] = "https://example.com/someone-else"
-				invalidRequest := createRequest(createHeaders(), claims)
+				invalidRequest := createRequest(createHeaders(), claims, configID)
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
@@ -308,44 +336,39 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 			})
 		})
 		t.Run("unknown nonce", func(t *testing.T) {
-			invalidRequest := createRequest(createHeaders(), createClaims("other"))
+			invalidRequest := createRequest(createHeaders(), createClaims("other"), configID)
 
 			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - unknown nonce")
+			assertProtocolError(t, err, http.StatusBadRequest, "invalid_nonce - invalid or expired nonce")
 			assert.Nil(t, response)
-		})
-		t.Run("wrong nonce", func(t *testing.T) {
-			_, err := service.createOffer(ctx, issuedVC, "other")
-			require.NoError(t, err)
-			_, cNonce, err := service.HandleAccessTokenRequest(ctx, "other")
-			require.NoError(t, err)
-			invalidRequest := createRequest(createHeaders(), createClaims(cNonce))
-
-			response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
-
-			assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce not valid for access token")
-			assert.Nil(t, response)
-		})
-		t.Run("request does not match offer", func(t *testing.T) {
-			request := createRequest(createHeaders(), createClaims(cNonce))
-			request.CredentialDefinition.Type = []ssi.URI{
-				ssi.MustParseURI("DifferentCredential"),
-			}
-
-			response, err := service.HandleCredentialRequest(ctx, request, accessToken)
-
-			assert.Nil(t, response)
-			assert.EqualError(t, err, "invalid_request - requested credential does not match offer: credential does not match credential_definition: type mismatch")
 		})
 	})
-
 	t.Run("unknown access token", func(t *testing.T) {
 		service := requireNewTestHandler(t, keyResolver)
 
 		response, err := service.HandleCredentialRequest(ctx, validRequest, accessToken)
 
-		assertProtocolError(t, err, http.StatusBadRequest, "invalid_token - unknown access token")
+		assertProtocolError(t, err, http.StatusUnauthorized, "invalid_token - unknown access token")
+		assert.Nil(t, response)
+	})
+	t.Run("credential issuer does not match", func(t *testing.T) {
+		store := storage.NewTestInMemorySessionDatabase(t)
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, store)
+		require.NoError(t, err)
+		_, err = service.(*openidHandler).createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+		nonce, err := service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+		request := createRequest(createHeaders(), createClaims(nonce), configID)
+
+		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, &http.Client{}, keyResolver, store)
+		require.NoError(t, err)
+		response, err := otherService.HandleCredentialRequest(ctx, request, accessToken)
+
+		assertProtocolError(t, err, http.StatusBadRequest, "invalid_credential_request - credential issuer does not match given issuer")
 		assert.Nil(t, response)
 	})
 }
@@ -387,7 +410,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		_, err := service.createOffer(ctx, issuedVC, "code")
 		require.NoError(t, err)
 
-		accessToken, _, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
@@ -401,7 +424,7 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 
 		otherService, err := NewOpenIDHandler(did.MustParseDID("did:nuts:other"), "http://example.com/other", definitionsDIR, &http.Client{}, nil, store)
 		require.NoError(t, err)
-		accessToken, _, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := otherService.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
@@ -414,13 +437,156 @@ func Test_memoryIssuer_HandleAccessTokenRequest(t *testing.T) {
 		_, err := service.createOffer(ctx, issuedVC, "some-other-code")
 		require.NoError(t, err)
 
-		accessToken, _, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
+		accessToken, err := service.HandleAccessTokenRequest(audit.TestContext(), "code")
 
 		var protocolError openid4vci.Error
 		require.ErrorAs(t, err, &protocolError)
 		assert.EqualError(t, protocolError, "invalid_grant - unknown pre-authorized code")
 		assert.Equal(t, http.StatusBadRequest, protocolError.StatusCode)
 		assert.Empty(t, accessToken)
+	})
+}
+
+func Test_memoryIssuer_HandleNonceRequest(t *testing.T) {
+	ctx := context.Background()
+	t.Run("ok", func(t *testing.T) {
+		service := requireNewTestHandler(t, nil)
+
+		nonce, err := service.HandleNonceRequest(ctx)
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, nonce)
+	})
+}
+
+func Test_memoryIssuer_validateProof_metadataDriven(t *testing.T) {
+	keyStore := crypto.NewMemoryCryptoInstance(t)
+	ctx := audit.TestContext()
+	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
+	ctrl := gomock.NewController(t)
+	keyResolver := resolver.NewMockKeyResolver(ctrl)
+	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey, nil)
+
+	createHeaders := func() map[string]interface{} {
+		return map[string]interface{}{
+			"typ": openid4vci.JWTTypeOpenID4VCIProof,
+			"kid": keyID,
+		}
+	}
+	createClaims := func(nonce string) map[string]interface{} {
+		return map[string]interface{}{
+			"iss":   holderDID.String(),
+			"aud":   issuerIdentifier,
+			"iat":   time.Now().Unix(),
+			"nonce": nonce,
+		}
+	}
+	createProofs := func(headers, claims map[string]interface{}) *openid4vci.CredentialRequestProofs {
+		proof, err := keyStore.SignJWT(ctx, claims, headers, headers["kid"].(string))
+		require.NoError(t, err)
+		return &openid4vci.CredentialRequestProofs{
+			Jwt: []string{proof},
+		}
+	}
+
+	const preAuthCode = "some-secret-code"
+
+	t.Run("standalone nonce from Nonce Endpoint is accepted", func(t *testing.T) {
+		service := requireNewTestHandler(t, keyResolver)
+		_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Get a standalone nonce
+		standaloneNonce, err := service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+
+		configID := "ExampleCredential_ldp_vc"
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationID: configID,
+			Proofs:                    createProofs(createHeaders(), createClaims(standaloneNonce)),
+		}
+
+		response, err := service.HandleCredentialRequest(ctx, request, accessToken)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+	})
+	t.Run("proof skipped when credential config has no proof_types_supported", func(t *testing.T) {
+		// Create a handler with a credential config that lacks proof_types_supported
+		tmpDir := t.TempDir()
+		noProofDef := `{
+			"format": "ldp_vc",
+			"cryptographic_binding_methods_supported": ["did:nuts"],
+			"credential_definition": {
+				"@context": ["https://www.w3.org/2018/credentials/v1", "https://example.com/credentials/v1"],
+				"type": ["VerifiableCredential", "NoProofCredential"]
+			}
+		}`
+		err := os.WriteFile(filepath.Join(tmpDir, "NoProofCredential.json"), []byte(noProofDef), 0644)
+		require.NoError(t, err)
+
+		service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, tmpDir, &http.Client{}, keyResolver, storage.NewTestInMemorySessionDatabase(t))
+		require.NoError(t, err)
+		handler := service.(*openidHandler)
+
+		noProofVC := vc.VerifiableCredential{
+			Issuer: issuerDID.URI(),
+			CredentialSubject: []map[string]any{
+				{"id": holderDID.String()},
+			},
+			Context: []ssi.URI{
+				ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"),
+				ssi.MustParseURI("https://example.com/credentials/v1"),
+			},
+			Type: []ssi.URI{
+				ssi.MustParseURI("VerifiableCredential"),
+				ssi.MustParseURI("NoProofCredential"),
+			},
+		}
+
+		_, err = handler.createOffer(ctx, noProofVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := handler.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Request without proof should succeed
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationID: "NoProofCredential_ldp_vc",
+		}
+
+		response, err := handler.HandleCredentialRequest(ctx, request, accessToken)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+	})
+	t.Run("non-string nonce claim returns invalid_proof", func(t *testing.T) {
+		service := requireNewTestHandler(t, keyResolver)
+		_, err := service.createOffer(ctx, issuedVC, preAuthCode)
+		require.NoError(t, err)
+		accessToken, err := service.HandleAccessTokenRequest(ctx, preAuthCode)
+		require.NoError(t, err)
+
+		// Get a standalone nonce but put a number in the claim instead
+		_, err = service.HandleNonceRequest(ctx)
+		require.NoError(t, err)
+
+		configID := "ExampleCredential_ldp_vc"
+		claimsWithNumericNonce := map[string]interface{}{
+			"iss":   holderDID.String(),
+			"aud":   issuerIdentifier,
+			"iat":   time.Now().Unix(),
+			"nonce": 12345, // non-string
+		}
+		request := openid4vci.CredentialRequest{
+			CredentialConfigurationID: configID,
+			Proofs:                    createProofs(createHeaders(), claimsWithNumericNonce),
+		}
+
+		_, err = service.HandleCredentialRequest(ctx, request, accessToken)
+
+		assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - nonce claim is not a string")
 	})
 }
 
@@ -435,4 +601,131 @@ func requireNewTestHandler(t *testing.T, keyResolver resolver.KeyResolver) *open
 	service, err := NewOpenIDHandler(issuerDID, issuerIdentifier, definitionsDIR, &http.Client{}, keyResolver, storage.NewTestInMemorySessionDatabase(t))
 	require.NoError(t, err)
 	return service.(*openidHandler)
+}
+
+func Test_deepcopyMap(t *testing.T) {
+	t.Run("mutation of copy does not affect original", func(t *testing.T) {
+		src := map[string]map[string]interface{}{
+			"config1": {
+				"format": "ldp_vc",
+				"credential_definition": map[string]interface{}{
+					"type": []interface{}{"VerifiableCredential"},
+				},
+			},
+		}
+
+		dst := deepcopyMap(src)
+		credDef := dst["config1"]["credential_definition"].(map[string]interface{})
+		credDef["type"] = []interface{}{"Mutated"}
+
+		srcCredDef := src["config1"]["credential_definition"].(map[string]interface{})
+		assert.Equal(t, []interface{}{"VerifiableCredential"}, srcCredDef["type"])
+	})
+}
+
+func Test_matchesCredential(t *testing.T) {
+	t.Run("matches on type and context", func(t *testing.T) {
+		config := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"},
+				"type":     []interface{}{"VerifiableCredential", "NutsOrganizationCredential"},
+			},
+		}
+		cred := vc.VerifiableCredential{
+			Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1"), ssi.MustParseURI("https://nuts.nl/credentials/v1")},
+			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("NutsOrganizationCredential")},
+		}
+
+		assert.True(t, matchesCredential(config, cred))
+	})
+	t.Run("does not match on type mismatch", func(t *testing.T) {
+		config := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1"},
+				"type":     []interface{}{"VerifiableCredential", "OtherCredential"},
+			},
+		}
+		cred := vc.VerifiableCredential{
+			Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
+			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("NutsOrganizationCredential")},
+		}
+
+		assert.False(t, matchesCredential(config, cred))
+	})
+	t.Run("does not match on context mismatch", func(t *testing.T) {
+		config := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"@context": []interface{}{"https://www.w3.org/2018/credentials/v1", "https://other.example.com/v1"},
+				"type":     []interface{}{"VerifiableCredential"},
+			},
+		}
+		cred := vc.VerifiableCredential{
+			Context: []ssi.URI{ssi.MustParseURI("https://www.w3.org/2018/credentials/v1")},
+			Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
+		}
+
+		assert.False(t, matchesCredential(config, cred))
+	})
+}
+
+func Test_generateCredentialConfigID(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"type": []interface{}{"VerifiableCredential", "NutsOrganizationCredential"},
+			},
+		}
+		id, err := generateCredentialConfigID(defMap)
+		require.NoError(t, err)
+		assert.Equal(t, "NutsOrganizationCredential_ldp_vc", id)
+	})
+	t.Run("missing format", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"credential_definition": map[string]interface{}{
+				"type": []interface{}{"VerifiableCredential"},
+			},
+		}
+		_, err := generateCredentialConfigID(defMap)
+		assert.EqualError(t, err, "credential definition missing 'format' field")
+	})
+	t.Run("missing credential_definition", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"format": "ldp_vc",
+		}
+		_, err := generateCredentialConfigID(defMap)
+		assert.EqualError(t, err, "credential definition missing 'credential_definition' field")
+	})
+	t.Run("missing type", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"format":                "ldp_vc",
+			"credential_definition": map[string]interface{}{},
+		}
+		_, err := generateCredentialConfigID(defMap)
+		assert.EqualError(t, err, "credential definition missing 'type' field")
+	})
+	t.Run("empty type array", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"type": []interface{}{},
+			},
+		}
+		_, err := generateCredentialConfigID(defMap)
+		assert.EqualError(t, err, "credential definition missing 'type' field")
+	})
+	t.Run("only VerifiableCredential type falls back", func(t *testing.T) {
+		defMap := map[string]interface{}{
+			"format": "ldp_vc",
+			"credential_definition": map[string]interface{}{
+				"type": []interface{}{"VerifiableCredential"},
+			},
+		}
+		id, err := generateCredentialConfigID(defMap)
+		require.NoError(t, err)
+		assert.Equal(t, "VerifiableCredential_ldp_vc", id)
+	})
 }

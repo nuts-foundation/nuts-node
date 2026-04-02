@@ -43,6 +43,8 @@ type IssuerAPIClient interface {
 	Metadata() CredentialIssuerMetadata
 	// RequestCredential requests a credential from the issuer.
 	RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error)
+	// RequestNonce requests a fresh c_nonce from the issuer's Nonce Endpoint (v1.0 Section 7).
+	RequestNonce(ctx context.Context) (*NonceResponse, error)
 }
 
 // NewIssuerAPIClient resolves the Credential Issuer Metadata from the well-known endpoint
@@ -93,26 +95,70 @@ type defaultIssuerAPIClient struct {
 func (h defaultIssuerAPIClient) RequestCredential(ctx context.Context, request CredentialRequest, accessToken string) (*vc.VerifiableCredential, error) {
 	requestBody, _ := json.Marshal(request)
 
-	var credentialResponse CredentialResponse
 	httpRequest, _ := http.NewRequestWithContext(ctx, "POST", h.metadata.CredentialEndpoint, bytes.NewReader(requestBody))
 	httpRequest.Header.Add("Authorization", "Bearer "+accessToken)
 	httpRequest.Header.Add("Content-Type", "application/json")
-	err := httpDo(h.httpClient, httpRequest, &credentialResponse)
+	credentialResponse, err := doCredentialRequest(h.httpClient, httpRequest)
 	if err != nil {
-		return nil, fmt.Errorf("get credential request failed: %w", err)
+		return nil, err
 	}
-	// TODO: check format
-	//       See https://github.com/nuts-foundation/nuts-node/issues/2037
-	if credentialResponse.Credential == nil {
-		return nil, errors.New("credential response does not contain a credential")
+	if len(credentialResponse.Credentials) == 0 {
+		return nil, errors.New("credential response does not contain any credentials")
 	}
+	// We only support single credential issuance for now
 	var credential vc.VerifiableCredential
-	credentialJSON, _ := json.Marshal(*credentialResponse.Credential)
-	err = json.Unmarshal(credentialJSON, &credential)
+	err = json.Unmarshal(credentialResponse.Credentials[0].Credential, &credential)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal received credential: %w", err)
 	}
 	return &credential, nil
+}
+
+// doCredentialRequest performs the HTTP request to the credential endpoint.
+// It returns structured OpenID4VCI errors when the server returns an error response,
+// allowing callers to detect specific error codes like invalid_nonce.
+func doCredentialRequest(httpClient core.HTTPRequestDoer, httpRequest *http.Request) (*CredentialResponse, error) {
+	if HttpClientTrace != nil {
+		httpRequest = httpRequest.WithContext(httptrace.WithClientTrace(httpRequest.Context(), HttpClientTrace))
+	}
+	httpResponse, err := httpClient.Do(httpRequest)
+	if err != nil {
+		return nil, fmt.Errorf("credential request http error: %w", err)
+	}
+	defer httpResponse.Body.Close()
+	responseBody, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, fmt.Errorf("credential request read error: %w", err)
+	}
+	if httpResponse.StatusCode < 200 || httpResponse.StatusCode > 299 {
+		var oidcError Error
+		if json.Unmarshal(responseBody, &oidcError) == nil && oidcError.Code != "" {
+			oidcError.StatusCode = httpResponse.StatusCode
+			return nil, oidcError
+		}
+		return nil, fmt.Errorf("credential request failed (status %d)", httpResponse.StatusCode)
+	}
+	var credentialResponse CredentialResponse
+	if err := json.Unmarshal(responseBody, &credentialResponse); err != nil {
+		return nil, fmt.Errorf("credential response unmarshal error: %w", err)
+	}
+	return &credentialResponse, nil
+}
+
+func (h defaultIssuerAPIClient) RequestNonce(ctx context.Context) (*NonceResponse, error) {
+	if h.metadata.NonceEndpoint == "" {
+		return nil, errors.New("issuer does not advertise a nonce endpoint")
+	}
+	var nonceResponse NonceResponse
+	httpRequest, _ := http.NewRequestWithContext(ctx, "POST", h.metadata.NonceEndpoint, http.NoBody)
+	err := httpDo(h.httpClient, httpRequest, &nonceResponse)
+	if err != nil {
+		return nil, fmt.Errorf("nonce request failed: %w", err)
+	}
+	if nonceResponse.CNonce == "" {
+		return nil, errors.New("nonce endpoint returned empty c_nonce")
+	}
+	return &nonceResponse, nil
 }
 
 func (h defaultIssuerAPIClient) Metadata() CredentialIssuerMetadata {

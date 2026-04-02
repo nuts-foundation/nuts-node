@@ -20,7 +20,7 @@ package openid4vci
 
 import (
 	"context"
-	"github.com/nuts-foundation/go-did/vc"
+	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -89,8 +89,7 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 	ctx := context.Background()
 	httpClient := &http.Client{}
 	credentialRequest := CredentialRequest{
-		CredentialDefinition: &CredentialDefinition{},
-		Format:               vc.JSONLDCredentialProofFormat,
+		CredentialConfigurationID: "NutsOrganizationCredential_ldp_vc",
 	}
 	t.Run("ok", func(t *testing.T) {
 		setup := setupClientTest(t)
@@ -110,13 +109,14 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 
 		credential, err := client.RequestCredential(ctx, credentialRequest, "token")
 
-		require.EqualError(t, err, "credential response does not contain a credential")
+		require.EqualError(t, err, "credential response does not contain any credentials")
 		require.Nil(t, credential)
 	})
 	t.Run("error - invalid credentials in response", func(t *testing.T) {
 		setup := setupClientTest(t)
-		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credential: &map[string]interface{}{
-			"issuer": []string{"1", "2"}, // Invalid issuer
+		invalidCredJSON, _ := json.Marshal(map[string]interface{}{"issuer": []string{"1", "2"}})
+		setup.credentialHandler = setup.httpPostHandler(CredentialResponse{Credentials: []CredentialResponseEntry{
+			{Credential: invalidCredJSON}, // Invalid issuer
 		}})
 		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
 		require.NoError(t, err)
@@ -125,6 +125,46 @@ func Test_httpIssuerClient_RequestCredential(t *testing.T) {
 
 		require.ErrorContains(t, err, "unable to unmarshal received credential: json: cannot unmarshal")
 		require.Nil(t, credential)
+	})
+}
+
+func Test_httpIssuerClient_RequestNonce(t *testing.T) {
+	ctx := context.Background()
+	httpClient := &http.Client{}
+	t.Run("ok", func(t *testing.T) {
+		setup := setupClientTest(t)
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.NoError(t, err)
+		require.NotNil(t, nonceResponse)
+		assert.Equal(t, "test-nonce", nonceResponse.CNonce)
+	})
+	t.Run("error - no nonce endpoint in metadata", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.issuerMetadata.NonceEndpoint = ""
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.EqualError(t, err, "issuer does not advertise a nonce endpoint")
+		assert.Nil(t, nonceResponse)
+	})
+	t.Run("error - nonce endpoint returns error", func(t *testing.T) {
+		setup := setupClientTest(t)
+		setup.nonceHandler = func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		client, err := NewIssuerAPIClient(ctx, httpClient, setup.issuerMetadata.CredentialIssuer)
+		require.NoError(t, err)
+
+		nonceResponse, err := client.RequestNonce(ctx)
+
+		require.ErrorContains(t, err, "nonce request failed")
+		assert.Nil(t, nonceResponse)
 	})
 }
 
