@@ -35,6 +35,7 @@ paths:
         required: true
         schema:
           type: string
+          example: "eOverdracht"
       # Way to specify dynamic query parameters
       # See https://stackoverflow.com/questions/49582559/how-to-document-dynamic-query-parameter-names-in-openapi-swagger
       - in: query
@@ -226,19 +227,26 @@ components:
         id:
           type: string
           description: The ID of the Verifiable Presentation.
+          example: "did:web:example.com:iam:hospital-xyz#3106f751-59e3-440f-b57b-39a96a2da6c6"
         credential_subject_id:
           type: string
           description: The ID of the Verifiable Credential subject (holder), typically a DID.
+          example: "did:web:example.com:iam:hospital-xyz"
         registrationParameters:
           type: object
           description: |
             Additional parameters used when activating the service.
             The authServerURL parameter is always present.
+          example:
+            authServerURL: "https://example.com/oauth2/hospital-xyz"
         vp:
           $ref: "#/components/schemas/VerifiablePresentation"
         fields:
           type: object
           description: Input descriptor IDs and their mapped values that from the Verifiable Credential.
+          example:
+            organization_name: "Hospital XYZ"
+            organization_city: "Arnhem"
     ServiceActivationRequest:
       type: object
       description: Request for service activation.
@@ -251,10 +259,8 @@ components:
             This, for example, allows use cases to require and clients to register specific endpoints.
             
             The authServerURL parameter is added automatically.
-          example: |
-            {
-              "some-endpoint-type": "https://example.com/some-endpoint"
-            }
+          example:
+            some-endpoint-type: "https://example.com/some-endpoint"
     ServiceDefinition:
       type: object
       required:
@@ -266,20 +272,24 @@ components:
         id:
           type: string
           description: The ID of the Discovery Service.
+          example: "eOverdracht"
         did_methods:
           type: array
           items:
             type: string
           description: List of DID Methods supported by the Discovery Service. Empty/missing means no restrictions.
+          example: ["web"]
         endpoint:
           type: string
           description: The endpoint of the Discovery Service.
+          example: "https://discovery.example.com/eOverdracht"
         presentation_definition:
           type: object
           description: The Presentation Definition of the Discovery Service.
         presentation_max_validity:
           type: integer
           description: The maximum validity (in seconds) of a Verifiable Presentation of the Discovery Service.
+          example: 3600
   securitySchemes:
     jwtBearerAuth:
       type: http
