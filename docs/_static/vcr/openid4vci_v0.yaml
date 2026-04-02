@@ -2,6 +2,9 @@ openapi: 3.0.0
 info:
   title: OpenID4VCI Issuer API
   version: 0.0.0
+  license:
+    name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
   description: >
     This API implements OpenID 4 Verifiable Credential Issuance.
     The specification is in draft and may change, thus this API might change as well.
