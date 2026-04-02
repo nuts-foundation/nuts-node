@@ -30,16 +30,22 @@ paths:
                   example: urn:ietf:params:oauth:grant-type:authorized_code
                 code:
                   type: string
+                  example: "SplxlOBeZQQYbYS6WxSbIA"
                 client_id:
                   type: string
+                  example: "did:web:example.com"
                 assertion:
                   type: string
+                  example: "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
                 presentation_submission:
                   type: string
+                  example: "{\"id\":\"first_submission\",\"definition_id\":\"first_definition\",\"descriptor_map\":[]}"
                 scope:
                   type: string
+                  example: "eOverdracht-sender"
                 code_verifier:
                   type: string
+                  example: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
       responses:
         "200":
           description: OK
@@ -141,9 +147,10 @@ paths:
                   $ref: '#/components/schemas/OAuthAuthorizationServerMetadata'
                 wallet_nonce:
                   description: |
-                    A String value used to mitigate replay attacks of the Authorization Request. 
+                    A String value used to mitigate replay attacks of the Authorization Request.
                     When received, the Verifier MUST use it as the wallet_nonce value in the signed authorization request object.
                   type: string
+                  example: "duk681ot5h4ZXene8gVgos"
       responses:
         200:
           description: Authorization Request Object is found
