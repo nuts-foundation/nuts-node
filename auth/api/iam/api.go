@@ -29,13 +29,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -252,8 +253,9 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 }
 
 func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error) {
-	if !r.auth.AuthorizationEndpointEnabled() {
-		// Callback endpoint is only used by flows initiated through the authorization endpoint.
+	// Callback endpoint is only used by flows initiated through the authorization endpoint.
+	// It's used by both OpenID4VP and OpenID4VCI flows
+	if !r.auth.OpenID4VPEnabled() && !r.auth.OpenID4VCIEnabled() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "callback endpoint is disabled",
@@ -297,8 +299,14 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 	// continue flow
 	switch oauthSession.ClientFlow {
 	case credentialRequestClientFlow:
+		if !r.auth.OpenID4VCIEnabled() {
+			return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "openid4vci is disabled"), oauthSession.redirectURI())
+		}
 		return r.handleOpenID4VCICallback(ctx, *request.Params.Code, oauthSession)
 	case accessTokenRequestClientFlow:
+		if !r.auth.OpenID4VPEnabled() {
+			return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "openid4vp is disabled"), oauthSession.redirectURI())
+		}
 		return r.handleCallback(ctx, *request.Params.Code, oauthSession)
 	default:
 		// programming error, should never happen
@@ -444,7 +452,8 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 
 // HandleAuthorizeRequest handles calls to the authorization endpoint for starting an authorization code flow.
 func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error) {
-	if !r.auth.AuthorizationEndpointEnabled() {
+	// Check if either OpenID4VP or OpenID4VCI authorization endpoint is enabled
+	if !r.auth.OpenID4VPEnabled() && !r.auth.OpenID4VCIEnabled() {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidRequest,
 			Description: "authorization endpoint is disabled",
@@ -482,6 +491,18 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, own
 		// - Regular authorization code flow for EHR data access through access token, authentication of end-user using OpenID4VP.
 		// - OpenID4VCI; authorization code flow for credential issuance to (end-user) wallet
 
+		// Check if authorization endpoint is enabled for code flow.
+		// Since we can't distinguish between the two use cases at this point (see TODO below),
+		// we allow the request if either OpenID4VP or OpenID4VCI is enabled.
+		if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIEnabled() {
+			redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "authorization endpoint is disabled",
+				RedirectURI: redirectURI,
+			}
+		}
+
 		// TODO: officially flow switching has to be determined by the client_id
 		// registered client_ids should list which flow they support
 		// client registration could be done via rfc7591....
@@ -490,6 +511,16 @@ func (r Wrapper) handleAuthorizeRequest(ctx context.Context, subject string, own
 	case oauth.VPTokenResponseType:
 		// Options:
 		// - OpenID4VP flow, vp_token is sent in Authorization Response
+		// Check if OpenID4VP authorization endpoint is enabled for vp_token flow
+		if !r.auth.AuthorizationEndpointEnabled() {
+			redirectURI, _ := url.Parse(requestObject.get(oauth.RedirectURIParam))
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "authorization endpoint for OpenID4VP is disabled",
+				RedirectURI: redirectURI,
+			}
+		}
+
 		// non-spec: if the scheme is openid4vp (URL starts with openid4vp:), the OpenID4VP request should be handled by a user wallet, rather than an organization wallet.
 		//           Requests to user wallets can then be rendered as QR-code (or use a cloud wallet).
 		//           Note that it can't be called from the outside, but only by internal dispatch (since Echo doesn't handle openid4vp:, obviously).
@@ -616,7 +647,8 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
 	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
-	if !r.auth.AuthorizationEndpointEnabled() {
+	// Remove authorization endpoint from metadata if both OpenID4VP and OpenID4VCI authorization endpoints are disabled
+	if !r.auth.AuthorizationEndpointEnabled() && !r.auth.OpenID4VCIEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
 	return &md, nil
