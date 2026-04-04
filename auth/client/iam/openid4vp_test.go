@@ -351,9 +351,10 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
 
 		require.Error(t, err)
-		oauthError, ok := err.(oauth.OAuth2Error)
-		require.True(t, ok)
-		assert.Equal(t, oauth.InvalidScope, oauthError.Code)
+		var oauthErrResult oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErrResult)
+		assert.Equal(t, oauth.InvalidScope, oauthErrResult.Code)
+		require.ErrorAs(t, err, new(oauth.RemoteOAuthError))
 	})
 	t.Run("error - failed to get presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
