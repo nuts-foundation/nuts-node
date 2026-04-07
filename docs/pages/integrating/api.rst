@@ -8,8 +8,8 @@ Common Schemas and Responses: `SSI types <../../_static/common/ssi_types.yaml>`_
 
     <div id="swagger-ui"></div>
 
-    <script src='../../_static/js/swagger-ui-bundle-3.52.3.js' type='text/javascript'></script>
-    <script src='../../_static/js/swagger-ui-standalone-preset-3.52.3.js' type='text/javascript'></script>
+    <script src='../../_static/js/swagger-ui-bundle-5.32.1.js' type='text/javascript'></script>
+    <script src='../../_static/js/swagger-ui-standalone-preset-5.32.1.js' type='text/javascript'></script>
     <script>
         window.onload = function() {
             const ui = SwaggerUIBundle({
