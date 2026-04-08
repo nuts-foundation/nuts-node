@@ -171,3 +171,25 @@ func TestOAuthErrorCode(responseBody []byte, code ErrorCode) (bool, OAuth2Error)
 	}
 	return oauthErr.Code == code, oauthErr
 }
+
+// RemoteOAuthError wraps an OAuth2Error to indicate it was returned by a remote authorization server.
+// This allows callers to distinguish between locally-generated and remote OAuth2 errors.
+type RemoteOAuthError struct {
+	// Cause is the underlying OAuth2Error returned by the remote server.
+	Cause OAuth2Error
+}
+
+// Error returns the error message, prefixed with "remote authorization server" to indicate the error origin.
+func (e RemoteOAuthError) Error() string {
+	return "remote authorization server: " + e.Cause.Error()
+}
+
+// StatusCode returns the HTTP status code matching the underlying OAuth2 error code.
+func (e RemoteOAuthError) StatusCode() int {
+	return e.Cause.StatusCode()
+}
+
+// Unwrap returns the underlying OAuth2Error, allowing errors.As to find it.
+func (e RemoteOAuthError) Unwrap() error {
+	return e.Cause
+}
