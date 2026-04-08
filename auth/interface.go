@@ -19,10 +19,11 @@
 package auth
 
 import (
+	"net/url"
+
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"net/url"
 )
 
 // ModuleName contains the name of this module
@@ -40,8 +41,10 @@ type AuthenticationServices interface {
 	ContractNotary() services.ContractNotary
 	// PublicURL returns the public URL of the node.
 	PublicURL() *url.URL
-	// AuthorizationEndpointEnabled returns whether the v2 API's OAuth2 Authorization Endpoint is enabled.
-	AuthorizationEndpointEnabled() bool
+	// OpenID4VCIEnabled returns whether OpenID4VCI is enabled.
+	OpenID4VCIEnabled() bool
+	// OpenID4VPEnabled returns whether OpenID4VP is enabled.
+	OpenID4VPEnabled() bool
 	// SupportedDIDMethods lists the DID methods the Nuts node can resolve.
 	SupportedDIDMethods() []string
 }
