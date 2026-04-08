@@ -2,6 +2,9 @@ openapi: 3.0.0
 info:
   title: Auth v2 API
   version: 2.0.0
+  license:
+    name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
 servers:
   - url: http://localhost:8081
 paths:
@@ -57,6 +60,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+              examples:
+                DPoP:
+                  summary: DPoP-bound access token
+                  value:
+                    access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+                    token_type: "DPoP"
+                    dpop_kid: "did:web:example.com:resource-owner#key-1"
+                    scope: "eOverdracht-sender"
+                    expires_in: 3600
+                    expires_at: 1640995200
+                Bearer:
+                  summary: Bearer access token
+                  value:
+                    access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+                    token_type: "Bearer"
+                    scope: "eOverdracht-sender"
+                    expires_in: 3600
+                    expires_at: 1640995200
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{subjectID}/request-user-access-token:
@@ -200,6 +221,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+              examples:
+                DPoP:
+                  summary: DPoP-bound access token
+                  value:
+                    access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+                    token_type: "DPoP"
+                    dpop_kid: "did:web:example.com:resource-owner#key-1"
+                    scope: "eOverdracht-sender"
+                    expires_in: 3600
+                    expires_at: 1640995200
+                    status: "active"
+                Bearer:
+                  summary: Bearer access token
+                  value:
+                    access_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ"
+                    token_type: "Bearer"
+                    scope: "eOverdracht-sender"
+                    expires_in: 3600
+                    expires_at: 1640995200
+                    status: "active"
+                pending:
+                  summary: Flow not yet completed
+                  value:
+                    access_token: ""
+                    token_type: ""
+                    status: "pending"
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/introspect:
@@ -330,6 +377,7 @@ components:
         jkt:
           type: string
           description: JWK thumbprint
+          example: "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I"
     DPoPRequest:
       type: object
       required:
@@ -357,6 +405,7 @@ components:
         dpop:
           type: string
           description: The DPoP proof as specified by https://datatracker.ietf.org/doc/html/rfc9449 for resource requests
+          example: "eyJhbGciOiJFUzI1NiIsInR5cCI6ImRwb3Arand..lgtla"
     DPoPValidateRequest:
       type: object
       required:
@@ -394,6 +443,7 @@ components:
         reason:
           type: string
           description: The reason why the DPoP Proof header is invalid.
+          example: "DPoP proof is expired"
         valid:
           type: boolean
           description: True if the DPoP Proof header is valid for the access token and HTTP request, false if it is not.
@@ -551,11 +601,8 @@ components:
           example: "John Doe"
         id:
           type: string
-          description: Machine-readable identifier, uniquely identifying the user in the issuing system.
-          example:
-            - "jdoe"
-            - "123456"
-            - "jdoe@example.com"
+          description: Machine-readable identifier, uniquely identifying the user in the issuing system. The format is not specified; it could be a username, email address, employee number, etc.
+          example: "jdoe@example.com"
         role:
           type: string
           description: Role of the user.
@@ -589,6 +636,7 @@ components:
           example: "Bearer"
         scope:
           type: string
+          example: "eOverdracht-sender"
         status:
           type: string
           description: |
@@ -596,6 +644,7 @@ components:
             If the status is 'pending', the access token is not yet available.
             Only used when the access token is requested through /request-user-access-token.
           enum: [ pending, active ]
+          example: "active"
         expires_in:
           type: integer
           description: |
@@ -606,12 +655,6 @@ components:
           description: |
               The expiration time of the access token in seconds since UNIX epoch.
           example: 1640995200
-      example:
-        {
-          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..sHQ",
-          "token_type": "Bearer",
-          "expires_in": 3600,
-        }
     PresentationDefinition:
       description: |
         A presentation definition is a JSON object that describes the desired verifiable credentials and presentation formats.
@@ -659,12 +702,15 @@ components:
         exp:
           type: integer
           description: Expiration date in seconds since UNIX epoch
+          example: 1735689600
         iat:
           type: integer
           description: Issuance time in seconds since UNIX epoch
+          example: 1735686000
         scope:
           type: string
-          description: granted scopes
+          description: Granted scopes, as a space-separated list.
+          example: "medicatieoverdracht patient/MedicationRequest.read"
     ExtendedTokenIntrospectionResponse:
       allOf:
         - $ref: '#/components/schemas/TokenIntrospectionResponse'

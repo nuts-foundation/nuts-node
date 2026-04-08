@@ -7,6 +7,7 @@ info:
   version: 2.0.0
   license:
     name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
 servers:
   - url: http://localhost:8081
 paths:
@@ -755,9 +756,11 @@ components:
         validity:
           type: boolean
           description: Indicates the validity of the signature, issuer and revocation state.
+          example: true
         message:
           type: string
           description: Indicates what went wrong
+          example: "credential is expired"
 
     CreateVPRequest:
       type: object
@@ -770,11 +773,13 @@ components:
           description: Array of VerifiablePresentation types that will be added next to the default type. Types must be available in the given context.
           items:
             type: string
+          example: ["HealthcarePresentation"]
         "@context":
           type: array
           description: Array of JSON-LD contexts, contain definitions of the given types.
           items:
             type: string
+          example: ["https://example.com/healthcare/v1"]
         verifiableCredentials:
           type: array
           items:
@@ -786,16 +791,19 @@ components:
             It can only be derived if all given Verifiable Credentials have the same, single subjectCredential.
           type: string
           format: uri
+          example: "did:web:example.com:iam:hospital-xyz"
         proofPurpose:
           type: string
           description: |
             The specific intent for the proof, the reason why an entity created it. Acts as a safeguard to prevent the
             proof from being misused for a purpose other than the one it was intended for.
           enum: [authentication, assertionMethod, keyAgreement, capabilityDelegation, capabilityInvocation]
+          example: "assertionMethod"
         challenge:
           type: string
           description: |
             A random or pseudo-random value used by some authentication protocols to mitigate replay attacks.
+          example: "nonce-12345"
         domain:
           type: string
           description: |
@@ -803,6 +811,7 @@ components:
             name like example.com, an ad-hoc value such as mycorp-level3-access, or a very specific transaction value
             like 8zF6T$mqP. A signer could include a domain in its digital proof to restrict its use to particular
             target, identified by the specified domain.
+          example: "example.com"
         expires:
           type: string
           description: Date and time at which proof will expire. If omitted, the proof does not have an end date.
@@ -838,9 +847,11 @@ components:
         validity:
           type: boolean
           description: Indicates the validity of the signature, issuer and revocation state.
+          example: true
         message:
           type: string
           description: Indicates what went wrong
+          example: "presentation is expired"
         credentials:
           description: If the VP is valid, it will contain the credentials inside the VP.
           type: array
