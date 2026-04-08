@@ -31,6 +31,13 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
 
+For AI-agentic Maintainers
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+(and maybe for some human maintainers as well):
+
+Claude Code skill files for common maintenance tasks can be found in the `.claude/commands directory <.claude/commands>`_.
+
 Development
 ^^^^^^^^^^^
 
@@ -206,6 +213,7 @@ The following options can be configured on the server:
     pki.maxupdatefailhours                        4                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Maximum number of hours that a denylist update can fail
     pki.softfail                                  true                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Do not reject certificates if their revocation status cannot be established when softfail is true
     **Storage**
+    storage.debug                                 false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    When true, enables extra logging of storage-layer problems (e.g. performance issues).
     storage.session.memcached.address             []                                                                                                                                                                                                                                                                                                                                                                                                                                                                       List of Memcached server addresses. These can be a simple 'host:port' or a Memcached connection URL with scheme, auth and other options.
     storage.session.redis.address                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options. If not set it, defaults to an in-memory database.
     storage.session.redis.database                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         Redis session database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.

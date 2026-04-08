@@ -1,0 +1,46 @@
+name: Notify on maintainer PR
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review]
+    branches:
+      - master
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Slack notification
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft &&
+      contains(fromJSON('["woutslakhorst","reinkrul","gerardsn","stevenvegt"]'), github.event.pull_request.user.login)
+    steps:
+      - name: Send Slack message
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ${{ toJSON(format('New PR from maintainer {0}: {1}', github.event.pull_request.user.login, github.event.pull_request.title)) }},
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(format('*New PR from maintainer <https://github.com/{0}|{0}>*', github.event.pull_request.user.login)) }}
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ${{ toJSON(format('<{0}|{1}>', github.event.pull_request.html_url, github.event.pull_request.title)) }}
+                  }
+                }
+              ]
+            }

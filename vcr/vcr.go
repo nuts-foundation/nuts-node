@@ -271,7 +271,7 @@ func (c *vcr) createCredentialsStore() error {
 	if err != nil {
 		return err
 	}
-	credentialsStore, err := leia.NewStore(credentialsStorePath, leia.WithDocumentLoader(c.jsonldManager.DocumentLoader()))
+	credentialsStore, err := storage.NewDocumentStore(credentialsStorePath, c.jsonldManager.DocumentLoader())
 	if err != nil {
 		return err
 	}

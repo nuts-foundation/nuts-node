@@ -49,7 +49,7 @@ type presenter struct {
 }
 
 func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
-	params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
@@ -57,6 +57,15 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	builder := presentationDefinition.PresentationSubmissionBuilder()
 	for holderDID, creds := range credentials {
 		builder.AddWallet(holderDID, creds)
+	}
+	// If credential selection is provided, create a selector that narrows
+	// credential selection per input descriptor by field ID values.
+	if len(credentialSelection) > 0 {
+		selector, err := pe.NewFieldSelector(credentialSelection, presentationDefinition)
+		if err != nil {
+			return nil, nil, err
+		}
+		builder.SetCredentialSelector(selector)
 	}
 
 	// Find supported VP format, matching support from:
@@ -143,10 +152,6 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
 func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
-	exp := options.ProofOptions.Created.Add(1 * time.Hour)
-	if options.ProofOptions.Expires != nil {
-		exp = *options.ProofOptions.Expires
-	}
 	return vc.CreateJWTVerifiablePresentation(ctx, subjectDID.URI(), credentials, vc.PresentationOptions{
 		AdditionalContexts:        options.AdditionalContexts,
 		AdditionalTypes:           options.AdditionalTypes,
@@ -155,7 +160,7 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 		Nonce:                     options.ProofOptions.Nonce,
 		Audience:                  options.ProofOptions.Domain,
 		IssuedAt:                  &options.ProofOptions.Created,
-		ExpiresAt:                 exp,
+		ExpiresAt:                 options.ProofOptions.Expires,
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 		return p.signer.SignJWT(ctx, claims, headers, keyID)
 	})
