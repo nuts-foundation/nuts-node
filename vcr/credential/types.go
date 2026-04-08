@@ -39,6 +39,8 @@ var (
 	NutsOrganizationCredentialTypeURI, _ = ssi.ParseURI(NutsOrganizationCredentialType)
 	// NutsAuthorizationCredentialTypeURI is the VC type for a NutsAuthorizationCredentialType as URI
 	NutsAuthorizationCredentialTypeURI, _ = ssi.ParseURI(NutsAuthorizationCredentialType)
+	// DeziUserCredentialTypeURI is the VC type for a DeziUserCredential
+	DeziUserCredentialTypeURI = ssi.MustParseURI("DeziUserCredential")
 	// NutsV1ContextURI is the nuts V1 json-ld context as URI
 	NutsV1ContextURI = ssi.MustParseURI(NutsV1Context)
 )
