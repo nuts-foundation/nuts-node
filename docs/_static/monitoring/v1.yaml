@@ -38,6 +38,7 @@ paths:
             text/plain:
               schema:
                 type: string
+                example: "OK"
   /status/diagnostics:
     get:
       summary: "get node diagnostics"
@@ -94,11 +95,17 @@ components:
         status:
           type: string
           description: Overall status derived from performed health checks. Values are "UP", "DOWN" and "UNKNOWN".
+          example: "UP"
         details:
           type: object
           description: Map of the performed health checks and their results.
           additionalProperties:
             $ref: "#/components/schemas/HealthCheckResult"
+          example:
+            database:
+              status: "UP"
+            network:
+              status: "UP"
     HealthCheckResult:
       required:
         - status
@@ -106,7 +113,9 @@ components:
         status:
           type: string
           description: Status of the health check. Values are "UP", "DOWN" and "UNKNOWN".
+          example: "UP"
         details:
           description: Details of the health check result.
+          example: "connected to 3 peers"
 
 
