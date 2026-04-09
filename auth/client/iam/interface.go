@@ -20,8 +20,10 @@ package iam
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -54,8 +56,10 @@ type Client interface {
 	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
+	// RequestNonce requests a fresh c_nonce from the issuer's Nonce Endpoint (v1.0 Section 7).
+	RequestNonce(ctx context.Context, nonceEndpoint string) (string, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.
 	RequestObjectByGet(ctx context.Context, requestURI string) (string, error)

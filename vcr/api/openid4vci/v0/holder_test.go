@@ -21,9 +21,7 @@ package v0
 import (
 	"context"
 	"encoding/json"
-	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
@@ -88,19 +86,11 @@ func TestWrapper_HandleCredentialOffer(t *testing.T) {
 		api := Wrapper{VCR: service, VDR: vdr}
 
 		credentialOffer := openid4vci.CredentialOffer{
-			CredentialIssuer: issuerDID.String(),
-			Credentials: []openid4vci.OfferedCredential{
-				{
-					Format: vc.JSONLDCredentialProofFormat,
-					CredentialDefinition: &openid4vci.CredentialDefinition{
-						Context: []ssi.URI{ssi.MustParseURI("a"), ssi.MustParseURI("b")},
-						Type:    []ssi.URI{ssi.MustParseURI("VerifiableCredential"), ssi.MustParseURI("HumanCredential")},
-					},
-				},
-			},
-			Grants: map[string]interface{}{
-				"urn:ietf:params:oauth:grant-type:pre-authorized_code": map[string]interface{}{
-					"pre-authorized_code": "code",
+			CredentialIssuer:           issuerDID.String(),
+			CredentialConfigurationIDs: []string{"ExampleCredential_ldp_vc"},
+			Grants: &openid4vci.CredentialOfferGrants{
+				PreAuthorizedCode: &openid4vci.PreAuthorizedCodeParams{
+					PreAuthorizedCode: "code",
 				},
 			},
 		}
