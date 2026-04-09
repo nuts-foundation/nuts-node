@@ -378,12 +378,31 @@ func (n *Network) Start() error {
 
 	// Resume all notifiers. Notifiers may access other components of the network stack.
 	// To prevent nil derefs run the notifiers last. https://github.com/nuts-foundation/nuts-node/issues/3155
-	for _, notifier := range n.state.Notifiers() {
-		if err = notifier.Run(); err != nil {
-			return fmt.Errorf("failed to start notifiers: %w", err)
+	// Run in a goroutine: connectToKnownNodes() above may already be loading transactions from peers,
+	// holding the BBolt write lock, causing notifier.Run() (which needs a read lock) to time out.
+	// See https://github.com/nuts-foundation/nuts-node/issues/4162
+	go n.startNotifiers(30 * time.Second)
+	return nil
+}
+
+// startNotifiers starts all notifiers, retrying failed ones every retryDelay until all have started.
+// It is called in a goroutine from Start() to avoid blocking on BBolt lock contention during initial peer sync.
+// See https://github.com/nuts-foundation/nuts-node/issues/4162
+func (n *Network) startNotifiers(retryDelay time.Duration) {
+	pending := n.state.Notifiers()
+	for len(pending) > 0 {
+		var failed []dag.Notifier
+		for _, notifier := range pending {
+			if err := notifier.Run(); err != nil {
+				log.Logger().WithError(err).Errorf("Failed to start notifier '%s', retrying in %s", notifier.Name(), retryDelay)
+				failed = append(failed, notifier)
+			}
+		}
+		pending = failed
+		if len(pending) > 0 {
+			time.Sleep(retryDelay)
 		}
 	}
-	return nil
 }
 
 func (n *Network) connectToKnownNodes(nodeDID did.DID) error {

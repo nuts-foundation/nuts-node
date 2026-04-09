@@ -567,6 +567,32 @@ func TestNetwork_Start(t *testing.T) {
 	})
 }
 
+func TestNetwork_startNotifiers(t *testing.T) {
+	t.Run("ok - succeeds on first try", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		notifier := dag.NewMockNotifier(ctrl)
+		notifier.EXPECT().Run().Return(nil)
+		notifier.EXPECT().Name().AnyTimes().Return("test")
+		cxt.state.EXPECT().Notifiers().Return([]dag.Notifier{notifier})
+
+		cxt.network.startNotifiers(time.Millisecond)
+	})
+	t.Run("ok - retries on first failure", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		notifier := dag.NewMockNotifier(ctrl)
+		gomock.InOrder(
+			notifier.EXPECT().Run().Return(errors.New("lock timeout")),
+			notifier.EXPECT().Run().Return(nil),
+		)
+		notifier.EXPECT().Name().AnyTimes().Return("test")
+		cxt.state.EXPECT().Notifiers().Return([]dag.Notifier{notifier})
+
+		cxt.network.startNotifiers(time.Millisecond)
+	})
+}
+
 func TestNetwork_selfTestNutsCommAddress(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
 		certificate := testPKI.Certificate()
