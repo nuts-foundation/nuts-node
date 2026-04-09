@@ -82,6 +82,13 @@ func (p *protocol) sendTransactionListQuery(connection grpc.Connection, refs []h
 		return nil
 	}
 
+	// Rate-limit outgoing queries to avoid flooding BBolt with write operations when many peers respond
+	// simultaneously. See https://github.com/nuts-foundation/nuts-node/issues/4162
+	if !p.consumeTransactionListQueryToken(connection) {
+		p.cMan.done(conversation.conversationID)
+		return nil
+	}
+
 	log.Logger().
 		WithFields(connection.Peer().ToFields()).
 		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
@@ -126,12 +133,33 @@ func (p *protocol) sendTransactionRangeQuery(connection grpc.Connection, lcStart
 		return nil
 	}
 
+	// Rate-limit outgoing queries to avoid flooding BBolt with write operations when many peers respond
+	// simultaneously. See https://github.com/nuts-foundation/nuts-node/issues/4162
+	if !p.consumeTransactionListQueryToken(connection) {
+		p.cMan.done(conversation.conversationID)
+		return nil
+	}
+
 	log.Logger().
 		WithFields(connection.Peer().ToFields()).
 		WithField(core.LogFieldConversationID, conversation.conversationID.String()).
 		Debugf("Requesting transaction range (start=%d, end=%d)", lcStart, lcEnd)
 
 	return connection.Send(p, &Envelope{Message: msg}, false)
+}
+
+// consumeTransactionListQueryToken tries to consume a token from the rate-limiting bucket.
+// Returns true if a token was available (the caller may proceed), false if the rate limit is exceeded.
+func (p *protocol) consumeTransactionListQueryToken(connection grpc.Connection) bool {
+	select {
+	case <-p.transactionListQueryTokens:
+		return true
+	default:
+		log.Logger().
+			WithFields(connection.Peer().ToFields()).
+			Debug("Transaction list/range query rate limit reached, dropping query")
+		return false
+	}
 }
 
 // chunkTransactionList splits a large set of transactions into smaller sets. Each set adheres to the maximum message size.
