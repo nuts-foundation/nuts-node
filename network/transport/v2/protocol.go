@@ -54,18 +54,24 @@ type Config struct {
 	GossipInterval int `koanf:"gossipinterval"`
 	// DiagnosticsInterval specifies how often (in milliseconds) the node should broadcast its diagnostics message.
 	DiagnosticsInterval int `koanf:"diagnosticsinterval"`
+	// TransactionListQueryRate limits the rate (per second) at which outgoing TransactionListQuery and
+	// TransactionRangeQuery messages are sent. Limiting this reduces BBolt write lock contention during
+	// peer synchronization at startup. See https://github.com/nuts-foundation/nuts-node/issues/4162
+	TransactionListQueryRate int `koanf:"transactionlistqueryrate"`
 }
 
 const defaultPayloadRetryDelay = 5 * time.Second
 const defaultGossipInterval = 5000
 const defaultDiagnosticsInterval = 5000
+const defaultTransactionListQueryRate = 2
 
 // DefaultConfig returns the default config for protocol v2
 func DefaultConfig() Config {
 	return Config{
-		PayloadRetryDelay:   defaultPayloadRetryDelay,
-		GossipInterval:      defaultGossipInterval,
-		DiagnosticsInterval: defaultDiagnosticsInterval,
+		PayloadRetryDelay:        defaultPayloadRetryDelay,
+		GossipInterval:           defaultGossipInterval,
+		DiagnosticsInterval:      defaultDiagnosticsInterval,
+		TransactionListQueryRate: defaultTransactionListQueryRate,
 	}
 }
 
@@ -79,16 +85,25 @@ func New(
 	diagnosticsProvider func() transport.Diagnostics,
 	dagStore stoabs.KVStore,
 ) transport.Protocol {
+	if config.TransactionListQueryRate <= 0 {
+		config.TransactionListQueryRate = defaultTransactionListQueryRate
+	}
+	// Pre-fill the token bucket to capacity so queries are allowed immediately after startup.
+	tokens := make(chan struct{}, config.TransactionListQueryRate)
+	for range config.TransactionListQueryRate {
+		tokens <- struct{}{}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &protocol{
-		cancel:      cancel,
-		config:      config,
-		ctx:         ctx,
-		state:       state,
-		nodeDID:     nodeDID,
-		decrypter:   decrypter,
-		docResolver: docResolver,
-		dagStore:    dagStore,
+		cancel:                     cancel,
+		config:                     config,
+		ctx:                        ctx,
+		state:                      state,
+		nodeDID:                    nodeDID,
+		decrypter:                  decrypter,
+		docResolver:                docResolver,
+		dagStore:                   dagStore,
+		transactionListQueryTokens: tokens,
 	}
 	p.sender = p
 	p.diagnosticsMan = newPeerDiagnosticsManager(diagnosticsProvider, p.sender.broadcastDiagnostics)
@@ -113,6 +128,9 @@ type protocol struct {
 	sender                 messageSender
 	listHandler            *transactionListHandler
 	dagStore               stoabs.KVStore
+	// transactionListQueryTokens is a token bucket that rate-limits outgoing TransactionListQuery and
+	// TransactionRangeQuery messages. See https://github.com/nuts-foundation/nuts-node/issues/4162
+	transactionListQueryTokens chan struct{}
 }
 
 func (p *protocol) CreateClientStream(outgoingContext context.Context, grpcConn grpcLib.ClientConnInterface) (grpcLib.ClientStream, error) {
@@ -206,6 +224,26 @@ func (p *protocol) Start() (err error) {
 	go func(w *sync.WaitGroup) {
 		defer w.Done()
 		p.listHandler.start()
+	}(p.routines)
+
+	// Fill the token bucket at the configured rate. Tokens that don't fit (bucket full) are discarded.
+	// See https://github.com/nuts-foundation/nuts-node/issues/4162
+	p.routines.Add(1)
+	go func(w *sync.WaitGroup) {
+		defer w.Done()
+		ticker := time.NewTicker(time.Second / time.Duration(p.config.TransactionListQueryRate))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-p.ctx.Done():
+				return
+			case <-ticker.C:
+				select {
+				case p.transactionListQueryTokens <- struct{}{}:
+				default: // bucket full, discard token
+				}
+			}
+		}
 	}(p.routines)
 
 	return

@@ -168,6 +168,23 @@ func TestProtocol_sendTransactionListQuery(t *testing.T) {
 		assert.NotNil(t, actualEnvelope.GetTransactionListQuery().GetConversationID())
 	})
 
+	t.Run("rate limit reached - query is dropped", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		// Drain all tokens from the bucket (none available = rate limit exceeded).
+		for range proto.config.TransactionListQueryRate {
+			<-proto.transactionListQueryTokens
+		}
+
+		mockConn := grpc.NewMockConnection(mocks.Controller)
+		mockConn.EXPECT().Peer().AnyTimes().Return(transport.Peer{ID: "peer-1"})
+		// No Send expected: query must be dropped.
+
+		err := proto.sendTransactionListQuery(mockConn, []hash.SHA256Hash{hash.FromSlice([]byte("list query"))})
+
+		assert.NoError(t, err)
+		assert.Empty(t, proto.cMan.conversations) // conversation was cancelled
+	})
+
 	performMultipleConversationsTest(t, peer, func(c grpc.Connection, p *protocol, mocks protocolMocks) error {
 		return p.sendTransactionListQuery(c, []hash.SHA256Hash{hash.FromSlice([]byte("list query"))})
 	})
