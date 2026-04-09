@@ -33,7 +33,7 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.18.1
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
-	github.com/nuts-foundation/go-stoabs v1.11.0
+	github.com/nuts-foundation/go-stoabs v1.11.1-0.20260409133358-951c8eaec96b
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
 	github.com/oapi-codegen/runtime v1.3.1
