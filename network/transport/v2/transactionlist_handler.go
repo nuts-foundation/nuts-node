@@ -94,28 +94,33 @@ func (p *protocol) handleTransactionList(ctx context.Context, connection grpc.Co
 		return err
 	}
 
+	// Validate that all public transactions include a payload before adding
+	payloads := make([][]byte, len(txs))
 	for i, tx := range txs {
-		if ctx.Err() != nil {
-			// For loop might be long-running, support cancellation
-			break
-		}
 		// TODO does this always trigger fetching missing payloads? (through observer on DAG) Prolly not for v2
 		if len(tx.PAL()) == 0 && len(msg.Transactions[i].Payload) == 0 {
 			return fmt.Errorf("peer did not provide payload for transaction (tx=%s)", tx.Ref())
 		}
-		if err = p.state.Add(ctx, tx, msg.Transactions[i].Payload); err != nil {
-			if errors.Is(err, dag.ErrPreviousTransactionMissing) {
-				p.cMan.done(cid)
-				log.Logger().
-					WithFields(connection.Peer().ToFields()).
-					WithField(core.LogFieldConversationID, cid).
-					WithField(core.LogFieldTransactionRef, tx.Ref()).
-					Warn("Ignoring remainder of TransactionList due to missing prevs")
-				xor, clock := p.state.XOR(dag.MaxLamportClock)
-				return p.sender.sendState(connection, xor, clock)
-			}
-			return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", tx.Ref(), err)
+		payloads[i] = msg.Transactions[i].Payload
+	}
+
+	if ctx.Err() != nil {
+		return nil
+	}
+
+	added, err := p.state.AddMany(ctx, txs, payloads)
+	if err != nil {
+		if errors.Is(err, dag.ErrPreviousTransactionMissing) {
+			p.cMan.done(cid)
+			log.Logger().
+				WithFields(connection.Peer().ToFields()).
+				WithField(core.LogFieldConversationID, cid).
+				WithField(core.LogFieldTransactionRef, txs[added].Ref()).
+				Warn("Ignoring remainder of TransactionList due to missing prevs")
+			xor, clock := p.state.XOR(dag.MaxLamportClock)
+			return p.sender.sendState(connection, xor, clock)
 		}
+		return fmt.Errorf("unable to add received transaction to DAG (tx=%s): %w", txs[added].Ref(), err)
 	}
 
 	if msg.MessageNumber >= msg.TotalMessages {

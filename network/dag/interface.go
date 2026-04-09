@@ -55,6 +55,12 @@ type State interface {
 	// If the transaction already exists, nothing is added and no observers are notified.
 	// The payload may be passed as well. Allowing for better notification of observers
 	Add(ctx context.Context, transactions Transaction, payload []byte) error
+	// AddMany adds multiple transactions to the DAG in a single write transaction,
+	// requiring only a single fsync. Transactions are processed in order so that later
+	// transactions can reference earlier ones in the same batch.
+	// Returns the number of transactions successfully added and the first error encountered.
+	// Successfully added transactions are committed even when a later transaction fails.
+	AddMany(ctx context.Context, transactions []Transaction, payloads [][]byte) (int, error)
 	// FindBetweenLC finds all transactions which lamport clock value lies between startInclusive and endExclusive.
 	// They are returned in order: first sorted on lamport clock value, then on transaction reference (byte order).
 	FindBetweenLC(ctx context.Context, startInclusive uint32, endExclusive uint32) ([]Transaction, error)

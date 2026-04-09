@@ -79,7 +79,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(1, nil)
 
 		err := p.handleTransactionList(context.Background(), connection, envelope)
 
@@ -102,7 +102,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(1, nil)
 
 		err := p.handleTransactionList(context.Background(), connection, envelope)
 
@@ -113,7 +113,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(dag.ErrPreviousTransactionMissing)
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(0, dag.ErrPreviousTransactionMissing)
 		mocks.State.EXPECT().XOR(uint32(dag.MaxLamportClock)).Return(hash.FromSlice([]byte("stateXor")), uint32(7))
 		mocks.Sender.EXPECT().sendState(connection, hash.FromSlice([]byte("stateXor")), uint32(7))
 
@@ -127,7 +127,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(1, nil)
 
 		err := p.handleTransactionList(context.Background(), connection, envelope)
 
@@ -142,7 +142,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		conversation := p.cMan.startConversation(request2, peer)
 		cStartTime := conversation.expiry.Add(-1 * time.Millisecond)
 		conversation.expiry = cStartTime
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(nil)
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(1, nil)
 
 		err := p.handleTransactionList(context.Background(), connection, &Envelope{Message: &Envelope_TransactionList{
 			TransactionList: &TransactionList{
@@ -163,7 +163,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		p, mocks := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
 		envelope := envelopeWithConversation(conversation)
-		mocks.State.EXPECT().Add(context.Background(), tx, payload).Return(errors.New("custom"))
+		mocks.State.EXPECT().AddMany(context.Background(), []dag.Transaction{tx}, [][]byte{payload}).Return(0, errors.New("custom"))
 
 		err := p.handleTransactionList(context.Background(), connection, envelope)
 

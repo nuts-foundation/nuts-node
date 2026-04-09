@@ -219,6 +219,96 @@ func (s *state) Add(ctx context.Context, transaction Transaction, payload []byte
 	}), stoabs.WithWriteLock())
 }
 
+func (s *state) AddMany(ctx context.Context, transactions []Transaction, payloads [][]byte) (int, error) {
+	added := 0
+	var txEvents []Event
+	var payloadEvents []Event
+	var firstErr error
+
+	err := s.db.Write(ctx, func(tx stoabs.WriteTx) error {
+		for i, transaction := range transactions {
+			if ctx.Err() != nil {
+				firstErr = ctx.Err()
+				break
+			}
+			// Skip if already present
+			if s.graph.isPresent(tx, transaction.Ref()) {
+				continue
+			}
+
+			// Verify within the write TX so that earlier TXs in the batch are visible
+			if err := s.verifyTX(tx, transaction); err != nil {
+				firstErr = fmt.Errorf("transaction verification failed (tx=%s): %w", transaction.Ref(), err)
+				break
+			}
+
+			payload := payloads[i]
+			if payload != nil {
+				payloadHash := hash.SHA256Sum(payload)
+				if !transaction.PayloadHash().Equals(payloadHash) {
+					firstErr = fmt.Errorf("tx.PayloadHash does not match hash of payload (tx=%s)", transaction.Ref())
+					break
+				}
+				if err := s.payloadStore.writePayload(tx, payloadHash, payload); err != nil {
+					firstErr = err
+					break
+				}
+				event := Event{
+					Type:        PayloadEventType,
+					Hash:        transaction.Ref(),
+					Transaction: transaction,
+					Payload:     payload,
+				}
+				if err := s.saveEvent(tx, event); err != nil {
+					firstErr = err
+					break
+				}
+				payloadEvents = append(payloadEvents, event)
+			}
+
+			if err := s.graph.add(tx, transaction); err != nil {
+				firstErr = err
+				break
+			}
+			event := Event{
+				Type:        TransactionEventType,
+				Hash:        transaction.Ref(),
+				Transaction: transaction,
+				Payload:     payload,
+			}
+			if err := s.saveEvent(tx, event); err != nil {
+				firstErr = err
+				break
+			}
+			txEvents = append(txEvents, event)
+
+			if err := s.updateState(tx, transaction); err != nil {
+				firstErr = err
+				break
+			}
+			added++
+		}
+		// Always return nil to commit what we have, even if a TX failed
+		return nil
+	}, stoabs.OnRollback(func() {
+		log.Logger().Warn("Reloading the XOR and IBLT trees due to a DB transaction Rollback")
+		s.loadState(ctx)
+	}), stoabs.AfterCommit(func() {
+		for _, event := range txEvents {
+			s.notify(event)
+		}
+		for _, event := range payloadEvents {
+			s.notify(event)
+		}
+	}), stoabs.AfterCommit(func() {
+		s.transactionCount.Add(float64(added))
+	}), stoabs.WithWriteLock())
+	if err != nil {
+		return added, err
+	}
+	return added, firstErr
+}
+
 func (s *state) updateState(tx stoabs.WriteTx, transaction Transaction) error {
 	clock := transaction.Clock()
 	for {

@@ -58,6 +58,21 @@ func (mr *MockStateMockRecorder) Add(ctx, transactions, payload any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockState)(nil).Add), ctx, transactions, payload)
 }
 
+// AddMany mocks base method.
+func (m *MockState) AddMany(ctx context.Context, transactions []Transaction, payloads [][]byte) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddMany", ctx, transactions, payloads)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddMany indicates an expected call of AddMany.
+func (mr *MockStateMockRecorder) AddMany(ctx, transactions, payloads any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddMany", reflect.TypeOf((*MockState)(nil).AddMany), ctx, transactions, payloads)
+}
+
 // Configure mocks base method.
 func (m *MockState) Configure(config core.ServerConfig) error {
 	m.ctrl.T.Helper()
