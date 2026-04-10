@@ -5,7 +5,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.26.1
 
 require (
-	github.com/alicebob/miniredis/v2 v2.33.0
+	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/chromedp/chromedp v0.13.0
@@ -25,22 +25,22 @@ require (
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.5.1
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
-	github.com/nuts-foundation/go-stoabs v1.9.0
+	github.com/nuts-foundation/go-stoabs v1.11.1
 	github.com/piprate/json-gold v0.8.0
 	github.com/privacybydesign/irmago v0.17.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/prometheus/client_model v0.6.1
-	github.com/redis/go-redis/v9 v9.7.3
+	github.com/redis/go-redis/v9 v9.12.1
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.6
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/twmb/murmur3 v1.1.8
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
-	go.uber.org/mock v0.4.0
+	go.uber.org/mock v0.5.2
 	golang.org/x/crypto v0.49.0
 	golang.org/x/time v0.15.0
 	google.golang.org/grpc v1.79.3
@@ -57,7 +57,7 @@ require (
 	github.com/Joker/jade v1.1.3 // indirect
 	github.com/Shopify/goreferrer v0.0.0-20220729165902-8cddb4f5de06 // indirect
 	github.com/alexandrevicenzi/go-sse v1.6.0 // indirect
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
+	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.6.0-default-no-op // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
@@ -98,7 +98,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.1 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
-	github.com/go-redsync/redsync/v4 v4.8.2 // indirect
+	github.com/go-redsync/redsync/v4 v4.13.0 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
