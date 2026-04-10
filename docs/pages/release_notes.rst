@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.29)
+*************************
+
+Release date: 2026-04-10
+
+- Fix node failing to start when syncing many transactions on a slow disk (e.g. SMB/Azure Files): concurrent read transactions were incorrectly blocked by pending write transactions at the Go level, causing read lock timeouts during startup. See `#4162 <https://github.com/nuts-foundation/nuts-node/issues/4162>`_.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.28...v5.4.29
+
+*************************
 Hazelnut update (v5.4.28)
 *************************
 
