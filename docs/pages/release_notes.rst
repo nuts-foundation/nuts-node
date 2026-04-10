@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.30)
+*************************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.29...v5.4.30
+
+*************************
 Hazelnut update (v5.4.29)
 *************************
 
