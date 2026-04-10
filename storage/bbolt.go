@@ -51,6 +51,13 @@ type BBoltConfig struct {
 	Backup BBoltBackupConfig `koanf:"backup"`
 	// LockTimeout specifies the maximum time to wait for acquiring a lock on the database before giving up and returning an error.
 	LockTimeout time.Duration `koanf:"locktimeout"`
+	// SyncInterval specifies the interval at which BBolt flushes committed transactions to disk.
+	// By default (0), every transaction is flushed to disk immediately, which guarantees durability but can be slow
+	// on network mounts (e.g. SMB/Azure Files). Setting a positive interval (e.g. 1s) improves write throughput
+	// at the cost of potentially losing the last interval's worth of commits on a hard crash.
+	// For network-replicated data (e.g. the DAG), the risk of data loss is low since lost transactions will be
+	// re-synced from peers on restart.
+	SyncInterval time.Duration `koanf:"syncinterval"`
 }
 
 // BBoltBackupConfig specifies config for BBolt database backups.
@@ -83,7 +90,14 @@ func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.
 		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
-	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(b.config.LockTimeout))
+	opts := []stoabs.Option{stoabs.WithLockAcquireTimeout(b.config.LockTimeout)}
+	if b.config.SyncInterval > 0 {
+		log.Logger().
+			WithField(core.LogFieldStore, fullStoreName).
+			Infof("BBolt store will flush to disk at interval of %s", b.config.SyncInterval)
+		opts = append(opts, stoabs.WithSyncInterval(b.config.SyncInterval))
+	}
+	store, err := bbolt.CreateBBoltStore(databasePath, opts...)
 	if store != nil {
 		b.startBackup(fullStoreName, store)
 	}
