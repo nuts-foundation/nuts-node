@@ -10,6 +10,16 @@ Unreleased
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 
 ****************
+Peanut (v6.2.2)
+****************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.1...v6.2.2
+
+****************
 Peanut (v6.2.1)
 ****************
 
@@ -421,6 +431,36 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.30)
+*************************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.29...v5.4.30
+
+*************************
+Hazelnut update (v5.4.29)
+*************************
+
+Release date: 2026-04-10
+
+- Fix node failing to start when syncing many transactions on a slow disk (e.g. SMB/Azure Files): concurrent read transactions were incorrectly blocked by pending write transactions at the Go level, causing read lock timeouts during startup. See `#4162 <https://github.com/nuts-foundation/nuts-node/issues/4162>`_.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.28...v5.4.29
+
+*************************
+Hazelnut update (v5.4.28)
+*************************
+
+Release date: 2026-03-31
+
+- Update grpc-go to fix https://pkg.go.dev/vuln/GO-2026-4762
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.27...v5.4.28
 
 *************************
 Hazelnut update (v5.4.27)
