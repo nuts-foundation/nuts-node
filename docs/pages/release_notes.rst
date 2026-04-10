@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.2)
+****************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.1...v6.2.2
+
+****************
 Peanut (v6.2.1)
 ****************
 
