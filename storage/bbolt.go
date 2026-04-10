@@ -83,7 +83,7 @@ func (b bboltDatabase) createStore(moduleName string, storeName string) (stoabs.
 		WithField(core.LogFieldStore, fullStoreName).
 		Debug("Creating BBolt store")
 	databasePath := path.Join(b.datadir, fullStoreName) + bboltDbExtension
-	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(b.config.LockTimeout), stoabs.WithSyncInterval(10*time.Second))
+	store, err := bbolt.CreateBBoltStore(databasePath, stoabs.WithLockAcquireTimeout(b.config.LockTimeout))
 	if store != nil {
 		b.startBackup(fullStoreName, store)
 	}

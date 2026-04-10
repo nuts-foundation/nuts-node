@@ -555,8 +555,8 @@ github.com/nuts-foundation/go-did v0.5.1 h1:akc4OzNGHdnliJFoxnnSmUI7j1yKz/BHNi6s
 github.com/nuts-foundation/go-did v0.5.1/go.mod h1:Aw1pIRyB9naQ8z/dc4rrPhn+nHx5LUcGysBGlezL528=
 github.com/nuts-foundation/go-leia/v4 v4.3.0 h1:R0qGISIeg2q/PCQTC9cuoBtA6cFu4WBV2DbmSOWKZyM=
 github.com/nuts-foundation/go-leia/v4 v4.3.0/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
-github.com/nuts-foundation/go-stoabs v1.11.1-0.20260410081918-62c7f06add91 h1:tns/TwhXcfM7kd0b4qJ8/H6dP0BHagAEpplvE6bKnko=
-github.com/nuts-foundation/go-stoabs v1.11.1-0.20260410081918-62c7f06add91/go.mod h1:LzD3RhINBVJUpVRV9IM86IXcZoBSRx43PpCWRZGbEfs=
+github.com/nuts-foundation/go-stoabs v1.11.1-0.20260409133358-951c8eaec96b h1:EUfIZvBwsHhUbmmr9KNmf9aDIJRQ4/8wuZrZfCMupaI=
+github.com/nuts-foundation/go-stoabs v1.11.1-0.20260409133358-951c8eaec96b/go.mod h1:LzD3RhINBVJUpVRV9IM86IXcZoBSRx43PpCWRZGbEfs=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
 github.com/oklog/run v1.0.0/go.mod h1:dlhp/R75TPv97u0XWUtDeV/lRKWPKSdTuV0TZvrmrQA=
