@@ -404,8 +404,8 @@ github.com/nuts-foundation/go-did v0.18.1 h1:oMEF42ckWcOG3bD0KGu1RAKByQx4vryPJxl
 github.com/nuts-foundation/go-did v0.18.1/go.mod h1:4od1gAmCi9HjHTQGEvHC8pLeuXdXACxidAcdA52YScc=
 github.com/nuts-foundation/go-leia/v4 v4.3.0 h1:R0qGISIeg2q/PCQTC9cuoBtA6cFu4WBV2DbmSOWKZyM=
 github.com/nuts-foundation/go-leia/v4 v4.3.0/go.mod h1:Gw6bXqJLOAmHSiXJJYbVoj+Mowp/PoBRywO0ZPsVzA0=
-github.com/nuts-foundation/go-stoabs v1.11.0 h1:q18jVruPdFcVhodDrnKuhq/24i0pUC/YXgzJS0glKUU=
-github.com/nuts-foundation/go-stoabs v1.11.0/go.mod h1:w2OgcHXO0Jl/vN1nG0ksApaeOaPOY3sSBJLaZz7cCY0=
+github.com/nuts-foundation/go-stoabs v1.11.1 h1:ZQOeRKzC1+AfW6Ve5kBJMo+zYhHLBUI4KrLWKYkxoeI=
+github.com/nuts-foundation/go-stoabs v1.11.1/go.mod h1:LzD3RhINBVJUpVRV9IM86IXcZoBSRx43PpCWRZGbEfs=
 github.com/nuts-foundation/sqlite v1.0.0 h1:gLKyVIHZqYfYpEy5Ji6vjNUH8rs0luiY3DWNcOSBBzM=
 github.com/nuts-foundation/sqlite v1.0.0/go.mod h1:2GHDXCw5Sul9L3h8T5k0+558scm4ol4iXG+wVyYqueI=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
