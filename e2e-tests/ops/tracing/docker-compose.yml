@@ -12,6 +12,8 @@ services:
       - "18081:8081"
     environment:
       NUTS_URL: http://nodeA
+      NUTS_STRICTMODE: "false"
+      NUTS_HTTP_INTERNAL_ADDRESS: ":8081"
       NUTS_TRACING_SERVICENAME: nodeA
       NUTS_TRACING_ENDPOINT: jaeger:4318
       NUTS_TRACING_INSECURE: "true"

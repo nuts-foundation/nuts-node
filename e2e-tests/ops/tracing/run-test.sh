@@ -16,13 +16,14 @@ docker compose up --wait nodeA jaeger
 echo "------------------------------------"
 echo "Sending traced request to node..."
 echo "------------------------------------"
+# /status, /health and /metrics are excluded from tracing, so use an API endpoint that is traced.
 TRACE_ID=$(openssl rand -hex 16)
 TRACEPARENT="00-${TRACE_ID}-$(openssl rand -hex 8)-01"
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:18081/status -H "traceparent: $TRACEPARENT")
+RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:18081/internal/vdr/v2/subject -H "traceparent: $TRACEPARENT")
 if [ "$RESPONSE" -eq 200 ]; then
   echo "Request successful"
 else
-  echo "FAILED: Expected HTTP 200 from /status, got $RESPONSE" 1>&2
+  echo "FAILED: Expected HTTP 200 from /internal/vdr/v2/subject, got $RESPONSE" 1>&2
   exitWithDockerLogs 1
 fi
 
