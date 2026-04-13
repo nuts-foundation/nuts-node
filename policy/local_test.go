@@ -76,6 +76,44 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 		assert.Equal(t, ScopePolicyProfileOnly, match.ScopePolicy)
 		assert.Empty(t, match.OtherScopes)
 	})
+	t.Run("multi-scope with one profile scope returns match and other scopes", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope patient/Observation.read launch/patient")
+
+		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.NotNil(t, match.WalletOwnerMapping)
+		assert.Equal(t, []string{"patient/Observation.read", "launch/patient"}, match.OtherScopes)
+	})
+	t.Run("err - multiple credential profile scopes", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromDirectory("test/2_files")
+		require.NoError(t, err)
+
+		_, err = store.FindCredentialProfile(context.Background(), "1 2")
+
+		assert.ErrorIs(t, err, ErrNotFound)
+		assert.ErrorContains(t, err, "multiple credential profile scopes")
+	})
+	t.Run("err - no credential profile scope", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		_, err = store.FindCredentialProfile(context.Background(), "unknown-a unknown-b")
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
+	t.Run("err - empty scope string", func(t *testing.T) {
+		store := LocalPDP{}
+
+		_, err := store.FindCredentialProfile(context.Background(), "")
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
 }
 
 func Test_LocalPDP_loadFromDirectory(t *testing.T) {
