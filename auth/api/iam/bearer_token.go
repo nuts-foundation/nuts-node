@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Nuts community
+ * Copyright (C) 2026 Nuts community
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,9 +42,9 @@ const bearerTokenMaxPresentationValidity = 5 * time.Second
 // The value is specified by Nuts RFC021.
 const bearerTokenMaxClockSkew = 5 * time.Second
 
-// handleRFC021VPTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
+// handleS2SAccessTokenRequest handles the /token request with vp_token bearer grant type, intended for service-to-service exchanges.
 // It performs cheap checks first (parameter presence and validity, matching VCs to the presentation definition), then the more expensive ones (checking signatures).
-func (r Wrapper) handleRFC021VPTokenRequest(ctx context.Context, clientID string, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID string, subject string, scope string, submissionJSON string, assertionJSON string) (HandleTokenRequestResponseObject, error) {
 	pexEnvelope, err := pe.ParseEnvelope([]byte(assertionJSON))
 	if err != nil {
 		return nil, oauth.OAuth2Error{
@@ -60,7 +60,7 @@ func (r Wrapper) handleRFC021VPTokenRequest(ctx context.Context, clientID string
 		}
 	}
 
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionProfileFunc(*submission, *pexEnvelope))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionCredentialProfile(*submission, *pexEnvelope))
 	if err != nil {
 		return nil, err
 	}
@@ -77,14 +77,14 @@ func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID strin
 			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
 		}
 	}
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicProfileFunc(*presentation))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicCredentialProfile(*presentation))
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfileFunc) (*oauth.TokenResponse, error) {
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfile) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
 	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {

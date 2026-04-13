@@ -31,14 +31,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// CredentialProfileFunc is used to validate a presentation against a presentation definition, and extract the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
-type CredentialProfileFunc func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
+// CredentialProfile validates a presentation against a presentation definition, and extracts the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
+type CredentialProfile func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
 
-// SubmissionProfileFunc returns a CredentialProfileFunc that validates a presentation against the given presentation submission and presentation exchange envelope,
+// SubmissionCredentialProfile returns a CredentialProfile that validates a presentation against the given presentation submission and presentation exchange envelope,
 // according to DIF Presentation Exchange.
-func SubmissionProfileFunc(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfileFunc {
-	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
-		pexConsumer := newPEXConsumer(credentialProfile)
+func SubmissionCredentialProfile(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfile {
+	return func(ctx context.Context, presentationDefinitions pe.WalletOwnerMapping, accessToken *AccessToken) error {
+		pexConsumer := newPEXConsumer(presentationDefinitions)
 		if err := pexConsumer.fulfill(submission, pexEnvelope); err != nil {
 			return oauthError(oauth.InvalidRequest, err.Error())
 		}
@@ -62,13 +62,13 @@ func SubmissionProfileFunc(submission pe.PresentationSubmission, pexEnvelope pe.
 	}
 }
 
-// BasicProfileFunc returns a CredentialProfileFunc that validates a presentation against the presentation definition(s).
+// BasicCredentialProfile returns a CredentialProfile that validates a presentation against the presentation definition(s).
 // It does not consume a Presentation Submission.
-func BasicProfileFunc(presentation VerifiablePresentation) CredentialProfileFunc {
-	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
-		creds, inputDescriptors, err := credentialProfile[pe.WalletOwnerOrganization].Match(presentation.VerifiableCredential)
+func BasicCredentialProfile(presentation VerifiablePresentation) CredentialProfile {
+	return func(ctx context.Context, presentationDefinitions pe.WalletOwnerMapping, accessToken *AccessToken) error {
+		creds, inputDescriptors, err := presentationDefinitions[pe.WalletOwnerOrganization].Match(presentation.VerifiableCredential)
 		if err != nil {
-			return oauthError(oauth.InvalidRequest, fmt.Sprintf("presentation does not match presentation definition"), err)
+			return oauthError(oauth.InvalidRequest, "presentation does not match presentation definition", err)
 		}
 		// Collect input descriptor field ID -> value map
 		// Will be ultimately returned as claims in the access token.
@@ -76,7 +76,7 @@ func BasicProfileFunc(presentation VerifiablePresentation) CredentialProfileFunc
 		for i, cred := range creds {
 			credentialMap[inputDescriptors[i].Id] = cred
 		}
-		fieldMap, err := credentialProfile[pe.WalletOwnerOrganization].ResolveConstraintsFields(credentialMap)
+		fieldMap, err := presentationDefinitions[pe.WalletOwnerOrganization].ResolveConstraintsFields(credentialMap)
 		if err != nil {
 			// This should be impossible, since the Match() function performs the same checks.
 			return oauthError(oauth.ServerError, "unable to fulfill presentation requirements", err)
@@ -87,6 +87,7 @@ func BasicProfileFunc(presentation VerifiablePresentation) CredentialProfileFunc
 			return oauthError(oauth.ServerError, "unable to fulfill presentation requirements", err)
 		}
 		accessToken.VPToken = append(accessToken.VPToken, presentation)
+		accessToken.PresentationDefinitions = presentationDefinitions
 		return nil
 	}
 }

@@ -120,7 +120,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 	clientID := "https://example.com/oauth2/holder"
 
 	t.Run("shared code for all grant types", func(t *testing.T) {
-		validatorFunc := CredentialProfileFunc(func(_ context.Context, _ pe.WalletOwnerMapping, _ *AccessToken) error {
+		validatorFunc := CredentialProfile(func(_ context.Context, _ pe.WalletOwnerMapping, _ *AccessToken) error {
 			return nil
 		})
 		t.Run("missing presentation expiry date", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 			ctxWithRequest := context.WithValue(context.Background(), httpRequestContextKey{}, &http.Request{Header: http.Header{}})
 
-			resp, err := ctx.client.handleRFC021VPTokenRequest(ctxWithRequest, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(ctxWithRequest, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.NoError(t, err)
 			require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -339,7 +339,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
-			resp, err := ctx.client.handleRFC021VPTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.NoError(t, err)
 			require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -351,7 +351,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 		})
 		t.Run("VP is not valid JSON", func(t *testing.T) {
 			ctx := newTestClient(t)
-			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, "[true, false]")
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, "[true, false]")
 
 			assert.EqualError(t, err, "invalid_request - assertion parameter is invalid: unable to parse PEX envelope as verifiable presentation: invalid JWT")
 			assert.Nil(t, resp)
@@ -359,7 +359,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 		t.Run("submission is not valid JSON", func(t *testing.T) {
 			ctx := newTestClient(t)
 
-			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, "not-a-valid-submission", presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, "not-a-valid-submission", presentation.Raw())
 
 			assert.EqualError(t, err, `invalid_request - invalid presentation submission: invalid character 'o' in literal null (expecting 'u')`)
 			assert.Nil(t, resp)
@@ -381,7 +381,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
 
-			resp, err := ctx.client.handleRFC021VPTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			assert.EqualError(t, err, "invalid_request - presentation submission does not conform to presentation definition (id=)")
 			assert.Nil(t, resp)
 		})

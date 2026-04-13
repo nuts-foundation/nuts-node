@@ -236,9 +236,8 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Description: "not implemented yet",
 		}
 	case oauth.JWTBearerGrantType:
-		// NL Generic Functions Authentication flow
-		if request.Body.Assertion == nil || request.Body.Scope == nil ||
-			request.Body.ClientId == nil || request.Body.ClientAssertion == nil {
+		// Twinn TA NP & LSPxNuts flow
+		if request.Body.Assertion == nil || request.Body.Scope == nil || request.Body.ClientId == nil || request.Body.ClientAssertion == nil {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
 				Description: "missing required parameters",
@@ -253,7 +252,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleRFC021VPTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
+		return r.handleS2SAccessTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.PresentationSubmission, *request.Body.Assertion)
 	default:
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,

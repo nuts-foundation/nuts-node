@@ -96,7 +96,7 @@ func TestSubmissionProfileFunc(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := SubmissionProfileFunc(submission, *envelope)
+		validator := SubmissionCredentialProfile(submission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -111,7 +111,7 @@ func TestSubmissionProfileFunc(t *testing.T) {
 		accessToken := &AccessToken{}
 		invalidSubmission := submission
 		invalidSubmission.DescriptorMap[0].Path = "$.verifiableCredential[0]"
-		validator := SubmissionProfileFunc(invalidSubmission, *envelope)
+		validator := SubmissionCredentialProfile(invalidSubmission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -130,7 +130,7 @@ func TestBasicProfileFunc(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := BasicProfileFunc(presentation)
+		validator := BasicCredentialProfile(presentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -181,7 +181,7 @@ func TestBasicProfileFunc(t *testing.T) {
 			pe.WalletOwnerOrganization: strictDefinition,
 		}
 
-		validator := BasicProfileFunc(invalidPresentation)
+		validator := BasicCredentialProfile(invalidPresentation)
 		err := validator(ctx, strictMapping, accessToken)
 
 		assert.Error(t, err)
@@ -228,7 +228,7 @@ func TestBasicProfileFunc(t *testing.T) {
 				"city": "DifferentCity",
 			},
 		}
-		validator := BasicProfileFunc(presentation)
+		validator := BasicCredentialProfile(presentation)
 
 		err := validator(ctx, mappingWithField, accessToken)
 
@@ -242,7 +242,7 @@ func TestBasicProfileFunc(t *testing.T) {
 		emptyPresentation := vc.VerifiablePresentation{
 			VerifiableCredential: []vc.VerifiableCredential{},
 		}
-		validator := BasicProfileFunc(emptyPresentation)
+		validator := BasicCredentialProfile(emptyPresentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
