@@ -1616,6 +1616,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	authnServices.EXPECT().PublicURL().Return(publicURL).AnyTimes()
 	authnServices.EXPECT().RelyingParty().Return(relyingPary).AnyTimes()
 	authnServices.EXPECT().SupportedDIDMethods().Return([]string{"web"}).AnyTimes()
+	authnServices.EXPECT().GrantTypes().Return(oauth.SupportedGrantTypes()).AnyTimes()
 	mockVCR.EXPECT().Issuer().Return(vcIssuer).AnyTimes()
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()

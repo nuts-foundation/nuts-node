@@ -335,8 +335,8 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.ScopeParam, scopes)
-	if slices.Contains(metadata.GrantTypesSupported, oauth.JWTBearerGrantType) {
-		// use JWT bearer grant type (e.g. authenticating at LSP GtK)
+	if !slices.Contains(metadata.GrantTypesSupported, oauth.VpTokenGrantType) && slices.Contains(metadata.GrantTypesSupported, oauth.JWTBearerGrantType) {
+		// use JWT bearer grant type when the server doesn't support vp_token-bearer (e.g. authenticating at LSP GtK)
 		data.Set(oauth.GrantTypeParam, oauth.JWTBearerGrantType)
 	} else {
 		// use VP token grant type (as per Nuts RFC021) as default and fallback

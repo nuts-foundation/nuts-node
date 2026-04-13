@@ -210,6 +210,10 @@ const (
 	JWTBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 )
 
+func SupportedGrantTypes() []string {
+	return []string{AuthorizationCodeGrantType, PreAuthorizedCodeGrantType, VpTokenGrantType, JWTBearerGrantType}
+}
+
 // response types
 const (
 	// CodeResponseType is the parameter name for the code parameter. (RFC6749)

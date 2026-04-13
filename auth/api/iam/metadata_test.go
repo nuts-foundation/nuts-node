@@ -37,7 +37,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		ClientIdSchemesSupported:                   []string{"entity_id"},
 		DIDMethodsSupported:                        []string{"test"},
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                        []string{"authorization_code", "vp_token-bearer", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		GrantTypesSupported:                        []string{"authorization_code", "urn:ietf:params:oauth:grant-type:pre-authorized_code", "vp_token-bearer", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
 		Issuer:                                     "https://example.com/oauth2/example",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionEndpoint:             "https://example.com/oauth2/example/presentation_definition",
@@ -50,7 +50,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 		RequestObjectSigningAlgValuesSupported:     jwx.SupportedAlgorithmsAsStrings(),
 	}
 	authServerUrl := test.MustParseURL("https://example.com/oauth2/example")
-	md := authorizationServerMetadata(authServerUrl, []string{"test"})
+	md := authorizationServerMetadata(authServerUrl, []string{"test"}, oauth.SupportedGrantTypes())
 	assert.Equal(t, baseExpected, md)
 }
 
@@ -59,7 +59,7 @@ func Test_clientMetadata(t *testing.T) {
 	expected := OAuthClientMetadata{
 		RedirectURIs:            nil,
 		TokenEndpointAuthMethod: "none",
-		GrantTypes:              []string{"authorization_code", "vp_token-bearer", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		GrantTypes:              []string{"authorization_code", "urn:ietf:params:oauth:grant-type:pre-authorized_code", "vp_token-bearer", "urn:ietf:params:oauth:grant-type:jwt-bearer"},
 		ResponseTypes:           []string{"code", "vp_token"},
 		Scope:                   "",
 		Contacts:                nil,

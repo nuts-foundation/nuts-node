@@ -19,7 +19,11 @@
 package cmd
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/spf13/pflag"
 )
 
@@ -47,6 +51,9 @@ const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 // ConfAuthEndpointEnabled is the config key for enabling the Auth v2 API's Authorization Endpoint
 const ConfAuthEndpointEnabled = "auth.authorizationendpoint.enabled"
 
+// ConfGrantTypes is the config key for the supported OAuth2 grant types
+const ConfGrantTypes = "auth.granttypes"
+
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {
 	flags := pflag.NewFlagSet("auth", pflag.ContinueOnError)
@@ -61,6 +68,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.StringSlice(ConfContractValidators, defs.ContractValidators, "sets the different contract validators to use")
 	flags.Bool(ConfAuthEndpointEnabled, defs.AuthorizationEndpoint.Enabled, "enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. "+
 		"This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.")
+	flags.StringSlice(ConfGrantTypes, defs.GrantTypes, fmt.Sprintf("enables OAuth2 grant types for the Authorization Server, options: %s", strings.Join(oauth.SupportedGrantTypes(), ", ")))
 	_ = flags.MarkDeprecated("auth.http.timeout", "use httpclient.timeout instead")
 
 	return flags

@@ -1,32 +1,19 @@
-url: https://nodeA
+url: https://nodeB
 verbosity: debug
 strictmode: false
 internalratelimiter: false
-tracing:
-  endpoint: jaeger:4318
-  insecure: true
 http:
   log: metadata-and-body
   internal:
     address: :8081
 auth:
+  tlsenabled: true
   contractvalidators:
     - dummy
   irma:
     autoupdateschemas: false
-  granttypes: vp_token-bearer
-policy:
-  directory: /opt/nuts/policies
+  granttypes: urn:ietf:params:oauth:grant-type:jwt-bearer
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem
   certkeyfile: /opt/nuts/certificate-and-key.pem
-discovery:
-  definitions:
-    directory: /nuts/discovery
-  server:
-    ids: e2e-test
-#vdr:
-#  didmethods:
-#    - web
-

@@ -630,7 +630,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
+	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods(), r.auth.SupportedDIDMethods())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -694,7 +694,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
 	issuerURL := r.subjectToBaseURL(request.SubjectID)
-	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods())
+	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)

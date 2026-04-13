@@ -85,6 +85,20 @@ func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
 }
 
+// GrantTypes mocks base method.
+func (m *MockAuthenticationServices) GrantTypes() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GrantTypes")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// GrantTypes indicates an expected call of GrantTypes.
+func (mr *MockAuthenticationServicesMockRecorder) GrantTypes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GrantTypes", reflect.TypeOf((*MockAuthenticationServices)(nil).GrantTypes))
+}
+
 // IAMClient mocks base method.
 func (m *MockAuthenticationServices) IAMClient() iam.Client {
 	m.ctrl.T.Helper()

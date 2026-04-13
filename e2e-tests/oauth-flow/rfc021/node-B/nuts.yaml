@@ -15,6 +15,7 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
+  granttypes: vp_token-bearer
 discovery:
   definitions:
     directory: /nuts/discovery
