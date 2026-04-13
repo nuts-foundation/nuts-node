@@ -661,7 +661,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 		putCodeSession(ctx, code, validSession)
 
-		response, err := ctx.client.handleAuthzCodeTokenRequest(contextWithValue, requestBody)
+		response, err := ctx.client.handleAccessTokenRequest(contextWithValue, requestBody)
 
 		require.NoError(t, err)
 		token, ok := response.(HandleTokenRequest200JSONResponse)
@@ -679,7 +679,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		verifier := "verifier"
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &verifier}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		require.Error(t, err)
 		oauthErr, ok := err.(oauth.OAuth2Error)
@@ -693,7 +693,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		clientID := "other"
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "client_id does not match: did:web:example.com:iam:holder vs other")
 		// authz code is burned in failed requests
@@ -703,7 +703,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		requestBody := HandleTokenRequestFormdataRequestBody{ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "missing code parameter")
 	})
@@ -711,7 +711,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "missing code_verifier parameter")
 	})
@@ -719,7 +719,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, ClientId: &clientID, CodeVerifier: &validSession.PKCEParams.Verifier}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		require.Error(t, err)
 		oauthErr, ok := err.(oauth.OAuth2Error)
@@ -731,7 +731,7 @@ func Test_handleAccessTokenRequest(t *testing.T) {
 		ctx := newTestClient(t)
 		requestBody := HandleTokenRequestFormdataRequestBody{Code: &code, CodeVerifier: &validSession.PKCEParams.Verifier}
 
-		_, err := ctx.client.handleAuthzCodeTokenRequest(context.Background(), requestBody)
+		_, err := ctx.client.handleAccessTokenRequest(context.Background(), requestBody)
 
 		_ = assertOAuthError(t, err, "missing client_id parameter")
 	})

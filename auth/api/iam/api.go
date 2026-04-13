@@ -226,7 +226,7 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		// - OpenID4VCI
 		// - OpenID4VP
 		// verifier DID is taken from code->oauthSession storage
-		return r.handleAuthzCodeTokenRequest(ctx, *request.Body)
+		return r.handleAccessTokenRequest(ctx, *request.Body)
 	case oauth.PreAuthorizedCodeGrantType:
 		// Options:
 		// - OpenID4VCI

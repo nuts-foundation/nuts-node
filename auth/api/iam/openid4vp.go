@@ -675,7 +675,7 @@ func (r Wrapper) validatePresentationNonce(presentations []vc.VerifiablePresenta
 	return nil
 }
 
-func (r Wrapper) handleAuthzCodeTokenRequest(ctx context.Context, request HandleTokenRequestFormdataRequestBody) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTokenRequestFormdataRequestBody) (HandleTokenRequestResponseObject, error) {
 	// check if code is present
 	if request.Code == nil {
 		return nil, oauthError(oauth.InvalidRequest, "missing code parameter")
