@@ -1,7 +1,14 @@
 // # check access via token introspection as described by https://www.nginx.com/blog/validating-oauth-2-0-access-tokens-nginx/
 function introspectAccessToken(r) {
-    // strip the first 5 chars
-    var token = "token=" + r.headersIn['Authorization'].substring(5);
+    var authHeader = r.headersIn['Authorization'];
+    var tokenValue;
+    if (authHeader.substring(0, 5) === 'DPoP ') {
+        tokenValue = authHeader.substring(5);
+    } else {
+        // Bearer token
+        tokenValue = authHeader.substring(7);
+    }
+    var token = "token=" + tokenValue;
     // make a subrequest to the introspection endpoint
     r.subrequest("/_oauth2_send_request",
         { method: "POST", body: token},
@@ -9,7 +16,11 @@ function introspectAccessToken(r) {
             if (reply.status == 200) {
                 var introspection = JSON.parse(reply.responseBody);
                 if (introspection.active) {
-                    dpop(r, introspection.cnf)
+                    if (introspection.cnf && introspection.cnf.jkt) {
+                        dpop(r, introspection.cnf)
+                    } else {
+                        r.return(200, "OK");
+                    }
                 } else {
                     r.return(403, "Unauthorized");
                 }

@@ -237,13 +237,14 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 		}
 	case oauth.JWTBearerGrantType:
 		// Twinn TA NP & LSPxNuts flow
-		if request.Body.Assertion == nil || request.Body.Scope == nil || request.Body.ClientId == nil || request.Body.ClientAssertion == nil {
+		// TODO: support client_assertion
+		if request.Body.Assertion == nil || request.Body.Scope == nil || request.Body.ClientId == nil {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.InvalidRequest,
 				Description: "missing required parameters",
 			}
 		}
-		return r.handleJWTBearerTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.ClientAssertion, *request.Body.Assertion)
+		return r.handleJWTBearerTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.Assertion)
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {

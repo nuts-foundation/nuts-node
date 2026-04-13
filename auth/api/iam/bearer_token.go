@@ -68,7 +68,8 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 }
 
 // handleJWTBearerTokenRequest handles the /token request with jwt_bearer grant type, as specified by RFC7523.
-func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, clientAssertion string, assertion string) (HandleTokenRequestResponseObject, error) {
+func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, assertion string) (HandleTokenRequestResponseObject, error) {
+	// TODO: support client_assertion
 	presentation, err := vc.ParseVerifiablePresentation(assertion)
 	if err != nil {
 		return nil, oauth.OAuth2Error{

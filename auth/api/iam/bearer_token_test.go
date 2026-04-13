@@ -396,7 +396,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope2).Return(walletOwnerMapping, nil)
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
-			resp, err := ctx.client.handleJWTBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScopes, "NOT USED YET", presentation.Raw())
+			resp, err := ctx.client.handleJWTBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScopes, presentation.Raw())
 
 			require.NoError(t, err)
 			require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
@@ -409,7 +409,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 		t.Run("invalid assertion parameter (not a valid VP)", func(t *testing.T) {
 			ctx := newTestClient(t)
 
-			resp, err := ctx.client.handleJWTBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, "NOT USED YET", "not-a-valid-vp")
+			resp, err := ctx.client.handleJWTBearerTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, "not-a-valid-vp")
 
 			assert.EqualError(t, err, "invalid_request - parsing assertion as verifiable presentation: invalid JWT - assertion parameter is invalid")
 			assert.Nil(t, resp)
