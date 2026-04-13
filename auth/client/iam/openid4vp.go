@@ -239,7 +239,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	policyId string, useDPoP bool, additionalCredentials []vc.VerifiableCredential) (*oauth.TokenResponse, error) {
+	policyId string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
