@@ -277,12 +277,17 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 			})
 			t.Run("signing key is not owned by credentialSubject.id", func(t *testing.T) {
 				ctx := newTestClient(t)
-				invalidProof := presentation.Proof[0].(map[string]interface{})
+				// Copy the proof map to avoid mutating the shared presentation used by later tests
+				originalProof := presentation.Proof[0].(map[string]interface{})
+				invalidProof := make(map[string]interface{})
+				for k, v := range originalProof {
+					invalidProof[k] = v
+				}
 				invalidProof["verificationMethod"] = "did:example:other#1"
-				verifiablePresentation := vc.VerifiablePresentation{
+				verifiablePresentation := test.ParsePresentation(t, vc.VerifiablePresentation{
 					VerifiableCredential: []vc.VerifiableCredential{verifiableCredential},
 					Proof:                []interface{}{invalidProof},
-				}
+				})
 
 				_, err := ctx.client.handleBearerTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, []VerifiablePresentation{verifiablePresentation}, validatorFunc)
 
@@ -312,15 +317,16 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 	t.Run("RFC021 vp_bearer token grant type", func(t *testing.T) {
 		t.Run("JSON-LD VP", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+			ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 			ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), requestedScope).Return(walletOwnerMapping, nil)
+			ctxWithRequest := context.WithValue(context.Background(), httpRequestContextKey{}, &http.Request{Header: http.Header{}})
 
-			resp, err := ctx.client.handleRFC021VPTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
+			resp, err := ctx.client.handleRFC021VPTokenRequest(ctxWithRequest, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 			require.NoError(t, err)
 			require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
 			tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
-			assert.Equal(t, "DPoP", tokenResponse.TokenType)
+			assert.Equal(t, "Bearer", tokenResponse.TokenType)
 			assert.Equal(t, requestedScope, *tokenResponse.Scope)
 			assert.Equal(t, int(accessTokenValidity.Seconds()), *tokenResponse.ExpiresIn)
 			assert.NotEmpty(t, tokenResponse.AccessToken)
