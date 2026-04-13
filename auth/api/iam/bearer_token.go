@@ -84,7 +84,7 @@ func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID strin
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfile) (*oauth.TokenResponse, error) {
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, evaluator CredentialProfile) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
 	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
@@ -114,7 +114,7 @@ func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, 
 		}
 		// Validate Verifiable Presentation according to the required credential profile.
 		// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
-		if err = profileValidator(ctx, walletOwnerMapping, accessToken); err != nil {
+		if err = evaluator(ctx, walletOwnerMapping, accessToken); err != nil {
 			return nil, err
 		}
 	}

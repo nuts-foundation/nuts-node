@@ -73,7 +73,7 @@ func testPresentationDefinition(t *testing.T) pe.PresentationDefinition {
 	return presentationDefinition
 }
 
-func TestSubmissionProfileFunc(t *testing.T) {
+func TestSubmissionPresentationEvaluator(t *testing.T) {
 	ctx := context.Background()
 	verifiableCredential, presentation, subjectDID := testCredentialAndPresentation(t)
 	presentationDefinition := testPresentationDefinition(t)
@@ -119,7 +119,7 @@ func TestSubmissionProfileFunc(t *testing.T) {
 	})
 }
 
-func TestBasicProfileFunc(t *testing.T) {
+func TestBasicPresentationEvaluator(t *testing.T) {
 	ctx := context.Background()
 	_, presentation, _ := testCredentialAndPresentation(t)
 	presentationDefinition := testPresentationDefinition(t)
