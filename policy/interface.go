@@ -24,10 +24,14 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// ModuleName is the name of the policy module
+// ModuleName is the name of the policy module.
 const ModuleName = "policy"
 
+// ErrNotFound is returned when no credential profile matches the requested scope.
 var ErrNotFound = errors.New("not found")
+
+// ErrAmbiguousScope is returned when multiple credential profile scopes are found in a single request.
+var ErrAmbiguousScope = errors.New("multiple credential profile scopes found")
 
 // ScopePolicy defines how extra scopes (beyond the credential profile scope) are handled.
 type ScopePolicy string

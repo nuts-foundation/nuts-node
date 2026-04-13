@@ -18,6 +18,7 @@
 
 package policy
 
+// Config holds the configuration for the policy module.
 type Config struct {
 	// Directory is the directory where the policy files are stored
 	// policy files include a scope to presentation definition mapping

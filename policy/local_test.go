@@ -87,7 +87,19 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "example-scope", match.CredentialProfileScope)
 		assert.NotNil(t, match.WalletOwnerMapping)
+		assert.Equal(t, ScopePolicyProfileOnly, match.ScopePolicy)
 		assert.Equal(t, []string{"patient/Observation.read", "launch/patient"}, match.OtherScopes)
+	})
+	t.Run("handles consecutive spaces and whitespace in scope string", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "  example-scope  extra  ")
+
+		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.Equal(t, []string{"extra"}, match.OtherScopes)
 	})
 	t.Run("err - multiple credential profile scopes", func(t *testing.T) {
 		store := LocalPDP{}
@@ -96,8 +108,7 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 
 		_, err = store.FindCredentialProfile(context.Background(), "1 2")
 
-		assert.ErrorIs(t, err, ErrNotFound)
-		assert.ErrorContains(t, err, "multiple credential profile scopes")
+		assert.ErrorIs(t, err, ErrAmbiguousScope)
 	})
 	t.Run("err - no credential profile scope", func(t *testing.T) {
 		store := LocalPDP{}
@@ -149,19 +160,22 @@ func TestLocalPDP_ScopePolicyConfig(t *testing.T) {
 
 func TestLocalPDP_Configure(t *testing.T) {
 	t.Run("dynamic scope_policy without AuthZen endpoint fails", func(t *testing.T) {
-		store := LocalPDP{config: Config{Directory: "test/scope_policy"}}
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
 
-		err := store.Configure(core.ServerConfig{})
+		err = store.Configure(core.ServerConfig{})
 
 		assert.ErrorContains(t, err, "no AuthZen endpoint is configured")
 	})
 	t.Run("dynamic scope_policy with AuthZen endpoint succeeds", func(t *testing.T) {
 		store := LocalPDP{config: Config{
-			Directory: "test/scope_policy",
-			AuthZen:   AuthZenConfig{Endpoint: "http://localhost:8080"},
+			AuthZen: AuthZenConfig{Endpoint: "http://localhost:8080"},
 		}}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
 
-		err := store.Configure(core.ServerConfig{})
+		err = store.Configure(core.ServerConfig{})
 
 		assert.NoError(t, err)
 	})

@@ -89,17 +89,15 @@ func (b *LocalPDP) Config() interface{} {
 	return &b.config
 }
 
+// FindCredentialProfile implements PDPBackend.
 func (b *LocalPDP) FindCredentialProfile(_ context.Context, scope string) (*CredentialProfileMatch, error) {
 	var profileScope string
 	var profile credentialProfileConfig
 	var otherScopes []string
-	for _, s := range strings.Split(scope, " ") {
-		if s == "" {
-			continue
-		}
+	for _, s := range strings.Fields(scope) {
 		if p, exists := b.mapping[s]; exists {
 			if profileScope != "" {
-				return nil, fmt.Errorf("%w: multiple credential profile scopes found", ErrNotFound)
+				return nil, ErrAmbiguousScope
 			}
 			profileScope = s
 			profile = p
@@ -175,6 +173,9 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 		if profile.ScopePolicy == "" {
 			profile.ScopePolicy = ScopePolicyProfileOnly
 		}
+		if profile.Organization == nil && profile.User == nil {
+			return fmt.Errorf("credential profile %q must define at least one of 'organization' or 'user' (file=%s)", scope, filename)
+		}
 		if !profile.ScopePolicy.valid() {
 			return fmt.Errorf("invalid scope_policy %q for scope %q (file=%s)", profile.ScopePolicy, scope, filename)
 		}
@@ -190,7 +191,7 @@ type credentialProfileConfig struct {
 	ScopePolicy  ScopePolicy                       `json:"scope_policy,omitempty"`
 }
 
-func (c *credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
+func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
 	m := pe.WalletOwnerMapping{}
 	if c.Organization != nil {
 		m[pe.WalletOwnerOrganization] = pe.PresentationDefinition(*c.Organization)
