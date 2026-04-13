@@ -586,7 +586,7 @@ type clientServerTestContext struct {
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
-	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}}
+	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}, GrantTypesSupported: []string{oauth.VpTokenGrantType, oauth.JWTBearerGrantType}}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {
