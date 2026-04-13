@@ -20,6 +20,7 @@ package policy
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/core"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,6 +114,67 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 		_, err := store.FindCredentialProfile(context.Background(), "")
 
 		assert.ErrorIs(t, err, ErrNotFound)
+	})
+}
+
+func TestLocalPDP_ScopePolicyConfig(t *testing.T) {
+	t.Run("scope_policy parsed from config", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "dynamic-scope")
+
+		require.NoError(t, err)
+		assert.Equal(t, ScopePolicyDynamic, match.ScopePolicy)
+	})
+	t.Run("passthrough scope_policy parsed from config", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/passthrough.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "passthrough-scope")
+
+		require.NoError(t, err)
+		assert.Equal(t, ScopePolicyPassthrough, match.ScopePolicy)
+	})
+	t.Run("invalid scope_policy rejected at load time", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/scope_policy_invalid/invalid.json")
+
+		assert.ErrorContains(t, err, `invalid scope_policy "bogus"`)
+	})
+}
+
+func TestLocalPDP_Configure(t *testing.T) {
+	t.Run("dynamic scope_policy without AuthZen endpoint fails", func(t *testing.T) {
+		store := LocalPDP{config: Config{Directory: "test/scope_policy"}}
+
+		err := store.Configure(core.ServerConfig{})
+
+		assert.ErrorContains(t, err, "no AuthZen endpoint is configured")
+	})
+	t.Run("dynamic scope_policy with AuthZen endpoint succeeds", func(t *testing.T) {
+		store := LocalPDP{config: Config{
+			Directory: "test/scope_policy",
+			AuthZen:   AuthZenConfig{Endpoint: "http://localhost:8080"},
+		}}
+
+		err := store.Configure(core.ServerConfig{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("passthrough scope_policy without AuthZen endpoint succeeds", func(t *testing.T) {
+		store := LocalPDP{config: Config{Directory: "test/scope_policy"}}
+		// Load only the passthrough config, not the dynamic one
+		store.config.Directory = ""
+		err := store.loadFromFile("test/scope_policy/passthrough.json")
+		require.NoError(t, err)
+
+		err = store.Configure(core.ServerConfig{})
+
+		assert.NoError(t, err)
 	})
 }
 
