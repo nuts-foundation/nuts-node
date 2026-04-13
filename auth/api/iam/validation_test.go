@@ -73,7 +73,7 @@ func testPresentationDefinition(t *testing.T) pe.PresentationDefinition {
 	return presentationDefinition
 }
 
-func TestSubmissionProfileValidator(t *testing.T) {
+func TestSubmissionProfileFunc(t *testing.T) {
 	ctx := context.Background()
 	verifiableCredential, presentation, subjectDID := testCredentialAndPresentation(t)
 	presentationDefinition := testPresentationDefinition(t)
@@ -96,7 +96,7 @@ func TestSubmissionProfileValidator(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := SubmissionProfileValidator(submission, *envelope)
+		validator := SubmissionProfileFunc(submission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -111,7 +111,7 @@ func TestSubmissionProfileValidator(t *testing.T) {
 		accessToken := &AccessToken{}
 		invalidSubmission := submission
 		invalidSubmission.DescriptorMap[0].Path = "$.verifiableCredential[0]"
-		validator := SubmissionProfileValidator(invalidSubmission, *envelope)
+		validator := SubmissionProfileFunc(invalidSubmission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -119,7 +119,7 @@ func TestSubmissionProfileValidator(t *testing.T) {
 	})
 }
 
-func TestBasicProfileValidator(t *testing.T) {
+func TestBasicProfileFunc(t *testing.T) {
 	ctx := context.Background()
 	_, presentation, _ := testCredentialAndPresentation(t)
 	presentationDefinition := testPresentationDefinition(t)
@@ -130,7 +130,7 @@ func TestBasicProfileValidator(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := BasicProfileValidator(presentation)
+		validator := BasicProfileFunc(presentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -181,7 +181,7 @@ func TestBasicProfileValidator(t *testing.T) {
 			pe.WalletOwnerOrganization: strictDefinition,
 		}
 
-		validator := BasicProfileValidator(invalidPresentation)
+		validator := BasicProfileFunc(invalidPresentation)
 		err := validator(ctx, strictMapping, accessToken)
 
 		assert.Error(t, err)
@@ -228,7 +228,7 @@ func TestBasicProfileValidator(t *testing.T) {
 				"city": "DifferentCity",
 			},
 		}
-		validator := BasicProfileValidator(presentation)
+		validator := BasicProfileFunc(presentation)
 
 		err := validator(ctx, mappingWithField, accessToken)
 
@@ -242,7 +242,7 @@ func TestBasicProfileValidator(t *testing.T) {
 		emptyPresentation := vc.VerifiablePresentation{
 			VerifiableCredential: []vc.VerifiableCredential{},
 		}
-		validator := BasicProfileValidator(emptyPresentation)
+		validator := BasicProfileFunc(emptyPresentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 

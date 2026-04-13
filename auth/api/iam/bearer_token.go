@@ -60,7 +60,7 @@ func (r Wrapper) handleRFC021VPTokenRequest(ctx context.Context, clientID string
 		}
 	}
 
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionProfileValidator(*submission, *pexEnvelope))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionProfileFunc(*submission, *pexEnvelope))
 	if err != nil {
 		return nil, err
 	}
@@ -77,14 +77,14 @@ func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID strin
 			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
 		}
 	}
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicProfileValidator(*presentation))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicProfileFunc(*presentation))
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
 }
 
-func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfileValidatorFunc) (*oauth.TokenResponse, error) {
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, profileValidator CredentialProfileFunc) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
 	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {

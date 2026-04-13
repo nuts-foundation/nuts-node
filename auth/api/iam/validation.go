@@ -31,12 +31,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// CredentialProfileValidatorFunc is used to validate a presentation against a presentation definition, and extract the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
-type CredentialProfileValidatorFunc func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
+// CredentialProfileFunc is used to validate a presentation against a presentation definition, and extract the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
+type CredentialProfileFunc func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
 
-// SubmissionProfileValidator returns a CredentialProfileValidatorFunc that validates a presentation against the given presentation submission and presentation exchange envelope,
+// SubmissionProfileFunc returns a CredentialProfileFunc that validates a presentation against the given presentation submission and presentation exchange envelope,
 // according to DIF Presentation Exchange.
-func SubmissionProfileValidator(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfileValidatorFunc {
+func SubmissionProfileFunc(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfileFunc {
 	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
 		pexConsumer := newPEXConsumer(credentialProfile)
 		if err := pexConsumer.fulfill(submission, pexEnvelope); err != nil {
@@ -62,9 +62,9 @@ func SubmissionProfileValidator(submission pe.PresentationSubmission, pexEnvelop
 	}
 }
 
-// BasicProfileValidator returns a CredentialProfileValidatorFunc that validates a presentation against the presentation definition(s).
+// BasicProfileFunc returns a CredentialProfileFunc that validates a presentation against the presentation definition(s).
 // It does not consume a Presentation Submission.
-func BasicProfileValidator(presentation VerifiablePresentation) CredentialProfileValidatorFunc {
+func BasicProfileFunc(presentation VerifiablePresentation) CredentialProfileFunc {
 	return func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error {
 		creds, inputDescriptors, err := credentialProfile[pe.WalletOwnerOrganization].Match(presentation.VerifiableCredential)
 		if err != nil {

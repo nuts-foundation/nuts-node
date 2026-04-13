@@ -120,7 +120,7 @@ func TestWrapper_handleTokenRequest(t *testing.T) {
 	clientID := "https://example.com/oauth2/holder"
 
 	t.Run("shared code for all grant types", func(t *testing.T) {
-		validatorFunc := CredentialProfileValidatorFunc(func(_ context.Context, _ pe.WalletOwnerMapping, _ *AccessToken) error {
+		validatorFunc := CredentialProfileFunc(func(_ context.Context, _ pe.WalletOwnerMapping, _ *AccessToken) error {
 			return nil
 		})
 		t.Run("missing presentation expiry date", func(t *testing.T) {
