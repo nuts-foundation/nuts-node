@@ -54,24 +54,27 @@ func TestStore_LoadFromFile(t *testing.T) {
 	})
 }
 
-func TestStore_PresentationDefinitions(t *testing.T) {
+func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
 		store := LocalPDP{}
 
-		_, err := store.PresentationDefinitions(context.Background(), "example-scope2")
+		_, err := store.FindCredentialProfile(context.Background(), "unknown-scope")
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.ErrorIs(t, err, ErrNotFound)
 	})
 
-	t.Run("returns the presentation definition if the scope exists", func(t *testing.T) {
+	t.Run("returns match for existing scope", func(t *testing.T) {
 		store := LocalPDP{}
 		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
-		result, err := store.PresentationDefinitions(context.Background(), "example-scope")
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
 
 		require.NoError(t, err)
-		assert.NotNil(t, result)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.NotNil(t, match.WalletOwnerMapping)
+		assert.Equal(t, ScopePolicyProfileOnly, match.ScopePolicy)
+		assert.Empty(t, match.OtherScopes)
 	})
 }
 
@@ -88,8 +91,9 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), "example-scope")
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
 		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
 	})
 	t.Run("2 files, 3 scopes", func(t *testing.T) {
 		store := LocalPDP{}
@@ -97,11 +101,11 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test/2_files")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), "1")
+		_, err = store.FindCredentialProfile(context.Background(), "1")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), "2")
+		_, err = store.FindCredentialProfile(context.Background(), "2")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), "3")
+		_, err = store.FindCredentialProfile(context.Background(), "3")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, duplicate scope", func(t *testing.T) {

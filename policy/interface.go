@@ -29,10 +29,37 @@ const ModuleName = "policy"
 
 var ErrNotFound = errors.New("not found")
 
-// PDPBackend is the interface for the policy backend
-// Both the remote and local policy backend implement this interface
+// ScopePolicy defines how extra scopes (beyond the credential profile scope) are handled.
+type ScopePolicy string
+
+const (
+	// ScopePolicyProfileOnly only accepts the credential profile scope. Extra scopes cause an error.
+	ScopePolicyProfileOnly ScopePolicy = "profile-only"
+	// ScopePolicyPassthrough grants all requested scopes without evaluation.
+	ScopePolicyPassthrough ScopePolicy = "passthrough"
+	// ScopePolicyDynamic evaluates extra scopes via an external AuthZen PDP.
+	ScopePolicyDynamic ScopePolicy = "dynamic"
+)
+
+// CredentialProfileMatch is the result of matching a scope string against the policy configuration.
+// It contains the matched credential profile (WalletOwnerMapping + ScopePolicy) and the
+// remaining scopes that did not match any credential profile.
+type CredentialProfileMatch struct {
+	// CredentialProfileScope is the scope that matched a credential profile.
+	CredentialProfileScope string
+	// WalletOwnerMapping contains the PresentationDefinitions per wallet owner type for the matched credential profile.
+	WalletOwnerMapping pe.WalletOwnerMapping
+	// ScopePolicy is the configured scope policy for the matched credential profile.
+	ScopePolicy ScopePolicy
+	// OtherScopes contains the scopes from the request that did not match any credential profile.
+	OtherScopes []string
+}
+
+// PDPBackend is the interface for the policy backend.
+// Both the remote and local policy backend implement this interface.
 type PDPBackend interface {
-	// PresentationDefinitions returns the PresentationDefinitions (mapped to a WalletOwnerType) for the given scope
-	// scopes are space delimited. It's up to the backend to decide how to handle this
-	PresentationDefinitions(ctx context.Context, scope string) (pe.WalletOwnerMapping, error)
+	// FindCredentialProfile resolves a scope string against the policy configuration.
+	// It parses the space-delimited scope string, identifies exactly one credential profile scope,
+	// and returns the matched profile along with any remaining scopes.
+	FindCredentialProfile(ctx context.Context, scope string) (*CredentialProfileMatch, error)
 }

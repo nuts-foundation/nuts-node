@@ -79,7 +79,7 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 }
 
 func (r Wrapper) presentationDefinitionForScope(ctx context.Context, scope string) (pe.WalletOwnerMapping, error) {
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, scope)
+	match, err := r.policyBackend.FindCredentialProfile(ctx, scope)
 	if err != nil {
 		if errors.Is(err, policy.ErrNotFound) {
 			return nil, oauth.OAuth2Error{
@@ -94,5 +94,5 @@ func (r Wrapper) presentationDefinitionForScope(ctx context.Context, scope strin
 			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
 	}
-	return mapping, err
+	return match.WalletOwnerMapping, nil
 }
