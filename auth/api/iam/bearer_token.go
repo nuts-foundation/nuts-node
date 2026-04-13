@@ -60,7 +60,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionCredentialProfile(*submission, *pexEnvelope))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionPresentationEvaluator(*submission, *pexEnvelope))
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID strin
 			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
 		}
 	}
-	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicCredentialProfile(*presentation))
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicPresentationEvaluator(*presentation))
 	if err != nil {
 		return nil, err
 	}

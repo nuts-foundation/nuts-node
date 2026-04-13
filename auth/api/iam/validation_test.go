@@ -96,7 +96,7 @@ func TestSubmissionPresentationEvaluator(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := SubmissionCredentialProfile(submission, *envelope)
+		validator := SubmissionPresentationEvaluator(submission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -111,7 +111,7 @@ func TestSubmissionPresentationEvaluator(t *testing.T) {
 		accessToken := &AccessToken{}
 		invalidSubmission := submission
 		invalidSubmission.DescriptorMap[0].Path = "$.verifiableCredential[0]"
-		validator := SubmissionCredentialProfile(invalidSubmission, *envelope)
+		validator := SubmissionPresentationEvaluator(invalidSubmission, *envelope)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -130,7 +130,7 @@ func TestBasicPresentationEvaluator(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		accessToken := &AccessToken{}
-		validator := BasicCredentialProfile(presentation)
+		validator := BasicPresentationEvaluator(presentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 
@@ -181,7 +181,7 @@ func TestBasicPresentationEvaluator(t *testing.T) {
 			pe.WalletOwnerOrganization: strictDefinition,
 		}
 
-		validator := BasicCredentialProfile(invalidPresentation)
+		validator := BasicPresentationEvaluator(invalidPresentation)
 		err := validator(ctx, strictMapping, accessToken)
 
 		assert.Error(t, err)
@@ -228,7 +228,7 @@ func TestBasicPresentationEvaluator(t *testing.T) {
 				"city": "DifferentCity",
 			},
 		}
-		validator := BasicCredentialProfile(presentation)
+		validator := BasicPresentationEvaluator(presentation)
 
 		err := validator(ctx, mappingWithField, accessToken)
 
@@ -242,7 +242,7 @@ func TestBasicPresentationEvaluator(t *testing.T) {
 		emptyPresentation := vc.VerifiablePresentation{
 			VerifiableCredential: []vc.VerifiableCredential{},
 		}
-		validator := BasicCredentialProfile(emptyPresentation)
+		validator := BasicPresentationEvaluator(emptyPresentation)
 
 		err := validator(ctx, walletOwnerMapping, accessToken)
 

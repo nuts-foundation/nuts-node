@@ -34,9 +34,9 @@ import (
 // CredentialProfile validates a presentation against a presentation definition, and extracts the relevant information to be stored in the access token for policy decision and/or claims about the presentation.
 type CredentialProfile func(ctx context.Context, credentialProfile pe.WalletOwnerMapping, accessToken *AccessToken) error
 
-// SubmissionCredentialProfile returns a CredentialProfile that validates a presentation against the given presentation submission and presentation exchange envelope,
+// SubmissionPresentationEvaluator returns a CredentialProfile that validates a presentation against the given presentation submission and presentation exchange envelope,
 // according to DIF Presentation Exchange.
-func SubmissionCredentialProfile(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfile {
+func SubmissionPresentationEvaluator(submission pe.PresentationSubmission, pexEnvelope pe.Envelope) CredentialProfile {
 	return func(ctx context.Context, presentationDefinitions pe.WalletOwnerMapping, accessToken *AccessToken) error {
 		pexConsumer := newPEXConsumer(presentationDefinitions)
 		if err := pexConsumer.fulfill(submission, pexEnvelope); err != nil {
@@ -62,9 +62,9 @@ func SubmissionCredentialProfile(submission pe.PresentationSubmission, pexEnvelo
 	}
 }
 
-// BasicCredentialProfile returns a CredentialProfile that validates a presentation against the presentation definition(s).
+// BasicPresentationEvaluator returns a CredentialProfile that validates a presentation against the presentation definition(s).
 // It does not consume a Presentation Submission.
-func BasicCredentialProfile(presentation VerifiablePresentation) CredentialProfile {
+func BasicPresentationEvaluator(presentation VerifiablePresentation) CredentialProfile {
 	return func(ctx context.Context, presentationDefinitions pe.WalletOwnerMapping, accessToken *AccessToken) error {
 		creds, inputDescriptors, err := presentationDefinitions[pe.WalletOwnerOrganization].Match(presentation.VerifiableCredential)
 		if err != nil {
