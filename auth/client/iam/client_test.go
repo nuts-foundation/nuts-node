@@ -188,6 +188,44 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "offline", string(httpError.ResponseBody))
 	})
+	t.Run("error - oauth error with non-400 status", func(t *testing.T) {
+		// Some authorization servers return non-400 status codes for OAuth errors (e.g. 401, 500).
+		// The client should still recognize a JSON body with an "error" field as an OAuth error.
+		handler := http2.Handler{StatusCode: http.StatusInternalServerError, ResponseData: oauth.OAuth2Error{Code: oauth.InvalidRequest}}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
+
+		require.Error(t, err)
+		var oauthError oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthError)
+		assert.Equal(t, oauth.InvalidRequest, oauthError.Code)
+		require.ErrorAs(t, err, new(oauth.RemoteOAuthError))
+	})
+	t.Run("error - non-JSON response with non-OK status", func(t *testing.T) {
+		// Not JSON, so must not be treated as an OAuth error.
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: "not json"}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
+
+		require.Error(t, err)
+		httpError, ok := err.(core.HttpError)
+		require.True(t, ok)
+		assert.Equal(t, "not json", string(httpError.ResponseBody))
+	})
+	t.Run("error - JSON response without OAuth error code", func(t *testing.T) {
+		// JSON, but without an "error" field — must not be treated as an OAuth error.
+		handler := http2.Handler{StatusCode: http.StatusBadRequest, ResponseData: map[string]string{"message": "something went wrong"}}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
+
+		require.Error(t, err)
+		_, ok := err.(core.HttpError)
+		require.True(t, ok)
+		require.NotErrorAs(t, err, new(oauth.RemoteOAuthError))
+	})
 	t.Run("error - invalid response", func(t *testing.T) {
 		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
 		tlsServer, client := testServerAndClient(t, &handler)
