@@ -27,9 +27,11 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"time"
 )
 
@@ -65,5 +67,83 @@ func TestPresentationDefinitionResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "test-pd", result.PresentationDefinition.Id)
 		assert.Equal(t, "profile-scope extra-scope", result.Scope)
+	})
+	t.Run("no remote PD endpoint", func(t *testing.T) {
+		metadata := oauth.AuthorizationServerMetadata{} // no PD endpoint
+
+		t.Run("single scope, profile-only", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "profile-scope").Return(&policy.CredentialProfileMatch{
+				CredentialProfileScope: "profile-scope",
+				WalletOwnerMapping:     pe.WalletOwnerMapping{pe.WalletOwnerOrganization: testPD},
+				ScopePolicy:            policy.ScopePolicyProfileOnly,
+			}, nil)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			result, err := resolver.Resolve(context.Background(), "profile-scope", metadata)
+
+			require.NoError(t, err)
+			assert.Equal(t, "test-pd", result.PresentationDefinition.Id)
+			assert.Equal(t, "profile-scope", result.Scope)
+		})
+		t.Run("multi-scope, profile-only rejects", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "profile-scope extra-scope").Return(&policy.CredentialProfileMatch{
+				CredentialProfileScope: "profile-scope",
+				OtherScopes:            []string{"extra-scope"},
+				WalletOwnerMapping:     pe.WalletOwnerMapping{pe.WalletOwnerOrganization: testPD},
+				ScopePolicy:            policy.ScopePolicyProfileOnly,
+			}, nil)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			_, err := resolver.Resolve(context.Background(), "profile-scope extra-scope", metadata)
+
+			assert.ErrorContains(t, err, "does not allow additional scopes")
+		})
+		t.Run("multi-scope, passthrough forwards all scopes", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "profile-scope extra-scope").Return(&policy.CredentialProfileMatch{
+				CredentialProfileScope: "profile-scope",
+				OtherScopes:            []string{"extra-scope"},
+				WalletOwnerMapping:     pe.WalletOwnerMapping{pe.WalletOwnerOrganization: testPD},
+				ScopePolicy:            policy.ScopePolicyPassthrough,
+			}, nil)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			result, err := resolver.Resolve(context.Background(), "profile-scope extra-scope", metadata)
+
+			require.NoError(t, err)
+			assert.Equal(t, "test-pd", result.PresentationDefinition.Id)
+			assert.Equal(t, "profile-scope extra-scope", result.Scope)
+		})
+		t.Run("multi-scope, dynamic forwards all scopes", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "profile-scope extra-scope").Return(&policy.CredentialProfileMatch{
+				CredentialProfileScope: "profile-scope",
+				OtherScopes:            []string{"extra-scope"},
+				WalletOwnerMapping:     pe.WalletOwnerMapping{pe.WalletOwnerOrganization: testPD},
+				ScopePolicy:            policy.ScopePolicyDynamic,
+			}, nil)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			result, err := resolver.Resolve(context.Background(), "profile-scope extra-scope", metadata)
+
+			require.NoError(t, err)
+			assert.Equal(t, "profile-scope extra-scope", result.Scope)
+		})
+		t.Run("unknown scope returns error", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			_, err := resolver.Resolve(context.Background(), "unknown", metadata)
+
+			assert.ErrorIs(t, err, policy.ErrNotFound)
+		})
 	})
 }
