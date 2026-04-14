@@ -10,6 +10,16 @@ Unreleased
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 
 ****************
+Peanut (v6.2.3)
+****************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.2...v6.2.3
+
+****************
 Peanut (v6.2.2)
 ****************
 
@@ -431,6 +441,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.31)
+*************************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.30...v5.4.31
 
 *************************
 Hazelnut update (v5.4.30)
