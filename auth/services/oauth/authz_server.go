@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	vc2 "github.com/nuts-foundation/go-did/vc"
@@ -508,6 +509,20 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 
 // IntrospectAccessToken fills the fields in NutsAccessToken from the given Jwt Access Token
 func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken string) (*services.NutsAccessToken, error) {
+	// Validate typ header before full parsing to reject non-access-token JWTs early
+	msg, err := jws.ParseString(accessToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid access token headers: %w", err)
+	}
+	if len(msg.Signatures()) != 1 {
+		return nil, errors.New("invalid access token: expected exactly one signature")
+	}
+	hdrs := msg.Signatures()[0].ProtectedHeaders()
+	if typ := hdrs.Type(); typ != "at+jwt" {
+		return nil, fmt.Errorf("invalid access token typ header (expected 'at+jwt', got '%s')", typ)
+	}
+	kidHdr := hdrs.KeyID()
+
 	token, err := nutsCrypto.ParseJWT(accessToken, func(kid string) (crypto.PublicKey, error) {
 		if !s.privateKeyStore.Exists(ctx, kid) {
 			return nil, fmt.Errorf("could not check if JWT signing key exists (kid=%s)", kid)
@@ -529,7 +544,27 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 	result.IssuedAt = token.IssuedAt().Unix()
 	result.Expiration = token.Expiration().Unix()
 
-	return result, err
+	// Validate required claims
+	if result.Issuer == "" {
+		return nil, errors.New("missing required 'iss' claim in access token")
+	}
+	if result.Subject == "" {
+		return nil, errors.New("missing required 'sub' claim in access token")
+	}
+	if result.Service == "" {
+		return nil, errors.New("missing required 'service' claim in access token")
+	}
+
+	// Validate issuer-to-kid binding: the DID in the kid header must match the iss claim
+	kidDID, err := didservice.GetDIDFromURL(kidHdr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid kid header in access token: %w", err)
+	}
+	if kidDID.String() != result.Issuer {
+		return nil, fmt.Errorf("access token issuer (%s) does not match signing key DID (%s)", result.Issuer, kidDID.String())
+	}
+
+	return result, nil
 }
 
 // todo split this func for easier testing
@@ -577,7 +612,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, map[string]interface{}{"typ": "at+jwt"}, signingKeyID)
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}
