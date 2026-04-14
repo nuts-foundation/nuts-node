@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.3)
+****************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.2...v6.2.3
+
+****************
 Peanut (v6.2.2)
 ****************
 
