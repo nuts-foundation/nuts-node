@@ -76,6 +76,9 @@ func (r *PresentationDefinitionResolver) resolveRemote(ctx context.Context, scop
 }
 
 func (r *PresentationDefinitionResolver) resolveLocal(ctx context.Context, scope string) (*ResolvedPresentationDefinition, error) {
+	if r.policyBackend == nil {
+		return nil, fmt.Errorf("local PD resolution requires a policy backend, but none is configured")
+	}
 	match, err := r.policyBackend.FindCredentialProfile(ctx, scope)
 	if err != nil {
 		return nil, fmt.Errorf("local PD resolution failed: %w", err)
@@ -92,8 +95,14 @@ func (r *PresentationDefinitionResolver) resolveLocal(ctx context.Context, scope
 	if !ok {
 		return nil, fmt.Errorf("no organization presentation definition for scope %q", match.CredentialProfileScope)
 	}
+	// For passthrough and dynamic, forward all scopes to the remote AS.
+	// The client does not evaluate dynamic scopes — the server handles PDP evaluation at token-grant time (PR #4179).
+	resolvedScope := scope
+	if match.ScopePolicy == policy.ScopePolicyProfileOnly {
+		resolvedScope = match.CredentialProfileScope
+	}
 	return &ResolvedPresentationDefinition{
 		PresentationDefinition: pd,
-		Scope:                  scope,
+		Scope:                  resolvedScope,
 	}, nil
 }

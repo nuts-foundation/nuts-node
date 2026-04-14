@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -32,7 +33,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"time"
 )
 
 var testPD = pe.PresentationDefinition{
@@ -145,5 +145,45 @@ func TestPresentationDefinitionResolver_Resolve(t *testing.T) {
 
 			assert.ErrorIs(t, err, policy.ErrNotFound)
 		})
+		t.Run("no organization PD in wallet owner mapping returns error", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockPolicy := policy.NewMockPDPBackend(ctrl)
+			mockPolicy.EXPECT().FindCredentialProfile(gomock.Any(), "user-only-scope").Return(&policy.CredentialProfileMatch{
+				CredentialProfileScope: "user-only-scope",
+				WalletOwnerMapping:     pe.WalletOwnerMapping{pe.WalletOwnerUser: testPD},
+				ScopePolicy:            policy.ScopePolicyProfileOnly,
+			}, nil)
+
+			resolver := &PresentationDefinitionResolver{policyBackend: mockPolicy}
+			_, err := resolver.Resolve(context.Background(), "user-only-scope", metadata)
+
+			assert.ErrorContains(t, err, "no organization presentation definition")
+		})
+		t.Run("nil policy backend returns error", func(t *testing.T) {
+			resolver := &PresentationDefinitionResolver{policyBackend: nil}
+			_, err := resolver.Resolve(context.Background(), "any-scope", metadata)
+
+			assert.ErrorContains(t, err, "policy backend")
+		})
+	})
+	t.Run("remote PD endpoint returns error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		resolver := &PresentationDefinitionResolver{
+			httpClient: HTTPClient{
+				strictMode: false,
+				httpClient: client.New(10 * time.Second),
+			},
+		}
+		metadata := oauth.AuthorizationServerMetadata{
+			PresentationDefinitionEndpoint: server.URL + "/presentation_definition",
+		}
+
+		_, err := resolver.Resolve(context.Background(), "scope", metadata)
+
+		assert.Error(t, err)
 	})
 }
