@@ -75,8 +75,6 @@ var responseModesSupported = []string{responseModeQuery, responseModeDirectPost}
 
 var responseTypesSupported = []string{oauth.CodeResponseType, oauth.VPTokenResponseType}
 
-var grantTypesSupported = []string{oauth.AuthorizationCodeGrantType, oauth.VpTokenGrantType}
-
 var clientIdSchemesSupported = []string{entityClientIDScheme}
 
 const entityClientIDScheme = "entity_id"

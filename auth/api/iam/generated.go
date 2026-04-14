@@ -309,6 +309,7 @@ type HandleAuthorizeResponseFormdataBody struct {
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
 	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
+	ClientAssertion        *string `form:"client_assertion,omitempty" json:"client_assertion,omitempty"`
 	ClientId               *string `form:"client_id,omitempty" json:"client_id,omitempty"`
 	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
 	CodeVerifier           *string `form:"code_verifier,omitempty" json:"code_verifier,omitempty"`

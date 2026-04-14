@@ -191,6 +191,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 	return nil
 }
 
+func (auth *Auth) GrantTypes() []string {
+	return auth.config.GrantTypes
+}
+
 func (auth *Auth) SupportedDIDMethods() []string {
 	// DID methods that don't require additional resources/configuration in the Nuts node are always supported.
 	// Other DID methods (did:nuts), are only supported if explicitly enabled.

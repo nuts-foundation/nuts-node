@@ -21,6 +21,12 @@ package v1
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -40,11 +46,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
-	"testing"
-	"time"
 )
 
 type TestContext struct {
@@ -96,6 +97,10 @@ func (m *mockAuthClient) PublicURL() *url.URL {
 
 func (m *mockAuthClient) SupportedDIDMethods() []string {
 	return m.supportedDIDMethods
+}
+
+func (m *mockAuthClient) GrantTypes() []string {
+	return oauth2.SupportedGrantTypes()
 }
 
 func createContext(t *testing.T) *TestContext {

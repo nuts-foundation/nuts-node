@@ -12,14 +12,8 @@ auth:
     - dummy
   irma:
     autoupdateschemas: false
-  granttypes: vp_token-bearer
-discovery:
-  definitions:
-    directory: /nuts/discovery
+  granttypes: urn:ietf:params:oauth:grant-type:jwt-bearer
 tls:
   truststorefile: /opt/nuts/truststore.pem
   certfile: /opt/nuts/certificate-and-key.pem
   certkeyfile: /opt/nuts/certificate-and-key.pem
-#vdr:
-#  didmethods:
-#    - web

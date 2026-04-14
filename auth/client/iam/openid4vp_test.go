@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy"
 	test2 "github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
@@ -41,7 +42,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/policy"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -619,7 +619,7 @@ type clientServerTestContext struct {
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
-	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}}
+	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}, GrantTypesSupported: []string{oauth.VpTokenGrantType, oauth.JWTBearerGrantType}}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
 		metadata: func(writer http.ResponseWriter) {

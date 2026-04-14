@@ -36,9 +36,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -50,6 +47,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/http/cache"
@@ -58,6 +56,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -236,6 +235,16 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
+	case oauth.JWTBearerGrantType:
+		// Twinn TA NP & LSPxNuts flow
+		// TODO: support client_assertion
+		if request.Body.Assertion == nil || request.Body.Scope == nil || request.Body.ClientId == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "missing required parameters",
+			}
+		}
+		return r.handleJWTBearerTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.Assertion)
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {
@@ -421,16 +430,20 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := ExtendedTokenIntrospectionResponse{
-		Active:                  true,
-		Cnf:                     cnf,
-		Iat:                     &iat,
-		Exp:                     &exp,
-		Iss:                     &token.Issuer,
-		ClientId:                &token.ClientId,
-		Scope:                   &token.Scope,
-		Vps:                     &token.VPToken,
-		PresentationDefinitions: &token.PresentationDefinitions,
-		PresentationSubmissions: &token.PresentationSubmissions,
+		Active:   true,
+		Cnf:      cnf,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
+	}
+	if token.PresentationDefinitions != nil {
+		response.PresentationDefinitions = &token.PresentationDefinitions
+	}
+	if token.PresentationSubmissions != nil {
+		response.PresentationSubmissions = &token.PresentationSubmissions
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {
@@ -617,7 +630,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
+	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -681,7 +694,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
 	issuerURL := r.subjectToBaseURL(request.SubjectID)
-	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods())
+	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)

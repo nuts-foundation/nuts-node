@@ -388,7 +388,7 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, subject string, vp
 		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
 		// but with openid4vp: as scheme.
 		// The context contains data from the previous request. Usage by the handler will probably result in incorrect behavior.
-		userWalletMetadata := authorizationServerMetadata(nil, r.auth.SupportedDIDMethods())
+		userWalletMetadata := authorizationServerMetadata(nil, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 		response, err := r.handleAuthorizeRequest(ctx, subject, userWalletMetadata, *parsedRedirectURI)
 		if err != nil {
 			return nil, err
@@ -716,8 +716,17 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	}
 
 	// All done, issue access token
+	accessToken := AccessToken{
+		PresentationDefinitions: oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions,
+		PresentationSubmissions: oauthSession.OpenID4VPVerifier.Submissions,
+	}
+	for _, envelope := range oauthSession.OpenID4VPVerifier.SubmittedEnvelopes {
+		for _, presentation := range envelope.Presentations {
+			accessToken.VPToken = append(accessToken.VPToken, presentation)
+		}
+	}
 	issuerURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
+	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, accessToken, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}
