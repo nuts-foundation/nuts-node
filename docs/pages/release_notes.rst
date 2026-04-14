@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.31)
+*************************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.30...v5.4.31
+
+*************************
 Hazelnut update (v5.4.30)
 *************************
 
