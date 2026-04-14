@@ -491,6 +491,12 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			},
 			jwtSigner:   jwtSigner,
 			keyResolver: keyResolver,
+			pdResolver: PresentationDefinitionResolver{
+				httpClient: HTTPClient{
+					strictMode: false,
+					httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
+				},
+			},
 		},
 		jwtSigner:      jwtSigner,
 		keyResolver:    keyResolver,

@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/piprate/json-gold/ld"
@@ -60,23 +61,30 @@ type OpenID4VPClient struct {
 	wallet           holder.Wallet
 	ldDocumentLoader ld.DocumentLoader
 	subjectManager   didsubject.Manager
+	pdResolver       PresentationDefinitionResolver
 }
 
 // NewClient returns an implementation of Holder
 func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+	httpClient := HTTPClient{
+		strictMode:  strictMode,
+		httpClient:  client.NewWithCache(httpClientTimeout),
+		keyResolver: keyResolver,
+	}
 	return &OpenID4VPClient{
-		httpClient: HTTPClient{
-			strictMode:  strictMode,
-			httpClient:  client.NewWithCache(httpClientTimeout),
-			keyResolver: keyResolver,
-		},
+		httpClient:       httpClient,
 		keyResolver:      keyResolver,
 		jwtSigner:        jwtSigner,
 		ldDocumentLoader: ldDocumentLoader,
 		subjectManager:   subjectManager,
 		strictMode:       strictMode,
 		wallet:           wallet,
+		pdResolver: PresentationDefinitionResolver{
+			httpClient:    httpClient,
+			policyBackend: policyBackend,
+			strictMode:    strictMode,
+		},
 	}
 }
 
@@ -242,18 +250,12 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, err
 	}
 
-	// get the presentation definition from the verifier
-	parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
+	// Resolve the presentation definition: from remote AS when available, local policy otherwise
+	resolved, err := c.pdResolver.Resolve(ctx, scopes, *metadata)
 	if err != nil {
 		return nil, err
 	}
-	presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-		"scope": scopes,
-	})
-	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL.String())
-	if err != nil {
-		return nil, err
-	}
+	presentationDefinition := &resolved.PresentationDefinition
 
 	params := holder.BuildParams{
 		Audience:   authServerURL,
@@ -312,7 +314,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	data.Set(oauth.ScopeParam, scopes)
+	data.Set(oauth.ScopeParam, resolved.Scope)
 
 	// create DPoP header
 	var dpopHeader string
