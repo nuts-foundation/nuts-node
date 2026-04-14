@@ -31,16 +31,13 @@ import (
 
 func TestClient_Evaluate(t *testing.T) {
 	t.Run("successful evaluation returns scope decisions", func(t *testing.T) {
+		var receivedReq EvaluationsRequest
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/access/v1/evaluations", r.URL.Path)
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
-
-			var req EvaluationsRequest
-			err := json.NewDecoder(r.Body).Decode(&req)
-			require.NoError(t, err)
-			assert.Equal(t, "organization", req.Subject.Type)
-			assert.Len(t, req.Evaluations, 2)
+			assert.Equal(t, "application/json", r.Header.Get("Accept"))
+			json.NewDecoder(r.Body).Decode(&receivedReq)
 
 			resp := EvaluationsResponse{
 				Evaluations: []EvaluationResult{
@@ -65,6 +62,8 @@ func TestClient_Evaluate(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		assert.Equal(t, "organization", receivedReq.Subject.Type)
+		assert.Len(t, receivedReq.Evaluations, 2)
 		assert.Equal(t, map[string]bool{
 			"scope-a": true,
 			"scope-b": false,
@@ -162,15 +161,14 @@ func TestClient_Evaluate(t *testing.T) {
 
 		assert.ErrorContains(t, err, "authzen: decode response")
 	})
-	t.Run("request with context deadline", func(t *testing.T) {
+	t.Run("cancelled context returns error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Block until context is cancelled
 			<-r.Context().Done()
 		}))
 		defer server.Close()
 
 		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // Cancel immediately
+		cancel()
 
 		client := NewClient(server.URL, server.Client())
 		_, err := client.Evaluate(ctx, EvaluationsRequest{
@@ -180,5 +178,16 @@ func TestClient_Evaluate(t *testing.T) {
 		})
 
 		assert.ErrorContains(t, err, "authzen: execute request")
+	})
+	t.Run("duplicate resource ID in request returns error", func(t *testing.T) {
+		client := NewClient("http://unused", http.DefaultClient)
+		_, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "same"}},
+				{Resource: Resource{Type: "scope", ID: "same"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "duplicate resource ID in request: same")
 	})
 }

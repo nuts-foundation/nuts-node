@@ -16,6 +16,7 @@
  *
  */
 
+// Package authzen implements an HTTP client for the AuthZen Access Evaluations API.
 package authzen
 
 import (
@@ -57,6 +58,16 @@ func (c *Client) Evaluate(ctx context.Context, req EvaluationsRequest) (map[stri
 		return nil, fmt.Errorf("authzen: create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+
+	// Check for duplicate resource IDs before sending the request
+	seen := make(map[string]bool, len(req.Evaluations))
+	for _, eval := range req.Evaluations {
+		if seen[eval.Resource.ID] {
+			return nil, fmt.Errorf("authzen: duplicate resource ID in request: %s", eval.Resource.ID)
+		}
+		seen[eval.Resource.ID] = true
+	}
 
 	httpResp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -66,7 +77,13 @@ func (c *Client) Evaluate(ctx context.Context, req EvaluationsRequest) (map[stri
 
 	if httpResp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(httpResp.Body)
-		return nil, fmt.Errorf("authzen: PDP returned HTTP %d: %s", httpResp.StatusCode, string(respBody))
+		// Truncate to keep error messages reasonable and prevent log injection
+		const maxErrorLen = 200
+		bodyStr := string(respBody)
+		if len(bodyStr) > maxErrorLen {
+			bodyStr = bodyStr[:maxErrorLen] + "..."
+		}
+		return nil, fmt.Errorf("authzen: PDP returned HTTP %d: %s", httpResp.StatusCode, bodyStr)
 	}
 
 	var resp EvaluationsResponse
