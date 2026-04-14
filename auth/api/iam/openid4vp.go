@@ -725,6 +725,17 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 			accessToken.VPToken = append(accessToken.VPToken, presentation)
 		}
 	}
+	credentialMap, err := oauthSession.OpenID4VPVerifier.credentialMap()
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to resolve credential map: %s", err.Error()))
+	}
+	fieldsMap, err := resolveInputDescriptorValues(oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+	if err := accessToken.AddInputDescriptorConstraintIdMap(fieldsMap); err != nil {
+		return nil, oauthError(oauth.ServerError, err.Error())
+	}
 	issuerURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
 	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, accessToken, dpopProof)
 	if err != nil {
