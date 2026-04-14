@@ -70,4 +70,115 @@ func TestClient_Evaluate(t *testing.T) {
 			"scope-b": false,
 		}, decisions)
 	})
+	t.Run("partial denial - some scopes approved, some denied", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			resp := EvaluationsResponse{
+				Evaluations: []EvaluationResult{
+					{Decision: true},
+					{Decision: false, Context: &EvaluationResultContext{Reason: "not permitted"}},
+					{Decision: true},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, server.Client())
+		decisions, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "read"}},
+				{Resource: Resource{Type: "scope", ID: "write"}},
+				{Resource: Resource{Type: "scope", ID: "notify"}},
+			},
+		})
+
+		require.NoError(t, err)
+		assert.True(t, decisions["read"])
+		assert.False(t, decisions["write"])
+		assert.True(t, decisions["notify"])
+	})
+	t.Run("HTTP error from PDP", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, server.Client())
+		_, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "test"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "PDP returned HTTP 500")
+	})
+	t.Run("PDP unreachable", func(t *testing.T) {
+		client := NewClient("http://localhost:1", http.DefaultClient)
+		_, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "test"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "authzen: execute request")
+	})
+	t.Run("evaluation count mismatch", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			resp := EvaluationsResponse{
+				Evaluations: []EvaluationResult{
+					{Decision: true},
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, server.Client())
+		_, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "a"}},
+				{Resource: Resource{Type: "scope", ID: "b"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "expected 2 evaluations, got 1")
+	})
+	t.Run("malformed response", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("not json"))
+		}))
+		defer server.Close()
+
+		client := NewClient(server.URL, server.Client())
+		_, err := client.Evaluate(context.Background(), EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "test"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "authzen: decode response")
+	})
+	t.Run("request with context deadline", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Block until context is cancelled
+			<-r.Context().Done()
+		}))
+		defer server.Close()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel() // Cancel immediately
+
+		client := NewClient(server.URL, server.Client())
+		_, err := client.Evaluate(ctx, EvaluationsRequest{
+			Evaluations: []Evaluation{
+				{Resource: Resource{Type: "scope", ID: "test"}},
+			},
+		})
+
+		assert.ErrorContains(t, err, "authzen: execute request")
+	})
 }
