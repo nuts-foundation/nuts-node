@@ -519,6 +519,15 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 		return nil, err
 	}
 
+	if err := jwt.Validate(token,
+		jwt.WithRequiredClaim(jwt.ExpirationKey),
+		jwt.WithRequiredClaim(jwt.IssuedAtKey),
+		jwt.WithMaxDelta(secureAccessTokenLifeSpan, jwt.ExpirationKey, jwt.IssuedAtKey),
+		jwt.WithAcceptableSkew(s.clockSkew),
+	); err != nil {
+		return nil, fmt.Errorf("access token validation failed: %w", err)
+	}
+
 	result := &services.NutsAccessToken{}
 
 	if err := result.FromMap(token.PrivateClaims()); err != nil {

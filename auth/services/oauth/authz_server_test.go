@@ -859,6 +859,102 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		assert.ErrorContains(t, err, "access token issuer")
 		assert.ErrorContains(t, err, "does not match signing key DID")
 	})
+
+	t.Run("rejects token without exp claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey: time.Now().UTC(),
+			jwt.SubjectKey:  requesterDID.String(),
+			jwt.IssuerKey:   authorizerDID.String(),
+			"service":       expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "exp")
+	})
+
+	t.Run("rejects token without iat claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		claims := map[string]interface{}{
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "iat")
+	})
+
+	t.Run("rejects token with excessive lifetime", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		now := time.Now()
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey:   now.Unix(),
+			jwt.ExpirationKey: now.Add(1 * time.Hour).Unix(), // way beyond 60s
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "exceeds")
+	})
+
+	t.Run("rejects expired token", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		now := time.Now()
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey:   now.Add(-15 * time.Minute).Unix(),
+			jwt.ExpirationKey: now.Add(-10 * time.Minute).Unix(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "\"exp\" not satisfied")
+	})
 }
 
 func TestAuth_Configure(t *testing.T) {
