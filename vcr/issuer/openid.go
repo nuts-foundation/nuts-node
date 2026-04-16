@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -43,6 +42,12 @@ import (
 	"path/filepath"
 	"time"
 )
+
+// openID4VCIProofProfile defines JWT validation rules for OpenID4VCI proof JWTs.
+var openID4VCIProofProfile = &crypto.JWTProfile{
+	Typ:            openid4vci.JWTTypeOpenID4VCIProof,
+	RequiredClaims: []string{jwt.IssuedAtKey},
+}
 
 // Flow is an active OpenID4VCI credential issuance flow.
 type Flow struct {
@@ -307,7 +312,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	token, err := crypto.ParseJWT(request.Proof.Jwt, func(kid string) (crypt.PublicKey, error) {
 		signingKeyID = kid
 		return i.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, jwt.WithAcceptableSkew(5*time.Second))
+	}, openID4VCIProofProfile, jwt.WithAcceptableSkew(5*time.Second))
 	if err != nil {
 		return generateProofError(openid4vci.Error{
 			Err:        err,
@@ -336,33 +341,6 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	if !audienceMatches {
 		return generateProofError(openid4vci.Error{
 			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
-			Code:       openid4vci.InvalidProof,
-			StatusCode: http.StatusBadRequest,
-		})
-	}
-
-	// Validate JWT type
-	// jwt.Parse does not provide the JWS headers, we have to parse it again as JWS to access those
-	message, err := jws.ParseString(request.Proof.Jwt)
-	if err != nil {
-		// Should not fail
-		return err
-	}
-	if len(message.Signatures()) != 1 {
-		// I think this is impossible
-		return errors.New("expected exactly one signature")
-	}
-	typ := message.Signatures()[0].ProtectedHeaders().Type()
-	if typ == "" {
-		return generateProofError(openid4vci.Error{
-			Err:        errors.New("missing typ header"),
-			Code:       openid4vci.InvalidProof,
-			StatusCode: http.StatusBadRequest,
-		})
-	}
-	if typ != openid4vci.JWTTypeOpenID4VCIProof {
-		return generateProofError(openid4vci.Error{
-			Err:        fmt.Errorf("invalid typ claim (expected: %s): %s", openid4vci.JWTTypeOpenID4VCIProof, typ),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})

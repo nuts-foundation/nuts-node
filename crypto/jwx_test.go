@@ -66,7 +66,7 @@ func TestSignJWT(t *testing.T) {
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
-		})
+		}, nil)
 
 		require.NoError(t, err)
 
@@ -90,7 +90,7 @@ func TestSignJWT(t *testing.T) {
 
 				token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 					return ecKey.Public(), nil
-				})
+				}, nil)
 
 				require.NoError(t, err)
 				assert.Equal(t, "nuts", token.Issuer())
@@ -125,7 +125,7 @@ func TestParseJWT(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
-		})
+		}, nil)
 		assert.Nil(t, parsedToken)
 		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
 	})
@@ -138,7 +138,7 @@ func TestParseJWT(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, ecKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
-		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
+		}, nil, jwt.WithAcceptableSkew(5000*time.Millisecond))
 		require.NoError(t, err)
 
 		assert.NotNil(t, parsedToken)
@@ -152,7 +152,7 @@ func TestParseJWT(t *testing.T) {
 
 		parsedToken, err := ParseJWT(string(validToken), func(_ string) (crypto.PublicKey, error) {
 			return attackerKey.Public(), nil
-		})
+		}, nil)
 
 		assert.Nil(t, parsedToken)
 		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
@@ -174,7 +174,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			actualKID = kid
 			return pubKey, nil
-		})
+		}, nil)
 
 		require.NoError(t, err)
 
@@ -199,7 +199,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			actualKID = kid
 			return key.Public(), nil
-		})
+		}, nil)
 
 		require.NoError(t, err)
 

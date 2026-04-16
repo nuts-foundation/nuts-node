@@ -41,6 +41,11 @@ import (
 	"time"
 )
 
+// defaultPresentationValidity is the fallback validity window for a VP when the caller
+// doesn't specify one. Ensures that all VPs have an exp claim so verifiers can enforce
+// replay protection.
+const defaultPresentationValidity = 15 * time.Minute
+
 type presenter struct {
 	documentLoader ld.DocumentLoader
 	signer         crypto.JWTSigner
@@ -153,13 +158,19 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 	if options.ProofOptions.Domain != nil {
 		claims[jwt.AudienceKey] = *options.ProofOptions.Domain
 	}
-	if options.ProofOptions.Created.IsZero() {
-		claims[jwt.NotBeforeKey] = time.Now().Unix()
-	} else {
-		claims[jwt.NotBeforeKey] = int(options.ProofOptions.Created.Unix())
+	// Determine issuance time: use Created if set, otherwise now.
+	issuedAt := options.ProofOptions.Created
+	if issuedAt.IsZero() {
+		issuedAt = time.Now()
 	}
+	claims[jwt.NotBeforeKey] = issuedAt.Unix()
+	claims[jwt.IssuedAtKey] = issuedAt.Unix()
+	// Determine expiration: use Expires if set, otherwise default to 15 minutes after issuance.
+	// Always setting exp ensures that verifiers can enforce replay protection based on token age.
 	if options.ProofOptions.Expires != nil {
-		claims[jwt.ExpirationKey] = int(options.ProofOptions.Expires.Unix())
+		claims[jwt.ExpirationKey] = options.ProofOptions.Expires.Unix()
+	} else {
+		claims[jwt.ExpirationKey] = issuedAt.Add(defaultPresentationValidity).Unix()
 	}
 	for claimName, value := range options.ProofOptions.AdditionalProperties {
 		claims[claimName] = value

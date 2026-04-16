@@ -42,6 +42,11 @@ type jarRequest struct {
 	RequestURIMethod string          `json:"request_uri_method"`
 }
 
+// jarProfile defines JWT validation rules for JWT Authorization Requests (JAR).
+var jarProfile = &cryptoNuts.JWTProfile{
+	RequiredClaims: []string{"iss"},
+}
+
 var _ JAR = &jar{}
 
 type jar struct {
@@ -154,7 +159,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 		signerKid = kid
 		publicKey, err = j.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 		return publicKey, err
-	}, jwt.WithValidate(true))
+	}, jarProfile)
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}

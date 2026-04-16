@@ -169,7 +169,25 @@ func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
 
 // ParseJWT parses a token, validates and verifies it.
-func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (jwt.Token, error) {
+// When profile is non-nil, it applies the profile's validation rules (typ header, required claims,
+// max validity, and custom validators) after signature verification.
+func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, options ...jwt.ParseOption) (jwt.Token, error) {
+	var headers map[string]interface{}
+	if profile != nil {
+		var err error
+		headers, err = ExtractProtectedHeaders(tokenString)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JWT headers: %w", err)
+		}
+		// Check typ header early, before expensive signature verification
+		if profile.Typ != "" {
+			typ, _ := headers["typ"].(string)
+			if typ != profile.Typ {
+				return nil, fmt.Errorf("invalid JWT typ header (expected '%s', got '%s')", profile.Typ, typ)
+			}
+		}
+	}
+
 	kid, alg, err := JWTKidAlg(tokenString)
 	if err != nil {
 		return nil, err
@@ -184,10 +202,49 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
+	// Build validate options from profile and append to parse options.
+	// ValidateOption implements ParseOption in jwx, so jwt.ParseString applies them during its
+	// internal validation pass alongside the default exp/nbf/iat checks and the caller's skew.
+	if profile != nil {
+		for _, claim := range profile.RequiredClaims {
+			options = append(options, jwt.WithRequiredClaim(claim))
+		}
+		if profile.MaxValidity > 0 {
+			options = append(options, jwt.WithMaxDelta(profile.MaxValidity, jwt.ExpirationKey, jwt.IssuedAtKey))
+		}
+	}
+
 	options = append(options, jwt.WithKey(alg, key))
 	options = append(options, jwt.WithVerify(true))
 
-	return jwt.ParseString(tokenString, options...)
+	token, err := jwt.ParseString(tokenString, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	if profile == nil {
+		return token, nil
+	}
+
+	// Check required claims are non-empty (WithRequiredClaim only checks existence)
+	for _, claim := range profile.RequiredClaims {
+		val, ok := token.Get(claim)
+		if !ok {
+			return nil, fmt.Errorf("JWT claim '%s' not present", claim)
+		}
+		if s, isStr := val.(string); isStr && s == "" {
+			return nil, fmt.Errorf("JWT claim '%s' is empty", claim)
+		}
+	}
+
+	// Run custom validators
+	for _, v := range profile.Validators {
+		if err := v(token, headers); err != nil {
+			return nil, err
+		}
+	}
+
+	return token, nil
 }
 
 // ParseJWS parses a JWS byte array object, validates and verifies it.
