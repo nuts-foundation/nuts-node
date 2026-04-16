@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -76,6 +77,12 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 	match, err := r.findCredentialProfile(ctx, scope)
 	if err != nil {
 		return nil, err
+	}
+	if match.ScopePolicy == policy.ScopePolicyProfileOnly && len(match.OtherScopes) > 0 {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: "scope policy 'profile-only' does not allow additional scopes",
+		}
 	}
 	pexConsumer := newPEXConsumer(match.WalletOwnerMapping)
 	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {

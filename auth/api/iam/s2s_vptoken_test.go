@@ -382,6 +382,20 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
 		assert.Nil(t, resp)
 	})
+	t.Run("profile-only scope policy rejects extra scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyProfileOnly,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidScope, "scope policy 'profile-only' does not allow additional scopes")
+		assert.Nil(t, resp)
+	})
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
