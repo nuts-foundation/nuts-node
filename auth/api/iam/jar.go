@@ -31,7 +31,14 @@ import (
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
+	"time"
 )
+
+// jarMaxValidity bounds the lifetime of a JWT Authorization Request (RFC9101).
+// Authorization requests are short-lived by nature (an end-user is interacting
+// with the wallet/AS in real time), so a 5 minute window is generous and limits
+// the replay window if a request is intercepted.
+const jarMaxValidity = 5 * time.Minute
 
 // requestObjectModifier is a function that modifies the Claims/params of an unsigned or signed (JWT) OAuth2 request
 type requestObjectModifier func(claims map[string]string)
@@ -44,7 +51,8 @@ type jarRequest struct {
 
 // jarProfile defines JWT validation rules for JWT Authorization Requests (JAR).
 var jarProfile = &cryptoNuts.JWTProfile{
-	RequiredClaims: []string{"iss"},
+	RequiredClaims: []string{jwt.IssuerKey, jwt.IssuedAtKey, jwt.ExpirationKey},
+	MaxValidity:    jarMaxValidity,
 }
 
 var _ JAR = &jar{}
@@ -97,6 +105,9 @@ func createJarRequest(client did.DID, clientID string, audience string, modifier
 	for k, v := range params {
 		oauthParams[k] = v
 	}
+	// iat/exp are intentionally NOT set here: the jarRequest is persisted (authzRequestObjectStore)
+	// and Sign may be called minutes later on a different request. Setting timestamps here would
+	// eat into the validity window. They are added in Sign() to reflect actual signing time.
 	return jarRequest{
 		Claims:           oauthParams,
 		Client:           clientID,
@@ -114,7 +125,16 @@ func (j jar) Sign(ctx context.Context, claims oauthParameters) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return j.jwtSigner.SignJWT(ctx, claims, nil, keyId)
+	// Copy claims so we don't mutate the caller's map (the jarRequest may still be in-memory in tests
+	// or the store). iat/exp reflect signing time to give the counterparty the full validity window.
+	signClaims := make(map[string]interface{}, len(claims)+2)
+	for k, v := range claims {
+		signClaims[k] = v
+	}
+	now := time.Now()
+	signClaims[jwt.IssuedAtKey] = now.Unix()
+	signClaims[jwt.ExpirationKey] = now.Add(jarMaxValidity).Unix()
+	return j.jwtSigner.SignJWT(ctx, signClaims, nil, keyId)
 }
 
 func (j jar) Parse(ctx context.Context, ownMetadata oauth.AuthorizationServerMetadata, q url.Values) (oauthParameters, error) {

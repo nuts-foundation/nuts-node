@@ -205,13 +205,10 @@ func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, options 
 	// Build validate options from profile and append to parse options.
 	// ValidateOption implements ParseOption in jwx, so jwt.ParseString applies them during its
 	// internal validation pass alongside the default exp/nbf/iat checks and the caller's skew.
-	if profile != nil {
-		for _, claim := range profile.RequiredClaims {
-			options = append(options, jwt.WithRequiredClaim(claim))
-		}
-		if profile.MaxValidity > 0 {
-			options = append(options, jwt.WithMaxDelta(profile.MaxValidity, jwt.ExpirationKey, jwt.IssuedAtKey))
-		}
+	// RequiredClaims are intentionally not added here: WithMaxDelta already auto-requires its
+	// time claims, and the post-parse loop below catches both missing and empty values.
+	if profile != nil && profile.MaxValidity > 0 {
+		options = append(options, jwt.WithMaxDelta(profile.MaxValidity, jwt.ExpirationKey, jwt.IssuedAtKey))
 	}
 
 	options = append(options, jwt.WithKey(alg, key))
@@ -226,14 +223,15 @@ func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, options 
 		return token, nil
 	}
 
-	// Check required claims are non-empty (WithRequiredClaim only checks existence)
+	// Check required claims are present and non-empty.
+	// Mirrors the jwx error format ("<claim>" not satisfied: ...) so callers see one consistent style.
 	for _, claim := range profile.RequiredClaims {
 		val, ok := token.Get(claim)
 		if !ok {
-			return nil, fmt.Errorf("JWT claim '%s' not present", claim)
+			return nil, fmt.Errorf(`%q not satisfied: required claim not found`, claim)
 		}
 		if s, isStr := val.(string); isStr && s == "" {
-			return nil, fmt.Errorf("JWT claim '%s' is empty", claim)
+			return nil, fmt.Errorf(`%q not satisfied: required claim is empty`, claim)
 		}
 	}
 
