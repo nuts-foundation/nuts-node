@@ -758,6 +758,30 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.NotNil(t, tokenResponse.Scope)
 		assert.Equal(t, "urn:nuts:medication-overview patient/Observation.read", *tokenResponse.Scope)
 	})
+	t.Run("multi-scope token carries claims via AdditionalProperties", func(t *testing.T) {
+		// Tokens issued via dynamic scope policy populate InputDescriptorConstraintIdMap
+		// from the validated credentials. These claims flow through to the introspection
+		// response as AdditionalProperties, enabling PDPs/resource servers to make
+		// authorization decisions without re-processing VPs.
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Hour),
+			Scope:      "urn:nuts:medication-overview patient/Observation.read",
+			InputDescriptorConstraintIdMap: map[string]any{
+				"organization_name": "Hospital B.V.",
+				"organization_ura":  "12345678",
+			},
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("dynamic-token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "dynamic-token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.Equal(t, "urn:nuts:medication-overview patient/Observation.read", *tokenResponse.Scope)
+		assert.Equal(t, "Hospital B.V.", tokenResponse.AdditionalProperties["organization_name"])
+		assert.Equal(t, "12345678", tokenResponse.AdditionalProperties["organization_ura"])
+	})
 	t.Run("single-scope token (backwards compatibility)", func(t *testing.T) {
 		// A token issued before the multi-scope feature — only a single scope, no OtherScopes tracked.
 		token := AccessToken{
