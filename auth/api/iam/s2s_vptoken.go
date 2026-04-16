@@ -166,7 +166,11 @@ func (r Wrapper) evaluateDynamicScopes(ctx context.Context, match *policy.Creden
 	}
 	credentialMap, err := pexState.credentialMap()
 	if err != nil {
-		return "", err
+		return "", oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to extract credentials for scope evaluation",
+			InternalError: err,
+		}
 	}
 	claims, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
 	if err != nil {
@@ -191,9 +195,11 @@ func (r Wrapper) evaluateDynamicScopes(ctx context.Context, match *policy.Creden
 
 	decisions, err := evaluator.Evaluate(ctx, request)
 	if err != nil {
+		// Keep Description generic to avoid leaking PDP internals to the OAuth2 client.
+		// Details remain available in InternalError for server-side logging.
 		return "", oauth.OAuth2Error{
 			Code:          oauth.ServerError,
-			Description:   "AuthZen PDP evaluation failed: " + err.Error(),
+			Description:   "policy decision point unavailable",
 			InternalError: err,
 		}
 	}

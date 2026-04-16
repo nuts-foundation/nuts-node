@@ -23,14 +23,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	httpClient "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
-	"net/http"
 	"os"
 	"strings"
+	"time"
 )
+
+// authzenTimeout is the default timeout for AuthZen PDP requests.
+const authzenTimeout = 10 * time.Second
 
 func (sp ScopePolicy) valid() bool {
 	switch sp {
@@ -87,7 +91,8 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 			}
 		}
 	} else {
-		b.authzenClient = authzen.NewClient(b.config.AuthZen.Endpoint, http.DefaultClient)
+		// Use StrictHTTPClient: enforces TLS, bounds response body size, applies timeout.
+		b.authzenClient = authzen.NewClient(b.config.AuthZen.Endpoint, httpClient.New(authzenTimeout))
 	}
 	return nil
 }

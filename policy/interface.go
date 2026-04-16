@@ -61,7 +61,8 @@ type CredentialProfileMatch struct {
 }
 
 // AuthZenEvaluator evaluates OAuth2 scopes against an external AuthZen-compatible PDP.
-// Defined here so PDPBackend can expose it without callers importing the authzen package directly.
+// The interface allows PDPBackend implementations to provide the evaluator (or nil
+// when no endpoint is configured) without exposing concrete client types.
 type AuthZenEvaluator interface {
 	Evaluate(ctx context.Context, req authzen.EvaluationsRequest) (map[string]bool, error)
 }
