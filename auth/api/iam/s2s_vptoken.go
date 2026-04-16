@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -114,13 +115,43 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
+	// Compute granted scopes based on scope policy. Never pass through the raw input scope
+	// directly — always derive granted scopes from the policy decision.
+	grantedScope, err := grantedScopesForPolicy(match)
+	if err != nil {
+		return nil, err
+	}
+
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
+	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), grantedScope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+// grantedScopesForPolicy returns the scopes to include in the access token based on the scope policy.
+// Profile-only grants only the credential profile scope. Passthrough grants the credential profile
+// scope plus all other requested scopes. Dynamic requires PDP evaluation and is not yet handled here.
+func grantedScopesForPolicy(match *policy.CredentialProfileMatch) (string, error) {
+	switch match.ScopePolicy {
+	case policy.ScopePolicyProfileOnly:
+		return match.CredentialProfileScope, nil
+	case policy.ScopePolicyPassthrough:
+		scopes := append([]string{match.CredentialProfileScope}, match.OtherScopes...)
+		return strings.Join(scopes, " "), nil
+	case policy.ScopePolicyDynamic:
+		return "", oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: "dynamic scope policy evaluation not yet implemented",
+		}
+	default:
+		return "", oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("unsupported scope policy: %s", match.ScopePolicy),
+		}
+	}
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {
