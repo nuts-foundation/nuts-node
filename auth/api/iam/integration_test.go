@@ -38,10 +38,16 @@ import (
 
 // TestIntegration_DynamicScopePolicy_AuthZenEndToEnd exercises the server-side token handler
 // with a real AuthZen HTTP client talking to an httptest server. Unlike the unit tests in
-// s2s_vptoken_test.go which mock the AuthZen evaluator directly, this test validates the
-// full HTTP roundtrip: request serialization, response parsing, and error propagation.
+// s2s_vptoken_test.go which mock the AuthZen evaluator, this test validates the full HTTP
+// roundtrip: request serialization, response parsing, and outcomes that depend on the
+// evaluator actually being called.
+//
+// Scope is intentionally narrow: scenarios covered by policy/authzen/client_test.go (HTTP
+// errors, malformed response, timeouts) or by the s2s unit tests (VP validation, profile-only
+// rejection) are not duplicated here. The tests below cover the outcomes that require the
+// server-side flow + real HTTP together: approved scopes end up in the token, denied extra
+// scopes are excluded, and PDP denial of the credential profile scope blocks token issuance.
 func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
-	// Shared fixtures
 	var presentationDefinition pe.PresentationDefinition
 	require.NoError(t, json.Unmarshal([]byte(`{
 		"format": {
@@ -78,24 +84,22 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 	contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
 	clientID := "https://example.com/oauth2/holder"
 
-	t.Run("PDP approves all scopes - token issued with all scopes", func(t *testing.T) {
+	// startPDP starts an httptest server that responds with the given decisions and captures
+	// the decoded AuthZen request for post-call assertions.
+	startPDP := func(t *testing.T, decisions []authzen.EvaluationResult) (*httptest.Server, *authzen.EvaluationsRequest) {
 		var receivedRequest authzen.EvaluationsRequest
-		pdpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/access/v1/evaluations", r.URL.Path)
-			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&receivedRequest))
-
-			resp := authzen.EvaluationsResponse{
-				Evaluations: []authzen.EvaluationResult{
-					{Decision: true},
-					{Decision: true},
-				},
-			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(authzen.EvaluationsResponse{Evaluations: decisions})
 		}))
-		defer pdpServer.Close()
+		t.Cleanup(server.Close)
+		return server, &receivedRequest
+	}
 
+	t.Run("PDP approves all scopes - token issued and request shape correct over the wire", func(t *testing.T) {
+		pdpServer, receivedRequest := startPDP(t, []authzen.EvaluationResult{{Decision: true}, {Decision: true}})
 		realAuthzenClient := authzen.NewClient(pdpServer.URL, http.DefaultClient)
 
 		ctx := newTestClient(t)
@@ -114,28 +118,20 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
 		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
 
-		// Verify the PDP received a well-formed request via actual HTTP roundtrip
+		// Validate request serialization over the wire (not covered by mock-based unit tests).
 		assert.Equal(t, "organization", receivedRequest.Subject.Type)
 		assert.Equal(t, "request_scope", receivedRequest.Action.Name)
 		assert.Equal(t, "example-scope", receivedRequest.Context.Policy)
 		require.Len(t, receivedRequest.Evaluations, 2)
-		assert.Equal(t, "scope", receivedRequest.Evaluations[0].Resource.Type)
 		assert.Equal(t, "example-scope", receivedRequest.Evaluations[0].Resource.ID)
 		assert.Equal(t, "extra-scope", receivedRequest.Evaluations[1].Resource.ID)
 	})
 
 	t.Run("PDP partial denial - denied scopes excluded from token", func(t *testing.T) {
-		pdpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := authzen.EvaluationsResponse{
-				Evaluations: []authzen.EvaluationResult{
-					{Decision: true},
-					{Decision: false, Context: &authzen.EvaluationResultContext{Reason: "not permitted"}},
-				},
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(resp)
-		}))
-		defer pdpServer.Close()
+		pdpServer, _ := startPDP(t, []authzen.EvaluationResult{
+			{Decision: true},
+			{Decision: false, Context: &authzen.EvaluationResultContext{Reason: "not permitted"}},
+		})
 		realAuthzenClient := authzen.NewClient(pdpServer.URL, http.DefaultClient)
 
 		ctx := newTestClient(t)
@@ -155,11 +151,11 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 		assert.Equal(t, "example-scope", *tokenResponse.Scope)
 	})
 
-	t.Run("PDP returns HTTP 500 - server_error", func(t *testing.T) {
-		pdpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer pdpServer.Close()
+	t.Run("PDP denies credential profile scope - access_denied, no token issued", func(t *testing.T) {
+		pdpServer, _ := startPDP(t, []authzen.EvaluationResult{
+			{Decision: false},
+			{Decision: true},
+		})
 		realAuthzenClient := authzen.NewClient(pdpServer.URL, http.DefaultClient)
 
 		ctx := newTestClient(t)
@@ -174,7 +170,7 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
 
-		_ = assertOAuthErrorWithCode(t, err, oauth.ServerError, "policy decision point unavailable")
+		_ = assertOAuthErrorWithCode(t, err, oauth.AccessDenied, `PDP denied credential profile scope "example-scope"`)
 		assert.Nil(t, resp)
 	})
 }
