@@ -194,7 +194,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("return internal errors when secureMode=false", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = false
-			ctx.keyStore.EXPECT().SignJWT(ctx.audit, gomock.Any(), nil, gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(ctx.audit, gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext(t)
 			signToken(tokenCtx)
 
@@ -207,7 +207,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		t.Run("mask internal errors when secureMode=true", func(t *testing.T) {
 			ctx := setup(createContext(t))
 			ctx.oauthService.secureMode = true
-			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).Return("", errors.New("signing error"))
+			ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("", errors.New("signing error"))
 			tokenCtx := validContext(t)
 			signToken(tokenCtx)
 
@@ -228,7 +228,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		testCtx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		testCtx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		testCtx.keyStore.EXPECT().Exists(testCtx.audit, authorizerSigningKeyID).Return(true, nil)
-		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID).Return("expectedAccessToken", nil)
+		testCtx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), authorizerSigningKeyID).Return("expectedAccessToken", nil)
 		testCtx.verifier.EXPECT().Verify(gomock.Any(), true, true, gomock.Any()).Return(nil)
 
 		ctx := validContext(t)
@@ -250,7 +250,7 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(getAuthorizerDIDDocument(), nil, nil).AnyTimes()
 		ctx.serviceResolver.EXPECT().GetCompoundServiceEndpoint(authorizerDID, expectedService, services.OAuthEndpointType, true).Return(expectedAudience, nil)
 		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, authorizerSigningKeyID).Return("expectedAT", nil)
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), authorizerSigningKeyID).Return("expectedAT", nil)
 		ctx.contractNotary.EXPECT().VerifyVP(gomock.Any(), nil).Return(services.TestVPVerificationResult{
 			Val:         contract.Valid,
 			DAttributes: map[string]string{"name": "Henk de Vries"},
@@ -651,7 +651,7 @@ func TestService_buildAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(authorizerDID, gomock.Any(), resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKeyID, authorizerSigningKey, nil)
 
 		var actualClaims map[string]interface{}
-		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, gomock.Any()).
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, inputClaims map[string]interface{}, headers map[string]interface{}, kid string) (token string, err error) {
 				actualClaims = inputClaims
 				return "expectedAT", nil
@@ -688,12 +688,12 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("validate access token", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
 
-		// First build an access token
+		// First build an access token (signed by authorizer's key, matching iss)
 		tokenCtx := validAccessToken()
-		signToken(tokenCtx)
+		signAccessToken(tokenCtx)
 
 		// Then validate it
 		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
@@ -704,20 +704,21 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		assert.Equal(t, tokenCtx.jwtBearerToken.Issuer(), claims.Issuer)
 		assert.Equal(t, tokenCtx.jwtBearerToken.IssuedAt().Unix(), claims.IssuedAt)
 		assert.Equal(t, tokenCtx.jwtBearerToken.Expiration().Unix(), claims.Expiration)
+		assert.Equal(t, expectedService, claims.Service)
 	})
 
 	t.Run("invalid signature", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
 
-		// First build an access token
+		// Build a token with correct claims and kid, but sign with a different key
 		tokenCtx := validAccessToken()
-		signingKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		signTokenWithKey(tokenCtx, signingKey)
+		wrongKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		signTokenWithKeyAndHeaders(tokenCtx, wrongKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
 
-		// Then validate it
+		// Signature verification should fail
 		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 
 		require.EqualError(t, err, "could not verify message using any of the signatures or keys")
@@ -727,13 +728,11 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("private key not present", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(false, nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(false, nil)
 
-		// First build an access token
-		tokenCtx := validContext(t)
-		signToken(tokenCtx)
+		tokenCtx := validAccessToken()
+		signAccessToken(tokenCtx)
 
-		// Then validate it
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 		assert.Error(t, err)
 	})
@@ -741,16 +740,126 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 	t.Run("key not present on DID", func(t *testing.T) {
 		ctx := createContext(t)
 
-		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
-		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(nil, resolver.ErrNotFound)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(nil, resolver.ErrNotFound)
 
-		// First build an access token
-		tokenCtx := validContext(t)
-		signToken(tokenCtx)
+		tokenCtx := validAccessToken()
+		signAccessToken(tokenCtx)
 
-		// Then validate it
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 		assert.Error(t, err)
+	})
+
+	t.Run("rejects JWT with wrong typ header", func(t *testing.T) {
+		ctx := createContext(t)
+
+		// JWT library defaults typ to "JWT" when not explicitly set.
+		// Both explicit typ:"JWT" and default typ:"JWT" must be rejected.
+		tokenCtx := validAccessToken()
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "JWT"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.EqualError(t, err, "invalid access token typ header (expected 'at+jwt', got 'JWT')")
+	})
+
+	t.Run("rejects VP JWT replayed as access token", func(t *testing.T) {
+		ctx := createContext(t)
+
+		// Construct a VP JWT: typ=JWT, sub set, vp claim present, no iss or service
+		vpClaims := map[string]interface{}{
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.JwtIDKey:      requesterDID.String() + "#vp-id",
+			jwt.NotBeforeKey:  time.Now().Unix(),
+			jwt.ExpirationKey: time.Now().Add(5 * time.Minute).Unix(),
+			"vp": map[string]interface{}{
+				"@context":             []string{"https://www.w3.org/2018/credentials/v1"},
+				"type":                 []string{"VerifiablePresentation"},
+				"verifiableCredential": []interface{}{},
+			},
+		}
+		token := jwt.New()
+		for k, v := range vpClaims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token, kid: requesterSigningKeyID}
+		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "JWT"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.EqualError(t, err, "invalid access token typ header (expected 'at+jwt', got 'JWT')")
+	})
+
+	t.Run("rejects token with missing service claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+
+		// Valid AT structure but without the service claim
+		claims := map[string]interface{}{
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.IssuedAtKey:   time.Now().UTC(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token, kid: requesterSigningKeyID}
+		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.EqualError(t, err, "missing required 'service' claim in access token")
+	})
+
+	t.Run("rejects token with missing iss claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+
+		// AT with service but no issuer
+		claims := map[string]interface{}{
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.IssuedAtKey:   time.Now().UTC(),
+			jwt.SubjectKey:    requesterDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token, kid: requesterSigningKeyID}
+		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.EqualError(t, err, "missing required 'iss' claim in access token")
+	})
+
+	t.Run("rejects token with iss/kid DID mismatch", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, requesterSigningKeyID).Return(true, nil)
+
+		// iss is authorizerDID but kid belongs to requesterDID — DID mismatch
+		claims := map[string]interface{}{
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.IssuedAtKey:   time.Now().UTC(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token, kid: requesterSigningKeyID}
+		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "access token issuer")
+		assert.ErrorContains(t, err, "does not match signing key DID")
 	})
 }
 
@@ -811,6 +920,7 @@ func validAccessToken() *validationContext {
 		jwt.NotBeforeKey:  0,
 		jwt.IssuerKey:     authorizerDID.String(),
 		userIdentityClaim: usi,
+		"service":         expectedService,
 		vcClaim:           []string{"credential"},
 	}
 	token := jwt.New()
@@ -827,14 +937,26 @@ func validAccessToken() *validationContext {
 }
 
 func signToken(context *validationContext) {
-	signTokenWithKey(context, requesterSigningKey)
+	signTokenWithKeyAndHeaders(context, requesterSigningKey, requesterSigningKeyID, nil)
+}
+
+func signAccessToken(context *validationContext) {
+	signTokenWithKeyAndHeaders(context, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
 }
 
 func signTokenWithKey(context *validationContext, key *ecdsa.PrivateKey) {
+	signTokenWithKeyAndHeaders(context, key, requesterSigningKeyID, nil)
+}
+
+func signTokenWithKeyAndHeaders(context *validationContext, key *ecdsa.PrivateKey, kid string, extraHeaders map[string]interface{}) {
 	hdrs := jws.NewHeaders()
-	err := hdrs.Set(jws.KeyIDKey, requesterSigningKeyID)
-	if err != nil {
+	if err := hdrs.Set(jws.KeyIDKey, kid); err != nil {
 		panic(err)
+	}
+	for k, v := range extraHeaders {
+		if err := hdrs.Set(k, v); err != nil {
+			panic(err)
+		}
 	}
 	signedToken, err := jwt.Sign(context.jwtBearerToken, jwt.WithKey(jwa.ES256, key, jws.WithProtectedHeaders(hdrs)))
 	if err != nil {
