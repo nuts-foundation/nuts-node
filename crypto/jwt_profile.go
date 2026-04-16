@@ -41,6 +41,14 @@ type JWTProfile struct {
 	Validators []JWTValidator
 }
 
+// WithMaxValidity returns a copy of the profile with the given MaxValidity.
+// Useful for callers that need to override the default max validity from a
+// shared base profile (e.g. to honor a configured access token lifespan).
+func (p JWTProfile) WithMaxValidity(d time.Duration) *JWTProfile {
+	p.MaxValidity = d
+	return &p
+}
+
 // IssuerKidValidator checks that the iss claim matches the DID extracted from the kid header.
 // When kid is empty, the check is skipped (VC data model v1 compatibility).
 func IssuerKidValidator(token jwt.Token, headers map[string]interface{}) error {

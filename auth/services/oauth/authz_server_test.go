@@ -932,6 +932,50 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		assert.ErrorContains(t, err, "between exp and iat exceeds 1m0s")
 	})
 
+	t.Run("max declared lifetime tracks configured accessTokenLifeSpan (non-strict mode)", func(t *testing.T) {
+		// In non-strict mode, operators may configure a longer AT lifespan than 60s.
+		// Introspection must accept tokens whose declared exp-iat is within that
+		// configured cap, and reject those exceeding it. Regression test for the
+		// inconsistency where introspection used a hardcoded 60s while issuance
+		// used the configured value (so an operator with accesstokenlifespan=300
+		// would issue 5-minute tokens that introspect would reject).
+		buildToken := func(declaredLifetime time.Duration) string {
+			now := time.Now()
+			tokenCtx := &validationContext{jwtBearerToken: jwt.New()}
+			for k, v := range map[string]interface{}{
+				jwt.IssuedAtKey:   now.Unix(),
+				jwt.ExpirationKey: now.Add(declaredLifetime).Unix(),
+				jwt.SubjectKey:    requesterDID.String(),
+				jwt.IssuerKey:     authorizerDID.String(),
+				"service":         expectedService,
+			} {
+				_ = tokenCtx.jwtBearerToken.Set(k, v)
+			}
+			signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+			return tokenCtx.rawJwtBearerToken
+		}
+
+		t.Run("accepts a token within the configured cap (would be rejected by the old 60s hardcoded cap)", func(t *testing.T) {
+			ctx := createContext(t)
+			ctx.oauthService.accessTokenLifeSpan = 5 * time.Minute
+			ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+			_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, buildToken(5*time.Minute))
+			assert.NoError(t, err)
+		})
+
+		t.Run("rejects a token exceeding the configured cap", func(t *testing.T) {
+			ctx := createContext(t)
+			ctx.oauthService.accessTokenLifeSpan = 5 * time.Minute
+			ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+			_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, buildToken(6*time.Minute))
+			assert.ErrorContains(t, err, "between exp and iat exceeds 5m0s")
+		})
+	})
+
 	t.Run("rejects expired token", func(t *testing.T) {
 		ctx := createContext(t)
 
@@ -1094,13 +1138,14 @@ var createContext = func(t *testing.T) *testContext {
 		verifier:        verifier,
 		didResolver:     didResolver,
 		oauthService: &authzServer{
-			keyResolver:     keyResolver,
-			contractNotary:  contractNotaryMock,
-			privateKeyStore: privateKeyStore,
-			vcFinder:        nameResolver,
-			serviceResolver: serviceResolver,
-			vcVerifier:      verifier,
-			jsonldManager:   jsonld.NewTestJSONLDManager(t),
+			keyResolver:         keyResolver,
+			contractNotary:      contractNotaryMock,
+			privateKeyStore:     privateKeyStore,
+			vcFinder:            nameResolver,
+			serviceResolver:     serviceResolver,
+			vcVerifier:          verifier,
+			jsonldManager:       jsonld.NewTestJSONLDManager(t),
+			accessTokenLifeSpan: secureAccessTokenLifeSpan,
 		},
 		audit: audit.TestContext(),
 	}

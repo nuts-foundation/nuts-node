@@ -171,6 +171,7 @@ func NewAuthorizationServer(
 const BearerTokenMaxValidity = 5
 
 // v1AccessTokenProfile defines JWT validation rules for v1 access tokens.
+// The "service" claim holds the RFC003 purposeOfUse (see buildAccessToken).
 var v1AccessTokenProfile = &nutsCrypto.JWTProfile{
 	Typ:            "at+jwt",
 	RequiredClaims: []string{jwt.ExpirationKey, jwt.IssuedAtKey, jwt.IssuerKey, jwt.SubjectKey, "service"},
@@ -509,7 +510,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, v1AccessTokenProfile, jwt.WithAcceptableSkew(s.clockSkew))
+	}, v1AccessTokenProfile.WithMaxValidity(s.accessTokenLifeSpan), jwt.WithAcceptableSkew(s.clockSkew))
 	if err != nil {
 		return nil, err
 	}
