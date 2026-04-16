@@ -144,7 +144,8 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 
 		tokenCtx := validContext(t)
-		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(10*time.Second))
+		// exp - iat must exceed max + DefaultJWTClockSkew (5s + 5s) to trip the guard.
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(20*time.Second))
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})

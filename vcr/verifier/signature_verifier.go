@@ -156,12 +156,7 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 			return nil, fmt.Errorf("unable to resolve signing key: %w", err)
 		}
 		return key, err
-	}, profile, jwt.WithClock(jwt.ClockFunc(func() time.Time {
-		if at == nil {
-			return time.Now()
-		}
-		return *at
-	})))
+	}, profile, at)
 	if err != nil {
 		return newVerificationError("unable to validate JWT signature: %w", err)
 	}

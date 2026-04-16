@@ -179,7 +179,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 		signerKid = kid
 		publicKey, err = j.keyResolver.ResolveKeyByID(kid, nil, resolver.AssertionMethod)
 		return publicKey, err
-	}, jarProfile)
+	}, jarProfile, nil)
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}

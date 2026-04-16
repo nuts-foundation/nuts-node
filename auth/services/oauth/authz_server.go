@@ -490,7 +490,7 @@ func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext)
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
 		context.kid = kid
 		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, v1BearerTokenProfile, jwt.WithAcceptableSkew(s.clockSkew))
+	}, v1BearerTokenProfile.WithClockSkew(s.clockSkew), nil)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, v1AccessTokenProfile.WithMaxValidity(s.accessTokenLifeSpan), jwt.WithAcceptableSkew(s.clockSkew))
+	}, v1AccessTokenProfile.WithMaxValidity(s.accessTokenLifeSpan).WithClockSkew(s.clockSkew), nil)
 	if err != nil {
 		return nil, err
 	}

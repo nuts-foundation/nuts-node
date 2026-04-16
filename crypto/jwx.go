@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
@@ -171,7 +172,9 @@ type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
 // ParseJWT parses a token, validates and verifies it.
 // When profile is non-nil, it applies the profile's validation rules (typ header, required claims,
 // max validity, and custom validators) after signature verification.
-func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, options ...jwt.ParseOption) (jwt.Token, error) {
+// When at is non-nil, validation uses that time instead of time.Now() (for historical verification
+// of e.g. VC/VP signatures).
+func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, at *time.Time) (jwt.Token, error) {
 	var headers map[string]interface{}
 	if profile != nil {
 		var err error
@@ -202,13 +205,26 @@ func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, options 
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
-	// Build validate options from profile and append to parse options.
+	// Build validate options from profile.
 	// ValidateOption implements ParseOption in jwx, so jwt.ParseString applies them during its
-	// internal validation pass alongside the default exp/nbf/iat checks and the caller's skew.
+	// internal validation pass alongside the default exp/nbf/iat checks.
 	// RequiredClaims are intentionally not added here: WithMaxDelta already auto-requires its
 	// time claims, and the post-parse loop below catches both missing and empty values.
+	var options []jwt.ParseOption
 	if profile != nil && profile.MaxValidity > 0 {
 		options = append(options, jwt.WithMaxDelta(profile.MaxValidity, jwt.ExpirationKey, jwt.IssuedAtKey))
+	}
+	// Apply clock skew: profile override if set, otherwise DefaultJWTClockSkew.
+	skew := DefaultJWTClockSkew
+	if profile != nil && profile.ClockSkew > 0 {
+		skew = profile.ClockSkew
+	}
+	options = append(options, jwt.WithAcceptableSkew(skew))
+	// Historical verification: fix the clock to `at` if provided (e.g., verifying a VC at the
+	// time it was issued). When nil, jwx defaults to time.Now().
+	if at != nil {
+		fixedTime := *at
+		options = append(options, jwt.WithClock(jwt.ClockFunc(func() time.Time { return fixedTime })))
 	}
 
 	options = append(options, jwt.WithKey(alg, key))

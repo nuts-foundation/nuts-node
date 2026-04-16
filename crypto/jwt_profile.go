@@ -29,6 +29,12 @@ import (
 // It receives the token and its protected headers.
 type JWTValidator func(token jwt.Token, headers map[string]interface{}) error
 
+// DefaultJWTClockSkew is the baseline clock skew tolerance applied during JWT validation
+// when a profile does not specify its own. It guards against small clock drift between
+// issuer and verifier; production deployments with a known wider drift should override
+// via JWTProfile.ClockSkew (typically set from a configured value, e.g. auth.clockskew).
+const DefaultJWTClockSkew = 5 * time.Second
+
 // JWTProfile defines the validation requirements for a specific type of JWT.
 type JWTProfile struct {
 	// Typ is the required value of the JWT typ header. Empty means no check.
@@ -37,6 +43,9 @@ type JWTProfile struct {
 	RequiredClaims []string
 	// MaxValidity is the maximum allowed duration between exp and iat. Zero means no check.
 	MaxValidity time.Duration
+	// ClockSkew is the acceptable clock skew for time-based claims (exp, iat, nbf).
+	// Zero means DefaultJWTClockSkew is used.
+	ClockSkew time.Duration
 	// Validators are additional checks run after parsing and standard validation.
 	Validators []JWTValidator
 }
@@ -46,6 +55,14 @@ type JWTProfile struct {
 // shared base profile (e.g. to honor a configured access token lifespan).
 func (p JWTProfile) WithMaxValidity(d time.Duration) *JWTProfile {
 	p.MaxValidity = d
+	return &p
+}
+
+// WithClockSkew returns a copy of the profile with the given ClockSkew.
+// Callers that receive an operator-configured skew (e.g. auth.clockskew) use this
+// to override the profile's default without mutating the shared base profile.
+func (p JWTProfile) WithClockSkew(d time.Duration) *JWTProfile {
+	p.ClockSkew = d
 	return &p
 }
 
