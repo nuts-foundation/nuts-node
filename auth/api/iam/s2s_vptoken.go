@@ -73,11 +73,11 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 			return nil, err
 		}
 	}
-	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, scope)
+	match, err := r.findCredentialProfile(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
-	pexConsumer := newPEXConsumer(walletOwnerMapping)
+	pexConsumer := newPEXConsumer(match.WalletOwnerMapping)
 	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
