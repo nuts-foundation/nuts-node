@@ -726,6 +726,54 @@ func TestWrapper_IntrospectAccessToken(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "Doe", tokenResponse.AdditionalProperties["family_name"])
 	})
+	t.Run("multi-scope token returns space-delimited scope", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Hour),
+			Scope:      "urn:nuts:medication-overview patient/Observation.read launch/patient",
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("multi-scope-token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "multi-scope-token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, tokenResponse.Active)
+		require.NotNil(t, tokenResponse.Scope)
+		assert.Equal(t, "urn:nuts:medication-overview patient/Observation.read launch/patient", *tokenResponse.Scope)
+	})
+	t.Run("multi-scope token via extended introspection returns space-delimited scope", func(t *testing.T) {
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Hour),
+			Scope:      "urn:nuts:medication-overview patient/Observation.read",
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("multi-scope-ext-token", token))
+
+		res, err := ctx.client.IntrospectAccessTokenExtended(reqCtx, IntrospectAccessTokenExtendedRequestObject{Body: &TokenIntrospectionRequest{Token: "multi-scope-ext-token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessTokenExtended200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, tokenResponse.Active)
+		require.NotNil(t, tokenResponse.Scope)
+		assert.Equal(t, "urn:nuts:medication-overview patient/Observation.read", *tokenResponse.Scope)
+	})
+	t.Run("single-scope token (backwards compatibility)", func(t *testing.T) {
+		// A token issued before the multi-scope feature — only a single scope, no OtherScopes tracked.
+		token := AccessToken{
+			Expiration: time.Now().Add(time.Hour),
+			Scope:      "legacy-single-scope",
+		}
+		require.NoError(t, ctx.client.accessTokenServerStore().Put("legacy-token", token))
+
+		res, err := ctx.client.IntrospectAccessToken(reqCtx, IntrospectAccessTokenRequestObject{Body: &TokenIntrospectionRequest{Token: "legacy-token"}})
+
+		require.NoError(t, err)
+		tokenResponse, ok := res.(IntrospectAccessToken200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, tokenResponse.Active)
+		assert.Equal(t, "legacy-single-scope", *tokenResponse.Scope)
+	})
 	t.Run("InputDescriptorConstraintIdMap contains reserved claim", func(t *testing.T) {
 		token := AccessToken{
 			Expiration: time.Now().Add(time.Second),
