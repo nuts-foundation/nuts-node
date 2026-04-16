@@ -35,6 +35,11 @@ services:
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root
       VAULT_ADDR: http://127.0.0.1:8200
+      # Skip setcap on the vault binary at container startup. Some CI runners
+      # don't grant CAP_SETFCAP, which causes vault's entrypoint to fail with
+      # "unable to set CAP_SETFCAP effective capability: Operation not permitted".
+      # mlock isn't required for dev mode.
+      SKIP_SETCAP: "true"
     healthcheck:
       # vault CLI returns exit 0 when the API is reachable and vault is unsealed
       # (dev mode is always unsealed), exit 1/2 otherwise.
