@@ -413,6 +413,28 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
 		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
 	})
+	t.Run("dynamic scope policy - PDP approves all scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyDynamic,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
+		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(map[string]bool{
+			"example-scope": true,
+			"extra-scope":   true,
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		require.NoError(t, err)
+		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
+		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
+	})
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
