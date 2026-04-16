@@ -21,6 +21,7 @@ package policy
 import (
 	"context"
 	"errors"
+	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -59,6 +60,12 @@ type CredentialProfileMatch struct {
 	OtherScopes []string
 }
 
+// AuthZenEvaluator evaluates OAuth2 scopes against an external AuthZen-compatible PDP.
+// Defined here so PDPBackend can expose it without callers importing the authzen package directly.
+type AuthZenEvaluator interface {
+	Evaluate(ctx context.Context, req authzen.EvaluationsRequest) (map[string]bool, error)
+}
+
 // PDPBackend is the interface for the policy backend.
 // Both the remote and local policy backend implement this interface.
 type PDPBackend interface {
@@ -66,4 +73,7 @@ type PDPBackend interface {
 	// It parses the space-delimited scope string, identifies exactly one credential profile scope,
 	// and returns the matched profile along with any remaining scopes.
 	FindCredentialProfile(ctx context.Context, scope string) (*CredentialProfileMatch, error)
+	// AuthZenEvaluator returns the configured AuthZen evaluator for dynamic scope policy evaluation.
+	// Returns nil when no AuthZen endpoint is configured.
+	AuthZenEvaluator() AuthZenEvaluator
 }

@@ -23,9 +23,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -52,6 +54,9 @@ type LocalPDP struct {
 	config Config
 	// mapping holds the credential profile configuration per scope
 	mapping map[string]credentialProfileConfig
+	// authzenClient is created during Configure when an AuthZen endpoint is configured.
+	// It is nil when no endpoint is configured.
+	authzenClient AuthZenEvaluator
 }
 
 func (b *LocalPDP) Name() string {
@@ -81,8 +86,15 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 				return fmt.Errorf("credential profile %q has scope_policy %q but no AuthZen endpoint is configured (policy.authzen.endpoint)", scope, ScopePolicyDynamic)
 			}
 		}
+	} else {
+		b.authzenClient = authzen.NewClient(b.config.AuthZen.Endpoint, http.DefaultClient)
 	}
 	return nil
+}
+
+// AuthZenEvaluator returns the AuthZen evaluator, or nil when no endpoint is configured.
+func (b *LocalPDP) AuthZenEvaluator() AuthZenEvaluator {
+	return b.authzenClient
 }
 
 func (b *LocalPDP) Config() interface{} {
