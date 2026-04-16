@@ -44,9 +44,11 @@ import (
 )
 
 // openID4VCIProofProfile defines JWT validation rules for OpenID4VCI proof JWTs.
+// aud must equal the credential issuer identifier (see the spec §7.2.1); the post-parse
+// check against i.issuerIdentifierURL still runs to compare the actual value.
 var openID4VCIProofProfile = &crypto.JWTProfile{
 	Typ:            openid4vci.JWTTypeOpenID4VCIProof,
-	RequiredClaims: []string{jwt.IssuedAtKey},
+	RequiredClaims: []string{jwt.IssuedAtKey, jwt.AudienceKey},
 }
 
 // Flow is an active OpenID4VCI credential issuance flow.

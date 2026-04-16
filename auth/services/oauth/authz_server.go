@@ -180,8 +180,10 @@ var v1AccessTokenProfile = &nutsCrypto.JWTProfile{
 }
 
 // v1BearerTokenProfile defines JWT validation rules for v1 JWT bearer tokens (RFC003 §5.2.1).
+// aud is set by the builder (claimsFromRequest) to the authorization server endpoint and must
+// be present; the actual endpoint comparison still runs in validateAudience post-parse.
 var v1BearerTokenProfile = &nutsCrypto.JWTProfile{
-	RequiredClaims: []string{jwt.ExpirationKey, jwt.IssuedAtKey, jwt.IssuerKey, jwt.SubjectKey},
+	RequiredClaims: []string{jwt.ExpirationKey, jwt.IssuedAtKey, jwt.IssuerKey, jwt.SubjectKey, jwt.AudienceKey},
 	MaxValidity:    BearerTokenMaxValidity * time.Second,
 }
 
