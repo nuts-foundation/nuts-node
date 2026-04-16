@@ -9,6 +9,9 @@ services:
       - "./nuts.yaml:/opt/nuts/nuts.yaml:ro"
       - "../../tls-certs/nodeA-certificate.pem:/opt/nuts/certificate-and-key.pem:ro"
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
+    depends_on:
+      vault-adapter:
+        condition: service_healthy
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
   vault-adapter:
@@ -16,9 +19,31 @@ services:
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: root
+    depends_on:
+      vault:
+        condition: service_healthy
+    healthcheck:
+      # The image already defines a HEALTHCHECK using curl against /health.
+      # Override only the interval to make the e2e test start faster.
+      interval: 1s
+      timeout: 2s
+      retries: 30
   vault:
     image: hashicorp/vault
     cap_add:
       - IPC_LOCK
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_ADDR: http://127.0.0.1:8200
+      # Skip setcap on the vault binary at container startup. Some CI runners
+      # don't grant CAP_SETFCAP, which causes vault's entrypoint to fail with
+      # "unable to set CAP_SETFCAP effective capability: Operation not permitted".
+      # mlock isn't required for dev mode.
+      SKIP_SETCAP: "true"
+    healthcheck:
+      # vault CLI returns exit 0 when the API is reachable and vault is unsealed
+      # (dev mode is always unsealed), exit 1/2 otherwise.
+      test: ["CMD", "vault", "status"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
