@@ -396,6 +396,23 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidScope, "scope policy 'profile-only' does not allow additional scopes")
 		assert.Nil(t, resp)
 	})
+	t.Run("passthrough scope policy grants all requested scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyPassthrough,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		require.NoError(t, err)
+		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
+		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
+	})
 }
 
 func TestWrapper_createAccessToken(t *testing.T) {
