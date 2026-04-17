@@ -10,6 +10,16 @@ Unreleased
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 
 ****************
+Peanut (v6.2.4)
+****************
+
+Release date: 2026-04-16
+
+- Fix node failing to start when syncing many transactions on a slow disk (e.g. SMB/Azure Files): concurrent read transactions were incorrectly blocked by pending write transactions at the Go level, causing read lock timeouts during startup. See `#4162 <https://github.com/nuts-foundation/nuts-node/issues/4162>`_.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.3...v6.2.4
+
+****************
 Peanut (v6.2.3)
 ****************
 
