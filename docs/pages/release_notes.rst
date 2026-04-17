@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.32)
+*************************
+
+Release date: 2026-04-17
+
+- Backport compound leia index ``index_auth_subject_purpose_resources`` on ``credentialSubject.id`` + ``purposeOfUse`` + ``resources.path`` (see `#3562 <https://github.com/nuts-foundation/nuts-node/pull/3562>`_). Fixes slow ``POST /internal/vcr/v2/search`` queries against ``NutsAuthorizationCredential`` where large issuers previously forced go-leia to fall back to ``index_issuer`` and scan every VC issued by the requesting care organization.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.31...v5.4.32
+
+*************************
 Hazelnut update (v5.4.31)
 *************************
 
