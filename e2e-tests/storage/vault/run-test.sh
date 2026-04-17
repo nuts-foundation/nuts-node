@@ -11,7 +11,8 @@ docker compose rm -f -v
 echo "------------------------------------"
 echo "Setting up Vault..."
 echo "------------------------------------"
-docker compose up --wait vault && sleep 2
+# Wait for vault-adapter to become healthy; this transitively waits for vault to be reachable.
+docker compose up --wait vault-adapter
 docker compose exec -e VAULT_TOKEN=root vault vault secrets enable -version=1 -address=http://localhost:8200 kv
 
 echo "------------------------------------"
