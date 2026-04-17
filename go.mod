@@ -2,7 +2,7 @@ module github.com/nuts-foundation/nuts-node
 
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action
-go 1.26.1
+go 1.26.2
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
@@ -26,10 +26,10 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/mdp/qrterminal/v3 v3.2.1
-	github.com/mr-tron/base58 v1.2.0
+	github.com/mr-tron/base58 v1.3.0
 	github.com/multiformats/go-multicodec v0.10.0
-	github.com/nats-io/nats-server/v2 v2.12.6
-	github.com/nats-io/nats.go v1.50.0
+	github.com/nats-io/nats-server/v2 v2.12.7
+	github.com/nats-io/nats.go v1.51.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
 	github.com/nuts-foundation/go-did v0.18.1
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
@@ -194,7 +194,7 @@ require (
 	gorm.io/gorm v1.31.1
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.48.1
+	modernc.org/sqlite v1.48.2
 	rsc.io/qr v0.2.0 // indirect
 )
 
