@@ -216,6 +216,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+	oauth.SetSpanAttributes(ctx, request)
 	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
@@ -478,6 +479,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+	oauth.SetSpanAttributes(ctx, httpRequest.URL.Query())
 	return r.handleAuthorizeRequest(ctx, request.SubjectID, *metadata, *httpRequest.URL)
 }
 
