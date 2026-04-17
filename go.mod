@@ -36,7 +36,7 @@ require (
 	github.com/nuts-foundation/go-stoabs v1.11.1
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
-	github.com/oapi-codegen/runtime v1.3.1
+	github.com/oapi-codegen/runtime v1.4.0
 	github.com/piprate/json-gold v0.8.0
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/privacybydesign/irmago v0.19.2
