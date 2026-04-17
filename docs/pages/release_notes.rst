@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.5)
+****************
+
+Release date: 2026-04-16
+
+- Update Alpine base image to 3.23.4 to pick up musl, OpenSSL and zlib security fixes.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.4...v6.2.5
+
+****************
 Peanut (v6.2.4)
 ****************
 
