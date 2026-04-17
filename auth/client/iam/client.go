@@ -169,6 +169,7 @@ func (hb HTTPClient) RequestObjectByPost(ctx context.Context, requestURI string,
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values, dpopHeader string) (oauth.TokenResponse, error) {
+	oauth.SetSpanAttributes(ctx, data)
 	var token oauth.TokenResponse
 	tokenURL, err := url.Parse(tokenEndpoint)
 	if err != nil {

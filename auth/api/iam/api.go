@@ -60,8 +60,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -216,38 +214,9 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 	})
 }
 
-// setOAuth2SpanAttributes enriches the current OTEL span with non-sensitive OAuth2 request
-// parameters so traces and logs can be filtered by them. request may be either a value that
-// implements spanAttributer (typically a generated request object) or a url.Values (used by
-// handlers whose request object does not surface the OAuth2 parameters directly, like the
-// authorize endpoint). No-op if ctx has no valid span or request is neither of those.
-func setOAuth2SpanAttributes(ctx context.Context, request any) {
-	var attrs []attribute.KeyValue
-	switch v := request.(type) {
-	case interface{ SpanAttributes() []attribute.KeyValue }:
-		attrs = v.SpanAttributes()
-	case url.Values:
-		for _, name := range oauth2SpanAttributeParams {
-			if value := v.Get(name); value != "" {
-				attrs = append(attrs, attribute.String("oauth."+name, value))
-			}
-		}
-	default:
-		return
-	}
-	if len(attrs) == 0 {
-		return
-	}
-	span := oteltrace.SpanFromContext(ctx)
-	if !span.SpanContext().IsValid() {
-		return
-	}
-	span.SetAttributes(attrs...)
-}
-
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
-	setOAuth2SpanAttributes(ctx, request)
+	oauth.SetSpanAttributes(ctx, request)
 	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
@@ -510,7 +479,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
-	setOAuth2SpanAttributes(ctx, httpRequest.URL.Query())
+	oauth.SetSpanAttributes(ctx, httpRequest.URL.Query())
 	return r.handleAuthorizeRequest(ctx, request.SubjectID, *metadata, *httpRequest.URL)
 }
 

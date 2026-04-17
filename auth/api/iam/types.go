@@ -85,16 +85,6 @@ const (
 	AccessTokenTypeDPoP   = "DPoP"
 )
 
-// oauth2SpanAttributeParams is the allowlist of OAuth2 request parameters extracted from
-// url.Values by oauth2SpanAttributesFromQuery. Sensitive parameters (credentials, assertions,
-// codes, code_verifiers, redirect_uri) are deliberately excluded.
-var oauth2SpanAttributeParams = []string{
-	"grant_type",
-	"client_id",
-	"scope",
-	"response_type",
-}
-
 // SpanAttributes returns the non-sensitive OAuth2 parameters from this token request as OTEL
 // attributes. Sensitive fields (assertions, client_assertion, code, code_verifier) are
 // deliberately excluded.

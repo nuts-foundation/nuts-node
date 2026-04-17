@@ -438,7 +438,7 @@ func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oa
 }
 
 func (r Wrapper) HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
-	setOAuth2SpanAttributes(ctx, request)
+	oauth.SetSpanAttributes(ctx, request)
 	// this can be an error post or a submission. We check for the presence of the error parameter.
 	if request.Body.Error != nil {
 		return r.handleAuthorizeResponseError(ctx, request)
