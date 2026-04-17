@@ -38,6 +38,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -169,6 +170,10 @@ func (hb HTTPClient) RequestObjectByPost(ctx context.Context, requestURI string,
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values, dpopHeader string) (oauth.TokenResponse, error) {
+	// Start a dedicated span so oauth.* attributes land on the outbound token request, not the
+	// parent handler span (or no span at all). otelhttp will create the HTTP span as a child.
+	ctx, span := tracing.GetTracerProvider().Tracer("auth/client/iam").Start(ctx, "OAuth2 token request")
+	defer span.End()
 	oauth.SetSpanAttributes(ctx, data)
 	var token oauth.TokenResponse
 	tokenURL, err := url.Parse(tokenEndpoint)
