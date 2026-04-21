@@ -72,7 +72,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectMa
 		httpClient:  client.NewWithCache(httpClientTimeout),
 		keyResolver: keyResolver,
 	}
-	return &OpenID4VPClient{
+	client := &OpenID4VPClient{
 		httpClient:       httpClient,
 		keyResolver:      keyResolver,
 		jwtSigner:        jwtSigner,
@@ -80,12 +80,12 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectMa
 		subjectManager:   subjectManager,
 		strictMode:       strictMode,
 		wallet:           wallet,
-		pdResolver: PresentationDefinitionResolver{
-			httpClient:    httpClient,
-			policyBackend: policyBackend,
-			strictMode:    strictMode,
-		},
 	}
+	client.pdResolver = PresentationDefinitionResolver{
+		pdFetcher:     client,
+		policyBackend: policyBackend,
+	}
+	return client
 }
 
 func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {

@@ -21,9 +21,9 @@ package iam
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -38,12 +38,16 @@ type ResolvedPresentationDefinition struct {
 	Scope string
 }
 
+// pdFetcher retrieves a PresentationDefinition from a fully-formed endpoint URL.
+type pdFetcher interface {
+	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
+}
+
 // PresentationDefinitionResolver resolves a PresentationDefinition for a given scope string.
 // It uses the remote AS's PD endpoint when available, falling back to local policy resolution.
 type PresentationDefinitionResolver struct {
-	httpClient    HTTPClient
+	pdFetcher     pdFetcher
 	policyBackend policy.PDPBackend
-	strictMode    bool
 }
 
 // Resolve resolves a PresentationDefinition for the given scope string.
@@ -58,14 +62,12 @@ func (r *PresentationDefinitionResolver) Resolve(ctx context.Context, scope stri
 }
 
 func (r *PresentationDefinitionResolver) resolveRemote(ctx context.Context, scope string, metadata oauth.AuthorizationServerMetadata) (*ResolvedPresentationDefinition, error) {
-	parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, r.strictMode)
+	baseURL, err := url.Parse(metadata.PresentationDefinitionEndpoint)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid presentation definition endpoint: %w", err)
 	}
-	pdURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-		"scope": scope,
-	})
-	pd, err := r.httpClient.PresentationDefinition(ctx, pdURL)
+	pdURL := nutsHttp.AddQueryParams(*baseURL, map[string]string{"scope": scope})
+	pd, err := r.pdFetcher.PresentationDefinition(ctx, pdURL.String())
 	if err != nil {
 		return nil, err
 	}

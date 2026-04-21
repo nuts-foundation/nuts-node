@@ -20,20 +20,27 @@ package iam
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"testing"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
+
+type fakePDFetcher struct {
+	lastEndpoint string
+	pd           *pe.PresentationDefinition
+	err          error
+}
+
+func (f *fakePDFetcher) PresentationDefinition(_ context.Context, endpoint string) (*pe.PresentationDefinition, error) {
+	f.lastEndpoint = endpoint
+	return f.pd, f.err
+}
 
 var testPD = pe.PresentationDefinition{
 	Id: "test-pd",
@@ -44,22 +51,10 @@ var testPD = pe.PresentationDefinition{
 
 func TestPresentationDefinitionResolver_Resolve(t *testing.T) {
 	t.Run("remote PD endpoint exists - fetches from remote and returns full scope", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/presentation_definition", r.URL.Path)
-			assert.Equal(t, "profile-scope extra-scope", r.URL.Query().Get("scope"))
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(testPD)
-		}))
-		defer server.Close()
-
-		resolver := &PresentationDefinitionResolver{
-			httpClient: HTTPClient{
-				strictMode: false,
-				httpClient: client.New(10 * time.Second),
-			},
-		}
+		fetcher := &fakePDFetcher{pd: &testPD}
+		resolver := &PresentationDefinitionResolver{pdFetcher: fetcher}
 		metadata := oauth.AuthorizationServerMetadata{
-			PresentationDefinitionEndpoint: server.URL + "/presentation_definition",
+			PresentationDefinitionEndpoint: "https://as.example.com/presentation_definition",
 		}
 
 		result, err := resolver.Resolve(context.Background(), "profile-scope extra-scope", metadata)
@@ -67,6 +62,7 @@ func TestPresentationDefinitionResolver_Resolve(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "test-pd", result.PresentationDefinition.Id)
 		assert.Equal(t, "profile-scope extra-scope", result.Scope)
+		assert.Equal(t, "https://as.example.com/presentation_definition?scope=profile-scope+extra-scope", fetcher.lastEndpoint)
 	})
 	t.Run("no remote PD endpoint", func(t *testing.T) {
 		metadata := oauth.AuthorizationServerMetadata{} // no PD endpoint
@@ -167,23 +163,14 @@ func TestPresentationDefinitionResolver_Resolve(t *testing.T) {
 		})
 	})
 	t.Run("remote PD endpoint returns error", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer server.Close()
-
-		resolver := &PresentationDefinitionResolver{
-			httpClient: HTTPClient{
-				strictMode: false,
-				httpClient: client.New(10 * time.Second),
-			},
-		}
+		fetcher := &fakePDFetcher{err: errors.New("PDP call failed")}
+		resolver := &PresentationDefinitionResolver{pdFetcher: fetcher}
 		metadata := oauth.AuthorizationServerMetadata{
-			PresentationDefinitionEndpoint: server.URL + "/presentation_definition",
+			PresentationDefinitionEndpoint: "https://as.example.com/presentation_definition",
 		}
 
 		_, err := resolver.Resolve(context.Background(), "scope", metadata)
 
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "PDP call failed")
 	})
 }
