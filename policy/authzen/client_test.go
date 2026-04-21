@@ -111,7 +111,7 @@ func TestClient_Evaluate(t *testing.T) {
 			},
 		})
 
-		assert.ErrorContains(t, err, "PDP returned HTTP 500")
+		assert.ErrorContains(t, err, "authzen: PDP call failed: server returned HTTP 500")
 	})
 	t.Run("PDP unreachable", func(t *testing.T) {
 		client := NewClient("http://localhost:1", http.DefaultClient)

@@ -24,7 +24,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -38,8 +37,7 @@ type Client struct {
 	httpClient core.HTTPRequestDoer
 }
 
-// NewClient creates a new AuthZen client. The endpoint is the base URL of the PDP.
-// The httpClient handles timeouts and TLS configuration.
+// NewClient creates a new AuthZen client. The httpClient must enforce timeouts, TLS configuration, and response body size limits (use http/client.StrictHTTPClient in production).
 func NewClient(endpoint string, httpClient core.HTTPRequestDoer) *Client {
 	return &Client{
 		endpoint:   endpoint,
@@ -60,7 +58,7 @@ func (c *Client) Evaluate(ctx context.Context, req EvaluationsRequest) (map[stri
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Accept", "application/json")
 
-	// Check for duplicate resource IDs before sending the request
+	// AuthZen correlates request and response by index, not by resource ID — duplicate IDs would collapse map[string]bool decisions silently, so reject them at the boundary.
 	seen := make(map[string]bool, len(req.Evaluations))
 	for _, eval := range req.Evaluations {
 		if seen[eval.Resource.ID] {
@@ -75,15 +73,8 @@ func (c *Client) Evaluate(ctx context.Context, req EvaluationsRequest) (map[stri
 	}
 	defer httpResp.Body.Close()
 
-	if httpResp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(httpResp.Body)
-		// Truncate to keep error messages reasonable and prevent log injection
-		const maxErrorLen = 200
-		bodyStr := string(respBody)
-		if len(bodyStr) > maxErrorLen {
-			bodyStr = bodyStr[:maxErrorLen] + "..."
-		}
-		return nil, fmt.Errorf("authzen: PDP returned HTTP %d: %s", httpResp.StatusCode, bodyStr)
+	if err := core.TestResponseCode(http.StatusOK, httpResp); err != nil {
+		return nil, fmt.Errorf("authzen: PDP call failed: %w", err)
 	}
 
 	var resp EvaluationsResponse
