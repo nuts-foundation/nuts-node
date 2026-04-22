@@ -444,6 +444,53 @@ func TestWrapper_CreateJwtGrant(t *testing.T) {
 		assert.Equal(t, expectedResponse, response)
 		assert.Nil(t, err)
 	})
+
+	t.Run("AuthorizationServerEndpoint is plumbed through", func(t *testing.T) {
+		ctx := createContext(t)
+		endpoint := "https://as.example.nl/ura/12345678/token"
+		body := CreateJwtGrantRequest{
+			Requester:                   vdr.TestDIDA.String(),
+			Authorizer:                  vdr.TestDIDB.String(),
+			Service:                     "service",
+			AuthorizationServerEndpoint: &endpoint,
+		}
+
+		expectedRequest := services.CreateJwtGrantRequest{
+			Requester:                   body.Requester,
+			Authorizer:                  body.Authorizer,
+			Service:                     "service",
+			AuthorizationServerEndpoint: endpoint,
+		}
+
+		ctx.relyingPartyMock.EXPECT().CreateJwtGrant(gomock.Any(), expectedRequest).Return(&services.JwtBearerTokenResult{
+			BearerToken:                 "jwt",
+			AuthorizationServerEndpoint: endpoint,
+		}, nil)
+
+		response, err := ctx.wrapper.CreateJwtGrant(ctx.audit, CreateJwtGrantRequestObject{Body: &body})
+
+		assert.NoError(t, err)
+		assert.Equal(t, CreateJwtGrant200JSONResponse{BearerToken: "jwt", AuthorizationServerEndpoint: endpoint}, response)
+	})
+
+	t.Run("invalid AuthorizationServerEndpoint returns 400", func(t *testing.T) {
+		ctx := createContext(t)
+		badEndpoint := "%invalid"
+		body := CreateJwtGrantRequest{
+			Requester:                   vdr.TestDIDA.String(),
+			Authorizer:                  vdr.TestDIDB.String(),
+			Service:                     "service",
+			AuthorizationServerEndpoint: &badEndpoint,
+		}
+
+		response, err := ctx.wrapper.CreateJwtGrant(ctx.audit, CreateJwtGrantRequestObject{Body: &body})
+
+		assert.Nil(t, response)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid authorization_server_endpoint")
+		require.Implements(t, new(core.HTTPStatusCodeError), err)
+		assert.Equal(t, http.StatusBadRequest, err.(core.HTTPStatusCodeError).StatusCode())
+	})
 }
 
 func TestWrapper_RequestAccessToken(t *testing.T) {
