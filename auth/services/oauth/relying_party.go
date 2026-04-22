@@ -91,9 +91,14 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 		}
 	}
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch authorizer's 'oauth' endpoint from compound service: %w", err)
+	var endpointURL string
+	if request.AuthorizationServerEndpoint != "" {
+		endpointURL = request.AuthorizationServerEndpoint
+	} else {
+		endpointURL, err = s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch authorizer's 'oauth' endpoint from compound service: %w", err)
+		}
 	}
 
 	keyVals := claimsFromRequest(request, endpointURL)
