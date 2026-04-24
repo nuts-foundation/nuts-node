@@ -479,19 +479,22 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 	}
 	tlsConfig.InsecureSkipVerify = true
 
-	return &clientTestContext{
-		audit: audit.TestContext(),
-		ctrl:  ctrl,
-		client: &OpenID4VPClient{
-			wallet:         wallet,
-			subjectManager: subjectManager,
-			httpClient: HTTPClient{
-				strictMode: false,
-				httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
-			},
-			jwtSigner:   jwtSigner,
-			keyResolver: keyResolver,
+	testClient := &OpenID4VPClient{
+		wallet:         wallet,
+		subjectManager: subjectManager,
+		httpClient: HTTPClient{
+			strictMode: false,
+			httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 		},
+		jwtSigner:   jwtSigner,
+		keyResolver: keyResolver,
+	}
+	testClient.pdResolver = PresentationDefinitionResolver{pdFetcher: testClient}
+
+	return &clientTestContext{
+		audit:          audit.TestContext(),
+		ctrl:           ctrl,
+		client:         testClient,
 		jwtSigner:      jwtSigner,
 		keyResolver:    keyResolver,
 		wallet:         wallet,
