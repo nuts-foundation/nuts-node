@@ -23,12 +23,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	httpClient "github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
 	"os"
 	"strings"
+	"time"
 )
+
+// authzenTimeout is the default timeout for AuthZen PDP requests.
+const authzenTimeout = 10 * time.Second
 
 func (sp ScopePolicy) valid() bool {
 	switch sp {
@@ -52,6 +58,9 @@ type LocalPDP struct {
 	config Config
 	// mapping holds the credential profile configuration per scope
 	mapping map[string]credentialProfileConfig
+	// authzenClient is created during Configure when an AuthZen endpoint is configured.
+	// It is nil when no endpoint is configured.
+	authzenClient AuthZenEvaluator
 }
 
 func (b *LocalPDP) Name() string {
@@ -81,8 +90,16 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 				return fmt.Errorf("credential profile %q has scope_policy %q but no AuthZen endpoint is configured (policy.authzen.endpoint)", scope, ScopePolicyDynamic)
 			}
 		}
+	} else {
+		// Use StrictHTTPClient: enforces TLS, bounds response body size, applies timeout.
+		b.authzenClient = authzen.NewClient(b.config.AuthZen.Endpoint, httpClient.New(authzenTimeout))
 	}
 	return nil
+}
+
+// AuthZenEvaluator returns the AuthZen evaluator, or nil when no endpoint is configured.
+func (b *LocalPDP) AuthZenEvaluator() AuthZenEvaluator {
+	return b.authzenClient
 }
 
 func (b *LocalPDP) Config() interface{} {

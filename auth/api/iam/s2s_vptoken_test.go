@@ -27,6 +27,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/policy"
+	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"testing"
@@ -118,7 +119,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("JSON-LD VP", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
@@ -165,7 +166,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 			require.NoError(t, token.Set(jwt.AudienceKey, issuerClientID))
 		}, verifiableCredential)
-		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
@@ -200,7 +201,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		t.Run("replay attack (nonce is reused)", func(t *testing.T) {
 			ctx := newTestClient(t)
 			ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil).Times(2)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil).Times(2)
 
 			_, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 			require.NoError(t, err)
@@ -211,7 +212,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JSON-LD VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerClientID
 				proof.Nonce = nil
@@ -224,7 +225,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JSON-LD VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 			proofVisitor := test.LDProofVisitor(func(proof *proof.LDProof) {
 				proof.Domain = &issuerClientID
 				proof.Nonce = new(string)
@@ -237,7 +238,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP is missing nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerClientID)
 				_ = token.Remove("nonce")
@@ -249,7 +250,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP has empty nonce", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerClientID)
 				_ = token.Set("nonce", "")
@@ -261,7 +262,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		})
 		t.Run("JWT VP nonce is not a string", func(t *testing.T) {
 			ctx := newTestClient(t)
-			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+			ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 			presentation, _ := test.CreateJWTPresentation(t, *subjectDID, func(token jwt.Token) {
 				_ = token.Set(jwt.AudienceKey, issuerClientID)
 				_ = token.Set("nonce", true)
@@ -297,7 +298,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 	t.Run("VP verification fails", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.vcVerifier.EXPECT().VerifyVP(presentation, true, true, gomock.Any()).Return(nil, errors.New("invalid"))
-		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
@@ -364,7 +365,7 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		presentation := test.CreateJSONLDPresentation(t, *subjectDID, proofVisitor, otherVerifiableCredential)
 
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(context.Background(), clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 		assert.EqualError(t, err, "invalid_request - presentation submission does not conform to presentation definition (id=)")
@@ -375,11 +376,134 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 		httpRequest := &http.Request{Header: http.Header{"Dpop": []string{"invalid"}}}
 		httpRequest.Header.Set("DPoP", "invalid")
 		contextWithValue := context.WithValue(context.Background(), httpRequestContextKey{}, httpRequest)
-		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), requestedScope).Return(&policy.CredentialProfileMatch{CredentialProfileScope: requestedScope, WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, requestedScope, submissionJSON, presentation.Raw())
 
 		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidDPopProof, "DPoP header is invalid")
+		assert.Nil(t, resp)
+	})
+	t.Run("profile-only scope policy rejects extra scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyProfileOnly,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		_ = assertOAuthErrorWithCode(t, err, oauth.InvalidScope, "scope policy 'profile-only' does not allow additional scopes")
+		assert.Nil(t, resp)
+	})
+	t.Run("passthrough scope policy grants all requested scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyPassthrough,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		require.NoError(t, err)
+		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
+		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
+	})
+	t.Run("dynamic scope policy - PDP approves all scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyDynamic,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
+		// Verify the AuthZen request shape matches the PRD contract.
+		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, req authzen.EvaluationsRequest) (map[string]bool, error) {
+				assert.Equal(t, "organization", req.Subject.Type)
+				assert.Equal(t, "request_scope", req.Action.Name)
+				assert.Equal(t, "example-scope", req.Context.Policy)
+				require.Len(t, req.Evaluations, 2)
+				assert.Equal(t, "scope", req.Evaluations[0].Resource.Type)
+				assert.Equal(t, "example-scope", req.Evaluations[0].Resource.ID)
+				assert.Equal(t, "extra-scope", req.Evaluations[1].Resource.ID)
+				return map[string]bool{
+					"example-scope": true,
+					"extra-scope":   true,
+				}, nil
+			})
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		require.NoError(t, err)
+		require.IsType(t, HandleTokenRequest200JSONResponse{}, resp)
+		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
+	})
+	t.Run("dynamic scope policy - PDP partial denial excludes denied scopes", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope other-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyDynamic,
+			OtherScopes:            []string{"extra-scope", "other-scope"},
+		}, nil)
+		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
+		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(map[string]bool{
+			"example-scope": true,
+			"extra-scope":   true,
+			"other-scope":   false,
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope other-scope", submissionJSON, presentation.Raw())
+
+		require.NoError(t, err)
+		tokenResponse := TokenResponse(resp.(HandleTokenRequest200JSONResponse))
+		assert.Equal(t, "example-scope extra-scope", *tokenResponse.Scope)
+	})
+	t.Run("dynamic scope policy - PDP denies credential profile scope - access_denied", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyDynamic,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
+		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(map[string]bool{
+			"example-scope": false,
+			"extra-scope":   true,
+		}, nil)
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		_ = assertOAuthErrorWithCode(t, err, oauth.AccessDenied, `PDP denied credential profile scope "example-scope"`)
+		assert.Nil(t, resp)
+	})
+	t.Run("dynamic scope policy - PDP error returns server_error", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.vcVerifier.EXPECT().VerifyVP(gomock.Any(), true, true, gomock.Any()).Return(presentation.VerifiableCredential, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope extra-scope").Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "example-scope",
+			WalletOwnerMapping:     walletOwnerMapping,
+			ScopePolicy:            policy.ScopePolicyDynamic,
+			OtherScopes:            []string{"extra-scope"},
+		}, nil)
+		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
+		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(nil, errors.New("PDP unreachable"))
+
+		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
+
+		_ = assertOAuthErrorWithCode(t, err, oauth.ServerError, "policy decision point unavailable")
 		assert.Nil(t, resp)
 	})
 }

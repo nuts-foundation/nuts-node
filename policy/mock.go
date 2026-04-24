@@ -13,8 +13,48 @@ import (
 	context "context"
 	reflect "reflect"
 
+	authzen "github.com/nuts-foundation/nuts-node/policy/authzen"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockAuthZenEvaluator is a mock of AuthZenEvaluator interface.
+type MockAuthZenEvaluator struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthZenEvaluatorMockRecorder
+	isgomock struct{}
+}
+
+// MockAuthZenEvaluatorMockRecorder is the mock recorder for MockAuthZenEvaluator.
+type MockAuthZenEvaluatorMockRecorder struct {
+	mock *MockAuthZenEvaluator
+}
+
+// NewMockAuthZenEvaluator creates a new mock instance.
+func NewMockAuthZenEvaluator(ctrl *gomock.Controller) *MockAuthZenEvaluator {
+	mock := &MockAuthZenEvaluator{ctrl: ctrl}
+	mock.recorder = &MockAuthZenEvaluatorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthZenEvaluator) EXPECT() *MockAuthZenEvaluatorMockRecorder {
+	return m.recorder
+}
+
+// Evaluate mocks base method.
+func (m *MockAuthZenEvaluator) Evaluate(ctx context.Context, req authzen.EvaluationsRequest) (map[string]bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Evaluate", ctx, req)
+	ret0, _ := ret[0].(map[string]bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Evaluate indicates an expected call of Evaluate.
+func (mr *MockAuthZenEvaluatorMockRecorder) Evaluate(ctx, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Evaluate", reflect.TypeOf((*MockAuthZenEvaluator)(nil).Evaluate), ctx, req)
+}
 
 // MockPDPBackend is a mock of PDPBackend interface.
 type MockPDPBackend struct {
@@ -38,6 +78,20 @@ func NewMockPDPBackend(ctrl *gomock.Controller) *MockPDPBackend {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockPDPBackend) EXPECT() *MockPDPBackendMockRecorder {
 	return m.recorder
+}
+
+// AuthZenEvaluator mocks base method.
+func (m *MockPDPBackend) AuthZenEvaluator() AuthZenEvaluator {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthZenEvaluator")
+	ret0, _ := ret[0].(AuthZenEvaluator)
+	return ret0
+}
+
+// AuthZenEvaluator indicates an expected call of AuthZenEvaluator.
+func (mr *MockPDPBackendMockRecorder) AuthZenEvaluator() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthZenEvaluator", reflect.TypeOf((*MockPDPBackend)(nil).AuthZenEvaluator))
 }
 
 // FindCredentialProfile mocks base method.

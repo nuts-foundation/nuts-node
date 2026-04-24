@@ -111,7 +111,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, subject s
 	// Determine which PEX Presentation Definitions we want to see fulfilled during authorization through OpenID4VP.
 	// Each Presentation Definition triggers 1 OpenID4VP flow.
 	// TODO: Support multiple scopes?
-	presentationDefinitions, err := r.presentationDefinitionForScope(ctx, params.get(oauth.ScopeParam))
+	match, err := r.findCredentialProfile(ctx, params.get(oauth.ScopeParam))
 	if err != nil {
 		return nil, withCallbackURI(err, redirectURL)
 	}
@@ -122,7 +122,7 @@ func (r Wrapper) handleAuthorizeRequestFromHolder(ctx context.Context, subject s
 		OwnSubject:        &subject,
 		ClientState:       params.get(oauth.StateParam),
 		RedirectURI:       redirectURL.String(),
-		OpenID4VPVerifier: newPEXConsumer(presentationDefinitions),
+		OpenID4VPVerifier: newPEXConsumer(match.WalletOwnerMapping),
 		PKCEParams: PKCEParams{ // store params, when generating authorization code we take the params from the nonceStore and encrypt them in the authorization code
 			Challenge:       params.get(oauth.CodeChallengeParam),
 			ChallengeMethod: params.get(oauth.CodeChallengeMethodParam),
