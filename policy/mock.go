@@ -13,7 +13,6 @@ import (
 	context "context"
 	reflect "reflect"
 
-	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,17 +40,17 @@ func (m *MockPDPBackend) EXPECT() *MockPDPBackendMockRecorder {
 	return m.recorder
 }
 
-// PresentationDefinitions mocks base method.
-func (m *MockPDPBackend) PresentationDefinitions(ctx context.Context, scope string) (pe.WalletOwnerMapping, error) {
+// FindCredentialProfile mocks base method.
+func (m *MockPDPBackend) FindCredentialProfile(ctx context.Context, scope string) (*CredentialProfileMatch, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresentationDefinitions", ctx, scope)
-	ret0, _ := ret[0].(pe.WalletOwnerMapping)
+	ret := m.ctrl.Call(m, "FindCredentialProfile", ctx, scope)
+	ret0, _ := ret[0].(*CredentialProfileMatch)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// PresentationDefinitions indicates an expected call of PresentationDefinitions.
-func (mr *MockPDPBackendMockRecorder) PresentationDefinitions(ctx, scope any) *gomock.Call {
+// FindCredentialProfile indicates an expected call of FindCredentialProfile.
+func (mr *MockPDPBackendMockRecorder) FindCredentialProfile(ctx, scope any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinitions", reflect.TypeOf((*MockPDPBackend)(nil).PresentationDefinitions), ctx, scope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCredentialProfile", reflect.TypeOf((*MockPDPBackend)(nil).FindCredentialProfile), ctx, scope)
 }
