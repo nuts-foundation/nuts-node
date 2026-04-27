@@ -388,7 +388,7 @@ func (r Wrapper) sendAndHandleDirectPost(ctx context.Context, subject string, vp
 		// Dispatch a new HTTP request to the local OpenID4VP wallet's authorization endpoint that includes request parameters,
 		// but with openid4vp: as scheme.
 		// The context contains data from the previous request. Usage by the handler will probably result in incorrect behavior.
-		userWalletMetadata := authorizationServerMetadata(nil, r.auth.SupportedDIDMethods())
+		userWalletMetadata := authorizationServerMetadata(nil, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 		response, err := r.handleAuthorizeRequest(ctx, subject, userWalletMetadata, *parsedRedirectURI)
 		if err != nil {
 			return nil, err
@@ -438,6 +438,7 @@ func (r Wrapper) sendAndHandleDirectPostError(ctx context.Context, auth2Error oa
 }
 
 func (r Wrapper) HandleAuthorizeResponse(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
+	oauth.SetSpanAttributes(ctx, request)
 	// this can be an error post or a submission. We check for the presence of the error parameter.
 	if request.Body.Error != nil {
 		return r.handleAuthorizeResponseError(ctx, request)
@@ -447,13 +448,17 @@ func (r Wrapper) HandleAuthorizeResponse(ctx context.Context, request HandleAuth
 	return r.handleAuthorizeResponseSubmission(ctx, request)
 }
 
-func (r Wrapper) handleAuthorizeResponseError(_ context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
+func (r Wrapper) handleAuthorizeResponseError(ctx context.Context, request HandleAuthorizeResponseRequestObject) (HandleAuthorizeResponseResponseObject, error) {
 	// we know error is not empty
 	code := *request.Body.Error
 	var description string
 	if request.Body.ErrorDescription != nil {
 		description = *request.Body.ErrorDescription
 	}
+	log.Logger().WithContext(ctx).
+		WithField("oauth.error", code).
+		WithField("oauth.error_description", description).
+		Warn("OAuth2 authorize error response received")
 
 	// check if the state param is present and if we have a client state for it
 	var oauthSession OAuthSession
@@ -716,8 +721,28 @@ func (r Wrapper) handleAccessTokenRequest(ctx context.Context, request HandleTok
 	}
 
 	// All done, issue access token
+	accessToken := AccessToken{
+		PresentationDefinitions: oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions,
+		PresentationSubmissions: oauthSession.OpenID4VPVerifier.Submissions,
+	}
+	for _, envelope := range oauthSession.OpenID4VPVerifier.SubmittedEnvelopes {
+		for _, presentation := range envelope.Presentations {
+			accessToken.VPToken = append(accessToken.VPToken, presentation)
+		}
+	}
+	credentialMap, err := oauthSession.OpenID4VPVerifier.credentialMap()
+	if err != nil {
+		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to resolve credential map: %s", err.Error()))
+	}
+	fieldsMap, err := resolveInputDescriptorValues(oauthSession.OpenID4VPVerifier.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+	if err := accessToken.AddInputDescriptorConstraintIdMap(fieldsMap); err != nil {
+		return nil, oauthError(oauth.ServerError, err.Error())
+	}
 	issuerURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, *oauthSession.OpenID4VPVerifier, dpopProof)
+	response, err := r.createAccessToken(issuerURL.String(), oauthSession.ClientID, time.Now(), oauthSession.Scope, accessToken, dpopProof)
 	if err != nil {
 		return nil, oauthError(oauth.ServerError, fmt.Sprintf("failed to create access token: %s", err.Error()))
 	}

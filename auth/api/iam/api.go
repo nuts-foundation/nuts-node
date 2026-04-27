@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -48,6 +47,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/core/to"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/http/cache"
@@ -56,6 +56,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -215,6 +216,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 
 // HandleTokenRequest handles calls to the token endpoint for exchanging a grant (e.g authorization code or pre-authorized code) for an access token.
 func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequestRequestObject) (HandleTokenRequestResponseObject, error) {
+	oauth.SetSpanAttributes(ctx, request)
 	err := r.subjectExists(ctx, request.SubjectID)
 	if err != nil {
 		return nil, err
@@ -234,6 +236,16 @@ func (r Wrapper) HandleTokenRequest(ctx context.Context, request HandleTokenRequ
 			Code:        oauth.UnsupportedGrantType,
 			Description: "not implemented yet",
 		}
+	case oauth.JWTBearerGrantType:
+		// Twinn TA NP & LSPxNuts flow
+		// TODO: support client_assertion
+		if request.Body.Assertion == nil || request.Body.Scope == nil || request.Body.ClientId == nil {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.InvalidRequest,
+				Description: "missing required parameters",
+			}
+		}
+		return r.handleJWTBearerTokenRequest(ctx, *request.Body.ClientId, request.SubjectID, *request.Body.Scope, *request.Body.Assertion)
 	case oauth.VpTokenGrantType:
 		// Nuts RFC021 vp_token bearer flow
 		if request.Body.PresentationSubmission == nil || request.Body.Scope == nil || request.Body.Assertion == nil || request.Body.ClientId == nil {
@@ -419,16 +431,20 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	iat := int(token.IssuedAt.Unix())
 	exp := int(token.Expiration.Unix())
 	response := ExtendedTokenIntrospectionResponse{
-		Active:                  true,
-		Cnf:                     cnf,
-		Iat:                     &iat,
-		Exp:                     &exp,
-		Iss:                     &token.Issuer,
-		ClientId:                &token.ClientId,
-		Scope:                   &token.Scope,
-		Vps:                     &token.VPToken,
-		PresentationDefinitions: &token.PresentationDefinitions,
-		PresentationSubmissions: &token.PresentationSubmissions,
+		Active:   true,
+		Cnf:      cnf,
+		Iat:      &iat,
+		Exp:      &exp,
+		Iss:      &token.Issuer,
+		ClientId: &token.ClientId,
+		Scope:    &token.Scope,
+		Vps:      &token.VPToken,
+	}
+	if token.PresentationDefinitions != nil {
+		response.PresentationDefinitions = &token.PresentationDefinitions
+	}
+	if token.PresentationSubmissions != nil {
+		response.PresentationSubmissions = &token.PresentationSubmissions
 	}
 
 	if token.InputDescriptorConstraintIdMap != nil {
@@ -463,6 +479,7 @@ func (r Wrapper) HandleAuthorizeRequest(ctx context.Context, request HandleAutho
 	// Workaround: deepmap codegen doesn't support dynamic query parameters.
 	//             See https://github.com/deepmap/oapi-codegen/issues/1129
 	httpRequest := ctx.Value(httpRequestContextKey{}).(*http.Request)
+	oauth.SetSpanAttributes(ctx, httpRequest.URL.Query())
 	return r.handleAuthorizeRequest(ctx, request.SubjectID, *metadata, *httpRequest.URL)
 }
 
@@ -615,7 +632,7 @@ func (r Wrapper) OAuthAuthorizationServerMetadata(_ context.Context, request OAu
 }
 
 func (r Wrapper) oauthAuthorizationServerMetadata(clientID url.URL) (*oauth.AuthorizationServerMetadata, error) {
-	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods())
+	md := authorizationServerMetadata(&clientID, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 	if !r.auth.AuthorizationEndpointEnabled() {
 		md.AuthorizationEndpoint = ""
 	}
@@ -679,7 +696,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 	// this is a shortcoming of the openID federation vs OpenID4VP/DID worlds
 	// issuer URL equals server baseURL + :/oauth2/:subject
 	issuerURL := r.subjectToBaseURL(request.SubjectID)
-	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods())
+	configuration := openIDConfiguration(issuerURL, set, r.auth.SupportedDIDMethods(), r.auth.GrantTypes())
 	claims := make(map[string]interface{})
 	asJson, _ := json.Marshal(configuration)
 	_ = json.Unmarshal(asJson, &claims)
@@ -729,31 +746,48 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 		return nil, err
 	}
 
-	tokenCache := r.accessTokenCache()
-	cacheKey := accessTokenRequestCacheKey(request)
-	if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
-		// try to retrieve token from cache
-		tokenCacheResult := new(TokenResponse)
-		err = tokenCache.Get(cacheKey, tokenCacheResult)
-		if err == nil {
-			// adjust tokenCacheResult.ExpiresIn to the remaining time
-			expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
-			tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
-			return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
-		} else if !errors.Is(err, storage.ErrNotFound) {
-			// only log error, don't fail
-			log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
-		}
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//tokenCache := r.accessTokenCache()
+	//cacheKey := accessTokenRequestCacheKey(request)
+	//if request.Params.CacheControl == nil || *request.Params.CacheControl != "no-cache" {
+	//	// try to retrieve token from cache
+	//	tokenCacheResult := new(TokenResponse)
+	//	err = tokenCache.Get(cacheKey, tokenCacheResult)
+	//	if err == nil {
+	//		// adjust tokenCacheResult.ExpiresIn to the remaining time
+	//		expiresAt := time.Unix(int64(*tokenCacheResult.ExpiresAt), 0)
+	//		tokenCacheResult.ExpiresIn = to.Ptr(int(time.Until(expiresAt).Seconds()))
+	//		return RequestServiceAccessToken200JSONResponse(*tokenCacheResult), nil
+	//	} else if !errors.Is(err, storage.ErrNotFound) {
+	//		// only log error, don't fail
+	//		log.Logger().WithError(err).Warnf("Failed to retrieve access token from cache: %s", err.Error())
+	//	}
+	//}
 
 	var credentials []VerifiableCredential
 	if request.Body.Credentials != nil {
 		credentials = *request.Body.Credentials
 	}
+
+	idTokenCredentialIdx := -1
+	if request.Body.IdToken != nil {
+		idTokenCredential, err := credential.CreateDeziUserCredential(*request.Body.IdToken)
+		if err != nil {
+			return nil, core.InvalidInputError("failed to create id_token credential: %w", err)
+		}
+		credentials = append(credentials, *idTokenCredential)
+		idTokenCredentialIdx = len(credentials) - 1
+	}
+
 	// assert that self-asserted credentials do not contain an issuer or credentialSubject.id. These values must be set
 	// by the nuts-node to build the correct wallet for a DID. See https://github.com/nuts-foundation/nuts-node/issues/3696
-	// As a sideeffect it is no longer possible to pass signed credentials to this API.
-	for _, cred := range credentials {
+	// As a side effect it is no longer possible to pass signed credentials to this API.
+	for i, cred := range credentials {
+		// But not for id_token credentials, these are externally signed, meaning they have an issuer
+		if i == idTokenCredentialIdx {
+			continue
+		}
+
 		var credentialSubject []map[string]interface{}
 		if err := cred.UnmarshalCredentialSubject(&credentialSubject); err != nil {
 			// extremely unlikely
@@ -781,7 +815,11 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialSelection)
+	var policyId string
+	if request.Body.PolicyId != nil {
+		policyId = *request.Body.PolicyId
+	}
+	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, policyId, useDPoP, credentials, credentialSelection)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
@@ -792,12 +830,13 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 	tokenResult.ExpiresAt = to.Ptr(int(time.Now().Add(ttl).Unix()))
 	// we reduce the ttl by accessTokenCacheOffset to make sure the token is expired when the cache expires
-	ttl -= accessTokenCacheOffset
-	err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
-	if err != nil {
-		// only log error, don't fail
-		log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
-	}
+	// PROJECT-GF: Disabled for testing credential revocation
+	//ttl -= accessTokenCacheOffset
+	//err = tokenCache.Put(cacheKey, tokenResult, storage.WithTTL(ttl))
+	//if err != nil {
+	//	// only log error, don't fail
+	//	log.Logger().WithError(err).Warnf("Failed to cache access token: %s", err.Error())
+	//}
 	return RequestServiceAccessToken200JSONResponse(*tokenResult), nil
 }
 

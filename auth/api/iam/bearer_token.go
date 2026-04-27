@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
@@ -59,8 +60,34 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionPresentationEvaluator(*submission, *pexEnvelope))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+// handleJWTBearerTokenRequest handles the /token request with jwt_bearer grant type, as specified by RFC7523.
+func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, assertion string) (HandleTokenRequestResponseObject, error) {
+	// TODO: support client_assertion
+	presentation, err := vc.ParseVerifiablePresentation(assertion)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "assertion parameter is invalid",
+			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
+		}
+	}
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicPresentationEvaluator(*presentation))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, evaluator CredentialProfile) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
 			return nil, err
 		}
@@ -73,16 +100,27 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 			return nil, err
 		}
 	}
-	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, scope)
-	if err != nil {
-		return nil, err
-	}
-	pexConsumer := newPEXConsumer(walletOwnerMapping)
-	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, err.Error())
+
+	// For every scope, find the required Presentation Definition and validate the VP(s) according to the required credentials.
+	// TODO: tests for multiple scopes
+	accessToken := new(AccessToken)
+	scopes := strings.Split(scope, " ")
+	for _, currScope := range scopes {
+		if currScope == "" {
+			continue
+		}
+		walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, currScope)
+		if err != nil {
+			return nil, err
+		}
+		// Validate Verifiable Presentation according to the required credential profile.
+		// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
+		if err = evaluator(ctx, walletOwnerMapping, accessToken); err != nil {
+			return nil, err
+		}
 	}
 
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
 		}
@@ -96,7 +134,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 	}
 
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
@@ -109,11 +147,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
-	if err != nil {
-		return nil, err
-	}
-	return HandleTokenRequest200JSONResponse(*response), nil
+	return r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *accessToken, dpopProof)
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {

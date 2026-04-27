@@ -24,7 +24,7 @@ import (
 
 // proofTypeValuesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats
 // Recommended list of options https://w3c-ccg.github.io/ld-cryptosuite-registry/
-var proofTypeValuesSupported = []string{"JsonWebSignature2020"}
+var proofTypeValuesSupported = []string{"JsonWebSignature2020", "DeziIDJWT"}
 
 // DefaultOpenIDSupportedFormats returns the OpenID formats supported by the Nuts node and is used in the
 //   - Authorization Server's metadata field `vp_formats_supported`

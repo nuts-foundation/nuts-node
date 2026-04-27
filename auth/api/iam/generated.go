@@ -155,6 +155,17 @@ type ServiceAccessTokenRequest struct {
 	// - proof/signature (MUST be omitted; integrity protection is covered by the VP's proof/signature)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
+	// IdToken An optional ID Token (JWT) that represents the end-user.
+	// This ID token is included in the Verifiable Presentation that is used to request the access token.
+	// It currently only supports Dezi ID tokens.
+	IdToken *string `json:"id_token,omitempty"`
+
+	// PolicyId (Optional) The ID of the policy to use when requesting the access token.
+	// If set the presentation definition is resolved from the policy with this ID.
+	// This allows you to specify scopes that don't resolve to a presentation definition automatically.
+	// If not set, the scope is used to resolve the presentation definition.
+	PolicyId *string `json:"policy_id,omitempty"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
@@ -298,6 +309,7 @@ type HandleAuthorizeResponseFormdataBody struct {
 // HandleTokenRequestFormdataBody defines parameters for HandleTokenRequest.
 type HandleTokenRequestFormdataBody struct {
 	Assertion              *string `form:"assertion,omitempty" json:"assertion,omitempty"`
+	ClientAssertion        *string `form:"client_assertion,omitempty" json:"client_assertion,omitempty"`
 	ClientId               *string `form:"client_id,omitempty" json:"client_id,omitempty"`
 	Code                   *string `form:"code,omitempty" json:"code,omitempty"`
 	CodeVerifier           *string `form:"code_verifier,omitempty" json:"code_verifier,omitempty"`

@@ -22,10 +22,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/pki"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/go-did/did"
@@ -90,9 +91,14 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 		}
 	}
 
-	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
-	if err != nil {
-		return nil, fmt.Errorf("could not fetch authorizer's 'oauth' endpoint from compound service: %w", err)
+	var endpointURL string
+	if request.AuthorizationServerEndpoint != "" {
+		endpointURL = request.AuthorizationServerEndpoint
+	} else {
+		endpointURL, err = s.serviceResolver.GetCompoundServiceEndpoint(*authorizer, request.Service, services.OAuthEndpointType, true)
+		if err != nil {
+			return nil, fmt.Errorf("could not fetch authorizer's 'oauth' endpoint from compound service: %w", err)
+		}
 	}
 
 	keyVals := claimsFromRequest(request, endpointURL)

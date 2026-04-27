@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -46,7 +47,7 @@ type Client interface {
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
 	// credentials are additional VCs to include alongside wallet-stored credentials.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
-	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
+	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, policyId string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
