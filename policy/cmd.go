@@ -27,5 +27,6 @@ func FlagSet() *pflag.FlagSet {
 	defCfg := defaultConfig()
 	flagSet := pflag.NewFlagSet("policy", pflag.ContinueOnError)
 	flagSet.String("policy.directory", defCfg.Directory, "Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping.")
+	flagSet.String("policy.authzen.endpoint", defCfg.AuthZen.Endpoint, "Base URL of the AuthZen PDP endpoint. Required when any credential profile uses scope_policy 'dynamic'.")
 	return flagSet
 }

@@ -44,5 +44,5 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
 	subjectManager := didsubject.NewMockManager(ctrl)
-	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock)
+	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock, nil)
 }

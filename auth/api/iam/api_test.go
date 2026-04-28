@@ -190,7 +190,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
@@ -215,7 +215,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerUser: pe.PresentationDefinition{Id: "test"}}
 
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -227,7 +227,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("err - unknown wallet type", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -238,7 +238,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
@@ -289,7 +289,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 				OpenIDProvider: serverMetadata,
 			},
 		}
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "test").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "test", WalletOwnerMapping: pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderURL.String()).Return(&configuration, nil)
 		ctx.jar.EXPECT().Create(verifierDID, verifierURL.String(), holderClientID, gomock.Any()).DoAndReturn(func(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, clientID, audience, modifier)
@@ -1571,23 +1571,24 @@ func statusCodeFrom(err error) int {
 }
 
 type testCtx struct {
-	authnServices  *auth.MockAuthenticationServices
-	ctrl           *gomock.Controller
-	client         *Wrapper
-	documentOwner  *didsubject.MockDocumentOwner
-	iamClient      *iam.MockClient
-	jwtSigner      *cryptoNuts.MockJWTSigner
-	keyResolver    *resolver.MockKeyResolver
-	policy         *policy.MockPDPBackend
-	resolver       *resolver.MockDIDResolver
-	relyingParty   *oauthServices.MockRelyingParty
-	vcr            *vcr.MockVCR
-	vdr            *vdr.MockVDR
-	vcIssuer       *issuer.MockIssuer
-	vcVerifier     *verifier.MockVerifier
-	wallet         *holder.MockWallet
-	subjectManager *didsubject.MockManager
-	jar            *MockJAR
+	authnServices    *auth.MockAuthenticationServices
+	ctrl             *gomock.Controller
+	client           *Wrapper
+	documentOwner    *didsubject.MockDocumentOwner
+	iamClient        *iam.MockClient
+	jwtSigner        *cryptoNuts.MockJWTSigner
+	keyResolver      *resolver.MockKeyResolver
+	policy           *policy.MockPDPBackend
+	authzenEvaluator *policy.MockAuthZenEvaluator
+	resolver         *resolver.MockDIDResolver
+	relyingParty     *oauthServices.MockRelyingParty
+	vcr              *vcr.MockVCR
+	vdr              *vdr.MockVDR
+	vcIssuer         *issuer.MockIssuer
+	vcVerifier       *verifier.MockVerifier
+	wallet           *holder.MockWallet
+	subjectManager   *didsubject.MockManager
+	jar              *MockJAR
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1600,6 +1601,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	policyInstance := policy.NewMockPDPBackend(ctrl)
+	authzenEvaluator := policy.NewMockAuthZenEvaluator(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcIssuer := issuer.NewMockIssuer(ctrl)
@@ -1641,21 +1643,22 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		jar:            mockJAR,
 	}
 	return &testCtx{
-		ctrl:           ctrl,
-		authnServices:  authnServices,
-		policy:         policyInstance,
-		relyingParty:   relyingPary,
-		vcIssuer:       vcIssuer,
-		vcVerifier:     vcVerifier,
-		resolver:       mockResolver,
-		documentOwner:  mockDocumentOwner,
-		subjectManager: subjectManager,
-		iamClient:      iamClient,
-		vcr:            mockVCR,
-		wallet:         mockWallet,
-		keyResolver:    keyResolver,
-		jwtSigner:      jwtSigner,
-		jar:            mockJAR,
-		client:         client,
+		ctrl:             ctrl,
+		authnServices:    authnServices,
+		policy:           policyInstance,
+		authzenEvaluator: authzenEvaluator,
+		relyingParty:     relyingPary,
+		vcIssuer:         vcIssuer,
+		vcVerifier:       vcVerifier,
+		resolver:         mockResolver,
+		documentOwner:    mockDocumentOwner,
+		subjectManager:   subjectManager,
+		iamClient:        iamClient,
+		vcr:              mockVCR,
+		wallet:           mockWallet,
+		keyResolver:      keyResolver,
+		jwtSigner:        jwtSigner,
+		jar:              mockJAR,
+		client:           client,
 	}
 }
