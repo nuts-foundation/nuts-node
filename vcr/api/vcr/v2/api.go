@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
@@ -488,104 +487,6 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 		return nil, err
 	}
 	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: searchResults}), nil
-}
-
-// MatchExplain runs the supplied Presentation Definition against the credentials in the holder's
-// wallet and returns a diagnostic [pe.MatchReport] describing per-input-descriptor outcomes.
-//
-// EXPERIMENTAL — for development/debugging of policies. Shape may change without notice.
-func (w *Wrapper) MatchExplain(ctx context.Context, request MatchExplainRequestObject) (MatchExplainResponseObject, error) {
-	if request.Body == nil {
-		return nil, core.InvalidInputError("missing presentation definition in body")
-	}
-	rawPD, err := json.Marshal(*request.Body)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid presentation definition: %w", err)
-	}
-	presentationDefinition, err := pe.ParsePresentationDefinition(rawPD)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid presentation definition: %w", err)
-	}
-
-	dids, err := w.SubjectManager.ListDIDs(ctx, request.SubjectID)
-	if err != nil {
-		return nil, err
-	}
-	var credentials []vc.VerifiableCredential
-	for _, holderDID := range dids {
-		creds, err := w.VCR.Wallet().SearchCredential(ctx, holderDID)
-		if err != nil {
-			return nil, err
-		}
-		credentials = append(credentials, creds...)
-	}
-
-	report, err := presentationDefinition.Explain(credentials)
-	if err != nil {
-		return nil, err
-	}
-	return MatchExplain200JSONResponse(toMatchReportDTO(report)), nil
-}
-
-// toMatchReportDTO converts the internal pe.MatchReport into the API's PresentationDefinitionMatchReport.
-func toMatchReportDTO(r pe.MatchReport) PresentationDefinitionMatchReport {
-	dto := PresentationDefinitionMatchReport{
-		Satisfied:        r.Satisfied,
-		InputDescriptors: make([]InputDescriptorMatchReport, 0, len(r.InputDescriptors)),
-	}
-	for _, d := range r.InputDescriptors {
-		entry := InputDescriptorMatchReport{
-			Id:         d.Id,
-			Considered: make([]ConsideredCredentialMatchReport, 0, len(d.Considered)),
-		}
-		if d.Name != "" {
-			n := d.Name
-			entry.Name = &n
-		}
-		if d.SelectedCredentialId != "" {
-			s := d.SelectedCredentialId
-			entry.SelectedCredentialId = &s
-		}
-		for _, c := range d.Considered {
-			cc := ConsideredCredentialMatchReport{Matched: c.Matched}
-			if c.CredentialId != "" {
-				cid := c.CredentialId
-				cc.CredentialId = &cid
-			}
-			if c.Reason != "" {
-				reason := c.Reason
-				cc.Reason = &reason
-			}
-			entry.Considered = append(entry.Considered, cc)
-		}
-		dto.InputDescriptors = append(dto.InputDescriptors, entry)
-	}
-	if len(r.SubmissionRequirements) > 0 {
-		srs := make([]SubmissionRequirementMatchReport, 0, len(r.SubmissionRequirements))
-		for _, sr := range r.SubmissionRequirements {
-			s := SubmissionRequirementMatchReport{
-				Rule:      sr.Rule,
-				Satisfied: sr.Satisfied,
-				Min:       sr.Min,
-				Max:       sr.Max,
-			}
-			if sr.Name != "" {
-				n := sr.Name
-				s.Name = &n
-			}
-			if sr.From != "" {
-				f := sr.From
-				s.From = &f
-			}
-			if sr.Reason != "" {
-				reason := sr.Reason
-				s.Reason = &reason
-			}
-			srs = append(srs, s)
-		}
-		dto.SubmissionRequirements = &srs
-	}
-	return dto
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {

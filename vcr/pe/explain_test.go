@@ -28,70 +28,7 @@ import (
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-func TestPresentationDefinition_Explain(t *testing.T) {
-	pd := definitions().JSONLD
-	matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
-	nonMatchingID := ssi.MustParseURI("urn:test:non-matching")
-	nonMatchingVC := vc.VerifiableCredential{
-		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
-		ID:                &nonMatchingID,
-		CredentialSubject: []map[string]any{{"id": "did:example:bob"}},
-	}
-
-	t.Run("matching credential is reported as matched and selected", func(t *testing.T) {
-		report, err := pd.Explain([]vc.VerifiableCredential{matchingVC})
-		require.NoError(t, err)
-		assert.True(t, report.Satisfied)
-		require.Len(t, report.InputDescriptors, 1)
-		desc := report.InputDescriptors[0]
-		assert.Equal(t, matchingVC.ID.String(), desc.SelectedCredentialId)
-		require.Len(t, desc.Considered, 1)
-		assert.True(t, desc.Considered[0].Matched)
-		assert.Empty(t, desc.Considered[0].Reason)
-	})
-
-	t.Run("non-matching credential is reported with a reason", func(t *testing.T) {
-		report, err := pd.Explain([]vc.VerifiableCredential{nonMatchingVC})
-		require.NoError(t, err)
-		assert.False(t, report.Satisfied)
-		require.Len(t, report.InputDescriptors, 1)
-		desc := report.InputDescriptors[0]
-		assert.Empty(t, desc.SelectedCredentialId)
-		require.Len(t, desc.Considered, 1)
-		entry := desc.Considered[0]
-		assert.False(t, entry.Matched)
-		assert.NotEmpty(t, entry.Reason, "expected a reason explaining the rejection")
-	})
-
-	t.Run("mixed input: each credential reported separately, satisfied", func(t *testing.T) {
-		report, err := pd.Explain([]vc.VerifiableCredential{nonMatchingVC, matchingVC})
-		require.NoError(t, err)
-		assert.True(t, report.Satisfied)
-		require.Len(t, report.InputDescriptors, 1)
-		require.Len(t, report.InputDescriptors[0].Considered, 2)
-		matchedFound := false
-		for _, c := range report.InputDescriptors[0].Considered {
-			if c.Matched {
-				matchedFound = true
-			} else {
-				assert.NotEmpty(t, c.Reason)
-			}
-		}
-		assert.True(t, matchedFound)
-	})
-
-	t.Run("empty wallet leaves considered empty and satisfied=false", func(t *testing.T) {
-		report, err := pd.Explain(nil)
-		require.NoError(t, err)
-		assert.False(t, report.Satisfied)
-		require.Len(t, report.InputDescriptors, 1)
-		assert.Empty(t, report.InputDescriptors[0].Considered)
-		assert.Empty(t, report.InputDescriptors[0].SelectedCredentialId)
-	})
-}
 
 func Test_explainFieldMismatch(t *testing.T) {
 	credential := map[string]interface{}{
@@ -177,4 +114,3 @@ func TestMatchConstraints_DebugLogging(t *testing.T) {
 	assert.True(t, rejectionFound, "expected a 'credential rejected' debug log")
 	assert.True(t, summaryFound, "expected a 'input descriptor evaluated' debug log")
 }
-
