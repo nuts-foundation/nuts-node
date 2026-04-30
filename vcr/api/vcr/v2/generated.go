@@ -49,6 +49,18 @@ const (
 	Public  IssueVCRequestVisibility = "public"
 )
 
+// ConsideredCredentialMatchReport defines model for ConsideredCredentialMatchReport.
+type ConsideredCredentialMatchReport struct {
+	// CredentialId The id of the credential. Empty for self-attested credentials with no id.
+	CredentialId *string `json:"credential_id,omitempty"`
+
+	// Matched Whether the credential satisfied both the format and the constraints of the InputDescriptor.
+	Matched bool `json:"matched"`
+
+	// Reason When matched is false, a human-readable reason explaining the rejection.
+	Reason *string `json:"reason,omitempty"`
+}
+
 // CreateVPRequest A request for creating a new Verifiable Presentation for a set of Verifiable Credentials.
 type CreateVPRequest struct {
 	// Context Array of JSON-LD contexts, contain definitions of the given types.
@@ -97,6 +109,21 @@ type CredentialIssuer struct {
 
 	// Issuer the DID of an issuer
 	Issuer string `json:"issuer"`
+}
+
+// InputDescriptorMatchReport defines model for InputDescriptorMatchReport.
+type InputDescriptorMatchReport struct {
+	// Considered Every credential evaluated against this InputDescriptor.
+	Considered []ConsideredCredentialMatchReport `json:"considered"`
+
+	// Id The InputDescriptor's id.
+	Id string `json:"id"`
+
+	// Name The InputDescriptor's human-readable name, if set.
+	Name *string `json:"name,omitempty"`
+
+	// SelectedCredentialId The id of the credential picked for this InputDescriptor. Empty when no credential matched.
+	SelectedCredentialId *string `json:"selected_credential_id,omitempty"`
 }
 
 // IssueVCRequest A request for issuing a new Verifiable Credential.
@@ -173,6 +200,22 @@ type IssueVCRequest_Type struct {
 // Only valid for did:nuts issuers.
 type IssueVCRequestVisibility string
 
+// PresentationDefinition A Presentation Definition as specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/.
+type PresentationDefinition = map[string]interface{}
+
+// PresentationDefinitionMatchReport EXPERIMENTAL — diagnostic report describing how a Presentation Definition matched against a set of credentials.
+// Returned by the match-explain operation. Shape may change without notice.
+type PresentationDefinitionMatchReport struct {
+	// InputDescriptors One entry per InputDescriptor in the Presentation Definition.
+	InputDescriptors []InputDescriptorMatchReport `json:"input_descriptors"`
+
+	// Satisfied Whether the Presentation Definition would have selected credentials successfully.
+	Satisfied bool `json:"satisfied"`
+
+	// SubmissionRequirements One entry per SubmissionRequirement, when the Presentation Definition uses them.
+	SubmissionRequirements *[]SubmissionRequirementMatchReport `json:"submission_requirements,omitempty"`
+}
+
 // SearchOptions defines model for SearchOptions.
 type SearchOptions struct {
 	// AllowUntrustedIssuer If set to true, VCs from an untrusted issuer are returned.
@@ -198,6 +241,22 @@ type SearchVCResult struct {
 // SearchVCResults result of a Search operation.
 type SearchVCResults struct {
 	VerifiableCredentials []SearchVCResult `json:"verifiableCredentials"`
+}
+
+// SubmissionRequirementMatchReport defines model for SubmissionRequirementMatchReport.
+type SubmissionRequirementMatchReport struct {
+	// From The group name this requirement draws from.
+	From *string `json:"from,omitempty"`
+	Max  *int    `json:"max,omitempty"`
+	Min  *int    `json:"min,omitempty"`
+	Name *string `json:"name,omitempty"`
+
+	// Reason When satisfied is false, a human-readable reason explaining why.
+	Reason *string `json:"reason,omitempty"`
+
+	// Rule The submission requirement rule (typically "all" or "pick").
+	Rule      string `json:"rule"`
+	Satisfied bool   `json:"satisfied"`
 }
 
 // VCVerificationOptions defines model for VCVerificationOptions.
@@ -258,6 +317,9 @@ type SearchIssuedVCsParams struct {
 
 // CreateVPJSONRequestBody defines body for CreateVP for application/json ContentType.
 type CreateVPJSONRequestBody = CreateVPRequest
+
+// MatchExplainJSONRequestBody defines body for MatchExplain for application/json ContentType.
+type MatchExplainJSONRequestBody = PresentationDefinition
 
 // LoadVCJSONRequestBody defines body for LoadVC for application/json ContentType.
 type LoadVCJSONRequestBody = VerifiableCredential
@@ -482,6 +544,11 @@ type ClientInterface interface {
 
 	CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// MatchExplainWithBody request with any body
+	MatchExplainWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	MatchExplain(ctx context.Context, subjectID string, body MatchExplainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetCredentialsInWallet request
 	GetCredentialsInWallet(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -556,6 +623,30 @@ func (c *Client) CreateVPWithBody(ctx context.Context, contentType string, body 
 
 func (c *Client) CreateVP(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreateVPRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MatchExplainWithBody(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMatchExplainRequestWithBody(c.Server, subjectID, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) MatchExplain(ctx context.Context, subjectID string, body MatchExplainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMatchExplainRequest(c.Server, subjectID, body)
 	if err != nil {
 		return nil, err
 	}
@@ -851,6 +942,50 @@ func NewCreateVPRequestWithBody(server string, contentType string, body io.Reade
 	}
 
 	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/vp")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMatchExplainRequest calls the generic MatchExplain builder with application/json body
+func NewMatchExplainRequest(server string, subjectID string, body MatchExplainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMatchExplainRequestWithBody(server, subjectID, "application/json", bodyReader)
+}
+
+// NewMatchExplainRequestWithBody generates requests for MatchExplain with any type of body
+func NewMatchExplainRequestWithBody(server string, subjectID string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0 = subjectID
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/%s/match-explain", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1508,6 +1643,11 @@ type ClientWithResponsesInterface interface {
 
 	CreateVPWithResponse(ctx context.Context, body CreateVPJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
+	// MatchExplainWithBodyWithResponse request with any body
+	MatchExplainWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MatchExplainResponse, error)
+
+	MatchExplainWithResponse(ctx context.Context, subjectID string, body MatchExplainJSONRequestBody, reqEditors ...RequestEditorFn) (*MatchExplainResponse, error)
+
 	// GetCredentialsInWalletWithResponse request
 	GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error)
 
@@ -1594,6 +1734,38 @@ func (r CreateVPResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateVPResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type MatchExplainResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *PresentationDefinitionMatchReport
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r MatchExplainResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MatchExplainResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2093,6 +2265,23 @@ func (c *ClientWithResponses) CreateVPWithResponse(ctx context.Context, body Cre
 	return ParseCreateVPResponse(rsp)
 }
 
+// MatchExplainWithBodyWithResponse request with arbitrary body returning *MatchExplainResponse
+func (c *ClientWithResponses) MatchExplainWithBodyWithResponse(ctx context.Context, subjectID string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MatchExplainResponse, error) {
+	rsp, err := c.MatchExplainWithBody(ctx, subjectID, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMatchExplainResponse(rsp)
+}
+
+func (c *ClientWithResponses) MatchExplainWithResponse(ctx context.Context, subjectID string, body MatchExplainJSONRequestBody, reqEditors ...RequestEditorFn) (*MatchExplainResponse, error) {
+	rsp, err := c.MatchExplain(ctx, subjectID, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMatchExplainResponse(rsp)
+}
+
 // GetCredentialsInWalletWithResponse request returning *GetCredentialsInWalletResponse
 func (c *ClientWithResponses) GetCredentialsInWalletWithResponse(ctx context.Context, subjectID string, reqEditors ...RequestEditorFn) (*GetCredentialsInWalletResponse, error) {
 	rsp, err := c.GetCredentialsInWallet(ctx, subjectID, reqEditors...)
@@ -2300,6 +2489,48 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest VerifiablePresentation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMatchExplainResponse parses an HTTP response from a MatchExplainWithResponse call
+func ParseMatchExplainResponse(rsp *http.Response) (*MatchExplainResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MatchExplainResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PresentationDefinitionMatchReport
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2933,6 +3164,9 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
+	// EXPERIMENTAL — Explain how a Presentation Definition matches against the wallet's credentials.
+	// (POST /internal/vcr/v2/holder/{subjectID}/match-explain)
+	MatchExplain(ctx echo.Context, subjectID string) error
 	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
@@ -2993,6 +3227,21 @@ func (w *ServerInterfaceWrapper) CreateVP(ctx echo.Context) error {
 
 	// Invoke the callback with all the unmarshaled arguments
 	err = w.Handler.CreateVP(ctx)
+	return err
+}
+
+// MatchExplain converts echo context to params.
+func (w *ServerInterfaceWrapper) MatchExplain(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
+
+	subjectID = ctx.Param("subjectID")
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.MatchExplain(ctx, subjectID)
 	return err
 }
 
@@ -3262,6 +3511,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	}
 
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
+	router.POST(baseURL+"/internal/vcr/v2/holder/:subjectID/match-explain", wrapper.MatchExplain)
 	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.GetCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.LoadVC)
 	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc/search", wrapper.SearchCredentialsInWallet)
@@ -3312,6 +3562,45 @@ type CreateVPdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response CreateVPdefaultApplicationProblemPlusJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type MatchExplainRequestObject struct {
+	SubjectID string `json:"subjectID"`
+	Body      *MatchExplainJSONRequestBody
+}
+
+type MatchExplainResponseObject interface {
+	VisitMatchExplainResponse(w http.ResponseWriter) error
+}
+
+type MatchExplain200JSONResponse PresentationDefinitionMatchReport
+
+func (response MatchExplain200JSONResponse) VisitMatchExplainResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MatchExplaindefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response MatchExplaindefaultApplicationProblemPlusJSONResponse) VisitMatchExplainResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(response.StatusCode)
 
@@ -3899,6 +4188,9 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
+	// EXPERIMENTAL — Explain how a Presentation Definition matches against the wallet's credentials.
+	// (POST /internal/vcr/v2/holder/{subjectID}/match-explain)
+	MatchExplain(ctx context.Context, request MatchExplainRequestObject) (MatchExplainResponseObject, error)
 	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
@@ -3981,6 +4273,37 @@ func (sh *strictHandler) CreateVP(ctx echo.Context) error {
 		return err
 	} else if validResponse, ok := response.(CreateVPResponseObject); ok {
 		return validResponse.VisitCreateVPResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
+// MatchExplain operation middleware
+func (sh *strictHandler) MatchExplain(ctx echo.Context, subjectID string) error {
+	var request MatchExplainRequestObject
+
+	request.SubjectID = subjectID
+
+	var body MatchExplainJSONRequestBody
+	if err := ctx.Bind(&body); err != nil {
+		return err
+	}
+	request.Body = &body
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.MatchExplain(ctx.Request().Context(), request.(MatchExplainRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MatchExplain")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(MatchExplainResponseObject); ok {
+		return validResponse.VisitMatchExplainResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

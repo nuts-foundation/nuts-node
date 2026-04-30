@@ -891,6 +891,130 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 	})
 }
 
+func TestWrapper_MatchExplain(t *testing.T) {
+	subjectID := "holder"
+	pdBody := map[string]interface{}{
+		"id": "test-pd",
+		"input_descriptors": []interface{}{
+			map[string]interface{}{
+				"id": "issuer-id",
+				"constraints": map[string]interface{}{
+					"fields": []interface{}{
+						map[string]interface{}{
+							"path":   []interface{}{"$.issuer"},
+							"filter": map[string]interface{}{"type": "string", "const": "did:web:trusted.example.com"},
+						},
+					},
+				},
+			},
+		},
+	}
+	matchingID := ssi.MustParseURI("did:web:trusted.example.com#m1")
+	matchingVC := vc.VerifiableCredential{
+		Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI()},
+		ID:                &matchingID,
+		Issuer:            ssi.MustParseURI("did:web:trusted.example.com"),
+		CredentialSubject: []map[string]any{{"id": holderDID.String()}},
+	}
+	rejectingID := ssi.MustParseURI("did:web:other.example.com#m2")
+	rejectingVC := vc.VerifiableCredential{
+		Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI()},
+		ID:                &rejectingID,
+		Issuer:            ssi.MustParseURI("did:web:other.example.com"),
+		CredentialSubject: []map[string]any{{"id": holderDID.String()}},
+	}
+
+	t.Run("ok - report includes matched and rejected credentials", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{rejectingVC, matchingVC}, nil)
+
+		response, err := testContext.client.MatchExplain(testContext.requestCtx, MatchExplainRequestObject{
+			SubjectID: subjectID,
+			Body:      &pdBody,
+		})
+
+		require.NoError(t, err)
+		report, ok := response.(MatchExplain200JSONResponse)
+		require.True(t, ok)
+		assert.True(t, report.Satisfied)
+		require.Len(t, report.InputDescriptors, 1)
+		desc := report.InputDescriptors[0]
+		assert.Equal(t, "issuer-id", desc.Id)
+		require.NotNil(t, desc.SelectedCredentialId)
+		assert.Equal(t, matchingID.String(), *desc.SelectedCredentialId)
+		require.Len(t, desc.Considered, 2)
+
+		var matchedFound, rejectedFound bool
+		for _, c := range desc.Considered {
+			if c.Matched {
+				matchedFound = true
+				require.NotNil(t, c.CredentialId)
+				assert.Equal(t, matchingID.String(), *c.CredentialId)
+			} else {
+				rejectedFound = true
+				require.NotNil(t, c.CredentialId)
+				assert.Equal(t, rejectingID.String(), *c.CredentialId)
+				require.NotNil(t, c.Reason)
+				assert.Contains(t, *c.Reason, "did:web:other.example.com")
+			}
+		}
+		assert.True(t, matchedFound)
+		assert.True(t, rejectedFound)
+	})
+
+	t.Run("ok - empty wallet returns satisfied=false", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subjectID).Return([]did.DID{holderDID}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{}, nil)
+
+		response, err := testContext.client.MatchExplain(testContext.requestCtx, MatchExplainRequestObject{
+			SubjectID: subjectID,
+			Body:      &pdBody,
+		})
+
+		require.NoError(t, err)
+		report := response.(MatchExplain200JSONResponse)
+		assert.False(t, report.Satisfied)
+		require.Len(t, report.InputDescriptors, 1)
+		assert.Empty(t, report.InputDescriptors[0].Considered)
+	})
+
+	t.Run("error - missing body", func(t *testing.T) {
+		testContext := newMockContext(t)
+
+		_, err := testContext.client.MatchExplain(testContext.requestCtx, MatchExplainRequestObject{SubjectID: subjectID})
+
+		assert.ErrorContains(t, err, "missing presentation definition")
+	})
+
+	t.Run("error - invalid presentation definition", func(t *testing.T) {
+		testContext := newMockContext(t)
+		invalid := map[string]interface{}{"id": "x"} // missing required input_descriptors
+
+		_, err := testContext.client.MatchExplain(testContext.requestCtx, MatchExplainRequestObject{
+			SubjectID: subjectID,
+			Body:      &invalid,
+		})
+
+		assert.ErrorContains(t, err, "invalid presentation definition")
+	})
+
+	t.Run("error - subject not found", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().ListDIDs(testContext.requestCtx, subjectID).Return(nil, didsubject.ErrSubjectNotFound)
+
+		_, err := testContext.client.MatchExplain(testContext.requestCtx, MatchExplainRequestObject{
+			SubjectID: subjectID,
+			Body:      &pdBody,
+		})
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+}
+
 func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 	didNuts := did.MustParseDID("did:nuts:123")
 	didWeb := did.MustParseDID("did:web:example.com")

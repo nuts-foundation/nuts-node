@@ -22,14 +22,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"
 
 	"github.com/PaesslerAG/jsonpath"
 	"github.com/dlclark/regexp2"
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
+	"github.com/sirupsen/logrus"
 )
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
@@ -143,6 +145,7 @@ func (presentationDefinition PresentationDefinition) CredentialsRequired() bool 
 }
 
 func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]Candidate, error) {
+	debug := logrus.IsLevelEnabled(logrus.DebugLevel)
 	var candidates []Candidate
 
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
@@ -154,8 +157,13 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				return nil, err
 			}
 			// InputDescriptor formats must be a subset of the PresentationDefinition formats, so it must satisfy both.
-			if isMatch && matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential) {
+			formatOK := matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential)
+			if isMatch && formatOK {
 				matchingVCs = append(matchingVCs, credential)
+				continue
+			}
+			if debug {
+				logCredentialRejection(*inputDescriptor, credential, isMatch, formatOK, presentationDefinition.Format)
 			}
 		}
 		// Use the selector to pick one credential from the candidates.
@@ -175,6 +183,16 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				return nil, err
 			}
 		}
+		if debug {
+			entry := log.Logger().
+				WithField("input_descriptor", inputDescriptor.Id).
+				WithField("considered", len(vcs)).
+				WithField("matched", len(matchingVCs))
+			if selected != nil {
+				entry = entry.WithField("selected", credentialID(*selected))
+			}
+			entry.Debug("PE: input descriptor evaluated")
+		}
 		candidates = append(candidates, Candidate{
 			InputDescriptor: *inputDescriptor,
 			VC:              selected,
@@ -182,6 +200,32 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 	}
 
 	return candidates, nil
+}
+
+// logCredentialRejection emits a debug log explaining why a credential was rejected by an
+// input descriptor. Only call this when debug logging is enabled — it does extra work to
+// produce the reason.
+func logCredentialRejection(inputDescriptor InputDescriptor, credential vc.VerifiableCredential, constraintsMatched, formatOK bool, presentationFormat *PresentationDefinitionClaimFormatDesignations) {
+	var reason string
+	switch {
+	case !formatOK:
+		reason = "credential format/proof_type does not satisfy presentation definition or input descriptor format"
+	case !constraintsMatched && inputDescriptor.Constraints != nil:
+		credentialAsMap, err := credentialToMap(credential)
+		if err != nil {
+			reason = "could not parse credential: " + err.Error()
+		} else {
+			reason = explainConstraintMismatch(inputDescriptor.Constraints, credentialAsMap)
+		}
+	default:
+		reason = "credential rejected"
+	}
+	log.Logger().
+		WithField("input_descriptor", inputDescriptor.Id).
+		WithField("credential", credentialID(credential)).
+		WithField("reason", reason).
+		Debug("PE: credential rejected")
+	_ = presentationFormat // available if richer logging is needed later
 }
 
 func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {

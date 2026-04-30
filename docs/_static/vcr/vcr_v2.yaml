@@ -605,6 +605,54 @@ paths:
                 $ref: '#/components/schemas/SearchVCResults'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/holder/{subjectID}/match-explain:
+    parameters:
+      - name: subjectID
+        in: path
+        description: Subject ID of the wallet owner at this node.
+        required: true
+        content:
+          plain/text:
+            schema:
+              type: string
+              example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
+    post:
+      summary: |
+        EXPERIMENTAL — Explain how a Presentation Definition matches against the wallet's credentials.
+      description: |
+        **EXPERIMENTAL**: this operation is provided for development and debugging of Presentation Definitions
+        and may change or be removed without notice.
+
+        Runs the given Presentation Definition against the credentials in the holder's wallet and returns
+        a diagnostic report. Per input descriptor, the report lists every credential that was considered,
+        whether it matched, and — when it did not — a human-readable reason describing which constraint or
+        format check rejected it. Submission requirements are summarised with their satisfied state.
+
+        No credentials are issued, removed, or otherwise modified.
+
+        error returns:
+        * 400 - The supplied Presentation Definition is invalid
+        * 404 - Subject not found
+        * 500 - An error occurred while processing the request
+      operationId: matchExplain
+      tags:
+        - credential
+      requestBody:
+        required: true
+        description: The Presentation Definition to evaluate against the wallet's credentials.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresentationDefinition"
+      responses:
+        "200":
+          description: The diagnostic report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PresentationDefinitionMatchReport"
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     VerifiableCredential:
@@ -615,6 +663,94 @@ components:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     Revocation:
       $ref: '../common/ssi_types.yaml#/components/schemas/Revocation'
+
+    PresentationDefinition:
+      description: |
+        A Presentation Definition as specified by https://identity.foundation/presentation-exchange/spec/v2.0.0/.
+      type: object
+
+    PresentationDefinitionMatchReport:
+      description: |
+        EXPERIMENTAL — diagnostic report describing how a Presentation Definition matched against a set of credentials.
+        Returned by the match-explain operation. Shape may change without notice.
+      type: object
+      required:
+        - satisfied
+        - input_descriptors
+      properties:
+        satisfied:
+          type: boolean
+          description: Whether the Presentation Definition would have selected credentials successfully.
+        input_descriptors:
+          type: array
+          description: One entry per InputDescriptor in the Presentation Definition.
+          items:
+            $ref: "#/components/schemas/InputDescriptorMatchReport"
+        submission_requirements:
+          type: array
+          description: One entry per SubmissionRequirement, when the Presentation Definition uses them.
+          items:
+            $ref: "#/components/schemas/SubmissionRequirementMatchReport"
+
+    InputDescriptorMatchReport:
+      type: object
+      required:
+        - id
+        - considered
+      properties:
+        id:
+          type: string
+          description: The InputDescriptor's id.
+        name:
+          type: string
+          description: The InputDescriptor's human-readable name, if set.
+        selected_credential_id:
+          type: string
+          description: The id of the credential picked for this InputDescriptor. Empty when no credential matched.
+        considered:
+          type: array
+          description: Every credential evaluated against this InputDescriptor.
+          items:
+            $ref: "#/components/schemas/ConsideredCredentialMatchReport"
+
+    ConsideredCredentialMatchReport:
+      type: object
+      required:
+        - matched
+      properties:
+        credential_id:
+          type: string
+          description: The id of the credential. Empty for self-attested credentials with no id.
+        matched:
+          type: boolean
+          description: Whether the credential satisfied both the format and the constraints of the InputDescriptor.
+        reason:
+          type: string
+          description: When matched is false, a human-readable reason explaining the rejection.
+
+    SubmissionRequirementMatchReport:
+      type: object
+      required:
+        - rule
+        - satisfied
+      properties:
+        name:
+          type: string
+        rule:
+          type: string
+          description: The submission requirement rule (typically "all" or "pick").
+        from:
+          type: string
+          description: The group name this requirement draws from.
+        min:
+          type: integer
+        max:
+          type: integer
+        satisfied:
+          type: boolean
+        reason:
+          type: string
+          description: When satisfied is false, a human-readable reason explaining why.
 
     IssueVCRequest:
       type: object
