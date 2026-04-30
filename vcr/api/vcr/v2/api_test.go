@@ -891,6 +891,166 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 	})
 }
 
+func TestWrapper_GetExpiringCredentialsInWallet(t *testing.T) {
+	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	originalClock := clockFn
+	clockFn = func() time.Time { return now }
+	t.Cleanup(func() { clockFn = originalClock })
+
+	issuerURI := ssi.MustParseURI("did:web:issuer.example.com")
+	otherHolderDID := did.MustParseDID("did:web:example.com:iam:other")
+	makeVC := func(idSuffix string, holder did.DID, exp *time.Time) vc.VerifiableCredential {
+		id := ssi.MustParseURI("did:web:issuer.example.com#" + idSuffix)
+		return vc.VerifiableCredential{
+			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("NutsOrganizationCredential")},
+			ID:                &id,
+			Issuer:            issuerURI,
+			CredentialSubject: []map[string]any{{"id": holder.String()}},
+			ExpirationDate:    exp,
+		}
+	}
+	expired := now.Add(-24 * time.Hour)
+	soon := now.Add(10 * 24 * time.Hour)
+	farFuture := now.Add(365 * 24 * time.Hour)
+	expiredVC := makeVC("expired", holderDID, &expired)
+	soonVC := makeVC("soon", holderDID, &soon)
+	farVC := makeVC("far", holderDID, &farFuture)
+	noExpVC := makeVC("noexp", holderDID, nil)
+	otherSubjectExpiredVC := makeVC("other-expired", otherHolderDID, &expired)
+
+	expectedExpiredEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#expired",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: expired,
+	}
+	expectedSoonEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#soon",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: soon,
+	}
+	expectedFarEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#far",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: farFuture,
+	}
+	expectedOtherEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#other-expired",
+		Holder:         otherHolderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: expired,
+	}
+
+	t.Run("ok - groups expiring credentials by subject; subjects with none are omitted", func(t *testing.T) {
+		testContext := newMockContext(t)
+		emptySubjectDID := did.MustParseDID("did:web:example.com:iam:empty")
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+			"holder-b": {otherHolderDID},
+			"holder-c": {emptySubjectDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{expiredVC, soonVC, farVC, noExpVC}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, otherHolderDID).
+			Return([]vc.VerifiableCredential{otherSubjectExpiredVC}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, emptySubjectDID).
+			Return([]vc.VerifiableCredential{farVC, noExpVC}, nil)
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry, expectedSoonEntry},
+			"holder-b": {expectedOtherEntry},
+		}, response)
+	})
+
+	t.Run("ok - custom within=8760h (1y) also returns far", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{expiredVC, soonVC, farVC, noExpVC}, nil)
+		within := "8760h"
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry, expectedSoonEntry, expectedFarEntry},
+		}, response)
+	})
+
+	t.Run("ok - within=0 returns only already-expired", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{expiredVC, soonVC, farVC, noExpVC}, nil)
+		within := "0s"
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry},
+		}, response)
+	})
+
+	t.Run("ok - no subjects returns empty map", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{}, nil)
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{}, response)
+	})
+
+	t.Run("error - invalid within", func(t *testing.T) {
+		testContext := newMockContext(t)
+		within := "not-a-duration"
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.ErrorContains(t, err, "invalid value for within")
+	})
+
+	t.Run("error - negative within", func(t *testing.T) {
+		testContext := newMockContext(t)
+		within := "-1h"
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.ErrorContains(t, err, "within must not be negative")
+	})
+
+	t.Run("error - subject manager fails", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(nil, assert.AnError)
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.ErrorIs(t, err, assert.AnError)
+	})
+}
+
 func TestWrapper_RemoveCredentialFromSubjectWallet(t *testing.T) {
 	didNuts := did.MustParseDID("did:nuts:123")
 	didWeb := did.MustParseDID("did:web:example.com")

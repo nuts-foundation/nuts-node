@@ -605,6 +605,57 @@ paths:
                 $ref: '#/components/schemas/SearchVCResults'
         default:
           $ref: '../common/error_response.yaml'
+  /internal/vcr/v2/holder/expiring:
+    get:
+      summary: List credentials across all wallets on this node that are expired or about to expire.
+      description: |
+        Returns all credentials held by any subject on this node whose `expirationDate` is at or before
+        `now + within`. This includes credentials that are already expired. Credentials without an
+        `expirationDate` are never returned, since they do not expire.
+
+        Operators can use this endpoint to monitor all wallets on the node and refresh credentials before
+        they expire.
+
+        error returns:
+        * 400 - Invalid value for the `within` parameter
+        * 500 - An error occurred while processing the request
+      operationId: getExpiringCredentialsInWallet
+      tags:
+        - credential
+      parameters:
+        - name: within
+          in: query
+          description: |
+            Time window relative to now in which a credential's `expirationDate` falls for it to be considered
+            expiring. Accepts a Go duration string (e.g. `24h`, `720h`, `30m`). Must be non-negative.
+            Defaults to 720h (30 days). Use `0s` to return only already-expired credentials.
+          required: false
+          schema:
+            type: string
+            default: "720h"
+            example: "720h"
+      responses:
+        "200":
+          description: |
+            Map of subject ID to the list of expired or about-to-expire credentials held by that subject.
+            Only subjects with at least one such credential are included.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/ExpiringCredential"
+                example:
+                  90BC1AE9-752B-432F-ADC3-DD9F9C61843C:
+                    - id: "did:web:issuer.example.com#c4199b74-0c0a-4e09-a463-6927553e65f5"
+                      holder: "did:web:example.com:iam:123"
+                      issuer: "did:web:issuer.example.com"
+                      type: ["NutsOrganizationCredential"]
+                      expirationDate: "2026-05-15T12:00:00Z"
+        default:
+          $ref: '../common/error_response.yaml'
 components:
   schemas:
     VerifiableCredential:
@@ -615,6 +666,44 @@ components:
       $ref: '../common/ssi_types.yaml#/components/schemas/VerifiablePresentation'
     Revocation:
       $ref: '../common/ssi_types.yaml#/components/schemas/Revocation'
+
+    ExpiringCredential:
+      type: object
+      description: |
+        Summary of a Verifiable Credential in a wallet on this node that is expired or about to expire.
+        Contains only the fields needed for monitoring; the full credential can be retrieved via the
+        wallet search endpoints using the `id`.
+      required:
+        - id
+        - holder
+        - issuer
+        - type
+        - expirationDate
+      properties:
+        id:
+          description: ID of the credential (the `id` property of the Verifiable Credential).
+          type: string
+          example: "did:web:issuer.example.com#c4199b74-0c0a-4e09-a463-6927553e65f5"
+        holder:
+          description: DID of the wallet holding the credential.
+          type: string
+          example: "did:web:example.com:iam:123"
+        issuer:
+          description: DID of the credential's issuer.
+          type: string
+          example: "did:web:issuer.example.com"
+        type:
+          description: |
+            Credential type(s), excluding the generic `VerifiableCredential` type.
+          type: array
+          items:
+            type: string
+          example: ["NutsOrganizationCredential"]
+        expirationDate:
+          description: RFC3339 time at which the credential expires.
+          type: string
+          format: date-time
+          example: "2026-05-15T12:00:00Z"
 
     IssueVCRequest:
       type: object
