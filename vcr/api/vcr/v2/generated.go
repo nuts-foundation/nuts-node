@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/oapi-codegen/runtime"
@@ -97,6 +98,26 @@ type CredentialIssuer struct {
 
 	// Issuer the DID of an issuer
 	Issuer string `json:"issuer"`
+}
+
+// ExpiringCredential Summary of a Verifiable Credential in a wallet on this node that is expired or about to expire.
+// Contains only the fields needed for monitoring; the full credential can be retrieved via the
+// wallet search endpoints using the `id`.
+type ExpiringCredential struct {
+	// ExpirationDate RFC3339 time at which the credential expires.
+	ExpirationDate time.Time `json:"expirationDate"`
+
+	// Holder DID of the wallet holding the credential.
+	Holder string `json:"holder"`
+
+	// Id ID of the credential (the `id` property of the Verifiable Credential).
+	Id string `json:"id"`
+
+	// Issuer DID of the credential's issuer.
+	Issuer string `json:"issuer"`
+
+	// Type Credential type(s), excluding the generic `VerifiableCredential` type.
+	Type []string `json:"type"`
 }
 
 // IssueVCRequest A request for issuing a new Verifiable Credential.
@@ -242,6 +263,14 @@ type VPVerificationResult struct {
 
 	// Validity Indicates the validity of the signature, issuer and revocation state.
 	Validity bool `json:"validity"`
+}
+
+// GetExpiringCredentialsInWalletParams defines parameters for GetExpiringCredentialsInWallet.
+type GetExpiringCredentialsInWalletParams struct {
+	// Within Time window relative to now in which a credential's `expirationDate` falls for it to be considered
+	// expiring. Accepts a Go duration string (e.g. `24h`, `720h`, `30m`). Must be non-negative.
+	// Defaults to 720h (30 days). Use `0s` to return only already-expired credentials.
+	Within *string `form:"within,omitempty" json:"within,omitempty"`
 }
 
 // SearchIssuedVCsParams defines parameters for SearchIssuedVCs.
@@ -477,6 +506,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
+	// GetExpiringCredentialsInWallet request
+	GetExpiringCredentialsInWallet(ctx context.Context, params *GetExpiringCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreateVPWithBody request with any body
 	CreateVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -540,6 +572,18 @@ type ClientInterface interface {
 
 	// ListUntrusted request
 	ListUntrusted(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*http.Response, error)
+}
+
+func (c *Client) GetExpiringCredentialsInWallet(ctx context.Context, params *GetExpiringCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetExpiringCredentialsInWalletRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
 }
 
 func (c *Client) CreateVPWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -828,6 +872,55 @@ func (c *Client) ListUntrusted(ctx context.Context, credentialType string, reqEd
 		return nil, err
 	}
 	return c.Client.Do(req)
+}
+
+// NewGetExpiringCredentialsInWalletRequest generates requests for GetExpiringCredentialsInWallet
+func NewGetExpiringCredentialsInWalletRequest(server string, params *GetExpiringCredentialsInWalletParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/vcr/v2/holder/expiring")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Within != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "within", runtime.ParamLocationQuery, *params.Within); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
 }
 
 // NewCreateVPRequest calls the generic CreateVP builder with application/json body
@@ -1503,6 +1596,9 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
+	// GetExpiringCredentialsInWalletWithResponse request
+	GetExpiringCredentialsInWalletWithResponse(ctx context.Context, params *GetExpiringCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*GetExpiringCredentialsInWalletResponse, error)
+
 	// CreateVPWithBodyWithResponse request with any body
 	CreateVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVPResponse, error)
 
@@ -1566,6 +1662,38 @@ type ClientWithResponsesInterface interface {
 
 	// ListUntrustedWithResponse request
 	ListUntrustedWithResponse(ctx context.Context, credentialType string, reqEditors ...RequestEditorFn) (*ListUntrustedResponse, error)
+}
+
+type GetExpiringCredentialsInWalletResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *map[string][]ExpiringCredential
+	ApplicationproblemJSONDefault *struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+}
+
+// Status returns HTTPResponse.Status
+func (r GetExpiringCredentialsInWalletResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetExpiringCredentialsInWalletResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
 }
 
 type CreateVPResponse struct {
@@ -2076,6 +2204,15 @@ func (r ListUntrustedResponse) StatusCode() int {
 	return 0
 }
 
+// GetExpiringCredentialsInWalletWithResponse request returning *GetExpiringCredentialsInWalletResponse
+func (c *ClientWithResponses) GetExpiringCredentialsInWalletWithResponse(ctx context.Context, params *GetExpiringCredentialsInWalletParams, reqEditors ...RequestEditorFn) (*GetExpiringCredentialsInWalletResponse, error) {
+	rsp, err := c.GetExpiringCredentialsInWallet(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetExpiringCredentialsInWalletResponse(rsp)
+}
+
 // CreateVPWithBodyWithResponse request with arbitrary body returning *CreateVPResponse
 func (c *ClientWithResponses) CreateVPWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateVPResponse, error) {
 	rsp, err := c.CreateVPWithBody(ctx, contentType, body, reqEditors...)
@@ -2282,6 +2419,48 @@ func (c *ClientWithResponses) ListUntrustedWithResponse(ctx context.Context, cre
 		return nil, err
 	}
 	return ParseListUntrustedResponse(rsp)
+}
+
+// ParseGetExpiringCredentialsInWalletResponse parses an HTTP response from a GetExpiringCredentialsInWalletWithResponse call
+func ParseGetExpiringCredentialsInWalletResponse(rsp *http.Response) (*GetExpiringCredentialsInWalletResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetExpiringCredentialsInWalletResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string][]ExpiringCredential
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest struct {
+			// Detail A human-readable explanation specific to this occurrence of the problem.
+			Detail string `json:"detail"`
+
+			// Status HTTP statuscode
+			Status float32 `json:"status"`
+
+			// Title A short, human-readable summary of the problem type.
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
 }
 
 // ParseCreateVPResponse parses an HTTP response from a CreateVPWithResponse call
@@ -2930,6 +3109,9 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List credentials across all wallets on this node that are expired or about to expire.
+	// (GET /internal/vcr/v2/holder/expiring)
+	GetExpiringCredentialsInWallet(ctx echo.Context, params GetExpiringCredentialsInWalletParams) error
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
@@ -2983,6 +3165,26 @@ type ServerInterface interface {
 // ServerInterfaceWrapper converts echo contexts to parameters.
 type ServerInterfaceWrapper struct {
 	Handler ServerInterface
+}
+
+// GetExpiringCredentialsInWallet converts echo context to params.
+func (w *ServerInterfaceWrapper) GetExpiringCredentialsInWallet(ctx echo.Context) error {
+	var err error
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetExpiringCredentialsInWalletParams
+	// ------------- Optional query parameter "within" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "within", ctx.QueryParams(), &params.Within)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter within: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetExpiringCredentialsInWallet(ctx, params)
+	return err
 }
 
 // CreateVP converts echo context to params.
@@ -3261,6 +3463,7 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
+	router.GET(baseURL+"/internal/vcr/v2/holder/expiring", wrapper.GetExpiringCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/vp", wrapper.CreateVP)
 	router.GET(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.GetCredentialsInWallet)
 	router.POST(baseURL+"/internal/vcr/v2/holder/:subjectID/vc", wrapper.LoadVC)
@@ -3278,6 +3481,44 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/trusted", wrapper.ListTrusted)
 	router.GET(baseURL+"/internal/vcr/v2/verifier/:credentialType/untrusted", wrapper.ListUntrusted)
 
+}
+
+type GetExpiringCredentialsInWalletRequestObject struct {
+	Params GetExpiringCredentialsInWalletParams
+}
+
+type GetExpiringCredentialsInWalletResponseObject interface {
+	VisitGetExpiringCredentialsInWalletResponse(w http.ResponseWriter) error
+}
+
+type GetExpiringCredentialsInWallet200JSONResponse map[string][]ExpiringCredential
+
+func (response GetExpiringCredentialsInWallet200JSONResponse) VisitGetExpiringCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetExpiringCredentialsInWalletdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response GetExpiringCredentialsInWalletdefaultApplicationProblemPlusJSONResponse) VisitGetExpiringCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type CreateVPRequestObject struct {
@@ -3896,6 +4137,9 @@ func (response ListUntrusteddefaultApplicationProblemPlusJSONResponse) VisitList
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List credentials across all wallets on this node that are expired or about to expire.
+	// (GET /internal/vcr/v2/holder/expiring)
+	GetExpiringCredentialsInWallet(ctx context.Context, request GetExpiringCredentialsInWalletRequestObject) (GetExpiringCredentialsInWalletResponseObject, error)
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
@@ -3956,6 +4200,31 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetExpiringCredentialsInWallet operation middleware
+func (sh *strictHandler) GetExpiringCredentialsInWallet(ctx echo.Context, params GetExpiringCredentialsInWalletParams) error {
+	var request GetExpiringCredentialsInWalletRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetExpiringCredentialsInWallet(ctx.Request().Context(), request.(GetExpiringCredentialsInWalletRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetExpiringCredentialsInWallet")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(GetExpiringCredentialsInWalletResponseObject); ok {
+		return validResponse.VisitGetExpiringCredentialsInWalletResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
 }
 
 // CreateVP operation middleware

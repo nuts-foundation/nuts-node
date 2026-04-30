@@ -49,6 +49,10 @@ var clockFn = func() time.Time {
 	return time.Now()
 }
 
+// defaultExpiringWithin is the default time window used by GetExpiringCredentialsInWallet
+// when the `within` query parameter is not supplied.
+const defaultExpiringWithin = 30 * 24 * time.Hour
+
 var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
@@ -487,6 +491,77 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 		return nil, err
 	}
 	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: searchResults}), nil
+}
+
+// GetExpiringCredentialsInWallet returns credentials across all wallets on this node that have an
+// expirationDate at or before now + within, grouped by subject ID. Already-expired credentials are
+// included. Credentials without an expirationDate are never returned because they don't expire.
+// Subjects without any expiring credentials are omitted from the result.
+func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request GetExpiringCredentialsInWalletRequestObject) (GetExpiringCredentialsInWalletResponseObject, error) {
+	within := defaultExpiringWithin
+	if request.Params.Within != nil {
+		parsed, err := time.ParseDuration(*request.Params.Within)
+		if err != nil {
+			return nil, core.InvalidInputError("invalid value for within: %w", err)
+		}
+		if parsed < 0 {
+			return nil, core.InvalidInputError("within must not be negative")
+		}
+		within = parsed
+	}
+
+	subjects, err := w.SubjectManager.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	threshold := clockFn().Add(within)
+	result := make(map[string][]ExpiringCredential)
+	for subjectID, dids := range subjects {
+		var expiring []ExpiringCredential
+		for _, holderDID := range dids {
+			creds, err := w.VCR.Wallet().SearchCredential(ctx, holderDID)
+			if err != nil {
+				return nil, err
+			}
+			for _, cred := range creds {
+				if cred.ExpirationDate == nil || cred.ExpirationDate.IsZero() {
+					continue
+				}
+				if cred.ExpirationDate.After(threshold) {
+					continue
+				}
+				expiring = append(expiring, toExpiringCredential(cred, holderDID))
+			}
+		}
+		if len(expiring) > 0 {
+			result[subjectID] = expiring
+		}
+	}
+
+	return GetExpiringCredentialsInWallet200JSONResponse(result), nil
+}
+
+// toExpiringCredential builds a monitoring-friendly summary of a credential. The Wallet stores
+// credentials per holder DID, so the holder is supplied by the caller rather than re-derived.
+func toExpiringCredential(cred vc.VerifiableCredential, holder did.DID) ExpiringCredential {
+	types := make([]string, 0, len(cred.Type))
+	for _, t := range cred.Type {
+		if s := t.String(); s != "VerifiableCredential" {
+			types = append(types, s)
+		}
+	}
+	var id string
+	if cred.ID != nil {
+		id = cred.ID.String()
+	}
+	return ExpiringCredential{
+		Id:             id,
+		Holder:         holder.String(),
+		Issuer:         cred.Issuer.String(),
+		Type:           types,
+		ExpirationDate: *cred.ExpirationDate,
+	}
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {
