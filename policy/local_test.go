@@ -21,6 +21,7 @@ package policy
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,14 +29,41 @@ import (
 )
 
 func TestStore_LoadFromFile(t *testing.T) {
-	t.Run("loads the mapping from the file", func(t *testing.T) {
+	t.Run("loads an organization-only profile and exposes it via WalletOwnerMapping", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/definition_mapping.json")
 
 		require.NoError(t, err)
-		assert.Len(t, store.mapping, 1)
-		assert.NotNil(t, store.mapping["example-scope"])
+		require.Len(t, store.mapping, 1)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Contains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerServiceProvider)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
+	})
+
+	t.Run("loads organization, service_provider, and user PDs from a single profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/service_provider/with_org_sp_user.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_organization", mapping[pe.WalletOwnerOrganization].Id)
+		assert.Equal(t, "pd_service_provider", mapping[pe.WalletOwnerServiceProvider].Id)
+		assert.Equal(t, "pd_user", mapping[pe.WalletOwnerUser].Id)
+	})
+
+	t.Run("loads a profile that defines only a service_provider PD", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/service_provider/service_provider_only.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["service-provider-only-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_service_provider_only", mapping[pe.WalletOwnerServiceProvider].Id)
+		assert.NotContains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
@@ -46,12 +74,28 @@ func TestStore_LoadFromFile(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
+	t.Run("returns an error if the organization PD is invalid", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/invalid/invalid_definition_mapping.json")
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
+
+	t.Run("returns an error if the service_provider PD is invalid", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/invalid_service_provider_pd.json")
+
+		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
+
+	t.Run("returns an error if no PD is defined for a profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/no_pds.json")
+
+		assert.ErrorContains(t, err, "must define at least one of 'organization', 'service_provider', or 'user'")
 	})
 }
 
