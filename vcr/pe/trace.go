@@ -31,7 +31,86 @@ import (
 
 	"github.com/lestrrat-go/jwx/v2/jws"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/sirupsen/logrus"
 )
+
+// matchSink receives diagnostic events from the matching algorithm. The matching code calls
+// it unconditionally, so the algorithm itself stays free of debug-vs-production branching.
+//
+// noopSink is used when debug logging is off; traceSink builds a matchTrace and emits it on
+// emit(). The constructor newSink picks the right one based on the current log level.
+type matchSink interface {
+	// inputDescriptor marks the start of evaluating an InputDescriptor against `considered`
+	// candidate credentials.
+	inputDescriptor(inputDescriptor InputDescriptor, considered int)
+	// rejected records that one credential was rejected by the current InputDescriptor and
+	// why. The sink decides whether to compute the (expensive) reason; production no-op
+	// implementations can ignore the call entirely.
+	rejected(inputDescriptor InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential, isMatch, formatOK bool)
+	// selected closes the current InputDescriptor with the final selection. `selected` is
+	// nil when no credential matched.
+	selected(matched int, selected *vc.VerifiableCredential)
+	// submissionRequirement records the outcome of one SubmissionRequirement. matchErr is
+	// nil when the requirement was satisfied.
+	submissionRequirement(sr SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error)
+	// emit is called once after matching completes. Real sinks render and write the trace
+	// here; the noop sink does nothing.
+	emit()
+}
+
+// newSink returns the sink that the current log level wants. Always emits a noopSink when
+// debug logging is off so the matching algorithm pays no diagnostic cost in production.
+func newSink() matchSink {
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		return &traceSink{trace: matchTrace{}}
+	}
+	return noopSink{}
+}
+
+// noopSink discards every diagnostic event.
+type noopSink struct{}
+
+func (noopSink) inputDescriptor(InputDescriptor, int) {}
+func (noopSink) rejected(InputDescriptor, *PresentationDefinitionClaimFormatDesignations, vc.VerifiableCredential, bool, bool) {
+}
+func (noopSink) selected(int, *vc.VerifiableCredential)                                          {}
+func (noopSink) submissionRequirement(SubmissionRequirement, map[string]groupCandidates, error) {}
+func (noopSink) emit()                                                                           {}
+
+// traceSink accumulates a matchTrace and emits it as a debug log line on emit().
+type traceSink struct {
+	trace matchTrace
+	cur   *inputDescriptorTrace
+}
+
+func (s *traceSink) inputDescriptor(inputDescriptor InputDescriptor, considered int) {
+	s.cur = &inputDescriptorTrace{Id: inputDescriptor.Id, Considered: considered}
+}
+
+func (s *traceSink) rejected(inputDescriptor InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential, isMatch, formatOK bool) {
+	s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
+		Credential: credentialID(credential),
+		Reason:     rejectionReason(pdFormat, inputDescriptor, credential, isMatch, formatOK),
+	})
+}
+
+func (s *traceSink) selected(matched int, selected *vc.VerifiableCredential) {
+	s.cur.Matched = matched
+	if selected != nil {
+		s.cur.Selected = credentialID(*selected)
+	}
+	s.trace.InputDescriptors = append(s.trace.InputDescriptors, *s.cur)
+	s.cur = nil
+}
+
+func (s *traceSink) submissionRequirement(sr SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error) {
+	s.trace.SubmissionRequirements = append(s.trace.SubmissionRequirements, buildSubmissionRequirementTrace(sr, availableGroups, matchErr))
+}
+
+func (s *traceSink) emit() {
+	log.Logger().Debug(s.trace.String())
+}
 
 // matchTrace summarises how a PresentationDefinition matched the input credentials. It is
 // emitted as a multi-line debug log message so that a developer reading the log can quickly
