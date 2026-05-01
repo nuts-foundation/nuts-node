@@ -80,12 +80,12 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 // MatchWithSelector matches the VCs against the presentation definition using the provided CredentialSelector.
 // The selector is called for each input descriptor with all matching VCs, and must pick one (or return nil).
 func (presentationDefinition PresentationDefinition) MatchWithSelector(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
+	var err error
 	sink := newSink()
-	defer sink.emit()
+	defer func() { sink.emit(err == nil) }()
 
 	var selectedVCs []vc.VerifiableCredential
 	var descriptorMaps []InputDescriptorMappingObject
-	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
 		descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selector, sink)
 	} else {

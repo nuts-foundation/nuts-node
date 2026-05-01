@@ -55,9 +55,10 @@ type matchSink interface {
 	// submissionRequirement records the outcome of one SubmissionRequirement. matchErr is
 	// nil when the requirement was satisfied.
 	submissionRequirement(sr *SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error)
-	// emit is called once after matching completes. Real sinks render and write the trace
-	// here; the noop sink does nothing.
-	emit()
+	// emit is called once after matching completes. `satisfied` reports whether the
+	// PresentationDefinition matched (i.e. Match would not have returned an error). Real
+	// sinks render and write the trace here; the noop sink does nothing.
+	emit(satisfied bool)
 }
 
 // newSink returns the sink that the current log level wants. Always emits a noopSink when
@@ -77,7 +78,7 @@ func (noopSink) rejected(*InputDescriptor, *PresentationDefinitionClaimFormatDes
 }
 func (noopSink) selected(int, *vc.VerifiableCredential)                                          {}
 func (noopSink) submissionRequirement(*SubmissionRequirement, map[string]groupCandidates, error) {}
-func (noopSink) emit()                                                                           {}
+func (noopSink) emit(bool)                                                                       {}
 
 // traceSink accumulates a matchTrace and emits it as a debug log line on emit().
 type traceSink struct {
@@ -90,10 +91,84 @@ func (s *traceSink) inputDescriptor(inputDescriptor *InputDescriptor, considered
 }
 
 func (s *traceSink) rejected(inputDescriptor *InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential *vc.VerifiableCredential, isMatch, formatOK bool) {
+	// Format failures and "no constraints" rejections are always traced.
+	if !formatOK {
+		s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
+			Credential: credentialID(credential),
+			Reason:     formatRejectionReason(pdFormat, inputDescriptor.Format, credential),
+		})
+		return
+	}
+	if inputDescriptor.Constraints == nil {
+		s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
+			Credential: credentialID(credential),
+			Reason:     "credential rejected",
+		})
+		return
+	}
+	credentialAsMap, err := credentialToMap(credential)
+	if err != nil {
+		s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
+			Credential: credentialID(credential),
+			Reason:     "could not parse credential: " + err.Error(),
+		})
+		return
+	}
+	// Walk the constraint to find the field that actually rejected this credential.
+	// If it was the `$.type` field, suppress the per-credential rejection line: type
+	// rejections are common, very noisy and almost never the bug being debugged.
+	field, reason := firstFailingField(inputDescriptor.Constraints, credentialAsMap)
+	if field != nil && isTypeField(*field) {
+		if s.cur.TypeFilter == "" {
+			s.cur.TypeFilter = describeTypeFilter(*field)
+		}
+		return
+	}
 	s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
 		Credential: credentialID(credential),
-		Reason:     rejectionReason(pdFormat, inputDescriptor, credential, isMatch, formatOK),
+		Reason:     reason,
 	})
+}
+
+// firstFailingField returns the first field in the constraint that rejects the credential,
+// together with a human-readable reason. Returns (nil, "") if the constraint actually matches
+// (which would indicate a bug in the caller).
+func firstFailingField(constraint *Constraints, credentialAsMap map[string]interface{}) (*Field, string) {
+	for i := range constraint.Fields {
+		field := &constraint.Fields[i]
+		if reason := explainFieldMismatch(*field, credentialAsMap); reason != "" {
+			return field, reason
+		}
+	}
+	return nil, ""
+}
+
+// isTypeField reports whether a constraint field filters on the credential's `$.type` field.
+func isTypeField(field Field) bool {
+	for _, p := range field.Path {
+		if p == "$.type" {
+			return true
+		}
+	}
+	return false
+}
+
+// describeTypeFilter renders the expected-type description used in the
+// "no credentials matched the type X" summary line.
+func describeTypeFilter(field Field) string {
+	if field.Filter == nil {
+		return "(any)"
+	}
+	if field.Filter.Const != nil {
+		return *field.Filter.Const
+	}
+	if len(field.Filter.Enum) > 0 {
+		return fmt.Sprintf("in %v", field.Filter.Enum)
+	}
+	if field.Filter.Pattern != nil {
+		return fmt.Sprintf("matching %s", *field.Filter.Pattern)
+	}
+	return "(unspecified)"
 }
 
 func (s *traceSink) selected(matched int, selected *vc.VerifiableCredential) {
@@ -109,7 +184,8 @@ func (s *traceSink) submissionRequirement(sr *SubmissionRequirement, availableGr
 	s.trace.SubmissionRequirements = append(s.trace.SubmissionRequirements, buildSubmissionRequirementTrace(sr, availableGroups, matchErr))
 }
 
-func (s *traceSink) emit() {
+func (s *traceSink) emit(satisfied bool) {
+	s.trace.Satisfied = satisfied
 	log.Logger().Debug(s.trace.String())
 }
 
@@ -119,6 +195,9 @@ func (s *traceSink) emit() {
 // the reason any rejected credential failed. When the PresentationDefinition uses submission
 // requirements, the per-requirement outcomes are appended too.
 type matchTrace struct {
+	// Satisfied is the overall outcome — true when the PresentationDefinition matched (i.e.
+	// Match would not have returned an error).
+	Satisfied              bool
 	InputDescriptors       []inputDescriptorTrace
 	SubmissionRequirements []submissionRequirementTrace
 }
@@ -134,9 +213,16 @@ type inputDescriptorTrace struct {
 	// Selected is the id of the credential the selector picked for this InputDescriptor.
 	// Empty when no credential matched.
 	Selected string
-	// Rejections lists every credential that was evaluated and rejected, with the reason.
-	// Empty when every considered credential matched.
+	// Rejections lists every credential that was evaluated and rejected for a non-type
+	// reason. Type-only rejections (the credential's `$.type` failing the descriptor's type
+	// filter) are intentionally not listed individually — they're noisy and unsurprising —
+	// and are summarised via TypeFilter when no other reasons remain.
 	Rejections []rejectionTrace
+	// TypeFilter is set when one or more credentials were rejected because the descriptor's
+	// `$.type` filter rejected them. Holds a short description of the expected type
+	// ("HealthcareOrganizationCredential", `matching ^Foo`, etc.). Rendered as a single
+	// "no credentials matched the type X" line when matched == 0 and Rejections is empty.
+	TypeFilter string
 }
 
 // rejectionTrace describes a single credential that was rejected by an InputDescriptor.
@@ -176,7 +262,7 @@ type submissionRequirementTrace struct {
 // String renders the trace in a human-friendly multi-line form for debug log output.
 // Format:
 //
-//	PE: match evaluated
+//	PE: match evaluated (satisfied|not satisfied)
 //	  input descriptor "<id>" considered=<n> matched=<n> selected=<id-or-none>
 //	    rejected <credential-id-or-(no id)>: <reason>
 //	    ...
@@ -184,7 +270,13 @@ type submissionRequirementTrace struct {
 //	    ...
 func (t matchTrace) String() string {
 	var b strings.Builder
-	b.WriteString("PE: match evaluated")
+	b.WriteString("PE: match evaluated (")
+	if t.Satisfied {
+		b.WriteString("satisfied")
+	} else {
+		b.WriteString("not satisfied")
+	}
+	b.WriteString(")")
 	for _, d := range t.InputDescriptors {
 		selected := d.Selected
 		if selected == "" {
@@ -197,6 +289,12 @@ func (t matchTrace) String() string {
 				cred = "(no id)"
 			}
 			fmt.Fprintf(&b, "\n    rejected %s: %s", cred, r.Reason)
+		}
+		// If matched==0 and the only failures were credentials with the wrong type, emit a
+		// single line instead of one rejection per credential — that's the common case and
+		// listing each one is noise.
+		if d.Matched == 0 && len(d.Rejections) == 0 && d.TypeFilter != "" {
+			fmt.Fprintf(&b, "\n    no credentials matched the type %s", d.TypeFilter)
 		}
 	}
 	for _, sr := range t.SubmissionRequirements {
