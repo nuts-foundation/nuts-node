@@ -209,7 +209,7 @@ const (
 	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
-	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type, used by the LSPxNuts two-VP flow (PSA 10.10).
+	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type.
 	JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 	// JwtBearerClientAssertionType is the client_assertion_type for the RFC 7523 JWT bearer client assertion.
 	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"

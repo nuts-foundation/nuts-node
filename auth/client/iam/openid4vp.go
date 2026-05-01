@@ -261,14 +261,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, errors.New("authorization server does not advertise jwt-bearer support")
 	}
 	if serviceProviderSubjectID != nil {
-		match, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
-		if err != nil {
-			return nil, fmt.Errorf("local PD resolution failed: %w", err)
-		}
-		if _, ok := match.WalletOwnerMapping[pe.WalletOwnerServiceProvider]; !ok {
-			return nil, fmt.Errorf("no service_provider presentation definition for scope %q", match.CredentialProfileScope)
-		}
-		_ = match // remaining two-VP construction follows in subsequent cycles
+		return c.requestJwtBearerAccessToken(ctx, clientID, subjectID, *serviceProviderSubjectID, authServerURL, scopes, additionalCredentials, credentialSelection, metadata)
 	}
 
 	// Resolve the presentation definition: from remote AS when available, local policy otherwise
@@ -291,25 +284,9 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, err
 	}
 
-	// in the s2s flow we use the metadata to determine the DID methods supported by the verifier
-	// filter walletDIDs on the DID methods supported by the verifier
-	j := 0
-	allMethods := map[string]struct{}{}
-	for i, d := range subjectDIDs {
-		allMethods[d.Method] = struct{}{}
-		if slices.Contains(metadata.DIDMethodsSupported, d.Method) {
-			subjectDIDs[j] = subjectDIDs[i]
-			j++
-		}
-	}
-	subjectDIDs = subjectDIDs[:j]
-
-	if len(subjectDIDs) == 0 {
-		availableMethods := make([]string, 0, len(allMethods))
-		for key := range maps.Keys(allMethods) {
-			availableMethods = append(availableMethods, key)
-		}
-		return nil, errors.Join(ErrPreconditionFailed, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, availableMethods))
+	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, metadata.DIDMethodsSupported)
+	if err != nil {
+		return nil, err
 	}
 
 	// each additional credential can be used by each DID
@@ -367,6 +344,109 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		tokenResponse.DPoPKid = &dpopKid
 	}
 	return &tokenResponse, nil
+}
+
+// requestJwtBearerAccessToken implements the RFC 7523 jwt-bearer two-VP token request flow.
+// It builds VP1 from the HCP wallet (using the organization PD) and VP2 from the SP wallet (using the
+// service_provider PD), assembles them as `assertion` and `client_assertion`, and POSTs the token request.
+func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clientID string, subjectID string, serviceProviderSubjectID string,
+	authServerURL string, scopes string, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
+	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
+	match, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
+	if err != nil {
+		return nil, fmt.Errorf("local PD resolution failed: %w", err)
+	}
+	orgPD, hasOrg := match.WalletOwnerMapping[pe.WalletOwnerOrganization]
+	if !hasOrg {
+		return nil, fmt.Errorf("no organization presentation definition for scope %q", match.CredentialProfileScope)
+	}
+	spPD, hasSP := match.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
+	if !hasSP {
+		return nil, fmt.Errorf("no service_provider presentation definition for scope %q", match.CredentialProfileScope)
+	}
+	params := holder.BuildParams{
+		Audience:   authServerURL,
+		DIDMethods: metadata.DIDMethodsSupported,
+		Expires:    time.Now().Add(time.Second * 5),
+		Format:     metadata.VPFormatsSupported,
+		Nonce:      nutsCrypto.GenerateNonce(),
+	}
+	vp1, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	if err != nil {
+		return nil, err
+	}
+	vp2, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	if err != nil {
+		return nil, err
+	}
+	data := url.Values{}
+	data.Set(oauth.ClientIDParam, clientID)
+	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
+	data.Set(oauth.AssertionParam, vp1.Raw())
+	data.Set(oauth.ClientAssertionTypeParam, oauth.JwtBearerClientAssertionType)
+	data.Set(oauth.ClientAssertionParam, vp2.Raw())
+	data.Set(oauth.ScopeParam, scopes)
+
+	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  VP1: %s\n  VP2: %s", metadata.TokenEndpoint, scopes, vp1.Raw(), vp2.Raw())
+	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, "")
+	if err != nil {
+		return nil, err
+	}
+	return &oauth.TokenResponse{
+		AccessToken: token.AccessToken,
+		ExpiresIn:   token.ExpiresIn,
+		TokenType:   token.TokenType,
+		Scope:       &scopes,
+	}, nil
+}
+
+// buildSubmissionForSubject lists DIDs for the given subject, filters them to those whose method is supported
+// by the AS, and asks the wallet to build a VP that fulfills the given PresentationDefinition.
+func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subjectID string, presentationDefinition pe.PresentationDefinition,
+	additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, params holder.BuildParams,
+	supportedDIDMethods []string) (*vc.VerifiablePresentation, error) {
+	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, supportedDIDMethods)
+	if err != nil {
+		return nil, err
+	}
+	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
+	for _, subjectDID := range subjectDIDs {
+		for _, curr := range additionalCredentials {
+			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
+		}
+	}
+	vp, _, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
+	if err != nil {
+		return nil, err
+	}
+	return vp, nil
+}
+
+// filterDIDsByMethods drops DIDs whose method is not in supportedMethods. Returns ErrPreconditionFailed when
+// none of the subject's DIDs use a supported method.
+func filterDIDsByMethods(subjectDIDs []did.DID, supportedMethods []string) ([]did.DID, error) {
+	j := 0
+	allMethods := map[string]struct{}{}
+	for i, d := range subjectDIDs {
+		allMethods[d.Method] = struct{}{}
+		if slices.Contains(supportedMethods, d.Method) {
+			subjectDIDs[j] = subjectDIDs[i]
+			j++
+		}
+	}
+	subjectDIDs = subjectDIDs[:j]
+	if len(subjectDIDs) == 0 {
+		availableMethods := make([]string, 0, len(allMethods))
+		for key := range maps.Keys(allMethods) {
+			availableMethods = append(availableMethods, key)
+		}
+		return nil, errors.Join(ErrPreconditionFailed, fmt.Errorf("did method mismatch, requested: %v, available: %v", supportedMethods, availableMethods))
+	}
+	return subjectDIDs, nil
 }
 
 func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {

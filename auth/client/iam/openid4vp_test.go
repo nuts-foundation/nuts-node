@@ -341,7 +341,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		}
 		oauthErrorBytes, _ := json.Marshal(oauthError)
 		ctx := createClientServerTestContext(t)
-		ctx.token = func(writer http.ResponseWriter) {
+		ctx.token = func(writer http.ResponseWriter, _ *http.Request) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusBadRequest)
 			_, _ = writer.Write(oauthErrorBytes)
@@ -453,6 +453,53 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "no service_provider presentation definition")
+	})
+
+	t.Run("posts a jwt-bearer form body on the happy path", func(t *testing.T) {
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		vp1, err := vc.ParseVerifiablePresentation(`{"proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		vp2, err := vc.ParseVerifiablePresentation(`{"proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+
+		ctx := createClientServerTestContext(t)
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// VP1 is built from the HCP wallet using the organization PD; VP2 from the SP wallet using the service_provider PD.
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(vp1, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "sp_pd"}, gomock.Any(), gomock.Any()).Return(vp2, &pe.PresentationSubmission{}, nil)
+
+		var capturedForm url.Values
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			require.NoError(t, request.ParseForm())
+			capturedForm = request.PostForm
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, oauth.JwtBearerGrantType, capturedForm.Get(oauth.GrantTypeParam))
+		assert.Equal(t, vp1.Raw(), capturedForm.Get(oauth.AssertionParam))
+		assert.Equal(t, oauth.JwtBearerClientAssertionType, capturedForm.Get(oauth.ClientAssertionTypeParam))
+		assert.Equal(t, vp2.Raw(), capturedForm.Get(oauth.ClientAssertionParam))
+		assert.Empty(t, capturedForm.Get(oauth.PresentationSubmissionParam))
 	})
 }
 
@@ -579,7 +626,7 @@ type clientServerTestContext struct {
 	credentialIssuerMetadata       func(writer http.ResponseWriter)
 	presentationDefinition         func(writer http.ResponseWriter)
 	response                       func(writer http.ResponseWriter)
-	token                          func(writer http.ResponseWriter)
+	token                          func(writer http.ResponseWriter, request *http.Request)
 	credentials                    func(writer http.ResponseWriter)
 	requestObjectJWT               func(writer http.ResponseWriter)
 }
@@ -628,7 +675,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write(bytes)
 			return
 		},
-		token: func(writer http.ResponseWriter) {
+		token: func(writer http.ResponseWriter, _ *http.Request) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
@@ -681,7 +728,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			}
 		case "/token":
 			if ctx.token != nil {
-				ctx.token(writer)
+				ctx.token(writer, request)
 				return
 			}
 		case "/credentials":
