@@ -54,32 +54,37 @@ var ErrPreconditionFailed = errors.New("precondition failed")
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
-	httpClient       HTTPClient
-	jwtSigner        nutsCrypto.JWTSigner
-	keyResolver      resolver.KeyResolver
-	strictMode       bool
-	wallet           holder.Wallet
-	ldDocumentLoader ld.DocumentLoader
-	subjectManager   didsubject.Manager
-	pdResolver       PresentationDefinitionResolver
+	httpClient                  HTTPClient
+	jwtSigner                   nutsCrypto.JWTSigner
+	keyResolver                 resolver.KeyResolver
+	strictMode                  bool
+	wallet                      holder.Wallet
+	ldDocumentLoader            ld.DocumentLoader
+	subjectManager              didsubject.Manager
+	pdResolver                  PresentationDefinitionResolver
+	policyBackend               policy.PDPBackend
+	experimentalJwtBearerClient bool
 }
 
 // NewClient returns an implementation of Holder
 func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration,
+	experimentalJwtBearerClient bool) *OpenID4VPClient {
 	httpClient := HTTPClient{
 		strictMode:  strictMode,
 		httpClient:  client.NewWithCache(httpClientTimeout),
 		keyResolver: keyResolver,
 	}
 	client := &OpenID4VPClient{
-		httpClient:       httpClient,
-		keyResolver:      keyResolver,
-		jwtSigner:        jwtSigner,
-		ldDocumentLoader: ldDocumentLoader,
-		subjectManager:   subjectManager,
-		strictMode:       strictMode,
-		wallet:           wallet,
+		httpClient:                  httpClient,
+		keyResolver:                 keyResolver,
+		jwtSigner:                   jwtSigner,
+		ldDocumentLoader:            ldDocumentLoader,
+		subjectManager:              subjectManager,
+		strictMode:                  strictMode,
+		wallet:                      wallet,
+		policyBackend:               policyBackend,
+		experimentalJwtBearerClient: experimentalJwtBearerClient,
 	}
 	client.pdResolver = PresentationDefinitionResolver{
 		pdFetcher:     client,
@@ -244,7 +249,9 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error) {
-	_ = serviceProviderSubjectID // honored once two-VP logic is in place
+	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
+		return nil, errors.New("jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true")
+	}
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {

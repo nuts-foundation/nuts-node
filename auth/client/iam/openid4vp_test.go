@@ -407,6 +407,24 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 }
 
+func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
+	const subjectID = "subby"
+	const subjectClientID = "https://example.com/oauth2/subby"
+	const spSubjectID = "service-provider-subby"
+	scopes := "first second"
+
+	t.Run("rejects the request when the experimental jwt-bearer feature is disabled", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = false
+
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "jwt-bearer")
+	})
+}
+
 func TestIAMClient_RequestObjectByGet(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
