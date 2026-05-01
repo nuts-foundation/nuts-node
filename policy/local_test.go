@@ -143,6 +143,13 @@ func TestLocalPDP_ClientPD(t *testing.T) {
 		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerUser)
 		assert.Equal(t, "pd_client", match.WalletOwnerMapping[pe.WalletOwnerClient].Id)
 	})
+	t.Run("malformed client PD is rejected with a schema-validation error", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/invalid_client_pd.json")
+
+		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
 }
 
 func TestLocalPDP_ScopePolicyConfig(t *testing.T) {

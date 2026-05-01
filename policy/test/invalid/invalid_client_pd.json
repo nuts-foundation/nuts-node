@@ -1,0 +1,26 @@
+{
+  "example-scope": {
+    "organization": {
+      "id": "pd_organization",
+      "input_descriptors": [
+        {
+          "id": "id_org_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {
+                  "type": "string",
+                  "const": "NutsOrganizationCredential"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "client": {
+      "id": "pd_client_missing_input_descriptors"
+    }
+  }
+}
