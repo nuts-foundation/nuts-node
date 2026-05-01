@@ -46,8 +46,10 @@ type Client interface {
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
 	// credentials are additional VCs to include alongside wallet-stored credentials.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
+	// serviceProviderSubjectID, when non-nil, identifies a service-provider Nuts subject and triggers the RFC 7523 jwt-bearer two-VP flow
+	// (PSA 10.10). It is only honored when the experimental jwt-bearer client feature is enabled and the AS advertises jwt-bearer.
 	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
-		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
+		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
 	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).

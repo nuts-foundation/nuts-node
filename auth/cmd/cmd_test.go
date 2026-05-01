@@ -46,6 +46,7 @@ func TestFlagSet(t *testing.T) {
 		ConfAuthEndpointEnabled,
 		ConfClockSkew,
 		ConfContractValidators,
+		ConfExperimentalJwtBearerClient,
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaCorsOrigin,
