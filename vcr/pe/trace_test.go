@@ -106,9 +106,11 @@ func Test_formatRejectionReason(t *testing.T) {
 		pdFormat := PresentationDefinitionClaimFormatDesignations{
 			"jwt_vc": {"alg": []string{"PS256"}},
 		}
+		// Pin the JWT fixture's alg so the test fails loudly if the helper changes its alg.
+		// JWTNutsOrganizationCredential signs with ES384.
 		reason := formatRejectionReason(&pdFormat, nil, jwtVC)
 		assert.Contains(t, reason, "format=jwt_vc")
-		assert.Contains(t, reason, "alg=") // exact alg depends on the test fixture; just confirm it's reported
+		assert.Contains(t, reason, "alg=ES384")
 		assert.Contains(t, reason, "requires jwt_vc alg in [PS256]")
 	})
 
@@ -221,4 +223,85 @@ func TestMatchConstraints_DebugLogging_SubmissionRequirements(t *testing.T) {
 	assert.Contains(t, msg, "less matches (0) than minimal required (1)")
 	// errors.Join newline must have been collapsed.
 	assert.NotContains(t, msg, ": missing credentials\nsubmission")
+}
+
+func TestMatchConstraints_DebugLogging_SubmissionRequirements_ContinuesAfterError(t *testing.T) {
+	// When debug logging is on, a failing submission requirement must not abort the trace
+	// — later requirements should still be evaluated and logged so the developer sees the
+	// full picture.
+	originalLogger := log.Logger().Logger
+	originalLevel := originalLogger.Level
+	hook := logTest.NewLocal(originalLogger)
+	originalLogger.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() {
+		originalLogger.SetLevel(originalLevel)
+		hook.Reset()
+	})
+
+	jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
+	pd := PresentationDefinition{
+		Id: "sr-trace-continues",
+		InputDescriptors: []*InputDescriptor{
+			{
+				Id:    "needs_org",
+				Group: []string{"A"},
+				Constraints: &Constraints{
+					Fields: []Field{{Path: []string{"$.credentialSubject.organization.city"}}},
+				},
+			},
+			{
+				Id:    "needs_other",
+				Group: []string{"B"},
+				Constraints: &Constraints{
+					Fields: []Field{{Path: []string{"$.someOtherField"}}},
+				},
+			},
+		},
+		// SR1 (B / pick min=1) fails — group B has zero matches.
+		// SR2 (A / all) would succeed — group A has one match.
+		SubmissionRequirements: []*SubmissionRequirement{
+			{Name: "B fails first", Rule: "pick", From: "B", Min: to.Ptr(1)},
+			{Name: "A would succeed", Rule: "all", From: "A"},
+		},
+	}
+
+	_, _, _ = pd.Match([]vc.VerifiableCredential{jsonldVC})
+
+	var msgs []string
+	for _, e := range hook.AllEntries() {
+		if e.Level == logrus.DebugLevel && strings.HasPrefix(e.Message, "PE: match evaluated") {
+			msgs = append(msgs, e.Message)
+		}
+	}
+	assert.Len(t, msgs, 1)
+	if len(msgs) == 0 {
+		return
+	}
+	msg := msgs[0]
+	// Both submission requirements must appear, even though the first one errored.
+	assert.Contains(t, msg, `submission requirement "B fails first"`)
+	assert.Contains(t, msg, "not satisfied")
+	assert.Contains(t, msg, `submission requirement "A would succeed"`)
+	assert.Contains(t, msg, ": satisfied")
+}
+
+func TestMatchConstraints_NoTrace_WhenDebugDisabled(t *testing.T) {
+	// At a higher log level, no trace log line should be produced and the matching algorithm
+	// must not pay the trace-building cost.
+	originalLogger := log.Logger().Logger
+	originalLevel := originalLogger.Level
+	hook := logTest.NewLocal(originalLogger)
+	originalLogger.SetLevel(logrus.InfoLevel)
+	t.Cleanup(func() {
+		originalLogger.SetLevel(originalLevel)
+		hook.Reset()
+	})
+
+	matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
+	_, _, _ = definitions().JSONLD.Match([]vc.VerifiableCredential{matchingVC})
+
+	for _, e := range hook.AllEntries() {
+		assert.NotEqual(t, "PE: match evaluated", strings.SplitN(e.Message, "\n", 2)[0],
+			"trace log line should not be emitted when debug logging is disabled")
+	}
 }

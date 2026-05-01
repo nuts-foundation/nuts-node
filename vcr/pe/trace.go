@@ -83,9 +83,10 @@ type submissionRequirementTrace struct {
 	Min   *int `json:"min,omitempty"`
 	Max   *int `json:"max,omitempty"`
 	Count *int `json:"count,omitempty"`
-	// AvailableInGroup is the number of input descriptors in the source group that produced
-	// a matching credential. Used to explain why min/count failed.
-	AvailableInGroup int `json:"available_in_group"`
+	// Available is the number of input descriptors in the source group(s) that produced a
+	// matching credential. Used to explain why min/count failed. Rendered as `available=<n>`
+	// in the human-readable trace.
+	Available int `json:"available"`
 	// Satisfied is true when the SubmissionRequirement was met.
 	Satisfied bool `json:"satisfied"`
 	// Reason explains why a SubmissionRequirement was not satisfied. Empty when Satisfied is true.
@@ -97,9 +98,9 @@ type submissionRequirementTrace struct {
 //
 //	PE: match evaluated
 //	  input descriptor "<id>" considered=<n> matched=<n> selected=<id-or-none>
-//	    rejected <credential-id-or-(none)>: <reason>
+//	    rejected <credential-id-or-(no id)>: <reason>
 //	    ...
-//	  submission requirement "<name>" rule=<rule> from=<group> [min=<n>] [max=<n>] [count=<n>]: <satisfied|not satisfied: reason>
+//	  submission requirement ["<name>"] rule=<rule> [from=<group>|from_nested=<n>] [min=<n>] [max=<n>] [count=<n>] available=<n>: <satisfied|not satisfied: reason>
 //	    ...
 func (t matchTrace) String() string {
 	var b strings.Builder
@@ -139,7 +140,7 @@ func (t matchTrace) String() string {
 		if sr.Count != nil {
 			fmt.Fprintf(&b, " count=%d", *sr.Count)
 		}
-		fmt.Fprintf(&b, " available=%d", sr.AvailableInGroup)
+		fmt.Fprintf(&b, " available=%d", sr.Available)
 		if sr.Satisfied {
 			b.WriteString(": satisfied")
 		} else {
@@ -169,7 +170,7 @@ func buildSubmissionRequirementTrace(sr SubmissionRequirement, availableGroups m
 		group := availableGroups[name]
 		for _, c := range group.Candidates {
 			if c.VC != nil {
-				t.AvailableInGroup++
+				t.Available++
 			}
 		}
 	}
