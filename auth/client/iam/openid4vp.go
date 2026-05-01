@@ -371,11 +371,17 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clien
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
-	vp1, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	vp1, vp1Submission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
 	if err != nil {
 		return nil, err
 	}
-	vp2, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	// Capture id-bearing constraint field values resolved against VP1 and additively merge them into the
+	// credential_selection map for VP2. EHR-supplied keys take precedence over captured values.
+	credentialSelection, err = mergeCapturedFields(credentialSelection, vp1, vp1Submission, orgPD)
+	if err != nil {
+		return nil, err
+	}
+	vp2, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
 	if err != nil {
 		return nil, err
 	}
@@ -404,14 +410,14 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clien
 // by the AS, and asks the wallet to build a VP that fulfills the given PresentationDefinition.
 func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subjectID string, presentationDefinition pe.PresentationDefinition,
 	additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, params holder.BuildParams,
-	supportedDIDMethods []string) (*vc.VerifiablePresentation, error) {
+	supportedDIDMethods []string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, supportedDIDMethods)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
 	for _, subjectDID := range subjectDIDs {
@@ -419,11 +425,39 @@ func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subject
 			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
 		}
 	}
-	vp, _, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
+	return c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
+}
+
+// mergeCapturedFields resolves the id-bearing constraint fields of definition against vp's submitted credentials
+// and adds the resulting field-id → value pairs to selection. Existing keys in selection are not overwritten.
+// Non-string values are skipped (selection is map[string]string).
+func mergeCapturedFields(selection map[string]string, vp *vc.VerifiablePresentation, submission *pe.PresentationSubmission, definition pe.PresentationDefinition) (map[string]string, error) {
+	envelope, err := pe.ParseEnvelope([]byte(vp.Raw()))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse VP envelope for cross-VP binding: %w", err)
 	}
-	return vp, nil
+	credentialMap, err := submission.Resolve(*envelope)
+	if err != nil {
+		return nil, fmt.Errorf("resolve VP submission for cross-VP binding: %w", err)
+	}
+	captured, err := definition.ResolveConstraintsFields(credentialMap)
+	if err != nil {
+		return nil, fmt.Errorf("resolve constraint fields for cross-VP binding: %w", err)
+	}
+	if selection == nil {
+		selection = map[string]string{}
+	}
+	for k, v := range captured {
+		if _, exists := selection[k]; exists {
+			continue
+		}
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		selection[k] = s
+	}
+	return selection, nil
 }
 
 // filterDIDsByMethods drops DIDs whose method is not in supportedMethods. Returns ErrPreconditionFailed when
