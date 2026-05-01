@@ -39,58 +39,58 @@ import (
 // the reason any rejected credential failed. When the PresentationDefinition uses submission
 // requirements, the per-requirement outcomes are appended too.
 type matchTrace struct {
-	InputDescriptors       []inputDescriptorTrace       `json:"input_descriptors"`
-	SubmissionRequirements []submissionRequirementTrace `json:"submission_requirements,omitempty"`
+	InputDescriptors       []inputDescriptorTrace
+	SubmissionRequirements []submissionRequirementTrace
 }
 
 // inputDescriptorTrace summarises how one InputDescriptor evaluated against the input credentials.
 type inputDescriptorTrace struct {
 	// Id is the InputDescriptor's id, as defined in the PresentationDefinition.
-	Id string `json:"id"`
+	Id string
 	// Considered is the number of credentials that were evaluated against this InputDescriptor.
-	Considered int `json:"considered"`
+	Considered int
 	// Matched is the number of credentials that satisfied both the format check and the constraints.
-	Matched int `json:"matched"`
+	Matched int
 	// Selected is the id of the credential the selector picked for this InputDescriptor.
 	// Empty when no credential matched.
-	Selected string `json:"selected,omitempty"`
+	Selected string
 	// Rejections lists every credential that was evaluated and rejected, with the reason.
 	// Empty when every considered credential matched.
-	Rejections []rejectionTrace `json:"rejections,omitempty"`
+	Rejections []rejectionTrace
 }
 
 // rejectionTrace describes a single credential that was rejected by an InputDescriptor.
 type rejectionTrace struct {
 	// Credential is the rejected credential's id, as a string.
 	// Empty for self-attested credentials that have no id.
-	Credential string `json:"credential,omitempty"`
+	Credential string
 	// Reason is a human-readable explanation of which constraint or format check rejected the
 	// credential — typically naming the failing field, JSON path, found value, and expected filter.
-	Reason string `json:"reason"`
+	Reason string
 }
 
 // submissionRequirementTrace summarises how one SubmissionRequirement evaluated.
 type submissionRequirementTrace struct {
 	// Name is the SubmissionRequirement's human-readable name, if set.
-	Name string `json:"name,omitempty"`
+	Name string
 	// Rule is the rule applied to the group ("all" or "pick").
-	Rule string `json:"rule"`
+	Rule string
 	// From is the group name this requirement draws from. Empty if FromNested is used.
-	From string `json:"from,omitempty"`
+	From string
 	// FromNested is the number of nested requirements when "from_nested" is used. Zero if From is set.
-	FromNested int `json:"from_nested,omitempty"`
+	FromNested int
 	// Min, Max, Count are the optional bounds copied from the SubmissionRequirement.
-	Min   *int `json:"min,omitempty"`
-	Max   *int `json:"max,omitempty"`
-	Count *int `json:"count,omitempty"`
+	Min   *int
+	Max   *int
+	Count *int
 	// Available is the number of input descriptors in the source group(s) that produced a
 	// matching credential. Used to explain why min/count failed. Rendered as `available=<n>`
 	// in the human-readable trace.
-	Available int `json:"available"`
+	Available int
 	// Satisfied is true when the SubmissionRequirement was met.
-	Satisfied bool `json:"satisfied"`
+	Satisfied bool
 	// Reason explains why a SubmissionRequirement was not satisfied. Empty when Satisfied is true.
-	Reason string `json:"reason,omitempty"`
+	Reason string
 }
 
 // String renders the trace in a human-friendly multi-line form for debug log output.
