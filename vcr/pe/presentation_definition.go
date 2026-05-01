@@ -169,7 +169,7 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 		for _, credential := range vcs {
 			isMatch, err := matchCredential(*inputDescriptor, credential)
 			if err != nil {
-				return nil, nil, err
+				return nil, trace, err
 			}
 			// InputDescriptor formats must be a subset of the PresentationDefinition formats, so it must satisfy both.
 			formatOK := matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential)
@@ -193,12 +193,12 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				// (e.g., pick rules with min: 0).
 				selected = nil
 			} else {
-				return nil, nil, err
+				return nil, trace, err
 			}
 		} else if selected == nil && len(matchingVCs) > 0 {
 			selected, err = FirstMatchSelector(*inputDescriptor, matchingVCs)
 			if err != nil {
-				return nil, nil, err
+				return nil, trace, err
 			}
 		}
 		if descTrace != nil {

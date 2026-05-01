@@ -270,7 +270,9 @@ func describeFormatMismatch(source string, format *PresentationDefinitionClaimFo
 	case vc.JSONLDCredentialProofFormat:
 		return fmt.Sprintf("%s requires %s proof_type in %v", source, credFormat, formatEntry["proof_type"])
 	}
-	return fmt.Sprintf("%s rejected the credential", source)
+	// matchFormat only inspects ldp_vc and jwt_vc, so credFormat is guaranteed to be one of
+	// the cases above. Return empty rather than carry a fallback message that can never fire.
+	return ""
 }
 
 // credentialID returns the credential's id as a string, or "" if the credential has no id.

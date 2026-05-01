@@ -124,184 +124,143 @@ func Test_formatRejectionReason(t *testing.T) {
 	})
 }
 
-func TestMatchConstraints_DebugLogging(t *testing.T) {
-	pd := definitions().JSONLD
-	matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
-	nonMatchingID := ssi.MustParseURI("urn:test:non-matching")
-	nonMatchingVC := vc.VerifiableCredential{
-		Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
-		ID:                &nonMatchingID,
-		CredentialSubject: []map[string]any{{"id": "did:example:bob"}},
-	}
+func TestMatchConstraints_Tracing(t *testing.T) {
+	t.Run("logs rejection reason for non-matching credential", func(t *testing.T) {
+		hook := captureTraceLogs(t, logrus.DebugLevel)
+		pd := definitions().JSONLD
+		matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
+		nonMatchingID := ssi.MustParseURI("urn:test:non-matching")
+		nonMatchingVC := vc.VerifiableCredential{
+			Type:              []ssi.URI{ssi.MustParseURI("VerifiableCredential")},
+			ID:                &nonMatchingID,
+			CredentialSubject: []map[string]any{{"id": "did:example:bob"}},
+		}
 
-	originalLogger := log.Logger().Logger
-	originalLevel := originalLogger.Level
-	hook := logTest.NewLocal(originalLogger)
-	originalLogger.SetLevel(logrus.DebugLevel)
-	t.Cleanup(func() {
-		originalLogger.SetLevel(originalLevel)
-		hook.Reset()
+		_, _, _ = pd.Match([]vc.VerifiableCredential{nonMatchingVC, matchingVC})
+
+		msg := singleTraceMessage(t, hook)
+		assert.Contains(t, msg, "PE: match evaluated")
+		assert.Contains(t, msg, "input descriptor")
+		assert.Contains(t, msg, "considered=2")
+		assert.Contains(t, msg, "matched=1")
+		assert.Contains(t, msg, "selected=")
+		assert.Contains(t, msg, "rejected "+nonMatchingID.String())
+		assert.Contains(t, msg, "no value found at any of paths")
 	})
 
-	_, _, _ = pd.Match([]vc.VerifiableCredential{nonMatchingVC, matchingVC})
-
-	// Expect exactly one debug log carrying the human-readable trace.
-	var traceEntries []*logrus.Entry
-	for _, entry := range hook.AllEntries() {
-		if entry.Level == logrus.DebugLevel && strings.HasPrefix(entry.Message, "PE: match evaluated") {
-			traceEntries = append(traceEntries, entry)
+	t.Run("submission requirements satisfied and unsatisfied", func(t *testing.T) {
+		hook := captureTraceLogs(t, logrus.DebugLevel)
+		jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
+		pd := PresentationDefinition{
+			Id:               "sr-trace-test",
+			InputDescriptors: twoGroupedInputDescriptors(),
+			SubmissionRequirements: []*SubmissionRequirement{
+				{Name: "Group A required", Rule: "all", From: "A"},
+				{Name: "Group B (pick at least 1)", Rule: "pick", From: "B", Min: to.Ptr(1)},
+			},
 		}
-	}
-	assert.Len(t, traceEntries, 1, "expected exactly one consolidated trace log entry")
-	if len(traceEntries) == 0 {
-		return
-	}
-	msg := traceEntries[0].Message
-	assert.Contains(t, msg, "PE: match evaluated")
-	assert.Contains(t, msg, "input descriptor")
-	assert.Contains(t, msg, "considered=2")
-	assert.Contains(t, msg, "matched=1")
-	assert.Contains(t, msg, "selected=")
-	assert.Contains(t, msg, "rejected "+nonMatchingID.String())
-	assert.Contains(t, msg, "no value found at any of paths")
+
+		_, _, _ = pd.Match([]vc.VerifiableCredential{jsonldVC})
+
+		msg := singleTraceMessage(t, hook)
+		assert.Contains(t, msg, `submission requirement "Group A required" rule=all from=A`)
+		assert.Contains(t, msg, "available=1")
+		assert.Contains(t, msg, ": satisfied")
+		assert.Contains(t, msg, `submission requirement "Group B (pick at least 1)" rule=pick from=B min=1 available=0`)
+		assert.Contains(t, msg, "not satisfied")
+		assert.Contains(t, msg, "less matches (0) than minimal required (1)")
+		// errors.Join newline must have been collapsed.
+		assert.NotContains(t, msg, ": missing credentials\nsubmission")
+	})
+
+	t.Run("continues collecting SR traces past errors", func(t *testing.T) {
+		// When debug logging is on, a failing submission requirement must not abort the trace
+		// — later requirements should still be evaluated and logged so the developer sees the
+		// full picture.
+		hook := captureTraceLogs(t, logrus.DebugLevel)
+		jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
+		pd := PresentationDefinition{
+			Id:               "sr-trace-continues",
+			InputDescriptors: twoGroupedInputDescriptors(),
+			// SR1 (B / pick min=1) fails — group B has zero matches.
+			// SR2 (A / all) would succeed — group A has one match.
+			SubmissionRequirements: []*SubmissionRequirement{
+				{Name: "B fails first", Rule: "pick", From: "B", Min: to.Ptr(1)},
+				{Name: "A would succeed", Rule: "all", From: "A"},
+			},
+		}
+
+		_, _, _ = pd.Match([]vc.VerifiableCredential{jsonldVC})
+
+		msg := singleTraceMessage(t, hook)
+		assert.Contains(t, msg, `submission requirement "B fails first"`)
+		assert.Contains(t, msg, "not satisfied")
+		assert.Contains(t, msg, `submission requirement "A would succeed"`)
+		assert.Contains(t, msg, ": satisfied")
+	})
+
+	t.Run("no trace log when debug is disabled", func(t *testing.T) {
+		hook := captureTraceLogs(t, logrus.InfoLevel)
+		matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
+
+		_, _, _ = definitions().JSONLD.Match([]vc.VerifiableCredential{matchingVC})
+
+		for _, e := range hook.AllEntries() {
+			assert.NotEqual(t, "PE: match evaluated", strings.SplitN(e.Message, "\n", 2)[0],
+				"trace log line should not be emitted when debug logging is disabled")
+		}
+	})
 }
 
-func TestMatchConstraints_DebugLogging_SubmissionRequirements(t *testing.T) {
-	originalLogger := log.Logger().Logger
-	originalLevel := originalLogger.Level
-	hook := logTest.NewLocal(originalLogger)
-	originalLogger.SetLevel(logrus.DebugLevel)
+// captureTraceLogs sets the package logger to the given level and attaches a hook for the
+// duration of the test. The hook is returned for the test to inspect emitted entries.
+func captureTraceLogs(t *testing.T, level logrus.Level) *logTest.Hook {
+	t.Helper()
+	logger := log.Logger().Logger
+	original := logger.Level
+	hook := logTest.NewLocal(logger)
+	logger.SetLevel(level)
 	t.Cleanup(func() {
-		originalLogger.SetLevel(originalLevel)
+		logger.SetLevel(original)
 		hook.Reset()
 	})
+	return hook
+}
 
-	jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
-	pd := PresentationDefinition{
-		Id: "sr-trace-test",
-		InputDescriptors: []*InputDescriptor{
-			{
-				Id:    "needs_org",
-				Group: []string{"A"},
-				Constraints: &Constraints{
-					Fields: []Field{{Path: []string{"$.credentialSubject.organization.city"}}},
-				},
-			},
-			{
-				Id:    "needs_other",
-				Group: []string{"B"},
-				Constraints: &Constraints{
-					Fields: []Field{{Path: []string{"$.someOtherField"}}},
-				},
-			},
-		},
-		SubmissionRequirements: []*SubmissionRequirement{
-			{Name: "Group A required", Rule: "all", From: "A"},
-			{Name: "Group B (pick at least 1)", Rule: "pick", From: "B", Min: to.Ptr(1)},
-		},
-	}
-
-	_, _, _ = pd.Match([]vc.VerifiableCredential{jsonldVC})
-
+// singleTraceMessage asserts exactly one "PE: match evaluated" debug log was emitted and returns
+// its full message. Returns "" when the assertion fails so the caller's later assertions don't panic.
+func singleTraceMessage(t *testing.T, hook *logTest.Hook) string {
+	t.Helper()
 	var msgs []string
 	for _, e := range hook.AllEntries() {
 		if e.Level == logrus.DebugLevel && strings.HasPrefix(e.Message, "PE: match evaluated") {
 			msgs = append(msgs, e.Message)
 		}
 	}
-	assert.Len(t, msgs, 1, "expected exactly one consolidated trace log entry")
-	if len(msgs) == 0 {
-		return
+	if !assert.Len(t, msgs, 1, "expected exactly one consolidated trace log entry") {
+		return ""
 	}
-	msg := msgs[0]
-	// Both submission requirements should be reported.
-	assert.Contains(t, msg, `submission requirement "Group A required" rule=all from=A`)
-	assert.Contains(t, msg, "available=1")
-	assert.Contains(t, msg, ": satisfied")
-	assert.Contains(t, msg, `submission requirement "Group B (pick at least 1)" rule=pick from=B min=1 available=0`)
-	assert.Contains(t, msg, "not satisfied")
-	assert.Contains(t, msg, "less matches (0) than minimal required (1)")
-	// errors.Join newline must have been collapsed.
-	assert.NotContains(t, msg, ": missing credentials\nsubmission")
+	return msgs[0]
 }
 
-func TestMatchConstraints_DebugLogging_SubmissionRequirements_ContinuesAfterError(t *testing.T) {
-	// When debug logging is on, a failing submission requirement must not abort the trace
-	// — later requirements should still be evaluated and logged so the developer sees the
-	// full picture.
-	originalLogger := log.Logger().Logger
-	originalLevel := originalLogger.Level
-	hook := logTest.NewLocal(originalLogger)
-	originalLogger.SetLevel(logrus.DebugLevel)
-	t.Cleanup(func() {
-		originalLogger.SetLevel(originalLevel)
-		hook.Reset()
-	})
-
-	jsonldVC := vcrTest.ValidNutsOrganizationCredential(t)
-	pd := PresentationDefinition{
-		Id: "sr-trace-continues",
-		InputDescriptors: []*InputDescriptor{
-			{
-				Id:    "needs_org",
-				Group: []string{"A"},
-				Constraints: &Constraints{
-					Fields: []Field{{Path: []string{"$.credentialSubject.organization.city"}}},
-				},
-			},
-			{
-				Id:    "needs_other",
-				Group: []string{"B"},
-				Constraints: &Constraints{
-					Fields: []Field{{Path: []string{"$.someOtherField"}}},
-				},
+// twoGroupedInputDescriptors returns the InputDescriptors used by the SR-trace subtests:
+// "needs_org" in group A (matches the JSON-LD organization fixture) and "needs_other" in
+// group B (never matches anything in this package's fixtures).
+func twoGroupedInputDescriptors() []*InputDescriptor {
+	return []*InputDescriptor{
+		{
+			Id:    "needs_org",
+			Group: []string{"A"},
+			Constraints: &Constraints{
+				Fields: []Field{{Path: []string{"$.credentialSubject.organization.city"}}},
 			},
 		},
-		// SR1 (B / pick min=1) fails — group B has zero matches.
-		// SR2 (A / all) would succeed — group A has one match.
-		SubmissionRequirements: []*SubmissionRequirement{
-			{Name: "B fails first", Rule: "pick", From: "B", Min: to.Ptr(1)},
-			{Name: "A would succeed", Rule: "all", From: "A"},
+		{
+			Id:    "needs_other",
+			Group: []string{"B"},
+			Constraints: &Constraints{
+				Fields: []Field{{Path: []string{"$.someOtherField"}}},
+			},
 		},
-	}
-
-	_, _, _ = pd.Match([]vc.VerifiableCredential{jsonldVC})
-
-	var msgs []string
-	for _, e := range hook.AllEntries() {
-		if e.Level == logrus.DebugLevel && strings.HasPrefix(e.Message, "PE: match evaluated") {
-			msgs = append(msgs, e.Message)
-		}
-	}
-	assert.Len(t, msgs, 1)
-	if len(msgs) == 0 {
-		return
-	}
-	msg := msgs[0]
-	// Both submission requirements must appear, even though the first one errored.
-	assert.Contains(t, msg, `submission requirement "B fails first"`)
-	assert.Contains(t, msg, "not satisfied")
-	assert.Contains(t, msg, `submission requirement "A would succeed"`)
-	assert.Contains(t, msg, ": satisfied")
-}
-
-func TestMatchConstraints_NoTrace_WhenDebugDisabled(t *testing.T) {
-	// At a higher log level, no trace log line should be produced and the matching algorithm
-	// must not pay the trace-building cost.
-	originalLogger := log.Logger().Logger
-	originalLevel := originalLogger.Level
-	hook := logTest.NewLocal(originalLogger)
-	originalLogger.SetLevel(logrus.InfoLevel)
-	t.Cleanup(func() {
-		originalLogger.SetLevel(originalLevel)
-		hook.Reset()
-	})
-
-	matchingVC := vcrTest.ValidNutsOrganizationCredential(t)
-	_, _, _ = definitions().JSONLD.Match([]vc.VerifiableCredential{matchingVC})
-
-	for _, e := range hook.AllEntries() {
-		assert.NotEqual(t, "PE: match evaluated", strings.SplitN(e.Message, "\n", 2)[0],
-			"trace log line should not be emitted when debug logging is disabled")
 	}
 }
