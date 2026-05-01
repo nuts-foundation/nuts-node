@@ -77,7 +77,7 @@ The ``presentation_definition`` object contains the presentation definition that
 The ``wallet_owner_type`` field is used to determine the audience type of the presentation definition, valid values are ``organization``, ``service_provider`` and ``user``.
 
 The ``service_provider`` block describes the credentials that a service provider acting on behalf of a healthcare provider (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
-It is consulted only when the node initiates an outbound RFC 7523 token request and is ignored when the node acts as a verifier in an RFC021 ``vp_token-bearer`` flow.
+It applies only to outbound RFC 7523 token requests initiated by the node.
 A profile may define any combination of ``organization``, ``service_provider`` and ``user`` blocks; at least one is required.
 
 OAuth2 Token Introspection field mapping
