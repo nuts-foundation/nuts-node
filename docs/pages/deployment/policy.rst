@@ -74,11 +74,11 @@ JSON documents used for policies must have the following structure:
 
 Where ``example_scope`` is the scope that the presentation definition is associated with.
 The ``presentation_definition`` object contains the presentation definition that should be used for the given scope.
-The ``wallet_owner_type`` field is used to determine the audience type of the presentation definition, valid values are ``organization``, ``client`` and ``user``.
+The ``wallet_owner_type`` field is used to determine the audience type of the presentation definition, valid values are ``organization``, ``service_provider`` and ``user``.
 
-The ``client`` block describes the credentials that an OAuth client (a service provider acting on behalf of a healthcare provider in the RFC 7523 ``jwt-bearer`` flow) must present.
+The ``service_provider`` block describes the credentials that a service provider acting on behalf of a healthcare provider (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
 It is consulted only when the node initiates an outbound RFC 7523 token request and is ignored when the node acts as a verifier in an RFC021 ``vp_token-bearer`` flow.
-A profile may define any combination of ``organization``, ``client`` and ``user`` blocks; at least one is required.
+A profile may define any combination of ``organization``, ``service_provider`` and ``user`` blocks; at least one is required.
 
 OAuth2 Token Introspection field mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

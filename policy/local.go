@@ -190,8 +190,8 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 		if profile.ScopePolicy == "" {
 			profile.ScopePolicy = ScopePolicyProfileOnly
 		}
-		if profile.Organization == nil && profile.Client == nil && profile.User == nil {
-			return fmt.Errorf("credential profile %q must define at least one of 'organization', 'client', or 'user' (file=%s)", scope, filename)
+		if profile.Organization == nil && profile.ServiceProvider == nil && profile.User == nil {
+			return fmt.Errorf("credential profile %q must define at least one of 'organization', 'service_provider', or 'user' (file=%s)", scope, filename)
 		}
 		if !profile.ScopePolicy.valid() {
 			return fmt.Errorf("invalid scope_policy %q for scope %q (file=%s)", profile.ScopePolicy, scope, filename)
@@ -203,10 +203,10 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 
 // credentialProfileConfig holds the configuration for a single credential profile.
 type credentialProfileConfig struct {
-	Organization *validatingPresentationDefinition `json:"organization,omitempty"`
-	Client       *validatingPresentationDefinition `json:"client,omitempty"`
-	User         *validatingPresentationDefinition `json:"user,omitempty"`
-	ScopePolicy  ScopePolicy                       `json:"scope_policy,omitempty"`
+	Organization    *validatingPresentationDefinition `json:"organization,omitempty"`
+	ServiceProvider *validatingPresentationDefinition `json:"service_provider,omitempty"`
+	User            *validatingPresentationDefinition `json:"user,omitempty"`
+	ScopePolicy     ScopePolicy                       `json:"scope_policy,omitempty"`
 }
 
 func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
@@ -214,8 +214,8 @@ func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
 	if c.Organization != nil {
 		m[pe.WalletOwnerOrganization] = pe.PresentationDefinition(*c.Organization)
 	}
-	if c.Client != nil {
-		m[pe.WalletOwnerClient] = pe.PresentationDefinition(*c.Client)
+	if c.ServiceProvider != nil {
+		m[pe.WalletOwnerServiceProvider] = pe.PresentationDefinition(*c.ServiceProvider)
 	}
 	if c.User != nil {
 		m[pe.WalletOwnerUser] = pe.PresentationDefinition(*c.User)

@@ -1,7 +1,0 @@
-{
-  "client-only-malformed-scope": {
-    "client": {
-      "id": "pd_client_missing_input_descriptors"
-    }
-  }
-}

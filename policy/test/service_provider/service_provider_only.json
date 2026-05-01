@@ -1,10 +1,10 @@
 {
-  "client-only-scope": {
-    "client": {
-      "id": "pd_client_only",
+  "service-provider-only-scope": {
+    "service_provider": {
+      "id": "pd_service_provider_only",
       "input_descriptors": [
         {
-          "id": "id_client_cred",
+          "id": "id_sp_cred",
           "constraints": {
             "fields": [
               {

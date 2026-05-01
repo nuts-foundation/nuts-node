@@ -38,30 +38,30 @@ func TestStore_LoadFromFile(t *testing.T) {
 		require.Len(t, store.mapping, 1)
 		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
 		assert.Contains(t, mapping, pe.WalletOwnerOrganization)
-		assert.NotContains(t, mapping, pe.WalletOwnerClient)
+		assert.NotContains(t, mapping, pe.WalletOwnerServiceProvider)
 		assert.NotContains(t, mapping, pe.WalletOwnerUser)
 	})
 
-	t.Run("loads organization, client, and user PDs from a single profile", func(t *testing.T) {
+	t.Run("loads organization, service_provider, and user PDs from a single profile", func(t *testing.T) {
 		store := LocalPDP{}
 
-		err := store.loadFromFile("test/client/with_org_client_user.json")
+		err := store.loadFromFile("test/service_provider/with_org_sp_user.json")
 
 		require.NoError(t, err)
 		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
 		assert.Equal(t, "pd_organization", mapping[pe.WalletOwnerOrganization].Id)
-		assert.Equal(t, "pd_client", mapping[pe.WalletOwnerClient].Id)
+		assert.Equal(t, "pd_service_provider", mapping[pe.WalletOwnerServiceProvider].Id)
 		assert.Equal(t, "pd_user", mapping[pe.WalletOwnerUser].Id)
 	})
 
-	t.Run("loads a profile that defines only a client PD", func(t *testing.T) {
+	t.Run("loads a profile that defines only a service_provider PD", func(t *testing.T) {
 		store := LocalPDP{}
 
-		err := store.loadFromFile("test/client/client_only.json")
+		err := store.loadFromFile("test/service_provider/service_provider_only.json")
 
 		require.NoError(t, err)
-		mapping := store.mapping["client-only-scope"].toWalletOwnerMapping()
-		assert.Equal(t, "pd_client_only", mapping[pe.WalletOwnerClient].Id)
+		mapping := store.mapping["service-provider-only-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_service_provider_only", mapping[pe.WalletOwnerServiceProvider].Id)
 		assert.NotContains(t, mapping, pe.WalletOwnerOrganization)
 		assert.NotContains(t, mapping, pe.WalletOwnerUser)
 	})
@@ -82,10 +82,10 @@ func TestStore_LoadFromFile(t *testing.T) {
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
 	})
 
-	t.Run("returns an error if the client PD is invalid", func(t *testing.T) {
+	t.Run("returns an error if the service_provider PD is invalid", func(t *testing.T) {
 		store := LocalPDP{}
 
-		err := store.loadFromFile("test/invalid/invalid_client_pd.json")
+		err := store.loadFromFile("test/invalid/invalid_service_provider_pd.json")
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
 	})
@@ -95,7 +95,7 @@ func TestStore_LoadFromFile(t *testing.T) {
 
 		err := store.loadFromFile("test/invalid/no_pds.json")
 
-		assert.ErrorContains(t, err, "must define at least one of 'organization', 'client', or 'user'")
+		assert.ErrorContains(t, err, "must define at least one of 'organization', 'service_provider', or 'user'")
 	})
 }
 

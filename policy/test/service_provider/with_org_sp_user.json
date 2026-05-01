@@ -19,11 +19,11 @@
         }
       ]
     },
-    "client": {
-      "id": "pd_client",
+    "service_provider": {
+      "id": "pd_service_provider",
       "input_descriptors": [
         {
-          "id": "id_client_cred",
+          "id": "id_sp_cred",
           "constraints": {
             "fields": [
               {
