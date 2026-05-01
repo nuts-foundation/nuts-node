@@ -257,6 +257,9 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	if err != nil {
 		return nil, err
 	}
+	if serviceProviderSubjectID != nil && !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
+		return nil, errors.New("authorization server does not advertise jwt-bearer support")
+	}
 
 	// Resolve the presentation definition: from remote AS when available, local policy otherwise
 	resolved, err := c.pdResolver.Resolve(ctx, scopes, *metadata)

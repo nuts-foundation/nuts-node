@@ -189,6 +189,10 @@ const (
 	ScopeParam = "scope"
 	// StateParam is the parameter name for the state parameter. (RFC6749)
 	StateParam = "state"
+	// ClientAssertionTypeParam is the parameter name for the client_assertion_type parameter. (RFC7521)
+	ClientAssertionTypeParam = "client_assertion_type"
+	// ClientAssertionParam is the parameter name for the client_assertion parameter. (RFC7521)
+	ClientAssertionParam = "client_assertion"
 	// VpTokenParam is the parameter name for the vp_token parameter. (OpenID4VP)
 	VpTokenParam = "vp_token"
 	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
@@ -205,6 +209,10 @@ const (
 	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
+	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type, used by the LSPxNuts two-VP flow (PSA 10.10).
+	JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	// JwtBearerClientAssertionType is the client_assertion_type for the RFC 7523 JWT bearer client assertion.
+	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
 // response types

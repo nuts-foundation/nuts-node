@@ -423,6 +423,18 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "jwt-bearer")
 	})
+
+	t.Run("rejects the request when the AS does not advertise jwt-bearer", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		// The default AS metadata in the test setup does not include JwtBearerGrantType in grant_types_supported.
+
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "authorization server does not advertise jwt-bearer")
+	})
 }
 
 func TestIAMClient_RequestObjectByGet(t *testing.T) {
