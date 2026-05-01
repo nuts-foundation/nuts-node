@@ -149,7 +149,7 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 	var candidates []Candidate
 
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
-		sink.inputDescriptor(*inputDescriptor, len(vcs))
+		sink.inputDescriptor(inputDescriptor, len(vcs))
 
 		// Collect all matching VCs for this input descriptor
 		var matchingVCs []vc.VerifiableCredential
@@ -164,7 +164,7 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				matchingVCs = append(matchingVCs, credential)
 				continue
 			}
-			sink.rejected(*inputDescriptor, presentationDefinition.Format, credential, isMatch, formatOK)
+			sink.rejected(inputDescriptor, presentationDefinition.Format, &credential, isMatch, formatOK)
 		}
 		// Use the selector to pick one credential from the candidates.
 		// (nil, nil) means the selector has no opinion — fall back to FirstMatchSelector.
@@ -277,7 +277,7 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	outcomes := make([]srOutcome, 0, len(presentationDefinition.SubmissionRequirements))
 	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
 		submissionRequirementVCs, srErr := submissionRequirement.match(availableGroups)
-		sink.submissionRequirement(*submissionRequirement, availableGroups, srErr)
+		sink.submissionRequirement(submissionRequirement, availableGroups, srErr)
 		outcomes = append(outcomes, srOutcome{submissionRequirementVCs, srErr})
 	}
 

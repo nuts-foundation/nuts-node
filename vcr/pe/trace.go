@@ -42,18 +42,19 @@ import (
 // emit(). The constructor newSink picks the right one based on the current log level.
 type matchSink interface {
 	// inputDescriptor marks the start of evaluating an InputDescriptor against `considered`
-	// candidate credentials.
-	inputDescriptor(inputDescriptor InputDescriptor, considered int)
+	// candidate credentials. Pointer arguments are used so the no-op implementation pays
+	// no copy cost on the production hot path.
+	inputDescriptor(inputDescriptor *InputDescriptor, considered int)
 	// rejected records that one credential was rejected by the current InputDescriptor and
 	// why. The sink decides whether to compute the (expensive) reason; production no-op
 	// implementations can ignore the call entirely.
-	rejected(inputDescriptor InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential, isMatch, formatOK bool)
+	rejected(inputDescriptor *InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential *vc.VerifiableCredential, isMatch, formatOK bool)
 	// selected closes the current InputDescriptor with the final selection. `selected` is
 	// nil when no credential matched.
 	selected(matched int, selected *vc.VerifiableCredential)
 	// submissionRequirement records the outcome of one SubmissionRequirement. matchErr is
 	// nil when the requirement was satisfied.
-	submissionRequirement(sr SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error)
+	submissionRequirement(sr *SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error)
 	// emit is called once after matching completes. Real sinks render and write the trace
 	// here; the noop sink does nothing.
 	emit()
@@ -71,11 +72,11 @@ func newSink() matchSink {
 // noopSink discards every diagnostic event.
 type noopSink struct{}
 
-func (noopSink) inputDescriptor(InputDescriptor, int) {}
-func (noopSink) rejected(InputDescriptor, *PresentationDefinitionClaimFormatDesignations, vc.VerifiableCredential, bool, bool) {
+func (noopSink) inputDescriptor(*InputDescriptor, int) {}
+func (noopSink) rejected(*InputDescriptor, *PresentationDefinitionClaimFormatDesignations, *vc.VerifiableCredential, bool, bool) {
 }
 func (noopSink) selected(int, *vc.VerifiableCredential)                                          {}
-func (noopSink) submissionRequirement(SubmissionRequirement, map[string]groupCandidates, error) {}
+func (noopSink) submissionRequirement(*SubmissionRequirement, map[string]groupCandidates, error) {}
 func (noopSink) emit()                                                                           {}
 
 // traceSink accumulates a matchTrace and emits it as a debug log line on emit().
@@ -84,11 +85,11 @@ type traceSink struct {
 	cur   *inputDescriptorTrace
 }
 
-func (s *traceSink) inputDescriptor(inputDescriptor InputDescriptor, considered int) {
+func (s *traceSink) inputDescriptor(inputDescriptor *InputDescriptor, considered int) {
 	s.cur = &inputDescriptorTrace{Id: inputDescriptor.Id, Considered: considered}
 }
 
-func (s *traceSink) rejected(inputDescriptor InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential, isMatch, formatOK bool) {
+func (s *traceSink) rejected(inputDescriptor *InputDescriptor, pdFormat *PresentationDefinitionClaimFormatDesignations, credential *vc.VerifiableCredential, isMatch, formatOK bool) {
 	s.cur.Rejections = append(s.cur.Rejections, rejectionTrace{
 		Credential: credentialID(credential),
 		Reason:     rejectionReason(pdFormat, inputDescriptor, credential, isMatch, formatOK),
@@ -98,13 +99,13 @@ func (s *traceSink) rejected(inputDescriptor InputDescriptor, pdFormat *Presenta
 func (s *traceSink) selected(matched int, selected *vc.VerifiableCredential) {
 	s.cur.Matched = matched
 	if selected != nil {
-		s.cur.Selected = credentialID(*selected)
+		s.cur.Selected = credentialID(selected)
 	}
 	s.trace.InputDescriptors = append(s.trace.InputDescriptors, *s.cur)
 	s.cur = nil
 }
 
-func (s *traceSink) submissionRequirement(sr SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error) {
+func (s *traceSink) submissionRequirement(sr *SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error) {
 	s.trace.SubmissionRequirements = append(s.trace.SubmissionRequirements, buildSubmissionRequirementTrace(sr, availableGroups, matchErr))
 }
 
@@ -232,7 +233,7 @@ func (t matchTrace) String() string {
 // buildSubmissionRequirementTrace produces the trace entry for one SubmissionRequirement
 // after evaluating it. matchErr should be the error returned by SubmissionRequirement.match
 // (nil if the requirement was satisfied).
-func buildSubmissionRequirementTrace(sr SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error) submissionRequirementTrace {
+func buildSubmissionRequirementTrace(sr *SubmissionRequirement, availableGroups map[string]groupCandidates, matchErr error) submissionRequirementTrace {
 	t := submissionRequirementTrace{
 		Name:       sr.Name,
 		Rule:       sr.Rule,
@@ -265,7 +266,7 @@ func buildSubmissionRequirementTrace(sr SubmissionRequirement, availableGroups m
 
 // rejectionReason produces a human-readable explanation of why a credential was rejected
 // by an input descriptor.
-func rejectionReason(pdFormat *PresentationDefinitionClaimFormatDesignations, inputDescriptor InputDescriptor, credential vc.VerifiableCredential, constraintsMatched, formatOK bool) string {
+func rejectionReason(pdFormat *PresentationDefinitionClaimFormatDesignations, inputDescriptor *InputDescriptor, credential *vc.VerifiableCredential, constraintsMatched, formatOK bool) string {
 	switch {
 	case !formatOK:
 		return formatRejectionReason(pdFormat, inputDescriptor.Format, credential)
@@ -283,7 +284,7 @@ func rejectionReason(pdFormat *PresentationDefinitionClaimFormatDesignations, in
 // formatRejectionReason returns a human-readable explanation of why the credential's format,
 // signing algorithm or proof type was rejected. Reports what the credential offered alongside
 // what each format spec (presentation definition and/or input descriptor) actually accepts.
-func formatRejectionReason(pdFormat, idFormat *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential) string {
+func formatRejectionReason(pdFormat, idFormat *PresentationDefinitionClaimFormatDesignations, credential *vc.VerifiableCredential) string {
 	parts := []string{describeCredentialFormat(credential)}
 	if reason := describeFormatMismatch("presentation definition", pdFormat, credential); reason != "" {
 		parts = append(parts, reason)
@@ -296,7 +297,7 @@ func formatRejectionReason(pdFormat, idFormat *PresentationDefinitionClaimFormat
 
 // describeCredentialFormat returns a short description of the credential's format and the
 // cryptographic detail used to sign it (alg for JWT, proof_type for JSON-LD).
-func describeCredentialFormat(credential vc.VerifiableCredential) string {
+func describeCredentialFormat(credential *vc.VerifiableCredential) string {
 	format := credential.Format()
 	switch format {
 	case "":
@@ -325,11 +326,11 @@ func describeCredentialFormat(credential vc.VerifiableCredential) string {
 
 // describeFormatMismatch returns a description of why the given format spec rejects the
 // credential, or "" if the spec accepts it (or is empty).
-func describeFormatMismatch(source string, format *PresentationDefinitionClaimFormatDesignations, credential vc.VerifiableCredential) string {
+func describeFormatMismatch(source string, format *PresentationDefinitionClaimFormatDesignations, credential *vc.VerifiableCredential) string {
 	if format == nil || len(*format) == 0 {
 		return ""
 	}
-	if matchFormat(format, credential) {
+	if matchFormat(format, *credential) {
 		return ""
 	}
 	asMap := map[string]map[string][]string(*format)
@@ -345,7 +346,7 @@ func describeFormatMismatch(source string, format *PresentationDefinitionClaimFo
 	}
 	switch credFormat {
 	case vc.JWTCredentialProofFormat:
-		return fmt.Sprintf("%s requires %s alg in %v", source, credFormat, formatEntry[string(jws.AlgorithmKey)])
+		return fmt.Sprintf("%s requires %s alg in %v", source, credFormat, formatEntry[jws.AlgorithmKey])
 	case vc.JSONLDCredentialProofFormat:
 		return fmt.Sprintf("%s requires %s proof_type in %v", source, credFormat, formatEntry["proof_type"])
 	}
@@ -355,8 +356,8 @@ func describeFormatMismatch(source string, format *PresentationDefinitionClaimFo
 }
 
 // credentialID returns the credential's id as a string, or "" if the credential has no id.
-func credentialID(credential vc.VerifiableCredential) string {
-	if credential.ID == nil {
+func credentialID(credential *vc.VerifiableCredential) string {
+	if credential == nil || credential.ID == nil {
 		return ""
 	}
 	return credential.ID.String()
@@ -364,13 +365,13 @@ func credentialID(credential vc.VerifiableCredential) string {
 
 // credentialToMap unmarshals a credential to a generic map, regardless of its on-the-wire format.
 // Mirrors the conversion done in matchConstraint.
-func credentialToMap(credential vc.VerifiableCredential) (map[string]interface{}, error) {
+func credentialToMap(credential *vc.VerifiableCredential) (map[string]interface{}, error) {
 	switch credential.Format() {
 	case vc.JWTCredentialProofFormat:
 		type Alias vc.VerifiableCredential
-		return remarshalToMap(Alias(credential))
+		return remarshalToMap(Alias(*credential))
 	default:
-		return remarshalToMap(credential)
+		return remarshalToMap(*credential)
 	}
 }
 

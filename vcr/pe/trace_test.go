@@ -85,7 +85,7 @@ func Test_formatRejectionReason(t *testing.T) {
 		pdFormat := PresentationDefinitionClaimFormatDesignations{
 			"jwt_vc": {"alg": []string{"EdDSA", "ES256"}},
 		}
-		reason := formatRejectionReason(&pdFormat, nil, jsonldVC)
+		reason := formatRejectionReason(&pdFormat, nil, &jsonldVC)
 		assert.Contains(t, reason, "format=ldp_vc")
 		assert.Contains(t, reason, "proof_type=")
 		assert.Contains(t, reason, "presentation definition accepts only formats")
@@ -96,7 +96,7 @@ func Test_formatRejectionReason(t *testing.T) {
 		pdFormat := PresentationDefinitionClaimFormatDesignations{
 			"ldp_vc": {"proof_type": []string{"Ed25519Signature2020"}},
 		}
-		reason := formatRejectionReason(&pdFormat, nil, jsonldVC)
+		reason := formatRejectionReason(&pdFormat, nil, &jsonldVC)
 		assert.Contains(t, reason, "format=ldp_vc")
 		assert.Contains(t, reason, "proof_type=JsonWebSignature2020")
 		assert.Contains(t, reason, "requires ldp_vc proof_type in [Ed25519Signature2020]")
@@ -108,7 +108,7 @@ func Test_formatRejectionReason(t *testing.T) {
 		}
 		// Pin the JWT fixture's alg so the test fails loudly if the helper changes its alg.
 		// JWTNutsOrganizationCredential signs with ES384.
-		reason := formatRejectionReason(&pdFormat, nil, jwtVC)
+		reason := formatRejectionReason(&pdFormat, nil, &jwtVC)
 		assert.Contains(t, reason, "format=jwt_vc")
 		assert.Contains(t, reason, "alg=ES384")
 		assert.Contains(t, reason, "requires jwt_vc alg in [PS256]")
@@ -118,7 +118,7 @@ func Test_formatRejectionReason(t *testing.T) {
 		idFormat := PresentationDefinitionClaimFormatDesignations{
 			"jwt_vc": {"alg": []string{"EdDSA"}},
 		}
-		reason := formatRejectionReason(nil, &idFormat, jsonldVC)
+		reason := formatRejectionReason(nil, &idFormat, &jsonldVC)
 		assert.Contains(t, reason, "input descriptor accepts only formats")
 		assert.Contains(t, reason, "jwt_vc")
 	})
