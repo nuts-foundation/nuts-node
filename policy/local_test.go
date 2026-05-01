@@ -21,6 +21,7 @@ package policy
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,6 +126,22 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 		_, err := store.FindCredentialProfile(context.Background(), "")
 
 		assert.ErrorIs(t, err, ErrNotFound)
+	})
+}
+
+func TestLocalPDP_ClientPD(t *testing.T) {
+	t.Run("loads organization, client, and user PDs from a single profile", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/client/with_org_client_user.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
+		require.NoError(t, err)
+
+		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerOrganization)
+		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerClient)
+		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerUser)
+		assert.Equal(t, "pd_client", match.WalletOwnerMapping[pe.WalletOwnerClient].Id)
 	})
 }
 

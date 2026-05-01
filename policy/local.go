@@ -204,6 +204,7 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 // credentialProfileConfig holds the configuration for a single credential profile.
 type credentialProfileConfig struct {
 	Organization *validatingPresentationDefinition `json:"organization,omitempty"`
+	Client       *validatingPresentationDefinition `json:"client,omitempty"`
 	User         *validatingPresentationDefinition `json:"user,omitempty"`
 	ScopePolicy  ScopePolicy                       `json:"scope_policy,omitempty"`
 }
@@ -212,6 +213,9 @@ func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
 	m := pe.WalletOwnerMapping{}
 	if c.Organization != nil {
 		m[pe.WalletOwnerOrganization] = pe.PresentationDefinition(*c.Organization)
+	}
+	if c.Client != nil {
+		m[pe.WalletOwnerClient] = pe.PresentationDefinition(*c.Client)
 	}
 	if c.User != nil {
 		m[pe.WalletOwnerUser] = pe.PresentationDefinition(*c.User)
