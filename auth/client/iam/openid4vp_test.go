@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/policy"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -435,6 +436,24 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "authorization server does not advertise jwt-bearer")
 	})
+
+	t.Run("rejects the request when no service_provider PD is configured for the scope", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "org_pd"},
+			},
+		}, nil)
+
+		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "no service_provider presentation definition")
+	})
 }
 
 func TestIAMClient_RequestObjectByGet(t *testing.T) {
@@ -504,6 +523,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	subjectManager := didsubject.NewMockManager(ctrl)
 	wallet := holder.NewMockWallet(ctrl)
+	policyBackend := policy.NewMockPDPBackend(ctrl)
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
 	}
@@ -516,10 +536,11 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			strictMode: false,
 			httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 		},
-		jwtSigner:   jwtSigner,
-		keyResolver: keyResolver,
+		jwtSigner:     jwtSigner,
+		keyResolver:   keyResolver,
+		policyBackend: policyBackend,
 	}
-	testClient.pdResolver = PresentationDefinitionResolver{pdFetcher: testClient}
+	testClient.pdResolver = PresentationDefinitionResolver{pdFetcher: testClient, policyBackend: policyBackend}
 
 	return &clientTestContext{
 		audit:          audit.TestContext(),
@@ -529,6 +550,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		keyResolver:    keyResolver,
 		wallet:         wallet,
 		subjectManager: subjectManager,
+		policyBackend:  policyBackend,
 	}
 }
 
@@ -540,6 +562,7 @@ type clientTestContext struct {
 	keyResolver    *resolver.MockKeyResolver
 	wallet         *holder.MockWallet
 	subjectManager *didsubject.MockManager
+	policyBackend  *policy.MockPDPBackend
 }
 
 type clientServerTestContext struct {

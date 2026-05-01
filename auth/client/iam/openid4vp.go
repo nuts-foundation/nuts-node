@@ -260,6 +260,16 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	if serviceProviderSubjectID != nil && !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
 		return nil, errors.New("authorization server does not advertise jwt-bearer support")
 	}
+	if serviceProviderSubjectID != nil {
+		match, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
+		if err != nil {
+			return nil, fmt.Errorf("local PD resolution failed: %w", err)
+		}
+		if _, ok := match.WalletOwnerMapping[pe.WalletOwnerServiceProvider]; !ok {
+			return nil, fmt.Errorf("no service_provider presentation definition for scope %q", match.CredentialProfileScope)
+		}
+		_ = match // remaining two-VP construction follows in subsequent cycles
+	}
 
 	// Resolve the presentation definition: from remote AS when available, local policy otherwise
 	resolved, err := c.pdResolver.Resolve(ctx, scopes, *metadata)
