@@ -29,14 +29,41 @@ import (
 )
 
 func TestStore_LoadFromFile(t *testing.T) {
-	t.Run("loads the mapping from the file", func(t *testing.T) {
+	t.Run("loads an organization-only profile and exposes it via WalletOwnerMapping", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/definition_mapping.json")
 
 		require.NoError(t, err)
-		assert.Len(t, store.mapping, 1)
-		assert.NotNil(t, store.mapping["example-scope"])
+		require.Len(t, store.mapping, 1)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Contains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerClient)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
+	})
+
+	t.Run("loads organization, client, and user PDs from a single profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/client/with_org_client_user.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_organization", mapping[pe.WalletOwnerOrganization].Id)
+		assert.Equal(t, "pd_client", mapping[pe.WalletOwnerClient].Id)
+		assert.Equal(t, "pd_user", mapping[pe.WalletOwnerUser].Id)
+	})
+
+	t.Run("loads a profile that defines only a client PD", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/client/client_only.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["client-only-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_client_only", mapping[pe.WalletOwnerClient].Id)
+		assert.NotContains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
@@ -47,12 +74,28 @@ func TestStore_LoadFromFile(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
+	t.Run("returns an error if the organization PD is invalid", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/invalid/invalid_definition_mapping.json")
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
+
+	t.Run("returns an error if the client PD is invalid", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/invalid_client_pd.json")
+
+		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
+
+	t.Run("returns an error if no PD is defined for a profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/no_pds.json")
+
+		assert.ErrorContains(t, err, "must define at least one of 'organization', 'client', or 'user'")
 	})
 }
 
@@ -126,41 +169,6 @@ func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 		_, err := store.FindCredentialProfile(context.Background(), "")
 
 		assert.ErrorIs(t, err, ErrNotFound)
-	})
-}
-
-func TestLocalPDP_ClientPD(t *testing.T) {
-	t.Run("loads organization, client, and user PDs from a single profile", func(t *testing.T) {
-		store := LocalPDP{}
-		err := store.loadFromFile("test/client/with_org_client_user.json")
-		require.NoError(t, err)
-
-		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
-		require.NoError(t, err)
-
-		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerOrganization)
-		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerClient)
-		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerUser)
-		assert.Equal(t, "pd_client", match.WalletOwnerMapping[pe.WalletOwnerClient].Id)
-	})
-	t.Run("malformed client PD is rejected with a schema-validation error", func(t *testing.T) {
-		store := LocalPDP{}
-
-		err := store.loadFromFile("test/invalid/invalid_client_pd.json")
-
-		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
-	})
-	t.Run("a profile with only a client PD loads", func(t *testing.T) {
-		store := LocalPDP{}
-		err := store.loadFromFile("test/client/client_only.json")
-		require.NoError(t, err)
-
-		match, err := store.FindCredentialProfile(context.Background(), "client-only-scope")
-		require.NoError(t, err)
-
-		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerClient)
-		assert.NotContains(t, match.WalletOwnerMapping, pe.WalletOwnerOrganization)
-		assert.NotContains(t, match.WalletOwnerMapping, pe.WalletOwnerUser)
 	})
 }
 
