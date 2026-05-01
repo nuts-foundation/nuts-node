@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
-	"github.com/sirupsen/logrus"
 )
 
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
@@ -84,12 +83,17 @@ func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCr
 func (presentationDefinition PresentationDefinition) MatchWithSelector(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
 	var selectedVCs []vc.VerifiableCredential
 	var descriptorMaps []InputDescriptorMappingObject
+	var trace *matchTrace
 	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
-		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selector); err != nil {
-			return nil, nil, err
-		}
-	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs, selector); err != nil {
+		descriptorMaps, selectedVCs, trace, err = presentationDefinition.matchSubmissionRequirements(vcs, selector)
+	} else {
+		descriptorMaps, selectedVCs, trace, err = presentationDefinition.matchBasic(vcs, selector)
+	}
+	if trace != nil {
+		log.Logger().Debug(trace.String())
+	}
+	if err != nil {
 		return nil, nil, err
 	}
 
@@ -144,17 +148,18 @@ func (presentationDefinition PresentationDefinition) CredentialsRequired() bool 
 	return len(presentationDefinition.InputDescriptors) > 0
 }
 
-func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]Candidate, error) {
-	debug := logrus.IsLevelEnabled(logrus.DebugLevel)
+func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]Candidate, *matchTrace, error) {
 	var candidates []Candidate
+	trace := &matchTrace{InputDescriptors: make([]inputDescriptorTrace, 0, len(presentationDefinition.InputDescriptors))}
 
 	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
+		descTrace := inputDescriptorTrace{Id: inputDescriptor.Id, Considered: len(vcs)}
 		// Collect all matching VCs for this input descriptor
 		var matchingVCs []vc.VerifiableCredential
 		for _, credential := range vcs {
 			isMatch, err := matchCredential(*inputDescriptor, credential)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			// InputDescriptor formats must be a subset of the PresentationDefinition formats, so it must satisfy both.
 			formatOK := matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential)
@@ -162,9 +167,10 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				matchingVCs = append(matchingVCs, credential)
 				continue
 			}
-			if debug {
-				logCredentialRejection(*inputDescriptor, credential, isMatch, formatOK, presentationDefinition.Format)
-			}
+			descTrace.Rejections = append(descTrace.Rejections, rejectionTrace{
+				Credential: credentialID(credential),
+				Reason:     rejectionReason(presentationDefinition.Format, *inputDescriptor, credential, isMatch, formatOK),
+			})
 		}
 		// Use the selector to pick one credential from the candidates.
 		// (nil, nil) means the selector has no opinion — fall back to FirstMatchSelector.
@@ -175,64 +181,33 @@ func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.V
 				// (e.g., pick rules with min: 0).
 				selected = nil
 			} else {
-				return nil, err
+				return nil, nil, err
 			}
 		} else if selected == nil && len(matchingVCs) > 0 {
 			selected, err = FirstMatchSelector(*inputDescriptor, matchingVCs)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
-		if debug {
-			entry := log.Logger().
-				WithField("input_descriptor", inputDescriptor.Id).
-				WithField("considered", len(vcs)).
-				WithField("matched", len(matchingVCs))
-			if selected != nil {
-				entry = entry.WithField("selected", credentialID(*selected))
-			}
-			entry.Debug("PE: input descriptor evaluated")
+		descTrace.Matched = len(matchingVCs)
+		if selected != nil {
+			descTrace.Selected = credentialID(*selected)
 		}
+		trace.InputDescriptors = append(trace.InputDescriptors, descTrace)
 		candidates = append(candidates, Candidate{
 			InputDescriptor: *inputDescriptor,
 			VC:              selected,
 		})
 	}
 
-	return candidates, nil
+	return candidates, trace, nil
 }
 
-// logCredentialRejection emits a debug log explaining why a credential was rejected by an
-// input descriptor. Only call this when debug logging is enabled — it does extra work to
-// produce the reason.
-func logCredentialRejection(inputDescriptor InputDescriptor, credential vc.VerifiableCredential, constraintsMatched, formatOK bool, presentationFormat *PresentationDefinitionClaimFormatDesignations) {
-	var reason string
-	switch {
-	case !formatOK:
-		reason = "credential format/proof_type does not satisfy presentation definition or input descriptor format"
-	case !constraintsMatched && inputDescriptor.Constraints != nil:
-		credentialAsMap, err := credentialToMap(credential)
-		if err != nil {
-			reason = "could not parse credential: " + err.Error()
-		} else {
-			reason = explainConstraintMismatch(inputDescriptor.Constraints, credentialAsMap)
-		}
-	default:
-		reason = "credential rejected"
-	}
-	log.Logger().
-		WithField("input_descriptor", inputDescriptor.Id).
-		WithField("credential", credentialID(credential)).
-		WithField("reason", reason).
-		Debug("PE: credential rejected")
-	_ = presentationFormat // available if richer logging is needed later
-}
-
-func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, *matchTrace, error) {
 	// do the constraints check
-	candidates, err := presentationDefinition.matchConstraints(vcs, selector)
+	candidates, trace, err := presentationDefinition.matchConstraints(vcs, selector)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, trace, err
 	}
 	matchingCredentials := make([]vc.VerifiableCredential, len(candidates))
 	var descriptors []InputDescriptorMappingObject
@@ -249,7 +224,7 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 	// we do not raise an error here since SubmissionRequirements might specify a "pick" rule
 
 	if len(descriptorsNotMatched) > 0 {
-		return nil, nil, errors.Join(ErrNoCredentials, fmt.Errorf("constraints not matched: %s", strings.Join(descriptorsNotMatched, ", ")))
+		return nil, nil, trace, errors.Join(ErrNoCredentials, fmt.Errorf("constraints not matched: %s", strings.Join(descriptorsNotMatched, ", ")))
 	}
 
 	for i, candidate := range candidates {
@@ -264,14 +239,14 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 		index++
 	}
 
-	return descriptors, matchingCredentials, nil
+	return descriptors, matchingCredentials, trace, nil
 }
 
-func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, *matchTrace, error) {
 	// first we use the constraint matching algorithm to get the matching credentials
-	candidates, err := presentationDefinition.matchConstraints(vcs, selector)
+	candidates, trace, err := presentationDefinition.matchConstraints(vcs, selector)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, trace, err
 	}
 
 	// then we check the group constraints
@@ -287,7 +262,7 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	}
 	for _, group := range presentationDefinition.groups() {
 		if _, ok := availableGroups[group.Name]; !ok {
-			return nil, nil, fmt.Errorf("group '%s' is required but not available", group.Name)
+			return nil, nil, trace, fmt.Errorf("group '%s' is required but not available", group.Name)
 		}
 	}
 
@@ -306,9 +281,10 @@ func (presentationDefinition PresentationDefinition) matchSubmissionRequirements
 	// then we apply the rules and save the resulting credentials
 	var selectedVCs []vc.VerifiableCredential
 	for _, submissionRequirement := range presentationDefinition.SubmissionRequirements {
-		submissionRequirementVCs, err := submissionRequirement.match(availableGroups)
-		if err != nil {
-			return nil, nil, err
+		submissionRequirementVCs, srErr := submissionRequirement.match(availableGroups)
+		trace.SubmissionRequirements = append(trace.SubmissionRequirements, buildSubmissionRequirementTrace(*submissionRequirement, availableGroups, srErr))
+		if srErr != nil {
+			return nil, nil, trace, srErr
 		}
 		selectedVCs = append(selectedVCs, submissionRequirementVCs...)
 	}
@@ -336,7 +312,7 @@ outer:
 		}
 	}
 
-	return descriptors, uniqueVCs, nil
+	return descriptors, uniqueVCs, trace, nil
 }
 
 // groups returns all the groupCandidates with input descriptors and matching VCs.
