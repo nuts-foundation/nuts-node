@@ -150,6 +150,18 @@ func TestLocalPDP_ClientPD(t *testing.T) {
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
 	})
+	t.Run("a profile with only a client PD loads", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/client/client_only.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "client-only-scope")
+		require.NoError(t, err)
+
+		assert.Contains(t, match.WalletOwnerMapping, pe.WalletOwnerClient)
+		assert.NotContains(t, match.WalletOwnerMapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, match.WalletOwnerMapping, pe.WalletOwnerUser)
+	})
 }
 
 func TestLocalPDP_ScopePolicyConfig(t *testing.T) {

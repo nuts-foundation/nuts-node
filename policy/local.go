@@ -190,8 +190,8 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 		if profile.ScopePolicy == "" {
 			profile.ScopePolicy = ScopePolicyProfileOnly
 		}
-		if profile.Organization == nil && profile.User == nil {
-			return fmt.Errorf("credential profile %q must define at least one of 'organization' or 'user' (file=%s)", scope, filename)
+		if profile.Organization == nil && profile.Client == nil && profile.User == nil {
+			return fmt.Errorf("credential profile %q must define at least one of 'organization', 'client', or 'user' (file=%s)", scope, filename)
 		}
 		if !profile.ScopePolicy.valid() {
 			return fmt.Errorf("invalid scope_policy %q for scope %q (file=%s)", profile.ScopePolicy, scope, filename)

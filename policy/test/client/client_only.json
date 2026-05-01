@@ -1,0 +1,23 @@
+{
+  "client-only-scope": {
+    "client": {
+      "id": "pd_client_only",
+      "input_descriptors": [
+        {
+          "id": "id_client_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderCredential"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
