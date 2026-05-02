@@ -129,13 +129,24 @@ func parseJSONObjectOrStringEnvelope(envelopeBytes []byte) (interface{}, *vc.Ver
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to parse PEX envelope as verifiable presentation: %w", err)
 	}
-	// TODO: This should be part of go-did library; we need to decode a JWT VP (and maybe later VC) and get the properties
-	//       (in this case as map) without losing original cardinality.
-	//       Part of https://github.com/nuts-foundation/go-did/issues/85
+	asInterface, err := vpAsInterface(*presentation)
+	if err != nil {
+		return nil, nil, err
+	}
+	return asInterface, presentation, nil
+}
+
+// vpAsInterface returns the JSON-as-interface representation of vp suitable for jsonpath traversal,
+// extracting the inner "vp" claim for JWT presentations so callers see the same shape regardless of format.
+// TODO: This should be part of go-did library; we need to decode a JWT VP (and maybe later VC) and get the
+// properties (in this case as map) without losing original cardinality.
+// Part of https://github.com/nuts-foundation/go-did/issues/85
+func vpAsInterface(presentation vc.VerifiablePresentation) (interface{}, error) {
+	raw := []byte(presentation.Raw())
 	if presentation.Format() == vc.JWTPresentationProofFormat {
-		token, err := jwt.Parse(envelopeBytes, jwt.WithVerify(false), jwt.WithValidate(false))
+		token, err := jwt.Parse(raw, jwt.WithVerify(false), jwt.WithValidate(false))
 		if err != nil {
-			return nil, nil, fmt.Errorf("unable to parse PEX envelope as JWT verifiable presentation: %w", err)
+			return nil, fmt.Errorf("unable to parse PEX envelope as JWT verifiable presentation: %w", err)
 		}
 		asMap := make(map[string]interface{})
 		// use the 'vp' claim as base Verifiable Presentation properties
@@ -146,15 +157,15 @@ func parseJSONObjectOrStringEnvelope(envelopeBytes []byte) (interface{}, *vc.Ver
 		if jti, ok := token.Get(jwt.JwtIDKey); ok {
 			asMap["id"] = jti
 		}
-		return asMap, presentation, nil
+		return asMap, nil
 	}
 	// For other formats, we can just parse the JSON to get the interface{} for JSON Path to work on
 	var asMap interface{}
-	if err := json.Unmarshal(envelopeBytes, &asMap); err != nil {
+	if err := json.Unmarshal(raw, &asMap); err != nil {
 		// Can't actually fail?
-		return nil, nil, err
+		return nil, err
 	}
-	return asMap, presentation, nil
+	return asMap, nil
 }
 
 // tryParseJSONArray tries to parse the given bytes as a JSON array.

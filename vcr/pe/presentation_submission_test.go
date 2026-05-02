@@ -277,6 +277,39 @@ func TestPresentationSubmissionBuilder_SetCredentialSelector(t *testing.T) {
 	})
 }
 
+func TestPresentationSubmission_ResolveVP(t *testing.T) {
+	t.Run("resolves descriptors against a single parsed VP without round-tripping through Envelope", func(t *testing.T) {
+		// Caller already has a *VerifiablePresentation in memory (e.g. just built by the wallet); ResolveVP
+		// must produce the same descriptor → credential mapping that Resolve(envelope) would.
+		vpRaw := `{
+			"@context": ["https://www.w3.org/2018/credentials/v1"],
+			"type": ["VerifiablePresentation"],
+			"verifiableCredential": [{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				"type": ["VerifiableCredential"],
+				"id": "urn:vc:42",
+				"issuer": "did:test:issuer",
+				"credentialSubject": {"id": "did:test:subject"},
+				"proof": {"type": "JsonWebSignature2020"}
+			}],
+			"proof": {"type": "JsonWebSignature2020"}
+		}`
+		presentation, err := vc.ParseVerifiablePresentation(vpRaw)
+		require.NoError(t, err)
+		submission := PresentationSubmission{
+			DescriptorMap: []InputDescriptorMappingObject{
+				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
+			},
+		}
+
+		credentials, err := submission.ResolveVP(*presentation)
+
+		require.NoError(t, err)
+		require.Contains(t, credentials, "id_org_cred")
+		assert.Equal(t, "urn:vc:42", credentials["id_org_cred"].ID.String())
+	})
+}
+
 func TestPresentationSubmission_Resolve(t *testing.T) {
 	id1 := ssi.MustParseURI("1")
 	id2 := ssi.MustParseURI("2")

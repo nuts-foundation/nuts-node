@@ -163,6 +163,20 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	return presentationSubmission, signInstruction, nil
 }
 
+// ResolveVP is a convenience wrapper around Resolve for callers that already hold a single parsed
+// VerifiablePresentation in memory (e.g. a freshly built submission from the wallet) and would otherwise
+// need to round-trip through Raw() + ParseEnvelope just to call Resolve.
+func (s PresentationSubmission) ResolveVP(presentation vc.VerifiablePresentation) (map[string]vc.VerifiableCredential, error) {
+	asInterface, err := vpAsInterface(presentation)
+	if err != nil {
+		return nil, err
+	}
+	return s.Resolve(Envelope{
+		Presentations: []vc.VerifiablePresentation{presentation},
+		asInterface:   asInterface,
+	})
+}
+
 // Resolve returns a map where each of the input descriptors is mapped to the corresponding VerifiableCredential.
 // If an input descriptor can't be mapped to a VC, an error is returned.
 // This function is specified by https://identity.foundation/presentation-exchange/#processing-of-submission-entries
