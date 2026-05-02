@@ -286,24 +286,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
 
-	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		return nil, err
-	}
-
-	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, params.DIDMethods)
-	if err != nil {
-		return nil, err
-	}
-
-	// each additional credential can be used by each DID
-	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
-	for _, subjectDID := range subjectDIDs {
-		for _, curr := range additionalCredentials {
-			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
-		}
-	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, *presentationDefinition, credentialSelection, params)
+	vp, submission, err := c.buildSubmissionForSubject(ctx, subjectID, *presentationDefinition, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
