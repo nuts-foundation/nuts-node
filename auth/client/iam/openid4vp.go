@@ -261,7 +261,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, errors.New("authorization server does not advertise jwt-bearer support")
 	}
 	if serviceProviderSubjectID != nil {
-		return c.requestJwtBearerAccessToken(ctx, clientID, subjectID, *serviceProviderSubjectID, authServerURL, scopes, additionalCredentials, credentialSelection, metadata)
+		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, additionalCredentials, credentialSelection, metadata)
 	}
 
 	// Resolve the presentation definition: from remote AS when available, local policy otherwise
@@ -349,20 +349,22 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 // requestJwtBearerAccessToken implements the RFC 7523 jwt-bearer two-VP token request flow.
 // It builds VP1 from the HCP wallet (using the organization PD) and VP2 from the SP wallet (using the
 // service_provider PD), assembles them as `assertion` and `client_assertion`, and POSTs the token request.
-func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clientID string, subjectID string, serviceProviderSubjectID string,
+// Per RFC 7521 §4.2 the client is authenticated by the client_assertion, so no OAuth client_id form
+// parameter is sent on this path.
+func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
 	authServerURL string, scopes string, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
-	match, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
+	profile, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
 	if err != nil {
 		return nil, fmt.Errorf("local PD resolution failed: %w", err)
 	}
-	orgPD, hasOrg := match.WalletOwnerMapping[pe.WalletOwnerOrganization]
+	orgPD, hasOrg := profile.WalletOwnerMapping[pe.WalletOwnerOrganization]
 	if !hasOrg {
-		return nil, fmt.Errorf("no organization presentation definition for scope %q", match.CredentialProfileScope)
+		return nil, fmt.Errorf("no organization presentation definition for scope %q", profile.CredentialProfileScope)
 	}
-	spPD, hasSP := match.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
+	spPD, hasSP := profile.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
 	if !hasSP {
-		return nil, fmt.Errorf("no service_provider presentation definition for scope %q", match.CredentialProfileScope)
+		return nil, fmt.Errorf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope)
 	}
 	params := holder.BuildParams{
 		Audience:   authServerURL,
@@ -371,22 +373,27 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clien
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
-	vp1, vp1Submission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	vp1, vp1Submission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
-	// Capture id-bearing constraint field values resolved against VP1 and additively merge them into the
-	// credential_selection map for VP2. EHR-supplied keys take precedence over captured values.
-	credentialSelection, err = mergeCapturedFields(credentialSelection, vp1, vp1Submission, orgPD)
+	// Cross-VP binding: capture id-bearing constraint field values resolved against VP1 and additively merge
+	// them into the credential_selection map for VP2. The submission tells us which credential satisfied each
+	// input descriptor; we use that to walk the PD's id-bearing fields and extract their matched values.
+	credentialMap, err := vp1Submission.ResolveVP(*vp1)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve VP1 submission for cross-VP binding: %w", err)
 	}
-	vp2, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params, metadata.DIDMethodsSupported)
+	captured, err := orgPD.ResolveConstraintsFields(credentialMap)
+	if err != nil {
+		return nil, fmt.Errorf("resolve VP1 constraint fields for cross-VP binding: %w", err)
+	}
+	credentialSelection = applyCapturedFieldsToSelection(credentialSelection, captured)
+	vp2, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
 	data := url.Values{}
-	data.Set(oauth.ClientIDParam, clientID)
 	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
 	data.Set(oauth.AssertionParam, vp1.Raw())
 	data.Set(oauth.ClientAssertionTypeParam, oauth.JwtBearerClientAssertionType)
@@ -406,16 +413,15 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, clien
 	}, nil
 }
 
-// buildSubmissionForSubject lists DIDs for the given subject, filters them to those whose method is supported
-// by the AS, and asks the wallet to build a VP that fulfills the given PresentationDefinition.
+// buildSubmissionForSubject lists DIDs for the given subject, filters them to those whose method is in
+// params.DIDMethods, and asks the wallet to build a VP that fulfills the given PresentationDefinition.
 func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subjectID string, presentationDefinition pe.PresentationDefinition,
-	additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, params holder.BuildParams,
-	supportedDIDMethods []string) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, params holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
 	if err != nil {
 		return nil, nil, err
 	}
-	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, supportedDIDMethods)
+	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, params.DIDMethods)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -428,22 +434,9 @@ func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subject
 	return c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
 }
 
-// mergeCapturedFields resolves the id-bearing constraint fields of definition against vp's submitted credentials
-// and adds the resulting field-id → value pairs to selection. Existing keys in selection are not overwritten.
-// Non-string values are skipped (selection is map[string]string).
-func mergeCapturedFields(selection map[string]string, vp *vc.VerifiablePresentation, submission *pe.PresentationSubmission, definition pe.PresentationDefinition) (map[string]string, error) {
-	envelope, err := pe.ParseEnvelope([]byte(vp.Raw()))
-	if err != nil {
-		return nil, fmt.Errorf("parse VP envelope for cross-VP binding: %w", err)
-	}
-	credentialMap, err := submission.Resolve(*envelope)
-	if err != nil {
-		return nil, fmt.Errorf("resolve VP submission for cross-VP binding: %w", err)
-	}
-	captured, err := definition.ResolveConstraintsFields(credentialMap)
-	if err != nil {
-		return nil, fmt.Errorf("resolve constraint fields for cross-VP binding: %w", err)
-	}
+// applyCapturedFieldsToSelection adds string-valued entries from captured to selection without overwriting
+// existing keys. Non-string captured values are skipped (selection is map[string]string).
+func applyCapturedFieldsToSelection(selection map[string]string, captured map[string]any) map[string]string {
 	if selection == nil {
 		selection = map[string]string{}
 	}
@@ -457,7 +450,7 @@ func mergeCapturedFields(selection map[string]string, vp *vc.VerifiablePresentat
 		}
 		selection[k] = s
 	}
-	return selection, nil
+	return selection
 }
 
 // filterDIDsByMethods drops DIDs whose method is not in supportedMethods. Returns ErrPreconditionFailed when

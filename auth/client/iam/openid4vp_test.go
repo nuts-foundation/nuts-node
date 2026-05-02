@@ -39,7 +39,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/policy"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
@@ -456,100 +455,6 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		assert.ErrorContains(t, err, "no service_provider presentation definition")
 	})
 
-	t.Run("captures shared field.id values from VP1 into VP2 credential_selection", func(t *testing.T) {
-		// Cross-VP binding scenario: when the organization PD and the service_provider PD share the same
-		// constraint-field `id` (here: "delegating_hcp"), the value matched in VP1 must flow into VP2's
-		// credential_selection so the wallet building VP2 can pick a credential constrained by that value.
-		// In this test we follow only the capture-and-merge step end-to-end: assert that VP2's BuildSubmission
-		// receives credential_selection["delegating_hcp"] = "did:test:hcp", the issuer of VP1's credential.
-
-		sp := spSubjectID
-		hcpDID := did.MustParseDID("did:test:hcp")
-		spDID := did.MustParseDID("did:test:sp")
-
-		// VP1 is a minimal JSON-LD presentation containing one credential whose $.issuer is the HCP DID.
-		// The presentation needs enough structure for ParseEnvelope + submission.Resolve to walk the JSONPath
-		// "$.verifiableCredential[0]" and return the embedded credential.
-		vp1Raw := `{
-			"@context": ["https://www.w3.org/2018/credentials/v1"],
-			"type": ["VerifiablePresentation"],
-			"verifiableCredential": [{
-				"@context": ["https://www.w3.org/2018/credentials/v1"],
-				"type": ["VerifiableCredential"],
-				"issuer": "did:test:hcp",
-				"credentialSubject": {"id": "did:test:hcp"},
-				"proof": {"type": "JsonWebSignature2020"}
-			}],
-			"proof": {"type": "JsonWebSignature2020"}
-		}`
-		vp1, err := vc.ParseVerifiablePresentation(vp1Raw)
-		require.NoError(t, err)
-		// VP2's body is irrelevant for this test — it never gets parsed because we're only asserting on the
-		// arguments passed to its BuildSubmission call.
-		vp2, err := vc.ParseVerifiablePresentation(`{"proof":[{"verificationMethod":"did:test:sp#1"}]}`)
-		require.NoError(t, err)
-
-		// VP1's submission tells the resolver that input descriptor "id_org_cred" was satisfied by the first
-		// credential in the verifiableCredential array of VP1.
-		vp1Submission := &pe.PresentationSubmission{
-			DescriptorMap: []pe.InputDescriptorMappingObject{
-				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
-			},
-		}
-
-		// orgPD declares one constraint field with id "delegating_hcp" pointing at $.issuer of the matched VC.
-		// That id is what makes the value capturable; without an id the field would be ignored.
-		orgPD := pe.PresentationDefinition{
-			Id: "org_pd",
-			InputDescriptors: []*pe.InputDescriptor{{
-				Id: "id_org_cred",
-				Constraints: &pe.Constraints{
-					Fields: []pe.Field{{Id: to.Ptr("delegating_hcp"), Path: []string{"$.issuer"}}},
-				},
-			}},
-		}
-		// spPD shares the field.id "delegating_hcp" by convention. The sharing is what binds VP2 to a value
-		// matched in VP1 — this PR's job is to plumb that value into credential_selection. The PD itself
-		// carries no constraints in this test because the wallet mock never inspects it.
-		spPD := pe.PresentationDefinition{Id: "sp_pd"}
-
-		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
-		// Advertise jwt-bearer so the gates pass and the two-VP path runs.
-		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
-		// The two-VP path resolves both PDs from the local policy backend rather than the AS's PD endpoint.
-		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
-			CredentialProfileScope: "first",
-			WalletOwnerMapping: pe.WalletOwnerMapping{
-				pe.WalletOwnerOrganization:    orgPD,
-				pe.WalletOwnerServiceProvider: spPD,
-			},
-		}, nil)
-		// VP1 is built from the HCP wallet, VP2 from the SP wallet — different subject IDs, different DIDs.
-		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
-		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
-		// First call: build VP1 against the HCP DID using orgPD. Returns the JSON-LD VP and its submission so
-		// the production code can resolve constraint fields against them.
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
-			orgPD, gomock.Any(), gomock.Any()).Return(vp1, vp1Submission, nil)
-		// Second call: build VP2 against the SP DID using spPD. We capture the credential_selection argument
-		// so the test can assert the merged field-id value made it through.
-		var capturedSPSelection map[string]string
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
-			spPD, gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, sel map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
-				capturedSPSelection = sel
-				return vp2, &pe.PresentationSubmission{}, nil
-			})
-
-		_, err = ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
-
-		require.NoError(t, err)
-		// The HCP DID matched against $.issuer in VP1's credential should be captured under "delegating_hcp"
-		// and forwarded to VP2's wallet — this is the cross-VP binding payoff.
-		assert.Equal(t, "did:test:hcp", capturedSPSelection["delegating_hcp"])
-	})
-
 	t.Run("posts a jwt-bearer form body on the happy path", func(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
@@ -595,6 +500,30 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		assert.Equal(t, oauth.JwtBearerClientAssertionType, capturedForm.Get(oauth.ClientAssertionTypeParam))
 		assert.Equal(t, vp2.Raw(), capturedForm.Get(oauth.ClientAssertionParam))
 		assert.Empty(t, capturedForm.Get(oauth.PresentationSubmissionParam))
+		// Per RFC 7521 §4.2 client_id is optional when client_assertion is present and we omit it.
+		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
+	})
+}
+
+func TestApplyCapturedFieldsToSelection(t *testing.T) {
+	t.Run("adds string-valued captured entries to a nil selection", func(t *testing.T) {
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{"delegating_hcp": "did:test:hcp"})
+
+		assert.Equal(t, map[string]string{"delegating_hcp": "did:test:hcp"}, merged)
+	})
+
+	t.Run("does not overwrite EHR-supplied selection keys", func(t *testing.T) {
+		ehrSelection := map[string]string{"delegating_hcp": "did:ehr:override"}
+
+		merged := applyCapturedFieldsToSelection(ehrSelection, map[string]any{"delegating_hcp": "did:test:hcp"})
+
+		assert.Equal(t, "did:ehr:override", merged["delegating_hcp"])
+	})
+
+	t.Run("skips non-string captured values", func(t *testing.T) {
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{"int_field": 42, "string_field": "ok"})
+
+		assert.Equal(t, map[string]string{"string_field": "ok"}, merged)
 	})
 }
 
