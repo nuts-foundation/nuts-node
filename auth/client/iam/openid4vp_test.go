@@ -455,6 +455,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.ErrorContains(t, err, "no service_provider presentation definition")
 	})
 
+	// Scope-policy behaviour (profile-only rejection, passthrough forwarding, missing organization PD)
+	// is covered by TestLoadAndValidateProfile, which exercises the same helper this path delegates to.
+
 	t.Run("posts a jwt-bearer form body on the happy path", func(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")

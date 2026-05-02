@@ -361,14 +361,12 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
 	authServerURL string, scopes string, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
-	profile, err := c.policyBackend.FindCredentialProfile(ctx, scopes)
+	profile, resolvedScope, err := loadAndValidateProfile(ctx, c.policyBackend, scopes)
 	if err != nil {
-		return nil, fmt.Errorf("local PD resolution failed: %w", err)
+		return nil, err
 	}
-	orgPD, hasOrg := profile.WalletOwnerMapping[pe.WalletOwnerOrganization]
-	if !hasOrg {
-		return nil, fmt.Errorf("no organization presentation definition for scope %q", profile.CredentialProfileScope)
-	}
+	// loadAndValidateProfile guarantees the organization PD; the service_provider PD is two-VP-specific.
+	orgPD := profile.WalletOwnerMapping[pe.WalletOwnerOrganization]
 	spPD, hasSP := profile.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
 	if !hasSP {
 		return nil, fmt.Errorf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope)
@@ -405,9 +403,9 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	data.Set(oauth.AssertionParam, vp1.Raw())
 	data.Set(oauth.ClientAssertionTypeParam, oauth.JwtBearerClientAssertionType)
 	data.Set(oauth.ClientAssertionParam, vp2.Raw())
-	data.Set(oauth.ScopeParam, scopes)
+	data.Set(oauth.ScopeParam, resolvedScope)
 
-	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  VP1: %s\n  VP2: %s", metadata.TokenEndpoint, scopes, vp1.Raw(), vp2.Raw())
+	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  VP1: %s\n  VP2: %s", metadata.TokenEndpoint, resolvedScope, vp1.Raw(), vp2.Raw())
 	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, "")
 	if err != nil {
 		return nil, err
