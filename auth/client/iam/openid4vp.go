@@ -252,18 +252,25 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
 		return nil, errors.New("jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true")
 	}
-	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
 		return nil, err
 	}
-	if serviceProviderSubjectID != nil && !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
-		return nil, errors.New("authorization server does not advertise jwt-bearer support")
-	}
 	if serviceProviderSubjectID != nil {
+		if !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
+			return nil, errors.New("authorization server does not advertise jwt-bearer support")
+		}
 		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, additionalCredentials, credentialSelection, metadata)
 	}
+	return c.requestVPTokenAccessToken(ctx, clientID, subjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
+}
 
+// requestVPTokenAccessToken implements the single-VP RFC021 vp_token-bearer flow: resolve the
+// presentation definition (remotely if the AS advertises one, locally otherwise), build a single VP from
+// the caller's wallet, and POST it as `assertion` alongside the PE submission and DPoP header (when used).
+func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string,
+	scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
+	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
 	// Resolve the presentation definition: from remote AS when available, local policy otherwise
 	resolved, err := c.pdResolver.Resolve(ctx, scopes, *metadata)
 	if err != nil {
@@ -284,7 +291,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		return nil, err
 	}
 
-	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, metadata.DIDMethodsSupported)
+	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, params.DIDMethods)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +336,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	}
 
 	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
+	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err
