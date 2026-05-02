@@ -43,12 +43,14 @@ type Client interface {
 	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
-	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
+	// RequestServiceAccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server.
+	// When serviceProviderSubjectID is nil, the request uses the Nuts RFC021 vp_token-bearer single-VP flow.
+	// When serviceProviderSubjectID is non-nil it identifies a service-provider Nuts subject and triggers the RFC 7523
+	// jwt-bearer two-VP flow; that flow is only honored when the experimental jwt-bearer client feature is enabled and
+	// the AS advertises jwt-bearer.
 	// credentials are additional VCs to include alongside wallet-stored credentials.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
-	// serviceProviderSubjectID, when non-nil, identifies a service-provider Nuts subject and triggers the RFC 7523 jwt-bearer two-VP flow.
-	// It is only honored when the experimental jwt-bearer client feature is enabled and the AS advertises jwt-bearer.
-	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
+	RequestServiceAccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.

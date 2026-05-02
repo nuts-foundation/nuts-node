@@ -247,7 +247,7 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
+func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error) {
 	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
 		return nil, errors.New("jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true")

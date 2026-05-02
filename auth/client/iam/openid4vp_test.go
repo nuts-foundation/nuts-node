@@ -237,7 +237,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
+func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 	const subjectID = "subby"
 	const subjectClientID = "https://example.com/oauth2/subby"
 	primaryWalletDID := did.MustParseDID("did:test:primary")
@@ -254,7 +254,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -266,7 +266,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, pe.ErrNoCredentials)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, response)
@@ -276,7 +276,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.authzServerMetadata.DIDMethodsSupported = []string{"other"}
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrPreconditionFailed)
@@ -313,7 +313,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 				return createdVP, &pe.PresentationSubmission{}, nil
 			})
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, credentials, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, credentials, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -327,7 +327,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -349,7 +349,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		var oauthErrResult oauth.OAuth2Error
@@ -367,7 +367,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			return
 		}
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.True(t, errors.As(err, &oauth.OAuth2Error{}))
@@ -377,7 +377,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.metadata = nil
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
@@ -391,7 +391,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			_, _ = writer.Write([]byte("{"))
 		}
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrBadGateway)
@@ -402,13 +402,13 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.Error(t, err)
 	})
 }
 
-func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
+func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	const subjectID = "subby"
 	const subjectClientID = "https://example.com/oauth2/subby"
 	const spSubjectID = "service-provider-subby"
@@ -419,7 +419,7 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = false
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "jwt-bearer")
@@ -431,7 +431,7 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
 		// The default AS metadata in the test setup does not include JwtBearerGrantType in grant_types_supported.
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "authorization server does not advertise jwt-bearer")
@@ -449,7 +449,7 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 			},
 		}, nil)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "no service_provider presentation definition")
@@ -491,7 +491,7 @@ func TestRelyingParty_RequestRFC021AccessToken_TwoVP(t *testing.T) {
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
 		}
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)

@@ -781,7 +781,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestRFC021AccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialSelection, nil)
+	tokenResult, err := r.auth.IAMClient().RequestServiceAccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialSelection, nil)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err
