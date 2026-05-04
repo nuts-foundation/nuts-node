@@ -423,11 +423,13 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	scopes := "first second"
 
 	t.Run("rejects the request when the experimental jwt-bearer feature is disabled", func(t *testing.T) {
-		// The default zero value of experimentalJwtBearerClient is false; we leave it alone so the gate fires.
+		// The gate fires synchronously before any HTTP call, so the lightweight test context (no TLS
+		// server, no metadata fixtures) is sufficient. The default zero value of
+		// experimentalJwtBearerClient is false; we leave it alone so the gate fires.
 		sp := spSubjectID
-		ctx := createClientServerTestContext(t)
+		ctx := createClientTestContext(t, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, "https://example.com/oauth2/verifier", scopes, false, nil, nil, &sp)
 
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "jwt-bearer")
