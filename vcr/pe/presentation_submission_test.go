@@ -277,10 +277,11 @@ func TestPresentationSubmissionBuilder_SetCredentialSelector(t *testing.T) {
 	})
 }
 
-func TestPresentationSubmission_ResolveVP(t *testing.T) {
-	t.Run("resolves descriptors against a single parsed VP without round-tripping through Envelope", func(t *testing.T) {
-		// Caller already has a *VerifiablePresentation in memory (e.g. just built by the wallet); ResolveVP
-		// must produce the same descriptor → credential mapping that Resolve(envelope) would.
+func TestNewEnvelopeFromVP(t *testing.T) {
+	t.Run("wraps a parsed VP into an Envelope that PresentationSubmission.Resolve accepts", func(t *testing.T) {
+		// Caller already has a *VerifiablePresentation in memory (e.g. just built by the wallet);
+		// NewEnvelopeFromVP must produce an Envelope equivalent to ParseEnvelope([]byte(vp.Raw())) so that
+		// Resolve sees the same descriptor → credential mapping.
 		vpRaw := `{
 			"@context": ["https://www.w3.org/2018/credentials/v1"],
 			"type": ["VerifiablePresentation"],
@@ -302,7 +303,9 @@ func TestPresentationSubmission_ResolveVP(t *testing.T) {
 			},
 		}
 
-		credentials, err := submission.ResolveVP(*presentation)
+		envelope, err := NewEnvelopeFromVP(*presentation)
+		require.NoError(t, err)
+		credentials, err := submission.Resolve(*envelope)
 
 		require.NoError(t, err)
 		require.Contains(t, credentials, "id_org_cred")

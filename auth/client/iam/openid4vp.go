@@ -371,7 +371,11 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	// Cross-VP binding: capture id-bearing constraint field values resolved against VP1 and additively merge
 	// them into the credential_selection map for VP2. The submission tells us which credential satisfied each
 	// input descriptor; we use that to walk the PD's id-bearing fields and extract their matched values.
-	credentialMap, err := vp1Submission.ResolveVP(*vp1)
+	envelope, err := pe.NewEnvelopeFromVP(*vp1)
+	if err != nil {
+		return nil, fmt.Errorf("build VP1 envelope for cross-VP binding: %w", err)
+	}
+	credentialMap, err := vp1Submission.Resolve(*envelope)
 	if err != nil {
 		return nil, fmt.Errorf("resolve VP1 submission for cross-VP binding: %w", err)
 	}

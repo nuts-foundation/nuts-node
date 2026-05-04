@@ -93,6 +93,21 @@ func ParseEnvelope(envelopeBytes []byte) (*Envelope, error) {
 	}, nil
 }
 
+// NewEnvelopeFromVP wraps a single Verifiable Presentation in an Envelope without re-parsing the source
+// bytes. Convenient for callers that already hold a parsed VP in memory and would otherwise round-trip
+// through Raw() + ParseEnvelope just to feed PresentationSubmission.Resolve.
+func NewEnvelopeFromVP(presentation vc.VerifiablePresentation) (*Envelope, error) {
+	asInterface, err := vpAsInterface(presentation)
+	if err != nil {
+		return nil, err
+	}
+	return &Envelope{
+		Presentations: []vc.VerifiablePresentation{presentation},
+		asInterface:   asInterface,
+		raw:           []byte(presentation.Raw()),
+	}, nil
+}
+
 // parseEnvelopeEntry parses a single Verifiable Presentation in a Presentation Exchange envelope.
 // It takes into account custom unmarshalling required for JWT VPs.
 func parseJSONArrayEnvelope(arr []interface{}) (interface{}, []vc.VerifiablePresentation, error) {
