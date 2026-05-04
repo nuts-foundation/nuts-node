@@ -319,7 +319,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 		AccessToken: token.AccessToken,
 		ExpiresIn:   token.ExpiresIn,
 		TokenType:   token.TokenType,
-		Scope:       &scopes,
+		Scope:       &resolved.Scope,
 	}
 	if dpopKid != "" {
 		tokenResponse.DPoPKid = &dpopKid
@@ -398,7 +398,7 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 		AccessToken: token.AccessToken,
 		ExpiresIn:   token.ExpiresIn,
 		TokenType:   token.TokenType,
-		Scope:       &scopes,
+		Scope:       &resolvedScope,
 	}
 	if dpopKid != "" {
 		tokenResponse.DPoPKid = &dpopKid
