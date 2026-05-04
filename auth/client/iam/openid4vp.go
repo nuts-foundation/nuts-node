@@ -430,23 +430,26 @@ func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subject
 	return c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
 }
 
-// applyCapturedFieldsToSelection adds string-valued entries from captured to selection without overwriting
-// existing keys. Non-string captured values are skipped (selection is map[string]string).
+// applyCapturedFieldsToSelection returns a fresh selection map containing every entry from selection
+// plus any string-valued entry from captured whose key is not already present. Non-string captured values
+// are skipped (selection is map[string]string). The caller's selection map is never mutated, so the
+// captured values cannot leak back through any retained reference.
 func applyCapturedFieldsToSelection(selection map[string]string, captured map[string]any) map[string]string {
-	if selection == nil {
-		selection = map[string]string{}
+	merged := make(map[string]string, len(selection)+len(captured))
+	for k, v := range selection {
+		merged[k] = v
 	}
 	for k, v := range captured {
-		if _, exists := selection[k]; exists {
+		if _, exists := merged[k]; exists {
 			continue
 		}
 		s, ok := v.(string)
 		if !ok {
 			continue
 		}
-		selection[k] = s
+		merged[k] = s
 	}
-	return selection
+	return merged
 }
 
 // filterDIDsByMethods drops DIDs whose method is not in supportedMethods. Returns ErrPreconditionFailed when

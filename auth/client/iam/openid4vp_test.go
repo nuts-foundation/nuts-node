@@ -679,6 +679,16 @@ func TestApplyCapturedFieldsToSelection(t *testing.T) {
 
 		assert.Equal(t, map[string]string{"string_field": "ok"}, merged)
 	})
+
+	t.Run("does not mutate the caller's selection map", func(t *testing.T) {
+		// The caller (HTTP handler) typically passes a request-derived map. Mutating it would risk leaking
+		// captured values into anything that retains a reference to that map (logging, caches, retries).
+		ehrSelection := map[string]string{"caller_key": "caller_value"}
+
+		_ = applyCapturedFieldsToSelection(ehrSelection, map[string]any{"captured_key": "captured_value"})
+
+		assert.Equal(t, map[string]string{"caller_key": "caller_value"}, ehrSelection)
+	})
 }
 
 func TestIAMClient_RequestObjectByGet(t *testing.T) {
