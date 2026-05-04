@@ -52,7 +52,7 @@ type Client interface {
 	// offered to both wallets; each PD selects what matches its input descriptors. Signed VCs flow through unchanged;
 	// unsigned self-attested credentials are auto-issued per holder DID by AutoCorrectSelfAttestedCredential.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
-	RequestServiceAccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
+	RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
