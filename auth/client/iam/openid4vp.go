@@ -377,15 +377,24 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	// input descriptor; we use that to walk the PD's id-bearing fields and extract their matched values.
 	envelope, err := pe.NewEnvelopeFromVP(*vp1)
 	if err != nil {
-		return nil, fmt.Errorf("build VP1 envelope for cross-VP binding: %w", err)
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to wrap VP1 in an envelope for cross-VP binding: %s", err),
+		}
 	}
 	credentialMap, err := vp1Submission.Resolve(*envelope)
 	if err != nil {
-		return nil, fmt.Errorf("resolve VP1 submission for cross-VP binding: %w", err)
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to resolve VP1 submission for cross-VP binding: %s", err),
+		}
 	}
 	captured, err := orgPD.ResolveConstraintsFields(credentialMap)
 	if err != nil {
-		return nil, fmt.Errorf("resolve VP1 constraint fields for cross-VP binding: %w", err)
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to extract cross-VP binding values from VP1 against the organization presentation definition: %s", err),
+		}
 	}
 	credentialSelection = applyCapturedFieldsToSelection(credentialSelection, captured)
 	// Each VP must carry its own nonce; reuse would let a verifier confuse the two assertions.
