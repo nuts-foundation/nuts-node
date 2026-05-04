@@ -51,6 +51,10 @@ import (
 // ErrPreconditionFailed is returned when a precondition is not met.
 var ErrPreconditionFailed = errors.New("precondition failed")
 
+// vpAssertionLifetime is the validity window of a Verifiable Presentation built for a token request.
+// Short by design: the VP is signed and posted within the same call.
+const vpAssertionLifetime = 5 * time.Second
+
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
@@ -287,7 +291,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 	params := holder.BuildParams{
 		Audience:   authServerURL,
 		DIDMethods: metadata.DIDMethodsSupported,
-		Expires:    time.Now().Add(time.Second * 5),
+		Expires:    time.Now().Add(vpAssertionLifetime),
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
@@ -360,7 +364,7 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	params := holder.BuildParams{
 		Audience:   authServerURL,
 		DIDMethods: metadata.DIDMethodsSupported,
-		Expires:    time.Now().Add(time.Second * 5),
+		Expires:    time.Now().Add(vpAssertionLifetime),
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
