@@ -328,10 +328,13 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 }
 
 // requestJwtBearerAccessToken implements the RFC 7523 jwt-bearer two-VP token request flow.
-// It builds VP1 from the HCP wallet (using the organization PD) and VP2 from the SP wallet (using the
-// service_provider PD), assembles them as `assertion` and `client_assertion`, and POSTs the token request.
+// It builds VP1 from the healthcare-provider (HCP) wallet using the organization PD, and VP2 from the
+// service-provider (SP) wallet using the service_provider PD, assembles them as `assertion` and
+// `client_assertion`, and POSTs the token request.
 // Per RFC 7521 §4.2 the client is authenticated by the client_assertion, so no OAuth client_id form
 // parameter is sent on this path.
+// Both PDs are resolved from the local policy backend; the AS's remote presentation_definition endpoint
+// is not consulted (no standardised mechanism exists today for the AS to advertise a service_provider PD).
 func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
 	authServerURL string, scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {

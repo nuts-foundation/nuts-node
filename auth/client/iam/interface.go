@@ -48,7 +48,9 @@ type Client interface {
 	// When serviceProviderSubjectID is non-nil it identifies a service-provider Nuts subject and triggers the RFC 7523
 	// jwt-bearer two-VP flow; that flow is only honored when the experimental jwt-bearer client feature is enabled and
 	// the AS advertises jwt-bearer.
-	// credentials are additional VCs to include alongside wallet-stored credentials.
+	// credentials are additional VCs to include alongside wallet-stored credentials. In the two-VP flow they are
+	// offered to both wallets; each PD selects what matches its input descriptors. Signed VCs flow through unchanged;
+	// unsigned self-attested credentials are auto-issued per holder DID by AutoCorrectSelfAttestedCredential.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
 	RequestServiceAccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
