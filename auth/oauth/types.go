@@ -211,7 +211,11 @@ const (
 	VpTokenGrantType = "vp_token-bearer"
 	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type.
 	JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
-	// JwtBearerClientAssertionType is the client_assertion_type for the RFC 7523 JWT bearer client assertion.
+)
+
+// client assertion types
+const (
+	// JwtBearerClientAssertionType is the canonical value of ClientAssertionTypeParam for the RFC 7523 JWT bearer client assertion.
 	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
