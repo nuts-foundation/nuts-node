@@ -462,9 +462,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
 		spDID := did.MustParseDID("did:test:sp")
-		vp1, err := vc.ParseVerifiablePresentation(`{"proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
 		require.NoError(t, err)
-		vp2, err := vc.ParseVerifiablePresentation(`{"proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 
 		ctx := createClientServerTestContext(t)
@@ -505,6 +505,42 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.Empty(t, capturedForm.Get(oauth.PresentationSubmissionParam))
 		// Per RFC 7521 §4.2 client_id is optional when client_assertion is present and we omit it.
 		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
+	})
+
+	t.Run("ok with DPoPHeader", func(t *testing.T) {
+		// DPoP binds the issued access token to a key the SP wallet controls — the proof must be signed with
+		// the SP DID's key (vp2.Holder), not the HCP DID's key.
+		sp := spSubjectID
+		spDID := did.MustParseDID("did:test:sp")
+		spKID := "did:test:sp#1"
+		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+		ctx := createClientServerTestContext(t)
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{did.MustParseDID("did:test:hcp")}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(vp1, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(vp2, &pe.PresentationSubmission{}, nil)
+		// The DPoP signing key must be resolved against the SP DID, not the HCP DID — that's the assertion.
+		ctx.keyResolver.EXPECT().ResolveKey(spDID, nil, resolver.NutsSigningKeyType).Return(spKID, nil, nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), spKID).Return("dpop", nil)
+
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.NotNil(t, response.DPoPKid)
+		assert.Equal(t, spKID, *response.DPoPKid)
 	})
 }
 

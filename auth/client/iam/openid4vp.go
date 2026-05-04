@@ -260,7 +260,7 @@ func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientI
 		if !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
 			return nil, errors.New("authorization server does not advertise jwt-bearer support")
 		}
-		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, additionalCredentials, credentialSelection, metadata)
+		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
 	}
 	return c.requestVPTokenAccessToken(ctx, clientID, subjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
 }
@@ -304,18 +304,9 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, resolved.Scope)
 
-	// create DPoP header
-	var dpopHeader string
-	var dpopKid string
-	if useDPoP {
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
-		if err != nil {
-			return nil, err
-		}
-		dpopHeader, dpopKid, err = c.dpop(ctx, *subjectDID, *request)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
-		}
+	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, *subjectDID, metadata.TokenEndpoint)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
@@ -342,7 +333,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 // Per RFC 7521 §4.2 the client is authenticated by the client_assertion, so no OAuth client_id form
 // parameter is sent on this path.
 func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
-	authServerURL string, scopes string, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
+	authServerURL string, scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
 	profile, resolvedScope, err := loadAndValidateProfile(ctx, c.policyBackend, scopes)
 	if err != nil {
@@ -381,6 +372,16 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	if err != nil {
 		return nil, err
 	}
+	// DPoP binds the issued access token to a key the service provider controls — the SP wallet will
+	// present and use the token, so the proof is signed with the SP DID's key.
+	spDID, err := did.ParseDID(vp2.Holder.String())
+	if err != nil {
+		return nil, err
+	}
+	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, *spDID, metadata.TokenEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	data := url.Values{}
 	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
 	data.Set(oauth.AssertionParam, vp1.Raw())
@@ -389,16 +390,20 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	data.Set(oauth.ScopeParam, resolvedScope)
 
 	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  VP1: %s\n  VP2: %s", metadata.TokenEndpoint, resolvedScope, vp1.Raw(), vp2.Raw())
-	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, "")
+	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		return nil, err
 	}
-	return &oauth.TokenResponse{
+	tokenResponse := oauth.TokenResponse{
 		AccessToken: token.AccessToken,
 		ExpiresIn:   token.ExpiresIn,
 		TokenType:   token.TokenType,
 		Scope:       &scopes,
-	}, nil
+	}
+	if dpopKid != "" {
+		tokenResponse.DPoPKid = &dpopKid
+	}
+	return &tokenResponse, nil
 }
 
 // buildSubmissionForSubject lists DIDs for the given subject, filters them to those whose method is in
@@ -480,6 +485,23 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}
 	return rsp, nil
+}
+
+// signDPoPHeader signs a DPoP proof for a token-endpoint POST bound to signerDID's assertion key.
+// Returns ("", "", nil) when useDPoP is false so callers can use the result unconditionally.
+func (c *OpenID4VPClient) signDPoPHeader(ctx context.Context, useDPoP bool, signerDID did.DID, tokenEndpoint string) (string, string, error) {
+	if !useDPoP {
+		return "", "", nil
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, nil)
+	if err != nil {
+		return "", "", err
+	}
+	header, kid, err := c.dpop(ctx, signerDID, *request)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create DPoP header: %w", err)
+	}
+	return header, kid, nil
 }
 
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {
