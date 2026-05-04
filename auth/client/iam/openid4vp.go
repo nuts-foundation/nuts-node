@@ -250,7 +250,10 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
 	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error) {
 	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
-		return nil, errors.New("jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true")
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedGrantType,
+			Description: "jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true",
+		}
 	}
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
@@ -258,7 +261,10 @@ func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientI
 	}
 	if serviceProviderSubjectID != nil {
 		if !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
-			return nil, errors.New("authorization server does not advertise jwt-bearer support")
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.UnsupportedGrantType,
+				Description: "authorization server does not advertise jwt-bearer support",
+			}
 		}
 		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
 	}
@@ -346,7 +352,10 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	orgPD := profile.WalletOwnerMapping[pe.WalletOwnerOrganization]
 	spPD, hasSP := profile.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
 	if !hasSP {
-		return nil, fmt.Errorf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope)
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: fmt.Sprintf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope),
+		}
 	}
 	params := holder.BuildParams{
 		Audience:   authServerURL,

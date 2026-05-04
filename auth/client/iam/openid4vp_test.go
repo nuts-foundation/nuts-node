@@ -442,7 +442,10 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "authorization server does not advertise jwt-bearer")
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.UnsupportedGrantType, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, "authorization server does not advertise jwt-bearer")
 	})
 
 	t.Run("rejects the request when no service_provider PD is configured for the scope", func(t *testing.T) {
