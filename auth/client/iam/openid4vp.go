@@ -345,7 +345,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 // parameter is sent on this path.
 // Both PDs are resolved from the local policy backend; the AS's remote presentation_definition endpoint
 // is not consulted (no standardised mechanism exists today for the AS to advertise a service_provider PD).
-func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
+func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organizationSubjectID string, serviceProviderSubjectID string,
 	authServerURL string, scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
 	profile, resolvedScope, err := loadAndValidateProfile(ctx, c.policyBackend, scopes)
@@ -368,7 +368,7 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
-	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params)
+	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, organizationSubjectID, orgPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
