@@ -165,7 +165,8 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 
 // ResolveVP is a convenience wrapper around Resolve for callers that already hold a single parsed
 // VerifiablePresentation in memory (e.g. a freshly built submission from the wallet) and would otherwise
-// need to round-trip through Raw() + ParseEnvelope just to call Resolve.
+// need to round-trip through Raw() + ParseEnvelope just to call Resolve. Returns a map keyed by
+// InputDescriptor.Id; see Resolve for the underlying matching rules.
 func (s PresentationSubmission) ResolveVP(presentation vc.VerifiablePresentation) (map[string]vc.VerifiableCredential, error) {
 	asInterface, err := vpAsInterface(presentation)
 	if err != nil {
@@ -174,6 +175,7 @@ func (s PresentationSubmission) ResolveVP(presentation vc.VerifiablePresentation
 	return s.Resolve(Envelope{
 		Presentations: []vc.VerifiablePresentation{presentation},
 		asInterface:   asInterface,
+		raw:           []byte(presentation.Raw()),
 	})
 }
 
