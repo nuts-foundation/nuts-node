@@ -519,6 +519,50 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
 	})
 
+	t.Run("VP1 and VP2 carry distinct nonces", func(t *testing.T) {
+		// Each VP must be signed with a fresh nonce. Reusing the same nonce would let a verifier mistakenly
+		// treat the two assertions as a single signed payload, or accept a replayed pairing of VP1 with a
+		// stale VP2 (or vice versa).
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// Capture both BuildSubmission's params arguments so we can compare nonces directly.
+		var vp1Params, vp2Params holder.BuildParams
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				vp1Params = p
+				return vp1, &pe.PresentationSubmission{}, nil
+			})
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				vp2Params = p
+				return vp2, &pe.PresentationSubmission{}, nil
+			})
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotEmpty(t, vp1Params.Nonce)
+		require.NotEmpty(t, vp2Params.Nonce)
+		assert.NotEqual(t, vp1Params.Nonce, vp2Params.Nonce, "VP2 must be signed with a fresh nonce")
+	})
+
 	t.Run("captured VP1 field-id values flow into VP2 credential_selection end-to-end", func(t *testing.T) {
 		// Cross-VP binding scenario, end to end: when the organization PD and the service_provider PD share
 		// the same constraint-field `id` (here: "delegating_hcp"), the value matched in VP1 must flow into

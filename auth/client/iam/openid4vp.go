@@ -388,6 +388,8 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 		return nil, fmt.Errorf("resolve VP1 constraint fields for cross-VP binding: %w", err)
 	}
 	credentialSelection = applyCapturedFieldsToSelection(credentialSelection, captured)
+	// Each VP must carry its own nonce; reuse would let a verifier confuse the two assertions.
+	params.Nonce = nutsCrypto.GenerateNonce()
 	vp2, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
