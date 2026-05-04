@@ -445,7 +445,8 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		var oauthErr oauth.OAuth2Error
 		require.ErrorAs(t, err, &oauthErr)
 		assert.Equal(t, oauth.UnsupportedGrantType, oauthErr.Code)
-		assert.Contains(t, oauthErr.Description, "authorization server does not advertise jwt-bearer")
+		assert.Contains(t, oauthErr.Description, oauth.JwtBearerGrantType)
+		assert.Contains(t, oauthErr.Description, "grant_types_supported")
 	})
 
 	t.Run("rejects the request when no service_provider PD is configured for the scope", func(t *testing.T) {

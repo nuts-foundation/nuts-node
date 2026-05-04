@@ -263,7 +263,7 @@ func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientI
 		if !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
 			return nil, oauth.OAuth2Error{
 				Code:        oauth.UnsupportedGrantType,
-				Description: "authorization server does not advertise jwt-bearer support",
+				Description: fmt.Sprintf("authorization server does not advertise %q in grant_types_supported", oauth.JwtBearerGrantType),
 			}
 		}
 		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
