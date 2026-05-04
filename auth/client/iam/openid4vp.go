@@ -368,44 +368,45 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
-	vp1, vp1Submission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params)
+	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
-	// Cross-VP binding: capture id-bearing constraint field values resolved against VP1 and additively merge
-	// them into the credential_selection map for VP2. The submission tells us which credential satisfied each
-	// input descriptor; we use that to walk the PD's id-bearing fields and extract their matched values.
-	envelope, err := pe.NewEnvelopeFromVP(*vp1)
+	// Cross-VP binding: capture id-bearing constraint field values resolved against the organization VP
+	// and additively merge them into the credential_selection map for the service-provider VP. The
+	// submission tells us which credential satisfied each input descriptor; we use that to walk the PD's
+	// id-bearing fields and extract their matched values.
+	envelope, err := pe.NewEnvelopeFromVP(*organizationVP)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.ServerError,
-			Description: fmt.Sprintf("failed to wrap VP1 in an envelope for cross-VP binding: %s", err),
+			Description: fmt.Sprintf("failed to wrap the organization VP in an envelope for cross-VP binding: %s", err),
 		}
 	}
-	credentialMap, err := vp1Submission.Resolve(*envelope)
+	credentialMap, err := organizationSubmission.Resolve(*envelope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.ServerError,
-			Description: fmt.Sprintf("failed to resolve VP1 submission for cross-VP binding: %s", err),
+			Description: fmt.Sprintf("failed to resolve the organization VP submission for cross-VP binding: %s", err),
 		}
 	}
 	captured, err := orgPD.ResolveConstraintsFields(credentialMap)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.ServerError,
-			Description: fmt.Sprintf("failed to extract cross-VP binding values from VP1 against the organization presentation definition: %s", err),
+			Description: fmt.Sprintf("failed to extract cross-VP binding values from the organization VP against the organization presentation definition: %s", err),
 		}
 	}
 	credentialSelection = applyCapturedFieldsToSelection(credentialSelection, captured)
 	// Each VP must carry its own nonce; reuse would let a verifier confuse the two assertions.
 	params.Nonce = nutsCrypto.GenerateNonce()
-	vp2, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params)
+	serviceProviderVP, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
 	// DPoP binds the issued access token to a key the service provider controls — the SP wallet will
 	// present and use the token, so the proof is signed with the SP DID's key.
-	spDID, err := did.ParseDID(vp2.Holder.String())
+	spDID, err := did.ParseDID(serviceProviderVP.Holder.String())
 	if err != nil {
 		return nil, err
 	}
@@ -415,12 +416,12 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 	}
 	data := url.Values{}
 	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
-	data.Set(oauth.AssertionParam, vp1.Raw())
+	data.Set(oauth.AssertionParam, organizationVP.Raw())
 	data.Set(oauth.ClientAssertionTypeParam, oauth.JwtBearerClientAssertionType)
-	data.Set(oauth.ClientAssertionParam, vp2.Raw())
+	data.Set(oauth.ClientAssertionParam, serviceProviderVP.Raw())
 	data.Set(oauth.ScopeParam, resolvedScope)
 
-	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  VP1: %s\n  VP2: %s", metadata.TokenEndpoint, resolvedScope, vp1.Raw(), vp2.Raw())
+	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  organization VP: %s\n  service provider VP: %s", metadata.TokenEndpoint, resolvedScope, organizationVP.Raw(), serviceProviderVP.Raw())
 	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		return nil, err

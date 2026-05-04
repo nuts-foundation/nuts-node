@@ -474,9 +474,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
 		spDID := did.MustParseDID("did:test:sp")
-		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
 		require.NoError(t, err)
-		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 
 		ctx := createClientServerTestContext(t)
@@ -493,9 +493,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
 		// VP1 is built from the HCP wallet using the organization PD; VP2 from the SP wallet using the service_provider PD.
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
-			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(vp1, &pe.PresentationSubmission{}, nil)
+			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
-			pe.PresentationDefinition{Id: "sp_pd"}, gomock.Any(), gomock.Any()).Return(vp2, &pe.PresentationSubmission{}, nil)
+			pe.PresentationDefinition{Id: "sp_pd"}, gomock.Any(), gomock.Any()).Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
 
 		var capturedForm url.Values
 		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
@@ -511,9 +511,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, oauth.JwtBearerGrantType, capturedForm.Get(oauth.GrantTypeParam))
-		assert.Equal(t, vp1.Raw(), capturedForm.Get(oauth.AssertionParam))
+		assert.Equal(t, organizationVP.Raw(), capturedForm.Get(oauth.AssertionParam))
 		assert.Equal(t, oauth.JwtBearerClientAssertionType, capturedForm.Get(oauth.ClientAssertionTypeParam))
-		assert.Equal(t, vp2.Raw(), capturedForm.Get(oauth.ClientAssertionParam))
+		assert.Equal(t, serviceProviderVP.Raw(), capturedForm.Get(oauth.ClientAssertionParam))
 		assert.Empty(t, capturedForm.Get(oauth.PresentationSubmissionParam))
 		// Per RFC 7521 §4.2 client_id is optional when client_assertion is present and we omit it.
 		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
@@ -526,9 +526,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
 		spDID := did.MustParseDID("did:test:sp")
-		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
 		require.NoError(t, err)
-		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 		ctx := createClientServerTestContext(t)
 		enableJwtBearerClient(t, ctx)
@@ -543,38 +543,40 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
 		// Capture both BuildSubmission's params arguments so we can compare nonces directly.
-		var vp1Params, vp2Params holder.BuildParams
+		var organizationVPParams, serviceProviderVPParams holder.BuildParams
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
-				vp1Params = p
-				return vp1, &pe.PresentationSubmission{}, nil
+				organizationVPParams = p
+				return organizationVP, &pe.PresentationSubmission{}, nil
 			})
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
-				vp2Params = p
-				return vp2, &pe.PresentationSubmission{}, nil
+				serviceProviderVPParams = p
+				return serviceProviderVP, &pe.PresentationSubmission{}, nil
 			})
 
 		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
 		require.NoError(t, err)
-		require.NotEmpty(t, vp1Params.Nonce)
-		require.NotEmpty(t, vp2Params.Nonce)
-		assert.NotEqual(t, vp1Params.Nonce, vp2Params.Nonce, "VP2 must be signed with a fresh nonce")
+		require.NotEmpty(t, organizationVPParams.Nonce)
+		require.NotEmpty(t, serviceProviderVPParams.Nonce)
+		assert.NotEqual(t, organizationVPParams.Nonce, serviceProviderVPParams.Nonce, "VP2 must be signed with a fresh nonce")
 	})
 
 	t.Run("captured VP1 field-id values flow into VP2 credential_selection end-to-end", func(t *testing.T) {
 		// Cross-VP binding scenario, end to end: when the organization PD and the service_provider PD share
-		// the same constraint-field `id` (here: "delegating_hcp"), the value matched in VP1 must flow into
-		// VP2's credential_selection so the wallet building VP2 can pick a credential constrained by that
-		// value. This test follows the chain through requestJwtBearerAccessToken:
+		// the same constraint-field `id` (here: "delegating_hcp"), the value matched in the organization VP
+		// must flow into the service-provider VP's credential_selection so the wallet building it can pick
+		// a credential constrained by that value. This test follows the chain through
+		// requestJwtBearerAccessToken:
 		//
-		//   VP1 + vp1Submission --ResolveVP--> credentialMap   (which VC satisfied which input descriptor)
+		//   organizationVP + organizationSubmission --NewEnvelopeFromVP+Resolve--> credentialMap
 		//   credentialMap + orgPD --ResolveConstraintsFields--> {delegating_hcp: did:test:hcp}
-		//   --applyCapturedFieldsToSelection--> credential_selection passed to VP2's BuildSubmission
+		//   --applyCapturedFieldsToSelection--> credential_selection passed to the service-provider
+		//   wallet's BuildSubmission
 		//
 		// TestApplyCapturedFieldsToSelection covers the merge step in isolation; this test exists to guard
-		// the wiring from BuildSubmission's return values into VP2's BuildSubmission argument.
+		// the wiring from the first BuildSubmission's return values into the second BuildSubmission's args.
 
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
@@ -584,7 +586,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		// one credential whose $.issuer is the HCP DID — that value is what the binding will capture.
 		// `holder` is set so the DPoP code path (which derives a signing DID from vp.Holder) doesn't panic
 		// even though we don't enable DPoP in this test.
-		vp1, err := vc.ParseVerifiablePresentation(`{
+		organizationVP, err := vc.ParseVerifiablePresentation(`{
 			"@context": ["https://www.w3.org/2018/credentials/v1"],
 			"type": ["VerifiablePresentation"],
 			"holder": "did:test:hcp",
@@ -599,14 +601,14 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		}`)
 		require.NoError(t, err)
 		// VP2's body is irrelevant for this test — we only assert what VP2's BuildSubmission was *called*
-		// with; we never inspect vp2 itself afterwards. The holder is set for the same DPoP-safety reason.
-		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		// with; we never inspect serviceProviderVP itself afterwards. The holder is set for the same DPoP-safety reason.
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 
-		// vp1Submission tells the resolver "input descriptor id_org_cred was satisfied by the credential at
+		// organizationSubmission tells the resolver "input descriptor id_org_cred was satisfied by the credential at
 		// $.verifiableCredential[0]". Without this, ResolveVP can't bridge from a descriptor id to a VC, and
 		// ResolveConstraintsFields has nothing to walk for $.issuer.
-		vp1Submission := &pe.PresentationSubmission{
+		organizationSubmission := &pe.PresentationSubmission{
 			DescriptorMap: []pe.InputDescriptorMappingObject{
 				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
 			},
@@ -650,7 +652,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		// First BuildSubmission call: build VP1 against the HCP DID using orgPD. We return the JSON-LD VP
 		// and its submission so the production code can resolve constraint fields against them.
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
-			orgPD, gomock.Any(), gomock.Any()).Return(vp1, vp1Submission, nil)
+			orgPD, gomock.Any(), gomock.Any()).Return(organizationVP, organizationSubmission, nil)
 		// Second BuildSubmission call: build VP2 against the SP DID using spPD. We capture the
 		// credential_selection argument so the assertion at the bottom can verify the merged field-id
 		// value made it through the orchestration.
@@ -659,7 +661,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 			spPD, gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, sel map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 				capturedSPSelection = sel
-				return vp2, &pe.PresentationSubmission{}, nil
+				return serviceProviderVP, &pe.PresentationSubmission{}, nil
 			})
 
 		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
@@ -672,13 +674,13 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		// DPoP binds the issued access token to a key the SP wallet controls — the proof must be signed with
-		// the SP DID's key (vp2.Holder), not the HCP DID's key.
+		// the SP DID's key (serviceProviderVP.Holder), not the HCP DID's key.
 		sp := spSubjectID
 		spDID := did.MustParseDID("did:test:sp")
 		spKID := "did:test:sp#1"
-		vp1, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
 		require.NoError(t, err)
-		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 		ctx := createClientServerTestContext(t)
 		enableJwtBearerClient(t, ctx)
@@ -692,8 +694,8 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		}, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{did.MustParseDID("did:test:hcp")}, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(vp1, &pe.PresentationSubmission{}, nil)
-		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(vp2, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
 		// The DPoP signing key must be resolved against the SP DID, not the HCP DID — that's the assertion.
 		ctx.keyResolver.EXPECT().ResolveKey(spDID, nil, resolver.NutsSigningKeyType).Return(spKID, nil, nil)
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), spKID).Return("dpop", nil)
