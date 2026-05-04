@@ -1007,6 +1007,23 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		assert.NotEqual(t, token1, token2)
 	})
+	t.Run("ok - service_provider_subject_id threads through to IAM client", func(t *testing.T) {
+		// Verifies the wire-up of the new OpenAPI field. The dispatch and feature gating live in
+		// the IAM client (under #4227); the handler's job is just to forward the value verbatim.
+		ctx := newTestClient(t)
+		spSubject := "acme-service-provider"
+		bodyWithSP := &RequestServiceAccessTokenJSONRequestBody{
+			AuthorizationServer:      verifierURL.String(),
+			Scope:                    "first second",
+			ServiceProviderSubjectId: &spSubject,
+		}
+		response := &oauth.TokenResponse{AccessToken: "token", TokenType: "Bearer", ExpiresIn: to.Ptr(900)}
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, &spSubject).Return(response, nil)
+
+		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithSP})
+
+		require.NoError(t, err)
+	})
 	t.Run("self-asserted credentials", func(t *testing.T) {
 		response := &oauth.TokenResponse{
 			AccessToken: "token",

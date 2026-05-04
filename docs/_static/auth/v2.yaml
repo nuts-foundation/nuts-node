@@ -515,6 +515,21 @@ components:
           description: "The type of access token that is preferred, default: DPoP"
           default: DPoP
           enum: [ Bearer, DPoP ]
+        service_provider_subject_id:
+          type: string
+          description: |
+            **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+            When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+            VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+            provider) using the `organization` PD; VP2 is built from the wallet identified here
+            using the `service_provider` PD. Requires `auth.experimental.jwt_bearer_client = true`,
+            an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+            and a `service_provider` PD configured for the requested credential profile.
+
+            When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+
+            Subject to change without notice.
+          example: acme-service-provider
     UserAccessTokenRequest:
       type: object
       description: Request for an access token for a user.
