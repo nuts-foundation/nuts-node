@@ -408,6 +408,14 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 	})
 }
 
+// enableJwtBearerClient flips the experimental jwt-bearer client feature flag on the test client.
+// It exists so subtests don't have to type-assert to the concrete *OpenID4VPClient just to poke an
+// unexported field; the intent ("opt this test into the two-VP flow") is also clearer at the call site.
+func enableJwtBearerClient(t *testing.T, ctx *clientServerTestContext) {
+	t.Helper()
+	ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+}
+
 func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	const subjectID = "subby"
 	const subjectClientID = "https://example.com/oauth2/subby"
@@ -415,9 +423,9 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	scopes := "first second"
 
 	t.Run("rejects the request when the experimental jwt-bearer feature is disabled", func(t *testing.T) {
+		// The default zero value of experimentalJwtBearerClient is false; we leave it alone so the gate fires.
 		sp := spSubjectID
 		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = false
 
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
 
@@ -428,7 +436,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	t.Run("rejects the request when the AS does not advertise jwt-bearer", func(t *testing.T) {
 		sp := spSubjectID
 		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		enableJwtBearerClient(t, ctx)
 		// The default AS metadata in the test setup does not include JwtBearerGrantType in grant_types_supported.
 
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
@@ -440,7 +448,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	t.Run("rejects the request when no service_provider PD is configured for the scope", func(t *testing.T) {
 		sp := spSubjectID
 		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		enableJwtBearerClient(t, ctx)
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
 		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
 			CredentialProfileScope: "first",
@@ -468,7 +476,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		enableJwtBearerClient(t, ctx)
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
 		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
 			CredentialProfileScope: "first",
@@ -575,7 +583,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 
 		ctx := createClientServerTestContext(t)
 		// Enable the experimental flag so the dispatcher routes us into the two-VP path.
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		enableJwtBearerClient(t, ctx)
 		// Advertise jwt-bearer so the dispatcher's "AS supports jwt-bearer" check passes.
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
 		// The two-VP path always resolves PDs from the local policy backend (no remote PD endpoint for the
@@ -625,7 +633,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
 		require.NoError(t, err)
 		ctx := createClientServerTestContext(t)
-		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		enableJwtBearerClient(t, ctx)
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
 		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
 			CredentialProfileScope: "first",
