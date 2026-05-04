@@ -70,31 +70,45 @@ type OpenID4VPClient struct {
 	experimentalJwtBearerClient bool
 }
 
-// NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration,
-	experimentalJwtBearerClient bool) *OpenID4VPClient {
+// ClientConfig groups the dependencies and toggles needed to construct an OpenID4VPClient.
+// All fields are required unless explicitly noted.
+type ClientConfig struct {
+	Wallet            holder.Wallet
+	KeyResolver       resolver.KeyResolver
+	SubjectManager    didsubject.Manager
+	JWTSigner         nutsCrypto.JWTSigner
+	LDDocumentLoader  ld.DocumentLoader
+	PolicyBackend     policy.PDPBackend
+	StrictMode        bool
+	HTTPClientTimeout time.Duration
+	// ExperimentalJwtBearerClient gates the RFC 7523 jwt-bearer two-VP token request flow.
+	// Tracked for replacement by a list-style grant-types config under issue #4231.
+	ExperimentalJwtBearerClient bool
+}
+
+// NewClient returns an OpenID4VPClient configured with the given dependencies.
+func NewClient(cfg ClientConfig) *OpenID4VPClient {
 	httpClient := HTTPClient{
-		strictMode:  strictMode,
-		httpClient:  client.NewWithCache(httpClientTimeout),
-		keyResolver: keyResolver,
+		strictMode:  cfg.StrictMode,
+		httpClient:  client.NewWithCache(cfg.HTTPClientTimeout),
+		keyResolver: cfg.KeyResolver,
 	}
-	client := &OpenID4VPClient{
+	c := &OpenID4VPClient{
 		httpClient:                  httpClient,
-		keyResolver:                 keyResolver,
-		jwtSigner:                   jwtSigner,
-		ldDocumentLoader:            ldDocumentLoader,
-		subjectManager:              subjectManager,
-		strictMode:                  strictMode,
-		wallet:                      wallet,
-		policyBackend:               policyBackend,
-		experimentalJwtBearerClient: experimentalJwtBearerClient,
+		keyResolver:                 cfg.KeyResolver,
+		jwtSigner:                   cfg.JWTSigner,
+		ldDocumentLoader:            cfg.LDDocumentLoader,
+		subjectManager:              cfg.SubjectManager,
+		strictMode:                  cfg.StrictMode,
+		wallet:                      cfg.Wallet,
+		policyBackend:               cfg.PolicyBackend,
+		experimentalJwtBearerClient: cfg.ExperimentalJwtBearerClient,
 	}
-	client.pdResolver = PresentationDefinitionResolver{
-		pdFetcher:     client,
-		policyBackend: policyBackend,
+	c.pdResolver = PresentationDefinitionResolver{
+		pdFetcher:     c,
+		policyBackend: cfg.PolicyBackend,
 	}
-	return client
+	return c
 }
 
 func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
