@@ -507,6 +507,113 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
 	})
 
+	t.Run("captured VP1 field-id values flow into VP2 credential_selection end-to-end", func(t *testing.T) {
+		// Cross-VP binding scenario, end to end: when the organization PD and the service_provider PD share
+		// the same constraint-field `id` (here: "delegating_hcp"), the value matched in VP1 must flow into
+		// VP2's credential_selection so the wallet building VP2 can pick a credential constrained by that
+		// value. This test follows the chain through requestJwtBearerAccessToken:
+		//
+		//   VP1 + vp1Submission --ResolveVP--> credentialMap   (which VC satisfied which input descriptor)
+		//   credentialMap + orgPD --ResolveConstraintsFields--> {delegating_hcp: did:test:hcp}
+		//   --applyCapturedFieldsToSelection--> credential_selection passed to VP2's BuildSubmission
+		//
+		// TestApplyCapturedFieldsToSelection covers the merge step in isolation; this test exists to guard
+		// the wiring from BuildSubmission's return values into VP2's BuildSubmission argument.
+
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+
+		// VP1 is the healthcare provider's presentation. It must be a parseable JSON-LD VP that contains
+		// one credential whose $.issuer is the HCP DID — that value is what the binding will capture.
+		// `holder` is set so the DPoP code path (which derives a signing DID from vp.Holder) doesn't panic
+		// even though we don't enable DPoP in this test.
+		vp1, err := vc.ParseVerifiablePresentation(`{
+			"@context": ["https://www.w3.org/2018/credentials/v1"],
+			"type": ["VerifiablePresentation"],
+			"holder": "did:test:hcp",
+			"verifiableCredential": [{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				"type": ["VerifiableCredential"],
+				"issuer": "did:test:hcp",
+				"credentialSubject": {"id": "did:test:hcp"},
+				"proof": {"type": "JsonWebSignature2020"}
+			}],
+			"proof": {"type": "JsonWebSignature2020"}
+		}`)
+		require.NoError(t, err)
+		// VP2's body is irrelevant for this test — we only assert what VP2's BuildSubmission was *called*
+		// with; we never inspect vp2 itself afterwards. The holder is set for the same DPoP-safety reason.
+		vp2, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+
+		// vp1Submission tells the resolver "input descriptor id_org_cred was satisfied by the credential at
+		// $.verifiableCredential[0]". Without this, ResolveVP can't bridge from a descriptor id to a VC, and
+		// ResolveConstraintsFields has nothing to walk for $.issuer.
+		vp1Submission := &pe.PresentationSubmission{
+			DescriptorMap: []pe.InputDescriptorMappingObject{
+				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
+			},
+		}
+
+		// orgPD declares one constraint field with id "delegating_hcp" pointing at $.issuer of the matched
+		// VC. The id is what makes the value capturable; an unidentified field would be ignored.
+		fieldID := "delegating_hcp"
+		orgPD := pe.PresentationDefinition{
+			Id: "org_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_org_cred",
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{{Id: &fieldID, Path: []string{"$.issuer"}}},
+				},
+			}},
+		}
+		// spPD shares the field.id "delegating_hcp" by convention. The sharing is what binds VP2 to a value
+		// matched in VP1. The PD itself carries no constraints in this test because the wallet mock never
+		// inspects it; we only care that the credential_selection it receives contains the captured value.
+		spPD := pe.PresentationDefinition{Id: "sp_pd"}
+
+		ctx := createClientServerTestContext(t)
+		// Enable the experimental flag so the dispatcher routes us into the two-VP path.
+		ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+		// Advertise jwt-bearer so the dispatcher's "AS supports jwt-bearer" check passes.
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		// The two-VP path always resolves PDs from the local policy backend (no remote PD endpoint for the
+		// service_provider concept), so this is the single source of truth for both PDs in the request.
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		// VP1 is built from the HCP wallet (subjectID), VP2 from the SP wallet (spSubjectID) — different
+		// subject IDs, different DID candidate slices.
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// First BuildSubmission call: build VP1 against the HCP DID using orgPD. We return the JSON-LD VP
+		// and its submission so the production code can resolve constraint fields against them.
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			orgPD, gomock.Any(), gomock.Any()).Return(vp1, vp1Submission, nil)
+		// Second BuildSubmission call: build VP2 against the SP DID using spPD. We capture the
+		// credential_selection argument so the assertion at the bottom can verify the merged field-id
+		// value made it through the orchestration.
+		var capturedSPSelection map[string]string
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			spPD, gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, sel map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				capturedSPSelection = sel
+				return vp2, &pe.PresentationSubmission{}, nil
+			})
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		// Payoff: the HCP DID matched against $.issuer in VP1's credential should be captured under
+		// "delegating_hcp" and forwarded to VP2's wallet — without the EHR caller having to set it.
+		assert.Equal(t, "did:test:hcp", capturedSPSelection["delegating_hcp"])
+	})
+
 	t.Run("ok with DPoPHeader", func(t *testing.T) {
 		// DPoP binds the issued access token to a key the SP wallet controls — the proof must be signed with
 		// the SP DID's key (vp2.Holder), not the HCP DID's key.
