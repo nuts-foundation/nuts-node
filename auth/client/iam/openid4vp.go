@@ -71,7 +71,10 @@ type OpenID4VPClient struct {
 }
 
 // ClientConfig groups the dependencies and toggles needed to construct an OpenID4VPClient.
-// All fields are required unless explicitly noted.
+// The interface fields (Wallet, KeyResolver, SubjectManager, JWTSigner, LDDocumentLoader,
+// PolicyBackend) are required; NewClient does not validate them and missing fields will surface as
+// nil-pointer panics on first use. Scalar fields default to their zero value (StrictMode=false,
+// HTTPClientTimeout=0, ExperimentalJwtBearerClient=false) and the zero values are valid.
 type ClientConfig struct {
 	Wallet            holder.Wallet
 	KeyResolver       resolver.KeyResolver
