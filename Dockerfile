@@ -21,11 +21,14 @@ COPY . .
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.23.4
+FROM alpine:3.23.3
 RUN apk update \
   && apk add --no-cache \
              tzdata \
-             curl
+             curl \
+             ca-certificates
+COPY pki/cacerts/* /usr/local/share/ca-certificates/
+RUN update-ca-certificates
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
