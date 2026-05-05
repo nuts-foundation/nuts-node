@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/test"
 	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -55,6 +56,9 @@ func TestJar_Create(t *testing.T) {
 		assert.Equal(t, verifierDID.String(), req.Claims[jwt.IssuerKey])
 		assert.Equal(t, holderClientID, req.Claims[jwt.AudienceKey])
 		assert.Equal(t, "works", req.Claims["requestObjectModifier"])
+		// iat/exp are intentionally not set here; they're added in Sign() to reflect signing time.
+		assert.Nil(t, req.Claims[jwt.IssuedAtKey])
+		assert.Nil(t, req.Claims[jwt.ExpirationKey])
 	})
 	t.Run("request_uri_method=post", func(t *testing.T) {
 		modifier := func(claims map[string]string) {
@@ -77,12 +81,25 @@ func TestJar_Sign(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
 		ctx.keyResolver.EXPECT().ResolveKey(clientDID, nil, resolver.AssertionMethod).Return(keyID, nil, nil)
-		ctx.jwtSigner.EXPECT().SignJWT(context.Background(), claims, nil, keyID).Return("valid token", nil)
+		ctx.jwtSigner.EXPECT().SignJWT(context.Background(), gomock.Any(), nil, keyID).
+			DoAndReturn(func(_ context.Context, signed map[string]interface{}, _ map[string]interface{}, _ string) (string, error) {
+				// Sign augments the caller's claims with iat/exp reflecting signing time.
+				assert.Equal(t, clientID, signed[oauth.ClientIDParam])
+				assert.Equal(t, clientDID.String(), signed[jwt.IssuerKey])
+				iat := signed[jwt.IssuedAtKey].(int64)
+				exp := signed[jwt.ExpirationKey].(int64)
+				assert.InDelta(t, time.Now().Unix(), iat, 2)
+				assert.Equal(t, int64(jarMaxValidity/time.Second), exp-iat)
+				return "valid token", nil
+			})
 
 		token, err := ctx.jar.Sign(context.Background(), claims)
 
 		require.NoError(t, err)
 		assert.Equal(t, "valid token", token)
+		// Caller's map is untouched.
+		assert.Nil(t, claims[jwt.IssuedAtKey])
+		assert.Nil(t, claims[jwt.ExpirationKey])
 	})
 	t.Run("error - failed to sign JWT", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
@@ -114,9 +131,12 @@ func TestJar_Parse(t *testing.T) {
 	jwkSet := jwk.NewSet()
 	_ = jwkSet.AddKey(jwkKey)
 
+	now := time.Now()
 	bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 		jwt.IssuerKey:       holderDID.String(),
 		oauth.ClientIDParam: holderClientID,
+		jwt.IssuedAtKey:     now.Unix(),
+		jwt.ExpirationKey:   now.Add(jarMaxValidity).Unix(),
 	})
 	require.NoError(t, err)
 	token := string(bytes)
@@ -273,9 +293,12 @@ func TestJar_Parse(t *testing.T) {
 	})
 	t.Run("error - client_id does not match signer", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
+		now := time.Now()
 		bytes, err := createSignedRequestObject(t, kid, privateKey, oauthParameters{
 			jwt.IssuerKey:       verifierDID.String(),
 			oauth.ClientIDParam: verifierDID.String(),
+			jwt.IssuedAtKey:     now.Unix(),
+			jwt.ExpirationKey:   now.Add(jarMaxValidity).Unix(),
 		})
 		require.NoError(t, err)
 		ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)

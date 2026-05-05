@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -39,6 +40,11 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/piprate/json-gold/ld"
 )
+
+// defaultPresentationValidity is the fallback validity window for a VP when the caller
+// doesn't specify one. Ensures that all VPs have an exp claim so verifiers can enforce
+// replay protection.
+const defaultPresentationValidity = 15 * time.Minute
 
 type presenter struct {
 	documentLoader ld.DocumentLoader
@@ -131,15 +137,34 @@ func (p presenter) buildPresentation(ctx context.Context, signerDID *did.DID, cr
 
 // buildJWTPresentation builds a JWT presentation according to https://www.w3.org/TR/vc-data-model/#json-web-token
 func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID, credentials []vc.VerifiableCredential, options PresentationOptions, keyID string) (*vc.VerifiablePresentation, error) {
+	// Determine issuance time: use Created if set, otherwise now.
+	issuedAt := options.ProofOptions.Created
+	if issuedAt.IsZero() {
+		issuedAt = time.Now()
+	}
+	// Determine expiration: use Expires if set, otherwise default to defaultPresentationValidity after issuance.
+	// Always setting exp ensures that verifiers can enforce replay protection based on token age.
+	expiresAt := options.ProofOptions.Expires
+	if expiresAt == nil {
+		defaultExp := issuedAt.Add(defaultPresentationValidity)
+		expiresAt = &defaultExp
+	}
+	// go-did's CreateJWTVerifiablePresentation sets nbf from IssuedAt but does not set iat;
+	// add it via AdditionalProofProperties to preserve the iat claim emitted before.
+	additionalProperties := make(map[string]interface{}, len(options.ProofOptions.AdditionalProperties)+1)
+	for k, v := range options.ProofOptions.AdditionalProperties {
+		additionalProperties[k] = v
+	}
+	additionalProperties[jwt.IssuedAtKey] = issuedAt.Unix()
 	return vc.CreateJWTVerifiablePresentation(ctx, subjectDID.URI(), credentials, vc.PresentationOptions{
 		AdditionalContexts:        options.AdditionalContexts,
 		AdditionalTypes:           options.AdditionalTypes,
-		AdditionalProofProperties: options.ProofOptions.AdditionalProperties,
+		AdditionalProofProperties: additionalProperties,
 		Holder:                    options.Holder,
 		Nonce:                     options.ProofOptions.Nonce,
 		Audience:                  options.ProofOptions.Domain,
-		IssuedAt:                  &options.ProofOptions.Created,
-		ExpiresAt:                 options.ProofOptions.Expires,
+		IssuedAt:                  &issuedAt,
+		ExpiresAt:                 expiresAt,
 	}, func(ctx context.Context, claims map[string]interface{}, headers map[string]interface{}) (string, error) {
 		return p.signer.SignJWT(ctx, claims, headers, keyID)
 	})

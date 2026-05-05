@@ -37,7 +37,7 @@ func TestES256k(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256K, ecKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, parsedToken)

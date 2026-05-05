@@ -144,14 +144,15 @@ func TestAuth_CreateAccessToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKey.Public(), nil)
 
 		tokenCtx := validContext(t)
-		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(10*time.Second))
+		// exp - iat must exceed max + DefaultJWTClockSkew (5s + 5s) to trip the guard.
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(20*time.Second))
 		signToken(tokenCtx)
 
 		response, err := ctx.oauthService.CreateAccessToken(ctx.audit, services.CreateAccessTokenRequest{RawJwtBearerToken: tokenCtx.rawJwtBearerToken})
 
 		assert.Nil(t, response)
 		require.NotNil(t, err.Description)
-		assert.Contains(t, err.Description, "JWT validity too long")
+		assert.Contains(t, err.Description, "between exp and iat exceeds 5s")
 	})
 
 	t.Run("invalid identity token", func(t *testing.T) {
@@ -610,12 +611,13 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("valid token with clock diff", func(t *testing.T) {
-		// a token created 10 minutes ago, valid until 4 minutes ago. But due to clock skew of 5 minutes, it should still be valid.
+		// a token created 7 seconds ago, expired 2 seconds ago (5s validity).
+		// But due to clock skew of 5 seconds, it should still be valid.
 		ctx := createContext(t)
-		ctx.oauthService.clockSkew = 5 * time.Minute
+		ctx.oauthService.clockSkew = 5 * time.Second
 		tokenCtx := validContext(t)
-		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-10*time.Minute))
-		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-4*time.Minute))
+		tokenCtx.jwtBearerToken.Set(jwt.IssuedAtKey, time.Now().Add(-7*time.Second))
+		tokenCtx.jwtBearerToken.Set(jwt.ExpirationKey, time.Now().Add(-2*time.Second))
 		signToken(tokenCtx)
 
 		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
@@ -757,7 +759,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "JWT"})
 
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
-		assert.EqualError(t, err, "invalid access token typ header (expected 'at+jwt', got 'JWT')")
+		assert.EqualError(t, err, "invalid JWT typ header (expected 'at+jwt', got 'JWT')")
 	})
 
 	t.Run("rejects VP JWT replayed as access token", func(t *testing.T) {
@@ -783,7 +785,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "JWT"})
 
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
-		assert.EqualError(t, err, "invalid access token typ header (expected 'at+jwt', got 'JWT')")
+		assert.EqualError(t, err, "invalid JWT typ header (expected 'at+jwt', got 'JWT')")
 	})
 
 	t.Run("rejects token with missing service claim", func(t *testing.T) {
@@ -807,7 +809,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
 
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
-		assert.EqualError(t, err, "missing required 'service' claim in access token")
+		assert.ErrorContains(t, err, `"service" not satisfied: required claim not found`)
 	})
 
 	t.Run("rejects token with missing iss claim", func(t *testing.T) {
@@ -831,7 +833,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
 
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
-		assert.EqualError(t, err, "missing required 'iss' claim in access token")
+		assert.ErrorContains(t, err, `"iss" not satisfied: required claim not found`)
 	})
 
 	t.Run("rejects token with iss/kid DID mismatch", func(t *testing.T) {
@@ -856,8 +858,148 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		signTokenWithKeyAndHeaders(tokenCtx, requesterSigningKey, requesterSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
 
 		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
-		assert.ErrorContains(t, err, "access token issuer")
+		assert.ErrorContains(t, err, "token issuer")
 		assert.ErrorContains(t, err, "does not match signing key DID")
+	})
+
+	t.Run("rejects token without exp claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey: time.Now().UTC(),
+			jwt.SubjectKey:  requesterDID.String(),
+			jwt.IssuerKey:   authorizerDID.String(),
+			"service":       expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, `"exp" not satisfied: required claim not found`)
+	})
+
+	t.Run("rejects token without iat claim", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		claims := map[string]interface{}{
+			jwt.ExpirationKey: time.Now().Add(5 * time.Second).Unix(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, `"iat" not satisfied: required claim not found`)
+	})
+
+	t.Run("rejects token with excessive lifetime", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		now := time.Now()
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey:   now.Unix(),
+			jwt.ExpirationKey: now.Add(1 * time.Hour).Unix(), // way beyond 60s
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "between exp and iat exceeds 1m0s")
+	})
+
+	t.Run("max declared lifetime tracks configured accessTokenLifeSpan (non-strict mode)", func(t *testing.T) {
+		// In non-strict mode, operators may configure a longer AT lifespan than 60s.
+		// Introspection must accept tokens whose declared exp-iat is within that
+		// configured cap, and reject those exceeding it. Regression test for the
+		// inconsistency where introspection used a hardcoded 60s while issuance
+		// used the configured value (so an operator with accesstokenlifespan=300
+		// would issue 5-minute tokens that introspect would reject).
+		buildToken := func(declaredLifetime time.Duration) string {
+			now := time.Now()
+			tokenCtx := &validationContext{jwtBearerToken: jwt.New()}
+			for k, v := range map[string]interface{}{
+				jwt.IssuedAtKey:   now.Unix(),
+				jwt.ExpirationKey: now.Add(declaredLifetime).Unix(),
+				jwt.SubjectKey:    requesterDID.String(),
+				jwt.IssuerKey:     authorizerDID.String(),
+				"service":         expectedService,
+			} {
+				_ = tokenCtx.jwtBearerToken.Set(k, v)
+			}
+			signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+			return tokenCtx.rawJwtBearerToken
+		}
+
+		t.Run("accepts a token within the configured cap (would be rejected by the old 60s hardcoded cap)", func(t *testing.T) {
+			ctx := createContext(t)
+			ctx.oauthService.accessTokenLifeSpan = 5 * time.Minute
+			ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+			_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, buildToken(5*time.Minute))
+			assert.NoError(t, err)
+		})
+
+		t.Run("rejects a token exceeding the configured cap", func(t *testing.T) {
+			ctx := createContext(t)
+			ctx.oauthService.accessTokenLifeSpan = 5 * time.Minute
+			ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+			ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+			_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, buildToken(6*time.Minute))
+			assert.ErrorContains(t, err, "between exp and iat exceeds 5m0s")
+		})
+	})
+
+	t.Run("rejects expired token", func(t *testing.T) {
+		ctx := createContext(t)
+
+		ctx.keyResolver.EXPECT().ResolveKeyByID(authorizerSigningKeyID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(authorizerSigningKey.Public(), nil)
+		ctx.keyStore.EXPECT().Exists(ctx.audit, authorizerSigningKeyID).Return(true, nil)
+
+		now := time.Now()
+		claims := map[string]interface{}{
+			jwt.IssuedAtKey:   now.Add(-15 * time.Minute).Unix(),
+			jwt.ExpirationKey: now.Add(-10 * time.Minute).Unix(),
+			jwt.SubjectKey:    requesterDID.String(),
+			jwt.IssuerKey:     authorizerDID.String(),
+			"service":         expectedService,
+		}
+		token := jwt.New()
+		for k, v := range claims {
+			_ = token.Set(k, v)
+		}
+		tokenCtx := &validationContext{jwtBearerToken: token}
+		signTokenWithKeyAndHeaders(tokenCtx, authorizerSigningKey, authorizerSigningKeyID, map[string]interface{}{"typ": "at+jwt"})
+
+		_, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
+		assert.ErrorContains(t, err, "\"exp\" not satisfied")
 	})
 }
 
@@ -997,13 +1139,14 @@ var createContext = func(t *testing.T) *testContext {
 		verifier:        verifier,
 		didResolver:     didResolver,
 		oauthService: &authzServer{
-			keyResolver:     keyResolver,
-			contractNotary:  contractNotaryMock,
-			privateKeyStore: privateKeyStore,
-			vcFinder:        nameResolver,
-			serviceResolver: serviceResolver,
-			vcVerifier:      verifier,
-			jsonldManager:   jsonld.NewTestJSONLDManager(t),
+			keyResolver:         keyResolver,
+			contractNotary:      contractNotaryMock,
+			privateKeyStore:     privateKeyStore,
+			vcFinder:            nameResolver,
+			serviceResolver:     serviceResolver,
+			vcVerifier:          verifier,
+			jsonldManager:       jsonld.NewTestJSONLDManager(t),
+			accessTokenLifeSpan: secureAccessTokenLifeSpan,
 		},
 		audit: audit.TestContext(),
 	}
