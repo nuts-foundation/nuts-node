@@ -472,6 +472,70 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	// Scope-policy behaviour (profile-only rejection, passthrough forwarding, missing organization PD)
 	// is covered by TestLoadAndValidateProfile, which exercises the same helper this path delegates to.
 
+	t.Run("rejects the request when the SP wallet has no DIDs matching the AS's supported methods", func(t *testing.T) {
+		// VP1 succeeds; the second buildSubmissionForSubject for the SP wallet then runs ListDIDs
+		// followed by filterDIDsByMethods, which returns ErrPreconditionFailed when no DID's method
+		// is in the AS's DIDMethodsSupported list. The default test fixture advertises method "test",
+		// so returning a did:web from the SP wallet exercises the filter rejection.
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDIDWrongMethod := did.MustParseDID("did:web:example.com:sp")
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDIDWrongMethod}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.ErrorIs(t, err, ErrPreconditionFailed)
+		assert.ErrorContains(t, err, "did method mismatch")
+	})
+
+	t.Run("rejects the request when the SP wallet lacks credentials matching the service_provider PD", func(t *testing.T) {
+		// VP1 succeeds; the SP wallet has DIDs but its BuildSubmission cannot satisfy sp_pd, so it
+		// returns pe.ErrNoCredentials. The error must propagate to the caller unchanged so the API
+		// layer can map it to a 412 Precondition Failed.
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "sp_pd"}, gomock.Any(), gomock.Any()).Return(nil, nil, pe.ErrNoCredentials)
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		assert.ErrorIs(t, err, pe.ErrNoCredentials)
+	})
+
 	t.Run("posts a jwt-bearer form body on the happy path", func(t *testing.T) {
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
