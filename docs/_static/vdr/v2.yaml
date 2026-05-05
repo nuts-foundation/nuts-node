@@ -5,6 +5,7 @@ info:
   version: 2.0.0
   license:
     name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
 servers:
   - url: http://localhost:8081
 paths:
@@ -90,6 +91,9 @@ paths:
                   type: array
                   items:
                     type: string
+              example:
+                hospital-xyz:
+                  - "did:web:example.com:iam:hospital-xyz"
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}:
@@ -122,6 +126,9 @@ paths:
                 type: array
                 items:
                   type: string
+              example:
+                - "did:web:example.com:iam:hospital-xyz"
+                - "did:web:alt.example.com:iam:hospital-xyz"
         default:
           $ref: '../common/error_response.yaml'
     delete:
@@ -482,9 +489,10 @@ components:
       properties:
         subject:
           type: string
-          description: | 
+          description: |
             controls the DID subject to which all created DIDs are bound. If not given, a uuid is generated and returned.
             The subject must follow the pattern [a-zA-Z0-9._-]+
+          example: "hospital-xyz"
         keys:
           $ref: '#/components/schemas/KeyCreationOptions'
     DIDDocument:
@@ -505,8 +513,10 @@ components:
         type:
           description: The type of the endpoint.
           type: string
+          example: "NutsComm"
         serviceEndpoint:
           description: Either a URI or a complex object.
+          example: "grpc://example.com:5555"
     DIDResolutionResult:
       required:
         - document
@@ -526,6 +536,7 @@ components:
         subject:
           type: string
           description: The subject of the created DID Documents.
+          example: "hospital-xyz"
         documents:
           type: array
           items:

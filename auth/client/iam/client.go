@@ -111,8 +111,8 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	if err != nil {
 		// any OAuth error should be passed
 		// any other error should result in a 502 Bad Gateway
-		if oauthErr, ok := err.(oauth.OAuth2Error); ok {
-			return nil, oauthErr
+		if errors.As(err, new(oauth.OAuth2Error)) {
+			return nil, err
 		}
 		return nil, errors.Join(ErrBadGateway, err)
 	}
@@ -202,7 +202,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
 		}
 
-		return token, oauthError
+		return token, oauth.RemoteOAuthError{Cause: oauthError}
 	}
 
 	var responseData []byte
@@ -397,10 +397,10 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
 		rse := httpErr.(core.HttpError)
 		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
-			return oauthErr
+			return oauth.RemoteOAuthError{Cause: oauthErr}
 		}
 		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidRequest); ok {
-			return oauthErr
+			return oauth.RemoteOAuthError{Cause: oauthErr}
 		}
 		return httpErr
 	}

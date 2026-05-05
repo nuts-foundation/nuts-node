@@ -47,7 +47,7 @@ type presenter struct {
 }
 
 func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID][]vc.VerifiableCredential, presentationDefinition pe.PresentationDefinition,
-	params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	credentialSelection map[string]string, params BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
 	// match against the wallet's credentials
 	// if there's a match, create a VP and call the token endpoint
 	// If the token endpoint succeeds, return the access token
@@ -55,6 +55,15 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	builder := presentationDefinition.PresentationSubmissionBuilder()
 	for holderDID, creds := range credentials {
 		builder.AddWallet(holderDID, creds)
+	}
+	// If credential selection is provided, create a selector that narrows
+	// credential selection per input descriptor by field ID values.
+	if len(credentialSelection) > 0 {
+		selector, err := pe.NewFieldSelector(credentialSelection, presentationDefinition)
+		if err != nil {
+			return nil, nil, err
+		}
+		builder.SetCredentialSelector(selector)
 	}
 
 	// Find supported VP format, matching support from:

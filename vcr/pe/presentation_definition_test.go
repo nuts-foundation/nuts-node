@@ -446,6 +446,40 @@ func TestMatch(t *testing.T) {
 	})
 }
 
+func TestPresentationDefinition_MatchWithSelector_SubmissionRequirements(t *testing.T) {
+	// test.Empty PD has: pick rule, min: 0, max: 1, group "A"
+	// Two input descriptors matching $.id == "1" and $.id == "2"
+	var pd PresentationDefinition
+	require.NoError(t, json.Unmarshal([]byte(test.Empty), &pd))
+
+	t.Run("Match with no matching VCs succeeds (min: 0 allows empty)", func(t *testing.T) {
+		// Old behavior: no VCs match, FirstMatchSelector returns (nil, nil),
+		// submission requirement pick rule with min: 0 accepts zero fulfilled descriptors.
+		vcs, mappings, err := pd.Match([]vc.VerifiableCredential{})
+
+		require.NoError(t, err)
+		assert.Empty(t, vcs)
+		assert.Empty(t, mappings)
+	})
+	t.Run("MatchWithSelector with ErrNoCredentials succeeds (min: 0 allows empty)", func(t *testing.T) {
+		// A custom selector that returns ErrNoCredentials when no candidates match.
+		// With min: 0, this should behave identically to Match — the submission
+		// requirement allows zero fulfilled descriptors.
+		strictSelector := func(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
+			if len(candidates) == 0 {
+				return nil, ErrNoCredentials
+			}
+			return &candidates[0], nil
+		}
+
+		vcs, mappings, err := pd.MatchWithSelector([]vc.VerifiableCredential{}, strictSelector)
+
+		require.NoError(t, err)
+		assert.Empty(t, vcs)
+		assert.Empty(t, mappings)
+	})
+}
+
 func TestPresentationDefinition_CredentialsRequired(t *testing.T) {
 	t.Run("no input descriptors", func(t *testing.T) {
 		pd := PresentationDefinition{}

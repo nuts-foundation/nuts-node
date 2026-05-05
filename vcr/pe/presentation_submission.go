@@ -53,6 +53,7 @@ type PresentationSubmissionBuilder struct {
 	holders                []did.DID
 	presentationDefinition PresentationDefinition
 	wallets                [][]vc.VerifiableCredential
+	credentialSelector     CredentialSelector
 }
 
 // PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
@@ -61,6 +62,13 @@ func (presentationDefinition PresentationDefinition) PresentationSubmissionBuild
 	return PresentationSubmissionBuilder{
 		presentationDefinition: presentationDefinition,
 	}
+}
+
+// SetCredentialSelector configures a custom CredentialSelector for picking credentials
+// when multiple match an input descriptor. If not set, FirstMatchSelector is used.
+func (b *PresentationSubmissionBuilder) SetCredentialSelector(selector CredentialSelector) *PresentationSubmissionBuilder {
+	b.credentialSelector = selector
+	return b
 }
 
 // AddWallet adds credentials from a wallet that may be used to create the PresentationSubmission.
@@ -108,8 +116,13 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	var inputDescriptorMappingObjects []InputDescriptorMappingObject
 	var selectedDID *did.DID
 
+	selector := b.credentialSelector
+	if selector == nil {
+		selector = FirstMatchSelector
+	}
+
 	for i, walletVCs := range b.wallets {
-		vcs, mappingObjects, err := b.presentationDefinition.Match(walletVCs)
+		vcs, mappingObjects, err := b.presentationDefinition.MatchWithSelector(walletVCs, selector)
 		if err == nil {
 			selectedVCs = vcs
 			inputDescriptorMappingObjects = mappingObjects

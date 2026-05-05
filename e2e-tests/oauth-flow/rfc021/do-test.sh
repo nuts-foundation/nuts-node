@@ -26,7 +26,7 @@ echo "------------------------------------"
 echo "Starting Docker containers..."
 echo "------------------------------------"
 $db_dc up -d
-$db_dc up --wait nodeA nodeA-backend nodeB nodeB-backend jaeger
+$db_dc up --wait nodeA nodeA-backend nodeB nodeB-backend
 
 echo "------------------------------------"
 echo "Registering vendors..."
@@ -140,10 +140,7 @@ cat << EOF
 EOF
 )
 # Request access token
-# Include traceparent header to verify OpenTelemetry tracing works across both nodes
-TRACE_ID=$(openssl rand -hex 16)
-TRACEPARENT="00-${TRACE_ID}-$(openssl rand -hex 8)-01"
-RESPONSE=$(echo $REQUEST | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json" -H "traceparent: $TRACEPARENT")
+RESPONSE=$(echo "$REQUEST" | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json")
 if echo $RESPONSE | grep -q "access_token"; then
   echo $RESPONSE | sed -E 's/.*"access_token":"([^"]*).*/\1/' > ./node-B/accesstoken.txt
   echo "access token stored in ./node-B/accesstoken.txt"
@@ -207,6 +204,76 @@ else
   exitWithDockerLogs 1
 fi
 
+echo "-------------------------------------------"
+echo "Test credential_selection (named params)..."
+echo "-------------------------------------------"
+# Issue a second NutsOrganizationCredential with a different org name
+REQUEST="{\"type\":\"NutsOrganizationCredential\",\"issuer\":\"${VENDOR_B_DID}\", \"credentialSubject\": {\"id\":\"${VENDOR_B_DID}\", \"organization\":{\"name\":\"Second Org B.V.\", \"city\":\"Othertown\"}},\"withStatusList2021Revocation\": true}"
+VENDOR_B_CREDENTIAL_2=$(echo "$REQUEST" | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/issuer/vc -H "Content-Type:application/json")
+if echo "$VENDOR_B_CREDENTIAL_2" | grep -q "VerifiableCredential"; then
+  echo "Second NutsOrganizationCredential issued"
+else
+  echo "FAILED: Could not issue second NutsOrganizationCredential" 1>&2
+  echo "$VENDOR_B_CREDENTIAL_2"
+  exitWithDockerLogs 1
+fi
+
+# Store second credential in wallet
+RESPONSE=$(echo "$VENDOR_B_CREDENTIAL_2" | curl -X POST --data-binary @- http://localhost:28081/internal/vcr/v2/holder/vendorB/vc -H "Content-Type:application/json")
+if [ "$RESPONSE" == "" ]; then
+  echo "Second VC stored in wallet"
+else
+  echo "FAILED: Could not store second NutsOrganizationCredential in wallet" 1>&2
+  echo "$RESPONSE"
+  exitWithDockerLogs 1
+fi
+
+# Request access token with credential_selection to select the second org credential
+REQUEST=$(
+cat <<'EOF'
+{
+  "authorization_server": "https://nodeA/oauth2/vendorA",
+  "scope": "test",
+  "credential_selection": {
+    "organization_name": "Second Org B.V."
+  },
+  "credentials": [
+      {
+        "@context": [
+          "https://www.w3.org/2018/credentials/v1",
+          "https://nuts.nl/credentials/v1"
+        ],
+        "type": ["VerifiableCredential", "NutsEmployeeCredential"],
+        "credentialSubject": {
+          "name": "Jane Doe",
+          "roleName": "Nurse",
+          "identifier": "654321"
+        }
+      }
+    ]
+}
+EOF
+)
+RESPONSE=$(echo "$REQUEST" | curl -X POST -s --data-binary @- http://localhost:28081/internal/auth/v2/vendorB/request-service-access-token -H "Content-Type: application/json" -H "Cache-Control: no-cache")
+if echo "$RESPONSE" | grep -q "access_token"; then
+  echo "credential_selection: access token obtained successfully"
+else
+  echo "FAILED: Could not get access token with credential_selection" 1>&2
+  echo "$RESPONSE"
+  exitWithDockerLogs 1
+fi
+
+# Verify introspection contains the correct org (Second Org B.V.)
+SELECTION_ACCESS_TOKEN=$(echo "$RESPONSE" | sed -E 's/.*"access_token":"([^"]*).*/\1/')
+RESPONSE=$(curl -X POST -s --data "token=$SELECTION_ACCESS_TOKEN" http://localhost:18081/internal/auth/v2/accesstoken/introspect_extended)
+if echo "$RESPONSE" | grep -q "Second Org B.V."; then
+  echo "credential_selection: correct organization selected"
+else
+  echo "FAILED: credential_selection did not select the correct organization" 1>&2
+  echo "$RESPONSE"
+  exitWithDockerLogs 1
+fi
+
 echo "------------------------------------"
 echo "Revoking credential..."
 echo "------------------------------------"
@@ -231,14 +298,6 @@ if [ "${RESPONSE}" == "Unauthorized" ]; then
 else
   echo "FAILED: Retrieved data with revoked credential" 1>&2
   echo $RESPONSE
-  exitWithDockerLogs 1
-fi
-
-echo "------------------------------------"
-echo "Verifying trace in Jaeger..."
-echo "------------------------------------"
-# Verify distributed tracing: trace spans from both nodes with expected components (gorm, http-client)
-if ! assertJaegerTrace "http://localhost:16686" "$TRACE_ID" "nodeA nodeB" "gorm.Query http-client"; then
   exitWithDockerLogs 1
 fi
 

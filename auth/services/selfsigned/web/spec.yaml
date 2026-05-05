@@ -5,6 +5,9 @@ info:
     This specification describes the internal HTTP API for the EmployeeIdentity means.
     Note: It MUST not be used to generate code outside of the Nuts Node since it is an internal service.
   version: 1.0.0
+  license:
+    name: GPLv3
+    url: https://www.gnu.org/licenses/gpl-3.0.en.html
 servers:
   - url: http://localhost:1323
 paths:
