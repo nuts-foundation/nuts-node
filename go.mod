@@ -2,7 +2,7 @@ module github.com/nuts-foundation/nuts-node
 
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action
-go 1.26.1
+go 1.26.2
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0
@@ -26,17 +26,17 @@ require (
 	github.com/labstack/echo/v4 v4.15.1
 	github.com/lestrrat-go/jwx/v2 v2.1.6
 	github.com/mdp/qrterminal/v3 v3.2.1
-	github.com/mr-tron/base58 v1.2.0
+	github.com/mr-tron/base58 v1.3.0
 	github.com/multiformats/go-multicodec v0.10.0
-	github.com/nats-io/nats-server/v2 v2.12.6
-	github.com/nats-io/nats.go v1.50.0
+	github.com/nats-io/nats-server/v2 v2.12.7
+	github.com/nats-io/nats.go v1.51.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.18.1
+	github.com/nuts-foundation/go-did v0.19.0
 	github.com/nuts-foundation/go-leia/v4 v4.3.0
-	github.com/nuts-foundation/go-stoabs v1.11.0
+	github.com/nuts-foundation/go-stoabs v1.11.1
 	github.com/nuts-foundation/sqlite v1.0.0
 	// check the oapi-codegen tool version in the makefile when upgrading the runtime
-	github.com/oapi-codegen/runtime v1.3.1
+	github.com/oapi-codegen/runtime v1.4.0
 	github.com/piprate/json-gold v0.8.0
 	github.com/pressly/goose/v3 v3.27.0
 	github.com/privacybydesign/irmago v0.19.2
@@ -122,7 +122,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -194,7 +194,7 @@ require (
 	gorm.io/gorm v1.31.1
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.48.1
+	modernc.org/sqlite v1.48.2
 	rsc.io/qr v0.2.0 // indirect
 )
 
@@ -212,9 +212,9 @@ require (
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.18.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.68.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.68.0
 	go.opentelemetry.io/otel v1.43.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.18.0
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.19.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.43.0
 	go.opentelemetry.io/otel/sdk v1.43.0
 	go.opentelemetry.io/otel/sdk/log v0.19.0
