@@ -1007,22 +1007,63 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 
 		assert.NotEqual(t, token1, token2)
 	})
-	t.Run("ok - service_provider_subject_id threads through to IAM client", func(t *testing.T) {
-		// Verifies the wire-up of the new OpenAPI field. The dispatch and feature gating live in
-		// the IAM client (under #4227); the handler's job is just to forward the value verbatim.
-		ctx := newTestClient(t)
-		spSubject := "acme-service-provider"
-		bodyWithSP := &RequestServiceAccessTokenJSONRequestBody{
-			AuthorizationServer:      verifierURL.String(),
-			Scope:                    "first second",
-			ServiceProviderSubjectId: &spSubject,
-		}
-		response := &oauth.TokenResponse{AccessToken: "token", TokenType: "Bearer", ExpiresIn: to.Ptr(900)}
-		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, &spSubject).Return(response, nil)
+	t.Run("service_provider_subject_id", func(t *testing.T) {
+		t.Run("ok - threads through to IAM client", func(t *testing.T) {
+			// Verifies the wire-up of the new OpenAPI field. The dispatch and feature gating live in
+			// the IAM client (under #4227); the handler's job is to validate and forward the value.
+			ctx := newTestClient(t)
+			spSubject := verifierSubject // re-use the global fixture's existing Exists(true) mock
+			bodyWithSP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &spSubject,
+			}
+			response := &oauth.TokenResponse{AccessToken: "sp-token", TokenType: "Bearer", ExpiresIn: to.Ptr(900)}
+			ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, &spSubject).Return(response, nil)
 
-		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithSP})
+			tokenResponse, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithSP})
 
-		require.NoError(t, err)
+			require.NoError(t, err)
+			// Assert the response actually round-trips, not just that the call didn't error.
+			assert.Equal(t, "sp-token", tokenResponse.(RequestServiceAccessToken200JSONResponse).AccessToken)
+		})
+		t.Run("empty string is rejected up front", func(t *testing.T) {
+			// service_provider_subject_id is optional; an explicit "" must not silently dispatch into
+			// the two-VP flow with a meaningless subject.
+			ctx := newTestClient(t)
+			emptySP := ""
+			bodyWithEmptySP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &emptySP,
+			}
+
+			_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithEmptySP})
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, "service_provider_subject_id")
+			assert.ErrorContains(t, err, "cannot be empty")
+		})
+		t.Run("unknown subject returns 400", func(t *testing.T) {
+			// Mirrors the existing path-param check: a non-existent service-provider subject yields a
+			// clear OAuth invalid_request, not the misleading 412 "did method mismatch" that would come
+			// from a downstream ListDIDs("") result.
+			ctx := newTestClient(t)
+			unknownSP := unknownSubjectID
+			bodyWithUnknownSP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &unknownSP,
+			}
+
+			_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithUnknownSP})
+
+			require.Error(t, err)
+			var oauthErr oauth.OAuth2Error
+			require.ErrorAs(t, err, &oauthErr)
+			assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+			assert.Contains(t, oauthErr.Description, "subject not found")
+		})
 	})
 	t.Run("self-asserted credentials", func(t *testing.T) {
 		response := &oauth.TokenResponse{

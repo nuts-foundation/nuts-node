@@ -728,6 +728,17 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, err
 	}
+	// service_provider_subject_id is optional. When absent the single-VP flow runs; when present it
+	// selects the two-VP jwt-bearer flow. An explicit empty string is ambiguous, reject it here so
+	// the flow doesn't route on an unset value.
+	if request.Body.ServiceProviderSubjectId != nil {
+		if *request.Body.ServiceProviderSubjectId == "" {
+			return nil, core.InvalidInputError("service_provider_subject_id is optional and cannot be empty: omit the field or set a non-empty value")
+		}
+		if err := r.subjectExists(ctx, *request.Body.ServiceProviderSubjectId); err != nil {
+			return nil, err
+		}
+	}
 
 	tokenCache := r.accessTokenCache()
 	cacheKey := accessTokenRequestCacheKey(request)
