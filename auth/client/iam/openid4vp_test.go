@@ -475,8 +475,8 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 	t.Run("rejects the request when the SP wallet has no DIDs matching the AS's supported methods", func(t *testing.T) {
 		// VP1 succeeds; the second buildSubmissionForSubject for the SP wallet then runs ListDIDs
 		// followed by filterDIDsByMethods, which returns ErrPreconditionFailed when no DID's method
-		// is in the AS's DIDMethodsSupported list. The default test fixture advertises method "test",
-		// so returning a did:web from the SP wallet exercises the filter rejection.
+		// is in the AS's DIDMethodsSupported list. The test pins DIDMethodsSupported explicitly so
+		// the assertion does not silently flip when the fixture default changes.
 		sp := spSubjectID
 		hcpDID := did.MustParseDID("did:test:hcp")
 		spDIDWrongMethod := did.MustParseDID("did:web:example.com:sp")
@@ -486,6 +486,7 @@ func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		enableJwtBearerClient(t, ctx)
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.authzServerMetadata.DIDMethodsSupported = []string{"test"}
 		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
 			CredentialProfileScope: "first",
 			WalletOwnerMapping: pe.WalletOwnerMapping{
