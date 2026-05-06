@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -149,17 +148,10 @@ func (p presenter) buildJWTPresentation(ctx context.Context, subjectDID did.DID,
 		defaultExp := issuedAt.Add(defaultPresentationValidity)
 		expiresAt = &defaultExp
 	}
-	// go-did's CreateJWTVerifiablePresentation sets nbf from IssuedAt but does not set iat;
-	// add it via AdditionalProofProperties to preserve the iat claim emitted before.
-	additionalProperties := make(map[string]interface{}, len(options.ProofOptions.AdditionalProperties)+1)
-	for k, v := range options.ProofOptions.AdditionalProperties {
-		additionalProperties[k] = v
-	}
-	additionalProperties[jwt.IssuedAtKey] = issuedAt.Unix()
 	return vc.CreateJWTVerifiablePresentation(ctx, subjectDID.URI(), credentials, vc.PresentationOptions{
 		AdditionalContexts:        options.AdditionalContexts,
 		AdditionalTypes:           options.AdditionalTypes,
-		AdditionalProofProperties: additionalProperties,
+		AdditionalProofProperties: options.ProofOptions.AdditionalProperties,
 		Holder:                    options.Holder,
 		Nonce:                     options.ProofOptions.Nonce,
 		Audience:                  options.ProofOptions.Domain,
