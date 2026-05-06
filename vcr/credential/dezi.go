@@ -279,8 +279,6 @@ func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.Verifi
 		fetchOptions = append(fetchOptions, jwk.WithHTTPClient(d.httpClient))
 	}
 
-	// TODO: Only allow specific domains for the jku
-	// TODO: make sure it's signed with a jku
 	token, err := jwt.Parse(
 		[]byte(serialized),
 		jwt.WithVerifyAuto(nil, fetchOptions...),
@@ -314,7 +312,6 @@ func (d deziIDToken07CredentialValidator) validateDeziToken(credential vc.Verifi
 		return errors.New("credential subject does not match id_token claims")
 	}
 
-	// TODO: check id_token revocation
 	return nil
 }
 
