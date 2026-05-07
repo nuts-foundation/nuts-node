@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -307,12 +308,6 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-// CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
-// CredentialRequestProof.
-type CredentialRequest struct {
-	Proof CredentialRequestProof `json:"proof"`
-}
-
 // CredentialRequestProof holds the ProofType and Jwt for a credential request
 type CredentialRequestProof struct {
 	ProofType string `json:"proof_type"`
@@ -325,19 +320,22 @@ type CredentialResponse struct {
 	Credential string `json:"credential"`
 }
 
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string) (*CredentialResponse, error) {
+// VerifiableCredentials posts an OpenID4VCI Credential Request to credentialEndpoint and returns the response.
+// credentialDetails is an optional caller-supplied JSON object that is used as the base body of the request;
+// the node-built JWT proof is overlaid on top, overwriting any caller-supplied "proof" value.
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string, credentialDetails map[string]any) (*CredentialResponse, error) {
 	credentialEndpointURL, err := url.Parse(credentialEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	credentialRequest := CredentialRequest{
-		Proof: CredentialRequestProof{
-			ProofType: "jwt",
-			Jwt:       proofJwt,
-		},
+	body := make(map[string]any, len(credentialDetails)+1)
+	maps.Copy(body, credentialDetails)
+	body["proof"] = CredentialRequestProof{
+		ProofType: "jwt",
+		Jwt:       proofJwt,
 	}
-	jsonBody, _ := json.Marshal(credentialRequest)
+	jsonBody, _ := json.Marshal(body)
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, err

@@ -688,7 +688,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -699,7 +699,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 
 		ctx.credentials = nil
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
 
 		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -714,7 +714,7 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 			return
 		}
 
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)

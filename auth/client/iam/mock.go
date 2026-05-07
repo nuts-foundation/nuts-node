@@ -209,16 +209,16 @@ func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjec
 }
 
 // VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, proofJWT string) (*CredentialResponse, error) {
+func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, proofJWT string, credentialDetails map[string]any) (*CredentialResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, proofJWT)
+	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, proofJWT, credentialDetails)
 	ret0, _ := ret[0].(*CredentialResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // VerifiableCredentials indicates an expected call of VerifiableCredentials.
-func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT any) *gomock.Call {
+func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT, credentialDetails any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, proofJWT)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, proofJWT, credentialDetails)
 }

@@ -178,6 +178,24 @@ paths:
                         "credential_configuration_id": "UniversityDegreeCredential"
                       }
                     ]
+                credential_details:
+                  type: object
+                  additionalProperties: true
+                  description: |
+                    EXPERIMENTAL. Optional JSON object used as the base body of the OpenID4VCI Credential Request sent
+                    to the issuer's credential endpoint. The node forwards these fields verbatim and overlays its own
+                    JWT proof on top (any caller-supplied "proof" value is overwritten). Use this to support issuers
+                    that accept additional, non-spec-defined fields in the Credential Request body.
+
+                    Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
+                    credential_details.
+                  example: |
+                    {
+                      "credential_identifier": "HealthCareProfessionalDelegationCredential",
+                      "did": "did:web:nuts.example.com:iam:d8e49bf4-9b89-42b5-bd5f-05b720eb1e74",
+                      "bsn": "900184590",
+                      "ura": "900030757"
+                    }
                 redirect_uri:
                   type: string
                   description: |
