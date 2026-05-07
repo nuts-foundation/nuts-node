@@ -14,4 +14,3 @@ output-options:
     - CredentialResponse
     - TokenResponse
     - ErrorResponse
-    - NonceResponse

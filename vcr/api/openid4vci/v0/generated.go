@@ -57,9 +57,6 @@ type ServerInterface interface {
 	// Used by the issuer to offer credentials to the wallet
 	// (GET /n2n/identity/{did}/openid4vci/credential_offer)
 	HandleCredentialOffer(ctx echo.Context, did string, params HandleCredentialOfferParams) error
-	// Request a fresh c_nonce value
-	// (POST /n2n/identity/{did}/openid4vci/nonce)
-	RequestNonce(ctx echo.Context, did string) error
 	// Used by the wallet to request an access token
 	// (POST /n2n/identity/{did}/token)
 	RequestAccessToken(ctx echo.Context, did string) error
@@ -195,22 +192,6 @@ func (w *ServerInterfaceWrapper) HandleCredentialOffer(ctx echo.Context) error {
 	return err
 }
 
-// RequestNonce converts echo context to params.
-func (w *ServerInterfaceWrapper) RequestNonce(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "did" -------------
-	var did string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "did", ctx.Param("did"), &did, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter did: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.RequestNonce(ctx, did)
-	return err
-}
-
 // RequestAccessToken converts echo context to params.
 func (w *ServerInterfaceWrapper) RequestAccessToken(ctx echo.Context) error {
 	var err error
@@ -261,7 +242,6 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.GET(baseURL+"/n2n/identity/:did/.well-known/openid-credential-wallet", wrapper.GetOAuth2ClientMetadata)
 	router.POST(baseURL+"/n2n/identity/:did/openid4vci/credential", wrapper.RequestCredential)
 	router.GET(baseURL+"/n2n/identity/:did/openid4vci/credential_offer", wrapper.HandleCredentialOffer)
-	router.POST(baseURL+"/n2n/identity/:did/openid4vci/nonce", wrapper.RequestNonce)
 	router.POST(baseURL+"/n2n/identity/:did/token", wrapper.RequestAccessToken)
 
 }
@@ -405,6 +385,15 @@ func (response RequestCredential401JSONResponse) VisitRequestCredentialResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestCredential403JSONResponse ErrorResponse
+
+func (response RequestCredential403JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestCredential404JSONResponse ErrorResponse
 
 func (response RequestCredential404JSONResponse) VisitRequestCredentialResponse(w http.ResponseWriter) error {
@@ -444,40 +433,6 @@ func (response HandleCredentialOffer400JSONResponse) VisitHandleCredentialOfferR
 type HandleCredentialOffer404JSONResponse ErrorResponse
 
 func (response HandleCredentialOffer404JSONResponse) VisitHandleCredentialOfferResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type RequestNonceRequestObject struct {
-	Did string `json:"did"`
-}
-
-type RequestNonceResponseObject interface {
-	VisitRequestNonceResponse(w http.ResponseWriter) error
-}
-
-type RequestNonce200ResponseHeaders struct {
-	CacheControl string
-}
-
-type RequestNonce200JSONResponse struct {
-	Body    NonceResponse
-	Headers RequestNonce200ResponseHeaders
-}
-
-func (response RequestNonce200JSONResponse) VisitRequestNonceResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", fmt.Sprint(response.Headers.CacheControl))
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response.Body)
-}
-
-type RequestNonce404JSONResponse ErrorResponse
-
-func (response RequestNonce404JSONResponse) VisitRequestNonceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -540,9 +495,6 @@ type StrictServerInterface interface {
 	// Used by the issuer to offer credentials to the wallet
 	// (GET /n2n/identity/{did}/openid4vci/credential_offer)
 	HandleCredentialOffer(ctx context.Context, request HandleCredentialOfferRequestObject) (HandleCredentialOfferResponseObject, error)
-	// Request a fresh c_nonce value
-	// (POST /n2n/identity/{did}/openid4vci/nonce)
-	RequestNonce(ctx context.Context, request RequestNonceRequestObject) (RequestNonceResponseObject, error)
 	// Used by the wallet to request an access token
 	// (POST /n2n/identity/{did}/token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
@@ -712,31 +664,6 @@ func (sh *strictHandler) HandleCredentialOffer(ctx echo.Context, did string, par
 		return err
 	} else if validResponse, ok := response.(HandleCredentialOfferResponseObject); ok {
 		return validResponse.VisitHandleCredentialOfferResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// RequestNonce operation middleware
-func (sh *strictHandler) RequestNonce(ctx echo.Context, did string) error {
-	var request RequestNonceRequestObject
-
-	request.Did = did
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.RequestNonce(ctx.Request().Context(), request.(RequestNonceRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "RequestNonce")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(RequestNonceResponseObject); ok {
-		return validResponse.VisitRequestNonceResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/test"
 	"net/http"
@@ -34,16 +35,14 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	issuerMetadata := new(CredentialIssuerMetadata)
 	providerMetadata := new(ProviderMetadata)
 	walletMetadata := new(OAuth2ClientMetadata)
-	credentialJSON, _ := json.Marshal(map[string]interface{}{
-		"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
-		"type":              []string{"VerifiableCredential"},
-		"issuer":            "issuer",
-		"issuanceDate":      time.Now().Format(time.RFC3339),
-		"credentialSubject": map[string]interface{}{"id": "id"},
-	})
 	credentialResponse := CredentialResponse{
-		Credentials: []CredentialResponseEntry{
-			{Credential: credentialJSON},
+		Format: vc.JSONLDCredentialProofFormat,
+		Credential: &map[string]interface{}{
+			"@context":          []string{"https://www.w3.org/2018/credentials/v1"},
+			"type":              []string{"VerifiableCredential"},
+			"issuer":            "issuer",
+			"issuanceDate":      time.Now().Format(time.RFC3339),
+			"credentialSubject": map[string]interface{}{"id": "id"},
 		},
 	}
 	clientTest := &oidcClientTestContext{
@@ -57,7 +56,6 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	clientTest.tokenHandler = clientTest.httpPostHandler(oauth.TokenResponse{AccessToken: "secret"})
 	clientTest.walletMetadataHandler = clientTest.httpGetHandler(walletMetadata)
 	clientTest.credentialOfferHandler = clientTest.httpGetHandler(CredentialOfferResponse{CredentialOfferStatusReceived})
-	clientTest.nonceHandler = clientTest.httpPostHandler(NonceResponse{CNonce: "test-nonce"})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/issuer"+CredentialIssuerMetadataWellKnownPath, func(writer http.ResponseWriter, request *http.Request) {
@@ -72,9 +70,6 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	mux.HandleFunc("/issuer/token", func(writer http.ResponseWriter, request *http.Request) {
 		clientTest.tokenHandler(writer, request)
 	})
-	mux.HandleFunc("/issuer/nonce", func(writer http.ResponseWriter, request *http.Request) {
-		clientTest.nonceHandler(writer, request)
-	})
 	mux.HandleFunc("/wallet/metadata", func(writer http.ResponseWriter, request *http.Request) {
 		clientTest.walletMetadataHandler(writer, request)
 	})
@@ -88,7 +83,6 @@ func setupClientTest(t *testing.T) *oidcClientTestContext {
 	issuerIdentifier := serverURL + "/issuer"
 	issuerMetadata.CredentialIssuer = issuerIdentifier
 	issuerMetadata.CredentialEndpoint = issuerIdentifier + "/credential"
-	issuerMetadata.NonceEndpoint = issuerIdentifier + "/nonce"
 	providerMetadata.Issuer = issuerIdentifier
 	providerMetadata.TokenEndpoint = issuerIdentifier + "/token"
 	return clientTest
@@ -134,7 +128,6 @@ type oidcClientTestContext struct {
 	credentialHandler       http.HandlerFunc
 	credentialOfferHandler  http.HandlerFunc
 	tokenHandler            http.HandlerFunc
-	nonceHandler            http.HandlerFunc
 	walletMetadataHandler   http.HandlerFunc
 	requests                []http.Request
 }

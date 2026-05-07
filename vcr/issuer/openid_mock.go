@@ -22,6 +22,7 @@ import (
 type MockOpenIDHandler struct {
 	ctrl     *gomock.Controller
 	recorder *MockOpenIDHandlerMockRecorder
+	isgomock struct{}
 }
 
 // MockOpenIDHandlerMockRecorder is the mock recorder for MockOpenIDHandler.
@@ -42,12 +43,13 @@ func (m *MockOpenIDHandler) EXPECT() *MockOpenIDHandlerMockRecorder {
 }
 
 // HandleAccessTokenRequest mocks base method.
-func (m *MockOpenIDHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, error) {
+func (m *MockOpenIDHandler) HandleAccessTokenRequest(ctx context.Context, preAuthorizedCode string) (string, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleAccessTokenRequest", ctx, preAuthorizedCode)
 	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // HandleAccessTokenRequest indicates an expected call of HandleAccessTokenRequest.
@@ -69,21 +71,6 @@ func (m *MockOpenIDHandler) HandleCredentialRequest(ctx context.Context, request
 func (mr *MockOpenIDHandlerMockRecorder) HandleCredentialRequest(ctx, request, accessToken any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleCredentialRequest", reflect.TypeOf((*MockOpenIDHandler)(nil).HandleCredentialRequest), ctx, request, accessToken)
-}
-
-// HandleNonceRequest mocks base method.
-func (m *MockOpenIDHandler) HandleNonceRequest(ctx context.Context) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HandleNonceRequest", ctx)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HandleNonceRequest indicates an expected call of HandleNonceRequest.
-func (mr *MockOpenIDHandlerMockRecorder) HandleNonceRequest(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleNonceRequest", reflect.TypeOf((*MockOpenIDHandler)(nil).HandleNonceRequest), ctx)
 }
 
 // Metadata mocks base method.

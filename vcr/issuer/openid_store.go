@@ -40,12 +40,6 @@ type OpenIDStore interface {
 	// DeleteReference deletes the reference from the store.
 	// It does not return an error if it doesn't exist anymore.
 	DeleteReference(ctx context.Context, refType string, reference string) error
-	// StoreNonce stores a standalone nonce (not tied to a flow) with TTL.
-	// Used by the Nonce Endpoint (v1.0 Section 7).
-	StoreNonce(ctx context.Context, nonce string) error
-	// ConsumeNonce atomically checks whether a standalone nonce exists and deletes it (single-use).
-	// Returns true if the nonce was valid (existed and was consumed), false otherwise.
-	ConsumeNonce(ctx context.Context, nonce string) bool
 }
 
 var _ OpenIDStore = (*openidMemoryStore)(nil)
@@ -106,20 +100,4 @@ func (o *openidMemoryStore) FindByReference(_ context.Context, refType string, r
 func (o *openidMemoryStore) DeleteReference(_ context.Context, refType string, reference string) error {
 	refStore := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", refType)
 	return refStore.Delete(reference)
-}
-
-const standaloneNonceStoreKey = "standalone_nonce"
-
-func (o *openidMemoryStore) StoreNonce(_ context.Context, nonce string) error {
-	store := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", standaloneNonceStoreKey)
-	return store.Put(nonce, true)
-}
-
-func (o *openidMemoryStore) ConsumeNonce(_ context.Context, nonce string) bool {
-	store := o.sessionDatabase.GetStore(TokenTTL, "openid4vci", standaloneNonceStoreKey)
-	var value bool
-	if err := store.GetAndDelete(nonce, &value); err != nil {
-		return false
-	}
-	return value
 }

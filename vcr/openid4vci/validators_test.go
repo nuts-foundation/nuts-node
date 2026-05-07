@@ -50,7 +50,7 @@ func Test_ValidateCredentialDefinition(t *testing.T) {
 		definition := &CredentialDefinition{
 			Context:           []ssi.URI{ssi.MustParseURI("http://example.com")},
 			Type:              []ssi.URI{ssi.MustParseURI("SomeCredentialType")},
-			CredentialSubject: map[string]any{},
+			CredentialSubject: new(map[string]any),
 		}
 		err := definition.Validate(true)
 

@@ -22,6 +22,7 @@ import (
 type MockIssuerAPIClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockIssuerAPIClientMockRecorder
+	isgomock struct{}
 }
 
 // MockIssuerAPIClientMockRecorder is the mock recorder for MockIssuerAPIClient.
@@ -85,25 +86,11 @@ func (mr *MockIssuerAPIClientMockRecorder) RequestCredential(ctx, request, acces
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestCredential", reflect.TypeOf((*MockIssuerAPIClient)(nil).RequestCredential), ctx, request, accessToken)
 }
 
-// RequestNonce mocks base method.
-func (m *MockIssuerAPIClient) RequestNonce(ctx context.Context) (*NonceResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestNonce", ctx)
-	ret0, _ := ret[0].(*NonceResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RequestNonce indicates an expected call of RequestNonce.
-func (mr *MockIssuerAPIClientMockRecorder) RequestNonce(ctx any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestNonce", reflect.TypeOf((*MockIssuerAPIClient)(nil).RequestNonce), ctx)
-}
-
 // MockOAuth2Client is a mock of OAuth2Client interface.
 type MockOAuth2Client struct {
 	ctrl     *gomock.Controller
 	recorder *MockOAuth2ClientMockRecorder
+	isgomock struct{}
 }
 
 // MockOAuth2ClientMockRecorder is the mock recorder for MockOAuth2Client.

@@ -119,25 +119,6 @@ func Test_memoryStore_Store(t *testing.T) {
 	})
 }
 
-func Test_memoryStore_StandaloneNonce(t *testing.T) {
-	ctx := context.Background()
-	t.Run("store and validate", func(t *testing.T) {
-		store := createStore(t)
-		err := store.StoreNonce(ctx, "test-nonce")
-		assert.NoError(t, err)
-
-		// First check should succeed and consume the nonce
-		assert.True(t, store.ConsumeNonce(ctx, "test-nonce"))
-
-		// Second check should fail (single-use)
-		assert.False(t, store.ConsumeNonce(ctx, "test-nonce"))
-	})
-	t.Run("unknown nonce", func(t *testing.T) {
-		store := createStore(t)
-		assert.False(t, store.ConsumeNonce(ctx, "unknown"))
-	})
-}
-
 func createStore(t *testing.T) *openidMemoryStore {
 	storageDatabase := storage.NewTestInMemorySessionDatabase(t)
 	store := NewOpenIDMemoryStore(storageDatabase).(*openidMemoryStore)

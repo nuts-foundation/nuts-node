@@ -24,11 +24,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
-// Validate the CredentialDefinition according to the VerifiableCredentialJSONLDFormat format.
-// When rejectCredentialSubject is true, the presence of credentialSubject causes a validation error.
-// This should be set to true when validating credential offers (Section 4.1.1) where credentialSubject is not allowed,
-// and false when validating metadata (Appendix A.1.2) where it is permitted.
-func (cd *CredentialDefinition) Validate(rejectCredentialSubject bool) error {
+// Validate the CredentialDefinition according to the VerifiableCredentialJSONLDFormat format
+func (cd *CredentialDefinition) Validate(isOffer bool) error {
 	if cd == nil {
 		return errors.New("invalid credential_definition: missing")
 	}
@@ -39,7 +36,7 @@ func (cd *CredentialDefinition) Validate(rejectCredentialSubject bool) error {
 		return errors.New("invalid credential_definition: missing type field")
 	}
 	if cd.CredentialSubject != nil {
-		if rejectCredentialSubject {
+		if isOffer {
 			return errors.New("invalid credential_definition: credentialSubject not allowed in offer")
 		}
 		// TODO: Add credentialSubject validation.
@@ -52,7 +49,7 @@ func (cd *CredentialDefinition) Validate(rejectCredentialSubject bool) error {
 // CredentialDefinition is assumed to be valid, see ValidateCredentialDefinition.
 func ValidateDefinitionWithCredential(credential vc.VerifiableCredential, definition CredentialDefinition) error {
 	// From spec: When the format value is ldp_vc, ..., including credential_definition object, MUST NOT be processed using JSON-LD rules.
-	// https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#appendix-A.1.2
+	// https://openid.bitbucket.io/connect/editors-draft/openid-4-verifiable-credential-issuance-1_0.html#name-format-identifier-2
 
 	// compare contexts. The credential may contain extra contexts for signatures or proofs
 	if len(credential.Context) < len(definition.Context) || !isSubset(credential.Context, definition.Context) {

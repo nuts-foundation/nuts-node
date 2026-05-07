@@ -21,6 +21,13 @@ package test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,16 +38,10 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/nuts-foundation/nuts-node/test/node"
 	"github.com/nuts-foundation/nuts-node/vcr"
 	credentialTypes "github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -125,7 +126,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	require.NoError(t, err)
 
 	requestBody, _ := json.Marshal(openid4vci.CredentialRequest{
-		CredentialConfigurationID: "NutsOrganizationCredential_ldp_vc",
+		Format: vc.JSONLDCredentialProofFormat,
 	})
 
 	t.Run("error from API layer (missing access token)", func(t *testing.T) {
@@ -142,7 +143,7 @@ func TestOpenID4VCIErrorResponses(t *testing.T) {
 	t.Run("error from service layer (unknown access token)", func(t *testing.T) {
 		httpRequest, _ := http.NewRequest("POST", issuer.Metadata().CredentialEndpoint, bytes.NewReader(requestBody))
 		httpRequest.Header.Set("Content-Type", "application/json")
-		httpRequest.Header.Set("Authorization", "Bearer not-a-valid-token")
+		httpRequest.Header.Set("Authentication", "Bearer not-a-valid-token")
 
 		httpResponse, err := http.DefaultClient.Do(httpRequest)
 
@@ -157,11 +158,10 @@ func testCredential() vc.VerifiableCredential {
 	issuanceDate := time.Now().Truncate(time.Second)
 	return vc.VerifiableCredential{
 		Context: []ssi.URI{
-			vc.VCContextV1URI(),
+			jsonld.JWS2020ContextV1URI(),
 			credentialTypes.NutsV1ContextURI,
 		},
 		Type: []ssi.URI{
-			vc.VerifiableCredentialTypeV1URI(),
 			ssi.MustParseURI("NutsAuthorizationCredential"),
 		},
 		IssuanceDate: issuanceDate,

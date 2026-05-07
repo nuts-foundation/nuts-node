@@ -54,9 +54,6 @@ type CredentialResponse = openid4vci.CredentialResponse
 // OAuth2ClientMetadata is the metadata of the OAuth2 client
 type OAuth2ClientMetadata = openid4vci.OAuth2ClientMetadata
 
-// NonceResponse is the response of the Nonce Endpoint
-type NonceResponse = openid4vci.NonceResponse
-
 type ErrorResponse = openid4vci.Error
 
 var _ core.ErrorWriter = (*protocolErrorWriter)(nil)
