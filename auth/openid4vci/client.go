@@ -1,0 +1,180 @@
+/*
+ * Nuts node
+ * Copyright (C) 2026 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package openid4vci
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+)
+
+// wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2 for the
+// Credential Issuer Metadata document.
+const wellKnownPath = "/.well-known/openid-credential-issuer"
+
+// RequestCredentialOpts carries all parameters for a Credential Request.
+// Using a struct means future spec fields (CredentialIdentifier,
+// CredentialResponseEncryption) are non-breaking additions.
+type RequestCredentialOpts struct {
+	CredentialEndpoint        string
+	AccessToken               string
+	CredentialConfigurationID string
+	ProofJWT                  string
+}
+
+// Client is the OpenID4VCI 1.0 HTTP client interface.
+// It covers the three wire interactions a wallet makes against a Credential
+// Issuer: fetching issuer metadata, obtaining a fresh nonce, and requesting
+// a credential.
+type Client interface {
+	// OpenIDCredentialIssuerMetadata fetches and parses the Credential Issuer
+	// Metadata document. The well-known URL is constructed from issuerURL per
+	// RFC 8615 (well-known segment inserted at the authority root, with the
+	// issuer path appended after).
+	OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL string) (*OpenIDCredentialIssuerMetadata, error)
+
+	// RequestNonce retrieves a fresh c_nonce from the Nonce Endpoint (§7.2).
+	RequestNonce(ctx context.Context, nonceEndpoint string) (string, error)
+
+	// RequestCredential posts a Credential Request (§8.2) and returns the
+	// Credential Response (§8.3). On non-2xx the method returns a structured
+	// Error when the body is a valid OpenID4VCI error object; otherwise a
+	// generic error.
+	RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error)
+}
+
+// NewClient returns a Client backed by the provided *http.Client.
+func NewClient(httpClient *http.Client) Client {
+	return &client{httpClient: httpClient}
+}
+
+type client struct {
+	httpClient *http.Client
+}
+
+func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL string) (*OpenIDCredentialIssuerMetadata, error) {
+	wellKnownURL, err := credentialIssuerWellKnown(issuerURL)
+	if err != nil {
+		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wellKnownURL, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return nil, fmt.Errorf("openid4vci: fetching issuer metadata returned status %d", resp.StatusCode)
+	}
+	var metadata OpenIDCredentialIssuerMetadata
+	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
+		return nil, fmt.Errorf("openid4vci: decoding issuer metadata: %w", err)
+	}
+	return &metadata, nil
+}
+
+func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nonceEndpoint, http.NoBody)
+	if err != nil {
+		return "", err
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return "", fmt.Errorf("openid4vci: nonce endpoint returned status %d", resp.StatusCode)
+	}
+	var nonceResp NonceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&nonceResp); err != nil {
+		return "", fmt.Errorf("openid4vci: decoding nonce response: %w", err)
+	}
+	if nonceResp.CNonce == "" {
+		return "", fmt.Errorf("openid4vci: nonce endpoint returned empty c_nonce")
+	}
+	return nonceResp.CNonce, nil
+}
+
+func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error) {
+	body := CredentialRequest{
+		CredentialConfigurationID: opts.CredentialConfigurationID,
+		Proofs: &CredentialRequestProofs{
+			JWT: []string{opts.ProofJWT},
+		},
+	}
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, opts.CredentialEndpoint, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+opts.AccessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Buffer the body once so the non-2xx path can attempt structured-error
+	// parsing before falling back to a generic error.
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		var oidcErr Error
+		if jsonErr := json.Unmarshal(respBody, &oidcErr); jsonErr == nil && oidcErr.Code != "" {
+			oidcErr.StatusCode = resp.StatusCode
+			return nil, oidcErr
+		}
+		return nil, fmt.Errorf("openid4vci: credential endpoint returned status %d", resp.StatusCode)
+	}
+	var credResp CredentialResponse
+	if err := json.Unmarshal(respBody, &credResp); err != nil {
+		return nil, fmt.Errorf("openid4vci: decoding credential response: %w", err)
+	}
+	return &credResp, nil
+}
+
+// credentialIssuerWellKnown returns the Credential Issuer Metadata URL for
+// the given issuer identifier per RFC 8615: the well-known segment is
+// inserted at the authority root, and the issuer's path is appended after.
+//
+// Example: https://example.com/oauth2/alice
+//   ->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
+func credentialIssuerWellKnown(issuerURL string) (string, error) {
+	u, err := url.Parse(issuerURL)
+	if err != nil {
+		return "", err
+	}
+	u.Path = wellKnownPath + u.EscapedPath()
+	return u.String(), nil
+}
