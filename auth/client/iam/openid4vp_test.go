@@ -39,10 +39,10 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -513,7 +513,7 @@ type clientTestContext struct {
 type clientServerTestContext struct {
 	*clientTestContext
 	authzServerMetadata            *oauth.AuthorizationServerMetadata
-	openIDCredentialIssuerMetadata *oauth.OpenIDCredentialIssuerMetadata
+	openIDCredentialIssuerMetadata *openid4vci.OpenIDCredentialIssuerMetadata
 	handler                        http.HandlerFunc
 	tlsServer                      *httptest.Server
 	verifierDID                    did.DID
@@ -531,7 +531,7 @@ type clientServerTestContext struct {
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
-	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
+	credentialIssuerMetadata := &openid4vci.OpenIDCredentialIssuerMetadata{}
 	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),

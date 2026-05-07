@@ -38,8 +38,8 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -271,12 +271,12 @@ func (hb HTTPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (st
 	return nonceResponse.CNonce, nil
 }
 
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error) {
 	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-	var metadata oauth.OpenIDCredentialIssuerMetadata
+	var metadata openid4vci.OpenIDCredentialIssuerMetadata
 	err = hb.doGet(ctx, metadataURL.String(), &metadata)
 	if err != nil {
 		return nil, err
@@ -346,7 +346,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 	credentialRequest := openid4vci.CredentialRequest{
 		CredentialConfigurationID: credentialConfigID,
 		Proofs: &openid4vci.CredentialRequestProofs{
-			Jwt: []string{proofJwt},
+			JWT: []string{proofJwt},
 		},
 	}
 	jsonBody, _ := json.Marshal(credentialRequest)

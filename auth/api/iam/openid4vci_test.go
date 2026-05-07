@@ -29,8 +29,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/core/to"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +40,7 @@ import (
 func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 	redirectURI := "https://test.test/iam/123/cb"
 	authServer := "https://auth.server/"
-	metadata := oauth.OpenIDCredentialIssuerMetadata{
+	metadata := openid4vci.OpenIDCredentialIssuerMetadata{
 		CredentialIssuer:     "issuer",
 		CredentialEndpoint:   "endpoint",
 		AuthorizationServers: []string{authServer},
@@ -81,7 +81,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
 			ctx := newTestClient(t)
-			metadata := oauth.OpenIDCredentialIssuerMetadata{
+			metadata := openid4vci.OpenIDCredentialIssuerMetadata{
 				CredentialIssuer:     "issuer",
 				CredentialEndpoint:   "endpoint",
 				AuthorizationServers: []string{}, // empty

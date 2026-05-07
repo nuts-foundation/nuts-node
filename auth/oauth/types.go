@@ -403,15 +403,6 @@ type Redirect struct {
 	RedirectURI string `json:"redirect_uri"`
 }
 
-// OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
-type OpenIDCredentialIssuerMetadata struct {
-	CredentialIssuer     string              `json:"credential_issuer"`
-	CredentialEndpoint   string              `json:"credential_endpoint"`
-	NonceEndpoint        string              `json:"nonce_endpoint,omitempty"`
-	AuthorizationServers []string            `json:"authorization_servers,omitempty"`
-	Display              []map[string]string `json:"display,omitempty"`
-}
-
 // OpenIDConfiguration represents the OpenID configuration
 // It contains the minimal information required for OpenID4VP, the required `jwks` is also omitted
 // see https://openid.net/specs/openid-connect-federation-1_0-29.html#entity-statement

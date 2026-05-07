@@ -23,7 +23,7 @@ import (
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -53,7 +53,7 @@ type Client interface {
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
 	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
-	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
+	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error)
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
 	// RequestNonce requests a fresh c_nonce from the issuer's Nonce Endpoint (v1.0 Section 7).

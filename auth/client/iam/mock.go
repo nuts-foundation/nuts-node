@@ -15,7 +15,7 @@ import (
 
 	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
-	openid4vci "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	openid4vci "github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -104,10 +104,10 @@ func (mr *MockClientMockRecorder) OpenIDConfiguration(ctx, issuer any) *gomock.C
 }
 
 // OpenIdCredentialIssuerMetadata mocks base method.
-func (m *MockClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+func (m *MockClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "OpenIdCredentialIssuerMetadata", ctx, oauthIssuerURI)
-	ret0, _ := ret[0].(*oauth.OpenIDCredentialIssuerMetadata)
+	ret0, _ := ret[0].(*openid4vci.OpenIDCredentialIssuerMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
