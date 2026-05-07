@@ -869,7 +869,7 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 }
 
 func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*openid4vci.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuer)
+	credentialIssuerMetadata, err := r.auth.OpenID4VCIClient().OpenIDCredentialIssuerMetadata(ctx, issuer)
 	if err != nil {
 		return nil, nil, err
 	}

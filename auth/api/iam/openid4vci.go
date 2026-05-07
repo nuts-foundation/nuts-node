@@ -151,7 +151,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	// fetch nonce from the Nonce Endpoint (v1.0 Section 7)
 	var nonce string
 	if oauthSession.IssuerNonceEndpoint != "" {
-		nonce, err = r.auth.IAMClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+		nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
 		if err != nil {
 			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
 		}
@@ -163,7 +163,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		// on invalid_nonce: fetch a fresh nonce and retry once
 		var oidcErr openid4vci.Error
 		if errors.As(err, &oidcErr) && oidcErr.Code == openid4vci.InvalidNonce && oauthSession.IssuerNonceEndpoint != "" {
-			nonce, err = r.auth.IAMClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+			nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
 			if err != nil {
 				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
 			}
@@ -200,7 +200,12 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
-	return r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, accessToken, oauthSession.IssuerCredentialConfigurationID, proofJWT)
+	return r.auth.OpenID4VCIClient().RequestCredential(ctx, openid4vci.RequestCredentialOpts{
+		CredentialEndpoint:        oauthSession.IssuerCredentialEndpoint,
+		AccessToken:               accessToken,
+		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
+		ProofJWT:                  proofJWT,
+	})
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
