@@ -38,7 +38,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
@@ -345,28 +344,6 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		tokenResponse.DPoPKid = &dpopKid
 	}
 	return &tokenResponse, nil
-}
-
-func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error) {
-	iamClient := c.httpClient
-	rsp, err := iamClient.OpenIdCredentialIssuerMetadata(ctx, oauthIssuerURI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve Openid credential issuer metadata: %w", err)
-	}
-	return rsp, nil
-}
-
-func (c *OpenID4VPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
-	return c.httpClient.RequestNonce(ctx, nonceEndpoint)
-}
-
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJWT string) (*openid4vci.CredentialResponse, error) {
-	iamClient := c.httpClient
-	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
-	if err != nil {
-		return nil, err
-	}
-	return rsp, nil
 }
 
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {

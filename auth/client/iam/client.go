@@ -19,7 +19,6 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,7 +37,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
@@ -242,48 +240,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, nonceEndpoint, http.NoBody)
-	if err != nil {
-		return "", err
-	}
-	response, err := hb.httpClient.Do(request)
-	if err != nil {
-		return "", fmt.Errorf("nonce request failed: %w", err)
-	}
-	defer response.Body.Close()
-	data, err := io.ReadAll(response.Body)
-	if err != nil {
-		return "", fmt.Errorf("unable to read nonce response: %w", err)
-	}
-	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return "", fmt.Errorf("nonce endpoint returned status %d", response.StatusCode)
-	}
-	var nonceResponse struct {
-		CNonce string `json:"c_nonce"`
-	}
-	if err = json.Unmarshal(data, &nonceResponse); err != nil {
-		return "", fmt.Errorf("unable to unmarshal nonce response: %w", err)
-	}
-	if nonceResponse.CNonce == "" {
-		return "", errors.New("nonce endpoint returned empty c_nonce")
-	}
-	return nonceResponse.CNonce, nil
-}
-
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata openid4vci.OpenIDCredentialIssuerMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &metadata, err
-}
-
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
 	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
 	if err != nil {
@@ -337,55 +293,6 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, credentialConfigID string, proofJwt string) (*openid4vci.CredentialResponse, error) {
-	credentialEndpointURL, err := url.Parse(credentialEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	credentialRequest := openid4vci.CredentialRequest{
-		CredentialConfigurationID: credentialConfigID,
-		Proofs: &openid4vci.CredentialRequestProofs{
-			JWT: []string{proofJwt},
-		},
-	}
-	jsonBody, _ := json.Marshal(credentialRequest)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Authorization", "Bearer "+accessToken)
-
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Logger().WithError(err).Warn("Trouble closing reader")
-		}
-	}(response.Body)
-	responseBody, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-	if response.StatusCode < 200 || response.StatusCode > 299 {
-		var oidcError openid4vci.Error
-		if json.Unmarshal(responseBody, &oidcError) == nil && oidcError.Code != "" {
-			oidcError.StatusCode = response.StatusCode
-			return nil, oidcError
-		}
-		return nil, fmt.Errorf("credential request failed (status %d)", response.StatusCode)
-	}
-	var credentialResponse openid4vci.CredentialResponse
-	if err = json.Unmarshal(responseBody, &credentialResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-	return &credentialResponse, nil
-}
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {

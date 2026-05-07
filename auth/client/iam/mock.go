@@ -15,7 +15,6 @@ import (
 
 	vc "github.com/nuts-foundation/go-did/vc"
 	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
-	openid4vci "github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -24,6 +23,7 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
+	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -103,21 +103,6 @@ func (mr *MockClientMockRecorder) OpenIDConfiguration(ctx, issuer any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenIDConfiguration", reflect.TypeOf((*MockClient)(nil).OpenIDConfiguration), ctx, issuer)
 }
 
-// OpenIdCredentialIssuerMetadata mocks base method.
-func (m *MockClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*openid4vci.OpenIDCredentialIssuerMetadata, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OpenIdCredentialIssuerMetadata", ctx, oauthIssuerURI)
-	ret0, _ := ret[0].(*openid4vci.OpenIDCredentialIssuerMetadata)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// OpenIdCredentialIssuerMetadata indicates an expected call of OpenIdCredentialIssuerMetadata.
-func (mr *MockClientMockRecorder) OpenIdCredentialIssuerMetadata(ctx, oauthIssuerURI any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenIdCredentialIssuerMetadata", reflect.TypeOf((*MockClient)(nil).OpenIdCredentialIssuerMetadata), ctx, oauthIssuerURI)
-}
-
 // PostAuthorizationResponse mocks base method.
 func (m *MockClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI, state string) (string, error) {
 	m.ctrl.T.Helper()
@@ -163,21 +148,6 @@ func (mr *MockClientMockRecorder) PresentationDefinition(ctx, endpoint any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinition", reflect.TypeOf((*MockClient)(nil).PresentationDefinition), ctx, endpoint)
 }
 
-// RequestNonce mocks base method.
-func (m *MockClient) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestNonce", ctx, nonceEndpoint)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RequestNonce indicates an expected call of RequestNonce.
-func (mr *MockClientMockRecorder) RequestNonce(ctx, nonceEndpoint any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestNonce", reflect.TypeOf((*MockClient)(nil).RequestNonce), ctx, nonceEndpoint)
-}
-
 // RequestObjectByGet mocks base method.
 func (m *MockClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	m.ctrl.T.Helper()
@@ -221,19 +191,4 @@ func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, clientID, sub
 func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection)
-}
-
-// VerifiableCredentials mocks base method.
-func (m *MockClient) VerifiableCredentials(ctx context.Context, credentialEndpoint, accessToken, credentialConfigID, proofJWT string) (*openid4vci.CredentialResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifiableCredentials", ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
-	ret0, _ := ret[0].(*openid4vci.CredentialResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// VerifiableCredentials indicates an expected call of VerifiableCredentials.
-func (mr *MockClientMockRecorder) VerifiableCredentials(ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifiableCredentials", reflect.TypeOf((*MockClient)(nil).VerifiableCredentials), ctx, credentialEndpoint, accessToken, credentialConfigID, proofJWT)
 }
