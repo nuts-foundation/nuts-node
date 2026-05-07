@@ -28,6 +28,7 @@ import (
 	pkg2 "github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	oauth2 "github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
@@ -84,6 +85,10 @@ func (m *mockAuthClient) RelyingParty() oauth.RelyingParty {
 
 func (m *mockAuthClient) IAMClient() iam.Client {
 	return m.iamClient
+}
+
+func (m *mockAuthClient) OpenID4VCIClient() openid4vci.Client {
+	return nil
 }
 
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
