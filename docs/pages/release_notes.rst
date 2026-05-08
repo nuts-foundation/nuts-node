@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.6)
+****************
+
+Release date: 2026-05-08
+
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.5...v6.2.6
+
+****************
 Peanut (v6.2.5)
 ****************
 
