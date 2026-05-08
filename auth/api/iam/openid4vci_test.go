@@ -268,7 +268,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	t.Run("ok - invalid_nonce retry succeeds", func(t *testing.T) {
 		ctx := newTestClient(t)
 		freshNonce := "fresh-nonce"
-		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
+		invalidNonceErr := oauth.OAuth2Error{Code: oauth.InvalidNonce}
 
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
@@ -290,7 +290,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	})
 	t.Run("error - invalid_nonce retry also fails", func(t *testing.T) {
 		ctx := newTestClient(t)
-		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
+		invalidNonceErr := oauth.OAuth2Error{Code: oauth.InvalidNonce}
 
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
@@ -309,7 +309,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	})
 	t.Run("error - nonce endpoint fails during retry", func(t *testing.T) {
 		ctx := newTestClient(t)
-		invalidNonceErr := openid4vci.Error{Code: openid4vci.InvalidNonce, StatusCode: 400}
+		invalidNonceErr := oauth.OAuth2Error{Code: oauth.InvalidNonce}
 
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)

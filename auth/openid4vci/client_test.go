@@ -26,6 +26,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -236,11 +237,11 @@ func TestClient_RequestCredential(t *testing.T) {
 		assert.Empty(t, credReq.CredentialConfigurationID, "credential_configuration_id MUST NOT be present when credential_identifier is used (§8.2)")
 	})
 
-	t.Run("returns structured Error on invalid_nonce", func(t *testing.T) {
+	t.Run("returns structured oauth.OAuth2Error on invalid_nonce", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(Error{Code: InvalidNonce})
+			_ = json.NewEncoder(w).Encode(oauth.OAuth2Error{Code: oauth.InvalidNonce})
 		}))
 		defer srv.Close()
 
@@ -251,10 +252,9 @@ func TestClient_RequestCredential(t *testing.T) {
 		})
 		require.Error(t, err)
 
-		var oidcErr Error
-		require.True(t, errors.As(err, &oidcErr))
-		assert.Equal(t, InvalidNonce, oidcErr.Code)
-		assert.Equal(t, http.StatusBadRequest, oidcErr.StatusCode)
+		var oauthErr oauth.OAuth2Error
+		require.True(t, errors.As(err, &oauthErr))
+		assert.Equal(t, oauth.InvalidNonce, oauthErr.Code)
 	})
 
 	t.Run("returns generic error on non-2xx with no structured body", func(t *testing.T) {
@@ -270,8 +270,8 @@ func TestClient_RequestCredential(t *testing.T) {
 		})
 		require.Error(t, err)
 
-		var oidcErr Error
-		assert.False(t, errors.As(err, &oidcErr))
+		var oauthErr oauth.OAuth2Error
+		assert.False(t, errors.As(err, &oauthErr))
 		assert.Contains(t, err.Error(), "503")
 	})
 }
