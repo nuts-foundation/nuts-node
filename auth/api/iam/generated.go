@@ -19,6 +19,11 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for AuthorizationDetailType.
+const (
+	OpenidCredential AuthorizationDetailType = "openid_credential"
+)
+
 // Defines values for ServiceAccessTokenRequestTokenType.
 const (
 	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
@@ -35,16 +40,21 @@ const (
 // Only the fields used by the user/browser issuance flow are modeled.
 type AuthorizationDetail struct {
 	// CredentialConfigurationId References a credential configuration from the issuer's
-	// credential_configurations_supported metadata.
-	CredentialConfigurationId *string `json:"credential_configuration_id,omitempty"`
+	// credential_configurations_supported metadata. REQUIRED for
+	// type=openid_credential per §5.1.1.
+	CredentialConfigurationId string `json:"credential_configuration_id"`
 
 	// Format Optional credential format hint (e.g. "vc+sd-jwt").
 	Format *string `json:"format,omitempty"`
 
-	// Type The authorization details type. For OpenID4VCI flows this is
-	// "openid_credential" per §5.1.1.
-	Type string `json:"type"`
+	// Type The authorization details type. For OpenID4VCI flows this MUST
+	// be "openid_credential" per §5.1.1.
+	Type AuthorizationDetailType `json:"type"`
 }
+
+// AuthorizationDetailType The authorization details type. For OpenID4VCI flows this MUST
+// be "openid_credential" per §5.1.1.
+type AuthorizationDetailType string
 
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {

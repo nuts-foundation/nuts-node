@@ -58,7 +58,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", Format: to.Ptr("vc+sd-jwt")}},
+				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential", Format: to.Ptr("vc+sd-jwt")}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
@@ -76,7 +76,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
-		assert.Equal(t, `[{"format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
 	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
@@ -352,6 +352,24 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, callback)
+	})
+	t.Run("error - authorization_details present but missing credential_identifiers", func(t *testing.T) {
+		ctx := newTestClient(t)
+		// Per §6.2 / §8.2: when the AS returns authorization_details for the
+		// requested credential_configuration_id, credential_identifiers is
+		// REQUIRED. Silent fallback to credential_configuration_id is not
+		// permitted; the wallet must surface an error.
+		tokenResponseWithBadDetails := (&oauth.TokenResponse{AccessToken: accessToken, TokenType: "Bearer"}).
+			With(oauth.AuthorizationDetailsParam, []map[string]interface{}{{
+				"type":                        "openid_credential",
+				"credential_configuration_id": credentialConfigID,
+				// credential_identifiers omitted
+			}})
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponseWithBadDetails, nil)
+
+		_, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "credential_identifiers")
 	})
 	t.Run("error - initial nonce request fails", func(t *testing.T) {
 		ctx := newTestClient(t)

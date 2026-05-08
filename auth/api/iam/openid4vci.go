@@ -76,14 +76,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Read and parse the authorization details
+	// Read and parse the authorization details. Per §5.1.1, type and
+	// credential_configuration_id are required for the openid_credential
+	// authorization_details flow; the OpenAPI schema enforces both.
 	authorizationDetails := []byte("[]")
 	var credentialConfigID string
 	if len(request.Body.AuthorizationDetails) > 0 {
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-		if id := request.Body.AuthorizationDetails[0].CredentialConfigurationId; id != nil {
-			credentialConfigID = *id
-		}
+		credentialConfigID = request.Body.AuthorizationDetails[0].CredentialConfigurationId
 	}
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
@@ -150,9 +150,13 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 
 	// Per §3.3.4 / §8.2: when the Token Response carries authorization_details
 	// with credential_identifiers, the Credential Request MUST use a
-	// credential_identifier (not credential_configuration_id). Falls back to
-	// "" if the AS did not return authorization_details.
-	credentialIdentifier := extractCredentialIdentifier(tokenResponse, oauthSession.IssuerCredentialConfigurationID)
+	// credential_identifier (not credential_configuration_id). When the AS
+	// did not return authorization_details, fall back to
+	// credential_configuration_id (§3.3.4 scope-flow alternative).
+	credentialIdentifier, err := extractCredentialIdentifier(tokenResponse, oauthSession.IssuerCredentialConfigurationID)
+	if err != nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, err.Error()), appCallbackURI)
+	}
 
 	// fetch nonce from the Nonce Endpoint (v1.0 Section 7)
 	var nonce string
@@ -228,17 +232,18 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 // Response and returns a credential_identifier matching the requested
 // configuration. Per OpenID4VCI 1.0 §3.3.4 / §8.2, when the AS returns
 // authorization_details with credential_identifiers, the wallet MUST use a
-// credential_identifier in the Credential Request. Returns "" when the
-// Token Response did not carry authorization_details (in which case the
-// wallet falls back to credential_configuration_id).
-func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) string {
+// credential_identifier in the Credential Request — silently falling back
+// to credential_configuration_id is not allowed. Returns ("", nil) only
+// when the Token Response did not carry authorization_details at all
+// (which permits the §3.3.4 scope-flow fallback to credential_configuration_id).
+func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) (string, error) {
 	raw, ok := tokenResponse.GetAny(oauth.AuthorizationDetailsParam)
 	if !ok {
-		return ""
+		return "", nil
 	}
 	bytes, err := json.Marshal(raw)
 	if err != nil {
-		return ""
+		return "", fmt.Errorf("token response authorization_details: %w", err)
 	}
 	var details []struct {
 		Type                      string   `json:"type"`
@@ -246,20 +251,21 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialC
 		CredentialIdentifiers     []string `json:"credential_identifiers"`
 	}
 	if err := json.Unmarshal(bytes, &details); err != nil {
-		return ""
+		return "", fmt.Errorf("token response authorization_details malformed: %w", err)
 	}
 	for _, d := range details {
 		if d.Type != "openid_credential" {
 			continue
 		}
-		if credentialConfigurationID != "" && d.CredentialConfigurationID != credentialConfigurationID {
+		if d.CredentialConfigurationID != credentialConfigurationID {
 			continue
 		}
-		if len(d.CredentialIdentifiers) > 0 {
-			return d.CredentialIdentifiers[0]
+		if len(d.CredentialIdentifiers) == 0 {
+			return "", fmt.Errorf("token response authorization_details for %q is missing credential_identifiers", credentialConfigurationID)
 		}
+		return d.CredentialIdentifiers[0], nil
 	}
-	return ""
+	return "", fmt.Errorf("token response authorization_details has no entry for credential_configuration_id %q", credentialConfigurationID)
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
