@@ -522,7 +522,7 @@ components:
             When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
             VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
             provider) using the `organization` PD; VP2 is built from the wallet identified here
-            using the `service_provider` PD. Requires `auth.experimental.jwt_bearer_client = true`,
+            using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
             an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
             and a `service_provider` PD configured for the requested credential profile.
 

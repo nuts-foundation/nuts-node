@@ -136,7 +136,7 @@ Two-VP flow and cross-VP binding (experimental)
 ***********************************************
 
 .. warning::
-   The two-VP flow is **experimental** and gated behind ``auth.experimental.jwt_bearer_client = true`` (default ``false``).
+   The two-VP flow is **experimental** and gated behind ``auth.experimental.jwtbearerclient = true`` (default ``false``).
    The ``service_provider`` PD block, the ``service_provider_subject_id`` API field, and the cross-VP binding mechanism described below are subject to change without notice while the underlying OAuth profile stabilises.
 
 When the two-VP flow runs
@@ -144,7 +144,7 @@ When the two-VP flow runs
 
 By default the node uses a single-VP token request (RFC 021 ``vp_token-bearer``). The two-VP RFC 7523 ``jwt-bearer`` flow runs only when **all** of the following hold:
 
-1. The experimental flag ``auth.experimental.jwt_bearer_client`` is ``true`` on the EHR-side node.
+1. The experimental flag ``auth.experimental.jwtbearerclient`` is ``true`` on the EHR-side node.
 2. The EHR caller passes ``service_provider_subject_id`` in the body of ``POST /internal/auth/v2/{subjectID}/request-service-access-token``.
 3. The remote authorization server advertises ``urn:ietf:params:oauth:grant-type:jwt-bearer`` in its metadata's ``grant_types_supported``.
 4. The credential profile referenced by the request scope has a ``service_provider`` PD configured.
@@ -222,7 +222,7 @@ Required configuration
 
 To enable the two-VP flow on a node:
 
-1. Set ``auth.experimental.jwt_bearer_client: true`` in the node config (off by default).
+1. Set ``auth.experimental.jwtbearerclient: true`` in the node config (off by default).
 2. Provision the service-provider Nuts subject and its wallet via the existing wallet APIs. Its wallet must hold credentials matching the ``service_provider`` PD for any profile that should support the flow.
 3. Add a ``service_provider`` PD block to each credential profile that should support the flow.
 4. Have the EHR pass ``service_provider_subject_id`` on the access-token request body.
