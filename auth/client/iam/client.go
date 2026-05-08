@@ -407,7 +407,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 			log.Logger().WithError(err).Warn("Trouble closing reader")
 		}
 	}(response.Body)
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
+	if err = core.TestResponseCodeWithLog(http.StatusOK, response, log.Logger()); err != nil {
 		return nil, err
 	}
 	var credential CredentialResponse
