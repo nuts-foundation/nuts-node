@@ -190,9 +190,13 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "credential response does not contain any credentials"), appCallbackURI)
 	}
 
-	// Per OpenID4VCI 1.0 §8.3, the credential field can be either a JSON string
-	// (JWT-VC, SD-JWT-VC) or a JSON object (JSON-LD). Try unmarshalling as a
-	// string first; if that fails, treat the raw bytes as the JSON-LD object.
+	// Per OpenID4VCI 1.0 §8.3 the credential field is either a JSON string
+	// (JWT-VC, SD-JWT-VC) or a JSON object (JSON-LD). Because Credential is
+	// typed as json.RawMessage, the field keeps the raw JSON encoding — for
+	// a JWT that includes the surrounding quotes, which ParseVerifiableCredential
+	// would reject as invalid base64. Unmarshal the bytes as a Go string first
+	// to strip those quotes; on failure (the JSON-LD object case) fall back to
+	// the raw bytes as-is.
 	rawCredential := credentialResponse.Credentials[0].Credential
 	var credentialJSON string
 	if err := json.Unmarshal(rawCredential, &credentialJSON); err != nil {
