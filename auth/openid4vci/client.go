@@ -91,6 +91,15 @@ type client struct {
 // validateURL guards against SSRF by rejecting target URLs that fail
 // core.ParsePublicURL (in strict mode: HTTPS only, no IP/reserved hosts).
 // Called at the entry of every method that makes outbound HTTP.
+//
+// TODO: this validation belongs on httpclient.StrictHTTPClient so every
+// outbound HTTP call (not just OpenID4VCI) gets the IP/reserved-host check,
+// not only the HTTPS scheme check that StrictHTTPClient.Do enforces today.
+// Placed here for now to preserve parity with master, where the equivalent
+// caller (auth/client/iam.HTTPClient) validated via oauth.IssuerIdToWellKnown
+// → core.ParsePublicURL before issuing the request, and to address a CodeQL
+// SSRF finding on this PR. Tracked as a follow-up to consolidate the check
+// in the shared HTTP client.
 func (c *client) validateURL(name, target string) error {
 	if _, err := core.ParsePublicURL(target, c.strictMode); err != nil {
 		return fmt.Errorf("openid4vci: invalid %s URL: %w", name, err)
