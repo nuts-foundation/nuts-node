@@ -40,6 +40,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/policy"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -236,7 +237,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 	})
 }
 
-func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
+func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 	const subjectID = "subby"
 	const subjectClientID = "https://example.com/oauth2/subby"
 	primaryWalletDID := did.MustParseDID("did:test:primary")
@@ -253,7 +254,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -265,7 +266,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, pe.ErrNoCredentials)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.ErrorIs(t, err, pe.ErrNoCredentials)
 		assert.Nil(t, response)
@@ -275,7 +276,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.authzServerMetadata.DIDMethodsSupported = []string{"other"}
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrPreconditionFailed)
@@ -312,7 +313,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 				return createdVP, &pe.PresentationSubmission{}, nil
 			})
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, credentials, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, credentials, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -326,7 +327,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil)
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil, nil)
 
 		assert.NoError(t, err)
 		require.NotNil(t, response)
@@ -340,7 +341,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		}
 		oauthErrorBytes, _ := json.Marshal(oauthError)
 		ctx := createClientServerTestContext(t)
-		ctx.token = func(writer http.ResponseWriter) {
+		ctx.token = func(writer http.ResponseWriter, _ *http.Request) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusBadRequest)
 			_, _ = writer.Write(oauthErrorBytes)
@@ -348,7 +349,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		var oauthErrResult oauth.OAuth2Error
@@ -366,7 +367,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			return
 		}
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.True(t, errors.As(err, &oauth.OAuth2Error{}))
@@ -376,7 +377,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.metadata = nil
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
@@ -390,7 +391,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 			_, _ = writer.Write([]byte("{"))
 		}
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrBadGateway)
@@ -401,9 +402,342 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 
-		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil)
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		assert.Error(t, err)
+	})
+}
+
+// enableJwtBearerClient flips the experimental jwt-bearer client feature flag on the test client.
+// It exists so subtests don't have to type-assert to the concrete *OpenID4VPClient just to poke an
+// unexported field; the intent ("opt this test into the two-VP flow") is also clearer at the call site.
+func enableJwtBearerClient(t *testing.T, ctx *clientServerTestContext) {
+	t.Helper()
+	ctx.client.(*OpenID4VPClient).experimentalJwtBearerClient = true
+}
+
+func TestRelyingParty_RequestServiceAccessToken_TwoVP(t *testing.T) {
+	const subjectID = "subby"
+	const subjectClientID = "https://example.com/oauth2/subby"
+	const spSubjectID = "service-provider-subby"
+	scopes := "first second"
+
+	t.Run("rejects the request when the experimental jwt-bearer feature is disabled", func(t *testing.T) {
+		// The default zero value of experimentalJwtBearerClient is false; we leave it alone so the gate fires.
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "jwt-bearer")
+	})
+
+	t.Run("rejects the request when the AS does not advertise jwt-bearer", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		// The default AS metadata in the test setup does not include JwtBearerGrantType in grant_types_supported.
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		assert.Equal(t, oauth.UnsupportedGrantType, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, oauth.JwtBearerGrantType)
+		assert.Contains(t, oauthErr.Description, "grant_types_supported")
+	})
+
+	t.Run("rejects the request when no service_provider PD is configured for the scope", func(t *testing.T) {
+		sp := spSubjectID
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "org_pd"},
+			},
+		}, nil)
+
+		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "no service_provider presentation definition")
+	})
+
+	// Scope-policy behaviour (profile-only rejection, passthrough forwarding, missing organization PD)
+	// is covered by TestLoadAndValidateProfile, which exercises the same helper this path delegates to.
+
+	t.Run("posts a jwt-bearer form body on the happy path", func(t *testing.T) {
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// VP1 is built from the HCP wallet using the organization PD; VP2 from the SP wallet using the service_provider PD.
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "org_pd"}, gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			pe.PresentationDefinition{Id: "sp_pd"}, gomock.Any(), gomock.Any()).Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
+
+		var capturedForm url.Values
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			require.NoError(t, request.ParseForm())
+			capturedForm = request.PostForm
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, oauth.JwtBearerGrantType, capturedForm.Get(oauth.GrantTypeParam))
+		assert.Equal(t, organizationVP.Raw(), capturedForm.Get(oauth.AssertionParam))
+		assert.Equal(t, oauth.JwtBearerClientAssertionType, capturedForm.Get(oauth.ClientAssertionTypeParam))
+		assert.Equal(t, serviceProviderVP.Raw(), capturedForm.Get(oauth.ClientAssertionParam))
+		assert.Empty(t, capturedForm.Get(oauth.PresentationSubmissionParam))
+		// Per RFC 7521 §4.2 client_id is optional when client_assertion is present and we omit it.
+		assert.Empty(t, capturedForm.Get(oauth.ClientIDParam))
+	})
+
+	t.Run("VP1 and VP2 carry distinct nonces", func(t *testing.T) {
+		// Each VP must be signed with a fresh nonce. Reusing the same nonce would let a verifier mistakenly
+		// treat the two assertions as a single signed payload, or accept a replayed pairing of VP1 with a
+		// stale VP2 (or vice versa).
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// Capture both BuildSubmission's params arguments so we can compare nonces directly.
+		var organizationVPParams, serviceProviderVPParams holder.BuildParams
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				organizationVPParams = p
+				return organizationVP, &pe.PresentationSubmission{}, nil
+			})
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, _ map[string]string, p holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				serviceProviderVPParams = p
+				return serviceProviderVP, &pe.PresentationSubmission{}, nil
+			})
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotEmpty(t, organizationVPParams.Nonce)
+		require.NotEmpty(t, serviceProviderVPParams.Nonce)
+		assert.NotEqual(t, organizationVPParams.Nonce, serviceProviderVPParams.Nonce, "VP2 must be signed with a fresh nonce")
+	})
+
+	t.Run("captured VP1 field-id values flow into VP2 credential_selection end-to-end", func(t *testing.T) {
+		// Cross-VP binding scenario, end to end: when the organization PD and the service_provider PD share
+		// the same constraint-field `id` (here: "delegating_hcp"), the value matched in the organization VP
+		// must flow into the service-provider VP's credential_selection so the wallet building it can pick
+		// a credential constrained by that value. This test follows the chain through
+		// requestJwtBearerAccessToken:
+		//
+		//   organizationVP + organizationSubmission --NewEnvelopeFromVP+Resolve--> credentialMap
+		//   credentialMap + orgPD --ResolveConstraintsFields--> {delegating_hcp: did:test:hcp}
+		//   --applyCapturedFieldsToSelection--> credential_selection passed to the service-provider
+		//   wallet's BuildSubmission
+		//
+		// TestApplyCapturedFieldsToSelection covers the merge step in isolation; this test exists to guard
+		// the wiring from the first BuildSubmission's return values into the second BuildSubmission's args.
+
+		sp := spSubjectID
+		hcpDID := did.MustParseDID("did:test:hcp")
+		spDID := did.MustParseDID("did:test:sp")
+
+		// VP1 is the healthcare provider's presentation. It must be a parseable JSON-LD VP that contains
+		// one credential whose $.issuer is the HCP DID — that value is what the binding will capture.
+		// `holder` is set so the DPoP code path (which derives a signing DID from vp.Holder) doesn't panic
+		// even though we don't enable DPoP in this test.
+		organizationVP, err := vc.ParseVerifiablePresentation(`{
+			"@context": ["https://www.w3.org/2018/credentials/v1"],
+			"type": ["VerifiablePresentation"],
+			"holder": "did:test:hcp",
+			"verifiableCredential": [{
+				"@context": ["https://www.w3.org/2018/credentials/v1"],
+				"type": ["VerifiableCredential"],
+				"issuer": "did:test:hcp",
+				"credentialSubject": {"id": "did:test:hcp"},
+				"proof": {"type": "JsonWebSignature2020"}
+			}],
+			"proof": {"type": "JsonWebSignature2020"}
+		}`)
+		require.NoError(t, err)
+		// VP2's body is irrelevant for this test — we only assert what VP2's BuildSubmission was *called*
+		// with; we never inspect serviceProviderVP itself afterwards. The holder is set for the same DPoP-safety reason.
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+
+		// organizationSubmission tells the resolver "input descriptor id_org_cred was satisfied by the credential at
+		// $.verifiableCredential[0]". Without this, ResolveVP can't bridge from a descriptor id to a VC, and
+		// ResolveConstraintsFields has nothing to walk for $.issuer.
+		organizationSubmission := &pe.PresentationSubmission{
+			DescriptorMap: []pe.InputDescriptorMappingObject{
+				{Id: "id_org_cred", Format: "ldp_vc", Path: "$.verifiableCredential[0]"},
+			},
+		}
+
+		// orgPD declares one constraint field with id "delegating_hcp" pointing at $.issuer of the matched
+		// VC. The id is what makes the value capturable; an unidentified field would be ignored.
+		fieldID := "delegating_hcp"
+		orgPD := pe.PresentationDefinition{
+			Id: "org_pd",
+			InputDescriptors: []*pe.InputDescriptor{{
+				Id: "id_org_cred",
+				Constraints: &pe.Constraints{
+					Fields: []pe.Field{{Id: &fieldID, Path: []string{"$.issuer"}}},
+				},
+			}},
+		}
+		// spPD shares the field.id "delegating_hcp" by convention. The sharing is what binds VP2 to a value
+		// matched in VP1. The PD itself carries no constraints in this test because the wallet mock never
+		// inspects it; we only care that the credential_selection it receives contains the captured value.
+		spPD := pe.PresentationDefinition{Id: "sp_pd"}
+
+		ctx := createClientServerTestContext(t)
+		// Enable the experimental flag so the dispatcher routes us into the two-VP path.
+		enableJwtBearerClient(t, ctx)
+		// Advertise jwt-bearer so the dispatcher's "AS supports jwt-bearer" check passes.
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		// The two-VP path always resolves PDs from the local policy backend (no remote PD endpoint for the
+		// service_provider concept), so this is the single source of truth for both PDs in the request.
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    orgPD,
+				pe.WalletOwnerServiceProvider: spPD,
+			},
+		}, nil)
+		// VP1 is built from the HCP wallet (subjectID), VP2 from the SP wallet (spSubjectID) — different
+		// subject IDs, different DID candidate slices.
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{hcpDID}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		// First BuildSubmission call: build VP1 against the HCP DID using orgPD. We return the JSON-LD VP
+		// and its submission so the production code can resolve constraint fields against them.
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{hcpDID}, gomock.Any(),
+			orgPD, gomock.Any(), gomock.Any()).Return(organizationVP, organizationSubmission, nil)
+		// Second BuildSubmission call: build VP2 against the SP DID using spPD. We capture the
+		// credential_selection argument so the assertion at the bottom can verify the merged field-id
+		// value made it through the orchestration.
+		var capturedSPSelection map[string]string
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{spDID}, gomock.Any(),
+			spPD, gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ []did.DID, _ map[did.DID][]vc.VerifiableCredential, _ pe.PresentationDefinition, sel map[string]string, _ holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+				capturedSPSelection = sel
+				return serviceProviderVP, &pe.PresentationSubmission{}, nil
+			})
+
+		_, err = ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, &sp)
+
+		require.NoError(t, err)
+		// Payoff: the HCP DID matched against $.issuer in VP1's credential should be captured under
+		// "delegating_hcp" and forwarded to VP2's wallet — without the EHR caller having to set it.
+		assert.Equal(t, "did:test:hcp", capturedSPSelection["delegating_hcp"])
+	})
+
+	t.Run("ok with DPoPHeader", func(t *testing.T) {
+		// DPoP binds the issued access token to a key the SP wallet controls — the proof must be signed with
+		// the SP DID's key (serviceProviderVP.Holder), not the HCP DID's key.
+		sp := spSubjectID
+		spDID := did.MustParseDID("did:test:sp")
+		spKID := "did:test:sp#1"
+		organizationVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:hcp","proof":[{"verificationMethod":"did:test:hcp#1"}]}`)
+		require.NoError(t, err)
+		serviceProviderVP, err := vc.ParseVerifiablePresentation(`{"holder":"did:test:sp","proof":[{"verificationMethod":"did:test:sp#1"}]}`)
+		require.NoError(t, err)
+		ctx := createClientServerTestContext(t)
+		enableJwtBearerClient(t, ctx)
+		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JwtBearerGrantType}
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), scopes).Return(&policy.CredentialProfileMatch{
+			CredentialProfileScope: "first",
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization:    pe.PresentationDefinition{Id: "org_pd"},
+				pe.WalletOwnerServiceProvider: pe.PresentationDefinition{Id: "sp_pd"},
+			},
+		}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{did.MustParseDID("did:test:hcp")}, nil)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), spSubjectID).Return([]did.DID{spDID}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(organizationVP, &pe.PresentationSubmission{}, nil)
+		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(serviceProviderVP, &pe.PresentationSubmission{}, nil)
+		// The DPoP signing key must be resolved against the SP DID, not the HCP DID — that's the assertion.
+		ctx.keyResolver.EXPECT().ResolveKey(spDID, nil, resolver.NutsSigningKeyType).Return(spKID, nil, nil)
+		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), spKID).Return("dpop", nil)
+
+		response, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, true, nil, nil, &sp)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		require.NotNil(t, response.DPoPKid)
+		assert.Equal(t, spKID, *response.DPoPKid)
+	})
+}
+
+func TestApplyCapturedFieldsToSelection(t *testing.T) {
+	t.Run("adds string-valued captured entries to a nil selection", func(t *testing.T) {
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{"delegating_hcp": "did:test:hcp"})
+
+		assert.Equal(t, map[string]string{"delegating_hcp": "did:test:hcp"}, merged)
+	})
+
+	t.Run("does not overwrite EHR-supplied selection keys", func(t *testing.T) {
+		ehrSelection := map[string]string{"delegating_hcp": "did:ehr:override"}
+
+		merged := applyCapturedFieldsToSelection(ehrSelection, map[string]any{"delegating_hcp": "did:test:hcp"})
+
+		assert.Equal(t, "did:ehr:override", merged["delegating_hcp"])
+	})
+
+	t.Run("skips non-string captured values", func(t *testing.T) {
+		merged := applyCapturedFieldsToSelection(nil, map[string]any{"int_field": 42, "string_field": "ok"})
+
+		assert.Equal(t, map[string]string{"string_field": "ok"}, merged)
+	})
+
+	t.Run("does not mutate the caller's selection map", func(t *testing.T) {
+		// The caller (HTTP handler) typically passes a request-derived map. Mutating it would risk leaking
+		// captured values into anything that retains a reference to that map (logging, caches, retries).
+		ehrSelection := map[string]string{"caller_key": "caller_value"}
+
+		_ = applyCapturedFieldsToSelection(ehrSelection, map[string]any{"captured_key": "captured_value"})
+
+		assert.Equal(t, map[string]string{"caller_key": "caller_value"}, ehrSelection)
 	})
 }
 
@@ -474,6 +808,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	subjectManager := didsubject.NewMockManager(ctrl)
 	wallet := holder.NewMockWallet(ctrl)
+	policyBackend := policy.NewMockPDPBackend(ctrl)
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{}
 	}
@@ -486,10 +821,11 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 			strictMode: false,
 			httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 		},
-		jwtSigner:   jwtSigner,
-		keyResolver: keyResolver,
+		jwtSigner:     jwtSigner,
+		keyResolver:   keyResolver,
+		policyBackend: policyBackend,
 	}
-	testClient.pdResolver = PresentationDefinitionResolver{pdFetcher: testClient}
+	testClient.pdResolver = PresentationDefinitionResolver{pdFetcher: testClient, policyBackend: policyBackend}
 
 	return &clientTestContext{
 		audit:          audit.TestContext(),
@@ -499,6 +835,7 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		keyResolver:    keyResolver,
 		wallet:         wallet,
 		subjectManager: subjectManager,
+		policyBackend:  policyBackend,
 	}
 }
 
@@ -510,6 +847,7 @@ type clientTestContext struct {
 	keyResolver    *resolver.MockKeyResolver
 	wallet         *holder.MockWallet
 	subjectManager *didsubject.MockManager
+	policyBackend  *policy.MockPDPBackend
 }
 
 type clientServerTestContext struct {
@@ -526,7 +864,7 @@ type clientServerTestContext struct {
 	credentialIssuerMetadata       func(writer http.ResponseWriter)
 	presentationDefinition         func(writer http.ResponseWriter)
 	response                       func(writer http.ResponseWriter)
-	token                          func(writer http.ResponseWriter)
+	token                          func(writer http.ResponseWriter, request *http.Request)
 	credentials                    func(writer http.ResponseWriter)
 	requestObjectJWT               func(writer http.ResponseWriter)
 }
@@ -575,7 +913,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write(bytes)
 			return
 		},
-		token: func(writer http.ResponseWriter) {
+		token: func(writer http.ResponseWriter, _ *http.Request) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
@@ -628,7 +966,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			}
 		case "/token":
 			if ctx.token != nil {
-				ctx.token(writer)
+				ctx.token(writer, request)
 				return
 			}
 		case "/credentials":

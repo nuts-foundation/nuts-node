@@ -43,11 +43,17 @@ type Client interface {
 	PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error)
 	// PresentationDefinition returns the presentation definition from the given endpoint.
 	PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error)
-	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
-	// credentials are additional VCs to include alongside wallet-stored credentials.
+	// RequestServiceAccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server.
+	// When serviceProviderSubjectID is nil, the request uses the Nuts RFC021 vp_token-bearer single-VP flow.
+	// When serviceProviderSubjectID is non-nil it identifies a service-provider Nuts subject and triggers the RFC 7523
+	// jwt-bearer two-VP flow; that flow is only honored when the experimental jwt-bearer client feature is enabled and
+	// the AS advertises jwt-bearer.
+	// credentials are additional VCs to include alongside wallet-stored credentials. In the two-VP flow they are
+	// offered to both wallets; each PD selects what matches its input descriptors. Signed VCs flow through unchanged;
+	// unsigned self-attested credentials are auto-issued per holder DID by AutoCorrectSelfAttestedCredential.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
-	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
-		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
+	RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string, useDPoP bool,
+		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
 	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).

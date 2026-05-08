@@ -8,6 +8,8 @@ Unreleased
 
 ## New features
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+* #4078: Allow policy profiles to define a ``service_provider`` PresentationDefinition for the OAuth client (RFC 7523 ``jwt-bearer`` flow) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4226
+* #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
 
 ****************
 Peanut (v6.2.1)

@@ -193,19 +193,19 @@ func (mr *MockClientMockRecorder) RequestObjectByPost(ctx, requestURI, walletMet
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestObjectByPost", reflect.TypeOf((*MockClient)(nil).RequestObjectByPost), ctx, requestURI, walletMetadata)
 }
 
-// RequestRFC021AccessToken mocks base method.
-func (m *MockClient) RequestRFC021AccessToken(ctx context.Context, clientID, subjectDID, authServerURL, scopes string, useDPoP bool, credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
+// RequestServiceAccessToken mocks base method.
+func (m *MockClient) RequestServiceAccessToken(ctx context.Context, clientID, subjectID, authServerURL, scopes string, useDPoP bool, credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestRFC021AccessToken", ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection)
+	ret := m.ctrl.Call(m, "RequestServiceAccessToken", ctx, clientID, subjectID, authServerURL, scopes, useDPoP, credentials, credentialSelection, serviceProviderSubjectID)
 	ret0, _ := ret[0].(*oauth.TokenResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// RequestRFC021AccessToken indicates an expected call of RequestRFC021AccessToken.
-func (mr *MockClientMockRecorder) RequestRFC021AccessToken(ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection any) *gomock.Call {
+// RequestServiceAccessToken indicates an expected call of RequestServiceAccessToken.
+func (mr *MockClientMockRecorder) RequestServiceAccessToken(ctx, clientID, subjectID, authServerURL, scopes, useDPoP, credentials, credentialSelection, serviceProviderSubjectID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestRFC021AccessToken", reflect.TypeOf((*MockClient)(nil).RequestRFC021AccessToken), ctx, clientID, subjectDID, authServerURL, scopes, useDPoP, credentials, credentialSelection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestServiceAccessToken", reflect.TypeOf((*MockClient)(nil).RequestServiceAccessToken), ctx, clientID, subjectID, authServerURL, scopes, useDPoP, credentials, credentialSelection, serviceProviderSubjectID)
 }
 
 // VerifiableCredentials mocks base method.
