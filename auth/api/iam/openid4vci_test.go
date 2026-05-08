@@ -201,6 +201,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		IssuerCredentialEndpoint:        credEndpoint,
 		IssuerNonceEndpoint:             nonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		IssuerCredentialIssuer:          issuerClientID,
 	}
 	sessionWithoutNonce := session
 	sessionWithoutNonce.IssuerNonceEndpoint = ""

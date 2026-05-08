@@ -59,6 +59,11 @@ type OAuthSession struct {
 	IssuerNonceEndpoint string `json:"issuer_nonce_endpoint,omitempty"`
 	// IssuerCredentialConfigurationID: the credential_configuration_id for the credential request in the OpenID4VCI flow
 	IssuerCredentialConfigurationID string `json:"issuer_credential_configuration_id,omitempty"`
+	// IssuerCredentialIssuer is the Credential Issuer Identifier (`credential_issuer`
+	// from the metadata, §12.2.1). It is used as the `aud` claim in the proof JWT
+	// per §F.1; this can differ from IssuerURL (the AS issuer) when the metadata
+	// declares `authorization_servers`.
+	IssuerCredentialIssuer string `json:"issuer_credential_issuer,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

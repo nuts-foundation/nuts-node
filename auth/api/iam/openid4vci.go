@@ -106,6 +106,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -215,7 +216,9 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 }
 
 func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, credentialIdentifier string, nonce string) (*openid4vci.CredentialResponse, error) {
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, nonce)
+	// Per §F.1, the proof JWT `aud` MUST be the Credential Issuer Identifier,
+	// not the Authorization Server issuer URL.
+	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerCredentialIssuer, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
