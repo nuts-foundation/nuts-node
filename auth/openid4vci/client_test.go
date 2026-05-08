@@ -150,6 +150,17 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		assert.Contains(t, err.Error(), "invalid issuer URL")
 	})
 
+	t.Run("rejects issuer URL with query or fragment per §12.2.1", func(t *testing.T) {
+		client := NewClient(http.DefaultClient, false)
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), "https://issuer.example/?foo=bar")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "query and fragment")
+
+		_, err = client.OpenIDCredentialIssuerMetadata(context.Background(), "https://issuer.example/#section")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "query and fragment")
+	})
+
 	t.Run("error on bad JSON body", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")

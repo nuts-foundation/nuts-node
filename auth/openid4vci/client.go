@@ -101,6 +101,11 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	if err := c.validateURL("issuer", issuerURL); err != nil {
 		return nil, err
 	}
+	// Per §12.2.1, the Credential Issuer Identifier MUST NOT contain query
+	// or fragment components.
+	if parsed, _ := url.Parse(issuerURL); parsed != nil && (parsed.RawQuery != "" || parsed.Fragment != "") {
+		return nil, fmt.Errorf("openid4vci: invalid issuer URL: query and fragment components are not allowed")
+	}
 	wellKnownURL, err := credentialIssuerWellKnown(issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
