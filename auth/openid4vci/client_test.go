@@ -116,6 +116,22 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		assert.Equal(t, "/.well-known/openid-credential-issuer/oauth2/alice", capturedPath)
 	})
 
+	t.Run("preserves percent-encoded path segments without double-escaping", func(t *testing.T) {
+		var capturedRawPath string
+		var srv *httptest.Server
+		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedRawPath = r.URL.EscapedPath()
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: srv.URL + "/foo%2Fbar"})
+		}))
+		defer srv.Close()
+
+		client := NewClient(srv.Client(), false)
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/foo%2Fbar")
+		require.NoError(t, err)
+		assert.Equal(t, "/.well-known/openid-credential-issuer/foo%2Fbar", capturedRawPath)
+	})
+
 	t.Run("rejects metadata when credential_issuer mismatches requested issuer", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")

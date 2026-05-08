@@ -234,6 +234,12 @@ func credentialIssuerWellKnown(issuerURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	u.Path = wellKnownPath + u.EscapedPath()
+	// Prepend the well-known segment to both Path (decoded) and RawPath
+	// (encoded) when the latter is set, so u.String() does not double-escape
+	// pre-encoded characters like %2F via EscapedPath's reescaping pass.
+	u.Path = wellKnownPath + u.Path
+	if u.RawPath != "" {
+		u.RawPath = wellKnownPath + u.RawPath
+	}
 	return u.String(), nil
 }
