@@ -31,6 +31,21 @@ const (
 	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
 )
 
+// AuthorizationDetail A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.
+// Only the fields used by the user/browser issuance flow are modeled.
+type AuthorizationDetail struct {
+	// CredentialConfigurationId References a credential configuration from the issuer's
+	// credential_configurations_supported metadata.
+	CredentialConfigurationId *string `json:"credential_configuration_id,omitempty"`
+
+	// Format Optional credential format hint (e.g. "vc+sd-jwt").
+	Format *string `json:"format,omitempty"`
+
+	// Type The authorization details type. For OpenID4VCI flows this is
+	// "openid_credential" per §5.1.1.
+	Type string `json:"type"`
+}
+
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {
 	// Htm The HTTP method for which the DPoP proof is requested.
@@ -218,7 +233,7 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
-	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
+	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.

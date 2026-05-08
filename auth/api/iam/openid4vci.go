@@ -81,8 +81,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	var credentialConfigID string
 	if len(request.Body.AuthorizationDetails) > 0 {
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-		if id, ok := request.Body.AuthorizationDetails[0]["credential_configuration_id"].(string); ok {
-			credentialConfigID = id
+		if id := request.Body.AuthorizationDetails[0].CredentialConfigurationId; id != nil {
+			credentialConfigID = *id
 		}
 	}
 	// Generate the state and PKCE

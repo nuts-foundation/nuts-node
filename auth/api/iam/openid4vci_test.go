@@ -58,7 +58,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
+				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", Format: to.Ptr("vc+sd-jwt")}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
 				WalletDid:            holderDID.String(),
