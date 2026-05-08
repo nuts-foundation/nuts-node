@@ -31,7 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"net/http"
 	"net/url"
 	"path"
 	"slices"
@@ -182,10 +181,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		// auth.http.config got deprecated in favor of httpclient.timeout
 		auth.httpClientTimeout = config.HTTPClient.Timeout
 	}
-	auth.openID4VCIClient = openid4vci.NewClient(&http.Client{
-		Transport: httpclient.DefaultCachingTransport,
-		Timeout:   auth.httpClientTimeout,
-	})
+	auth.openID4VCIClient = openid4vci.NewClient(httpclient.NewWithCache(auth.httpClientTimeout), auth.strictMode)
 	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,

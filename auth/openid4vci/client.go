@@ -26,6 +26,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2 for the
@@ -69,16 +71,36 @@ type Client interface {
 	RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error)
 }
 
-// NewClient returns a Client backed by the provided *http.Client.
-func NewClient(httpClient *http.Client) Client {
-	return &client{httpClient: httpClient}
+// NewClient returns a Client backed by the provided HTTP request doer.
+// In production callers should pass *httpclient.StrictHTTPClient so the
+// shared transport policies apply (HTTPS-in-strict, body size limit,
+// User-Agent header).
+//
+// When strictMode is true, target URLs are additionally validated via
+// core.ParsePublicURL: HTTPS scheme, no IP hosts, no reserved hostnames.
+func NewClient(httpClient core.HTTPRequestDoer, strictMode bool) Client {
+	return &client{httpClient: httpClient, strictMode: strictMode}
 }
 
 type client struct {
-	httpClient *http.Client
+	httpClient core.HTTPRequestDoer
+	strictMode bool
+}
+
+// validateURL guards against SSRF by rejecting target URLs that fail
+// core.ParsePublicURL (in strict mode: HTTPS only, no IP/reserved hosts).
+// Called at the entry of every method that makes outbound HTTP.
+func (c *client) validateURL(name, target string) error {
+	if _, err := core.ParsePublicURL(target, c.strictMode); err != nil {
+		return fmt.Errorf("openid4vci: invalid %s URL: %w", name, err)
+	}
+	return nil
 }
 
 func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL string) (*OpenIDCredentialIssuerMetadata, error) {
+	if err := c.validateURL("issuer", issuerURL); err != nil {
+		return nil, err
+	}
 	wellKnownURL, err := credentialIssuerWellKnown(issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
@@ -108,6 +130,9 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 }
 
 func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
+	if err := c.validateURL("nonce endpoint", nonceEndpoint); err != nil {
+		return "", err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nonceEndpoint, http.NoBody)
 	if err != nil {
 		return "", err
@@ -131,6 +156,9 @@ func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string
 }
 
 func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error) {
+	if err := c.validateURL("credential endpoint", opts.CredentialEndpoint); err != nil {
+		return nil, err
+	}
 	body := CredentialRequest{
 		Proofs: &CredentialRequestProofs{
 			JWT: []string{opts.ProofJWT},
