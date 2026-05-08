@@ -120,7 +120,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 	})
 	t.Run("error - empty authorization_details", func(t *testing.T) {
 		// Schema declares minItems: 1 but the StrictServer middleware does not
-		// enforce minItems at runtime; the handler must reject empty arrays
+		// enforce array bounds at runtime; the handler must reject empty arrays
 		// before any outbound metadata fetches.
 		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
 		req.Body.AuthorizationDetails = []AuthorizationDetail{}
@@ -130,7 +130,20 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
-		assert.ErrorContains(t, err, "authorization_details must contain at least one entry")
+		assert.ErrorContains(t, err, "must contain exactly one entry")
+	})
+	t.Run("error - multiple authorization_details", func(t *testing.T) {
+		// Schema declares maxItems: 1; same StrictServer gap as minItems.
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.AuthorizationDetails = []AuthorizationDetail{
+			{Type: "openid_credential", CredentialConfigurationId: "First"},
+			{Type: "openid_credential", CredentialConfigurationId: "Second"},
+		}
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		assert.ErrorContains(t, err, "must contain exactly one entry")
 	})
 	t.Run("error - invalid authorization endpoint in metadata", func(t *testing.T) {
 		ctx := newTestClient(t)

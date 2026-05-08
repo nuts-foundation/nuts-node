@@ -60,11 +60,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, core.InvalidInputError("issuer is empty")
 	}
 	// Per §5.1.1 the openid_credential authorization_details flow requires at
-	// least one entry. The OpenAPI schema documents this with minItems: 1, but
-	// the StrictServer middleware does not enforce minItems at runtime, so
-	// reject here before any outbound metadata fetches.
-	if len(request.Body.AuthorizationDetails) == 0 {
-		return nil, core.InvalidInputError("authorization_details must contain at least one entry")
+	// least one entry; the current implementation issues a single credential
+	// per call and only consumes the first entry. The OpenAPI schema declares
+	// both minItems: 1 and maxItems: 1, but the StrictServer middleware does
+	// not enforce array bounds at runtime, so reject here before any outbound
+	// metadata fetches.
+	if len(request.Body.AuthorizationDetails) != 1 {
+		return nil, core.InvalidInputError("authorization_details must contain exactly one entry")
 	}
 	// Fetch metadata containing the endpoints
 	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, request.Body.Issuer)

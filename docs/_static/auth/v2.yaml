@@ -165,8 +165,13 @@ paths:
                     used to locate the OAuth2 Authorization Server metadata.
                   example: did:web:issuer.example.com
                 authorization_details:
+                  description: |
+                    Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.
+                    The current implementation processes a single credential
+                    issuance per call and only consumes the first entry.
                   type: array
                   minItems: 1
+                  maxItems: 1
                   items:
                     $ref: '#/components/schemas/AuthorizationDetail'
                 redirect_uri:

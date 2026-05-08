@@ -237,6 +237,9 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
+	// AuthorizationDetails Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.
+	// The current implementation processes a single credential
+	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
