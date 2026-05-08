@@ -33,12 +33,18 @@ import (
 const wellKnownPath = "/.well-known/openid-credential-issuer"
 
 // RequestCredentialOpts carries all parameters for a Credential Request.
-// Using a struct means future spec fields (CredentialIdentifier,
-// CredentialResponseEncryption) are non-breaking additions.
+//
+// CredentialIdentifier and CredentialConfigurationID are mutually exclusive
+// per §8.2: when the Token Response carried authorization_details with
+// credential_identifiers, the wallet MUST set CredentialIdentifier (and
+// CredentialConfigurationID MUST NOT be present); otherwise the wallet sets
+// CredentialConfigurationID. If both are non-empty, CredentialIdentifier
+// takes precedence to enforce the spec rule.
 type RequestCredentialOpts struct {
 	CredentialEndpoint        string
 	AccessToken               string
 	CredentialConfigurationID string
+	CredentialIdentifier      string
 	ProofJWT                  string
 }
 
@@ -126,10 +132,16 @@ func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string
 
 func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error) {
 	body := CredentialRequest{
-		CredentialConfigurationID: opts.CredentialConfigurationID,
 		Proofs: &CredentialRequestProofs{
 			JWT: []string{opts.ProofJWT},
 		},
+	}
+	// Per §8.2: CredentialIdentifier and CredentialConfigurationID are mutually
+	// exclusive. CredentialIdentifier wins when set.
+	if opts.CredentialIdentifier != "" {
+		body.CredentialIdentifier = opts.CredentialIdentifier
+	} else {
+		body.CredentialConfigurationID = opts.CredentialConfigurationID
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {

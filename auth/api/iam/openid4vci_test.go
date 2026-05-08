@@ -323,6 +323,36 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "error fetching nonce for retry")
 	})
+	t.Run("ok - uses credential_identifier from token response authorization_details", func(t *testing.T) {
+		ctx := newTestClient(t)
+		// Per §3.3.4 / §8.2: when the AS returns authorization_details with
+		// credential_identifiers, the wallet MUST send credential_identifier
+		// in the Credential Request.
+		tokenResponseWithAuthDetails := (&oauth.TokenResponse{AccessToken: accessToken, TokenType: "Bearer"}).
+			With(oauth.AuthorizationDetailsParam, []map[string]interface{}{{
+				"type":                        "openid_credential",
+				"credential_configuration_id": credentialConfigID,
+				"credential_identifiers":      []string{"CivilEngineeringDegree-2023"},
+			}})
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponseWithAuthDetails, nil)
+		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
+		ctx.openid4vciClient.EXPECT().RequestCredential(nil, openid4vci.RequestCredentialOpts{
+			CredentialEndpoint:        credEndpoint,
+			AccessToken:               accessToken,
+			CredentialConfigurationID: credentialConfigID,
+			CredentialIdentifier:      "CivilEngineeringDegree-2023",
+			ProofJWT:                  "signed-proof",
+		}).Return(&credentialResponse, nil)
+		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
+		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
+
+		require.NoError(t, err)
+		require.NotNil(t, callback)
+	})
 	t.Run("error - initial nonce request fails", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)

@@ -148,6 +148,12 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
+	// Per §3.3.4 / §8.2: when the Token Response carries authorization_details
+	// with credential_identifiers, the Credential Request MUST use a
+	// credential_identifier (not credential_configuration_id). Falls back to
+	// "" if the AS did not return authorization_details.
+	credentialIdentifier := extractCredentialIdentifier(tokenResponse, oauthSession.IssuerCredentialConfigurationID)
+
 	// fetch nonce from the Nonce Endpoint (v1.0 Section 7)
 	var nonce string
 	if oauthSession.IssuerNonceEndpoint != "" {
@@ -158,7 +164,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}
 
 	// build proof and request credential
-	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 	if err != nil {
 		// Per OpenID4VCI 1.0 §8.3.1.2: on invalid_nonce the wallet retrieves a
 		// new c_nonce. Retrying once is local policy to bound recovery; a
@@ -169,7 +175,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 			if err != nil {
 				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
 			}
-			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
+			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 		}
 		if err != nil {
 			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
@@ -204,7 +210,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}, nil
 }
 
-func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, nonce string) (*openid4vci.CredentialResponse, error) {
+func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, credentialIdentifier string, nonce string) (*openid4vci.CredentialResponse, error) {
 	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, nonce)
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
@@ -213,8 +219,47 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 		CredentialEndpoint:        oauthSession.IssuerCredentialEndpoint,
 		AccessToken:               accessToken,
 		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
+		CredentialIdentifier:      credentialIdentifier,
 		ProofJWT:                  proofJWT,
 	})
+}
+
+// extractCredentialIdentifier reads authorization_details from the Token
+// Response and returns a credential_identifier matching the requested
+// configuration. Per OpenID4VCI 1.0 §3.3.4 / §8.2, when the AS returns
+// authorization_details with credential_identifiers, the wallet MUST use a
+// credential_identifier in the Credential Request. Returns "" when the
+// Token Response did not carry authorization_details (in which case the
+// wallet falls back to credential_configuration_id).
+func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) string {
+	raw, ok := tokenResponse.GetAny(oauth.AuthorizationDetailsParam)
+	if !ok {
+		return ""
+	}
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return ""
+	}
+	var details []struct {
+		Type                      string   `json:"type"`
+		CredentialConfigurationID string   `json:"credential_configuration_id"`
+		CredentialIdentifiers     []string `json:"credential_identifiers"`
+	}
+	if err := json.Unmarshal(bytes, &details); err != nil {
+		return ""
+	}
+	for _, d := range details {
+		if d.Type != "openid_credential" {
+			continue
+		}
+		if credentialConfigurationID != "" && d.CredentialConfigurationID != credentialConfigurationID {
+			continue
+		}
+		if len(d.CredentialIdentifiers) > 0 {
+			return d.CredentialIdentifiers[0]
+		}
+	}
+	return ""
 }
 
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {

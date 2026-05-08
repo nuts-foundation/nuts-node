@@ -194,6 +194,30 @@ func TestClient_RequestCredential(t *testing.T) {
 		assert.JSONEq(t, `"eyJhbGciOiJFUzI1NiJ9"`, string(resp.Credentials[0].Credential))
 	})
 
+	t.Run("uses credential_identifier when provided and omits credential_configuration_id", func(t *testing.T) {
+		var credReq CredentialRequest
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&credReq))
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(CredentialResponse{
+				Credentials: []CredentialResponseEntry{{Credential: json.RawMessage(`"vc"`)}},
+			})
+		}))
+		defer srv.Close()
+
+		client := NewClient(srv.Client())
+		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
+			CredentialEndpoint:        srv.URL,
+			AccessToken:               "t",
+			CredentialConfigurationID: "ignored-when-identifier-set",
+			CredentialIdentifier:      "CivilEngineeringDegree-2023",
+			ProofJWT:                  "p",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "CivilEngineeringDegree-2023", credReq.CredentialIdentifier)
+		assert.Empty(t, credReq.CredentialConfigurationID, "credential_configuration_id MUST NOT be present when credential_identifier is used (§8.2)")
+	})
+
 	t.Run("returns structured Error on invalid_nonce", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")

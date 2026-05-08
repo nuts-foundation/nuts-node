@@ -116,6 +116,17 @@ func (t TokenResponse) Get(key string) string {
 	return ""
 }
 
+// GetAny returns the value of the additional parameter with the given key, untyped.
+// Use this for structured extension parameters such as authorization_details (RFC 9396).
+// The boolean indicates whether the key was present.
+func (t TokenResponse) GetAny(key string) (interface{}, bool) {
+	if t.additionalParams == nil {
+		return nil, false
+	}
+	val, ok := t.additionalParams[key]
+	return val, ok
+}
+
 const (
 	// AccessTokenRequestStatusPending is the status for a pending access token
 	AccessTokenRequestStatusPending = "pending"
