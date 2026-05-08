@@ -93,6 +93,11 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
 		return nil, fmt.Errorf("openid4vci: decoding issuer metadata: %w", err)
 	}
+	// Per §12.2.4: the credential_issuer value MUST match the issuer identifier
+	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used.
+	if metadata.CredentialIssuer != issuerURL {
+		return nil, fmt.Errorf("openid4vci: credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
+	}
 	return &metadata, nil
 }
 

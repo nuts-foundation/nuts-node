@@ -77,14 +77,15 @@ func TestClient_RequestNonce(t *testing.T) {
 
 func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 	t.Run("fetches and parses metadata from well-known path", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var srv *httptest.Server
+		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/.well-known/openid-credential-issuer", r.URL.Path)
 			assert.Equal(t, http.MethodGet, r.Method)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{
-				CredentialIssuer:   "https://issuer.example.com",
-				CredentialEndpoint: "https://issuer.example.com/credential",
-				NonceEndpoint:      "https://issuer.example.com/nonce",
+				CredentialIssuer:   srv.URL,
+				CredentialEndpoint: srv.URL + "/credential",
+				NonceEndpoint:      srv.URL + "/nonce",
 			})
 		}))
 		defer srv.Close()
@@ -93,17 +94,18 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		metadata, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
-		assert.Equal(t, "https://issuer.example.com", metadata.CredentialIssuer)
-		assert.Equal(t, "https://issuer.example.com/credential", metadata.CredentialEndpoint)
-		assert.Equal(t, "https://issuer.example.com/nonce", metadata.NonceEndpoint)
+		assert.Equal(t, srv.URL, metadata.CredentialIssuer)
+		assert.Equal(t, srv.URL+"/credential", metadata.CredentialEndpoint)
+		assert.Equal(t, srv.URL+"/nonce", metadata.NonceEndpoint)
 	})
 
 	t.Run("appends issuer path after well-known segment per RFC 8615", func(t *testing.T) {
 		var capturedPath string
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var srv *httptest.Server
+		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			capturedPath = r.URL.Path
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: "x"})
+			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: srv.URL + "/oauth2/alice"})
 		}))
 		defer srv.Close()
 
@@ -111,6 +113,22 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.NoError(t, err)
 		assert.Equal(t, "/.well-known/openid-credential-issuer/oauth2/alice", capturedPath)
+	})
+
+	t.Run("rejects metadata when credential_issuer mismatches requested issuer", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{
+				CredentialIssuer: "https://attacker.example/",
+			})
+		}))
+		defer srv.Close()
+
+		client := NewClient(srv.Client())
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "credential_issuer")
+		assert.Contains(t, err.Error(), "does not match")
 	})
 
 	t.Run("error on non-2xx", func(t *testing.T) {
