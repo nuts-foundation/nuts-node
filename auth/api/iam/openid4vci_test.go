@@ -118,6 +118,20 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 		assert.EqualError(t, err, "issuer is empty")
 	})
+	t.Run("error - empty authorization_details", func(t *testing.T) {
+		// Schema declares minItems: 1 but the StrictServer middleware does not
+		// enforce minItems at runtime; the handler must reject empty arrays
+		// before any outbound metadata fetches.
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.AuthorizationDetails = []AuthorizationDetail{}
+		ctx := newTestClient(t)
+		// Deliberately no mock expectations: rejection must happen before
+		// metadata is fetched.
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		assert.ErrorContains(t, err, "authorization_details must contain at least one entry")
+	})
 	t.Run("error - invalid authorization endpoint in metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
@@ -165,9 +179,10 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 	return RequestOpenid4VCICredentialIssuanceRequestObject{
 		SubjectID: subjectID,
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-			Issuer:      issuer,
-			RedirectUri: redirectURI,
-			WalletDid:   holderDID.String(),
+			AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential"}},
+			Issuer:               issuer,
+			RedirectUri:          redirectURI,
+			WalletDid:            holderDID.String(),
 		},
 	}
 }

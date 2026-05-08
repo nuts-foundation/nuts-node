@@ -59,6 +59,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if issuer == "" {
 		return nil, core.InvalidInputError("issuer is empty")
 	}
+	// Per §5.1.1 the openid_credential authorization_details flow requires at
+	// least one entry. The OpenAPI schema documents this with minItems: 1, but
+	// the StrictServer middleware does not enforce minItems at runtime, so
+	// reject here before any outbound metadata fetches.
+	if len(request.Body.AuthorizationDetails) == 0 {
+		return nil, core.InvalidInputError("authorization_details must contain at least one entry")
+	}
 	// Fetch metadata containing the endpoints
 	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, request.Body.Issuer)
 	if err != nil {
@@ -76,15 +83,12 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Read and parse the authorization details. Per §5.1.1, type and
-	// credential_configuration_id are required for the openid_credential
-	// authorization_details flow; the OpenAPI schema enforces both.
-	authorizationDetails := []byte("[]")
-	var credentialConfigID string
-	if len(request.Body.AuthorizationDetails) > 0 {
-		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-		credentialConfigID = request.Body.AuthorizationDetails[0].CredentialConfigurationId
-	}
+	// Per §5.1.1, type and credential_configuration_id are required on each
+	// openid_credential authorization_details entry; the OpenAPI schema
+	// enforces both. Non-emptiness was checked above before any outbound
+	// metadata fetches.
+	authorizationDetails, _ := json.Marshal(request.Body.AuthorizationDetails)
+	credentialConfigID := request.Body.AuthorizationDetails[0].CredentialConfigurationId
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
