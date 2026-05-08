@@ -48,7 +48,7 @@ const ConfAccessTokenLifeSpan = "auth.accesstokenlifespan"
 const ConfAuthEndpointEnabled = "auth.authorizationendpoint.enabled"
 
 // ConfExperimentalJwtBearerClient toggles the RFC 7523 jwt-bearer two-VP token request flow.
-const ConfExperimentalJwtBearerClient = "auth.experimental.jwt_bearer_client"
+const ConfExperimentalJwtBearerClient = "auth.experimental.jwtbearerclient"
 
 // FlagSet returns the configuration flags supported by this module.
 func FlagSet() *pflag.FlagSet {

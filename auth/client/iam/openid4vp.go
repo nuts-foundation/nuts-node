@@ -256,7 +256,7 @@ func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientI
 	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.UnsupportedGrantType,
-			Description: "jwt-bearer two-VP flow requires auth.experimental.jwt_bearer_client = true",
+			Description: "jwt-bearer two-VP flow requires auth.experimental.jwtbearerclient = true",
 		}
 	}
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)

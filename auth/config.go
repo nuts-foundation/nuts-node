@@ -40,7 +40,7 @@ type Config struct {
 type ExperimentalConfig struct {
 	// JwtBearerClient enables the RFC 7523 jwt-bearer two-VP token request flow.
 	// While disabled (the default), requests carrying a service-provider subject identifier are rejected.
-	JwtBearerClient bool `koanf:"jwt_bearer_client"`
+	JwtBearerClient bool `koanf:"jwtbearerclient"`
 }
 
 type AuthorizationEndpointConfig struct {
