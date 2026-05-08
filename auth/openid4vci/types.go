@@ -35,7 +35,7 @@ import (
 )
 
 // JWTTypeOpenID4VCIProof is the JWT typ claim value used in OpenID4VCI key
-// proofs (Section 8.2.1.1).
+// proofs (Appendix F.1).
 const JWTTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
 // OpenIDCredentialIssuerMetadata describes the OpenID4VCI Credential Issuer
@@ -70,7 +70,8 @@ type CredentialRequest struct {
 }
 
 // CredentialRequestProofs carries one or more key proofs in a Credential
-// Request (Section 8.2.1).
+// Request (the proofs parameter defined in Section 8.2; proof type formats
+// are listed in Appendix F).
 type CredentialRequestProofs struct {
 	JWT []string `json:"jwt,omitempty"`
 }
@@ -80,9 +81,10 @@ type CredentialRequestProofs struct {
 //
 // TransactionID, Interval, and NotificationID are present for forward
 // compatibility (deferred issuance via HTTP 202 with a transaction id, and
-// notification ids per §10). The auth-side flow today consumes only
-// Credentials; the other fields are populated when the issuer sends them
-// so they are available without a wire-format change later.
+// notification ids consumed by the Notification Endpoint in §11). The
+// auth-side flow today consumes only Credentials; the other fields are
+// populated when the issuer sends them so they are available without a
+// wire-format change later.
 type CredentialResponse struct {
 	Credentials    []CredentialResponseEntry `json:"credentials,omitempty"`
 	TransactionID  string                    `json:"transaction_id,omitempty"`

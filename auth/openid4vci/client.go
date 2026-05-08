@@ -31,8 +31,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
-// wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2 for the
-// Credential Issuer Metadata document.
+// wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2.2 for
+// retrieving the Credential Issuer Metadata document.
 const wellKnownPath = "/.well-known/openid-credential-issuer"
 
 // RequestCredentialOpts carries all parameters for a Credential Request.

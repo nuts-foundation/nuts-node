@@ -37,7 +37,7 @@ const (
 	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
 )
 
-// AuthorizationDetail A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.
+// AuthorizationDetail A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
 // Only the fields used by the user/browser issuance flow are modeled.
 type AuthorizationDetail struct {
 	// CredentialConfigurationId References a credential configuration from the issuer's
@@ -237,7 +237,7 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
-	// AuthorizationDetails Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.
+	// AuthorizationDetails Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
 	// The current implementation processes a single credential
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
