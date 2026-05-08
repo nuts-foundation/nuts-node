@@ -56,7 +56,9 @@ type Client interface {
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
+	// credentialDetails is an optional caller-supplied JSON object that is used as the base body of the
+	// request; the node-built JWT proof is overlaid on top.
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string, credentialDetails map[string]any) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.
 	RequestObjectByGet(ctx context.Context, requestURI string) (string, error)

@@ -78,6 +78,36 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, `[{"format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
 		println(redirectUri.String())
 	})
+	t.Run("ok - credential_details persisted into session", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.iamClient.EXPECT().OpenIdCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+		details := map[string]interface{}{
+			"credential_identifier": "HealthCareProfessionalDelegationCredential",
+			"bsn":                   "900184590",
+			"ura":                   "900030757",
+		}
+
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
+			SubjectID: holderSubjectID,
+			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
+				AuthorizationDetails: []map[string]interface{}{{"type": "openid_credential", "format": "vc+sd-jwt"}},
+				CredentialDetails:    &details,
+				Issuer:               issuerClientID,
+				RedirectUri:          redirectURI,
+				WalletDid:            holderDID.String(),
+			},
+		})
+
+		require.NoError(t, err)
+		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		require.NoError(t, err)
+		state := redirectUri.Query().Get("state")
+		require.NotEmpty(t, state)
+		var stored OAuthSession
+		require.NoError(t, ctx.client.oauthClientStateStore().Get(state, &stored))
+		assert.Equal(t, details, stored.CredentialRequestDetails)
+	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -221,7 +251,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 			assert.Equal(t, expectedClaims, claims)
 			return "signed-proof", nil
 		})
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof", gomock.Nil()).Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
@@ -238,6 +268,34 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		actual := callback.(Callback302Response)
 		assert.Equal(t, redirectUrl, actual.Headers.Location)
 	})
+	t.Run("ok - credential_details from session forwarded to credential endpoint", func(t *testing.T) {
+		ctx := newTestClient(t)
+		details := map[string]any{
+			"credential_identifier": "HealthCareProfessionalDelegationCredential",
+			"bsn":                   "900184590",
+			"ura":                   "900030757",
+		}
+		sessionWithDetails := session
+		sessionWithDetails.CredentialRequestDetails = details
+		require.NoError(t, ctx.client.oauthClientStateStore().Put(state, &sessionWithDetails))
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof", details).Return(&credentialResponse, nil)
+		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
+		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+
+		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
+			SubjectID: holderSubjectID,
+			Params: CallbackParams{
+				Code:  to.Ptr(code),
+				State: to.Ptr(state),
+			},
+		})
+
+		require.NoError(t, err)
+		assert.NotNil(t, callback)
+	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(nil, errors.New("FAIL"))
@@ -253,7 +311,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(nil, errors.New("FAIL"))
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof", gomock.Nil()).Return(nil, errors.New("FAIL"))
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
@@ -265,7 +323,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&iam.CredentialResponse{
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof", gomock.Nil()).Return(&iam.CredentialResponse{
 			Credential: "super invalid",
 		}, nil)
 
@@ -279,7 +337,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
-		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&credentialResponse, nil)
+		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof", gomock.Nil()).Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil).Return(errors.New("FAIL"))
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)

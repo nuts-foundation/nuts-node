@@ -488,6 +488,61 @@ func TestHTTPClient_doGet(t *testing.T) {
 	})
 }
 
+func TestHTTPClient_VerifiableCredentials_RequestBody(t *testing.T) {
+	ctx := context.Background()
+	credentialResponse := CredentialResponse{Credential: "credential"}
+	const proofJWT = "signed-proof"
+
+	t.Run("default - body contains only proof", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: credentialResponse}
+		tlsServer, client := testServerAndClient(t, &handler)
+
+		_, err := client.VerifiableCredentials(ctx, tlsServer.URL, "access-token", proofJWT, nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, "Bearer access-token", handler.RequestHeaders.Get("Authorization"))
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(handler.RequestData, &body))
+		assert.Len(t, body, 1)
+		assert.Equal(t, map[string]any{"proof_type": "jwt", "jwt": proofJWT}, body["proof"])
+	})
+	t.Run("credential_details passthrough - AET wire format", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: credentialResponse}
+		tlsServer, client := testServerAndClient(t, &handler)
+		details := map[string]any{
+			"credential_identifier": "HealthCareProfessionalDelegationCredential",
+			"did":                   "did:web:example.com:iam:holder",
+			"bsn":                   "900184590",
+			"ura":                   "900030757",
+		}
+
+		_, err := client.VerifiableCredentials(ctx, tlsServer.URL, "access-token", proofJWT, details)
+
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(handler.RequestData, &body))
+		assert.Equal(t, "HealthCareProfessionalDelegationCredential", body["credential_identifier"])
+		assert.Equal(t, "did:web:example.com:iam:holder", body["did"])
+		assert.Equal(t, "900184590", body["bsn"])
+		assert.Equal(t, "900030757", body["ura"])
+		assert.Equal(t, map[string]any{"proof_type": "jwt", "jwt": proofJWT}, body["proof"])
+	})
+	t.Run("caller-supplied proof is overwritten by the node-built proof", func(t *testing.T) {
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: credentialResponse}
+		tlsServer, client := testServerAndClient(t, &handler)
+		details := map[string]any{
+			"proof": map[string]any{"proof_type": "jwt", "jwt": "caller-supplied-proof"},
+		}
+
+		_, err := client.VerifiableCredentials(ctx, tlsServer.URL, "access-token", proofJWT, details)
+
+		require.NoError(t, err)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(handler.RequestData, &body))
+		assert.Equal(t, map[string]any{"proof_type": "jwt", "jwt": proofJWT}, body["proof"])
+	})
+}
+
 func newTestKeyResolver() resolver.KeyResolver {
 	return testKeyResolver{
 		kid: uuid.NewString(),

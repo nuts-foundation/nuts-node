@@ -55,6 +55,10 @@ type OAuthSession struct {
 	UseDPoP   bool   `json:"use_dpop,omitempty"`
 	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
+	// CredentialRequestDetails is an optional JSON object provided by the API caller that is forwarded verbatim
+	// as the base body of the OpenID4VCI Credential Request. The node overlays its own JWT proof on top.
+	// Contents are opaque and may contain PII; do not log this field.
+	CredentialRequestDetails map[string]any `json:"credential_request_details,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

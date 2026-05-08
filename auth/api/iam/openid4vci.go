@@ -84,6 +84,11 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if len(request.Body.AuthorizationDetails) > 0 {
 		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
 	}
+	// Capture optional credential_details, used as the base body of the Credential Request later in the flow.
+	var credentialRequestDetails map[string]any
+	if request.Body.CredentialDetails != nil {
+		credentialRequestDetails = *request.Body.CredentialDetails
+	}
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
@@ -103,6 +108,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
 		IssuerURL:                authzServerMetadata.Issuer,
 		IssuerCredentialEndpoint: credentialIssuerMetadata.CredentialEndpoint,
+		CredentialRequestDetails: credentialRequestDetails,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -152,7 +158,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, response.AccessToken, proofJWT)
+	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, response.AccessToken, proofJWT, oauthSession.CredentialRequestDetails)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
 	}

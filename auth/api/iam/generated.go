@@ -106,7 +106,7 @@ type ExtendedTokenIntrospectionResponse struct {
 	// PresentationSubmissions Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
 	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
-	// Scope granted scopes
+	// Scope Granted scopes, as a space-separated list.
 	Scope                *string                   `json:"scope,omitempty"`
 	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
 	AdditionalProperties map[string]interface{}    `json:"-"`
@@ -135,12 +135,15 @@ type ServiceAccessTokenRequest struct {
 	AuthorizationServer string `json:"authorization_server"`
 
 	// CredentialSelection Optional key-value mapping for credential selection when the wallet contains multiple
-	// credentials matching a single input descriptor. Each key must match a field id declared
+	// credentials matching a single input descriptor. Each key must match a field ID declared
 	// in the Presentation Definition's input descriptor constraints. The value narrows the
 	// match to credentials where that field equals the given value.
 	//
 	// The selection must narrow to exactly one credential per input descriptor.
 	// Zero matches or multiple matches will result in an error.
+	//
+	// When omitted and multiple credentials match an input descriptor,
+	// the first matching credential is used.
 	CredentialSelection *map[string]string `json:"credential_selection,omitempty"`
 
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
@@ -208,7 +211,7 @@ type UserAccessTokenRequestTokenType string
 
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
-	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
+	// Id Machine-readable identifier, uniquely identifying the user in the issuing system. The format is not specified; it could be a username, email address, employee number, etc.
 	Id string `json:"id"`
 
 	// Name Human-readable name of the user.
@@ -227,6 +230,15 @@ type Cnf struct {
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
+
+	// CredentialDetails EXPERIMENTAL. Optional JSON object used as the base body of the OpenID4VCI Credential Request sent
+	// to the issuer's credential endpoint. The node forwards these fields verbatim and overlays its own
+	// JWT proof on top (any caller-supplied "proof" value is overwritten). Use this to support issuers
+	// that accept additional, non-spec-defined fields in the Credential Request body.
+	//
+	// Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
+	// credential_details.
+	CredentialDetails *map[string]interface{} `json:"credential_details,omitempty"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.
