@@ -67,7 +67,7 @@ func TestSignJWT(t *testing.T) {
 
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
-		})
+		}, nil, nil)
 
 		require.NoError(t, err)
 
@@ -91,7 +91,7 @@ func TestSignJWT(t *testing.T) {
 
 				token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 					return ecKey.Public(), nil
-				})
+				}, nil, nil)
 
 				require.NoError(t, err)
 				assert.Equal(t, "nuts", token.Issuer())
@@ -127,12 +127,13 @@ func TestParseJWT(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
-		})
+		}, nil, nil)
 		assert.Nil(t, parsedToken)
 		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
 	})
 
-	t.Run("allow clock skew", func(t *testing.T) {
+	t.Run("allow clock skew (default DefaultJWTClockSkew)", func(t *testing.T) {
+		// iat 4s in the future is tolerated because ParseJWT applies DefaultJWTClockSkew (5s).
 		ecKey := test.GenerateECKey()
 		token := jwt.New()
 		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4*time.Second).Unix())
@@ -140,10 +141,23 @@ func TestParseJWT(t *testing.T) {
 		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, ecKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
-		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
+		}, nil, nil)
 		require.NoError(t, err)
 
 		assert.NotNil(t, parsedToken)
+	})
+
+	t.Run("profile ClockSkew overrides default", func(t *testing.T) {
+		// iat 4s in the future is rejected when the profile sets a tighter 1s skew.
+		ecKey := test.GenerateECKey()
+		token := jwt.New()
+		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4*time.Second).Unix())
+		assert.NoError(t, err)
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, ecKey))
+		_, err = ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
+			return ecKey.Public(), nil
+		}, (&JWTProfile{}).WithClockSkew(1*time.Second), nil)
+		assert.ErrorContains(t, err, `"iat" not satisfied`)
 	})
 
 	t.Run("invalid signature", func(t *testing.T) {
@@ -154,7 +168,7 @@ func TestParseJWT(t *testing.T) {
 
 		parsedToken, err := ParseJWT(string(validToken), func(_ string) (crypto.PublicKey, error) {
 			return attackerKey.Public(), nil
-		})
+		}, nil, nil)
 
 		assert.Nil(t, parsedToken)
 		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
@@ -176,7 +190,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			actualKID = kid
 			return pubKey, nil
-		})
+		}, nil, nil)
 
 		require.NoError(t, err)
 
@@ -201,7 +215,7 @@ func TestCrypto_SignJWT(t *testing.T) {
 		token, err := ParseJWT(tokenString, func(kid string) (crypto.PublicKey, error) {
 			actualKID = kid
 			return key.Public(), nil
-		})
+		}, nil, nil)
 
 		require.NoError(t, err)
 

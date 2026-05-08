@@ -197,19 +197,17 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, fmt.Errorf("failed to call endpoint: %w", err)
 	}
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		// check for oauth error
-		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
-			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
-			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
-			return token, err
+		httpErr, ok := errors.AsType[core.HttpError](err)
+		if ok && strings.Contains(response.Header.Get("Content-Type"), "application/json") {
+			// If the response is JSON and looks like an OAuth error, return it as such (regardless of status code).
+			oauthError := oauth.OAuth2Error{}
+			if jsonErr := json.Unmarshal(httpErr.ResponseBody, &oauthError); jsonErr == nil && oauthError.Code != "" {
+				return token, oauth.RemoteOAuthError{Cause: oauthError}
+			}
 		}
-		httpErr := err.(core.HttpError)
-		oauthError := oauth.OAuth2Error{}
-		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
-			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
-		}
-
-		return token, oauth.RemoteOAuthError{Cause: oauthError}
+		// Not an OAuth error, the response body could contain a lot of stuff. We'll log and return the entire error
+		log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+		return token, err
 	}
 
 	// TODO: Remove this when Itzos fixed their Token Response
