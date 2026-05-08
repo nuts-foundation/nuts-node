@@ -160,7 +160,9 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	// build proof and request credential
 	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, nonce)
 	if err != nil {
-		// on invalid_nonce: fetch a fresh nonce and retry once
+		// Per OpenID4VCI 1.0 §8.3.1.2: on invalid_nonce the wallet retrieves a
+		// new c_nonce. Retrying once is local policy to bound recovery; a
+		// second invalid_nonce surfaces as a generic ServerError below.
 		var oidcErr openid4vci.Error
 		if errors.As(err, &oidcErr) && oidcErr.Code == openid4vci.InvalidNonce && oauthSession.IssuerNonceEndpoint != "" {
 			nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
