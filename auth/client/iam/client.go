@@ -371,6 +371,31 @@ type CredentialResponse struct {
 	Credential string `json:"credential"`
 }
 
+// UnmarshalJSON accepts both the OpenID4VCI 1.0 response shape (an array of
+// objects under "credentials") and the pre-1.0 draft shape (a single
+// "credential" string). When the 1.0 shape is used, the first entry's
+// credential is taken; additional entries are logged and discarded.
+func (c *CredentialResponse) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Credential  string `json:"credential"`
+		Credentials []struct {
+			Credential string `json:"credential"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if len(raw.Credentials) > 0 {
+		c.Credential = raw.Credentials[0].Credential
+		if len(raw.Credentials) > 1 {
+			log.Logger().Warnf("OpenID4VCI 1.0 credential response contained %d credentials, only the first is used", len(raw.Credentials))
+		}
+		return nil
+	}
+	c.Credential = raw.Credential
+	return nil
+}
+
 // VerifiableCredentials posts an OpenID4VCI Credential Request to credentialEndpoint and returns the response.
 // credentialDetails is an optional caller-supplied JSON object that is used as the base body of the request;
 // the node-built JWT proof is overlaid on top, overwriting any caller-supplied "proof" value.

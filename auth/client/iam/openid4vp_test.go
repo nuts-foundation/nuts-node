@@ -783,6 +783,20 @@ func TestIAMClient_VerifiableCredentials(t *testing.T) {
 		require.NotNil(t, response)
 		assert.Equal(t, "credential", response.Credential)
 	})
+	t.Run("ok - OpenID4VCI 1.0 array response", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.credentials = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"credentials": [{"credential": "credential"}]}`))
+		}
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "credential", response.Credential)
+	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
