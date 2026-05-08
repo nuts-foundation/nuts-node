@@ -43,6 +43,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
@@ -61,11 +62,12 @@ type OpenID4VPClient struct {
 	wallet           holder.Wallet
 	ldDocumentLoader ld.DocumentLoader
 	subjectManager   didsubject.Manager
+	policyBackend    policy.PDPBackend
 }
 
 // NewClient returns an implementation of Holder
 func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
+	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
 	return &OpenID4VPClient{
 		httpClient: HTTPClient{
 			strictMode:  strictMode,
@@ -78,6 +80,7 @@ func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectMa
 		subjectManager:   subjectManager,
 		strictMode:       strictMode,
 		wallet:           wallet,
+		policyBackend:    policyBackend,
 	}
 }
 
@@ -236,24 +239,44 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 }
 
 func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
+	policyId string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// get the presentation definition from the verifier
-	parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
-	if err != nil {
-		return nil, err
+	// if no policyId is provided, use the scopes as policyId
+	if policyId == "" {
+		policyId = scopes
 	}
-	presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-		"scope": scopes,
-	})
-	presentationDefinition, err := c.PresentationDefinition(ctx, presentationDefinitionURL.String())
-	if err != nil {
+	// LSPxNuts: get the presentation definition from local definitions, if available
+	var presentationDefinition *pe.PresentationDefinition
+	presentationDefinitionMap, err := c.policyBackend.PresentationDefinitions(ctx, policyId)
+	if errors.Is(err, policy.ErrNotFound) {
+		// not found locally, get from verifier
+		// get the presentation definition from the verifier
+		parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
+		if err != nil {
+			return nil, err
+		}
+		presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
+			"scope": policyId,
+		})
+		presentationDefinition, err = c.PresentationDefinition(ctx, presentationDefinitionURL.String())
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
 		return nil, err
+	} else {
+		// found locally
+		if len(presentationDefinitionMap) != 1 {
+			return nil, fmt.Errorf("expected exactly one presentation definition for policy/scope '%s', found %d", policyId, len(presentationDefinitionMap))
+		}
+		for _, pd := range presentationDefinitionMap {
+			presentationDefinition = &pd
+		}
 	}
 
 	params := holder.BuildParams{
@@ -310,10 +333,21 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID)
-	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
-	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, scopes)
+	// Prefer VP token grant type (Nuts RFC021) when the server supports it, backwards compatibility
+	switch {
+	case slices.Contains(metadata.GrantTypesSupported, oauth.VpTokenGrantType):
+		data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
+		data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
+	case slices.Contains(metadata.GrantTypesSupported, oauth.JWTBearerGrantType):
+		// use JWT bearer grant type (e.g. authenticating at LSP GtK)
+		data.Set(oauth.GrantTypeParam, oauth.JWTBearerGrantType)
+	default:
+		// Fallback to vp_bearer-token for backwards compatibility
+		data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
+		data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
+	}
 
 	// create DPoP header
 	var dpopHeader string
@@ -356,9 +390,9 @@ func (c *OpenID4VPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oa
 	return rsp, nil
 }
 
-func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error) {
+func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string, credentialDetails map[string]any) (*CredentialResponse, error) {
 	iamClient := c.httpClient
-	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT)
+	rsp, err := iamClient.VerifiableCredentials(ctx, credentialEndpoint, accessToken, proofJWT, credentialDetails)
 	if err != nil {
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}

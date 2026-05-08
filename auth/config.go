@@ -19,6 +19,7 @@
 package auth
 
 import (
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
 	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
@@ -32,6 +33,9 @@ type Config struct {
 	ContractValidators    []string                    `koanf:"contractvalidators"`
 	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
 	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	// GrantTypes lists OAuth2 grant types the Authorization Server supports.
+	// They will be advertised on the Authorization Server Metadata and be checked when an access token request comes in.
+	GrantTypes []string `koanf:"granttypes"`
 }
 
 type AuthorizationEndpointConfig struct {
@@ -69,5 +73,10 @@ func DefaultConfig() Config {
 			selfsigned.ContractFormat,
 		},
 		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
+		GrantTypes: []string{
+			oauth.AuthorizationCodeGrantType,
+			oauth.VpTokenGrantType,
+			oauth.JWTBearerGrantType,
+		},
 	}
 }

@@ -19,10 +19,11 @@
 package auth
 
 import (
+	"net/url"
+
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"net/url"
 )
 
 // ModuleName contains the name of this module
@@ -44,4 +45,6 @@ type AuthenticationServices interface {
 	AuthorizationEndpointEnabled() bool
 	// SupportedDIDMethods lists the DID methods the Nuts node can resolve.
 	SupportedDIDMethods() []string
+	// GrantTypes lists the OAuth2 grant types that the Authorization Server supports and has enabled.
+	GrantTypes() []string
 }

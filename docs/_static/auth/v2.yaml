@@ -178,6 +178,24 @@ paths:
                         "credential_configuration_id": "UniversityDegreeCredential"
                       }
                     ]
+                credential_details:
+                  type: object
+                  additionalProperties: true
+                  description: |
+                    EXPERIMENTAL. Optional JSON object used as the base body of the OpenID4VCI Credential Request sent
+                    to the issuer's credential endpoint. The node forwards these fields verbatim and overlays its own
+                    JWT proof on top (any caller-supplied "proof" value is overwritten). Use this to support issuers
+                    that accept additional, non-spec-defined fields in the Credential Request body.
+
+                    Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
+                    credential_details.
+                  example: |
+                    {
+                      "credential_identifier": "HealthCareProfessionalDelegationCredential",
+                      "did": "did:web:nuts.example.com:iam:d8e49bf4-9b89-42b5-bd5f-05b720eb1e74",
+                      "bsn": "900184590",
+                      "ura": "900030757"
+                    }
                 redirect_uri:
                   type: string
                   description: |
@@ -460,10 +478,23 @@ components:
             used to locate the OAuth2 Authorization Server metadata.
           type: string
           example: https://example.com/oauth2
+        policy_id:
+          type: string
+          description: |
+            (Optional) The ID of the policy to use when requesting the access token.
+            If set the presentation definition is resolved from the policy with this ID.
+            This allows you to specify scopes that don't resolve to a presentation definition automatically.
+            If not set, the scope is used to resolve the presentation definition.
         scope:
           type: string
           description: The scope that will be the service for which this access token can be used.
           example: eOverdracht-sender
+        id_token:
+          type: string
+          description: |
+            An optional ID Token (JWT) that represents the end-user.
+            This ID token is included in the Verifiable Presentation that is used to request the access token.
+            It currently only supports Dezi ID tokens.
         credentials:
           type: array
           description: |

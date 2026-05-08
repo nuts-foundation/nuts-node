@@ -19,11 +19,12 @@
 package cmd
 
 import (
+	"sort"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/stretchr/testify/require"
-	"sort"
-	"testing"
 
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +47,7 @@ func TestFlagSet(t *testing.T) {
 		ConfAuthEndpointEnabled,
 		ConfClockSkew,
 		ConfContractValidators,
+		ConfGrantTypes,
 		ConfHTTPTimeout,
 		ConfAutoUpdateIrmaSchemas,
 		ConfIrmaCorsOrigin,

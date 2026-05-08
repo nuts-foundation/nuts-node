@@ -191,7 +191,7 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	gopkg.in/Regis24GmbH/go-diacritics.v2 v2.0.3 // indirect
-	gorm.io/gorm v1.31.1
+	gorm.io/gorm v1.30.2
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.48.2

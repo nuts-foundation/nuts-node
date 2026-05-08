@@ -34,6 +34,8 @@ paths:
                 client_id:
                   type: string
                   example: "did:web:example.com"
+                client_assertion:
+                  type: string
                 assertion:
                   type: string
                   example: "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."

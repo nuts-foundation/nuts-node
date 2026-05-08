@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -46,7 +47,7 @@ type Client interface {
 	// RequestRFC021AccessToken is called by the local EHR node to request an access token from a remote OAuth2 Authorization Server using Nuts RFC021.
 	// credentials are additional VCs to include alongside wallet-stored credentials.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
-	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, useDPoP bool,
+	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, policyId string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
 
 	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
@@ -55,7 +56,9 @@ type Client interface {
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
+	// credentialDetails is an optional caller-supplied JSON object that is used as the base body of the
+	// request; the node-built JWT proof is overlaid on top.
+	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string, credentialDetails map[string]any) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.
 	RequestObjectByGet(ctx context.Context, requestURI string) (string, error)

@@ -19,9 +19,11 @@
 package auth
 
 import (
+	"testing"
+
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"testing"
 
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/pki"
@@ -44,5 +46,5 @@ func testInstance(t *testing.T, cfg Config) *Auth {
 	vdrInstance := vdr.NewMockVDR(ctrl)
 	vdrInstance.EXPECT().Resolver().AnyTimes()
 	subjectManager := didsubject.NewMockManager(ctrl)
-	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock)
+	return NewAuthInstance(cfg, vdrInstance, subjectManager, vcrInstance, cryptoInstance, nil, nil, pkiMock, policy.NewMockPDPBackend(ctrl))
 }

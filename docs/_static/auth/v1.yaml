@@ -503,45 +503,8 @@ components:
     #
     # Everything related to JWT Grants
     #
-    CreateJwtGrantRequest:
-      description: Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
-      required:
-        - authorizer
-        - requester
-        - service
-        - credentials
-      properties:
-        authorizer:
-          type: string
-        requester:
-          type: string
-        identity:
-          $ref: "#/components/schemas/VerifiablePresentation"
-        service:
-          type: string
-          description: The service for which this access token can be used. The right oauth endpoint is selected based on the service.
-          example: nuts-patient-transfer
-        credentials:
-          type: array
-          items:
-            $ref: '#/components/schemas/VerifiableCredential'
-    JwtGrantResponse:
-      description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
-      required:
-        - bearer_token
-        - authorization_server_endpoint
-      properties:
-        bearer_token:
-          type: string
-        authorization_server_endpoint:
-          description: The URL that corresponds to the oauth endpoint of the selected service.
-          type: string
-
-    #
-    # Everything related to Access Tokens
-    #
-    RequestAccessTokenRequest:
-      description: Request for a JWT Grant and use it as authorization grant to get the access token from the authorizer
+    JwtGrantBaseRequest:
+      description: Common fields shared by CreateJwtGrantRequest and RequestAccessTokenRequest.
       required:
         - authorizer
         - requester
@@ -558,11 +521,47 @@ components:
           type: string
           description: The service for which this access token can be used. The right oauth endpoint is selected based on the service.
           example: nuts-patient-transfer
+        authorization_server_endpoint:
+          type: string
+          format: uri
+          description: |
+            Optional. OAuth token endpoint URL of the authorizer (RFC 8414 `token_endpoint`).
+            When provided, this URL is used directly as the JWT `aud` claim, bypassing the
+            compound-service lookup on the authorizer's DID document. `service` remains
+            required and is still used as the `purposeOfUse` JWT claim. Intended for
+            clients that discover the endpoint out-of-band (e.g. via FHIR mCSD).
+          example: https://as.example.nl/ura/12345678/token
         credentials:
           description: Verifiable Credentials to be included in the access token. If no VCs are to be included in the access token, the array can be left empty.
           type: array
           items:
             $ref: '#/components/schemas/VerifiableCredential'
+    CreateJwtGrantRequest:
+      description: Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
+      allOf:
+        - $ref: '#/components/schemas/JwtGrantBaseRequest'
+    JwtGrantResponse:
+      description: Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
+      required:
+        - bearer_token
+        - authorization_server_endpoint
+      properties:
+        bearer_token:
+          type: string
+        authorization_server_endpoint:
+          description: |
+            The OAuth token endpoint URL of the authorizer (RFC 8414 `token_endpoint`).
+            Despite the field name, this is the concrete endpoint to which a JWT bearer
+            grant is POSTed, not an Authorization Server metadata/issuer URL.
+          type: string
+
+    #
+    # Everything related to Access Tokens
+    #
+    RequestAccessTokenRequest:
+      description: Request for a JWT Grant and use it as authorization grant to get the access token from the authorizer
+      allOf:
+        - $ref: '#/components/schemas/JwtGrantBaseRequest'
     CreateAccessTokenRequest:
       description: Request as described in RFC7523 section 2.1
       required:
