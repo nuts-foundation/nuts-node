@@ -16,8 +16,28 @@
  *
  */
 
-// This file defines types specified by https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
-
+// Package openid4vci implements an internal node-to-node credential
+// issuance flow between Nuts nodes. It is the HTTP replacement of the
+// Nuts v5 gRPC network for issuing NutsAuthorizationCredentials.
+//
+// This package is based on a subset of OpenID for Verifiable Credential
+// Issuance draft-11. It is NOT a standards-conformant Wallet implementation
+// per OpenID4VCI 1.0 §2 and diverges from v1.0 in several ways:
+//
+//   - Single credential per request only.
+//   - No credential_offer_uri (offers are inline only).
+//   - No Nonce Endpoint (c_nonce delivered with token/credential responses,
+//     draft-11 style).
+//   - No authorization_details with type "openid_credential".
+//   - Draft-11 wire format for Credential Request and Response.
+//
+// For the standards-conformant OpenID4VCI 1.0 user/browser flow, see
+// the auth/openid4vci package and auth/api/iam/openid4vci.go.
+//
+// This package is in production. Do not extend or migrate it without a
+// deliberate decision — the next migration is the right time to also
+// question whether OpenID4VCI is the right protocol for an internal
+// node-to-node flow at all.
 package openid4vci
 
 import (
