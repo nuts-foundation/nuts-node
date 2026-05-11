@@ -64,9 +64,10 @@ type OAuthSession struct {
 	// per §F.1; this can differ from IssuerURL (the AS issuer) when the metadata
 	// declares `authorization_servers`.
 	IssuerCredentialIssuer string `json:"issuer_credential_issuer,omitempty"`
-	// CredentialRequestDetails is an optional JSON object provided by the API caller. When set, it replaces
-	// the OpenID4VCI Credential Request body; only the node-built `proofs` is overlaid on top.
-	// Contents are opaque and may contain PII; do not log this field.
+	// CredentialRequestDetails is an optional JSON object provided by the API caller, carrying non-spec fields
+	// (e.g. bsn, ura, did) to forward verbatim in the OpenID4VCI Credential Request body. Spec-defined fields
+	// (credential_configuration_id, credential_identifier, proofs) are always set by the node and overwrite
+	// any value supplied here. Contents are opaque and may contain PII; do not log this field.
 	CredentialRequestDetails map[string]any `json:"credential_request_details,omitempty"`
 }
 

@@ -273,7 +273,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		assert.Equal(t, oauth.InvalidNonce, oauthErr.Code)
 	})
 
-	t.Run("CredentialDetails replaces body; only proofs is node-built", func(t *testing.T) {
+	t.Run("CredentialDetails forwards non-spec fields; spec fields always come from typed body", func(t *testing.T) {
 		var rawBody map[string]any
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&rawBody))
@@ -288,21 +288,20 @@ func TestClient_RequestCredential(t *testing.T) {
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint:        srv.URL,
 			AccessToken:               "t",
-			CredentialConfigurationID: "IgnoredWhenDetailsSet",
+			CredentialConfigurationID: "SomeConfig",
 			ProofJWT:                  "node-proof",
 			CredentialDetails: map[string]any{
-				"credential_identifier": "HealthCareProfessionalDelegationCredential",
-				"bsn":                   "900184590",
-				"ura":                   "900030757",
-				// caller-supplied proofs MUST be overwritten by the node-built one
-				"proofs": map[string]any{"jwt": []string{"caller-supplied-proof"}},
+				"bsn": "900184590",
+				"ura": "900030757",
+				// caller-supplied spec-defined fields MUST be overwritten by the typed body
+				"credential_configuration_id": "caller-supplied-config",
+				"proofs":                      map[string]any{"jwt": []string{"caller-supplied-proof"}},
 			},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, "HealthCareProfessionalDelegationCredential", rawBody["credential_identifier"])
 		assert.Equal(t, "900184590", rawBody["bsn"])
 		assert.Equal(t, "900030757", rawBody["ura"])
-		assert.NotContains(t, rawBody, "credential_configuration_id", "typed credential_* fields must NOT be set when CredentialDetails is used")
+		assert.Equal(t, "SomeConfig", rawBody["credential_configuration_id"])
 		assert.Equal(t, map[string]any{"jwt": []any{"node-proof"}}, rawBody["proofs"])
 	})
 

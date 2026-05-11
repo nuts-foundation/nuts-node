@@ -83,9 +83,8 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
 		details := map[string]interface{}{
-			"credential_identifier": "HealthCareProfessionalDelegationCredential",
-			"bsn":                   "900184590",
-			"ura":                   "900030757",
+			"bsn": "900184590",
+			"ura": "900030757",
 		}
 
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
@@ -326,9 +325,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	t.Run("ok - credential_details from session forwarded to credential endpoint", func(t *testing.T) {
 		ctx := newTestClient(t)
 		details := map[string]any{
-			"credential_identifier": "HealthCareProfessionalDelegationCredential",
-			"bsn":                   "900184590",
-			"ura":                   "900030757",
+			"bsn": "900184590",
+			"ura": "900030757",
 		}
 		sessionWithDetails := session
 		sessionWithDetails.CredentialRequestDetails = details
