@@ -58,9 +58,9 @@ type LocalPDP struct {
 	config Config
 	// mapping holds the credential profile configuration per scope
 	mapping map[string]credentialProfileConfig
-	// authzenClient is created during Configure when an AuthZen endpoint is configured.
-	// It is nil when no endpoint is configured.
-	authzenClient AuthZenEvaluator
+	// scopeEvaluator is the configured ScopeEvaluator used for dynamic scope policy
+	// evaluation. It is nil when no PDP endpoint is configured.
+	scopeEvaluator ScopeEvaluator
 }
 
 func (b *LocalPDP) Name() string {
@@ -92,14 +92,14 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 		}
 	} else {
 		// Use StrictHTTPClient: enforces TLS, bounds response body size, applies timeout.
-		b.authzenClient = authzen.NewClient(b.config.AuthZen.Endpoint, httpClient.New(authzenTimeout))
+		b.scopeEvaluator = NewAuthZenScopeEvaluator(authzen.NewClient(b.config.AuthZen.Endpoint, httpClient.New(authzenTimeout)))
 	}
 	return nil
 }
 
-// AuthZenEvaluator returns the AuthZen evaluator, or nil when no endpoint is configured.
-func (b *LocalPDP) AuthZenEvaluator() AuthZenEvaluator {
-	return b.authzenClient
+// ScopeEvaluator returns the configured ScopeEvaluator, or nil when no PDP endpoint is configured.
+func (b *LocalPDP) ScopeEvaluator() ScopeEvaluator {
+	return b.scopeEvaluator
 }
 
 func (b *LocalPDP) Config() interface{} {

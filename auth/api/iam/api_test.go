@@ -1579,7 +1579,7 @@ type testCtx struct {
 	jwtSigner        *cryptoNuts.MockJWTSigner
 	keyResolver      *resolver.MockKeyResolver
 	policy           *policy.MockPDPBackend
-	authzenEvaluator *policy.MockAuthZenEvaluator
+	scopeEvaluator   *policy.MockScopeEvaluator
 	resolver         *resolver.MockDIDResolver
 	relyingParty     *oauthServices.MockRelyingParty
 	vcr              *vcr.MockVCR
@@ -1601,7 +1601,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	policyInstance := policy.NewMockPDPBackend(ctrl)
-	authzenEvaluator := policy.NewMockAuthZenEvaluator(ctrl)
+	scopeEvaluator := policy.NewMockScopeEvaluator(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcIssuer := issuer.NewMockIssuer(ctrl)
@@ -1646,7 +1646,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		ctrl:             ctrl,
 		authnServices:    authnServices,
 		policy:           policyInstance,
-		authzenEvaluator: authzenEvaluator,
+		scopeEvaluator:   scopeEvaluator,
 		relyingParty:     relyingPary,
 		vcIssuer:         vcIssuer,
 		vcVerifier:       vcVerifier,

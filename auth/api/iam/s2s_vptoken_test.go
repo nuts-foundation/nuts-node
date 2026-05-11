@@ -27,7 +27,6 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"testing"
@@ -423,17 +422,14 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
-		// Verify the AuthZen request shape matches the PRD contract.
-		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).DoAndReturn(
-			func(_ context.Context, req authzen.EvaluationsRequest) (map[string]bool, error) {
-				assert.Equal(t, "organization", req.Subject.Type)
-				assert.Equal(t, "request_scope", req.Action.Name)
-				assert.Equal(t, "example-scope", req.Context.Policy)
-				require.Len(t, req.Evaluations, 2)
-				assert.Equal(t, "scope", req.Evaluations[0].Resource.Type)
-				assert.Equal(t, "example-scope", req.Evaluations[0].Resource.ID)
-				assert.Equal(t, "extra-scope", req.Evaluations[1].Resource.ID)
+		ctx.policy.EXPECT().ScopeEvaluator().Return(ctx.scopeEvaluator)
+		// Verify the handler forwards the right ScopeEvaluationInput to the evaluator.
+		// AuthZen wire-shape assertions live in TestAuthZenScopeEvaluator (unit) and
+		// integration_test.go (end-to-end against an httptest PDP).
+		ctx.scopeEvaluator.EXPECT().EvaluateScopes(gomock.Any(), gomock.Any()).DoAndReturn(
+			func(_ context.Context, in policy.ScopeEvaluationInput) (map[string]bool, error) {
+				assert.Equal(t, "example-scope", in.CredentialProfileScope)
+				assert.Equal(t, []string{"example-scope", "extra-scope"}, in.Scopes)
 				return map[string]bool{
 					"example-scope": true,
 					"extra-scope":   true,
@@ -456,8 +452,8 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope", "other-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
-		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(map[string]bool{
+		ctx.policy.EXPECT().ScopeEvaluator().Return(ctx.scopeEvaluator)
+		ctx.scopeEvaluator.EXPECT().EvaluateScopes(gomock.Any(), gomock.Any()).Return(map[string]bool{
 			"example-scope": true,
 			"extra-scope":   true,
 			"other-scope":   false,
@@ -478,8 +474,8 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
-		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(map[string]bool{
+		ctx.policy.EXPECT().ScopeEvaluator().Return(ctx.scopeEvaluator)
+		ctx.scopeEvaluator.EXPECT().EvaluateScopes(gomock.Any(), gomock.Any()).Return(map[string]bool{
 			"example-scope": false,
 			"extra-scope":   true,
 		}, nil)
@@ -498,8 +494,8 @@ func TestWrapper_handleS2SAccessTokenRequest(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(ctx.authzenEvaluator)
-		ctx.authzenEvaluator.EXPECT().Evaluate(gomock.Any(), gomock.Any()).Return(nil, errors.New("PDP unreachable"))
+		ctx.policy.EXPECT().ScopeEvaluator().Return(ctx.scopeEvaluator)
+		ctx.scopeEvaluator.EXPECT().EvaluateScopes(gomock.Any(), gomock.Any()).Return(nil, errors.New("PDP unreachable"))
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
 
