@@ -187,12 +187,8 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	for k, v := range opts.CredentialDetails {
 		body[k] = v
 	}
-	// Spec-defined fields are always set by the node and overwrite any
-	// caller-supplied value in CredentialDetails. Per §8.2,
-	// credential_identifier and credential_configuration_id are mutually
-	// exclusive; credential_identifier wins when set.
-	delete(body, "credential_identifier")
-	delete(body, "credential_configuration_id")
+	// Per §8.2, credential_identifier and credential_configuration_id are
+	// mutually exclusive; credential_identifier wins when set.
 	switch {
 	case opts.CredentialIdentifier != "":
 		body["credential_identifier"] = opts.CredentialIdentifier
