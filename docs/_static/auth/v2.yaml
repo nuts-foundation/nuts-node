@@ -165,19 +165,15 @@ paths:
                     used to locate the OAuth2 Authorization Server metadata.
                   example: did:web:issuer.example.com
                 authorization_details:
+                  description: |
+                    Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
+                    The current implementation processes a single credential
+                    issuance per call and only consumes the first entry.
                   type: array
+                  minItems: 1
+                  maxItems: 1
                   items:
-                    type: object
-                    description: |
-                      The request parameter authorization_details defined in Section 2 of [RFC9396] MUST be used to convey the details about the Credentials the Wallet wants to obtain.
-                      See the RFC9396/OpenID4VCI for the format of an authorization_details object, and consult the Credential Issuer for requestable credentials.
-                  example: |
-                    [
-                      {
-                        "type": "openid_credential",
-                        "credential_configuration_id": "UniversityDegreeCredential"
-                      }
-                    ]
+                    $ref: '#/components/schemas/AuthorizationDetail'
                 redirect_uri:
                   type: string
                   description: |
@@ -721,6 +717,31 @@ components:
       description: |
         Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
         The map key is the wallet owner (user/organization)
+    AuthorizationDetail:
+      description: |
+        A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
+        Only the fields used by the user/browser issuance flow are modeled.
+      type: object
+      required:
+        - type
+        - credential_configuration_id
+      properties:
+        type:
+          type: string
+          enum: [openid_credential]
+          description: |
+            The authorization details type. For OpenID4VCI flows this MUST
+            be "openid_credential" per §5.1.1.
+        credential_configuration_id:
+          type: string
+          description: |
+            References a credential configuration from the issuer's
+            credential_configurations_supported metadata. REQUIRED for
+            type=openid_credential per §5.1.1.
+        format:
+          type: string
+          description: |
+            Optional credential format hint (e.g. "vc+sd-jwt").
   securitySchemes:
     jwtBearerAuth:
       type: http
