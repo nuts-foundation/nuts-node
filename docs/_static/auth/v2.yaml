@@ -178,10 +178,12 @@ paths:
                   type: object
                   additionalProperties: true
                   description: |
-                    EXPERIMENTAL. Optional JSON object used as the base body of the OpenID4VCI Credential Request sent
-                    to the issuer's credential endpoint. The node forwards these fields verbatim and overlays its own
-                    typed fields (credential_configuration_id / credential_identifier / proofs) on top. Use this to
-                    support issuers that accept additional, non-spec-defined fields in the Credential Request body.
+                    EXPERIMENTAL. Optional JSON object used as the Credential Request body sent to the issuer's
+                    credential endpoint. When set, this object replaces the node-built body; only the node-built
+                    `proofs` is overlaid on top (any caller-supplied "proofs" is overwritten). The caller is
+                    responsible for the rest of the wire shape — including credential_configuration_id /
+                    credential_identifier. Use this to support issuers that diverge from the OpenID4VCI 1.0
+                    Credential Request shape.
 
                     Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
                     credential_details.

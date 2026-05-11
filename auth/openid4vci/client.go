@@ -44,10 +44,12 @@ const wellKnownPath = "/.well-known/openid-credential-issuer"
 // CredentialConfigurationID. If both are non-empty, CredentialIdentifier
 // takes precedence to enforce the spec rule.
 //
-// CredentialDetails is an optional caller-supplied JSON object that is
-// forwarded as the base body of the Credential Request. The spec-defined
-// fields (credential_configuration_id, credential_identifier, proofs) are
-// overlaid on top, so they always win over caller-supplied values.
+// CredentialDetails, when non-empty, replaces the entire request body with
+// the caller-supplied object; only the node-built `proofs` is overlaid on
+// top (security-critical, cannot be subverted). The caller is then
+// responsible for the rest of the wire shape — including credential_*
+// fields — and CredentialConfigurationID / CredentialIdentifier are ignored.
+// This is the escape hatch for issuers that diverge from §8.2.
 type RequestCredentialOpts struct {
 	CredentialEndpoint        string
 	AccessToken               string
@@ -229,29 +231,20 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	return &credResp, nil
 }
 
-// marshalCredentialRequest serializes the typed Credential Request body. If
-// extras is non-empty, the body is rendered as a JSON object built from extras
-// with the typed fields overlaid on top, so spec-defined fields always win
-// over caller-supplied values.
+// marshalCredentialRequest serializes the Credential Request body. When
+// extras is empty, the typed body is marshaled as-is. When extras is
+// non-empty, the body is built from extras with only `proofs` overlaid on
+// top — the caller is responsible for the rest of the wire shape (see
+// RequestCredentialOpts.CredentialDetails).
 func marshalCredentialRequest(body CredentialRequest, extras map[string]any) ([]byte, error) {
 	if len(extras) == 0 {
 		return json.Marshal(body)
 	}
-	merged := make(map[string]any, len(extras)+3)
+	merged := make(map[string]any, len(extras)+1)
 	for k, v := range extras {
 		merged[k] = v
 	}
-	typedBytes, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	var typedMap map[string]any
-	if err := json.Unmarshal(typedBytes, &typedMap); err != nil {
-		return nil, err
-	}
-	for k, v := range typedMap {
-		merged[k] = v
-	}
+	merged["proofs"] = body.Proofs
 	return json.Marshal(merged)
 }
 
