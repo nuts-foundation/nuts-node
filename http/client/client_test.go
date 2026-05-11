@@ -21,6 +21,7 @@ package client
 import (
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -40,12 +41,13 @@ func TestStrictHTTPClient(t *testing.T) {
 			rt := &stubRoundTripper{}
 			DefaultCachingTransport = rt
 			StrictMode = true
+			t.Cleanup(func() { StrictMode = false })
 
 			client := NewWithCache(time.Second)
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 			_, err := client.Do(httpRequest)
 
-			assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+			assert.ErrorContains(t, err, "httpclient: invalid target URL")
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("strict mode disabled", func(t *testing.T) {
@@ -66,12 +68,13 @@ func TestStrictHTTPClient(t *testing.T) {
 			rt := &stubRoundTripper{}
 			DefaultCachingTransport = rt
 			StrictMode = true
+			t.Cleanup(func() { StrictMode = false })
 
 			client := NewWithCache(time.Second)
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 			_, err := client.Do(httpRequest)
 
-			assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+			assert.ErrorContains(t, err, "httpclient: invalid target URL")
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("sets TLS config", func(t *testing.T) {
@@ -89,13 +92,176 @@ func TestStrictHTTPClient(t *testing.T) {
 		rt := &stubRoundTripper{}
 		DefaultCachingTransport = rt
 		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
 
 		client := NewWithCache(time.Second)
 		httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 		_, err := client.Do(httpRequest)
 
-		assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+		assert.ErrorContains(t, err, "httpclient: invalid target URL")
 		assert.Equal(t, 0, rt.invocations)
+	})
+	t.Run("strict mode rejects IP host", func(t *testing.T) {
+		rt := &stubRoundTripper{}
+		DefaultCachingTransport = rt
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+
+		client := NewWithCache(time.Second)
+		httpRequest, _ := http.NewRequest("GET", "https://127.0.0.1/foo", nil)
+		_, err := client.Do(httpRequest)
+
+		assert.ErrorContains(t, err, "httpclient: invalid target URL")
+		assert.ErrorContains(t, err, "hostname is IP")
+		assert.Equal(t, 0, rt.invocations)
+	})
+	t.Run("strict mode rejects RFC2606 reserved host", func(t *testing.T) {
+		rt := &stubRoundTripper{}
+		DefaultCachingTransport = rt
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+
+		client := NewWithCache(time.Second)
+		httpRequest, _ := http.NewRequest("GET", "https://service.localhost/foo", nil)
+		_, err := client.Do(httpRequest)
+
+		assert.ErrorContains(t, err, "httpclient: invalid target URL")
+		assert.ErrorContains(t, err, "hostname is RFC2606 reserved")
+		assert.Equal(t, 0, rt.invocations)
+	})
+}
+
+func TestCheckRedirect(t *testing.T) {
+	makeReq := func(target string) *http.Request {
+		req, _ := http.NewRequest("GET", target, nil)
+		return req
+	}
+	t.Run("strict mode rejects http redirect", func(t *testing.T) {
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+		err := checkRedirect(makeReq("http://example.org"), nil)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "scheme must be https")
+	})
+	t.Run("strict mode rejects redirect to IP host", func(t *testing.T) {
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+		err := checkRedirect(makeReq("https://127.0.0.1/x"), nil)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "hostname is IP")
+	})
+	t.Run("strict mode rejects redirect to reserved host", func(t *testing.T) {
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+		err := checkRedirect(makeReq("https://internal.localhost/x"), nil)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "hostname is RFC2606 reserved")
+	})
+	t.Run("non-strict mode allows http redirect", func(t *testing.T) {
+		StrictMode = false
+		err := checkRedirect(makeReq("http://example.org"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("non-strict mode allows redirect to IP host", func(t *testing.T) {
+		StrictMode = false
+		err := checkRedirect(makeReq("http://127.0.0.1/x"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("redirect cap stops after 10 hops", func(t *testing.T) {
+		StrictMode = false
+		via := make([]*http.Request, maxRedirects)
+		err := checkRedirect(makeReq("http://example.org"), via)
+		assert.ErrorContains(t, err, "stopped after 10 redirects")
+	})
+	t.Run("cap checked before URL validation", func(t *testing.T) {
+		// Even an invalid target should produce the cap error first when via is at the limit.
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+		via := make([]*http.Request, maxRedirects)
+		err := checkRedirect(makeReq("http://example.org"), via)
+		assert.ErrorContains(t, err, "stopped after 10 redirects")
+	})
+}
+
+// redirectOnceTransport is a stub RoundTripper that responds with a 302 to redirectTo
+// on the first request, then a 200 OK on subsequent requests. It also counts hops so
+// tests can verify the redirected request was (or was not) sent.
+type redirectOnceTransport struct {
+	redirectTo string
+	requests   []*http.Request
+}
+
+func (t *redirectOnceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.requests = append(t.requests, req)
+	if len(t.requests) == 1 {
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header:     http.Header{"Location": []string{t.redirectTo}},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader("ok")),
+		Request:    req,
+	}, nil
+}
+
+// TestStrictHTTPClient_RedirectEndToEnd drives the full net/http redirect path
+// through a stub transport so we prove the configured CheckRedirect actually
+// fires and blocks the second HTTP request from being issued.
+//
+// Initial URLs use "nuts.nl" because strict mode rejects RFC 2606 reserved 2LDs
+// (example.com/net/org), and the test needs the initial Do() to pass so the
+// redirect can be exercised. The hostname is never resolved — the stub
+// transport intercepts all requests.
+func TestStrictHTTPClient_RedirectEndToEnd(t *testing.T) {
+	const initialURL = "https://nuts.nl/"
+	t.Run("strict mode blocks redirect to non-https target", func(t *testing.T) {
+		rt := &redirectOnceTransport{redirectTo: "http://example.com/x"}
+		DefaultCachingTransport = rt
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+
+		c := NewWithCache(time.Second)
+		req, _ := http.NewRequest("GET", initialURL, nil)
+		_, err := c.Do(req)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "scheme must be https")
+		// only the initial request reached the transport; the redirect was blocked
+		assert.Len(t, rt.requests, 1, "second request must not be issued")
+	})
+	t.Run("strict mode blocks redirect to IP host", func(t *testing.T) {
+		rt := &redirectOnceTransport{redirectTo: "https://10.0.0.1/x"}
+		DefaultCachingTransport = rt
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = false })
+
+		c := NewWithCache(time.Second)
+		req, _ := http.NewRequest("GET", initialURL, nil)
+		_, err := c.Do(req)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "hostname is IP")
+		assert.Len(t, rt.requests, 1)
+	})
+	t.Run("non-strict mode follows http redirect", func(t *testing.T) {
+		rt := &redirectOnceTransport{redirectTo: "http://example.com/x"}
+		DefaultCachingTransport = rt
+		StrictMode = false
+
+		c := NewWithCache(time.Second)
+		req, _ := http.NewRequest("GET", "http://example.com/", nil)
+		resp, err := c.Do(req)
+
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Len(t, rt.requests, 2, "both initial and redirected request should be issued")
 	})
 }
 
