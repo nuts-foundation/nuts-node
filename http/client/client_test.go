@@ -35,13 +35,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// withClientGlobals captures the package-level globals StrictMode and
+// DefaultCachingTransport at call time and restores them via t.Cleanup,
+// so subtests can mutate them without leaking state into other tests.
+func withClientGlobals(t *testing.T) {
+	t.Helper()
+	oldStrict := StrictMode
+	oldTransport := DefaultCachingTransport
+	t.Cleanup(func() {
+		StrictMode = oldStrict
+		DefaultCachingTransport = oldTransport
+	})
+}
+
 func TestStrictHTTPClient(t *testing.T) {
 	t.Run("caching transport", func(t *testing.T) {
 		t.Run("strict mode enabled", func(t *testing.T) {
+			withClientGlobals(t)
 			rt := &stubRoundTripper{}
 			DefaultCachingTransport = rt
 			StrictMode = true
-			t.Cleanup(func() { StrictMode = false })
 
 			client := NewWithCache(time.Second)
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
@@ -51,6 +64,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("strict mode disabled", func(t *testing.T) {
+			withClientGlobals(t)
 			rt := &stubRoundTripper{}
 			DefaultCachingTransport = rt
 			StrictMode = false
@@ -65,10 +79,10 @@ func TestStrictHTTPClient(t *testing.T) {
 	})
 	t.Run("TLS transport", func(t *testing.T) {
 		t.Run("strict mode enabled", func(t *testing.T) {
+			withClientGlobals(t)
 			rt := &stubRoundTripper{}
 			DefaultCachingTransport = rt
 			StrictMode = true
-			t.Cleanup(func() { StrictMode = false })
 
 			client := NewWithCache(time.Second)
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
@@ -89,10 +103,10 @@ func TestStrictHTTPClient(t *testing.T) {
 		})
 	})
 	t.Run("error on HTTP call when strictmode is enabled", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &stubRoundTripper{}
 		DefaultCachingTransport = rt
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 
 		client := NewWithCache(time.Second)
 		httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
@@ -102,10 +116,10 @@ func TestStrictHTTPClient(t *testing.T) {
 		assert.Equal(t, 0, rt.invocations)
 	})
 	t.Run("strict mode rejects IP host", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &stubRoundTripper{}
 		DefaultCachingTransport = rt
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 
 		client := NewWithCache(time.Second)
 		httpRequest, _ := http.NewRequest("GET", "https://127.0.0.1/foo", nil)
@@ -116,10 +130,10 @@ func TestStrictHTTPClient(t *testing.T) {
 		assert.Equal(t, 0, rt.invocations)
 	})
 	t.Run("strict mode rejects RFC2606 reserved host", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &stubRoundTripper{}
 		DefaultCachingTransport = rt
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 
 		client := NewWithCache(time.Second)
 		httpRequest, _ := http.NewRequest("GET", "https://service.localhost/foo", nil)
@@ -137,37 +151,40 @@ func TestCheckRedirect(t *testing.T) {
 		return req
 	}
 	t.Run("strict mode rejects http redirect", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 		err := checkRedirect(makeReq("http://example.org"), nil)
 		assert.ErrorContains(t, err, "invalid redirect target")
 		assert.ErrorContains(t, err, "scheme must be https")
 	})
 	t.Run("strict mode rejects redirect to IP host", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 		err := checkRedirect(makeReq("https://127.0.0.1/x"), nil)
 		assert.ErrorContains(t, err, "invalid redirect target")
 		assert.ErrorContains(t, err, "hostname is IP")
 	})
 	t.Run("strict mode rejects redirect to reserved host", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 		err := checkRedirect(makeReq("https://internal.localhost/x"), nil)
 		assert.ErrorContains(t, err, "invalid redirect target")
 		assert.ErrorContains(t, err, "hostname is RFC2606 reserved")
 	})
 	t.Run("non-strict mode allows http redirect", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = false
 		err := checkRedirect(makeReq("http://example.org"), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("non-strict mode allows redirect to IP host", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = false
 		err := checkRedirect(makeReq("http://127.0.0.1/x"), nil)
 		assert.NoError(t, err)
 	})
 	t.Run("redirect cap stops after 10 hops", func(t *testing.T) {
+		withClientGlobals(t)
 		StrictMode = false
 		via := make([]*http.Request, maxRedirects)
 		err := checkRedirect(makeReq("http://example.org"), via)
@@ -175,8 +192,8 @@ func TestCheckRedirect(t *testing.T) {
 	})
 	t.Run("cap checked before URL validation", func(t *testing.T) {
 		// Even an invalid target should produce the cap error first when via is at the limit.
+		withClientGlobals(t)
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 		via := make([]*http.Request, maxRedirects)
 		err := checkRedirect(makeReq("http://example.org"), via)
 		assert.ErrorContains(t, err, "stopped after 10 redirects")
@@ -220,10 +237,10 @@ func (t *redirectOnceTransport) RoundTrip(req *http.Request) (*http.Response, er
 func TestStrictHTTPClient_RedirectEndToEnd(t *testing.T) {
 	const initialURL = "https://nuts.nl/"
 	t.Run("strict mode blocks redirect to non-https target", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &redirectOnceTransport{redirectTo: "http://example.com/x"}
 		DefaultCachingTransport = rt
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 
 		c := NewWithCache(time.Second)
 		req, _ := http.NewRequest("GET", initialURL, nil)
@@ -236,10 +253,10 @@ func TestStrictHTTPClient_RedirectEndToEnd(t *testing.T) {
 		assert.Len(t, rt.requests, 1, "second request must not be issued")
 	})
 	t.Run("strict mode blocks redirect to IP host", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &redirectOnceTransport{redirectTo: "https://10.0.0.1/x"}
 		DefaultCachingTransport = rt
 		StrictMode = true
-		t.Cleanup(func() { StrictMode = false })
 
 		c := NewWithCache(time.Second)
 		req, _ := http.NewRequest("GET", initialURL, nil)
@@ -251,6 +268,7 @@ func TestStrictHTTPClient_RedirectEndToEnd(t *testing.T) {
 		assert.Len(t, rt.requests, 1)
 	})
 	t.Run("non-strict mode follows http redirect", func(t *testing.T) {
+		withClientGlobals(t)
 		rt := &redirectOnceTransport{redirectTo: "http://example.com/x"}
 		DefaultCachingTransport = rt
 		StrictMode = false
@@ -283,9 +301,8 @@ func TestLimitedReadAll(t *testing.T) {
 }
 
 func TestMaxConns(t *testing.T) {
-	oldStrictMode := StrictMode
+	withClientGlobals(t)
 	StrictMode = false
-	t.Cleanup(func() { StrictMode = oldStrictMode })
 	// Our safe http Transport has MaxConnsPerHost = 5
 	// if we request 6 resources multiple times, we expect a max connection usage of 5
 
@@ -328,9 +345,8 @@ func TestMaxConns(t *testing.T) {
 }
 
 func TestCaching(t *testing.T) {
-	oldStrictMode := StrictMode
+	withClientGlobals(t)
 	StrictMode = false
-	t.Cleanup(func() { StrictMode = oldStrictMode })
 	// counter for the number of concurrent requests
 	var total atomic.Int32
 
