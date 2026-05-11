@@ -10,6 +10,17 @@ Unreleased
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 
 ****************
+Peanut (v6.2.5)
+****************
+
+Release date: 2026-05-11
+
+- Update Alpine base image to 3.23.4 to pick up musl, OpenSSL and zlib security fixes.
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.4...v6.2.5
+
+****************
 Peanut (v6.2.4)
 ****************
 
@@ -451,6 +462,26 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.33)
+*************************
+
+Release date: 2026-05-08
+
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.32...v5.4.33
+
+*************************
+Hazelnut update (v5.4.32)
+*************************
+
+Release date: 2026-04-17
+
+- Backport compound leia index ``index_auth_subject_purpose_resources`` on ``credentialSubject.id`` + ``purposeOfUse`` + ``resources.path`` (see `#3562 <https://github.com/nuts-foundation/nuts-node/pull/3562>`_). Fixes slow ``POST /internal/vcr/v2/search`` queries against ``NutsAuthorizationCredential`` where large issuers previously forced go-leia to fall back to ``index_issuer`` and scan every VC issued by the requesting care organization.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.31...v5.4.32
 
 *************************
 Hazelnut update (v5.4.31)
