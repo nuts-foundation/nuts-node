@@ -55,6 +55,15 @@ type OAuthSession struct {
 	UseDPoP   bool   `json:"use_dpop,omitempty"`
 	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
+	// IssuerNonceEndpoint: endpoint to request a fresh c_nonce in the OpenID4VCI flow (v1.0 Section 7)
+	IssuerNonceEndpoint string `json:"issuer_nonce_endpoint,omitempty"`
+	// IssuerCredentialConfigurationID: the credential_configuration_id for the credential request in the OpenID4VCI flow
+	IssuerCredentialConfigurationID string `json:"issuer_credential_configuration_id,omitempty"`
+	// IssuerCredentialIssuer is the Credential Issuer Identifier (`credential_issuer`
+	// from the metadata, §12.2.1). It is used as the `aud` claim in the proof JWT
+	// per §F.1; this can differ from IssuerURL (the AS issuer) when the metadata
+	// declares `authorization_servers`.
+	IssuerCredentialIssuer string `json:"issuer_credential_issuer,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

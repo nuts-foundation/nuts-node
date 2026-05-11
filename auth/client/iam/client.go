@@ -19,20 +19,20 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
@@ -190,19 +190,17 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, fmt.Errorf("failed to call endpoint: %w", err)
 	}
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		// check for oauth error
-		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
-			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
-			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
-			return token, err
+		httpErr, ok := errors.AsType[core.HttpError](err)
+		if ok && strings.Contains(response.Header.Get("Content-Type"), "application/json") {
+			// If the response is JSON and looks like an OAuth error, return it as such (regardless of status code).
+			oauthError := oauth.OAuth2Error{}
+			if jsonErr := json.Unmarshal(httpErr.ResponseBody, &oauthError); jsonErr == nil && oauthError.Code != "" {
+				return token, oauth.RemoteOAuthError{Cause: oauthError}
+			}
 		}
-		httpErr := err.(core.HttpError)
-		oauthError := oauth.OAuth2Error{}
-		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
-			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
-		}
-
-		return token, oauth.RemoteOAuthError{Cause: oauthError}
+		// Not an OAuth error, the response body could contain a lot of stuff. We'll log and return the entire error
+		log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+		return token, err
 	}
 
 	var responseData []byte
@@ -240,19 +238,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	data.Set(oauth.StateParam, state)
 
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
-}
-
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.OpenIDCredentialIssuerMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &metadata, err
 }
 
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
@@ -308,65 +293,6 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-// CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
-// CredentialRequestProof.
-type CredentialRequest struct {
-	Proof CredentialRequestProof `json:"proof"`
-}
-
-// CredentialRequestProof holds the ProofType and Jwt for a credential request
-type CredentialRequestProof struct {
-	ProofType string `json:"proof_type"`
-	Jwt       string `json:"jwt"`
-}
-
-// CredentialResponse represents the response of a verifiable credential request.
-// It contains the Format and the actual Credential in JSON format.
-type CredentialResponse struct {
-	Credential string `json:"credential"`
-}
-
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string) (*CredentialResponse, error) {
-	credentialEndpointURL, err := url.Parse(credentialEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	credentialRequest := CredentialRequest{
-		Proof: CredentialRequestProof{
-			ProofType: "jwt",
-			Jwt:       proofJwt,
-		},
-	}
-	jsonBody, _ := json.Marshal(credentialRequest)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Authorization", "Bearer "+accessToken)
-
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Logger().WithError(err).Warn("Trouble closing reader")
-		}
-	}(response.Body)
-	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		return nil, err
-	}
-	var credential CredentialResponse
-	if err = json.NewDecoder(response.Body).Decode(&credential); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-	return &credential, nil
-
-}
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {

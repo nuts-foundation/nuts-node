@@ -170,6 +170,23 @@ func NewAuthorizationServer(
 // BearerTokenMaxValidity is the number of seconds that a bearer token is valid
 const BearerTokenMaxValidity = 5
 
+// v1AccessTokenProfile defines JWT validation rules for v1 access tokens.
+// The "service" claim holds the RFC003 purposeOfUse (see buildAccessToken).
+var v1AccessTokenProfile = &nutsCrypto.JWTProfile{
+	Typ:            "at+jwt",
+	RequiredClaims: []string{jwt.ExpirationKey, jwt.IssuedAtKey, jwt.IssuerKey, jwt.SubjectKey, "service"},
+	MaxValidity:    secureAccessTokenLifeSpan,
+	Validators:     []nutsCrypto.JWTValidator{nutsCrypto.IssuerKidValidator},
+}
+
+// v1BearerTokenProfile defines JWT validation rules for v1 JWT bearer tokens (RFC003 §5.2.1).
+// aud is set by the builder (claimsFromRequest) to the authorization server endpoint and must
+// be present; the actual endpoint comparison still runs in validateAudience post-parse.
+var v1BearerTokenProfile = &nutsCrypto.JWTProfile{
+	RequiredClaims: []string{jwt.ExpirationKey, jwt.IssuedAtKey, jwt.IssuerKey, jwt.SubjectKey, jwt.AudienceKey},
+	MaxValidity:    BearerTokenMaxValidity * time.Second,
+}
+
 // Configure the service
 func (s *authzServer) Configure(clockSkewInMilliseconds int, secureMode bool) error {
 	s.clockSkew = time.Duration(clockSkewInMilliseconds) * time.Millisecond
@@ -232,14 +249,10 @@ func (s *authzServer) validateAccessTokenRequest(ctx context.Context, bearerToke
 
 	// extract the JwtBearerToken, validates according to RFC003 §5.2.1.1
 	// also check if used algorithms are according to spec (ES*** and PS***)
-	// and checks basic validity. Set jwtBearerTokenClaims in validationContext
+	// and checks basic validity including max validity (RFC003 §5.2.1.4).
+	// Set jwtBearerTokenClaims in validationContext
 	if err := s.parseAndValidateJwtBearerToken(validationCtx); err != nil {
 		return validationCtx, fmt.Errorf("jwt bearer token validation failed: %w", err)
-	}
-
-	// check the maximum validity, according to RFC003 §5.2.1.4
-	if validationCtx.jwtBearerToken.Expiration().Sub(validationCtx.jwtBearerToken.IssuedAt()).Seconds() > BearerTokenMaxValidity {
-		return validationCtx, errors.New("JWT validity too long")
 	}
 
 	// check the requester against the registry, according to RFC003 §5.2.1.3
@@ -476,18 +489,15 @@ func (s *authzServer) validateAuthorizationCredentials(context *validationContex
 
 // parseAndValidateJwtBearerToken validates the jwt signature and returns the containing claims
 func (s *authzServer) parseAndValidateJwtBearerToken(context *validationContext) error {
-	var kidHdr string
 	token, err := nutsCrypto.ParseJWT(context.rawJwtBearerToken, func(kid string) (crypto.PublicKey, error) {
-		kidHdr = kid
+		context.kid = kid
 		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, jwt.WithAcceptableSkew(s.clockSkew))
+	}, v1BearerTokenProfile.WithClockSkew(s.clockSkew), nil)
 	if err != nil {
 		return err
 	}
 
-	// this should be ok since it has already succeeded before
 	context.jwtBearerToken = token
-	context.kid = kidHdr
 	return nil
 }
 
@@ -502,7 +512,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 			return nil, fmt.Errorf("JWT signing key not present on this node (kid=%s)", kid)
 		}
 		return s.keyResolver.ResolveKeyByID(kid, nil, resolver.NutsSigningKeyType)
-	}, jwt.WithAcceptableSkew(s.clockSkew))
+	}, v1AccessTokenProfile.WithMaxValidity(s.accessTokenLifeSpan).WithClockSkew(s.clockSkew), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -518,7 +528,7 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 	result.IssuedAt = token.IssuedAt().Unix()
 	result.Expiration = token.Expiration().Unix()
 
-	return result, err
+	return result, nil
 }
 
 // todo split this func for easier testing
@@ -566,7 +576,7 @@ func (s *authzServer) buildAccessToken(ctx context.Context, requester did.DID, a
 	if err != nil {
 		return "", accessToken, err
 	}
-	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, nil, signingKeyID)
+	token, err := s.privateKeyStore.SignJWT(ctx, keyVals, map[string]interface{}{"typ": "at+jwt"}, signingKeyID)
 	if err != nil {
 		return token, accessToken, fmt.Errorf("could not build accessToken: %w", err)
 	}
