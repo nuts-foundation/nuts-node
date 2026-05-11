@@ -46,7 +46,7 @@ const wellKnownPath = "/.well-known/openid-credential-issuer"
 //
 // CredentialDetails, when non-empty, is forwarded as the base body of the
 // Credential Request to support issuers that accept additional non-spec
-// fields (e.g. bsn, ura, did). The OpenID4VCI 1.0 spec-defined fields
+// fields. The OpenID4VCI 1.0 spec-defined fields
 // (credential_configuration_id, credential_identifier, proofs) are always
 // overlaid on top from the typed body, so the caller cannot subvert §8.2
 // mutual exclusivity or the JWT proof. Callers should not include
@@ -183,19 +183,24 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	if err := c.validateURL("credential endpoint", opts.CredentialEndpoint); err != nil {
 		return nil, err
 	}
-	body := CredentialRequest{
-		Proofs: &CredentialRequestProofs{
-			JWT: []string{opts.ProofJWT},
-		},
+	body := make(map[string]any, len(opts.CredentialDetails)+2)
+	for k, v := range opts.CredentialDetails {
+		body[k] = v
 	}
-	// Per §8.2: CredentialIdentifier and CredentialConfigurationID are mutually
-	// exclusive. CredentialIdentifier wins when set.
-	if opts.CredentialIdentifier != "" {
-		body.CredentialIdentifier = opts.CredentialIdentifier
-	} else {
-		body.CredentialConfigurationID = opts.CredentialConfigurationID
+	// Spec-defined fields are always set by the node and overwrite any
+	// caller-supplied value in CredentialDetails. Per §8.2,
+	// credential_identifier and credential_configuration_id are mutually
+	// exclusive; credential_identifier wins when set.
+	delete(body, "credential_identifier")
+	delete(body, "credential_configuration_id")
+	switch {
+	case opts.CredentialIdentifier != "":
+		body["credential_identifier"] = opts.CredentialIdentifier
+	case opts.CredentialConfigurationID != "":
+		body["credential_configuration_id"] = opts.CredentialConfigurationID
 	}
-	bodyBytes, err := marshalCredentialRequest(body, opts.CredentialDetails)
+	body["proofs"] = CredentialRequestProofs{JWT: []string{opts.ProofJWT}}
+	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
@@ -232,39 +237,13 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	return &credResp, nil
 }
 
-// marshalCredentialRequest serializes the Credential Request body. When
-// extras is empty, the typed body is marshaled as-is. When extras is
-// non-empty, the body is built from extras (caller-supplied non-spec
-// fields) with the typed body's spec-defined fields overlaid on top so
-// they always win (see RequestCredentialOpts.CredentialDetails).
-func marshalCredentialRequest(body CredentialRequest, extras map[string]any) ([]byte, error) {
-	if len(extras) == 0 {
-		return json.Marshal(body)
-	}
-	merged := make(map[string]any, len(extras)+3)
-	for k, v := range extras {
-		merged[k] = v
-	}
-	typedBytes, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	var typedMap map[string]any
-	if err := json.Unmarshal(typedBytes, &typedMap); err != nil {
-		return nil, err
-	}
-	for k, v := range typedMap {
-		merged[k] = v
-	}
-	return json.Marshal(merged)
-}
-
 // credentialIssuerWellKnown returns the Credential Issuer Metadata URL for
 // the given issuer identifier per RFC 8615: the well-known segment is
 // inserted at the authority root, and the issuer's path is appended after.
 //
 // Example: https://example.com/oauth2/alice
-//   ->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
+//
+//	->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
 func credentialIssuerWellKnown(issuerURL string) (string, error) {
 	u, err := url.Parse(issuerURL)
 	if err != nil {

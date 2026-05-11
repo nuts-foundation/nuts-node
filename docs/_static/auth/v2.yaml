@@ -184,14 +184,9 @@ paths:
 
                     Spec-defined fields (credential_configuration_id, credential_identifier, proofs) are always
                     set by the node and overwrite any value supplied here, so callers should not include them.
-
-                    Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
-                    credential_details.
                   example: |
                     {
-                      "did": "did:web:nuts.example.com:iam:d8e49bf4-9b89-42b5-bd5f-05b720eb1e74",
-                      "bsn": "900184590",
-                      "ura": "900030757"
+                      "some-requested-credential-attribute": "900184590"
                     }
                 redirect_uri:
                   type: string
