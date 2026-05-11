@@ -20,6 +20,11 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
+// Defines values for AuthorizationDetailType.
+const (
+	OpenidCredential AuthorizationDetailType = "openid_credential"
+)
+
 // Defines values for ServiceAccessTokenRequestTokenType.
 const (
 	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
@@ -31,6 +36,26 @@ const (
 	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "Bearer"
 	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
 )
+
+// AuthorizationDetail A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
+// Only the fields used by the user/browser issuance flow are modeled.
+type AuthorizationDetail struct {
+	// CredentialConfigurationId References a credential configuration from the issuer's
+	// credential_configurations_supported metadata. REQUIRED for
+	// type=openid_credential per §5.1.1.
+	CredentialConfigurationId string `json:"credential_configuration_id"`
+
+	// Format Optional credential format hint (e.g. "vc+sd-jwt").
+	Format *string `json:"format,omitempty"`
+
+	// Type The authorization details type. For OpenID4VCI flows this MUST
+	// be "openid_credential" per §5.1.1.
+	Type AuthorizationDetailType `json:"type"`
+}
+
+// AuthorizationDetailType The authorization details type. For OpenID4VCI flows this MUST
+// be "openid_credential" per §5.1.1.
+type AuthorizationDetailType string
 
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {
@@ -212,7 +237,10 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
-	AuthorizationDetails []map[string]interface{} `json:"authorization_details"`
+	// AuthorizationDetails Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
+	// The current implementation processes a single credential
+	// issuance per call and only consumes the first entry.
+	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
 	// CredentialDetails EXPERIMENTAL. Optional JSON object used as the base body of the OpenID4VCI Credential Request sent
 	// to the issuer's credential endpoint. The node forwards these fields verbatim and overlays its own

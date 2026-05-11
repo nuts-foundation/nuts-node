@@ -292,6 +292,10 @@ func (s *sqlStore) search(serviceID string, query map[string]string, allowUnvali
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse presentation '%s': %w", match.PresentationID, err)
 		}
+		// Retraction markers are stored on the timeline (for Get()) but must not surface in search results.
+		if presentation.IsType(retractionPresentationType) {
+			continue
+		}
 		results = append(results, *presentation)
 	}
 	return results, nil

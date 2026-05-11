@@ -39,6 +39,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
@@ -512,7 +513,7 @@ type clientTestContext struct {
 type clientServerTestContext struct {
 	*clientTestContext
 	authzServerMetadata            *oauth.AuthorizationServerMetadata
-	openIDCredentialIssuerMetadata *oauth.OpenIDCredentialIssuerMetadata
+	openIDCredentialIssuerMetadata *openid4vci.OpenIDCredentialIssuerMetadata
 	handler                        http.HandlerFunc
 	tlsServer                      *httptest.Server
 	verifierDID                    did.DID
@@ -524,12 +525,13 @@ type clientServerTestContext struct {
 	presentationDefinition         func(writer http.ResponseWriter)
 	response                       func(writer http.ResponseWriter)
 	token                          func(writer http.ResponseWriter)
+	nonce                          func(writer http.ResponseWriter)
 	credentials                    func(writer http.ResponseWriter)
 	requestObjectJWT               func(writer http.ResponseWriter)
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
-	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
+	credentialIssuerMetadata := &openid4vci.OpenIDCredentialIssuerMetadata{}
 	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
@@ -578,10 +580,16 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
 			return
 		},
+		nonce: func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"c_nonce": "server-nonce"}`))
+			return
+		},
 		credentials: func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"format": "format", "credential": "credential"}`))
+			_, _ = writer.Write([]byte(`{"credentials": [{"credential": {"type": "VerifiableCredential"}}]}`))
 			return
 		},
 		requestObjectJWT: func(writer http.ResponseWriter) {
@@ -628,6 +636,11 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 				ctx.token(writer)
 				return
 			}
+		case "/nonce":
+			if ctx.nonce != nil {
+				ctx.nonce(writer)
+				return
+			}
 		case "/credentials":
 			if ctx.credentials != nil {
 				ctx.credentials(writer)
@@ -659,64 +672,3 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	return ctx
 }
 
-func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, *ctx.openIDCredentialIssuerMetadata, *metadata)
-	})
-	t.Run("error - failed to get metadata", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-		ctx.credentialIssuerMetadata = nil
-
-		response, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
-
-		require.Error(t, err)
-		assert.Nil(t, response)
-		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
-	})
-}
-
-func TestIAMClient_VerifiableCredentials(t *testing.T) {
-	accessToken := "code"
-	proowJWT := "top secret"
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
-
-		require.NoError(t, err)
-		require.NotNil(t, response)
-		assert.Equal(t, "credential", response.Credential)
-	})
-	t.Run("error - failed to get access token", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		ctx.credentials = nil
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
-
-		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
-		assert.Nil(t, response)
-	})
-	t.Run("error - invalid access token", func(t *testing.T) {
-		ctx := createClientServerTestContext(t)
-
-		ctx.credentials = func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"format": "format", "credential": fail}`))
-			return
-		}
-
-		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT, nil)
-
-		assert.Error(t, err)
-		assert.Nil(t, response)
-	})
-}

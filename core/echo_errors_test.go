@@ -21,6 +21,9 @@ package core
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
@@ -87,6 +90,47 @@ func TestHttpErrorHandler(t *testing.T) {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		assert.Equal(t, "{\"detail\":\"other error\",\"status\":500,\"title\":\"test failed\"}", string(bodyBytes))
 	})
+}
+
+func TestHttpErrorHandler_idempotent_with_BodyDump(t *testing.T) {
+	// Echo's BodyDump middleware (and any other middleware that calls c.Error
+	// on the way out and still returns the error) causes echo to invoke the
+	// HTTPErrorHandler twice for the same request: once via c.Error and once
+	// via the err returned to echo's server loop. The second invocation must
+	// be a no-op so it does not log "response already committed" warnings.
+	logger, hook := logrustest.NewNullLogger()
+	logger.SetLevel(logrus.DebugLevel)
+	prevLogger := logrus.StandardLogger()
+	logrus.SetOutput(io.Discard)
+	prevHooks := prevLogger.Hooks
+	prevLogger.Hooks = make(logrus.LevelHooks)
+	prevLogger.AddHook(hook)
+	t.Cleanup(func() {
+		prevLogger.Hooks = prevHooks
+		logrus.SetOutput(prevLogger.Out)
+	})
+
+	es := echo.New()
+	es.HTTPErrorHandler = CreateHTTPErrorHandler()
+	es.Use(middleware.BodyDump(func(c echo.Context, _, _ []byte) {}))
+	es.Add(http.MethodGet, "/", func(c echo.Context) error {
+		c.Set(OperationIDContextKey, "test")
+		return errors.New("upstream failed")
+	})
+	server := httptest.NewServer(es)
+	t.Cleanup(server.Close)
+
+	resp, err := http.Get(server.URL + "/")
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	body, _ := io.ReadAll(resp.Body)
+	assert.Contains(t, string(body), "upstream failed",
+		"the error must be written to the response exactly once")
+
+	for _, entry := range hook.AllEntries() {
+		assert.NotContains(t, entry.Message, "response already committed",
+			"HTTPErrorHandler must be idempotent when invoked on a committed response")
+	}
 }
 
 func Test_NotFoundError(t *testing.T) {
