@@ -64,6 +64,11 @@ type OAuthSession struct {
 	// per §F.1; this can differ from IssuerURL (the AS issuer) when the metadata
 	// declares `authorization_servers`.
 	IssuerCredentialIssuer string `json:"issuer_credential_issuer,omitempty"`
+	// CredentialRequestParams is an optional JSON object provided by the API caller that is overlaid on top
+	// of the node-built OpenID4VCI Credential Request body. Any field supplied here overrides the node's
+	// default — including credential_configuration_id / credential_identifier / proofs. The caller is then
+	// responsible for the resulting wire shape. Contents are opaque and may contain PII; do not log this field.
+	CredentialRequestParams map[string]any `json:"credential_request_params,omitempty"`
 }
 
 // oauthClientFlow is used by a client to identify the flow a particular callback is part of

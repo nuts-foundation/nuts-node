@@ -8,6 +8,7 @@ Unreleased
 
 ## New features
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+* #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
 ****************
 Peanut (v6.2.4)

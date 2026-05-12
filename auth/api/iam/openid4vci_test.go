@@ -78,6 +78,22 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
 		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
 	})
+	t.Run("ok - credential_request_params persisted into session", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+		params := map[string]interface{}{"bsn": "900184590"}
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.CredentialRequestParams = &params
+
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		require.NoError(t, err)
+		redirectUri, _ := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		var stored OAuthSession
+		require.NoError(t, ctx.client.oauthClientStateStore().Get(redirectUri.Query().Get("state"), &stored))
+		assert.Equal(t, params, stored.CredentialRequestParams)
+	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
 		t.Run("ok - fallback to issuerDID on empty AuthorizationServers", func(t *testing.T) {
 			ctx := newTestClient(t)
@@ -289,6 +305,33 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionWithoutNonce)
+
+		require.NoError(t, err)
+		assert.NotNil(t, callback)
+	})
+	t.Run("ok - credential_request_params from session forwarded to credential endpoint", func(t *testing.T) {
+		ctx := newTestClient(t)
+		params := map[string]any{
+			"bsn": "900184590",
+			"ura": "900030757",
+		}
+		sessionWithParams := session
+		sessionWithParams.CredentialRequestParams = params
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
+		ctx.openid4vciClient.EXPECT().RequestCredential(nil, openid4vci.RequestCredentialOpts{
+			CredentialEndpoint:        credEndpoint,
+			AccessToken:               accessToken,
+			CredentialConfigurationID: credentialConfigID,
+			ProofJWT:                  "signed-proof",
+			CredentialRequestParams:   params,
+		}).Return(&credentialResponse, nil)
+		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
+		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionWithParams)
 
 		require.NoError(t, err)
 		assert.NotNil(t, callback)

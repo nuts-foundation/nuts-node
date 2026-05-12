@@ -91,6 +91,11 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	// metadata fetches.
 	authorizationDetails, _ := json.Marshal(request.Body.AuthorizationDetails)
 	credentialConfigID := request.Body.AuthorizationDetails[0].CredentialConfigurationId
+	// Capture optional credential_request_params, used as the base body of the Credential Request later in the flow.
+	var credentialRequestParams map[string]any
+	if request.Body.CredentialRequestParams != nil {
+		credentialRequestParams = *request.Body.CredentialRequestParams
+	}
 	// Generate the state and PKCE
 	state := crypto.GenerateNonce()
 	pkceParams := generatePKCEParams()
@@ -113,6 +118,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
 		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
+		CredentialRequestParams:         credentialRequestParams,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -238,6 +244,7 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
 		CredentialIdentifier:      credentialIdentifier,
 		ProofJWT:                  proofJWT,
+		CredentialRequestParams:   oauthSession.CredentialRequestParams,
 	})
 }
 
