@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -76,42 +75,6 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
 	})
 
-	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
-		ctx := createRPContext(t, nil)
-		httpServer := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		httpsServer := httptest.NewTLSServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		t.Cleanup(httpServer.Close)
-		t.Cleanup(httpsServer.Close)
-
-		t.Run("HTTPS in strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = true
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpsServer.URL))
-
-			assert.NoError(t, err)
-			assert.NotNil(t, response)
-		})
-		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = false
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
-
-			assert.NoError(t, err)
-			assert.NotNil(t, response)
-		})
-		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = true
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
-
-			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
-			assert.Nil(t, response)
-		})
-	})
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {

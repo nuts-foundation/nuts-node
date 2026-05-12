@@ -96,3 +96,5 @@ json-ld context can only be downloaded from trusted domains configured in ``json
 and the ``internalratelimiter`` is always on.
 
 Interacting with remote Nuts nodes requires HTTPS: it will refuse to connect to plain HTTP endpoints when in strict mode.
+Strict mode additionally rejects outbound URLs whose host is an IP literal or an RFC 2606 reserved hostname/TLD (e.g. ``*.localhost``, ``*.test``, ``example.com/net/org``).
+This applies to every outbound HTTP call made via the shared HTTP client (OpenID4VCI, OAuth relying-party, IAM, Discovery, did:web resolution, etc.) and to every redirect target along the way.

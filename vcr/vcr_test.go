@@ -86,7 +86,9 @@ func TestVCR_Configure(t *testing.T) {
 	})
 	t.Run("strictmode passed to client APIs", func(t *testing.T) {
 		ctx := newMockContext(t)
+		oldStrict := client.StrictMode
 		client.StrictMode = true
+		t.Cleanup(func() { client.StrictMode = oldStrict })
 		testVC := test.ValidNutsOrganizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 		testDirectory := io.TestDirectory(t)
@@ -106,7 +108,8 @@ func TestVCR_Configure(t *testing.T) {
 		require.NoError(t, err)
 		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
-		assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
+		assert.ErrorContains(t, err, "httpclient: invalid target URL")
+		assert.ErrorContains(t, err, "scheme must be https")
 	})
 }
 

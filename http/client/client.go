@@ -21,7 +21,6 @@ package client
 import (
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -31,6 +30,21 @@ import (
 	"github.com/nuts-foundation/nuts-node/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+// maxRedirects matches net/http's default redirect cap.
+const maxRedirects = 10
+
+// checkRedirect re-runs core.ParsePublicURL on every redirect target so a
+// validated initial URL cannot be turned into an SSRF via a 3xx response.
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxRedirects)
+	}
+	if _, err := core.ParsePublicURL(req.URL.String(), StrictMode); err != nil {
+		return fmt.Errorf("httpclient: invalid redirect target: %w", err)
+	}
+	return nil
+}
 
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
 var SafeHttpTransport *http.Transport
@@ -75,8 +89,9 @@ func New(timeout time.Duration) *StrictHTTPClient {
 	transport := getTransport(SafeHttpTransport)
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
+			Transport:     transport,
+			Timeout:       timeout,
+			CheckRedirect: checkRedirect,
 		},
 	}
 }
@@ -98,8 +113,9 @@ func NewWithCache(timeout time.Duration) *StrictHTTPClient {
 	transport := getTransport(DefaultCachingTransport)
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
+			Transport:     transport,
+			Timeout:       timeout,
+			CheckRedirect: checkRedirect,
 		},
 	}
 }
@@ -112,8 +128,9 @@ func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPC
 	transport.TLSClientConfig = tlsConfig
 	return &StrictHTTPClient{
 		client: &http.Client{
-			Transport: getTransport(transport),
-			Timeout:   timeout,
+			Transport:     getTransport(transport),
+			Timeout:       timeout,
+			CheckRedirect: checkRedirect,
 		},
 	}
 }
@@ -123,8 +140,8 @@ type StrictHTTPClient struct {
 }
 
 func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	if StrictMode && req.URL.Scheme != "https" {
-		return nil, errors.New("strictmode is enabled, but request is not over HTTPS")
+	if _, err := core.ParsePublicURL(req.URL.String(), StrictMode); err != nil {
+		return nil, fmt.Errorf("httpclient: invalid target URL: %w", err)
 	}
 	req.Header.Set("User-Agent", core.UserAgent())
 	result, err := s.client.Do(req)

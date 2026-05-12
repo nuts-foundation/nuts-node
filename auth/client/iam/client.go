@@ -85,12 +85,6 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
 // We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
 func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
-	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-
-	// create a GET request
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
