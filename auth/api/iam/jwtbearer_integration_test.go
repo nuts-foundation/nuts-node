@@ -60,7 +60,6 @@ func TestIntegration_JwtBearer_TwoVPHappyPath(t *testing.T) {
 	// node config (not strictly required since metadata fetch is from the AS itself, but keeps
 	// the wiring obvious).
 	asMock := newMockAS(t)
-	defer asMock.server.Close()
 
 	internalURL, _, _ := node.StartServer(t, func(_, _ string) {
 		t.Setenv("NUTS_AUTH_EXPERIMENTAL_JWTBEARERCLIENT", "true")
@@ -105,7 +104,7 @@ func TestIntegration_JwtBearer_TwoVPHappyPath(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode, "request-service-access-token failed: %s", respBody)
 
 	// Wire-format assertions on the captured form body.
-	form := asMock.lastForm()
+	form := asMock.capturedForm(t)
 	assert.Equal(t, oauth.JwtBearerGrantType, form.Get("grant_type"), "grant_type")
 	assert.Equal(t, oauth.JwtBearerClientAssertionType, form.Get("client_assertion_type"), "client_assertion_type")
 	assert.Equal(t, "medication-overview", form.Get("scope"), "scope")
@@ -124,12 +123,13 @@ func TestIntegration_JwtBearer_TwoVPHappyPath(t *testing.T) {
 	delegationCred := pluckCredentialByType(t, delegationVP, "ServiceProviderDelegationCredential")
 	assert.Equal(t, orgDID, jsonString(t, delegationCred, "issuer"),
 		"delegation credential issuer must equal VP1 signer (cross-VP binding on $.issuer == $.credentialSubject.id)")
-	assert.Equal(t, ura, deepString(t, delegationCred, "credentialSubject", 0, "hasDelegation", "delegatedBy", "identifier", 0, "value"),
+	delegatedBy, _ := firstSubject(t, delegationCred)["hasDelegation"].(map[string]any)["delegatedBy"].(map[string]any)
+	assert.Equal(t, ura, firstIdentifierValue(t, delegatedBy),
 		"delegation delegatedBy URA must equal VP1 HCP URA (cross-VP binding on URA)")
 
 	// Sanity: VP1 (organization VP) carried the HCP credential.
 	hcpCred := pluckCredentialByType(t, hcpVP, "HealthcareProviderCredential")
-	assert.Equal(t, ura, deepString(t, hcpCred, "credentialSubject", 0, "identifier", 0, "value"),
+	assert.Equal(t, ura, firstIdentifierValue(t, firstSubject(t, hcpCred)),
 		"HCP credential carries the expected URA")
 }
 
@@ -191,26 +191,12 @@ const medicationOverviewPolicy = `{
   }
 }`
 
-// provisionSubject creates a Nuts subject if it doesn't already exist and returns its first
-// did:web. Idempotent across the test run.
+// provisionSubject creates a Nuts subject and returns its first did:web. The test runs against a
+// fresh tempdir-backed node, so this is single-shot creation rather than idempotent lookup.
 func provisionSubject(t *testing.T, internalURL, subjectID string) string {
 	t.Helper()
-	resp, err := http.Get(internalURL + "/internal/vdr/v2/subject/" + subjectID)
-	require.NoError(t, err)
-	if resp.StatusCode == http.StatusOK {
-		var dids []string
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&dids))
-		resp.Body.Close()
-		for _, d := range dids {
-			if strings.HasPrefix(d, "did:web:") {
-				return d
-			}
-		}
-		t.Fatalf("subject %s exists but has no did:web", subjectID)
-	}
-	resp.Body.Close()
 	body, _ := json.Marshal(map[string]string{"subject": subjectID})
-	resp, err = http.Post(internalURL+"/internal/vdr/v2/subject", "application/json", bytes.NewReader(body))
+	resp, err := http.Post(internalURL+"/internal/vdr/v2/subject", "application/json", bytes.NewReader(body))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode, "create subject %s", subjectID)
@@ -226,6 +212,15 @@ func provisionSubject(t *testing.T, internalURL, subjectID string) string {
 
 // issueAndLoad issues a credential against /internal/vcr/v2/issuer/vc and loads it into the
 // holder wallet under the given subject. Both calls are routed through the same node.
+//
+// expirationDate on the credential body is required when status-list revocation is not set;
+// the statuslist machinery would add network round-trips we don't need in tests.
+//
+// Format key conventions in this file (three different specs in play):
+//   - issuer-API request body uses "format": "jwt_vc"           (vcr v2 issuer API)
+//   - PE policy "format" object uses "jwt_vc" / "jwt_vp"        (Presentation Exchange schema)
+//   - AS metadata "vp_formats_supported" uses "jwt_vc_json"
+//     and "jwt_vp_json"                                          (OAuth 2.0 metadata)
 func issueAndLoad(t *testing.T, internalURL, holderSubject string, body []byte) {
 	t.Helper()
 	resp, err := http.Post(internalURL+"/internal/vcr/v2/issuer/vc", "application/json", bytes.NewReader(body))
@@ -246,8 +241,6 @@ func buildHCPCredential(issuerDID, subjectDID, ura string) []byte {
 		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
 		"type":     []string{"VerifiableCredential", "HealthcareProviderCredential"},
 		"issuer":   issuerDID,
-		// expirationDate is required when withStatusList2021Revocation is not set; the
-		// statuslist machinery would add network round-trips we don't need.
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
@@ -267,8 +260,6 @@ func buildSPCredential(issuerDID, subjectDID string) []byte {
 		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
 		"type":     []string{"VerifiableCredential", "ServiceProviderCredential"},
 		"issuer":   issuerDID,
-		// expirationDate is required when withStatusList2021Revocation is not set; the
-		// statuslist machinery would add network round-trips we don't need.
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
@@ -285,8 +276,6 @@ func buildDelegationCredential(issuerDID, subjectDID, ura string) []byte {
 		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
 		"type":     []string{"VerifiableCredential", "ServiceProviderDelegationCredential"},
 		"issuer":   issuerDID,
-		// expirationDate is required when withStatusList2021Revocation is not set; the
-		// statuslist machinery would add network round-trips we don't need.
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
@@ -308,9 +297,17 @@ func buildDelegationCredential(issuerDID, subjectDID, ura string) []byte {
 
 // mockAS is the httptest authorization server. It advertises jwt-bearer support and did:web in
 // its metadata, captures the form body posted to /token, and returns a canned token response.
+//
+// The token-request path is fully synchronous: the IAMClient's POST to /token completes inside
+// the request-service-access-token call. The captured form is therefore guaranteed to be set
+// once the API returns 200, so no polling is needed.
 type mockAS struct {
 	server   *httptest.Server
 	captured atomic.Pointer[url.Values]
+	// parseErr propagates a form-parsing failure from the token handler goroutine to the main
+	// test goroutine; require.NoError from inside the handler would only halt the handler, not
+	// the test.
+	parseErr atomic.Pointer[error]
 }
 
 func newMockAS(t *testing.T) *mockAS {
@@ -336,7 +333,11 @@ func newMockAS(t *testing.T) *mockAS {
 	})
 	mux.HandleFunc("/oauth2/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/token") {
-			require.NoError(t, r.ParseForm())
+			if err := r.ParseForm(); err != nil {
+				m.parseErr.Store(&err)
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			form := r.PostForm
 			m.captured.Store(&form)
 			w.Header().Set("Content-Type", "application/json")
@@ -346,18 +347,22 @@ func newMockAS(t *testing.T) *mockAS {
 		w.WriteHeader(http.StatusNotFound)
 	})
 	m.server = httptest.NewServer(mux)
+	t.Cleanup(m.server.Close)
 	return m
 }
 
-func (m *mockAS) lastForm() url.Values {
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if f := m.captured.Load(); f != nil {
-			return *f
-		}
-		time.Sleep(20 * time.Millisecond)
+// capturedForm returns the form posted to /token. The handler runs synchronously inside the
+// request-service-access-token call, so by the time the test reads this the form is set.
+// Fails the test loudly (rather than returning an empty url.Values that makes wire-format
+// asserts misleading) if the token endpoint was never hit or form parsing failed.
+func (m *mockAS) capturedForm(t *testing.T) url.Values {
+	t.Helper()
+	if errPtr := m.parseErr.Load(); errPtr != nil {
+		t.Fatalf("mock AS failed to parse token-request form: %v", *errPtr)
 	}
-	return nil
+	form := m.captured.Load()
+	require.NotNil(t, form, "mock AS /token endpoint was never called — request-service-access-token must have failed before reaching the AS")
+	return *form
 }
 
 // verifyVP submits a JWT-VP to /internal/vcr/v2/verifier/vp and returns the parsed envelope. The
@@ -379,24 +384,16 @@ func verifyVP(t *testing.T, internalURL, vpJWT string) map[string]any {
 }
 
 // pluckCredentialByType returns the first verifiable credential in the verifier response whose
-// type list contains the requested type. The verifier's "credentials" array contains either
-// parsed JSON objects (ldp_vc) or JWT strings (jwt_vc); for the latter we decode the payload to
-// inspect the vc claim. Returns the parsed credential payload (the inner object for JWT VCs, or
-// the entry itself for JSON-LD VCs).
+// type list contains the requested type. The verifier returns JWT-encoded credentials for the
+// jwt_vc format used in this test; we decode the payload to inspect the vc claim.
 func pluckCredentialByType(t *testing.T, vp map[string]any, credType string) map[string]any {
 	t.Helper()
 	creds, ok := vp["credentials"].([]any)
 	require.True(t, ok, "verifier/vp response missing 'credentials' array")
 	for _, c := range creds {
-		var cm map[string]any
-		switch v := c.(type) {
-		case map[string]any:
-			cm = v
-		case string:
-			cm = decodeJWTVCPayload(t, v)
-		default:
-			t.Fatalf("unsupported credential element type %T", c)
-		}
+		jwtStr, ok := c.(string)
+		require.True(t, ok, "expected JWT-encoded credential string, got %T", c)
+		cm := decodeJWTVCPayload(t, jwtStr)
 		types, _ := cm["type"].([]any)
 		for _, ty := range types {
 			if s, _ := ty.(string); s == credType {
@@ -450,28 +447,25 @@ func jsonString(t *testing.T, m map[string]any, key string) string {
 	return s
 }
 
-// deepString walks the JSON value through the given keys (string for object keys, int for array
-// indices) and returns the leaf as a string. Useful for asserting on nested credential subject
-// structures returned by the verifier.
-func deepString(t *testing.T, m any, keys ...any) string {
+// firstSubject returns credentialSubject[0] of the given credential. The verifier returns
+// credentialSubject as an array of objects; the test credentials always have a single subject.
+func firstSubject(t *testing.T, cred map[string]any) map[string]any {
 	t.Helper()
-	for i, k := range keys {
-		switch key := k.(type) {
-		case string:
-			obj, ok := m.(map[string]any)
-			require.True(t, ok, "step %d (%v): expected object, got %T", i, key, m)
-			m, ok = obj[key]
-			require.True(t, ok, "step %d (%v): key not found", i, key)
-		case int:
-			arr, ok := m.([]any)
-			require.True(t, ok, "step %d (%v): expected array, got %T", i, key, m)
-			require.Less(t, key, len(arr), "step %d (%v): index out of range (len=%d)", i, key, len(arr))
-			m = arr[key]
-		default:
-			t.Fatalf("step %d: unsupported key type %T", i, key)
-		}
-	}
-	s, ok := m.(string)
-	require.True(t, ok, "leaf is not string: %T (%v)", m, m)
-	return s
+	subjects, ok := cred["credentialSubject"].([]any)
+	require.True(t, ok && len(subjects) > 0, "credentialSubject is not a non-empty array: %v", cred["credentialSubject"])
+	subject, ok := subjects[0].(map[string]any)
+	require.True(t, ok, "credentialSubject[0] is not an object: %T", subjects[0])
+	return subject
+}
+
+// firstIdentifierValue returns identifier[0].value from the given object. The HCP credential's
+// subject and the delegation credential's delegatedBy both follow the
+// `identifier: [{system, value}]` shape from the gis-nl context.
+func firstIdentifierValue(t *testing.T, m map[string]any) string {
+	t.Helper()
+	idents, ok := m["identifier"].([]any)
+	require.True(t, ok && len(idents) > 0, "identifier is not a non-empty array: %v", m["identifier"])
+	ident, ok := idents[0].(map[string]any)
+	require.True(t, ok, "identifier[0] is not an object: %T", idents[0])
+	return jsonString(t, ident, "value")
 }
