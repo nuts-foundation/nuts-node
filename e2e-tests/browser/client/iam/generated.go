@@ -253,10 +253,11 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
-	// CredentialDetails EXPERIMENTAL. Optional JSON object overlaid on top of the node-built OpenID4VCI Credential Request body.
-	// Any field supplied here overrides the node's default — including credential_configuration_id /
-	// credential_identifier / proofs. Use this to support issuers with non-spec Credential Request shapes;
-	// the caller takes responsibility for the resulting wire shape.
+	// CredentialDetails EXPERIMENTAL. Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+	// the issuer's credential endpoint. Any field supplied here overrides the node's default —
+	// including credential_configuration_id, credential_identifier and proofs. Use this for
+	// issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
 	//
 	// Contents are opaque to the node and may contain PII (e.g. BSN). The node does not log
 	// credential_details.

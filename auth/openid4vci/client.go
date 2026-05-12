@@ -240,7 +240,8 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 // inserted at the authority root, and the issuer's path is appended after.
 //
 // Example: https://example.com/oauth2/alice
-//   ->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
+//
+//	->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
 func credentialIssuerWellKnown(issuerURL string) (string, error) {
 	u, err := url.Parse(issuerURL)
 	if err != nil {
