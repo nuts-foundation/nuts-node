@@ -120,14 +120,14 @@ func TestSignJWT(t *testing.T) {
 
 func TestParseJWT(t *testing.T) {
 	t.Run("unsupported algorithm", func(t *testing.T) {
-		rsaKey := test.GenerateRSAKey()
+		secret := []byte("test-hmac-secret")
 		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.HS256, secret))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
-			return rsaKey.Public(), nil
+			return secret, nil
 		}, nil, nil)
 		assert.Nil(t, parsedToken)
-		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
+		assert.EqualError(t, err, "token signing algorithm is not supported: HS256")
 	})
 
 	t.Run("allow clock skew (default DefaultJWTClockSkew)", func(t *testing.T) {
@@ -595,7 +595,7 @@ func TestCrypto_convertHeaders(t *testing.T) {
 
 func Test_isAlgorithmSupported(t *testing.T) {
 	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256))
-	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256))
+	assert.True(t, jwx.IsAlgorithmSupported(jwa.RS256))
 	assert.False(t, jwx.IsAlgorithmSupported(""))
 }
 
