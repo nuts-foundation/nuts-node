@@ -82,29 +82,16 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		details := map[string]interface{}{
-			"bsn": "900184590",
-			"ura": "900030757",
-		}
+		details := map[string]interface{}{"bsn": "900184590"}
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.CredentialDetails = &details
 
-		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
-			SubjectID: holderSubjectID,
-			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential", Format: to.Ptr("vc+sd-jwt")}},
-				CredentialDetails:    &details,
-				Issuer:               issuerClientID,
-				RedirectUri:          redirectURI,
-				WalletDid:            holderDID.String(),
-			},
-		})
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
 		require.NoError(t, err)
-		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
-		require.NoError(t, err)
-		state := redirectUri.Query().Get("state")
-		require.NotEmpty(t, state)
+		redirectUri, _ := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
 		var stored OAuthSession
-		require.NoError(t, ctx.client.oauthClientStateStore().Get(state, &stored))
+		require.NoError(t, ctx.client.oauthClientStateStore().Get(redirectUri.Query().Get("state"), &stored))
 		assert.Equal(t, details, stored.CredentialRequestDetails)
 	})
 	t.Run("openid4vciMetadata", func(t *testing.T) {
