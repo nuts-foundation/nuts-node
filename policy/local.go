@@ -133,22 +133,14 @@ func (b *LocalPDP) FindCredentialProfile(_ context.Context, scope string) (*Cred
 	}, nil
 }
 
-// loadFromDirectory traverses all .json files in the given directory and loads them
+// loadFromDirectory traverses all .json files in the given directory and loads them.
+// Entries are processed in lexical order so duplicate-scope detection is deterministic.
 func (b *LocalPDP) loadFromDirectory(directory string) error {
-	// open the directory
-	dir, err := os.Open(directory)
-	if err != nil {
-		return err
-	}
-	defer dir.Close()
-
-	// read all the files in the directory
-	files, err := dir.Readdir(0)
+	files, err := os.ReadDir(directory)
 	if err != nil {
 		return err
 	}
 
-	// load all the files
 	for _, file := range files {
 		if file.IsDir() {
 			continue
