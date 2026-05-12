@@ -198,7 +198,6 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	for k, v := range opts.CredentialDetails {
 		body[k] = v
 	}
-
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
