@@ -13,17 +13,18 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Run inside a debian-based Go container so DNS resolution errors come from
+    # glibc ("no such host") instead of the runner's systemd-resolved
+    # ("server misbehaving"), which several unit tests assert against verbatim.
+    container: golang:1.26.3
     permissions:
       contents: read
       id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
         with:
-          go-version-file: 'go.mod'
+          persist-credentials: false
 
       - name: Test
         run: go test -p 1 ./... -race -coverprofile=c_raw.out
@@ -32,7 +33,7 @@ jobs:
         run: grep -v generated c_raw.out | grep -v mock | grep -v test > c.out
 
       - name: Upload coverage to Qlty
-        uses: qltysh/qlty-action/coverage@v2
+        uses: qltysh/qlty-action/coverage@a19242102d17e497f437d7466aa01b528537e899 # v2.2.0
         with:
           oidc: true
           files: c.out
