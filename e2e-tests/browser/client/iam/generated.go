@@ -242,6 +242,13 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
+	// CredentialRequestParams Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+	// the issuer's credential endpoint. Any field supplied here overrides the node's default —
+	// including credential_configuration_id, credential_identifier and proofs. Use this for
+	// issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
+	CredentialRequestParams *map[string]interface{} `json:"credential_request_params,omitempty"`
+
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.
 	Issuer string `json:"issuer"`

@@ -43,12 +43,20 @@ const wellKnownPath = "/.well-known/openid-credential-issuer"
 // CredentialConfigurationID MUST NOT be present); otherwise the wallet sets
 // CredentialConfigurationID. If both are non-empty, CredentialIdentifier
 // takes precedence to enforce the spec rule.
+//
+// CredentialRequestParams is overlaid on top of the node-built request body, so
+// any field set here overrides the node's default — including
+// credential_configuration_id / credential_identifier / proofs. This is
+// the escape hatch for issuers with non-spec request shapes; the caller
+// takes full responsibility for the wire-level result (§8.2 mutual
+// exclusivity, proof binding, etc.).
 type RequestCredentialOpts struct {
 	CredentialEndpoint        string
 	AccessToken               string
 	CredentialConfigurationID string
 	CredentialIdentifier      string
 	ProofJWT                  string
+	CredentialRequestParams         map[string]any
 }
 
 // Client is the OpenID4VCI 1.0 HTTP client interface.
@@ -174,17 +182,21 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 	if err := c.validateURL("credential endpoint", opts.CredentialEndpoint); err != nil {
 		return nil, err
 	}
-	body := CredentialRequest{
-		Proofs: &CredentialRequestProofs{
-			JWT: []string{opts.ProofJWT},
-		},
+	body := make(map[string]any, len(opts.CredentialRequestParams)+2)
+	// Node defaults. Per §8.2, credential_identifier and
+	// credential_configuration_id are mutually exclusive; credential_identifier
+	// wins when set.
+	switch {
+	case opts.CredentialIdentifier != "":
+		body["credential_identifier"] = opts.CredentialIdentifier
+	case opts.CredentialConfigurationID != "":
+		body["credential_configuration_id"] = opts.CredentialConfigurationID
 	}
-	// Per §8.2: CredentialIdentifier and CredentialConfigurationID are mutually
-	// exclusive. CredentialIdentifier wins when set.
-	if opts.CredentialIdentifier != "" {
-		body.CredentialIdentifier = opts.CredentialIdentifier
-	} else {
-		body.CredentialConfigurationID = opts.CredentialConfigurationID
+	body["proofs"] = CredentialRequestProofs{JWT: []string{opts.ProofJWT}}
+	// CredentialRequestParams overlays the node defaults — caller-supplied values
+	// win. The caller takes responsibility for the resulting wire shape.
+	for k, v := range opts.CredentialRequestParams {
+		body[k] = v
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -228,7 +240,8 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 // inserted at the authority root, and the issuer's path is appended after.
 //
 // Example: https://example.com/oauth2/alice
-//   ->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
+//
+//	->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
 func credentialIssuerWellKnown(issuerURL string) (string, error) {
 	u, err := url.Parse(issuerURL)
 	if err != nil {
