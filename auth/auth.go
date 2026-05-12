@@ -23,6 +23,7 @@ import (
 	"errors"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/vdr/didkey"
@@ -70,6 +71,7 @@ type Auth struct {
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
 	subjectManager    didsubject.Manager
+	policyBackend     policy.PDPBackend
 	openID4VCIClient  openid4vci.Client
 	// configuredDIDMethods contains the DID methods that are configured in the Nuts node,
 	// of which VDR will create DIDs.
@@ -103,7 +105,7 @@ func (auth *Auth) ContractNotary() services.ContractNotary {
 
 // NewAuthInstance accepts a Config with several Nuts Engines and returns an instance of Auth
 func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubject.Manager, vcr vcr.VCR, keyStore crypto.KeyStore,
-	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider) *Auth {
+	serviceResolver didman.CompoundServiceResolver, jsonldManager jsonld.JSONLD, pkiProvider pki.Provider, policyBackend policy.PDPBackend) *Auth {
 	return &Auth{
 		config:          config,
 		jsonldManager:   jsonldManager,
@@ -113,6 +115,7 @@ func NewAuthInstance(config Config, vdrInstance vdr.VDR, subjectManager didsubje
 		vcr:             vcr,
 		pkiProvider:     pkiProvider,
 		serviceResolver: serviceResolver,
+		policyBackend:   policyBackend,
 		shutdownFunc:    func() {},
 	}
 }
@@ -129,7 +132,7 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 
 func (auth *Auth) IAMClient() iam.Client {
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.strictMode, auth.httpClientTimeout)
+	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.policyBackend, auth.strictMode, auth.httpClientTimeout)
 }
 
 // OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.

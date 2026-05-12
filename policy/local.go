@@ -23,12 +23,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/core"
+	httpClient "github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"io"
 	"os"
 	"strings"
+	"time"
 )
+
+// authzenTimeout is the default timeout for AuthZen PDP requests.
+const authzenTimeout = 10 * time.Second
+
+func (sp ScopePolicy) valid() bool {
+	switch sp {
+	case ScopePolicyProfileOnly, ScopePolicyPassthrough, ScopePolicyDynamic:
+		return true
+	default:
+		return false
+	}
+}
 
 var _ PDPBackend = (*LocalPDP)(nil)
 
@@ -37,13 +52,15 @@ func New() *LocalPDP {
 	return &LocalPDP{}
 }
 
-// LocalPDP is a backend for presentation definitions
-// It loads a file with the mapping from oauth scope to PEX Policy.
-// It allows access when the requester can present a submission according to the Presentation Definition.
+// LocalPDP is a backend for presentation definitions.
+// It loads policy files that map OAuth scopes to credential profiles (PresentationDefinitions + scope policy).
 type LocalPDP struct {
 	config Config
-	// mapping holds the oauth scope to PEX Policy mapping
-	mapping map[string]validatingWalletOwnerMapping
+	// mapping holds the credential profile configuration per scope
+	mapping map[string]credentialProfileConfig
+	// scopeEvaluator is the configured ScopeEvaluator used for dynamic scope policy
+	// evaluation. It is nil when no PDP endpoint is configured.
+	scopeEvaluator ScopeEvaluator
 }
 
 func (b *LocalPDP) Name() string {
@@ -67,24 +84,53 @@ func (b *LocalPDP) Configure(_ core.ServerConfig) error {
 			return fmt.Errorf("failed to load policy from directory: %w", err)
 		}
 	}
-
+	if b.config.AuthZen.Endpoint == "" {
+		for scope, profile := range b.mapping {
+			if profile.ScopePolicy == ScopePolicyDynamic {
+				return fmt.Errorf("credential profile %q has scope_policy %q but no AuthZen endpoint is configured (policy.authzen.endpoint)", scope, ScopePolicyDynamic)
+			}
+		}
+	} else {
+		// Use StrictHTTPClient: enforces TLS, bounds response body size, applies timeout.
+		b.scopeEvaluator = NewAuthZenScopeEvaluator(authzen.NewClient(b.config.AuthZen.Endpoint, httpClient.New(authzenTimeout)))
+	}
 	return nil
+}
+
+// ScopeEvaluator returns the configured ScopeEvaluator, or nil when no PDP endpoint is configured.
+func (b *LocalPDP) ScopeEvaluator() ScopeEvaluator {
+	return b.scopeEvaluator
 }
 
 func (b *LocalPDP) Config() interface{} {
 	return &b.config
 }
 
-func (b *LocalPDP) PresentationDefinitions(_ context.Context, scope string) (pe.WalletOwnerMapping, error) {
-	result := pe.WalletOwnerMapping{}
-	mapping, exists := b.mapping[scope]
-	if !exists {
+// FindCredentialProfile implements PDPBackend.
+func (b *LocalPDP) FindCredentialProfile(_ context.Context, scope string) (*CredentialProfileMatch, error) {
+	var profileScope string
+	var profile credentialProfileConfig
+	var otherScopes []string
+	for _, s := range strings.Fields(scope) {
+		if p, exists := b.mapping[s]; exists {
+			if profileScope != "" {
+				return nil, ErrAmbiguousScope
+			}
+			profileScope = s
+			profile = p
+		} else {
+			otherScopes = append(otherScopes, s)
+		}
+	}
+	if profileScope == "" {
 		return nil, ErrNotFound
 	}
-	for walletOwnerType, policy := range mapping {
-		result[walletOwnerType] = policy
-	}
-	return result, nil
+	return &CredentialProfileMatch{
+		CredentialProfileScope: profileScope,
+		WalletOwnerMapping:     profile.toWalletOwnerMapping(),
+		ScopePolicy:            profile.ScopePolicy,
+		OtherScopes:            otherScopes,
+	}, nil
 }
 
 // loadFromDirectory traverses all .json files in the given directory and loads them
@@ -118,43 +164,67 @@ func (b *LocalPDP) loadFromDirectory(directory string) error {
 	return nil
 }
 
-// LoadFromFile loads the mapping from the given file
 func (b *LocalPDP) loadFromFile(filename string) error {
-	// read the bytes from the file
 	reader, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
-	bytes, err := io.ReadAll(reader)
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return err
 	}
 
-	// unmarshal the bytes into the mapping
-	result := make(map[string]validatingWalletOwnerMapping)
-	err = json.Unmarshal(bytes, &result)
-	if err != nil {
+	result := make(map[string]credentialProfileConfig)
+	if err = json.Unmarshal(data, &result); err != nil {
 		return fmt.Errorf("failed to unmarshal PEX Policy mapping file %s: %w", filename, err)
 	}
 	if b.mapping == nil {
-		b.mapping = make(map[string]validatingWalletOwnerMapping)
+		b.mapping = make(map[string]credentialProfileConfig)
 	}
-	for scope, defs := range result {
+	for scope, profile := range result {
 		if _, exists := b.mapping[scope]; exists {
 			return fmt.Errorf("mapping for scope '%s' already exists (file=%s)", scope, filename)
 		}
-		b.mapping[scope] = defs
+		// Default to profile-only when scope_policy is not specified
+		if profile.ScopePolicy == "" {
+			profile.ScopePolicy = ScopePolicyProfileOnly
+		}
+		if profile.Organization == nil && profile.User == nil {
+			return fmt.Errorf("credential profile %q must define at least one of 'organization' or 'user' (file=%s)", scope, filename)
+		}
+		if !profile.ScopePolicy.valid() {
+			return fmt.Errorf("invalid scope_policy %q for scope %q (file=%s)", profile.ScopePolicy, scope, filename)
+		}
+		b.mapping[scope] = profile
 	}
 	return nil
 }
 
-// validatingPresentationDefinition is an alias for PresentationDefinition that validates the JSON on unmarshal.
-type validatingWalletOwnerMapping pe.WalletOwnerMapping
+// credentialProfileConfig holds the configuration for a single credential profile.
+type credentialProfileConfig struct {
+	Organization *validatingPresentationDefinition `json:"organization,omitempty"`
+	User         *validatingPresentationDefinition `json:"user,omitempty"`
+	ScopePolicy  ScopePolicy                       `json:"scope_policy,omitempty"`
+}
 
-func (v *validatingWalletOwnerMapping) UnmarshalJSON(data []byte) error {
-	if err := v2.Validate(data, v2.WalletOwnerMapping); err != nil {
+func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
+	m := pe.WalletOwnerMapping{}
+	if c.Organization != nil {
+		m[pe.WalletOwnerOrganization] = pe.PresentationDefinition(*c.Organization)
+	}
+	if c.User != nil {
+		m[pe.WalletOwnerUser] = pe.PresentationDefinition(*c.User)
+	}
+	return m
+}
+
+// validatingPresentationDefinition validates the PresentationDefinition against the v2 JSON schema on unmarshal.
+type validatingPresentationDefinition pe.PresentationDefinition
+
+func (v *validatingPresentationDefinition) UnmarshalJSON(data []byte) error {
+	if err := v2.Validate(data, v2.PresentationDefinition); err != nil {
 		return err
 	}
-	return json.Unmarshal(data, (*pe.WalletOwnerMapping)(v))
+	return json.Unmarshal(data, (*pe.PresentationDefinition)(v))
 }

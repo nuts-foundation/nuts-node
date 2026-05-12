@@ -704,7 +704,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, request.Params.Scope)
+	match, err := r.policyBackend.FindCredentialProfile(ctx, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -716,7 +716,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 	if request.Params.WalletOwnerType != nil {
 		walletOwnerType = *request.Params.WalletOwnerType
 	}
-	result, exists := mapping[walletOwnerType]
+	result, exists := match.WalletOwnerMapping[walletOwnerType]
 	if !exists {
 		return nil, oauthError(oauth.InvalidRequest, fmt.Sprintf("no presentation definition found for '%s' wallet", walletOwnerType))
 	}
