@@ -6,9 +6,6 @@ on:
       - 'master'
       - 'V*'
   pull_request:
-    branches:
-      - 'master'
-      - 'V*'
 
 jobs:
   test:
