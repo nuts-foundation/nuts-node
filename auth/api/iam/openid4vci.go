@@ -31,6 +31,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
@@ -39,10 +40,11 @@ import (
 
 var timeFunc = time.Now
 
-// jwtTypeOpenID4VCIProof defines the OpenID4VCI JWT-subtype (used as typ claim in the JWT).
-const jwtTypeOpenID4VCIProof = "openid4vci-proof+jwt"
-
 func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error) {
+	if request.Body == nil {
+		// why did oapi-codegen generate a pointer for the body??
+		return nil, core.InvalidInputError("missing request body")
+	}
 	walletDID, err := did.ParseDID(request.Body.WalletDid)
 	if err != nil {
 		return nil, core.InvalidInputError("invalid wallet DID")
@@ -52,15 +54,19 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	} else if !owned {
 		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
 	}
-
-	if request.Body == nil {
-		// why did oapi-codegen generate a pointer for the body??
-		return nil, core.InvalidInputError("missing request body")
-	}
 	// Parse the issuer
 	issuer := request.Body.Issuer
 	if issuer == "" {
 		return nil, core.InvalidInputError("issuer is empty")
+	}
+	// Per §5.1.1 the openid_credential authorization_details flow requires at
+	// least one entry; the current implementation issues a single credential
+	// per call and only consumes the first entry. The OpenAPI schema declares
+	// both minItems: 1 and maxItems: 1, but the StrictServer middleware does
+	// not enforce array bounds at runtime, so reject here before any outbound
+	// metadata fetches.
+	if len(request.Body.AuthorizationDetails) != 1 {
+		return nil, core.InvalidInputError("authorization_details must contain exactly one entry")
 	}
 	// Fetch metadata containing the endpoints
 	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, request.Body.Issuer)
@@ -79,12 +85,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Read and parse the authorization details
-	authorizationDetails := []byte("[]")
-	if len(request.Body.AuthorizationDetails) > 0 {
-		authorizationDetails, _ = json.Marshal(request.Body.AuthorizationDetails)
-	}
-	// Capture optional credential_details, used as the base body of the Credential Request later in the flow.
+	// Per §5.1.1, type and credential_configuration_id are required on each
+	// openid_credential authorization_details entry; the OpenAPI schema
+	// enforces both. Non-emptiness was checked above before any outbound
+	// metadata fetches.
+	authorizationDetails, _ := json.Marshal(request.Body.AuthorizationDetails)
+	credentialConfigID := request.Body.AuthorizationDetails[0].CredentialConfigurationId
+	// Capture optional credential_details, used as the overlay on top of the Credential Request body later in the flow.
 	var credentialRequestDetails map[string]any
 	if request.Body.CredentialDetails != nil {
 		credentialRequestDetails = *request.Body.CredentialDetails
@@ -105,10 +112,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		PKCEParams:                  pkceParams,
 		// OpenID4VCI issuers may use multiple Authorization Servers
 		// We must use the token_endpoint that corresponds to the same Authorization Server used for the authorization_endpoint
-		TokenEndpoint:            authzServerMetadata.TokenEndpoint,
-		IssuerURL:                authzServerMetadata.Issuer,
-		IssuerCredentialEndpoint: credentialIssuerMetadata.CredentialEndpoint,
-		CredentialRequestDetails: credentialRequestDetails,
+		TokenEndpoint:                   authzServerMetadata.TokenEndpoint,
+		IssuerURL:                       authzServerMetadata.Issuer,
+		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
+		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
+		IssuerCredentialConfigurationID: credentialConfigID,
+		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
+		CredentialRequestDetails:        credentialRequestDetails,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
@@ -135,8 +145,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 }
 
 func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
-	// extract callback URI at calling app from OAuthSession
-	// this is the URI where the user-agent will be redirected to
 	appCallbackURI := oauthSession.redirectURI()
 
 	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
@@ -148,31 +156,72 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}
 
 	// use code to request access token from remote token endpoint
-	response, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
 
-	// make proof and collect credential
-	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerURL, response.Get(oauth.CNonceParam))
+	// Per §3.3.4 / §8.2: when the Token Response carries authorization_details
+	// with credential_identifiers, the Credential Request MUST use a
+	// credential_identifier (not credential_configuration_id). When the AS
+	// did not return authorization_details, fall back to
+	// credential_configuration_id (§3.3.4 scope-flow alternative).
+	credentialIdentifier, err := extractCredentialIdentifier(tokenResponse, oauthSession.IssuerCredentialConfigurationID)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error building proof to fetch the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, err.Error()), appCallbackURI)
 	}
-	credentials, err := r.auth.IAMClient().VerifiableCredentials(ctx, oauthSession.IssuerCredentialEndpoint, response.AccessToken, proofJWT, oauthSession.CredentialRequestDetails)
-	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+
+	// fetch nonce from the Nonce Endpoint (v1.0 Section 7)
+	var nonce string
+	if oauthSession.IssuerNonceEndpoint != "" {
+		nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+		if err != nil {
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+		}
 	}
-	// validate credential
-	// TODO: check that issued credential is bound to DID that requested it (OwnDID)???
-	credential, err := vc.ParseVerifiableCredential(credentials.Credential)
+
+	// build proof and request credential
+	credentialResponse, err := r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentials.Credential, err.Error())), appCallbackURI)
+		// Per OpenID4VCI 1.0 §8.3.1.2: on invalid_nonce the wallet retrieves a
+		// new c_nonce. Retrying once is local policy to bound recovery; a
+		// second invalid_nonce surfaces as a generic ServerError below.
+		var oauthErr oauth.OAuth2Error
+		if errors.As(err, &oauthErr) && oauthErr.Code == oauth.InvalidNonce && oauthSession.IssuerNonceEndpoint != "" {
+			nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
+			if err != nil {
+				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+			}
+			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
+		}
+		if err != nil {
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+		}
+	}
+	if len(credentialResponse.Credentials) == 0 {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "credential response does not contain any credentials"), appCallbackURI)
+	}
+
+	// Per OpenID4VCI 1.0 §8.3 the credential field is either a JSON string
+	// (JWT-VC, SD-JWT-VC) or a JSON object (JSON-LD). Because Credential is
+	// typed as json.RawMessage, the field keeps the raw JSON encoding — for
+	// a JWT that includes the surrounding quotes, which ParseVerifiableCredential
+	// would reject as invalid base64. Unmarshal the bytes as a Go string first
+	// to strip those quotes; on failure (the JSON-LD object case) fall back to
+	// the raw bytes as-is.
+	rawCredential := credentialResponse.Credentials[0].Credential
+	var credentialJSON string
+	if err := json.Unmarshal(rawCredential, &credentialJSON); err != nil {
+		credentialJSON = string(rawCredential)
+	}
+	credential, err := vc.ParseVerifiableCredential(credentialJSON)
+	if err != nil {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentialJSON, err.Error())), appCallbackURI)
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), appCallbackURI)
 	}
-	// store credential in wallet
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), appCallbackURI)
@@ -182,18 +231,71 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}, nil
 }
 
+func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *OAuthSession, accessToken string, credentialIdentifier string, nonce string) (*openid4vci.CredentialResponse, error) {
+	// Per §F.1, the proof JWT `aud` MUST be the Credential Issuer Identifier,
+	// not the Authorization Server issuer URL.
+	proofJWT, err := r.openid4vciProof(ctx, *oauthSession.OwnDID, oauthSession.IssuerCredentialIssuer, nonce)
+	if err != nil {
+		return nil, fmt.Errorf("error building proof: %w", err)
+	}
+	return r.auth.OpenID4VCIClient().RequestCredential(ctx, openid4vci.RequestCredentialOpts{
+		CredentialEndpoint:        oauthSession.IssuerCredentialEndpoint,
+		AccessToken:               accessToken,
+		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
+		CredentialIdentifier:      credentialIdentifier,
+		ProofJWT:                  proofJWT,
+		CredentialDetails:         oauthSession.CredentialRequestDetails,
+	})
+}
+
+// extractCredentialIdentifier reads authorization_details from the Token
+// Response and returns a credential_identifier matching the requested
+// configuration. Per OpenID4VCI 1.0 §3.3.4 / §8.2, when the AS returns
+// authorization_details with credential_identifiers, the wallet MUST use a
+// credential_identifier in the Credential Request — silently falling back
+// to credential_configuration_id is not allowed. Returns ("", nil) only
+// when the Token Response did not carry authorization_details at all
+// (which permits the §3.3.4 scope-flow fallback to credential_configuration_id).
+func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) (string, error) {
+	raw, ok := tokenResponse.GetAny(oauth.AuthorizationDetailsParam)
+	if !ok {
+		return "", nil
+	}
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return "", fmt.Errorf("token response authorization_details: %w", err)
+	}
+	var details []struct {
+		Type                      string   `json:"type"`
+		CredentialConfigurationID string   `json:"credential_configuration_id"`
+		CredentialIdentifiers     []string `json:"credential_identifiers"`
+	}
+	if err := json.Unmarshal(bytes, &details); err != nil {
+		return "", fmt.Errorf("token response authorization_details malformed: %w", err)
+	}
+	for _, d := range details {
+		if d.Type != "openid_credential" {
+			continue
+		}
+		if d.CredentialConfigurationID != credentialConfigurationID {
+			continue
+		}
+		if len(d.CredentialIdentifiers) == 0 {
+			return "", fmt.Errorf("token response authorization_details for %q is missing credential_identifiers", credentialConfigurationID)
+		}
+		return d.CredentialIdentifiers[0], nil
+	}
+	return "", fmt.Errorf("token response authorization_details has no entry for credential_configuration_id %q", credentialConfigurationID)
+}
+
 func (r *Wrapper) openid4vciProof(ctx context.Context, holderDid did.DID, audience string, nonce string) (string, error) {
 	kid, _, err := r.keyResolver.ResolveKey(holderDid, nil, resolver.AssertionMethod)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve key for did (%s): %w", holderDid.String(), err)
 	}
 	headers := map[string]interface{}{
-		"typ": jwtTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
-		"kid": kid,                    // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
-	}
-	if err != nil {
-		// can't fail or would have failed before
-		return "", err
+		"typ": openid4vci.JWTTypeOpenID4VCIProof, // MUST be openid4vci-proof+jwt, which explicitly types the proof JWT as recommended in Section 3.11 of [RFC8725].
+		"kid": kid,                               // JOSE Header containing the key ID. If the Credential shall be bound to a DID, the kid refers to a DID URL which identifies a particular key in the DID Document that the Credential shall be bound to.
 	}
 	claims := map[string]interface{}{
 		jwt.IssuerKey:   holderDid.String(),

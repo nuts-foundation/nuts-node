@@ -46,6 +46,7 @@ import (
 	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -906,8 +907,8 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
-func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuer)
+func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*openid4vci.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
+	credentialIssuerMetadata, err := r.auth.OpenID4VCIClient().OpenIDCredentialIssuerMetadata(ctx, issuer)
 	if err != nil {
 		return nil, nil, err
 	}

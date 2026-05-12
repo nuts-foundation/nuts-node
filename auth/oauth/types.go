@@ -117,6 +117,17 @@ func (t TokenResponse) Get(key string) string {
 	return ""
 }
 
+// GetAny returns the value of the additional parameter with the given key, untyped.
+// Use this for structured extension parameters such as authorization_details (RFC 9396).
+// The boolean indicates whether the key was present.
+func (t TokenResponse) GetAny(key string) (interface{}, bool) {
+	if t.additionalParams == nil {
+		return nil, false
+	}
+	val, ok := t.additionalParams[key]
+	return val, ok
+}
+
 const (
 	// AccessTokenRequestStatusPending is the status for a pending access token
 	AccessTokenRequestStatusPending = "pending"
@@ -408,18 +419,6 @@ type OAuthClientMetadata struct {
 type Redirect struct {
 	// RedirectURI is the URI to redirect the user-agent to.
 	RedirectURI string `json:"redirect_uri"`
-}
-
-// OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
-type OpenIDCredentialIssuerMetadata struct {
-	// - CredentialIssuer: an url representing the credential issuer
-	CredentialIssuer string `json:"credential_issuer"`
-	// - CredentialEndpoint: an url representing the credential endpoint
-	CredentialEndpoint string `json:"credential_endpoint"`
-	// - AuthorizationServers: a slice of urls representing the authorization servers (optional)
-	AuthorizationServers []string `json:"authorization_servers,omitempty"`
-	// - Display: a slice of maps where each map represents the display information (optional)
-	Display []map[string]string `json:"display,omitempty"`
 }
 
 // OpenIDConfiguration represents the OpenID configuration

@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	iam "github.com/nuts-foundation/nuts-node/auth/client/iam"
+	openid4vci "github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	services "github.com/nuts-foundation/nuts-node/auth/services"
 	oauth "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	gomock "go.uber.org/mock/gomock"
@@ -111,6 +112,20 @@ func (m *MockAuthenticationServices) IAMClient() iam.Client {
 func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
+}
+
+// OpenID4VCIClient mocks base method.
+func (m *MockAuthenticationServices) OpenID4VCIClient() openid4vci.Client {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OpenID4VCIClient")
+	ret0, _ := ret[0].(openid4vci.Client)
+	return ret0
+}
+
+// OpenID4VCIClient indicates an expected call of OpenID4VCIClient.
+func (mr *MockAuthenticationServicesMockRecorder) OpenID4VCIClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenID4VCIClient", reflect.TypeOf((*MockAuthenticationServices)(nil).OpenID4VCIClient))
 }
 
 // PublicURL mocks base method.

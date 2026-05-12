@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/vdr"
 	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
@@ -43,6 +44,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	httpclient "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -71,6 +73,7 @@ type Auth struct {
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
 	subjectManager    didsubject.Manager
+	openID4VCIClient  openid4vci.Client
 	// configuredDIDMethods contains the DID methods that are configured in the Nuts node,
 	// of which VDR will create DIDs.
 	configuredDIDMethods []string
@@ -133,6 +136,11 @@ func (auth *Auth) IAMClient() iam.Client {
 	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.policyBackend, auth.strictMode, auth.httpClientTimeout)
 }
 
+// OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
+func (auth *Auth) OpenID4VCIClient() openid4vci.Client {
+	return auth.openID4VCIClient
+}
+
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.Irma.SchemeManager == "" {
@@ -177,6 +185,7 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		// auth.http.config got deprecated in favor of httpclient.timeout
 		auth.httpClientTimeout = config.HTTPClient.Timeout
 	}
+	auth.openID4VCIClient = openid4vci.NewClient(httpclient.NewWithCache(auth.httpClientTimeout), auth.strictMode)
 	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,

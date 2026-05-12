@@ -19,13 +19,11 @@
 package iam
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/url"
 	"strings"
@@ -293,19 +291,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.OpenIDCredentialIssuerMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &metadata, err
-}
-
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
 	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
 	if err != nil {
@@ -359,87 +344,6 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	}
 }
 
-// CredentialRequestProof holds the ProofType and Jwt for a credential request
-type CredentialRequestProof struct {
-	ProofType string `json:"proof_type"`
-	Jwt       string `json:"jwt"`
-}
-
-// CredentialResponse represents the response of a verifiable credential request.
-// It contains the Format and the actual Credential in JSON format.
-type CredentialResponse struct {
-	Credential string `json:"credential"`
-}
-
-// UnmarshalJSON accepts both the OpenID4VCI 1.0 response shape (an array of
-// objects under "credentials") and the pre-1.0 draft shape (a single
-// "credential" string). When the 1.0 shape is used, the first entry's
-// credential is taken; additional entries are logged and discarded.
-func (c *CredentialResponse) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		Credential  string `json:"credential"`
-		Credentials []struct {
-			Credential string `json:"credential"`
-		} `json:"credentials"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if len(raw.Credentials) > 0 {
-		c.Credential = raw.Credentials[0].Credential
-		if len(raw.Credentials) > 1 {
-			log.Logger().Warnf("OpenID4VCI 1.0 credential response contained %d credentials, only the first is used", len(raw.Credentials))
-		}
-		return nil
-	}
-	c.Credential = raw.Credential
-	return nil
-}
-
-// VerifiableCredentials posts an OpenID4VCI Credential Request to credentialEndpoint and returns the response.
-// credentialDetails is an optional caller-supplied JSON object that is used as the base body of the request;
-// the node-built JWT proof is overlaid on top, overwriting any caller-supplied "proof" value.
-func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string, credentialDetails map[string]any) (*CredentialResponse, error) {
-	credentialEndpointURL, err := url.Parse(credentialEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	body := make(map[string]any, len(credentialDetails)+1)
-	maps.Copy(body, credentialDetails)
-	body["proof"] = CredentialRequestProof{
-		ProofType: "jwt",
-		Jwt:       proofJwt,
-	}
-	jsonBody, _ := json.Marshal(body)
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Authorization", "Bearer "+accessToken)
-
-	response, err := hb.httpClient.Do(request.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call endpoint: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			log.Logger().WithError(err).Warn("Trouble closing reader")
-		}
-	}(response.Body)
-	if err = core.TestResponseCodeWithLog(http.StatusOK, response, log.Logger()); err != nil {
-		return nil, err
-	}
-	var credential CredentialResponse
-	if err = json.NewDecoder(response.Body).Decode(&credential); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-	return &credential, nil
-
-}
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {

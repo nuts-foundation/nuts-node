@@ -22,6 +22,7 @@ import (
 	"net/url"
 
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
 )
@@ -35,6 +36,8 @@ type AuthenticationServices interface {
 	AuthzServer() oauth.AuthorizationServer
 	// IAMClient returns the IAM Client API
 	IAMClient() iam.Client
+	// OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
+	OpenID4VCIClient() openid4vci.Client
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary

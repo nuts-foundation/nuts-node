@@ -55,9 +55,19 @@ type OAuthSession struct {
 	UseDPoP   bool   `json:"use_dpop,omitempty"`
 	// IssuerCredentialEndpoint: endpoint to exchange the access_token for a credential in the OpenID4VCI flow
 	IssuerCredentialEndpoint string `json:"issuer_credential_endpoint,omitempty"`
-	// CredentialRequestDetails is an optional JSON object provided by the API caller that is forwarded verbatim
-	// as the base body of the OpenID4VCI Credential Request. The node overlays its own JWT proof on top.
-	// Contents are opaque and may contain PII; do not log this field.
+	// IssuerNonceEndpoint: endpoint to request a fresh c_nonce in the OpenID4VCI flow (v1.0 Section 7)
+	IssuerNonceEndpoint string `json:"issuer_nonce_endpoint,omitempty"`
+	// IssuerCredentialConfigurationID: the credential_configuration_id for the credential request in the OpenID4VCI flow
+	IssuerCredentialConfigurationID string `json:"issuer_credential_configuration_id,omitempty"`
+	// IssuerCredentialIssuer is the Credential Issuer Identifier (`credential_issuer`
+	// from the metadata, §12.2.1). It is used as the `aud` claim in the proof JWT
+	// per §F.1; this can differ from IssuerURL (the AS issuer) when the metadata
+	// declares `authorization_servers`.
+	IssuerCredentialIssuer string `json:"issuer_credential_issuer,omitempty"`
+	// CredentialRequestDetails is an optional JSON object provided by the API caller that is overlaid on top
+	// of the node-built OpenID4VCI Credential Request body. Any field supplied here overrides the node's
+	// default — including credential_configuration_id / credential_identifier / proofs. The caller is then
+	// responsible for the resulting wire shape. Contents are opaque and may contain PII; do not log this field.
 	CredentialRequestDetails map[string]any `json:"credential_request_details,omitempty"`
 }
 
