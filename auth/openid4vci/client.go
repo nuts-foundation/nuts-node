@@ -44,13 +44,12 @@ const wellKnownPath = "/.well-known/openid-credential-issuer"
 // CredentialConfigurationID. If both are non-empty, CredentialIdentifier
 // takes precedence to enforce the spec rule.
 //
-// CredentialDetails, when non-empty, is forwarded as the base body of the
-// Credential Request to support issuers that accept additional non-spec
-// fields. The OpenID4VCI 1.0 spec-defined fields
-// (credential_configuration_id, credential_identifier, proofs) are always
-// overlaid on top from the typed body, so the caller cannot subvert §8.2
-// mutual exclusivity or the JWT proof. Callers should not include
-// spec-defined fields in CredentialDetails — they will be overwritten.
+// CredentialDetails is overlaid on top of the node-built request body, so
+// any field set here overrides the node's default — including
+// credential_configuration_id / credential_identifier / proofs. This is
+// the escape hatch for issuers with non-spec request shapes; the caller
+// takes full responsibility for the wire-level result (§8.2 mutual
+// exclusivity, proof binding, etc.).
 type RequestCredentialOpts struct {
 	CredentialEndpoint        string
 	AccessToken               string
@@ -184,11 +183,9 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 		return nil, err
 	}
 	body := make(map[string]any, len(opts.CredentialDetails)+2)
-	for k, v := range opts.CredentialDetails {
-		body[k] = v
-	}
-	// Per §8.2, credential_identifier and credential_configuration_id are
-	// mutually exclusive; credential_identifier wins when set.
+	// Node defaults. Per §8.2, credential_identifier and
+	// credential_configuration_id are mutually exclusive; credential_identifier
+	// wins when set.
 	switch {
 	case opts.CredentialIdentifier != "":
 		body["credential_identifier"] = opts.CredentialIdentifier
@@ -196,6 +193,12 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 		body["credential_configuration_id"] = opts.CredentialConfigurationID
 	}
 	body["proofs"] = CredentialRequestProofs{JWT: []string{opts.ProofJWT}}
+	// CredentialDetails overlays the node defaults — caller-supplied values
+	// win. The caller takes responsibility for the resulting wire shape.
+	for k, v := range opts.CredentialDetails {
+		body[k] = v
+	}
+
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return nil, err

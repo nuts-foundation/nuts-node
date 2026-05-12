@@ -178,12 +178,11 @@ paths:
                   type: object
                   additionalProperties: true
                   description: |
-                    EXPERIMENTAL. Optional JSON object with additional non-spec fields to include in the
-                    OpenID4VCI Credential Request body sent to the issuer's credential endpoint. Use this to
-                    support issuers that accept extra fields beyond what OpenID4VCI 1.0 defines.
-
-                    Spec-defined fields (credential_configuration_id, credential_identifier, proofs) are always
-                    set by the node and overwrite any value supplied here, so callers should not include them.
+                    Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+                    the issuer's credential endpoint. Any field supplied here overrides the node's default —
+                    including credential_configuration_id, credential_identifier and proofs. Use this for
+                    issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+                    responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
                   example: |
                     {
                       "some-requested-credential-attribute": "900184590"

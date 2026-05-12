@@ -273,7 +273,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		assert.Equal(t, oauth.InvalidNonce, oauthErr.Code)
 	})
 
-	t.Run("CredentialDetails forwards non-spec fields; spec fields always come from typed body", func(t *testing.T) {
+	t.Run("CredentialDetails overrides node-built defaults", func(t *testing.T) {
 		var rawBody map[string]any
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&rawBody))
@@ -288,12 +288,11 @@ func TestClient_RequestCredential(t *testing.T) {
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint:        srv.URL,
 			AccessToken:               "t",
-			CredentialConfigurationID: "SomeConfig",
+			CredentialConfigurationID: "NodeDefaultConfig",
 			ProofJWT:                  "node-proof",
 			CredentialDetails: map[string]any{
-				"bsn": "900184590",
-				"ura": "900030757",
-				// caller-supplied spec-defined fields MUST be overwritten by the typed body
+				"bsn":                         "900184590",
+				"ura":                         "900030757",
 				"credential_configuration_id": "caller-supplied-config",
 				"proofs":                      map[string]any{"jwt": []string{"caller-supplied-proof"}},
 			},
@@ -301,8 +300,8 @@ func TestClient_RequestCredential(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "900184590", rawBody["bsn"])
 		assert.Equal(t, "900030757", rawBody["ura"])
-		assert.Equal(t, "SomeConfig", rawBody["credential_configuration_id"])
-		assert.Equal(t, map[string]any{"jwt": []any{"node-proof"}}, rawBody["proofs"])
+		assert.Equal(t, "caller-supplied-config", rawBody["credential_configuration_id"], "caller value must override node default")
+		assert.Equal(t, map[string]any{"jwt": []any{"caller-supplied-proof"}}, rawBody["proofs"], "caller proofs must override node proof")
 	})
 
 	t.Run("returns generic error on non-2xx with no structured body", func(t *testing.T) {
