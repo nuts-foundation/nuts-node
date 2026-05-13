@@ -147,7 +147,7 @@ func TestVerifier_Verify(t *testing.T) {
 			require.NotPanics(t, func() {
 				validationErr := ctx.verifier.Verify(malformed, true, true, nil)
 				assert.Error(t, validationErr)
-				assert.Contains(t, validationErr.Error(), "could not validate issuer")
+				assert.Contains(t, validationErr.Error(), "could not parse issuer")
 			})
 		})
 	})
