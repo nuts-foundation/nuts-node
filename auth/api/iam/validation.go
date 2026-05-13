@@ -140,10 +140,10 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	}
 }
 
-func (r Wrapper) presentationDefinitionForScope(ctx context.Context, scope string) (pe.WalletOwnerMapping, error) {
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, scope)
+func (r Wrapper) findCredentialProfile(ctx context.Context, scope string) (*policy.CredentialProfileMatch, error) {
+	match, err := r.policyBackend.FindCredentialProfile(ctx, scope)
 	if err != nil {
-		if errors.Is(err, policy.ErrNotFound) {
+		if errors.Is(err, policy.ErrNotFound) || errors.Is(err, policy.ErrAmbiguousScope) {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.InvalidScope,
 				InternalError: err,
@@ -156,5 +156,5 @@ func (r Wrapper) presentationDefinitionForScope(ctx context.Context, scope strin
 			Description:   fmt.Sprintf("failed to retrieve presentation definition for scope (%s): %s", scope, err.Error()),
 		}
 	}
-	return mapping, err
+	return match, nil
 }

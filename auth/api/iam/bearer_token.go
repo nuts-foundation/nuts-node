@@ -23,12 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -100,24 +100,19 @@ func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, 
 			return nil, err
 		}
 	}
-
-	// For every scope, find the required Presentation Definition and validate the VP(s) according to the required credentials.
-	// TODO: tests for multiple scopes
+	credentialProfile, err := r.findCredentialProfile(ctx, scope)
+	if err != nil {
+		return nil, err
+	}
+	granter, err := policy.NewScopeGranter(credentialProfile, r.policyBackend.ScopeEvaluator)
+	if err != nil {
+		return nil, err
+	}
+	// Validate Verifiable Presentation according to the required credential profile.
+	// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
 	accessToken := new(AccessToken)
-	scopes := strings.Split(scope, " ")
-	for _, currScope := range scopes {
-		if currScope == "" {
-			continue
-		}
-		walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, currScope)
-		if err != nil {
-			return nil, err
-		}
-		// Validate Verifiable Presentation according to the required credential profile.
-		// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
-		if err = evaluator(ctx, walletOwnerMapping, accessToken); err != nil {
-			return nil, err
-		}
+	if err = evaluator(ctx, credentialProfile.WalletOwnerMapping, accessToken); err != nil {
+		return nil, err
 	}
 
 	for _, presentation := range presentations {
@@ -145,9 +140,19 @@ func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, 
 		}
 	}
 
+	// Compute granted scopes based on scope policy. Never pass through the raw input scope
+	// directly — always derive granted scopes from the policy decision.
+	grantedScope, err := granter.Grant(ctx, policy.GrantInput{
+		SubjectDID:         credentialSubjectID,
+		PresentationClaims: accessToken.InputDescriptorConstraintIdMap,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	return r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *accessToken, dpopProof)
+	return r.createAccessToken(issuerURL.String(), clientID, time.Now(), grantedScope, *accessToken, dpopProof)
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {

@@ -252,7 +252,11 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	}
 	// LSPxNuts: get the presentation definition from local definitions, if available
 	var presentationDefinition *pe.PresentationDefinition
-	presentationDefinitionMap, err := c.policyBackend.PresentationDefinitions(ctx, policyId)
+	var presentationDefinitionMap pe.WalletOwnerMapping
+	match, err := c.policyBackend.FindCredentialProfile(ctx, policyId)
+	if err == nil {
+		presentationDefinitionMap = match.WalletOwnerMapping
+	}
 	if errors.Is(err, policy.ErrNotFound) {
 		// not found locally, get from verifier
 		// get the presentation definition from the verifier

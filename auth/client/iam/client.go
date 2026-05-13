@@ -292,19 +292,6 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 	return hb.postFormExpectRedirect(ctx, data, verifierResponseURI)
 }
 
-func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.OpenIDCredentialIssuerMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
-	}
-	return &metadata, err
-}
-
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
 	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
 	if err != nil {
@@ -356,6 +343,19 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 		keySink.Key(alg, publicKey)
 		return nil
 	}
+}
+
+func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
+	if err != nil {
+		return nil, err
+	}
+	var metadata oauth.OpenIDCredentialIssuerMetadata
+	err = hb.doGet(ctx, metadataURL.String(), &metadata)
+	if err != nil {
+		return nil, err
+	}
+	return &metadata, err
 }
 
 // CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
@@ -417,6 +417,7 @@ func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoi
 	return &credential, nil
 
 }
+
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, redirectURL.String(), strings.NewReader(form.Encode()))
 	if err != nil {

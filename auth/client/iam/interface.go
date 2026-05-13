@@ -50,11 +50,10 @@ type Client interface {
 	RequestRFC021AccessToken(ctx context.Context, clientID string, subjectDID string, authServerURL string, scopes string, policyId string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error)
 
-	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
-	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
-	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
+	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
+	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
 	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
 	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.

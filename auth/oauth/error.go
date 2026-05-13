@@ -63,6 +63,10 @@ const (
 	InvalidRequestURI ErrorCode = "invalid_request_uri"
 	// InvalidRequestURIMethod is returned when the request_uri_method is not 'get' or 'post'. (OpenID4VP)
 	InvalidRequestURIMethod ErrorCode = "invalid_request_uri_method"
+	// InvalidNonce is returned when at least one of the key proofs in a Credential
+	// Request contains an invalid c_nonce. The wallet should fetch a new c_nonce
+	// from the Nonce Endpoint (OpenID4VCI 1.0 §8.3.1.2).
+	InvalidNonce ErrorCode = "invalid_nonce"
 )
 
 // Make sure the error implements core.HTTPStatusCodeError, so the HTTP request logger can log the correct status code.

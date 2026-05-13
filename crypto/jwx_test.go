@@ -29,14 +29,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"testing"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"go.uber.org/mock/gomock"
+	"io"
+	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
@@ -121,15 +120,14 @@ func TestSignJWT(t *testing.T) {
 
 func TestParseJWT(t *testing.T) {
 	t.Run("unsupported algorithm", func(t *testing.T) {
-		t.Skip("LSPxNuts: enabled RS256 support")
-		rsaKey := test.GenerateRSAKey()
+		secret := []byte("test-hmac-secret")
 		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.HS256, secret))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
-			return rsaKey.Public(), nil
+			return secret, nil
 		}, nil, nil)
 		assert.Nil(t, parsedToken)
-		assert.EqualError(t, err, "token signing algorithm is not supported: RS256")
+		assert.EqualError(t, err, "token signing algorithm is not supported: HS256")
 	})
 
 	t.Run("allow clock skew (default DefaultJWTClockSkew)", func(t *testing.T) {

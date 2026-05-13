@@ -13,9 +13,87 @@ import (
 	context "context"
 	reflect "reflect"
 
-	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
+	authzen "github.com/nuts-foundation/nuts-node/policy/authzen"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockScopeEvaluator is a mock of ScopeEvaluator interface.
+type MockScopeEvaluator struct {
+	ctrl     *gomock.Controller
+	recorder *MockScopeEvaluatorMockRecorder
+	isgomock struct{}
+}
+
+// MockScopeEvaluatorMockRecorder is the mock recorder for MockScopeEvaluator.
+type MockScopeEvaluatorMockRecorder struct {
+	mock *MockScopeEvaluator
+}
+
+// NewMockScopeEvaluator creates a new mock instance.
+func NewMockScopeEvaluator(ctrl *gomock.Controller) *MockScopeEvaluator {
+	mock := &MockScopeEvaluator{ctrl: ctrl}
+	mock.recorder = &MockScopeEvaluatorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockScopeEvaluator) EXPECT() *MockScopeEvaluatorMockRecorder {
+	return m.recorder
+}
+
+// EvaluateScopes mocks base method.
+func (m *MockScopeEvaluator) EvaluateScopes(ctx context.Context, in ScopeEvaluationInput) (map[string]bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EvaluateScopes", ctx, in)
+	ret0, _ := ret[0].(map[string]bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EvaluateScopes indicates an expected call of EvaluateScopes.
+func (mr *MockScopeEvaluatorMockRecorder) EvaluateScopes(ctx, in any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EvaluateScopes", reflect.TypeOf((*MockScopeEvaluator)(nil).EvaluateScopes), ctx, in)
+}
+
+// MockAuthZenEvaluator is a mock of AuthZenEvaluator interface.
+type MockAuthZenEvaluator struct {
+	ctrl     *gomock.Controller
+	recorder *MockAuthZenEvaluatorMockRecorder
+	isgomock struct{}
+}
+
+// MockAuthZenEvaluatorMockRecorder is the mock recorder for MockAuthZenEvaluator.
+type MockAuthZenEvaluatorMockRecorder struct {
+	mock *MockAuthZenEvaluator
+}
+
+// NewMockAuthZenEvaluator creates a new mock instance.
+func NewMockAuthZenEvaluator(ctrl *gomock.Controller) *MockAuthZenEvaluator {
+	mock := &MockAuthZenEvaluator{ctrl: ctrl}
+	mock.recorder = &MockAuthZenEvaluatorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAuthZenEvaluator) EXPECT() *MockAuthZenEvaluatorMockRecorder {
+	return m.recorder
+}
+
+// Evaluate mocks base method.
+func (m *MockAuthZenEvaluator) Evaluate(ctx context.Context, req authzen.EvaluationsRequest) (map[string]bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Evaluate", ctx, req)
+	ret0, _ := ret[0].(map[string]bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Evaluate indicates an expected call of Evaluate.
+func (mr *MockAuthZenEvaluatorMockRecorder) Evaluate(ctx, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Evaluate", reflect.TypeOf((*MockAuthZenEvaluator)(nil).Evaluate), ctx, req)
+}
 
 // MockPDPBackend is a mock of PDPBackend interface.
 type MockPDPBackend struct {
@@ -41,17 +119,31 @@ func (m *MockPDPBackend) EXPECT() *MockPDPBackendMockRecorder {
 	return m.recorder
 }
 
-// PresentationDefinitions mocks base method.
-func (m *MockPDPBackend) PresentationDefinitions(ctx context.Context, scope string) (pe.WalletOwnerMapping, error) {
+// FindCredentialProfile mocks base method.
+func (m *MockPDPBackend) FindCredentialProfile(ctx context.Context, scope string) (*CredentialProfileMatch, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresentationDefinitions", ctx, scope)
-	ret0, _ := ret[0].(pe.WalletOwnerMapping)
+	ret := m.ctrl.Call(m, "FindCredentialProfile", ctx, scope)
+	ret0, _ := ret[0].(*CredentialProfileMatch)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// PresentationDefinitions indicates an expected call of PresentationDefinitions.
-func (mr *MockPDPBackendMockRecorder) PresentationDefinitions(ctx, scope any) *gomock.Call {
+// FindCredentialProfile indicates an expected call of FindCredentialProfile.
+func (mr *MockPDPBackendMockRecorder) FindCredentialProfile(ctx, scope any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresentationDefinitions", reflect.TypeOf((*MockPDPBackend)(nil).PresentationDefinitions), ctx, scope)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindCredentialProfile", reflect.TypeOf((*MockPDPBackend)(nil).FindCredentialProfile), ctx, scope)
+}
+
+// ScopeEvaluator mocks base method.
+func (m *MockPDPBackend) ScopeEvaluator() ScopeEvaluator {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScopeEvaluator")
+	ret0, _ := ret[0].(ScopeEvaluator)
+	return ret0
+}
+
+// ScopeEvaluator indicates an expected call of ScopeEvaluator.
+func (mr *MockPDPBackendMockRecorder) ScopeEvaluator() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScopeEvaluator", reflect.TypeOf((*MockPDPBackend)(nil).ScopeEvaluator))
 }

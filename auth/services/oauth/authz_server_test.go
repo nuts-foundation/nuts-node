@@ -23,15 +23,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"testing"
-	"time"
-
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"testing"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -576,20 +574,15 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 	})
 
 	t.Run("wrong signing algorithm", func(t *testing.T) {
-		t.Skip("LSPxNuts: enabled RS256 support")
-		t.Setenv("GODEBUG", "rsa1024min=0") // minimum key-length has changed to 1024 -> https://pkg.go.dev/crypto/rsa#hdr-Minimum_key_size
-		privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-		require.NoError(t, err)
-
 		keyID := "did:nuts:somedid#key-id"
+		secret := []byte("test-hmac-secret")
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).Return(privateKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).Return(secret, nil)
 
-		// alg: RS256
 		token := jwt.New()
 		hdrs := jws.NewHeaders()
 		hdrs.Set(jws.KeyIDKey, keyID)
-		signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, privateKey, jws.WithProtectedHeaders(hdrs)))
+		signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.HS256, secret, jws.WithProtectedHeaders(hdrs)))
 		require.NoError(t, err)
 
 		tokenCtx := &validationContext{
@@ -597,7 +590,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.Nil(t, tokenCtx.jwtBearerToken)
-		assert.Equal(t, "token signing algorithm is not supported: RS256", err.Error())
+		assert.Equal(t, "token signing algorithm is not supported: HS256", err.Error())
 	})
 
 	t.Run("valid token", func(t *testing.T) {

@@ -254,7 +254,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", false, nil, nil)
 
@@ -267,7 +267,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), "some-policy").Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), "some-policy").Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "some-policy", false, nil, nil)
 
@@ -281,7 +281,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, pe.ErrNoCredentials)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", false, nil, nil)
 
@@ -292,7 +292,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.authzServerMetadata.DIDMethodsSupported = []string{"other"}
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", false, nil, nil)
 
@@ -304,7 +304,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("with additional credentials", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 		credentials := []vc.VerifiableCredential{
 			{
 				Context: []ssi.URI{
@@ -342,7 +342,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("with Dezi credential", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		// Create a Dezi credential from an id_token
 		idToken := "eyJhbGciOiJSUzI1NiIsImtpZCI6ImFlNDY4MjlkLWM4ZTgtNDhhMC1iZDZhLTIxYjhhMDdiOGNiMiIsInR5cCI6IkpXVCIsImprdSI6Imh0dHBzOi8vYWNjZXB0YXRpZS5hdXRoLmRlemkubmwvZGV6aS9qd2tzLmpzb24ifQ.eyJqc29uX3NjaGVtYSI6Imh0dHBzOi8vd3d3LmRlemkubmwvanNvbl9zY2hlbWFzL3YxL3ZlcmtsYXJpbmcuanNvbiIsImxvYV9kZXppIjoiaHR0cDovL2VpZGFzLmV1cm9wYS5ldS9Mb0EvaGlnaCIsImp0aSI6ImY0MTBiMjU1LTZiMDctNDE4Mi1hYzVjLWM0MWYwMmJkMzk5NSIsInZlcmtsYXJpbmdfaWQiOiIwZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJkZXppX251bW1lciI6IjkwMDAyMjE1OSIsInZvb3JsZXR0ZXJzIjoiSi4iLCJ2b29ydm9lZ3NlbCI6bnVsbCwiYWNodGVybmFhbSI6IjkwMDE3MzYyIiwiYWJvbm5lZV9udW1tZXIiOiI5MDAwMDM4MCIsImFib25uZWVfbmFhbSI6IlTDqXN0IFpvcmdpbnN0ZWxsaW5nIDAxIiwicm9sX2NvZGUiOiI5Mi4wMDAiLCJyb2xfbmFhbSI6Ik1vbmRoeWdpw6tuaXN0Iiwicm9sX2NvZGVfYnJvbiI6Imh0dHA6Ly93d3cuZGV6aS5ubC9yb2xfYnJvbi9iaWciLCJzdGF0dXNfdXJpIjoiaHR0cHM6Ly9hY2NlcHRhdGllLmF1dGguZGV6aS5ubC9zdGF0dXMvdjEvdmVya2xhcmluZy8wZTk3MGZjYi01MzBjLTQ4MmUtYmEyOC00N2I0NjFkNGRjYjUiLCJuYmYiOjE3NzI2NjUyMDAsImV4cCI6MTc4MDYxMDQwMCwiaXNzIjoiaHR0cHM6Ly9hYm9ubmVlLmRlemkubmwifQ.ipR4stqmO8MOmmapukeQxIOVpwO_Ipjgy5BHjUsdCvuFObhVrj48AQCndtV48D_Ol1hXO4s9p4b-1epjEiobjEmEO0JQNU0BAOGG0eWl8MujfhzlDnmwo5AEtvdgTjlnBaLReVu1BJ8KYgc1DT7JhCukq9z5wZLqU1aqtETleX2-s-dNdTdwrUjJa1DvIgO-DQ_rCp-1tcfkr2rtyW16ztyI88Q2YdBkNGcG0if5aYZHpcQ4-121WBObUa0FhswS7EHni5Ru8KwZNq0HC8OLWw3YqLrYHTFe2K0GQjMtEO6zNxApbMXWKlgeWdf7Ry2rPpe2l9Z5NuMrFiB8JChZsQ"
@@ -378,7 +378,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.authzServerMetadata.GrantTypesSupported = []string{oauth.JWTBearerGrantType}
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", false, nil, nil)
 
@@ -393,7 +393,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), primaryKID).Return("dpop", nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		response, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", true, nil, nil)
 
@@ -405,8 +405,10 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	t.Run("with Presentation Definition from local policy backend", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		pd := pe.PresentationDefinition{Name: "pd-id"}
-		ctx.clientTestContext.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{
-			pe.WalletOwnerOrganization: pd,
+		ctx.clientTestContext.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(&policy.CredentialProfileMatch{
+			WalletOwnerMapping: pe.WalletOwnerMapping{
+				pe.WalletOwnerOrganization: pd,
+			},
 		}, nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), pd, gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
@@ -428,7 +430,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 		}
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(createdVP, &pe.PresentationSubmission{}, nil)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 
 		_, err := ctx.client.RequestRFC021AccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, "", false, nil, nil)
 
@@ -440,7 +442,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("error - failed to get presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 		ctx.presentationDefinition = func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusBadRequest)
@@ -467,7 +469,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 		ctx.presentationDefinition = func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
@@ -482,7 +484,7 @@ func TestRelyingParty_RequestRFC021AccessToken(t *testing.T) {
 	})
 	t.Run("error - failed to build vp", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
-		ctx.policyBackend.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
+		ctx.policyBackend.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{primaryWalletDID, secondaryWalletDID}, nil)
 		ctx.wallet.EXPECT().BuildSubmission(gomock.Any(), []did.DID{primaryWalletDID, secondaryWalletDID}, gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil, assert.AnError)
 

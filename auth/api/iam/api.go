@@ -46,6 +46,7 @@ import (
 	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -720,7 +721,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 		return PresentationDefinition200JSONResponse(PresentationDefinition{}), nil
 	}
 
-	mapping, err := r.policyBackend.PresentationDefinitions(ctx, request.Params.Scope)
+	match, err := r.policyBackend.FindCredentialProfile(ctx, request.Params.Scope)
 	if err != nil {
 		return nil, oauth.OAuth2Error{
 			Code:        oauth.InvalidScope,
@@ -732,7 +733,7 @@ func (r Wrapper) PresentationDefinition(ctx context.Context, request Presentatio
 	if request.Params.WalletOwnerType != nil {
 		walletOwnerType = *request.Params.WalletOwnerType
 	}
-	result, exists := mapping[walletOwnerType]
+	result, exists := match.WalletOwnerMapping[walletOwnerType]
 	if !exists {
 		return nil, oauthError(oauth.InvalidRequest, fmt.Sprintf("no presentation definition found for '%s' wallet", walletOwnerType))
 	}
@@ -906,8 +907,8 @@ func (r Wrapper) StatusList(ctx context.Context, request StatusListRequestObject
 	return StatusList200JSONResponse(*cred), nil
 }
 
-func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*oauth.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
-	credentialIssuerMetadata, err := r.auth.IAMClient().OpenIdCredentialIssuerMetadata(ctx, issuer)
+func (r Wrapper) openid4vciMetadata(ctx context.Context, issuer string) (*openid4vci.OpenIDCredentialIssuerMetadata, *oauth.AuthorizationServerMetadata, error) {
+	credentialIssuerMetadata, err := r.auth.OpenID4VCIClient().OpenIDCredentialIssuerMetadata(ctx, issuer)
 	if err != nil {
 		return nil, nil, err
 	}
