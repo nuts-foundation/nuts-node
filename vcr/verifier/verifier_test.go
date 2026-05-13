@@ -120,6 +120,36 @@ func TestVerifier_Verify(t *testing.T) {
 
 			assert.EqualError(t, validationErr, "could not validate issuer: the DID document has been deactivated")
 		})
+
+		t.Run("returns error (no panic) when issuer is not a parseable DID", func(t *testing.T) {
+			// Regression for nuts-foundation/nuts-node#4235: an unparseable issuer
+			// DID was dereferenced as nil after did.ParseDID returned an error,
+			// crashing the verifier with a runtime panic. The verifier must now
+			// surface the parse error instead.
+			ctx := newMockContext(t)
+			malformed := vc
+			issuerURI := ssi.MustParseURI("not a valid did")
+			malformed.Issuer = issuerURI
+			// Adjust the credential ID prefix so the default validator accepts it
+			// and execution reaches the signature-check branch.
+			malformedID := ssi.MustParseURI(issuerURI.String() + "#test")
+			malformed.ID = &malformedID
+			// Strip the NutsOrganizationCredential type so the default validator
+			// runs (it doesn't itself parse the issuer DID).
+			malformed.Type = malformed.Type[:0]
+			for _, tp := range vc.Type {
+				if tp.String() == "VerifiableCredential" {
+					malformed.Type = append(malformed.Type, tp)
+				}
+			}
+			ctx.store.EXPECT().GetRevocations(*malformed.ID).Return(nil, ErrNotFound)
+
+			require.NotPanics(t, func() {
+				validationErr := ctx.verifier.Verify(malformed, true, true, nil)
+				assert.Error(t, validationErr)
+				assert.Contains(t, validationErr.Error(), "could not parse issuer")
+			})
+		})
 	})
 
 	t.Run("invalid when revoked", func(t *testing.T) {

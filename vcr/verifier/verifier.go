@@ -153,7 +153,10 @@ func (v verifier) Verify(credentialToVerify vc.VerifiableCredential, allowUntrus
 
 	// Check signature
 	if checkSignature {
-		issuerDID, _ := did.ParseDID(credentialToVerify.Issuer.String())
+		issuerDID, err := did.ParseDID(credentialToVerify.Issuer.String())
+		if err != nil {
+			return fmt.Errorf("could not parse issuer: %w", err)
+		}
 		metadata := resolver.ResolveMetadata{ResolveTime: validAt, AllowDeactivated: false}
 		rawJwt := credentialToVerify.Raw()
 		if rawJwt != "" {
