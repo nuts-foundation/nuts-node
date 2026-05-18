@@ -6,7 +6,7 @@ Release notes
 Peanut (v6.2.6)
 ****************
 
-Release date: 2026-05-11
+Release date: 2026-05-18
 
 - Exclude retraction presentations from Discovery Service search results (backport of `#4193 <https://github.com/nuts-foundation/nuts-node/pull/4193>`_).
 - Make HTTP error handler idempotent on already-committed responses to prevent double-write attempts (backport of `#4243 <https://github.com/nuts-foundation/nuts-node/pull/4243>`_).
