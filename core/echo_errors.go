@@ -50,6 +50,15 @@ const unmappedStatusCode = 0
 // CreateHTTPErrorHandler returns an Echo HTTPErrorHandler that logs the error with extra fields and returns it as an HTTP response.
 func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 	return func(err error, ctx echo.Context) {
+		// Echo can invoke the error handler twice for the same request: middleware
+		// like BodyDump calls c.Error(err) on its way out and still returns the err,
+		// causing echo's server loop to invoke the error handler a second time.
+		// Skip the second invocation — the response has already been written and
+		// the error logged by the first invocation. echo.DefaultHTTPErrorHandler
+		// behaves the same way.
+		if ctx.Response().Committed {
+			return
+		}
 		// HTTPErrors occur e.g. when a parameter bind fails. We map this to a httpStatusCodeError so its status code
 		// and message get directly mapped to a problem.
 		if echoErr, ok := err.(*echo.HTTPError); ok {
@@ -76,19 +85,12 @@ func CreateHTTPErrorHandler() echo.HTTPErrorHandler {
 		} else {
 			logMsg.Warn(title)
 		}
-		if !ctx.Response().Committed {
-			errorWriter, _ := ctx.Get(ErrorWriterContextKey).(ErrorWriter)
-			if errorWriter == nil {
-				errorWriter = &problemErrorWriter{}
-			}
-			writeError := errorWriter.Write(ctx, statusCode, title, err)
-			if writeError != nil {
-				logger.Error(err)
-			}
-		} else {
-			logger.
-				WithError(err).
-				Warn("Unable to send error back to client, response already committed")
+		errorWriter, _ := ctx.Get(ErrorWriterContextKey).(ErrorWriter)
+		if errorWriter == nil {
+			errorWriter = &problemErrorWriter{}
+		}
+		if writeError := errorWriter.Write(ctx, statusCode, title, err); writeError != nil {
+			logger.Error(err)
 		}
 	}
 }
