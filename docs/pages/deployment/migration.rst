@@ -15,7 +15,6 @@ Operator runbook for upgrading a v5 deployment to v6 while keeping the existing 
 
 v6 requires SQL storage. Supported engines: PostgreSQL, MySQL, Microsoft SQL Server, Azure SQL, SQLite.
 SQLite is acceptable for small deployments, and for ``did:nuts``-only deployments that won't adopt ``did:web`` in the near future — in that case the SQL state is rebuilt at startup from BBolt and the key backend.
-Move to PostgreSQL, MySQL, MSSQL, or Azure SQL before adopting ``did:web``.
 
 Configure the connection string in ``storage.sql.connection``. See :ref:`storage-configuration` for the full reference.
 
@@ -76,7 +75,7 @@ Remove or rename the following:
 
 Back up the v5 data directory first — see `Rolling back`_.
 
-Bring up the v6 node. On first start it runs the ``did:nuts`` migrations (self-control rewrite and history import into SQL). The migrations are idempotent and re-run on every restart, so an interrupted upgrade is safe to retry.
+Bring up the v6 node. It runs the ``did:nuts`` migrations on every start (self-control rewrite and history import into SQL). The migrations are idempotent, so an interrupted upgrade is safe to retry.
 
 6. Check the startup logs
 =========================
@@ -94,7 +93,7 @@ Other notes
 TLS termination
 ---------------
 
-v6 no longer terminates server-side TLS for HTTP itself. If you already run v5 behind a reverse proxy or ingress (the typical setup), no change is needed. If you relied on the node's built-in TLS, move termination to a reverse proxy or ingress before upgrading.
+v6 can no longer terminate server-side TLS for HTTP itself. If you already run v5 behind a reverse proxy or ingress (the typical setup), no change is needed. If you relied on the node's built-in TLS, move termination to a reverse proxy or ingress before upgrading.
 
 Creating DIDs with ``selfControl=false``
 ----------------------------------------
