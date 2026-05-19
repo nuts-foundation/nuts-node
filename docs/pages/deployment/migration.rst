@@ -2,202 +2,123 @@
 .. _nuts-node-migrations:
 
 Migrating from v5 to v6
-************************
+***********************
 
-This guide is an upgrade runbook for operators moving an existing v5 deployment to v6.
-It covers the operational changes that affect a running node on first start, in addition to the on-startup DID document migrations.
-Topics that already have a dedicated page (storage, recommended deployment, API authentication) are linked rather than duplicated.
-
-Recommended order:
-
-1. Work through `Before you upgrade`_.
-2. Apply the `Deployment changes`_ to your host, container, and reverse proxy configuration.
-3. Start the v6 node and let the `Startup migrations`_ run.
-4. Run the checks in `Validating a migrated node`_ before cutting traffic over.
+Operator runbook for upgrading a v5 deployment to v6 while keeping the existing ``did:nuts`` setup. Work through the steps in order. If you also want to adopt ``did:web`` as part of the upgrade, finish the main steps first, then see :ref:`also-enabling-did-web`.
 
 .. contents::
     :local:
-    :depth: 2
+    :depth: 1
 
-Before you upgrade
+1. Provision an SQL database
+============================
+
+v6 requires SQL storage. Supported engines: PostgreSQL, MySQL, Microsoft SQL Server, Azure SQL, SQLite.
+SQLite is acceptable for small deployments, and for ``did:nuts``-only deployments that won't adopt ``did:web`` in the near future — in that case the SQL state is rebuilt at startup from BBolt and the key backend.
+Move to PostgreSQL, MySQL, MSSQL, or Azure SQL before adopting ``did:web``.
+
+Configure the connection string in ``storage.sql.connection``. See :ref:`storage-configuration` for the full reference.
+
+.. code-block:: yaml
+
+    # SQLite — fine for a did:nuts-only upgrade
+    storage:
+      sql:
+        connection: sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)
+
+2. Update the host and container references
+===========================================
+
+The v6 container runs as UID ``18081`` (was ``root``). Before the first v6 start, on the host:
+
+.. code-block:: shell
+
+   chown -R 18081:18081 /opt/nuts/data
+
+Docker image tags no longer carry a ``v`` prefix — pull ``nutsfoundation/nuts-node:6.0.0``, not ``v6.0.0``.
+
+3. HTTP interfaces
 ==================
 
-Resolve DID document conflicts
-------------------------------
+v5 supported flexible HTTP binding via ``http.<name>.*`` (with ``http.default.*`` as the default interface; operators could define additional named interfaces like ``http.admin.*`` bound to separate addresses). v6 replaces this with two fixed interfaces — update your reverse proxy / ingress to route accordingly:
 
-Conflicted ``did:nuts`` documents migrate as the resolved (merged) state, which can differ from the published history.
-Resolve all conflicts on v5 before starting v6.
+- ``:8080`` (``http.public.address``) — public endpoints (``/iam``, ``/oauth2``, ``/n2n``, ``/.well-known``, …).
+- ``127.0.0.1:8081`` (``http.internal.address``) — ``/internal``, ``/status``, ``/metrics``, ``/health``. Loopback only by default; if you need to access it from another host, set ``http.internal.address`` to ``0.0.0.0:8081`` and make sure it is not accessible to unauthorized callers (firewall, network segmentation, auth).
 
-- Check ``/status/diagnostics`` for the count of owned conflicted DIDs.
-- If non-zero, list them via ``/internal/vdr/v1/did/conflicted`` and resolve each one on v5.
+See :ref:`nuts-node-recommended-deployment` for a reference topology.
 
-Provision an SQL database
--------------------------
+4. Adjust the config file
+=========================
 
-v6 requires SQL storage. The following all live in SQL and cannot be disabled:
+Set ``didmethods = ["nuts"]`` (unless you are also adopting ``did:web`` — see :ref:`also-enabling-did-web`). The v6 default is ``["web", "nuts"]``; setting it explicitly to ``["nuts"]`` keeps the deployment behaviour aligned with v5.
 
-- Subjects and their DID-method bindings
-- ``did:web`` document management
-- The credential wallet
-- The discovery service
-- OpenID4VP and OpenID4VCI sessions
-- The crypto ``key_reference`` table that links KIDs to backend key names
-
-Supported engines: PostgreSQL, MySQL, Microsoft SQL Server, Azure SQL, and SQLite.
-SQLite is acceptable for small or single-node deployments; production deployments should use a server-based engine.
-See :ref:`storage-configuration` for connection strings, RDS IAM, and other engine-specific options.
-
-Choose enabled DID methods
---------------------------
-
-The ``didmethods`` config parameter (default ``["web","nuts"]``) controls which DID methods the node enables and which startup migrations run.
-
-- v5 deployments that only use ``did:nuts``: set ``didmethods = ["nuts"]``. The node skips the ``did:web`` migration.
-- v5 deployments that plan to adopt ``did:web``: keep both enabled. The startup migration adds a ``did:web`` document alongside each existing ``did:nuts`` subject.
-- Greenfield ``did:web`` deployments: set ``didmethods = ["web"]``. None of the v5 startup migrations apply.
-
-Stop using VDR v1 if the subject has more than one DID
-------------------------------------------------------
-
-This is a one-way upgrade decision; make it before you start v6.
-
-VDR v1 writes (including service management on ``did:nuts``) only touch the ``did:nuts`` document.
-They are **not** propagated to other DIDs in the same subject.
-On the default ``didmethods = ["web","nuts"]``, the ``did:web`` document silently drifts out of sync with ``did:nuts`` every time a VDR v1 write lands.
-
-Pick one of:
-
-- **Keep using VDR v1** — set ``didmethods = ["nuts"]`` so each subject contains exactly one DID and there is nothing to drift against. You forgo ``did:web`` for now.
-- **Move to VDR v2** — keep the default ``didmethods`` (or any multi-method config) and migrate all service / DID management to the VDR v2 API. v2 operates on the subject and updates every enabled DID method atomically.
-
-There is no safe middle ground: running multi-method subjects while still issuing VDR v1 writes will produce divergent DID documents that the migrations cannot reconcile on a later restart.
-
-Deployment changes
-==================
-
-HTTP interface split
---------------------
-
-v6 binds HTTP endpoints to two interfaces with fixed routing — endpoints no longer move between ports based on configuration.
-
-- ``:8080`` (``http.public.address``) — public-facing endpoints (e.g. ``/iam``, ``/oauth2``, ``/n2n``, ``/.well-known``).
-- ``127.0.0.1:8081`` (``http.internal.address``) — ``/internal``, ``/status``, ``/metrics``, ``/health``.
-
-The internal interface defaults to loopback. To expose it to other hosts (for example to a metrics scraper on another node), set ``http.internal.address`` to ``:8081`` or to a specific interface address, and restrict access at the network layer.
-
-Reverse proxy and TLS
----------------------
-
-Server-side TLS for HTTP has been removed. Operators must terminate TLS in a reverse proxy or ingress in front of the node.
-
-- Public endpoints on ``:8080`` need a publicly trusted certificate.
-- Internal endpoints on ``:8081`` should not be reachable from the internet.
-- See :ref:`nuts-node-recommended-deployment` for a reference topology.
-
-If ``didmethods`` does not contain ``nuts``, the gRPC network is not started and the node can run without any TLS configuration at all.
-
-Container user and image tags
------------------------------
-
-- The container runs as UID ``18081`` instead of ``root``. Before starting v6, take ownership of the host data directory: ``chown -R 18081:18081 /path/to/host/data-dir``. See :ref:`running-docker`.
-- Docker image tags no longer carry the ``v`` prefix: ``v5.0.0`` → ``6.0.0``. Update your image references; otherwise pulls silently fail to find the v6 tag.
-
-Removed and renamed config keys
--------------------------------
-
-Apply the following changes to your config file or environment variables before starting v6:
+Remove or rename the following:
 
 .. list-table::
-    :header-rows: 1
-    :widths: 30 30 40
+   :header-rows: 1
+   :widths: 45 55
 
-    * - v5 key
-      - v6 replacement
-      - Notes
-    * - ``auth.publicURL``
-      - ``url``
-      - Removed. ``url`` now covers the public URL requirement (including Yivi).
-    * - IRMA/Yivi CORS origin (previously under ``http``)
-      - ``auth.irma.cors.origin``
-      - Only relevant when ``didmethods`` contains ``nuts``.
-    * - Deprecated ``network.*`` TLS properties
-      - (removed)
-      - Configuring any deprecated network TLS property causes the node to refuse to start. Remove them.
-    * - ``http.default.*`` and per-endpoint binding overrides
-      - ``http.public.address`` / ``http.internal.address``
-      - Endpoints are no longer individually bindable; see `HTTP interface split`_. The v5 ``http.default.tls`` and ``http.default.cors.origin`` keys no longer exist — TLS is handled by the proxy, and IRMA/Yivi CORS is set under ``auth.irma``.
+   * - v5 key
+     - Action
+   * - ``auth.publicURL``
+     - Replace with the new top-level ``url`` (introduced in v6).
+   * - All ``http.<name>.*`` interface bindings (``http.default.address``, ``http.default.tls``, ``http.default.cors.origin``, and any custom-named interfaces)
+     - Remove. v6 uses fixed ``http.public.address`` and ``http.internal.address``.
+   * - IRMA/Yivi CORS origin
+     - Move to ``auth.irma.cors.origin``.
+   * - ``network.certfile``, ``network.certkeyfile``, ``network.truststorefile``
+     - Rename to ``tls.certfile``, ``tls.certkeyfile``, ``tls.truststorefile``. v6 refuses to start otherwise.
+   * - ``http.internal.auth.type = token``
+     - No longer accepted. Either configure ``token_v2`` (see :ref:`nuts-node-api-authentication`) or rely on another authentication mechanism on the internal interface — reverse-proxy auth, mTLS, or network-level controls.
 
-API authentication
-------------------
+5. Start v6
+===========
 
-- Legacy bearer tokens (``token``) are removed. Only ``token_v2`` (JWT) is supported.
-- API authentication applies only to ``/internal`` endpoints; public endpoints are unauthenticated by design.
-- Configure ``http.internal.auth.type = token_v2`` and an ``authorized_keys`` file. Full reference: :ref:`nuts-node-api-authentication`.
+Back up the v5 data directory first — see `Rolling back`_.
 
-Removed features
-----------------
+Bring up the v6 node. On first start it runs the ``did:nuts`` migrations (self-control rewrite and history import into SQL). The migrations are idempotent and re-run on every restart, so an interrupted upgrade is safe to retry.
 
-- UZI authentication means.
-- ``purposeOfUseClaim`` in ``NutsAuthorizationCredential`` (removed).
-- VDR v1 ``createDID``: the ``controller`` and ``selfControl`` fields are rejected. All ``did:nuts`` documents are self-controlled.
+6. Check the startup logs
+=========================
 
-Deprecated APIs
+Schema migrations abort startup on failure — if the node booted, those are fine. The DID-document migrations don't: per-DID failures (corrupted history, key resolution errors) are logged at ``error`` and the node keeps running with that DID missing from SQL. Grep the startup logs for ``level=error`` lines from the migration step.
+
+Rolling back
+============
+
+v6 rewrites the v5 on-disk state on first start. There is no in-place downgrade. To roll back, restore the v5 data directory from the backup you took before Step 5, then start v5. The SQL database is new in v6 and not used by v5. If you plan to retry the upgrade, wipe the SQL database first to avoid stale state.
+
+Other notes
+===========
+
+TLS termination
 ---------------
 
-The following v1 APIs still work in v6 but are scheduled for removal. Plan migration:
+v6 no longer terminates server-side TLS for HTTP itself. If you already run v5 behind a reverse proxy or ingress (the typical setup), no change is needed. If you relied on the node's built-in TLS, move termination to a reverse proxy or ingress before upgrading.
 
-- Auth v1 → Auth v2.
-- DIDMan v1 → no replacement; integrate via VDR v2 and the credential APIs.
-- Network v1 → no replacement; ``did:nuts`` and the gRPC network are scoped to legacy use cases.
-- VDR v1 → VDR v2.
-- External key store API (secret store).
+Creating DIDs with ``selfControl=false``
+----------------------------------------
 
-Startup migrations
-==================
+``POST /internal/vdr/v1/did`` ignores the request body in v6. The v5 vendor-controls-care-organisation pattern is gone — new DIDs are always self-controlled, and existing ones are flattened to self-control by the startup migration.
 
-The node runs the migrations below on every startup, in order. Which ones run depends on ``didmethods``.
+Mixing VDR v1 and v2 APIs
+-------------------------
 
-.. note::
+The v1 and v2 APIs read from different stores. Do not mix usage, or you risk data drift and stale reads. VDR v1 / DIDMan v1 are deprecated and slated for removal in a future major release.
 
-    Migrations re-run on every restart. Updates made via the VDR v1 API land in SQL on the next restart.
-    They are not propagated across other DIDs in the same subject — see `Stop using VDR v1 if the subject has more than one DID`_ for the upgrade decision this implies.
+.. _also-enabling-did-web:
 
-Convert did:nuts to self-control
---------------------------------
+Also enabling ``did:web``
+-------------------------
 
-Runs when ``didmethods`` contains ``nuts``.
+If you also want to support ``did:web`` use cases, leave ``didmethods`` at its default (both methods enabled) — drop the ``didmethods = ["nuts"]`` line from Step 4. The startup migration adds a ``did:web`` document to every existing subject; this is one-way and cannot be reversed without manually rebuilding subjects.
 
-In v5, DID documents could be self-controlled or controlled by another DID (vendor / care organisation pattern).
-v6 manages all DIDs through subjects, with every DID self-controlled.
-The migration rewrites controller relationships so each owned ``did:nuts`` document is self-controlled.
+Additional preconditions:
 
-Import did:nuts documents into SQL
-----------------------------------
+- **Resolve all DID document conflicts on v5 first.** A conflicted ``did:nuts`` document imports into SQL as the replayed published history, not the merged state the v1 resolver returns. The new ``did:web`` is derived from the SQL view, so for any conflicted DID it will diverge from what v1 callers see. On v5, check ``GET /status/diagnostics``; if any are owned, list them via ``GET /internal/vdr/v1/did/conflicted`` and resolve each one.
+- **Move all DID and service management to VDR v2 before the first multi-method write.** VDR v1 / DIDMan v1 writes only touch the ``did:nuts`` document, not the ``did:web`` in the same subject. Mixed use silently desynchronises the two, and the startup migrations do not repair this on later restarts.
+- ``did:web`` resolution requires the public interface to be reachable at the configured ``url`` over HTTPS (handled by the reverse proxy from Step 3).
 
-Runs when ``didmethods`` contains ``nuts``.
+After the first v6 start with ``did:web`` enabled, verify each subject contains both DIDs:
 
-All owned ``did:nuts`` documents are imported into SQL storage under a subject with the same ID as the DID.
-The migration imports the full history of document updates up to (and including) any deactivation.
-
-For DIDs with an unresolved conflict, the migrated history will not match the resolver's merged view.
-Resolve conflicts on v5 first — see `Resolve DID document conflicts`_.
-
-Add did:web to subjects
------------------------
-
-Runs when ``didmethods`` contains both ``web`` and ``nuts`` (the default).
-
-For each owned subject that does not already have a ``did:web`` document, a new ``did:web`` is created and added to the subject.
-A new verification method is added to every relationship except ``KeyAgreement`` — ``did:web`` cannot yet be used for encryption.
-
-Validating a migrated node
-==========================
-
-After v6 starts, verify the migration before routing production traffic:
-
-- ``GET /status/diagnostics`` reports zero conflicted documents and the expected subject count.
-- ``GET /internal/vdr/v2/subject`` lists a subject for every previously owned ``did:nuts`` DID.
-- For each subject, ``GET /internal/vdr/v2/subject/{id}`` returns the expected DIDs (``did:nuts`` and, if enabled, ``did:web``).
-- Resolve at least one of the new ``did:web`` documents over the public interface to confirm DNS, the reverse proxy, and ``url`` are wired up correctly.
-- ``GET /status`` returns ``OK`` and ``GET /health`` reports all checks healthy on ``:8081``.
-- Tail the logs on startup — failed migrations are logged at ``error`` and the node will not service requests until they complete.
+- ``GET /internal/vdr/v2/subject/{id}`` lists both the ``did:nuts`` and the ``did:web``.
