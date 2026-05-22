@@ -78,33 +78,14 @@ func (r *PresentationDefinitionResolver) resolveRemote(ctx context.Context, scop
 }
 
 func (r *PresentationDefinitionResolver) resolveLocal(ctx context.Context, scope string) (*ResolvedPresentationDefinition, error) {
-	if r.policyBackend == nil {
-		return nil, fmt.Errorf("local PD resolution requires a policy backend, but none is configured")
-	}
-	match, err := r.policyBackend.FindCredentialProfile(ctx, scope)
+	profile, resolvedScope, err := loadAndValidateProfile(ctx, r.policyBackend, scope)
 	if err != nil {
-		return nil, fmt.Errorf("local PD resolution failed: %w", err)
+		return nil, err
 	}
-	if match.ScopePolicy == policy.ScopePolicyProfileOnly && len(match.OtherScopes) > 0 {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidScope,
-			Description: "scope policy 'profile-only' does not allow additional scopes",
-		}
-	}
-	// Select the organization PD (default for current single-VP flow).
-	// TODO: When #4080 adds two-VP support, this resolver will need to return multiple PDs.
-	pd, ok := match.WalletOwnerMapping[pe.WalletOwnerOrganization]
-	if !ok {
-		return nil, fmt.Errorf("no organization presentation definition for scope %q", match.CredentialProfileScope)
-	}
-	// For passthrough and dynamic, forward all scopes to the remote AS.
-	// The client does not evaluate dynamic scopes — the server handles PDP evaluation at token-grant time (PR #4179).
-	resolvedScope := scope
-	if match.ScopePolicy == policy.ScopePolicyProfileOnly {
-		resolvedScope = match.CredentialProfileScope
-	}
+	// Select the organization PD (default for the single-VP flow). loadAndValidateProfile already verified
+	// the org PD is present, so the lookup is safe.
 	return &ResolvedPresentationDefinition{
-		PresentationDefinition: pd,
+		PresentationDefinition: profile.WalletOwnerMapping[pe.WalletOwnerOrganization],
 		Scope:                  resolvedScope,
 	}, nil
 }
