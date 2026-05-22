@@ -496,7 +496,8 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 // GetExpiringCredentialsInWallet returns credentials across all wallets on this node that have an
 // expirationDate at or before now + within, grouped by subject ID. Already-expired credentials are
 // included. Credentials without an expirationDate are never returned because they don't expire.
-// Subjects without any expiring credentials are omitted from the result.
+// Credentials whose type matches any of the excludeTypes values are omitted. Subjects without any
+// expiring credentials are omitted from the result.
 func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request GetExpiringCredentialsInWalletRequestObject) (GetExpiringCredentialsInWalletResponseObject, error) {
 	within := defaultExpiringWithin
 	if request.Params.Within != nil {
@@ -508,6 +509,13 @@ func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request Ge
 			return nil, core.InvalidInputError("within must not be negative")
 		}
 		within = parsed
+	}
+
+	excludedTypes := make(map[string]struct{})
+	if request.Params.ExcludeTypes != nil {
+		for _, t := range *request.Params.ExcludeTypes {
+			excludedTypes[t] = struct{}{}
+		}
 	}
 
 	subjects, err := w.SubjectManager.List(ctx)
@@ -531,6 +539,9 @@ func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request Ge
 				if cred.ExpirationDate.After(threshold) {
 					continue
 				}
+				if isExcludedType(cred, excludedTypes) {
+					continue
+				}
 				expiring = append(expiring, toExpiringCredential(cred, holderDID))
 			}
 		}
@@ -540,6 +551,19 @@ func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request Ge
 	}
 
 	return GetExpiringCredentialsInWallet200JSONResponse(result), nil
+}
+
+// isExcludedType reports whether any of the credential's types is in the excludedTypes set.
+func isExcludedType(cred vc.VerifiableCredential, excludedTypes map[string]struct{}) bool {
+	if len(excludedTypes) == 0 {
+		return false
+	}
+	for _, t := range cred.Type {
+		if _, ok := excludedTypes[t.String()]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // toExpiringCredential builds a monitoring-friendly summary of a credential. The Wallet stores

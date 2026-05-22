@@ -634,6 +634,19 @@ paths:
             type: string
             default: "720h"
             example: "720h"
+        - name: excludeTypes
+          in: query
+          description: |
+            Credential type(s) to exclude from the result. A credential is excluded if any of its
+            types matches any of the supplied values. Useful for suppressing credentials that are
+            expected to expire and are kept for audit purposes (e.g. `NutsAuthorizationCredential`).
+            Repeat the parameter to exclude multiple types.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            example: ["NutsAuthorizationCredential"]
       responses:
         "200":
           description: |

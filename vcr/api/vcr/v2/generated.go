@@ -271,6 +271,12 @@ type GetExpiringCredentialsInWalletParams struct {
 	// expiring. Accepts a Go duration string (e.g. `24h`, `720h`, `30m`). Must be non-negative.
 	// Defaults to 720h (30 days). Use `0s` to return only already-expired credentials.
 	Within *string `form:"within,omitempty" json:"within,omitempty"`
+
+	// ExcludeTypes Credential type(s) to exclude from the result. A credential is excluded if any of its
+	// types matches any of the supplied values. Useful for suppressing credentials that are
+	// expected to expire and are kept for audit purposes (e.g. `NutsAuthorizationCredential`).
+	// Repeat the parameter to exclude multiple types.
+	ExcludeTypes *[]string `form:"excludeTypes,omitempty" json:"excludeTypes,omitempty"`
 }
 
 // SearchIssuedVCsParams defines parameters for SearchIssuedVCs.
@@ -899,6 +905,22 @@ func NewGetExpiringCredentialsInWalletRequest(server string, params *GetExpiring
 		if params.Within != nil {
 
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "within", runtime.ParamLocationQuery, *params.Within); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		if params.ExcludeTypes != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "excludeTypes", runtime.ParamLocationQuery, *params.ExcludeTypes); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
 				return nil, err
@@ -3180,6 +3202,13 @@ func (w *ServerInterfaceWrapper) GetExpiringCredentialsInWallet(ctx echo.Context
 	err = runtime.BindQueryParameter("form", true, false, "within", ctx.QueryParams(), &params.Within)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter within: %s", err))
+	}
+
+	// ------------- Optional query parameter "excludeTypes" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "excludeTypes", ctx.QueryParams(), &params.ExcludeTypes)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter excludeTypes: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments

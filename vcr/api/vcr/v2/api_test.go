@@ -1009,6 +1009,38 @@ func TestWrapper_GetExpiringCredentialsInWallet(t *testing.T) {
 		}, response)
 	})
 
+	t.Run("ok - excludeTypes omits matching credentials and now-empty subjects", func(t *testing.T) {
+		testContext := newMockContext(t)
+		makeAuthVC := func(idSuffix string, holder did.DID) vc.VerifiableCredential {
+			id := ssi.MustParseURI("did:web:issuer.example.com#" + idSuffix)
+			return vc.VerifiableCredential{
+				Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("NutsAuthorizationCredential")},
+				ID:                &id,
+				Issuer:            issuerURI,
+				CredentialSubject: []map[string]any{{"id": holder.String()}},
+				ExpirationDate:    &expired,
+			}
+		}
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+			"holder-b": {otherHolderDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).
+			Return([]vc.VerifiableCredential{expiredVC, makeAuthVC("auth-a", holderDID)}, nil)
+		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, otherHolderDID).
+			Return([]vc.VerifiableCredential{makeAuthVC("auth-b", otherHolderDID)}, nil)
+		excludeTypes := []string{"NutsAuthorizationCredential"}
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{ExcludeTypes: &excludeTypes},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry},
+		}, response)
+	})
+
 	t.Run("ok - no subjects returns empty map", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{}, nil)
