@@ -322,20 +322,21 @@ func TestNotifier_Notify(t *testing.T) {
 		// we use retry here since Notify will run notifyNow twice asynchronously
 		s.retry(event)
 
+		// counter.N is incremented by the receiver callback, but notifyNow persists
+		// the updated event (Retries, Latest) only after the callback returns. Wait
+		// for the persisted event instead of the in-memory counter, otherwise the
+		// read may observe the event before Latest is set and dereference a nil pointer.
+		var e *Event
 		test.WaitFor(t, func() (bool, error) {
-			return counter.N.Load() == 1, nil
+			kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
+				e, _ = s.readEvent(reader, hash.EmptyHash())
+				return nil
+			})
+			return e != nil && e.Latest != nil, nil
 		}, time.Second, "timeout while waiting for receiver")
-		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
-			e, err := s.readEvent(reader, hash.EmptyHash())
 
-			assert.NoError(t, err)
-			require.NotNil(t, e)
-			assert.Equal(t, 1, e.Retries)
-			assert.True(t, now.Equal(*e.Latest))
-
-			return nil
-		})
-
+		assert.Equal(t, 1, e.Retries)
+		assert.True(t, now.Equal(*e.Latest))
 		assert.Equal(t, int64(1), counter.N.Load())
 	})
 
