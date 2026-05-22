@@ -106,7 +106,7 @@ type ExtendedTokenIntrospectionResponse struct {
 	// PresentationSubmissions Mapping of Presentation Definition IDs that were fulfilled to Presentation Submissions.
 	PresentationSubmissions *map[string]PresentationSubmission `json:"presentation_submissions,omitempty"`
 
-	// Scope granted scopes
+	// Scope Granted scopes, as a space-separated list.
 	Scope                *string                   `json:"scope,omitempty"`
 	Vps                  *[]VerifiablePresentation `json:"vps,omitempty"`
 	AdditionalProperties map[string]interface{}    `json:"-"`
@@ -135,12 +135,15 @@ type ServiceAccessTokenRequest struct {
 	AuthorizationServer string `json:"authorization_server"`
 
 	// CredentialSelection Optional key-value mapping for credential selection when the wallet contains multiple
-	// credentials matching a single input descriptor. Each key must match a field id declared
+	// credentials matching a single input descriptor. Each key must match a field ID declared
 	// in the Presentation Definition's input descriptor constraints. The value narrows the
 	// match to credentials where that field equals the given value.
 	//
 	// The selection must narrow to exactly one credential per input descriptor.
 	// Zero matches or multiple matches will result in an error.
+	//
+	// When omitted and multiple credentials match an input descriptor,
+	// the first matching credential is used.
 	CredentialSelection *map[string]string `json:"credential_selection,omitempty"`
 
 	// Credentials Additional credentials to present (if required by the authorizer), in addition to those in the requester's wallet.
@@ -157,6 +160,19 @@ type ServiceAccessTokenRequest struct {
 
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
+
+	// ServiceProviderSubjectId **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+	// When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+	// VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+	// provider) using the `organization` PD; VP2 is built from the wallet identified here
+	// using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
+	// an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+	// and a `service_provider` PD configured for the requested credential profile.
+	//
+	// When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+	//
+	// Subject to change without notice.
+	ServiceProviderSubjectId *string `json:"service_provider_subject_id,omitempty"`
 
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
@@ -197,7 +213,7 @@ type UserAccessTokenRequestTokenType string
 
 // UserDetails Claims about the authorized user.
 type UserDetails struct {
-	// Id Machine-readable identifier, uniquely identifying the user in the issuing system.
+	// Id Machine-readable identifier, uniquely identifying the user in the issuing system. The format is not specified; it could be a username, email address, employee number, etc.
 	Id string `json:"id"`
 
 	// Name Human-readable name of the user.

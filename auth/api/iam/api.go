@@ -728,6 +728,17 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	if err != nil {
 		return nil, err
 	}
+	// service_provider_subject_id is optional. When absent the single-VP flow runs; when present it
+	// selects the two-VP jwt-bearer flow. An explicit empty string is ambiguous, reject it here so
+	// the flow doesn't route on an unset value.
+	if request.Body.ServiceProviderSubjectId != nil {
+		if *request.Body.ServiceProviderSubjectId == "" {
+			return nil, core.InvalidInputError("service_provider_subject_id is optional and cannot be empty: omit the field or set a non-empty value")
+		}
+		if err := r.subjectExists(ctx, *request.Body.ServiceProviderSubjectId); err != nil {
+			return nil, err
+		}
+	}
 
 	tokenCache := r.accessTokenCache()
 	cacheKey := accessTokenRequestCacheKey(request)
@@ -781,7 +792,7 @@ func (r Wrapper) RequestServiceAccessToken(ctx context.Context, request RequestS
 	}
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
-	tokenResult, err := r.auth.IAMClient().RequestServiceAccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialSelection, nil)
+	tokenResult, err := r.auth.IAMClient().RequestServiceAccessToken(ctx, clientID.String(), request.SubjectID, request.Body.AuthorizationServer, request.Body.Scope, useDPoP, credentials, credentialSelection, request.Body.ServiceProviderSubjectId)
 	if err != nil {
 		// this can be an internal server error, a 400 oauth error or a 412 precondition failed if the wallet does not contain the required credentials
 		return nil, err

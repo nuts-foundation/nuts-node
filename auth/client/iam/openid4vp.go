@@ -70,31 +70,48 @@ type OpenID4VPClient struct {
 	experimentalJwtBearerClient bool
 }
 
-// NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration,
-	experimentalJwtBearerClient bool) *OpenID4VPClient {
+// ClientConfig groups the dependencies and toggles needed to construct an OpenID4VPClient.
+// The interface fields (Wallet, KeyResolver, SubjectManager, JWTSigner, LDDocumentLoader,
+// PolicyBackend) are required; NewClient does not validate them and missing fields will surface as
+// nil-pointer panics on first use. Scalar fields default to their zero value (StrictMode=false,
+// HTTPClientTimeout=0, ExperimentalJwtBearerClient=false) and the zero values are valid.
+type ClientConfig struct {
+	Wallet            holder.Wallet
+	KeyResolver       resolver.KeyResolver
+	SubjectManager    didsubject.Manager
+	JWTSigner         nutsCrypto.JWTSigner
+	LDDocumentLoader  ld.DocumentLoader
+	PolicyBackend     policy.PDPBackend
+	StrictMode        bool
+	HTTPClientTimeout time.Duration
+	// ExperimentalJwtBearerClient gates the RFC 7523 jwt-bearer two-VP token request flow.
+	// Tracked for replacement by a list-style grant-types config under issue #4231.
+	ExperimentalJwtBearerClient bool
+}
+
+// NewClient returns an OpenID4VPClient configured with the given dependencies.
+func NewClient(cfg ClientConfig) *OpenID4VPClient {
 	httpClient := HTTPClient{
-		strictMode:  strictMode,
-		httpClient:  client.NewWithCache(httpClientTimeout),
-		keyResolver: keyResolver,
+		strictMode:  cfg.StrictMode,
+		httpClient:  client.NewWithCache(cfg.HTTPClientTimeout),
+		keyResolver: cfg.KeyResolver,
 	}
-	client := &OpenID4VPClient{
+	c := &OpenID4VPClient{
 		httpClient:                  httpClient,
-		keyResolver:                 keyResolver,
-		jwtSigner:                   jwtSigner,
-		ldDocumentLoader:            ldDocumentLoader,
-		subjectManager:              subjectManager,
-		strictMode:                  strictMode,
-		wallet:                      wallet,
-		policyBackend:               policyBackend,
-		experimentalJwtBearerClient: experimentalJwtBearerClient,
+		keyResolver:                 cfg.KeyResolver,
+		jwtSigner:                   cfg.JWTSigner,
+		ldDocumentLoader:            cfg.LDDocumentLoader,
+		subjectManager:              cfg.SubjectManager,
+		strictMode:                  cfg.StrictMode,
+		wallet:                      cfg.Wallet,
+		policyBackend:               cfg.PolicyBackend,
+		experimentalJwtBearerClient: cfg.ExperimentalJwtBearerClient,
 	}
-	client.pdResolver = PresentationDefinitionResolver{
-		pdFetcher:     client,
-		policyBackend: policyBackend,
+	c.pdResolver = PresentationDefinitionResolver{
+		pdFetcher:     c,
+		policyBackend: cfg.PolicyBackend,
 	}
-	return client
+	return c
 }
 
 func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
@@ -345,7 +362,7 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 // parameter is sent on this path.
 // Both PDs are resolved from the local policy backend; the AS's remote presentation_definition endpoint
 // is not consulted (no standardised mechanism exists today for the AS to advertise a service_provider PD).
-func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subjectID string, serviceProviderSubjectID string,
+func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organizationSubjectID string, serviceProviderSubjectID string,
 	authServerURL string, scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
 	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
 	profile, resolvedScope, err := loadAndValidateProfile(ctx, c.policyBackend, scopes)
@@ -368,7 +385,7 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, subje
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
-	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, subjectID, orgPD, additionalCredentials, credentialSelection, params)
+	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, organizationSubjectID, orgPD, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
