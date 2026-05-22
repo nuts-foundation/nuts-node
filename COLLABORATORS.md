@@ -11,6 +11,23 @@ not file vulnerabilities as public issues or PRs.
   up front beats a rejected PR.
 - For typos, doc fixes, and obvious bugs, skip straight to a PR.
 
+## Backwards compatibility
+
+We don't accept breaking changes to public interfaces — HTTP APIs,
+configuration (CLI flags, environment variables, `nuts.yaml`), observable
+behaviour, and the Nuts network protocols. Breaking changes land only in a
+new major version, which the maintainers plan.
+
+What counts as breaking and how it maps to version numbers is already
+documented:
+
+- [API development](docs/pages/development/3-api.rst) — API versioning rules.
+- [Releasing — Semantic versioning](docs/pages/development/2-releasing.rst) —
+  how "API" is scoped (it also covers config and network protocols) and
+  which version part a change bumps.
+
+If a change you need can't be made backwards compatible, open an issue first.
+
 ## Pull requests
 
 ### Keep them small
