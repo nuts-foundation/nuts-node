@@ -1,0 +1,7 @@
+{
+  "service-provider-malformed-scope": {
+    "service_provider": {
+      "id": "pd_service_provider_missing_input_descriptors"
+    }
+  }
+}
