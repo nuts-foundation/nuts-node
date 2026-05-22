@@ -332,27 +332,8 @@ func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientI
 	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
 	data.Set(oauth.ScopeParam, resolved.Scope)
 
-	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, *subjectDID, metadata.TokenEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
-	if err != nil {
-		// the error could be a http error, we just relay it here to make use of any 400 status codes.
-		return nil, err
-	}
-	tokenResponse := oauth.TokenResponse{
-		AccessToken: token.AccessToken,
-		ExpiresIn:   token.ExpiresIn,
-		TokenType:   token.TokenType,
-		Scope:       &resolved.Scope,
-	}
-	if dpopKid != "" {
-		tokenResponse.DPoPKid = &dpopKid
-	}
-	return &tokenResponse, nil
+	return c.postTokenRequest(ctx, *subjectDID, useDPoP, data, resolved.Scope, metadata)
 }
 
 // requestJwtBearerAccessToken implements the RFC 7523 jwt-bearer two-VP token request flow.
@@ -428,10 +409,6 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organ
 	if err != nil {
 		return nil, err
 	}
-	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, *spDID, metadata.TokenEndpoint)
-	if err != nil {
-		return nil, err
-	}
 	data := url.Values{}
 	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
 	data.Set(oauth.AssertionParam, organizationVP.Raw())
@@ -440,8 +417,19 @@ func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organ
 	data.Set(oauth.ScopeParam, resolvedScope)
 
 	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  organization VP: %s\n  service provider VP: %s", metadata.TokenEndpoint, resolvedScope, organizationVP.Raw(), serviceProviderVP.Raw())
+	return c.postTokenRequest(ctx, *spDID, useDPoP, data, resolvedScope, metadata)
+}
+
+// postTokenRequest signs a DPoP header for the signerDID (when useDPoP), POSTs the token request to the
+// AS, and assembles the oauth.TokenResponse. Shared tail of the single-VP and jwt-bearer two-VP flows.
+func (c *OpenID4VPClient) postTokenRequest(ctx context.Context, signerDID did.DID, useDPoP bool, data url.Values, resolvedScope string, metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
+	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, signerDID, metadata.TokenEndpoint)
+	if err != nil {
+		return nil, err
+	}
 	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
+		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err
 	}
 	tokenResponse := oauth.TokenResponse{

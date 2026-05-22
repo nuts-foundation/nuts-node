@@ -238,9 +238,9 @@ func issueAndLoad(t *testing.T, internalURL, holderSubject string, body []byte) 
 
 func buildHCPCredential(issuerDID, subjectDID, ura string) []byte {
 	body, _ := json.Marshal(map[string]any{
-		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
-		"type":     []string{"VerifiableCredential", "HealthcareProviderCredential"},
-		"issuer":   issuerDID,
+		"@context":       []string{"https://www.w3.org/2018/credentials/v1"},
+		"type":           []string{"VerifiableCredential", "HealthcareProviderCredential"},
+		"issuer":         issuerDID,
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
@@ -257,9 +257,9 @@ func buildHCPCredential(issuerDID, subjectDID, ura string) []byte {
 
 func buildSPCredential(issuerDID, subjectDID string) []byte {
 	body, _ := json.Marshal(map[string]any{
-		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
-		"type":     []string{"VerifiableCredential", "ServiceProviderCredential"},
-		"issuer":   issuerDID,
+		"@context":       []string{"https://www.w3.org/2018/credentials/v1"},
+		"type":           []string{"VerifiableCredential", "ServiceProviderCredential"},
+		"issuer":         issuerDID,
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
@@ -273,9 +273,9 @@ func buildSPCredential(issuerDID, subjectDID string) []byte {
 
 func buildDelegationCredential(issuerDID, subjectDID, ura string) []byte {
 	body, _ := json.Marshal(map[string]any{
-		"@context": []string{"https://www.w3.org/2018/credentials/v1"},
-		"type":     []string{"VerifiableCredential", "ServiceProviderDelegationCredential"},
-		"issuer":   issuerDID,
+		"@context":       []string{"https://www.w3.org/2018/credentials/v1"},
+		"type":           []string{"VerifiableCredential", "ServiceProviderDelegationCredential"},
+		"issuer":         issuerDID,
 		"expirationDate": time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339),
 		"credentialSubject": map[string]any{
 			"id":   subjectDID,
