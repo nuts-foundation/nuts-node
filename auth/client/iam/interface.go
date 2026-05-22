@@ -20,6 +20,7 @@ package iam
 
 import (
 	"context"
+
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -55,13 +56,8 @@ type Client interface {
 	RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string, useDPoP bool,
 		credentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error)
 
-	// OpenIdCredentialIssuerMetadata returns the metadata of the remote credential issuer.
-	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
-	OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error)
 	// OpenIDConfiguration returns the OpenID Configuration of the remote wallet.
 	OpenIDConfiguration(ctx context.Context, issuer string) (*oauth.OpenIDConfiguration, error)
-	// VerifiableCredentials requests Verifiable Credentials from the issuer at the given endpoint.
-	VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJWT string) (*CredentialResponse, error)
 	// RequestObjectByGet retrieves the RequestObjectByGet from the authorization request's 'request_uri' endpoint using a GET method as defined in RFC9101/OpenID4VP.
 	// This method is used when there is no 'request_uri_method', or its value is 'get'.
 	RequestObjectByGet(ctx context.Context, requestURI string) (string, error)

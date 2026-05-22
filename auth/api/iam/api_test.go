@@ -43,6 +43,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
@@ -1637,7 +1638,7 @@ type testCtx struct {
 	jwtSigner        *cryptoNuts.MockJWTSigner
 	keyResolver      *resolver.MockKeyResolver
 	policy           *policy.MockPDPBackend
-	authzenEvaluator *policy.MockAuthZenEvaluator
+	scopeEvaluator   *policy.MockScopeEvaluator
 	resolver         *resolver.MockDIDResolver
 	relyingParty     *oauthServices.MockRelyingParty
 	vcr              *vcr.MockVCR
@@ -1647,6 +1648,7 @@ type testCtx struct {
 	wallet           *holder.MockWallet
 	subjectManager   *didsubject.MockManager
 	jar              *MockJAR
+	openid4vciClient *openid4vci.MockClient
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1659,12 +1661,13 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	policyInstance := policy.NewMockPDPBackend(ctrl)
-	authzenEvaluator := policy.NewMockAuthZenEvaluator(ctrl)
+	scopeEvaluator := policy.NewMockScopeEvaluator(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcIssuer := issuer.NewMockIssuer(ctrl)
 	vcVerifier := verifier.NewMockVerifier(ctrl)
 	iamClient := iam.NewMockClient(ctrl)
+	openid4vciClient := openid4vci.NewMockClient(ctrl)
 	mockDocumentOwner := didsubject.NewMockDocumentOwner(ctrl)
 	subjectManager := didsubject.NewMockManager(ctrl)
 	mockVCR := vcr.NewMockVCR(ctrl)
@@ -1680,6 +1683,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	mockVCR.EXPECT().Verifier().Return(vcVerifier).AnyTimes()
 	mockVCR.EXPECT().Wallet().Return(mockWallet).AnyTimes()
 	authnServices.EXPECT().IAMClient().Return(iamClient).AnyTimes()
+	authnServices.EXPECT().OpenID4VCIClient().Return(openid4vciClient).AnyTimes()
 	authnServices.EXPECT().AuthorizationEndpointEnabled().Return(authEndpointEnabled).AnyTimes()
 
 	subjectManager.EXPECT().ListDIDs(gomock.Any(), holderSubjectID).Return([]did.DID{holderDID}, nil).AnyTimes()
@@ -1704,7 +1708,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		ctrl:             ctrl,
 		authnServices:    authnServices,
 		policy:           policyInstance,
-		authzenEvaluator: authzenEvaluator,
+		scopeEvaluator:   scopeEvaluator,
 		relyingParty:     relyingPary,
 		vcIssuer:         vcIssuer,
 		vcVerifier:       vcVerifier,
@@ -1718,5 +1722,6 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		jwtSigner:        jwtSigner,
 		jar:              mockJAR,
 		client:           client,
+		openid4vciClient: openid4vciClient,
 	}
 }

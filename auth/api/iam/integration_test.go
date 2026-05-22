@@ -110,7 +110,7 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(realAuthzenClient)
+		ctx.policy.EXPECT().ScopeEvaluator().Return(policy.NewAuthZenScopeEvaluator(realAuthzenClient))
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
 
@@ -142,7 +142,7 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(realAuthzenClient)
+		ctx.policy.EXPECT().ScopeEvaluator().Return(policy.NewAuthZenScopeEvaluator(realAuthzenClient))
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
 
@@ -166,7 +166,7 @@ func TestIntegration_DynamicScopePolicy_AuthZenEndToEnd(t *testing.T) {
 			ScopePolicy:            policy.ScopePolicyDynamic,
 			OtherScopes:            []string{"extra-scope"},
 		}, nil)
-		ctx.policy.EXPECT().AuthZenEvaluator().Return(realAuthzenClient)
+		ctx.policy.EXPECT().ScopeEvaluator().Return(policy.NewAuthZenScopeEvaluator(realAuthzenClient))
 
 		resp, err := ctx.client.handleS2SAccessTokenRequest(contextWithValue, clientID, issuerSubjectID, "example-scope extra-scope", submissionJSON, presentation.Raw())
 

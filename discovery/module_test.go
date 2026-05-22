@@ -483,6 +483,27 @@ func TestModule_Search(t *testing.T) {
 		actualJSON, _ := json.Marshal(results)
 		assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 	})
+	t.Run("retracted presentations are not returned", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		m, testContext := setupModule(t, storageEngine, func(module *Module) {
+			module.config.Client.RefreshInterval = 0
+		})
+		testContext.verifier.EXPECT().VerifyVP(gomock.Any(), true, true, nil).Times(2)
+
+		vpAliceRetract := createPresentationCustom(aliceDID, func(claims map[string]interface{}, vp *vc.VerifiablePresentation) {
+			vp.Type = append(vp.Type, retractionPresentationType)
+			claims["retract_jti"] = vpAlice.ID.String()
+			claims[jwt.AudienceKey] = []string{testServiceID}
+		})
+
+		require.NoError(t, m.Register(context.Background(), testServiceID, vpAlice))
+		require.NoError(t, m.Register(context.Background(), testServiceID, vpAliceRetract))
+
+		// Empty query: no credential-join filter, so retraction markers leak through.
+		results, err := m.Search(testServiceID, map[string]string{})
+		require.NoError(t, err)
+		assert.Empty(t, results, "retraction presentations must not be returned from Search")
+	})
 	t.Run("unknown service ID", func(t *testing.T) {
 		m, _ := setupModule(t, storageEngine)
 		_, err := m.Search("unknown", nil)

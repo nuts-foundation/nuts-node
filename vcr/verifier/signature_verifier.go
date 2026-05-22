@@ -43,13 +43,32 @@ type signatureVerifier struct {
 
 var ExtractProtectedHeaders = crypto.ExtractProtectedHeaders
 
+// vcJWTProfile defines JWT validation rules for JWT Verifiable Credentials.
+// IssuerKidValidator checks that the kid DID matches the JWT iss claim.
+// Additionally, jwtSignature verifies that iss matches the VC-level issuer field.
+var vcJWTProfile = &crypto.JWTProfile{
+	Validators: []crypto.JWTValidator{crypto.IssuerKidValidator},
+}
+
+// vpJWTProfile is the default JWT validation profile for Verifiable Presentations.
+// Requires nbf as an issuance-time anchor (the VP builder has always set it). exp is NOT
+// required because other nodes may produce VPs without it. Callers that want to enforce
+// a max age do so via their own checks after VerifyVP returns (see
+// validateS2SPresentationMaxValidity in auth/api/iam/s2s_vptoken.go and the discovery
+// module's PresentationMaxValidity check).
+// No IssuerKidValidator here: in this codebase VP JWTs do not set iss (spec deviation);
+// the signer identity comes from the kid header instead.
+var vpJWTProfile = &crypto.JWTProfile{
+	RequiredClaims: []string{jwt.NotBeforeKey},
+}
+
 // VerifySignature checks if the signature on a VP is valid at a given time
 func (sv *signatureVerifier) VerifySignature(credentialToVerify vc.VerifiableCredential, validateAt *time.Time) error {
 	switch credentialToVerify.Format() {
 	case vc.JSONLDCredentialProofFormat:
 		return sv.jsonldProof(credentialToVerify, credentialToVerify.Issuer.String(), validateAt)
 	case vc.JWTCredentialProofFormat:
-		return sv.jwtSignature(credentialToVerify.Raw(), credentialToVerify.Issuer.String(), validateAt)
+		return sv.jwtSignature(credentialToVerify.Raw(), credentialToVerify.Issuer.String(), validateAt, vcJWTProfile)
 	default:
 		return errors.New("unsupported credential proof format")
 	}
@@ -66,7 +85,7 @@ func (sv *signatureVerifier) VerifyVPSignature(presentation vc.VerifiablePresent
 	case vc.JSONLDPresentationProofFormat:
 		return sv.jsonldProof(presentation, signerDID.String(), validateAt)
 	case vc.JWTPresentationProofFormat:
-		return sv.jwtSignature(presentation.Raw(), signerDID.String(), validateAt)
+		return sv.jwtSignature(presentation.Raw(), signerDID.String(), validateAt, vpJWTProfile)
 	default:
 		return errors.New("unsupported presentation proof format")
 	}
@@ -120,7 +139,7 @@ func (sv *signatureVerifier) jsonldProof(documentToVerify any, issuer string, at
 	return nil
 }
 
-func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer string, at *time.Time) error {
+func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer string, at *time.Time, profile *crypto.JWTProfile) error {
 	var keyID string
 	_, err := crypto.ParseJWT(jwtDocumentToVerify, func(kid string) (crypt.PublicKey, error) {
 		keyID = kid
@@ -137,15 +156,13 @@ func (sv *signatureVerifier) jwtSignature(jwtDocumentToVerify string, issuer str
 			return nil, fmt.Errorf("unable to resolve signing key: %w", err)
 		}
 		return key, err
-	}, jwt.WithClock(jwt.ClockFunc(func() time.Time {
-		if at == nil {
-			return time.Now()
-		}
-		return *at
-	})))
+	}, profile, at)
 	if err != nil {
 		return newVerificationError("unable to validate JWT signature: %w", err)
 	}
+	// Check that the kid header DID matches the VC/VP-level issuer field.
+	// For VCs this is redundant with IssuerKidValidator (kid DID == iss == VC.issuer),
+	// but for VPs this is the primary signer-identity check since VP JWTs lack iss.
 	if keyID != "" && strings.Split(keyID, "#")[0] != issuer {
 		return errVerificationMethodNotOfIssuer
 	}

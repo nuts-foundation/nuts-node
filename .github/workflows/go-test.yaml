@@ -1,0 +1,41 @@
+name: 'Go test'
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'V*'
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Test
+        run: go test ./... -race -coverprofile=c_raw.out
+
+      - name: Filter coverage
+        run: grep -v generated c_raw.out | grep -v mock | grep -v test > c.out
+
+      - name: Upload coverage to Qlty
+        # Skip on PRs from forks: GitHub does not grant id-token: write to
+        # cross-repository workflow runs, so the OIDC upload cannot authenticate.
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: qltysh/qlty-action/coverage@a19242102d17e497f437d7466aa01b528537e899 # v2.2.0
+        with:
+          oidc: true
+          files: c.out
+          format: coverprofile

@@ -14,6 +14,7 @@ gen-mocks:
 	mockgen -destination=auth/api/iam/jar_mock.go -package=iam -source=auth/api/iam/jar.go
 	mockgen -destination=auth/contract/signer_mock.go -package=contract -source=auth/contract/signer.go
 	mockgen -destination=auth/client/iam/mock.go -package=iam -source=auth/client/iam/interface.go
+	mockgen -destination=auth/openid4vci/mock.go -package=openid4vci -source=auth/openid4vci/client.go
 	mockgen -destination=auth/services/mock.go -package=services -source=auth/services/services.go
 	mockgen -destination=auth/services/oauth/mock.go -package=oauth -source=auth/services/oauth/interface.go
 	mockgen -destination=auth/services/selfsigned/types/mock.go -package=types -source=auth/services/selfsigned/types/types.go

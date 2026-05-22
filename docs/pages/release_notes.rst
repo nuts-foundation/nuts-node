@@ -11,6 +11,59 @@ Unreleased
 * #4078: Allow policy profiles to define a ``service_provider`` PresentationDefinition for the OAuth client (RFC 7523 ``jwt-bearer`` flow) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4226
 * #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
+* #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
+
+****************
+Peanut (v6.2.6)
+****************
+
+Release date: 2026-05-18
+
+- Exclude retraction presentations from Discovery Service search results (backport of `#4193 <https://github.com/nuts-foundation/nuts-node/pull/4193>`_).
+- Make HTTP error handler idempotent on already-committed responses to prevent double-write attempts (backport of `#4243 <https://github.com/nuts-foundation/nuts-node/pull/4243>`_).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.5...v6.2.6
+
+****************
+Peanut (v6.2.5)
+****************
+
+Release date: 2026-05-11
+
+- Update Alpine base image to 3.23.4 to pick up musl, OpenSSL and zlib security fixes.
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.4...v6.2.5
+
+****************
+Peanut (v6.2.4)
+****************
+
+Release date: 2026-04-16
+
+- Fix node failing to start when syncing many transactions on a slow disk (e.g. SMB/Azure Files): concurrent read transactions were incorrectly blocked by pending write transactions at the Go level, causing read lock timeouts during startup. See `#4162 <https://github.com/nuts-foundation/nuts-node/issues/4162>`_.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.3...v6.2.4
+
+****************
+Peanut (v6.2.3)
+****************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.2...v6.2.3
+
+****************
+Peanut (v6.2.2)
+****************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.1...v6.2.2
 
 ****************
 Peanut (v6.2.1)
@@ -424,6 +477,66 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.33)
+*************************
+
+Release date: 2026-05-08
+
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.32...v5.4.33
+
+*************************
+Hazelnut update (v5.4.32)
+*************************
+
+Release date: 2026-04-17
+
+- Backport compound leia index ``index_auth_subject_purpose_resources`` on ``credentialSubject.id`` + ``purposeOfUse`` + ``resources.path`` (see `#3562 <https://github.com/nuts-foundation/nuts-node/pull/3562>`_). Fixes slow ``POST /internal/vcr/v2/search`` queries against ``NutsAuthorizationCredential`` where large issuers previously forced go-leia to fall back to ``index_issuer`` and scan every VC issued by the requesting care organization.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.31...v5.4.32
+
+*************************
+Hazelnut update (v5.4.31)
+*************************
+
+Release date: 2026-04-14
+
+- Tighten validation of access tokens in the v1 introspection endpoint: require ``typ`` header to be ``at+jwt``, require non-empty ``iss``, ``sub`` and ``service`` claims, and verify that the ``iss`` claim matches the DID of the signing key.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.30...v5.4.31
+
+*************************
+Hazelnut update (v5.4.30)
+*************************
+
+Release date: 2026-04-10
+
+- Upgrade Go to 1.26.2 to fix GO-2026-4865 (html/template XSS), GO-2026-4866 (crypto/x509 auth bypass), GO-2026-4869 (archive/tar DoS), GO-2026-4870 (crypto/tls DoS), GO-2026-4946 (crypto/x509 DoS)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.29...v5.4.30
+
+*************************
+Hazelnut update (v5.4.29)
+*************************
+
+Release date: 2026-04-10
+
+- Fix node failing to start when syncing many transactions on a slow disk (e.g. SMB/Azure Files): concurrent read transactions were incorrectly blocked by pending write transactions at the Go level, causing read lock timeouts during startup. See `#4162 <https://github.com/nuts-foundation/nuts-node/issues/4162>`_.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.28...v5.4.29
+
+*************************
+Hazelnut update (v5.4.28)
+*************************
+
+Release date: 2026-03-31
+
+- Update grpc-go to fix https://pkg.go.dev/vuln/GO-2026-4762
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.27...v5.4.28
 
 *************************
 Hazelnut update (v5.4.27)

@@ -23,14 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/policy/authzen"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -76,17 +74,15 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 			return nil, err
 		}
 	}
-	match, err := r.findCredentialProfile(ctx, scope)
+	credentialProfile, err := r.findCredentialProfile(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
-	if match.ScopePolicy == policy.ScopePolicyProfileOnly && len(match.OtherScopes) > 0 {
-		return nil, oauth.OAuth2Error{
-			Code:        oauth.InvalidScope,
-			Description: "scope policy 'profile-only' does not allow additional scopes",
-		}
+	granter, err := policy.NewScopeGranter(credentialProfile, r.policyBackend.ScopeEvaluator)
+	if err != nil {
+		return nil, err
 	}
-	pexConsumer := newPEXConsumer(match.WalletOwnerMapping)
+	pexConsumer := newPEXConsumer(credentialProfile.WalletOwnerMapping)
 	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
@@ -118,7 +114,22 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// Compute granted scopes based on scope policy. Never pass through the raw input scope
 	// directly — always derive granted scopes from the policy decision.
-	grantedScope, err := r.grantedScopesForPolicy(ctx, match, credentialSubjectID, *pexConsumer)
+	credentialMap, err := pexConsumer.credentialMap()
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to extract credentials for scope evaluation",
+			InternalError: err,
+		}
+	}
+	claims, err := resolveInputDescriptorValues(pexConsumer.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+	grantedScope, err := granter.Grant(ctx, policy.GrantInput{
+		SubjectDID:         credentialSubjectID,
+		PresentationClaims: claims,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -130,92 +141,6 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		return nil, err
 	}
 	return HandleTokenRequest200JSONResponse(*response), nil
-}
-
-// grantedScopesForPolicy returns the scopes to include in the access token based on the scope policy.
-// Profile-only grants only the credential profile scope. Passthrough grants the credential profile
-// scope plus all other requested scopes. Dynamic calls the configured AuthZen PDP for per-scope evaluation.
-func (r Wrapper) grantedScopesForPolicy(ctx context.Context, match *policy.CredentialProfileMatch, subjectDID did.DID, pexState PEXConsumer) (string, error) {
-	switch match.ScopePolicy {
-	case policy.ScopePolicyProfileOnly:
-		return match.CredentialProfileScope, nil
-	case policy.ScopePolicyPassthrough:
-		scopes := append([]string{match.CredentialProfileScope}, match.OtherScopes...)
-		return strings.Join(scopes, " "), nil
-	case policy.ScopePolicyDynamic:
-		return r.evaluateDynamicScopes(ctx, match, subjectDID, pexState)
-	default:
-		return "", oauth.OAuth2Error{
-			Code:        oauth.ServerError,
-			Description: fmt.Sprintf("unsupported scope policy: %s", match.ScopePolicy),
-		}
-	}
-}
-
-// evaluateDynamicScopes calls the AuthZen PDP to evaluate each requested scope.
-// Returns the space-joined granted scopes. If the PDP denies the credential profile scope,
-// the request is rejected. Other denied scopes are simply excluded from the granted set.
-func (r Wrapper) evaluateDynamicScopes(ctx context.Context, match *policy.CredentialProfileMatch, subjectDID did.DID, pexState PEXConsumer) (string, error) {
-	evaluator := r.policyBackend.AuthZenEvaluator()
-	if evaluator == nil {
-		// Should be caught at startup by policy.LocalPDP.Configure, but guard here defensively.
-		return "", oauth.OAuth2Error{
-			Code:        oauth.ServerError,
-			Description: "dynamic scope policy configured but no AuthZen evaluator available",
-		}
-	}
-	credentialMap, err := pexState.credentialMap()
-	if err != nil {
-		return "", oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			Description:   "failed to extract credentials for scope evaluation",
-			InternalError: err,
-		}
-	}
-	claims, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
-	if err != nil {
-		return "", err
-	}
-	allScopes := append([]string{match.CredentialProfileScope}, match.OtherScopes...)
-	request := authzen.EvaluationsRequest{
-		Subject: authzen.Subject{
-			Type: "organization",
-			ID:   subjectDID.String(),
-			Properties: authzen.SubjectProperties{
-				Organization: claims,
-			},
-		},
-		Action:      authzen.Action{Name: "request_scope"},
-		Context:     authzen.EvaluationContext{Policy: match.CredentialProfileScope},
-		Evaluations: make([]authzen.Evaluation, len(allScopes)),
-	}
-	for i, s := range allScopes {
-		request.Evaluations[i] = authzen.Evaluation{Resource: authzen.Resource{Type: "scope", ID: s}}
-	}
-
-	decisions, err := evaluator.Evaluate(ctx, request)
-	if err != nil {
-		// Keep Description generic to avoid leaking PDP internals to the OAuth2 client.
-		// Details remain available in InternalError for server-side logging.
-		return "", oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			Description:   "policy decision point unavailable",
-			InternalError: err,
-		}
-	}
-	if !decisions[match.CredentialProfileScope] {
-		return "", oauth.OAuth2Error{
-			Code:        oauth.AccessDenied,
-			Description: fmt.Sprintf("PDP denied credential profile scope %q", match.CredentialProfileScope),
-		}
-	}
-	granted := []string{match.CredentialProfileScope}
-	for _, s := range match.OtherScopes {
-		if decisions[s] {
-			granted = append(granted, s)
-		}
-	}
-	return strings.Join(granted, " "), nil
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {

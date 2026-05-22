@@ -1,0 +1,14 @@
+url: http://nodeA
+strictmode: false
+http:
+  internal:
+    address: :8081
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+tracing:
+  endpoint: jaeger:4318
+  insecure: true
+  servicename: nodeA

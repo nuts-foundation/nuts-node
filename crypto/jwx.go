@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
@@ -169,7 +170,27 @@ func JWTKidAlg(tokenString string) (string, jwa.SignatureAlgorithm, error) {
 type PublicKeyFunc func(kid string) (crypto.PublicKey, error)
 
 // ParseJWT parses a token, validates and verifies it.
-func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (jwt.Token, error) {
+// When profile is non-nil, it applies the profile's validation rules (typ header, required claims,
+// max validity, and custom validators) after signature verification.
+// When at is non-nil, validation uses that time instead of time.Now() (for historical verification
+// of e.g. VC/VP signatures).
+func ParseJWT(tokenString string, f PublicKeyFunc, profile *JWTProfile, at *time.Time) (jwt.Token, error) {
+	var headers map[string]interface{}
+	if profile != nil {
+		var err error
+		headers, err = ExtractProtectedHeaders(tokenString)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JWT headers: %w", err)
+		}
+		// Check typ header early, before expensive signature verification
+		if profile.Typ != "" {
+			typ, _ := headers["typ"].(string)
+			if typ != profile.Typ {
+				return nil, fmt.Errorf("invalid JWT typ header (expected '%s', got '%s')", profile.Typ, typ)
+			}
+		}
+	}
+
 	kid, alg, err := JWTKidAlg(tokenString)
 	if err != nil {
 		return nil, err
@@ -184,10 +205,60 @@ func ParseJWT(tokenString string, f PublicKeyFunc, options ...jwt.ParseOption) (
 		return nil, fmt.Errorf("token signing algorithm is not supported: %s", alg)
 	}
 
+	// Build validate options from profile.
+	// ValidateOption implements ParseOption in jwx, so jwt.ParseString applies them during its
+	// internal validation pass alongside the default exp/nbf/iat checks.
+	// RequiredClaims are intentionally not added here: WithMaxDelta already auto-requires its
+	// time claims, and the post-parse loop below catches both missing and empty values.
+	var options []jwt.ParseOption
+	if profile != nil && profile.MaxValidity > 0 {
+		options = append(options, jwt.WithMaxDelta(profile.MaxValidity, jwt.ExpirationKey, jwt.IssuedAtKey))
+	}
+	// Apply clock skew: profile override if set, otherwise DefaultJWTClockSkew.
+	skew := DefaultJWTClockSkew
+	if profile != nil && profile.ClockSkew > 0 {
+		skew = profile.ClockSkew
+	}
+	options = append(options, jwt.WithAcceptableSkew(skew))
+	// Historical verification: fix the clock to `at` if provided (e.g., verifying a VC at the
+	// time it was issued). When nil, jwx defaults to time.Now().
+	if at != nil {
+		fixedTime := *at
+		options = append(options, jwt.WithClock(jwt.ClockFunc(func() time.Time { return fixedTime })))
+	}
+
 	options = append(options, jwt.WithKey(alg, key))
 	options = append(options, jwt.WithVerify(true))
 
-	return jwt.ParseString(tokenString, options...)
+	token, err := jwt.ParseString(tokenString, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	if profile == nil {
+		return token, nil
+	}
+
+	// Check required claims are present and non-empty.
+	// Mirrors the jwx error format ("<claim>" not satisfied: ...) so callers see one consistent style.
+	for _, claim := range profile.RequiredClaims {
+		val, ok := token.Get(claim)
+		if !ok {
+			return nil, fmt.Errorf(`%q not satisfied: required claim not found`, claim)
+		}
+		if s, isStr := val.(string); isStr && s == "" {
+			return nil, fmt.Errorf(`%q not satisfied: required claim is empty`, claim)
+		}
+	}
+
+	// Run custom validators
+	for _, v := range profile.Validators {
+		if err := v(token, headers); err != nil {
+			return nil, err
+		}
+	}
+
+	return token, nil
 }
 
 // ParseJWS parses a JWS byte array object, validates and verifies it.
