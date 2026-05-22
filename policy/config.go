@@ -18,10 +18,19 @@
 
 package policy
 
+// Config holds the configuration for the policy module.
 type Config struct {
 	// Directory is the directory where the policy files are stored
 	// policy files include a scope to presentation definition mapping
 	Directory string `koanf:"directory"`
+	// AuthZen contains configuration for the AuthZen PDP integration
+	AuthZen AuthZenConfig `koanf:"authzen"`
+}
+
+// AuthZenConfig contains configuration for an AuthZen-compatible PDP endpoint.
+type AuthZenConfig struct {
+	// Endpoint is the base URL of the AuthZen PDP
+	Endpoint string `koanf:"endpoint"`
 }
 
 func defaultConfig() Config {

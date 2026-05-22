@@ -234,7 +234,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid compact serialization format: invalid number of segments")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid JWT typ header (expected 'openid4vci-proof+jwt', got '')")
 				assert.Nil(t, response)
 			})
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {
@@ -283,7 +283,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - missing typ header")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid JWT typ header (expected 'openid4vci-proof+jwt', got '')")
 				assert.Nil(t, response)
 			})
 			t.Run("typ header invalid", func(t *testing.T) {
@@ -293,7 +293,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid typ claim (expected: openid4vci-proof+jwt): JWT")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid JWT typ header (expected 'openid4vci-proof+jwt', got 'JWT')")
 				assert.Nil(t, response)
 			})
 			t.Run("aud header doesn't match issuer identifier", func(t *testing.T) {

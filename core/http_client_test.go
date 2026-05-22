@@ -19,6 +19,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"github.com/sirupsen/logrus"
@@ -143,6 +144,17 @@ func TestTestResponseCodeWithLog(t *testing.T) {
 		_ = TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data), Request: request}, logger.WithFields(nil))
 
 		assert.Equal(t, "Unexpected HTTP response (len=201): "+strings.Repeat("a", HttpResponseBodyLogClipAt)+"...(clipped)", hook.LastEntry().Message)
+	})
+	t.Run("response body exceeding max size is truncated", func(t *testing.T) {
+		data := bytes.Repeat([]byte("a"), HttpResponseBodyMaxSize+1024)
+		status := stdHttp.StatusUnauthorized
+		requestURL, _ := url.Parse("/foo")
+		request := &stdHttp.Request{URL: requestURL}
+
+		err := TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: io.NopCloser(bytes.NewReader(data)), Request: request}, nil)
+
+		require.ErrorAs(t, err, new(HttpError))
+		assert.Len(t, err.(HttpError).ResponseBody, HttpResponseBodyMaxSize)
 	})
 }
 

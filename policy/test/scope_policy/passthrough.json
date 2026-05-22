@@ -1,0 +1,21 @@
+{
+  "passthrough-scope": {
+    "organization": {
+      "id": "pd_passthrough",
+      "input_descriptors": [
+        {
+          "id": "id_org",
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {"type": "string", "const": "TestCredential"}
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "scope_policy": "passthrough"
+  }
+}

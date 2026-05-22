@@ -107,7 +107,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("unknown scope", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), gomock.Any()).Return(pe.WalletOwnerMapping{}, policy.ErrNotFound)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), gomock.Any()).Return(nil, policy.ErrNotFound)
 		params := defaultParams()
 		params[oauth.ScopeParam] = "unknown"
 
@@ -126,7 +126,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("failed to generate authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "test").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "test", WalletOwnerMapping: pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(&oauth.OpenIDConfiguration{
 			Metadata: oauth.EntityStatementMetadata{
@@ -142,7 +142,7 @@ func TestWrapper_handleAuthorizeRequestFromHolder(t *testing.T) {
 	})
 	t.Run("failed to resolve OpenID configuration", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "test").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "test", WalletOwnerMapping: pe.WalletOwnerMapping{pe.WalletOwnerOrganization: PresentationDefinition{}}, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 		params := defaultParams()
 		ctx.iamClient.EXPECT().OpenIDConfiguration(context.Background(), holderClientID).Return(nil, assert.AnError)
 

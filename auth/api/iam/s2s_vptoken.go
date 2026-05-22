@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/policy"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -73,11 +74,15 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 			return nil, err
 		}
 	}
-	walletOwnerMapping, err := r.presentationDefinitionForScope(ctx, scope)
+	credentialProfile, err := r.findCredentialProfile(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
-	pexConsumer := newPEXConsumer(walletOwnerMapping)
+	granter, err := policy.NewScopeGranter(credentialProfile, r.policyBackend.ScopeEvaluator)
+	if err != nil {
+		return nil, err
+	}
+	pexConsumer := newPEXConsumer(credentialProfile.WalletOwnerMapping)
 	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, err.Error())
 	}
@@ -107,9 +112,31 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
+	// Compute granted scopes based on scope policy. Never pass through the raw input scope
+	// directly — always derive granted scopes from the policy decision.
+	credentialMap, err := pexConsumer.credentialMap()
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.ServerError,
+			Description:   "failed to extract credentials for scope evaluation",
+			InternalError: err,
+		}
+	}
+	claims, err := resolveInputDescriptorValues(pexConsumer.RequiredPresentationDefinitions, credentialMap)
+	if err != nil {
+		return nil, err
+	}
+	grantedScope, err := granter.Grant(ctx, policy.GrantInput{
+		SubjectDID:         credentialSubjectID,
+		PresentationClaims: claims,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), scope, *pexConsumer, dpopProof)
+	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), grantedScope, *pexConsumer, dpopProof)
 	if err != nil {
 		return nil, err
 	}
