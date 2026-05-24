@@ -8,6 +8,7 @@ Claude Code skill files (custom slash commands) for common maintenance tasks are
 
 ## For Contributors
 
+- **[COLLABORATORS.md](../COLLABORATORS.md)** - How to contribute
 - **[CODEOWNERS](CODEOWNERS)** - Defines code ownership for automatic review assignment
 - **[dependabot.yml](dependabot.yml)** - Configuration for automated dependency updates
 - **[workflows/](workflows/)** - GitHub Actions workflow definitions
