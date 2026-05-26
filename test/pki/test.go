@@ -110,7 +110,9 @@ func CertsToChain(certs []*x509.Certificate) *cert.Chain {
 }
 
 // BuildCertChain generates a certificate chain, including root, intermediate, and signing certificates.
-func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKeyUsage *x509.KeyUsage) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
+// signCertExtKeyUsage is variadic so existing callers (which want the default of serverAuth)
+// don't need updating; pass it to override the leaf's Extended Key Usage.
+func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKeyUsage *x509.KeyUsage, signCertExtKeyUsage ...x509.ExtKeyUsage) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
 	rootKey, rootCert, err := BuildRootCert()
 	if err != nil {
 		return nil, nil, err
@@ -126,7 +128,7 @@ func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKe
 	if subjectSerialNumber == "" {
 		subjectSerialNumber = "32121323"
 	}
-	signingKey, signingCert, err := BuildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber, signCertKeyUsage)
+	signingKey, signingCert, err := BuildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber, signCertKeyUsage, signCertExtKeyUsage...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -143,7 +145,10 @@ func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKe
 		}, nil
 }
 
-func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string, keyUsage *x509.KeyUsage) (*rsa.PrivateKey, *x509.Certificate, error) {
+// BuildSigningCert builds a leaf certificate signed by the given intermediate.
+// extKeyUsage is variadic so existing callers keep the template default (serverAuth);
+// pass it to override the leaf's Extended Key Usage.
+func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string, keyUsage *x509.KeyUsage, extKeyUsage ...x509.ExtKeyUsage) (*rsa.PrivateKey, *x509.Certificate, error) {
 	var ku x509.KeyUsage
 	if keyUsage != nil {
 		ku = *keyUsage
@@ -156,6 +161,9 @@ func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate
 	}
 	signingTmpl, err := signingCertTemplate(nil, identifiers)
 	signingTmpl.KeyUsage = ku
+	if len(extKeyUsage) > 0 {
+		signingTmpl.ExtKeyUsage = extKeyUsage
+	}
 	if err != nil {
 		return nil, nil, err
 	}
