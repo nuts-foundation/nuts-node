@@ -29,4 +29,7 @@ const (
 	WalletOwnerOrganization = WalletOwnerType("organization")
 	// WalletOwnerUser is used in a WalletOwnerMapping when the PresentationDefinition is intended for a user
 	WalletOwnerUser = WalletOwnerType("user")
+	// WalletOwnerServiceProvider is used in a WalletOwnerMapping when the PresentationDefinition is intended for a
+	// service provider acting on behalf of an organization (e.g. the OAuth client in the RFC 7523 jwt-bearer flow).
+	WalletOwnerServiceProvider = WalletOwnerType("service_provider")
 )

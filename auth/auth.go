@@ -132,7 +132,17 @@ func (auth *Auth) RelyingParty() oauth.RelyingParty {
 
 func (auth *Auth) IAMClient() iam.Client {
 	keyResolver := resolver.DIDKeyResolver{Resolver: auth.vdrInstance.Resolver()}
-	return iam.NewClient(auth.vcr.Wallet(), keyResolver, auth.subjectManager, auth.keyStore, auth.jsonldManager.DocumentLoader(), auth.policyBackend, auth.strictMode, auth.httpClientTimeout)
+	return iam.NewClient(iam.ClientConfig{
+		Wallet:                      auth.vcr.Wallet(),
+		KeyResolver:                 keyResolver,
+		SubjectManager:              auth.subjectManager,
+		JWTSigner:                   auth.keyStore,
+		LDDocumentLoader:            auth.jsonldManager.DocumentLoader(),
+		PolicyBackend:               auth.policyBackend,
+		StrictMode:                  auth.strictMode,
+		HTTPClientTimeout:           auth.httpClientTimeout,
+		ExperimentalJwtBearerClient: auth.config.Experimental.JwtBearerClient,
+	})
 }
 
 // OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
