@@ -160,12 +160,12 @@ func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate
 		return nil, nil, err
 	}
 	signingTmpl, err := signingCertTemplate(nil, identifiers)
+	if err != nil {
+		return nil, nil, err
+	}
 	signingTmpl.KeyUsage = ku
 	if len(extKeyUsage) > 0 {
 		signingTmpl.ExtKeyUsage = extKeyUsage
-	}
-	if err != nil {
-		return nil, nil, err
 	}
 	signingTmpl.Subject.SerialNumber = serialNumber
 	signingCert, err := createCert(signingTmpl, intermediateL2Cert, &signingKey.PublicKey, intermediateL2Key)
