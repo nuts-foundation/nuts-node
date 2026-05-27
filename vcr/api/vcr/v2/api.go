@@ -479,7 +479,7 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 
 	var allCreds []vc.VerifiableCredential
 	for _, did := range dids {
-		creds, err := w.VCR.Wallet().SearchCredential(ctx, did)
+		creds, err := w.VCR.Wallet().Search(ctx, holder.HolderDID(did))
 		if err != nil {
 			return nil, err
 		}
@@ -510,60 +510,49 @@ func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request Ge
 		}
 		within = parsed
 	}
-
-	excludedTypes := make(map[string]struct{})
+	var excludeTypes []string
 	if request.Params.ExcludeTypes != nil {
-		for _, t := range *request.Params.ExcludeTypes {
-			excludedTypes[t] = struct{}{}
-		}
+		excludeTypes = *request.Params.ExcludeTypes
 	}
 
 	subjects, err := w.SubjectManager.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	threshold := clockFn().Add(within)
-	result := make(map[string][]ExpiringCredential)
+	// Invert the subject → DIDs map for grouping results back into subjects.
+	holderToSubject := make(map[string]string)
 	for subjectID, dids := range subjects {
-		var expiring []ExpiringCredential
-		for _, holderDID := range dids {
-			creds, err := w.VCR.Wallet().SearchCredential(ctx, holderDID)
-			if err != nil {
-				return nil, err
-			}
-			for _, cred := range creds {
-				if cred.ExpirationDate == nil || cred.ExpirationDate.IsZero() {
-					continue
-				}
-				if cred.ExpirationDate.After(threshold) {
-					continue
-				}
-				if isExcludedType(cred, excludedTypes) {
-					continue
-				}
-				expiring = append(expiring, toExpiringCredential(cred, holderDID))
-			}
+		for _, d := range dids {
+			holderToSubject[d.String()] = subjectID
 		}
-		if len(expiring) > 0 {
-			result[subjectID] = expiring
+	}
+
+	// Single cross-wallet query: SQL filters on expiration_date and type, no per-subject loop.
+	creds, err := w.VCR.Wallet().Search(ctx,
+		holder.ExpiresAt(clockFn().Add(within)),
+		holder.ExcludeCredentialTypes(excludeTypes...),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]ExpiringCredential)
+	for _, cred := range creds {
+		holderDID, err := cred.SubjectDID()
+		if err != nil {
+			// Wallet storage requires a subject DID; this shouldn't happen for stored credentials.
+			continue
 		}
+		subjectID, ok := holderToSubject[holderDID.String()]
+		if !ok {
+			// Holder belongs to a deactivated/removed subject — normal post-deactivation state
+			// since SubjectManager.Deactivate doesn't cascade to the wallet.
+			continue
+		}
+		result[subjectID] = append(result[subjectID], toExpiringCredential(cred, *holderDID))
 	}
 
 	return GetExpiringCredentialsInWallet200JSONResponse(result), nil
-}
-
-// isExcludedType reports whether any of the credential's types is in the excludedTypes set.
-func isExcludedType(cred vc.VerifiableCredential, excludedTypes map[string]struct{}) bool {
-	if len(excludedTypes) == 0 {
-		return false
-	}
-	for _, t := range cred.Type {
-		if _, ok := excludedTypes[t.String()]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 // toExpiringCredential builds a monitoring-friendly summary of a credential. The Wallet stores

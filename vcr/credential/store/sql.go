@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"gorm.io/gorm"
 	"strconv"
 	"strings"
@@ -37,6 +39,9 @@ type CredentialRecord struct {
 	SubjectID string
 	// Type contains the 'type' property of the Verifiable Credential (not being 'VerifiableCredential').
 	Type *string
+	// ExpirationDate is the credential's 'expirationDate' as seconds since Unix epoch, null if the
+	// credential does not expire.
+	ExpirationDate *int64 `gorm:"column:expiration_date"`
 	// Raw contains the raw JSON of the Verifiable Credential.
 	Raw        string
 	Properties []CredentialPropertyRecord `gorm:"foreignKey:CredentialID;references:ID"`
@@ -87,6 +92,11 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 			break
 		}
 	}
+	// Set expiration date (seconds since Unix epoch), if present.
+	if credential.ExpirationDate != nil && !credential.ExpirationDate.IsZero() {
+		exp := credential.ExpirationDate.Unix()
+		newCredential.ExpirationDate = &exp
+	}
 	// Create key-value properties of the credential subject, which is then stored in the property table for searching.
 	if len(credential.CredentialSubject) != 1 {
 		return nil, fmt.Errorf("expected exactly one credential subject, got %d", len(credential.CredentialSubject))
@@ -123,6 +133,65 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 		return nil, fmt.Errorf("credential with this ID already exists with different contents: %s", newCredential.ID)
 	}
 	return &newCredential, nil
+}
+
+// BackfillExpirationDates populates the expiration_date column for credentials stored before the
+// column existed. Idempotent: rows whose expiration_date is already set, and rows whose raw VC has
+// no expirationDate (so the column legitimately stays NULL), are not visited on subsequent runs
+// because the LIKE filter prunes them. Updates are batched in transactions of backfillBatchSize.
+//
+// TODO: remove in v7 — by then all v6 nodes will have backfilled their existing rows, and v7+
+// stores populate expiration_date directly on Store().
+func BackfillExpirationDates(db *gorm.DB) error {
+	const backfillBatchSize = 500
+	for {
+		var records []CredentialRecord
+		// LIKE filter prunes rows that can't have an expirationDate, keeping each pass cheap.
+		err := db.Model(&CredentialRecord{}).
+			Where("expiration_date IS NULL AND raw LIKE ?", "%expirationDate%").
+			Limit(backfillBatchSize).
+			Find(&records).Error
+		if err != nil {
+			return fmt.Errorf("backfill expiration_date: query: %w", err)
+		}
+		if len(records) == 0 {
+			return nil
+		}
+		var updated int
+		err = db.Transaction(func(tx *gorm.DB) error {
+			for _, record := range records {
+				parsed, err := vc.ParseVerifiableCredential(record.Raw)
+				if err != nil {
+					// Unparseable raw blob shouldn't happen — Store() parsed it before persisting.
+					// Skip rather than abort the whole backfill, but warn so it's investigatable.
+					log.Logger().
+						WithError(err).
+						WithField(core.LogFieldCredentialID, record.ID).
+						Warn("backfill expiration_date: unable to parse stored credential")
+					continue
+				}
+				if parsed.ExpirationDate == nil || parsed.ExpirationDate.IsZero() {
+					continue
+				}
+				exp := parsed.ExpirationDate.Unix()
+				if err := tx.Model(&CredentialRecord{}).
+					Where("id = ?", record.ID).
+					Update("expiration_date", exp).Error; err != nil {
+					return err
+				}
+				updated++
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("backfill expiration_date: update: %w", err)
+		}
+		// If we didn't update anything, the remaining matched rows can't be backfilled (unparseable
+		// or no real expirationDate) — exit to avoid spinning on them. Also exit on partial batch.
+		if updated == 0 || len(records) < backfillBatchSize {
+			return nil
+		}
+	}
 }
 
 // stripWhitespaceAndLinebreaks removes all whitespace and linebreaks from a string.

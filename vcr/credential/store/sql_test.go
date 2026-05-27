@@ -20,6 +20,9 @@ package store
 
 import (
 	"encoding/json"
+	"testing"
+	"time"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -28,7 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"testing"
 )
 
 var vcAlice vc.VerifiableCredential
@@ -134,6 +136,108 @@ func TestCredentialStore_Store(t *testing.T) {
 		var actual []CredentialPropertyRecord
 		assert.NoError(t, db.Find(&actual).Error)
 		assert.Empty(t, actual)
+	})
+}
+
+func TestCredentialStore_Store_ExpirationDate(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() { _ = storageEngine.Shutdown() })
+	db := storageEngine.GetSQLDatabase()
+
+	t.Run("populates expiration_date when credential has expirationDate", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+		cred := createPersonCredential("exp-1", "did:example:alice", nil)
+		cred.ExpirationDate = &exp
+
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "exp-1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+
+	t.Run("leaves expiration_date NULL when credential has none", func(t *testing.T) {
+		setupStore(t, db)
+		cred := createPersonCredential("noexp-1", "did:example:bob", nil)
+
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "noexp-1").Error)
+		assert.Nil(t, got.ExpirationDate)
+	})
+}
+
+func TestBackfillExpirationDates(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() { _ = storageEngine.Shutdown() })
+	db := storageEngine.GetSQLDatabase()
+
+	storeWithExpiration := func(t *testing.T, id string, exp *time.Time) vc.VerifiableCredential {
+		t.Helper()
+		cred := createPersonCredential(id, "did:example:"+id, nil)
+		if exp != nil {
+			cred.ExpirationDate = exp
+			// Re-marshal so Raw includes expirationDate (simulates how Store() ingests it normally).
+			data, err := cred.MarshalJSON()
+			require.NoError(t, err)
+			parsed, err := vc.ParseVerifiableCredential(string(data))
+			require.NoError(t, err)
+			cred = *parsed
+		}
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+		return cred
+	}
+
+	t.Run("backfills rows whose expiration_date is NULL but raw has expirationDate", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		storeWithExpiration(t, "bf-1", &exp)
+		// Simulate the pre-migration state: column unset on an existing row that does have raw expirationDate.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "bf-1").Error)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "bf-1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+
+	t.Run("leaves rows without expirationDate in raw untouched", func(t *testing.T) {
+		setupStore(t, db)
+		storeWithExpiration(t, "bf-2", nil)
+		// Column should already be NULL from Store(); confirm before and after backfill.
+		var before CredentialRecord
+		require.NoError(t, db.First(&before, "id = ?", "bf-2").Error)
+		require.Nil(t, before.ExpirationDate)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var after CredentialRecord
+		require.NoError(t, db.First(&after, "id = ?", "bf-2").Error)
+		assert.Nil(t, after.ExpirationDate)
+	})
+
+	t.Run("idempotent: re-running is a no-op when nothing needs backfilling", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		storeWithExpiration(t, "bf-3", &exp)
+
+		require.NoError(t, BackfillExpirationDates(db))
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "bf-3").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
 	})
 }
 

@@ -228,49 +228,109 @@ func Test_sqlWallet_List(t *testing.T) {
 	})
 }
 
-func Test_sqlWallet_SearchCredential(t *testing.T) {
+func Test_sqlWallet_Search(t *testing.T) {
 	ctx := context.Background()
 	storageEngine := storage.NewTestStorageEngine(t)
+
 	t.Run("empty", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 
-		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
+		list, err := sut.Search(ctx, HolderDID(vdr.TestDIDA))
 		require.NoError(t, err)
 		require.NotNil(t, list)
 		assert.Empty(t, list)
 	})
-	t.Run("returns all credentials including expired/revoked", func(t *testing.T) {
-		resetStore(t, storageEngine.GetSQLDatabase())
-		// SearchCredential should not filter by validity, so we pass a testVerifier that would filter
-		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrCredentialNotValidAtTime}, nil, storageEngine)
-		expected1 := createCredential(vdr.TestMethodDIDA.String())
-		expected2 := createCredential(vdr.TestMethodDIDA.String())
-		err := sut.Put(ctx, expected1, expected2)
-		require.NoError(t, err)
-
-		// SearchCredential should return all credentials, even though they would be filtered by List
-		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
-		require.NoError(t, err)
-		require.Len(t, list, 2)
-
-		// Compare with List which should filter them out
-		filteredList, err := sut.List(ctx, vdr.TestDIDA)
-		require.NoError(t, err)
-		require.Len(t, filteredList, 0)
-	})
-	t.Run("returns credentials from specified holder only", func(t *testing.T) {
+	t.Run("no options - returns all credentials in the wallet", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
 		credA := createCredential(vdr.TestMethodDIDA.String())
 		credB := createCredential(vdr.TestMethodDIDB.String())
-		err := sut.Put(ctx, credA, credB)
-		require.NoError(t, err)
+		require.NoError(t, sut.Put(ctx, credA, credB))
 
-		list, err := sut.SearchCredential(ctx, vdr.TestDIDA)
+		list, err := sut.Search(ctx)
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+	})
+	t.Run("returns all credentials including expired/revoked", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		// Search must not filter on validity, so we pass a testVerifier that would filter via List.
+		sut := NewSQLWallet(nil, nil, testVerifier{err: types.ErrCredentialNotValidAtTime}, nil, storageEngine)
+		expected1 := createCredential(vdr.TestMethodDIDA.String())
+		expected2 := createCredential(vdr.TestMethodDIDA.String())
+		require.NoError(t, sut.Put(ctx, expected1, expected2))
+
+		list, err := sut.Search(ctx, HolderDID(vdr.TestDIDA))
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+
+		// Compare with List which should filter them out.
+		filteredList, err := sut.List(ctx, vdr.TestDIDA)
+		require.NoError(t, err)
+		require.Len(t, filteredList, 0)
+	})
+	t.Run("HolderDID - returns credentials from specified holder only", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		credA := createCredential(vdr.TestMethodDIDA.String())
+		credB := createCredential(vdr.TestMethodDIDB.String())
+		require.NoError(t, sut.Put(ctx, credA, credB))
+
+		list, err := sut.Search(ctx, HolderDID(vdr.TestDIDA))
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 		assert.Equal(t, credA.ID.String(), list[0].ID.String())
+	})
+	t.Run("ExpiresAt - includes credentials expiring at or before threshold, skips no-expiration", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		now := time.Now()
+		expired := now.Add(-24 * time.Hour)
+		soon := now.Add(24 * time.Hour)
+		farFuture := now.Add(365 * 24 * time.Hour)
+		expiredVC := createCredentialWithExpiration(vdr.TestMethodDIDA.String(), &expired)
+		soonVC := createCredentialWithExpiration(vdr.TestMethodDIDA.String(), &soon)
+		farVC := createCredentialWithExpiration(vdr.TestMethodDIDA.String(), &farFuture)
+		noExpVC := createCredentialWithExpiration(vdr.TestMethodDIDA.String(), nil)
+		require.NoError(t, sut.Put(ctx, expiredVC, soonVC, farVC, noExpVC))
+
+		// Threshold = now + 7d -> expiredVC and soonVC match; farVC and noExpVC excluded.
+		list, err := sut.Search(ctx, ExpiresAt(now.Add(7*24*time.Hour)))
+		require.NoError(t, err)
+		require.Len(t, list, 2)
+		ids := []string{list[0].ID.String(), list[1].ID.String()}
+		assert.Contains(t, ids, expiredVC.ID.String())
+		assert.Contains(t, ids, soonVC.ID.String())
+	})
+	t.Run("ExcludeCredentialTypes - drops matching types, keeps others", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		companyVC := createCredential(vdr.TestMethodDIDA.String()) // CompanyCredential
+		require.NoError(t, sut.Put(ctx, companyVC))
+
+		// Excluding the only stored type returns nothing.
+		list, err := sut.Search(ctx, ExcludeCredentialTypes("CompanyCredential"))
+		require.NoError(t, err)
+		assert.Empty(t, list)
+
+		// Excluding an unrelated type leaves the credential in the result.
+		list, err = sut.Search(ctx, ExcludeCredentialTypes("OtherCredential"))
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+	})
+	t.Run("combined options AND together", func(t *testing.T) {
+		resetStore(t, storageEngine.GetSQLDatabase())
+		sut := NewSQLWallet(nil, nil, testVerifier{}, nil, storageEngine)
+		expired := time.Now().Add(-24 * time.Hour)
+		expiredA := createCredentialWithExpiration(vdr.TestMethodDIDA.String(), &expired)
+		expiredB := createCredentialWithExpiration(vdr.TestMethodDIDB.String(), &expired)
+		require.NoError(t, sut.Put(ctx, expiredA, expiredB))
+
+		// HolderDID + ExpiresAt: only DIDA's expired credential.
+		list, err := sut.Search(ctx, HolderDID(vdr.TestDIDA), ExpiresAt(time.Now()))
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+		assert.Equal(t, expiredA.ID.String(), list[0].ID.String())
 	})
 }
 
@@ -347,6 +407,15 @@ func createCredential(keyID string) vc.VerifiableCredential {
 	testCredential := vc.VerifiableCredential{}
 	_ = json.Unmarshal([]byte(testCredentialJSON), &testCredential)
 	return testCredential
+}
+
+// createCredentialWithExpiration builds a wallet-storable credential and sets its expirationDate
+// (nil = no expirationDate, i.e. never expires). The credential ID stays the unique one assigned
+// by createCredential, so Raw and the parsed-back VC agree on ID after a Put/Search round-trip.
+func createCredentialWithExpiration(keyID string, expirationDate *time.Time) vc.VerifiableCredential {
+	cred := createCredential(keyID)
+	cred.ExpirationDate = expirationDate
+	return cred
 }
 
 func Test_sqlWallet_IsEmpty(t *testing.T) {
