@@ -4,6 +4,17 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.34)
+*************************
+
+Release date: 2026-05-27
+
+- Upgrade ``golang.org/x/crypto`` to v0.52.0 and ``golang.org/x/net`` to v0.55.0 to address `GO-2026-5018 <https://pkg.go.dev/vuln/GO-2026-5018>`_ (DoS via unbounded RSA/DSA key sizes in ``golang.org/x/crypto/ssh`` public key parsers) and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (privilege escalation in ``golang.org/x/net/idna`` where ``ToASCII``/``ToUnicode`` accept Punycode-encoded labels that decode to ASCII-only labels).
+- Upgrade ``github.com/go-jose/go-jose/v4`` to v4.1.4 to address `GO-2026-4945 <https://pkg.go.dev/vuln/GO-2026-4945>`_ (panic during JWE decryption of crafted tokens).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.33...v5.4.34
+
+*************************
 Hazelnut update (v5.4.33)
 *************************
 
