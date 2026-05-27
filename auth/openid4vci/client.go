@@ -56,7 +56,7 @@ type RequestCredentialOpts struct {
 	CredentialConfigurationID string
 	CredentialIdentifier      string
 	ProofJWT                  string
-	CredentialRequestParams         map[string]any
+	CredentialRequestParams   map[string]any
 }
 
 // Client is the OpenID4VCI 1.0 HTTP client interface.

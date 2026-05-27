@@ -446,7 +446,7 @@ func matchField(field Field, credential map[string]interface{}) (bool, interface
 		// if path is not found continue
 		value, err := getValueAtPath(path, credential)
 		if err != nil {
-			return false, nil, err
+			return false, nil, fmt.Errorf("path %q: %w", path, err)
 		}
 		if value == nil {
 			continue
@@ -459,7 +459,7 @@ func matchField(field Field, credential map[string]interface{}) (bool, interface
 		// if filter at path matches return true
 		match, matchedValue, err := matchFilter(*field.Filter, value)
 		if err != nil {
-			return false, nil, err
+			return false, nil, fmt.Errorf("path %q: %w", path, err)
 		}
 		if match {
 			return true, matchedValue, nil
