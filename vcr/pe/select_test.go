@@ -160,3 +160,162 @@ func TestSelect(t *testing.T) {
 		assert.Equal(t, "vc-full", result.Candidates[0].VC.ID.String())
 	})
 }
+
+func TestSelect_InitialBindings(t *testing.T) {
+	t.Run("initial binding selects the credential by field value", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		vc1 := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+		vc2 := parseVC(t, `{"id": "vc-2", "credentialSubject": {"patientId": "456"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vc1, vc2}, WithInitialBindings(map[string]string{"patient_id": "456"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-2", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("caller-bound descriptor with multiple matches returns ErrMultipleCredentials", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		vcA := parseVC(t, `{"id": "vc-a", "credentialSubject": {"patientId": "456"}}`)
+		vcB := parseVC(t, `{"id": "vc-b", "credentialSubject": {"patientId": "456"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{vcA, vcB}, WithInitialBindings(map[string]string{"patient_id": "456"}))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+	})
+
+	t.Run("caller-bound descriptor with zero matches returns ErrNoCredentials", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		vc1 := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+		vc2 := parseVC(t, `{"id": "vc-2", "credentialSubject": {"patientId": "456"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{vc1, vc2}, WithInitialBindings(map[string]string{"patient_id": "nonexistent"}))
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+
+	t.Run("numeric field value binding", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "room_access",
+				"constraints": {"fields": [{"id": "floor", "path": ["$.credentialSubject.floor"]}]}
+			}]
+		}`)
+		// JSON numbers unmarshal to float64; "3" must match float64(3).
+		vcA := parseVC(t, `{"id": "vc-a", "credentialSubject": {"floor": 1}}`)
+		vcB := parseVC(t, `{"id": "vc-b", "credentialSubject": {"floor": 3}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vcA, vcB}, WithInitialBindings(map[string]string{"floor": "3"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-b", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("boolean field value binding", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent",
+				"constraints": {"fields": [{"id": "granted", "path": ["$.credentialSubject.granted"]}]}
+			}]
+		}`)
+		vcTrue := parseVC(t, `{"id": "vc-true", "credentialSubject": {"granted": true}}`)
+		vcFalse := parseVC(t, `{"id": "vc-false", "credentialSubject": {"granted": false}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vcTrue, vcFalse}, WithInitialBindings(map[string]string{"granted": "false"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-false", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("multiple binding keys within a descriptor use AND", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "enrollment",
+				"constraints": {"fields": [
+					{"id": "patient_id", "path": ["$.credentialSubject.patientId"]},
+					{"id": "org_city", "path": ["$.credentialSubject.city"]}
+				]}
+			}]
+		}`)
+		both := parseVC(t, `{"id": "vc-both", "credentialSubject": {"patientId": "123", "city": "Amsterdam"}}`)
+		// matches patient_id but not org_city -> inconsistent
+		partial := parseVC(t, `{"id": "vc-partial", "credentialSubject": {"patientId": "123", "city": "Rotterdam"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{partial, both}, WithInitialBindings(map[string]string{"patient_id": "123", "org_city": "Amsterdam"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-both", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("multiple descriptors with independent binding keys", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "org_credential", "constraints": {"fields": [{"id": "ura", "path": ["$.credentialSubject.ura"]}]}},
+				{"id": "patient_enrollment", "constraints": {"fields": [{"id": "bsn", "path": ["$.credentialSubject.bsn"]}]}}
+			]
+		}`)
+		orgA := parseVC(t, `{"id": "org-a", "credentialSubject": {"ura": "URA-001"}}`)
+		orgB := parseVC(t, `{"id": "org-b", "credentialSubject": {"ura": "URA-002"}}`)
+		patC := parseVC(t, `{"id": "pat-c", "credentialSubject": {"bsn": "BSN-111"}}`)
+		patD := parseVC(t, `{"id": "pat-d", "credentialSubject": {"bsn": "BSN-222"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{orgA, orgB, patC, patD},
+			WithInitialBindings(map[string]string{"ura": "URA-002", "bsn": "BSN-111"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "org-b", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "pat-c", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("unknown binding key is silently dropped", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		vc1 := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+		vc2 := parseVC(t, `{"id": "vc-2", "credentialSubject": {"patientId": "456"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vc1, vc2},
+			WithInitialBindings(map[string]string{"patient_id": "456", "nonexistent_field": "whatever"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-2", result.Candidates[0].VC.ID.String())
+	})
+}
