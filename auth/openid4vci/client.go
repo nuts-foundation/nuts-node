@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 )
@@ -222,6 +223,8 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		log.Logger().WithContext(ctx).
+			Warnf("openid4vci: credential endpoint %s returned status %d, response body: %s", opts.CredentialEndpoint, resp.StatusCode, string(respBody))
 		var oauthErr oauth.OAuth2Error
 		if jsonErr := json.Unmarshal(respBody, &oauthErr); jsonErr == nil && oauthErr.Code != "" {
 			return nil, oauthErr
