@@ -88,15 +88,76 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		})
 	}
 
+	// Step 3: enforce the submission-requirement rules. Candidates is returned even on error so
+	// callers can diagnose the assignment that failed.
 	if len(pd.SubmissionRequirements) == 0 {
 		// With no submission requirements every descriptor is required.
-		// Candidates is returned even on error so callers can diagnose the unfilled descriptors.
 		if err := requireAllFilled(result.Candidates); err != nil {
 			return result, err
 		}
+	} else {
+		applied, err := applySubmissionRequirements(pd, result.Candidates)
+		if err != nil {
+			return result, err
+		}
+		result.Candidates = applied
 	}
 
 	return result, nil
+}
+
+// applySubmissionRequirements enforces the submission-requirement rules over the chosen assignment
+// and returns it with rule-excluded descriptors cleared (VC=nil).
+func applySubmissionRequirements(pd PresentationDefinition, candidates []Candidate) ([]Candidate, error) {
+	// Every group referenced by an input descriptor must be covered by a submission requirement.
+	availableGroups := make(map[string]groupCandidates)
+	for _, submissionRequirement := range pd.SubmissionRequirements {
+		for _, group := range submissionRequirement.groups() {
+			availableGroups[group] = groupCandidates{Name: group}
+		}
+	}
+	for _, group := range pd.groups() {
+		if _, ok := availableGroups[group.Name]; !ok {
+			return nil, fmt.Errorf("group '%s' is required but not available", group.Name)
+		}
+	}
+	for _, candidate := range candidates {
+		for _, group := range candidate.InputDescriptor.Group {
+			current := availableGroups[group]
+			current.Candidates = append(current.Candidates, candidate)
+			availableGroups[group] = current
+		}
+	}
+
+	var selectedVCs []vc.VerifiableCredential
+	for _, submissionRequirement := range pd.SubmissionRequirements {
+		vcs, err := submissionRequirement.match(availableGroups)
+		if err != nil {
+			return nil, err
+		}
+		selectedVCs = append(selectedVCs, vcs...)
+	}
+	selectedVCs = deduplicate(selectedVCs)
+
+	// Clear the descriptors whose chosen VC a rule excluded.
+	result := make([]Candidate, len(candidates))
+	for i, candidate := range candidates {
+		result[i] = candidate
+		if candidate.VC == nil || !containsVC(selectedVCs, *candidate.VC) {
+			result[i].VC = nil
+		}
+	}
+	return result, nil
+}
+
+// containsVC reports whether target is present in vcs, compared by value.
+func containsVC(vcs []vc.VerifiableCredential, target vc.VerifiableCredential) bool {
+	for _, candidate := range vcs {
+		if vcEqual(candidate, target) {
+			return true
+		}
+	}
+	return false
 }
 
 // requireAllFilled reports ErrNoCredentials when any descriptor was left unfilled. It encodes the

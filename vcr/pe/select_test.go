@@ -319,3 +319,66 @@ func TestSelect_InitialBindings(t *testing.T) {
 		assert.Equal(t, "vc-2", result.Candidates[0].VC.ID.String())
 	})
 }
+
+func TestSelect_SubmissionRequirements(t *testing.T) {
+	t.Run("all rule with an unfilled group member returns ErrNoCredentials", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "A"}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["A"], "constraints": {"fields": [{"id": "f1", "path": ["$.credentialSubject.f1"]}]}},
+				{"id": "d2", "group": ["A"], "constraints": {"fields": [{"id": "f2", "path": ["$.credentialSubject.f2"]}]}}
+			]
+		}`)
+		// only fills d1; nothing matches d2
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"f1": "x"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+
+	t.Run("all rule with every group member filled keeps all descriptors", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "A"}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["A"], "constraints": {"fields": [{"id": "f1", "path": ["$.credentialSubject.f1"]}]}},
+				{"id": "d2", "group": ["A"], "constraints": {"fields": [{"id": "f2", "path": ["$.credentialSubject.f2"]}]}}
+			]
+		}`)
+		vc1 := parseVC(t, `{"id": "vc-1", "credentialSubject": {"f1": "x"}}`)
+		vc2 := parseVC(t, `{"id": "vc-2", "credentialSubject": {"f2": "y"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vc1, vc2})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-1", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "vc-2", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("pick rule selects a subset and clears the rest", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "A", "min": 1, "max": 1}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["A"], "constraints": {"fields": [{"id": "f1", "path": ["$.credentialSubject.f1"]}]}},
+				{"id": "d2", "group": ["A"], "constraints": {"fields": [{"id": "f2", "path": ["$.credentialSubject.f2"]}]}}
+			]
+		}`)
+		vc1 := parseVC(t, `{"id": "vc-1", "credentialSubject": {"f1": "x"}}`)
+		vc2 := parseVC(t, `{"id": "vc-2", "credentialSubject": {"f2": "y"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{vc1, vc2})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		// pick max 1 keeps the first group member in PD order and clears the rest
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-1", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
+	})
+}
