@@ -18,7 +18,13 @@
 
 package pe
 
-import "github.com/nuts-foundation/go-did/vc"
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/nuts-foundation/go-did/vc"
+)
 
 // selectOptions holds the knobs configured by the Option functions passed to Select.
 type selectOptions struct {
@@ -58,7 +64,31 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 			VC:              selected,
 		})
 	}
+
+	if len(pd.SubmissionRequirements) == 0 {
+		// With no submission requirements every descriptor is required.
+		// Candidates is returned even on error so callers can diagnose the unfilled descriptors.
+		if err := requireAllFilled(result.Candidates); err != nil {
+			return result, err
+		}
+	}
+
 	return result, nil
+}
+
+// requireAllFilled reports ErrNoCredentials when any descriptor was left unfilled. It encodes the
+// rule that, with no submission requirements, every descriptor is mandatory.
+func requireAllFilled(candidates []Candidate) error {
+	var unmatched []string
+	for _, candidate := range candidates {
+		if candidate.VC == nil {
+			unmatched = append(unmatched, fmt.Sprintf("no VC for InputDescriptor (%s)", candidate.InputDescriptor.Id))
+		}
+	}
+	if len(unmatched) > 0 {
+		return errors.Join(ErrNoCredentials, fmt.Errorf("constraints not matched: %s", strings.Join(unmatched, ", ")))
+	}
+	return nil
 }
 
 // eligibleCandidates returns the credentials that satisfy a single input descriptor on its own:

@@ -74,4 +74,89 @@ func TestSelect(t *testing.T) {
 		require.NotNil(t, result.Candidates[0].VC.ID)
 		assert.Equal(t, "vc-1", result.Candidates[0].VC.ID.String())
 	})
+
+	t.Run("required descriptor with zero matches returns ErrNoCredentials", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {
+					"fields": [{
+						"id": "patient_id",
+						"path": ["$.credentialSubject.patientId"],
+						"filter": {"type": "string", "const": "999"}
+					}]
+				}
+			}]
+		}`)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+
+	t.Run("multiple required descriptors all fill", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "org_credential", "constraints": {"fields": [{"id": "ura", "path": ["$.credentialSubject.ura"]}]}},
+				{"id": "patient_enrollment", "constraints": {"fields": [{"id": "bsn", "path": ["$.credentialSubject.bsn"]}]}}
+			]
+		}`)
+		orgVC := parseVC(t, `{"id": "org-1", "credentialSubject": {"ura": "URA-001"}}`)
+		patientVC := parseVC(t, `{"id": "patient-1", "credentialSubject": {"bsn": "BSN-111"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{orgVC, patientVC})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "org-1", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "patient-1", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("multiple matching candidates picks the first, no error", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		first := parseVC(t, `{"id": "vc-first", "credentialSubject": {"patientId": "123"}}`)
+		second := parseVC(t, `{"id": "vc-second", "credentialSubject": {"patientId": "456"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{first, second})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-first", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("multi-field constraint requires every field to match", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "enrollment",
+				"constraints": {"fields": [
+					{"id": "patient_id", "path": ["$.credentialSubject.patientId"]},
+					{"id": "org_city", "path": ["$.credentialSubject.city"]}
+				]}
+			}]
+		}`)
+		// matches only patient_id (missing city) -> not eligible
+		partial := parseVC(t, `{"id": "vc-partial", "credentialSubject": {"patientId": "123"}}`)
+		// matches both fields -> eligible
+		full := parseVC(t, `{"id": "vc-full", "credentialSubject": {"patientId": "123", "city": "Amsterdam"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{partial, full})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-full", result.Candidates[0].VC.ID.String())
+	})
 }
