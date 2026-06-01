@@ -14,13 +14,14 @@ Operator runbook for upgrading a v5 deployment to v6 while keeping the existing 
 ============================
 
 v6 requires SQL storage. Supported engines: PostgreSQL, MySQL, Microsoft SQL Server, Azure SQL, SQLite.
-SQLite is acceptable for small deployments, and for ``did:nuts``-only deployments that won't adopt ``did:web`` in the near future — in that case the SQL state is rebuilt at startup from BBolt and the key backend.
+
+A server-based engine (PostgreSQL, MySQL, MS SQL / Azure SQL) is recommended. SQLite is supported but discouraged: it is a single-file, single-node store, so a deployment on SQLite cannot later be moved to a high-availability setup (when supported) without migrating the database. It is acceptable for small, single-node ``did:nuts``-only deployments that won't adopt ``did:web`` in the near future — there the SQL state is rebuilt at startup from BBolt and the key backend, so the cost of switching engines later is low.
 
 Configure the connection string in ``storage.sql.connection``. See :ref:`storage-configuration` for the full reference.
 
 .. code-block:: yaml
 
-    # SQLite — fine for a did:nuts-only upgrade
+    # SQLite — supported but discouraged; acceptable for a small, single-node did:nuts-only upgrade
     storage:
       sql:
         connection: sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)
@@ -43,6 +44,11 @@ v5 supported flexible HTTP binding via ``http.<name>.*`` (with ``http.default.*`
 
 - ``:8080`` (``http.public.address``) — public endpoints (``/iam``, ``/oauth2``, ``/n2n``, ``/.well-known``, …).
 - ``127.0.0.1:8081`` (``http.internal.address``) — ``/internal``, ``/status``, ``/metrics``, ``/health``. Loopback only by default; if you need to access it from another host, set ``http.internal.address`` to ``0.0.0.0:8081`` and make sure it is not accessible to unauthorized callers (firewall, network segmentation, auth).
+
+TLS termination
+---------------
+
+v6 can no longer terminate server-side TLS for HTTP itself. If you already run v5 behind a reverse proxy or ingress (the typical setup), no change is needed. If you relied on the node's built-in TLS, move termination to a reverse proxy or ingress before upgrading.
 
 See :ref:`nuts-node-recommended-deployment` for a reference topology.
 
@@ -89,11 +95,6 @@ v6 rewrites the v5 on-disk state on first start. There is no in-place downgrade.
 
 Other notes
 ===========
-
-TLS termination
----------------
-
-v6 can no longer terminate server-side TLS for HTTP itself. If you already run v5 behind a reverse proxy or ingress (the typical setup), no change is needed. If you relied on the node's built-in TLS, move termination to a reverse proxy or ingress before upgrading.
 
 Creating DIDs with ``selfControl=false``
 ----------------------------------------
