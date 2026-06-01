@@ -136,19 +136,29 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 }
 
 // BackfillExpirationDates populates the expiration_date column for credentials stored before the
-// column existed. Idempotent: rows whose expiration_date is already set, and rows whose raw VC has
-// no expirationDate (so the column legitimately stays NULL), are not visited on subsequent runs
-// because the LIKE filter prunes them. Updates are batched in transactions of backfillBatchSize.
+// column existed, by parsing each credential whose column is still NULL. Updates are batched in
+// transactions of backfillBatchSize.
+//
+// Every NULL row must be parsed: NULL is ambiguous (credential never expires vs. not yet
+// backfilled), and a JWT-encoded credential keeps its expiry in a base64 `exp` claim that no SQL
+// text filter can match, so there is no cheap way to pre-select only the rows that have an
+// expiration. Credentials that genuinely never expire keep expiration_date NULL and are therefore
+// re-parsed on every startup; acceptable for a migration that is removed in v7.
+//
+// Pagination uses the id as a keyset cursor rather than relying on updated rows leaving the result
+// set — never-expiring rows stay NULL, so only the advancing cursor guarantees each row is visited
+// once and the loop terminates.
 //
 // TODO: remove in v7 — by then all v6 nodes will have backfilled their existing rows, and v7+
 // stores populate expiration_date directly on Store().
 func BackfillExpirationDates(db *gorm.DB) error {
 	const backfillBatchSize = 500
+	lastID := ""
 	for {
 		var records []CredentialRecord
-		// LIKE filter prunes rows that can't have an expirationDate, keeping each pass cheap.
 		err := db.Model(&CredentialRecord{}).
-			Where("expiration_date IS NULL AND raw LIKE ?", "%expirationDate%").
+			Where("expiration_date IS NULL AND id > ?", lastID).
+			Order("id").
 			Limit(backfillBatchSize).
 			Find(&records).Error
 		if err != nil {
@@ -157,7 +167,6 @@ func BackfillExpirationDates(db *gorm.DB) error {
 		if len(records) == 0 {
 			return nil
 		}
-		var updated int
 		err = db.Transaction(func(tx *gorm.DB) error {
 			for _, record := range records {
 				parsed, err := vc.ParseVerifiableCredential(record.Raw)
@@ -179,16 +188,14 @@ func BackfillExpirationDates(db *gorm.DB) error {
 					Update("expiration_date", exp).Error; err != nil {
 					return err
 				}
-				updated++
 			}
 			return nil
 		})
 		if err != nil {
 			return fmt.Errorf("backfill expiration_date: update: %w", err)
 		}
-		// If we didn't update anything, the remaining matched rows can't be backfilled (unparseable
-		// or no real expirationDate) — exit to avoid spinning on them. Also exit on partial batch.
-		if updated == 0 || len(records) < backfillBatchSize {
+		lastID = records[len(records)-1].ID
+		if len(records) < backfillBatchSize {
 			return nil
 		}
 	}

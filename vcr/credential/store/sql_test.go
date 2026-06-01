@@ -19,10 +19,15 @@
 package store
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -239,6 +244,49 @@ func TestBackfillExpirationDates(t *testing.T) {
 		require.NotNil(t, got.ExpirationDate)
 		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
 	})
+
+	t.Run("backfills JWT-encoded credentials, whose raw has no 'expirationDate' literal", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		jwtVC := jwtCredentialWithExpiration(t, "did:example:jwt-bf#1", "did:example:jwt-holder", exp)
+		// The JWT stores its expiry in a base64 `exp` claim, so the raw text must not contain the
+		// literal "expirationDate" — a substring pre-filter would skip it.
+		require.NotContains(t, jwtVC.Raw(), "expirationDate")
+		_, err := CredentialStore{}.Store(db, jwtVC)
+		require.NoError(t, err)
+		// Simulate the pre-migration state: column unset.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "did:example:jwt-bf#1").Error)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "did:example:jwt-bf#1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+}
+
+// jwtCredentialWithExpiration builds a JWT-encoded Verifiable Credential with an `exp` claim. Its
+// Raw() is the compact JWT, so the expiry only exists as a base64-encoded claim and never as a
+// literal "expirationDate" in the stored text.
+func jwtCredentialWithExpiration(t *testing.T, id, subjectID string, exp time.Time) vc.VerifiableCredential {
+	t.Helper()
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	token := jwt.New()
+	require.NoError(t, token.Set(jwt.JwtIDKey, id))
+	require.NoError(t, token.Set(jwt.IssuerKey, "did:example:jwt-issuer"))
+	require.NoError(t, token.Set(jwt.SubjectKey, subjectID))
+	require.NoError(t, token.Set(jwt.ExpirationKey, exp))
+	require.NoError(t, token.Set("vc", map[string]interface{}{
+		"type":              "PersonCredential",
+		"credentialSubject": map[string]interface{}{"id": subjectID},
+	}))
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+	require.NoError(t, err)
+	parsed, err := vc.ParseVerifiableCredential(string(signedToken))
+	require.NoError(t, err)
+	return *parsed
 }
 
 func sliceToMap(slice []CredentialPropertyRecord) map[string]string {
