@@ -221,7 +221,10 @@ func (s walletStore) search(q searchQuery) ([]vc.VerifiableCredential, error) {
 		tx = tx.Where("credential.type IS NULL OR credential.type NOT IN ?", q.excludeCredentialTypes)
 	}
 	if q.expiresAt != nil {
-		tx = tx.Where("credential.expiration_date IS NOT NULL AND credential.expiration_date <= ?", q.expiresAt.Unix())
+		// Credentials without an expirationDate carry the never-expires sentinel (a far-future
+		// value), and legacy un-backfilled rows are NULL; <= excludes both, so neither shows up as
+		// expiring.
+		tx = tx.Where("credential.expiration_date <= ?", q.expiresAt.Unix())
 	}
 	var records []walletRecord
 	if err := tx.Find(&records).Error; err != nil {

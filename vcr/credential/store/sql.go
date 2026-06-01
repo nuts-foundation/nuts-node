@@ -39,8 +39,9 @@ type CredentialRecord struct {
 	SubjectID string
 	// Type contains the 'type' property of the Verifiable Credential (not being 'VerifiableCredential').
 	Type *string
-	// ExpirationDate is the credential's 'expirationDate' as seconds since Unix epoch, null if the
-	// credential does not expire.
+	// ExpirationDate is the credential's 'expirationDate' as seconds since Unix epoch. Credentials
+	// without an expirationDate carry the neverExpires sentinel rather than NULL; NULL means the row
+	// predates this column and has not been backfilled yet.
 	ExpirationDate *int64 `gorm:"column:expiration_date"`
 	// Raw contains the raw JSON of the Verifiable Credential.
 	Raw        string
@@ -92,11 +93,13 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 			break
 		}
 	}
-	// Set expiration date (seconds since Unix epoch), if present.
+	// Set expiration date (seconds since Unix epoch). Credentials without an expirationDate get the
+	// neverExpires sentinel rather than NULL, so the backfill never has to revisit them.
+	exp := neverExpires
 	if credential.ExpirationDate != nil && !credential.ExpirationDate.IsZero() {
-		exp := credential.ExpirationDate.Unix()
-		newCredential.ExpirationDate = &exp
+		exp = credential.ExpirationDate.Unix()
 	}
+	newCredential.ExpirationDate = &exp
 	// Create key-value properties of the credential subject, which is then stored in the property table for searching.
 	if len(credential.CredentialSubject) != 1 {
 		return nil, fmt.Errorf("expected exactly one credential subject, got %d", len(credential.CredentialSubject))
@@ -135,19 +138,29 @@ func (c CredentialStore) Store(db *gorm.DB, credential vc.VerifiableCredential) 
 	return &newCredential, nil
 }
 
-// BackfillExpirationDates populates the expiration_date column for credentials stored before the
-// column existed, by parsing each credential whose column is still NULL. Updates are batched in
-// transactions of backfillBatchSize.
+// neverExpires is the expiration_date sentinel for credentials that have no expirationDate. Storing
+// it instead of NULL lets BackfillExpirationDates run once and never revisit these rows on
+// subsequent startups (NULL means "stored before this column existed, not yet backfilled"). The
+// value is 9999-12-31T23:59:59Z, far enough in the future that the "expiring within X" range query
+// never matches it, so a never-expiring credential is correctly excluded without query special-casing.
 //
-// Every NULL row must be parsed: NULL is ambiguous (credential never expires vs. not yet
-// backfilled), and a JWT-encoded credential keeps its expiry in a base64 `exp` claim that no SQL
-// text filter can match, so there is no cheap way to pre-select only the rows that have an
-// expiration. Credentials that genuinely never expire keep expiration_date NULL and are therefore
-// re-parsed on every startup; acceptable for a migration that is removed in v7.
+// TODO: remove together with BackfillExpirationDates in v7. v7+ stores can map "no expirationDate"
+// back to NULL directly; a migration may NULL out any remaining sentinels.
+const neverExpires int64 = 253402300799
+
+// BackfillExpirationDates populates the expiration_date column for credentials stored before the
+// column existed, by parsing each credential whose column is still NULL and writing its expiration
+// (or the neverExpires sentinel when it has none). Updates are batched in transactions of
+// backfillBatchSize.
+//
+// Every NULL row must be parsed: a JWT-encoded credential keeps its expiry in a base64 `exp` claim
+// that no SQL text filter can match, so there is no cheap way to pre-select only rows that have an
+// expiration. Because each processed row is written to a non-NULL value (real date or sentinel), it
+// drops out of the NULL set, so the backfill is effectively one-shot — after the first run only
+// rows that fail to parse (which shouldn't happen) remain NULL.
 //
 // Pagination uses the id as a keyset cursor rather than relying on updated rows leaving the result
-// set — never-expiring rows stay NULL, so only the advancing cursor guarantees each row is visited
-// once and the loop terminates.
+// set, so unparseable rows that stay NULL don't stall the walk.
 //
 // TODO: remove in v7 — by then all v6 nodes will have backfilled their existing rows, and v7+
 // stores populate expiration_date directly on Store().
@@ -179,10 +192,10 @@ func BackfillExpirationDates(db *gorm.DB) error {
 						Warn("backfill expiration_date: unable to parse stored credential")
 					continue
 				}
-				if parsed.ExpirationDate == nil || parsed.ExpirationDate.IsZero() {
-					continue
+				exp := neverExpires
+				if parsed.ExpirationDate != nil && !parsed.ExpirationDate.IsZero() {
+					exp = parsed.ExpirationDate.Unix()
 				}
-				exp := parsed.ExpirationDate.Unix()
 				if err := tx.Model(&CredentialRecord{}).
 					Where("id = ?", record.ID).
 					Update("expiration_date", exp).Error; err != nil {

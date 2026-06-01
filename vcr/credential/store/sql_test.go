@@ -165,7 +165,7 @@ func TestCredentialStore_Store_ExpirationDate(t *testing.T) {
 		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
 	})
 
-	t.Run("leaves expiration_date NULL when credential has none", func(t *testing.T) {
+	t.Run("writes the never-expires sentinel when credential has no expirationDate", func(t *testing.T) {
 		setupStore(t, db)
 		cred := createPersonCredential("noexp-1", "did:example:bob", nil)
 
@@ -174,7 +174,8 @@ func TestCredentialStore_Store_ExpirationDate(t *testing.T) {
 
 		var got CredentialRecord
 		require.NoError(t, db.First(&got, "id = ?", "noexp-1").Error)
-		assert.Nil(t, got.ExpirationDate)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, neverExpires, *got.ExpirationDate)
 	})
 }
 
@@ -216,19 +217,18 @@ func TestBackfillExpirationDates(t *testing.T) {
 		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
 	})
 
-	t.Run("leaves rows without expirationDate in raw untouched", func(t *testing.T) {
+	t.Run("backfills rows without expirationDate to the never-expires sentinel", func(t *testing.T) {
 		setupStore(t, db)
 		storeWithExpiration(t, "bf-2", nil)
-		// Column should already be NULL from Store(); confirm before and after backfill.
-		var before CredentialRecord
-		require.NoError(t, db.First(&before, "id = ?", "bf-2").Error)
-		require.Nil(t, before.ExpirationDate)
+		// Simulate the pre-migration state: an existing row with no raw expirationDate and a NULL column.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "bf-2").Error)
 
 		require.NoError(t, BackfillExpirationDates(db))
 
 		var after CredentialRecord
 		require.NoError(t, db.First(&after, "id = ?", "bf-2").Error)
-		assert.Nil(t, after.ExpirationDate)
+		require.NotNil(t, after.ExpirationDate)
+		assert.Equal(t, neverExpires, *after.ExpirationDate)
 	})
 
 	t.Run("idempotent: re-running is a no-op when nothing needs backfilling", func(t *testing.T) {

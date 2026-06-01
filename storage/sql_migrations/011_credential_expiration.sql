@@ -1,6 +1,7 @@
 -- +goose Up
--- expiration_date is the credential's expirationDate as seconds since Unix epoch, null if the
--- credential does not expire. Existing rows are backfilled by the application after migration.
+-- expiration_date is the credential's expirationDate as seconds since Unix epoch. Credentials without
+-- an expirationDate get a far-future sentinel (9999-12-31) rather than null; null marks an existing
+-- row not yet backfilled. The application backfills existing rows after migration.
 alter table credential add expiration_date integer null;
 create index idx_credential_expiration_date on credential (expiration_date);
 
