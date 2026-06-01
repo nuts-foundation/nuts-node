@@ -268,8 +268,10 @@ type VPVerificationResult struct {
 // GetExpiringCredentialsInWalletParams defines parameters for GetExpiringCredentialsInWallet.
 type GetExpiringCredentialsInWalletParams struct {
 	// Within Time window relative to now in which a credential's `expirationDate` falls for it to be considered
-	// expiring. Accepts a Go duration string (e.g. `24h`, `720h`, `30m`). Must be non-negative.
-	// Defaults to 720h (30 days). Use `0s` to return only already-expired credentials.
+	// expiring. Accepts a Go duration string: a number followed by a unit, e.g. `720h` (30 days),
+	// `24h` (1 day) or `30m` (30 minutes). The largest supported unit is the hour (`h`); there is no
+	// day or week unit. Must be non-negative. Defaults to 720h (30 days). Use `0s` to return only
+	// already-expired credentials.
 	Within *string `form:"within,omitempty" json:"within,omitempty"`
 
 	// ExcludeTypes Credential type(s) to exclude from the result. A credential is excluded if any of its

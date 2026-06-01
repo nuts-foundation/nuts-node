@@ -133,6 +133,42 @@ Explanation of ambiguous/complex entries in the diagnostics:
 
 Note: the ``network`` and ``vdr`` entries only apply to ``did:nuts``.
 
+Expiring wallet credentials
+***************************
+
+Credentials held in the node's wallets generally need to be renewed before they expire, otherwise they can no longer be used.
+The following endpoint lists credentials across all wallets on the node that are expired or about to expire, so a monitoring
+system can alert operators to renew them in time:
+
+.. code-block:: text
+
+    GET /internal/vcr/v2/holder/expiring
+
+It returns a JSON object keyed by subject ID, where each value is the list of that subject's expiring credentials:
+
+.. code-block:: json
+
+    {
+      "90BC1AE9-752B-432F-ADC3-DD9F9C61843C": [
+        {
+          "id": "did:web:issuer.example.com#c4199b74-0c0a-4e09-a463-6927553e65f5",
+          "holder": "did:web:example.com:iam:123",
+          "issuer": "did:web:issuer.example.com",
+          "type": ["NutsOrganizationCredential"],
+          "expirationDate": "2026-05-15T12:00:00Z"
+        }
+      ]
+    }
+
+Subjects without any expiring credentials are omitted. Credentials without an ``expirationDate`` never expire and are never returned.
+
+Query parameters:
+
+* ``within`` - time window (relative to now) in which a credential's ``expirationDate`` must fall to be considered expiring. A Go duration string such as ``720h`` (30 days), ``24h`` (1 day) or ``30m`` (30 minutes); the largest unit is the hour. Defaults to ``720h`` (30 days). Use ``0s`` to return only credentials that have already expired.
+* ``excludeTypes`` - credential type(s) to exclude from the result, repeat the parameter to exclude multiple. Useful for suppressing credentials that are expected to expire and are kept for audit purposes (e.g. ``NutsAuthorizationCredential``).
+
+Already-expired credentials are included by default so they remain visible until they are cleaned up.
+
 Metrics
 *******
 
