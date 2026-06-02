@@ -190,6 +190,25 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			})
 		})
 
+		t.Run("#4299: holder is encoded as iss claim, not vp.holder", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+
+			keyResolver := resolver.NewMockKeyResolver(ctrl)
+			keyResolver.EXPECT().ResolveKey(testDID, nil, resolver.NutsSigningKeyType).Return(kid, key.PublicKey, nil)
+
+			w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
+
+			holderURI := testDID.URI()
+			optionsWithHolder := PresentationOptions{Format: JWTPresentationFormat, ProofOptions: proof.ProofOptions{Created: time.Now()}, Holder: &holderURI}
+			result, err := w.buildPresentation(ctx, &testDID, []vc.VerifiableCredential{testCredential}, optionsWithHolder)
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.Equal(t, testDID.String(), result.JWT().Issuer(), "holder must be carried in the iss claim")
+			vpAsMap := result.JWT().PrivateClaims()["vp"].(map[string]any)
+			assert.NotContains(t, vpAsMap, "holder", "non-standard vp.holder must not be set")
+		})
+
 		t.Run("ok - multiple VCs", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
