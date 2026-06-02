@@ -52,36 +52,67 @@ import (
 // ErrPreconditionFailed is returned when a precondition is not met.
 var ErrPreconditionFailed = errors.New("precondition failed")
 
+// vpAssertionLifetime is the validity window of a Verifiable Presentation built for a token request.
+// Short by design: the VP is signed and posted within the same call.
+const vpAssertionLifetime = 5 * time.Second
+
 var _ Client = (*OpenID4VPClient)(nil)
 
 type OpenID4VPClient struct {
-	httpClient       HTTPClient
-	jwtSigner        nutsCrypto.JWTSigner
-	keyResolver      resolver.KeyResolver
-	strictMode       bool
-	wallet           holder.Wallet
-	ldDocumentLoader ld.DocumentLoader
-	subjectManager   didsubject.Manager
-	policyBackend    policy.PDPBackend
+	httpClient                  HTTPClient
+	jwtSigner                   nutsCrypto.JWTSigner
+	keyResolver                 resolver.KeyResolver
+	strictMode                  bool
+	wallet                      holder.Wallet
+	ldDocumentLoader            ld.DocumentLoader
+	subjectManager              didsubject.Manager
+	pdResolver                  PresentationDefinitionResolver
+	policyBackend               policy.PDPBackend
+	experimentalJwtBearerClient bool
 }
 
-// NewClient returns an implementation of Holder
-func NewClient(wallet holder.Wallet, keyResolver resolver.KeyResolver, subjectManager didsubject.Manager, jwtSigner nutsCrypto.JWTSigner,
-	ldDocumentLoader ld.DocumentLoader, policyBackend policy.PDPBackend, strictMode bool, httpClientTimeout time.Duration) *OpenID4VPClient {
-	return &OpenID4VPClient{
-		httpClient: HTTPClient{
-			strictMode:  strictMode,
-			httpClient:  client.NewWithCache(httpClientTimeout),
-			keyResolver: keyResolver,
-		},
-		keyResolver:      keyResolver,
-		jwtSigner:        jwtSigner,
-		ldDocumentLoader: ldDocumentLoader,
-		subjectManager:   subjectManager,
-		strictMode:       strictMode,
-		wallet:           wallet,
-		policyBackend:    policyBackend,
+// ClientConfig groups the dependencies and toggles needed to construct an OpenID4VPClient.
+// The interface fields (Wallet, KeyResolver, SubjectManager, JWTSigner, LDDocumentLoader,
+// PolicyBackend) are required; NewClient does not validate them and missing fields will surface as
+// nil-pointer panics on first use. Scalar fields default to their zero value (StrictMode=false,
+// HTTPClientTimeout=0, ExperimentalJwtBearerClient=false) and the zero values are valid.
+type ClientConfig struct {
+	Wallet            holder.Wallet
+	KeyResolver       resolver.KeyResolver
+	SubjectManager    didsubject.Manager
+	JWTSigner         nutsCrypto.JWTSigner
+	LDDocumentLoader  ld.DocumentLoader
+	PolicyBackend     policy.PDPBackend
+	StrictMode        bool
+	HTTPClientTimeout time.Duration
+	// ExperimentalJwtBearerClient gates the RFC 7523 jwt-bearer two-VP token request flow.
+	// Tracked for replacement by a list-style grant-types config under issue #4231.
+	ExperimentalJwtBearerClient bool
+}
+
+// NewClient returns an OpenID4VPClient configured with the given dependencies.
+func NewClient(cfg ClientConfig) *OpenID4VPClient {
+	httpClient := HTTPClient{
+		strictMode:  cfg.StrictMode,
+		httpClient:  client.NewWithCache(cfg.HTTPClientTimeout),
+		keyResolver: cfg.KeyResolver,
 	}
+	c := &OpenID4VPClient{
+		httpClient:                  httpClient,
+		keyResolver:                 cfg.KeyResolver,
+		jwtSigner:                   cfg.JWTSigner,
+		ldDocumentLoader:            cfg.LDDocumentLoader,
+		subjectManager:              cfg.SubjectManager,
+		strictMode:                  cfg.StrictMode,
+		wallet:                      cfg.Wallet,
+		policyBackend:               cfg.PolicyBackend,
+		experimentalJwtBearerClient: cfg.ExperimentalJwtBearerClient,
+	}
+	c.pdResolver = PresentationDefinitionResolver{
+		pdFetcher:     c,
+		policyBackend: cfg.PolicyBackend,
+	}
+	return c
 }
 
 func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
@@ -238,93 +269,52 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	return &token, nil
 }
 
-func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
-	policyId string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string) (*oauth.TokenResponse, error) {
-	iamClient := c.httpClient
+func (c *OpenID4VPClient) RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string,
+	useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, serviceProviderSubjectID *string) (*oauth.TokenResponse, error) {
+	if serviceProviderSubjectID != nil && !c.experimentalJwtBearerClient {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.UnsupportedGrantType,
+			Description: "jwt-bearer two-VP flow requires auth.experimental.jwtbearerclient = true",
+		}
+	}
 	metadata, err := c.AuthorizationServerMetadata(ctx, authServerURL)
 	if err != nil {
 		return nil, err
 	}
+	if serviceProviderSubjectID != nil {
+		if !slices.Contains(metadata.GrantTypesSupported, oauth.JwtBearerGrantType) {
+			return nil, oauth.OAuth2Error{
+				Code:        oauth.UnsupportedGrantType,
+				Description: fmt.Sprintf("authorization server does not advertise %q in grant_types_supported", oauth.JwtBearerGrantType),
+			}
+		}
+		return c.requestJwtBearerAccessToken(ctx, subjectID, *serviceProviderSubjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
+	}
+	return c.requestVPTokenAccessToken(ctx, clientID, subjectID, authServerURL, scopes, useDPoP, additionalCredentials, credentialSelection, metadata)
+}
 
-	// if no policyId is provided, use the scopes as policyId
-	if policyId == "" {
-		policyId = scopes
-	}
-	// LSPxNuts: get the presentation definition from local definitions, if available
-	var presentationDefinition *pe.PresentationDefinition
-	var presentationDefinitionMap pe.WalletOwnerMapping
-	match, err := c.policyBackend.FindCredentialProfile(ctx, policyId)
-	if err == nil {
-		presentationDefinitionMap = match.WalletOwnerMapping
-	}
-	if errors.Is(err, policy.ErrNotFound) {
-		// not found locally, get from verifier
-		// get the presentation definition from the verifier
-		parsedURL, err := core.ParsePublicURL(metadata.PresentationDefinitionEndpoint, c.strictMode)
-		if err != nil {
-			return nil, err
-		}
-		presentationDefinitionURL := nutsHttp.AddQueryParams(*parsedURL, map[string]string{
-			"scope": policyId,
-		})
-		presentationDefinition, err = c.PresentationDefinition(ctx, presentationDefinitionURL.String())
-		if err != nil {
-			return nil, err
-		}
-	} else if err != nil {
+// requestVPTokenAccessToken implements the single-VP RFC021 vp_token-bearer flow: resolve the
+// presentation definition (remotely if the AS advertises one, locally otherwise), build a single VP from
+// the caller's wallet, and POST it as `assertion` alongside the PE submission and DPoP header (when used).
+func (c *OpenID4VPClient) requestVPTokenAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string,
+	scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
+	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
+	// Resolve the presentation definition: from remote AS when available, local policy otherwise
+	resolved, err := c.pdResolver.Resolve(ctx, scopes, *metadata)
+	if err != nil {
 		return nil, err
-	} else {
-		// found locally
-		if len(presentationDefinitionMap) != 1 {
-			return nil, fmt.Errorf("expected exactly one presentation definition for policy/scope '%s', found %d", policyId, len(presentationDefinitionMap))
-		}
-		for _, pd := range presentationDefinitionMap {
-			presentationDefinition = &pd
-		}
 	}
+	presentationDefinition := &resolved.PresentationDefinition
 
 	params := holder.BuildParams{
 		Audience:   authServerURL,
 		DIDMethods: metadata.DIDMethodsSupported,
-		Expires:    time.Now().Add(time.Second * 5),
+		Expires:    time.Now().Add(vpAssertionLifetime),
 		Format:     metadata.VPFormatsSupported,
 		Nonce:      nutsCrypto.GenerateNonce(),
 	}
 
-	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		return nil, err
-	}
-
-	// in the s2s flow we use the metadata to determine the DID methods supported by the verifier
-	// filter walletDIDs on the DID methods supported by the verifier
-	j := 0
-	allMethods := map[string]struct{}{}
-	for i, d := range subjectDIDs {
-		allMethods[d.Method] = struct{}{}
-		if slices.Contains(metadata.DIDMethodsSupported, d.Method) {
-			subjectDIDs[j] = subjectDIDs[i]
-			j++
-		}
-	}
-	subjectDIDs = subjectDIDs[:j]
-
-	if len(subjectDIDs) == 0 {
-		availableMethods := make([]string, 0, len(allMethods))
-		for key := range maps.Keys(allMethods) {
-			availableMethods = append(availableMethods, key)
-		}
-		return nil, errors.Join(ErrPreconditionFailed, fmt.Errorf("did method mismatch, requested: %v, available: %v", metadata.DIDMethodsSupported, availableMethods))
-	}
-
-	// each additional credential can be used by each DID
-	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
-	for _, subjectDID := range subjectDIDs {
-		for _, curr := range additionalCredentials {
-			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
-		}
-	}
-	vp, submission, err := c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, *presentationDefinition, credentialSelection, params)
+	vp, submission, err := c.buildSubmissionForSubject(ctx, subjectID, *presentationDefinition, additionalCredentials, credentialSelection, params)
 	if err != nil {
 		return nil, err
 	}
@@ -337,38 +327,107 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 	presentationSubmission, _ := json.Marshal(submission)
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID)
+	data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
 	data.Set(oauth.AssertionParam, assertion)
-	data.Set(oauth.ScopeParam, scopes)
-	// Prefer VP token grant type (Nuts RFC021) when the server supports it, backwards compatibility
-	switch {
-	case slices.Contains(metadata.GrantTypesSupported, oauth.VpTokenGrantType):
-		data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
-		data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	case slices.Contains(metadata.GrantTypesSupported, oauth.JWTBearerGrantType):
-		// use JWT bearer grant type (e.g. authenticating at LSP GtK)
-		data.Set(oauth.GrantTypeParam, oauth.JWTBearerGrantType)
-	default:
-		// Fallback to vp_bearer-token for backwards compatibility
-		data.Set(oauth.GrantTypeParam, oauth.VpTokenGrantType)
-		data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
-	}
-
-	// create DPoP header
-	var dpopHeader string
-	var dpopKid string
-	if useDPoP {
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, metadata.TokenEndpoint, nil)
-		if err != nil {
-			return nil, err
-		}
-		dpopHeader, dpopKid, err = c.dpop(ctx, *subjectDID, *request)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create DPoP header: %w", err)
-		}
-	}
+	data.Set(oauth.PresentationSubmissionParam, string(presentationSubmission))
+	data.Set(oauth.ScopeParam, resolved.Scope)
 
 	log.Logger().Tracef("Requesting access token from '%s' for scope '%s'\n  VP: %s\n  Submission: %s", metadata.TokenEndpoint, scopes, assertion, string(presentationSubmission))
-	token, err := iamClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
+	return c.postTokenRequest(ctx, *subjectDID, useDPoP, data, resolved.Scope, metadata)
+}
+
+// requestJwtBearerAccessToken implements the RFC 7523 jwt-bearer two-VP token request flow.
+// It builds VP1 from the healthcare-provider (HCP) wallet using the organization PD, and VP2 from the
+// service-provider (SP) wallet using the service_provider PD, assembles them as `assertion` and
+// `client_assertion`, and POSTs the token request.
+// Per RFC 7521 §4.2 the client is authenticated by the client_assertion, so no OAuth client_id form
+// parameter is sent on this path.
+// Both PDs are resolved from the local policy backend; the AS's remote presentation_definition endpoint
+// is not consulted (no standardised mechanism exists today for the AS to advertise a service_provider PD).
+func (c *OpenID4VPClient) requestJwtBearerAccessToken(ctx context.Context, organizationSubjectID string, serviceProviderSubjectID string,
+	authServerURL string, scopes string, useDPoP bool, additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string,
+	metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
+	profile, resolvedScope, err := loadAndValidateProfile(ctx, c.policyBackend, scopes)
+	if err != nil {
+		return nil, err
+	}
+	// loadAndValidateProfile guarantees the organization PD; the service_provider PD is two-VP-specific.
+	orgPD := profile.WalletOwnerMapping[pe.WalletOwnerOrganization]
+	spPD, hasSP := profile.WalletOwnerMapping[pe.WalletOwnerServiceProvider]
+	if !hasSP {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.InvalidScope,
+			Description: fmt.Sprintf("no service_provider presentation definition for scope %q", profile.CredentialProfileScope),
+		}
+	}
+	params := holder.BuildParams{
+		Audience:   authServerURL,
+		DIDMethods: metadata.DIDMethodsSupported,
+		Expires:    time.Now().Add(vpAssertionLifetime),
+		Format:     metadata.VPFormatsSupported,
+		Nonce:      nutsCrypto.GenerateNonce(),
+	}
+	organizationVP, organizationSubmission, err := c.buildSubmissionForSubject(ctx, organizationSubjectID, orgPD, additionalCredentials, credentialSelection, params)
+	if err != nil {
+		return nil, err
+	}
+	// Cross-VP binding: capture id-bearing constraint field values resolved against the organization VP
+	// and additively merge them into the credential_selection map for the service-provider VP. The
+	// submission tells us which credential satisfied each input descriptor; we use that to walk the PD's
+	// id-bearing fields and extract their matched values.
+	envelope, err := pe.NewEnvelopeFromVP(*organizationVP)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to wrap the organization VP in an envelope for cross-VP binding: %s", err),
+		}
+	}
+	credentialMap, err := organizationSubmission.Resolve(*envelope)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to resolve the organization VP submission for cross-VP binding: %s", err),
+		}
+	}
+	captured, err := orgPD.ResolveConstraintsFields(credentialMap)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:        oauth.ServerError,
+			Description: fmt.Sprintf("failed to extract cross-VP binding values from the organization VP against the organization presentation definition: %s", err),
+		}
+	}
+	credentialSelection = applyCapturedFieldsToSelection(credentialSelection, captured)
+	// Each VP must carry its own nonce; reuse would let a verifier confuse the two assertions.
+	params.Nonce = nutsCrypto.GenerateNonce()
+	serviceProviderVP, _, err := c.buildSubmissionForSubject(ctx, serviceProviderSubjectID, spPD, additionalCredentials, credentialSelection, params)
+	if err != nil {
+		return nil, err
+	}
+	// DPoP binds the issued access token to a key the service provider controls — the SP wallet will
+	// present and use the token, so the proof is signed with the SP DID's key.
+	spDID, err := did.ParseDID(serviceProviderVP.Holder.String())
+	if err != nil {
+		return nil, err
+	}
+	data := url.Values{}
+	data.Set(oauth.GrantTypeParam, oauth.JwtBearerGrantType)
+	data.Set(oauth.AssertionParam, organizationVP.Raw())
+	data.Set(oauth.ClientAssertionTypeParam, oauth.JwtBearerClientAssertionType)
+	data.Set(oauth.ClientAssertionParam, serviceProviderVP.Raw())
+	data.Set(oauth.ScopeParam, resolvedScope)
+
+	log.Logger().Tracef("Requesting jwt-bearer access token from '%s' for scope '%s'\n  organization VP: %s\n  service provider VP: %s", metadata.TokenEndpoint, resolvedScope, organizationVP.Raw(), serviceProviderVP.Raw())
+	return c.postTokenRequest(ctx, *spDID, useDPoP, data, resolvedScope, metadata)
+}
+
+// postTokenRequest signs a DPoP header for the signerDID (when useDPoP), POSTs the token request to the
+// AS, and assembles the oauth.TokenResponse. Shared tail of the single-VP and jwt-bearer two-VP flows.
+func (c *OpenID4VPClient) postTokenRequest(ctx context.Context, signerDID did.DID, useDPoP bool, data url.Values, resolvedScope string, metadata *oauth.AuthorizationServerMetadata) (*oauth.TokenResponse, error) {
+	dpopHeader, dpopKid, err := c.signDPoPHeader(ctx, useDPoP, signerDID, metadata.TokenEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	token, err := c.httpClient.AccessToken(ctx, metadata.TokenEndpoint, data, dpopHeader)
 	if err != nil {
 		// the error could be a http error, we just relay it here to make use of any 400 status codes.
 		return nil, err
@@ -377,7 +436,7 @@ func (c *OpenID4VPClient) RequestRFC021AccessToken(ctx context.Context, clientID
 		AccessToken: token.AccessToken,
 		ExpiresIn:   token.ExpiresIn,
 		TokenType:   token.TokenType,
-		Scope:       &scopes,
+		Scope:       &resolvedScope,
 	}
 	if dpopKid != "" {
 		tokenResponse.DPoPKid = &dpopKid
@@ -401,6 +460,89 @@ func (c *OpenID4VPClient) VerifiableCredentials(ctx context.Context, credentialE
 		return nil, fmt.Errorf("remote server: failed to retrieve credentials: %w", err)
 	}
 	return rsp, nil
+}
+
+// buildSubmissionForSubject lists DIDs for the given subject, filters them to those whose method is in
+// params.DIDMethods, and asks the wallet to build a VP that fulfills the given PresentationDefinition.
+func (c *OpenID4VPClient) buildSubmissionForSubject(ctx context.Context, subjectID string, presentationDefinition pe.PresentationDefinition,
+	additionalCredentials []vc.VerifiableCredential, credentialSelection map[string]string, params holder.BuildParams) (*vc.VerifiablePresentation, *pe.PresentationSubmission, error) {
+	subjectDIDs, err := c.subjectManager.ListDIDs(ctx, subjectID)
+	if err != nil {
+		return nil, nil, err
+	}
+	subjectDIDs, err = filterDIDsByMethods(subjectDIDs, params.DIDMethods)
+	if err != nil {
+		return nil, nil, err
+	}
+	additionalWalletCredentials := map[did.DID][]vc.VerifiableCredential{}
+	for _, subjectDID := range subjectDIDs {
+		for _, curr := range additionalCredentials {
+			additionalWalletCredentials[subjectDID] = append(additionalWalletCredentials[subjectDID], credential.AutoCorrectSelfAttestedCredential(curr, subjectDID))
+		}
+	}
+	return c.wallet.BuildSubmission(ctx, subjectDIDs, additionalWalletCredentials, presentationDefinition, credentialSelection, params)
+}
+
+// applyCapturedFieldsToSelection returns a fresh selection map containing every entry from selection
+// plus any string-valued entry from captured whose key is not already present. Non-string captured values
+// are skipped (selection is map[string]string). The caller's selection map is never mutated, so the
+// captured values cannot leak back through any retained reference.
+func applyCapturedFieldsToSelection(selection map[string]string, captured map[string]any) map[string]string {
+	merged := make(map[string]string, len(selection)+len(captured))
+	for k, v := range selection {
+		merged[k] = v
+	}
+	for k, v := range captured {
+		if _, exists := merged[k]; exists {
+			continue
+		}
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+		merged[k] = s
+	}
+	return merged
+}
+
+// filterDIDsByMethods drops DIDs whose method is not in supportedMethods. Returns ErrPreconditionFailed when
+// none of the subject's DIDs use a supported method.
+func filterDIDsByMethods(subjectDIDs []did.DID, supportedMethods []string) ([]did.DID, error) {
+	j := 0
+	allMethods := map[string]struct{}{}
+	for i, d := range subjectDIDs {
+		allMethods[d.Method] = struct{}{}
+		if slices.Contains(supportedMethods, d.Method) {
+			subjectDIDs[j] = subjectDIDs[i]
+			j++
+		}
+	}
+	subjectDIDs = subjectDIDs[:j]
+	if len(subjectDIDs) == 0 {
+		availableMethods := make([]string, 0, len(allMethods))
+		for key := range maps.Keys(allMethods) {
+			availableMethods = append(availableMethods, key)
+		}
+		return nil, errors.Join(ErrPreconditionFailed, fmt.Errorf("did method mismatch, requested: %v, available: %v", supportedMethods, availableMethods))
+	}
+	return subjectDIDs, nil
+}
+
+// signDPoPHeader signs a DPoP proof for a token-endpoint POST bound to signerDID's assertion key.
+// Returns ("", "", nil) when useDPoP is false so callers can use the result unconditionally.
+func (c *OpenID4VPClient) signDPoPHeader(ctx context.Context, useDPoP bool, signerDID did.DID, tokenEndpoint string) (string, string, error) {
+	if !useDPoP {
+		return "", "", nil
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenEndpoint, nil)
+	if err != nil {
+		return "", "", err
+	}
+	header, kid, err := c.dpop(ctx, signerDID, *request)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create DPoP header: %w", err)
+	}
+	return header, kid, nil
 }
 
 func (c *OpenID4VPClient) dpop(ctx context.Context, requester did.DID, request http.Request) (string, string, error) {

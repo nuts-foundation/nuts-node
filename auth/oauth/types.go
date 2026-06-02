@@ -201,6 +201,10 @@ const (
 	ScopeParam = "scope"
 	// StateParam is the parameter name for the state parameter. (RFC6749)
 	StateParam = "state"
+	// ClientAssertionTypeParam is the parameter name for the client_assertion_type parameter. (RFC7521)
+	ClientAssertionTypeParam = "client_assertion_type"
+	// ClientAssertionParam is the parameter name for the client_assertion parameter. (RFC7521)
+	ClientAssertionParam = "client_assertion"
 	// VpTokenParam is the parameter name for the vp_token parameter. (OpenID4VP)
 	VpTokenParam = "vp_token"
 	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
@@ -217,12 +221,18 @@ const (
 	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
-	// JWTBearerGrantType is the grant_type for the jwt-bearer grant type. (RFC7523)
-	JWTBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type.
+	JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+)
+
+// client assertion types
+const (
+	// JwtBearerClientAssertionType is the canonical value of ClientAssertionTypeParam for the RFC 7523 JWT bearer client assertion.
+	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
 func SupportedGrantTypes() []string {
-	return []string{AuthorizationCodeGrantType, PreAuthorizedCodeGrantType, VpTokenGrantType, JWTBearerGrantType}
+	return []string{AuthorizationCodeGrantType, PreAuthorizedCodeGrantType, VpTokenGrantType, JwtBearerGrantType}
 }
 
 // response types

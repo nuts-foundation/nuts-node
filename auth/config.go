@@ -35,7 +35,16 @@ type Config struct {
 	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
 	// GrantTypes lists OAuth2 grant types the Authorization Server supports.
 	// They will be advertised on the Authorization Server Metadata and be checked when an access token request comes in.
-	GrantTypes []string `koanf:"granttypes"`
+	GrantTypes   []string           `koanf:"granttypes"`
+	Experimental ExperimentalConfig `koanf:"experimental"`
+}
+
+// ExperimentalConfig groups feature flags for unstable functionality.
+// Anything inside is subject to change without notice and may be removed in a future release.
+type ExperimentalConfig struct {
+	// JwtBearerClient enables the RFC 7523 jwt-bearer two-VP token request flow.
+	// While disabled (the default), requests carrying a service-provider subject identifier are rejected.
+	JwtBearerClient bool `koanf:"jwtbearerclient"`
 }
 
 type AuthorizationEndpointConfig struct {
@@ -76,7 +85,7 @@ func DefaultConfig() Config {
 		GrantTypes: []string{
 			oauth.AuthorizationCodeGrantType,
 			oauth.VpTokenGrantType,
-			oauth.JWTBearerGrantType,
+			oauth.JwtBearerGrantType,
 		},
 	}
 }

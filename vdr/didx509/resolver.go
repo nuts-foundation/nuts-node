@@ -106,6 +106,16 @@ func (r Resolver) Resolve(id did.DID, metadata *resolver.ResolveMetadata) (*did.
 	//         See https://github.com/nuts-foundation/nuts-node/pull/3606#issuecomment-2545051148
 	validationCert := chain[0]
 	trustStore := core.BuildTrustStore(chain[1:])
+	// KeyUsages is set to ExtKeyUsageAny to disable Go's default check that the leaf carries
+	// the TLS serverAuth Extended Key Usage. did:x509 chain validation is not a TLS context:
+	// the leaf is used to verify a VC/JWT signature, and the relevant constraint is the
+	// basic Key Usage extension (digitalSignature / keyAgreement), which is enforced below in
+	// createDidDocument by translating those bits into assertionMethod / keyAgreement
+	// verification methods. The credential verifier (via the key resolver) then picks the
+	// right verification method for the operation it performs, which is what actually
+	// enforces "this key is allowed for this use".
+	// Without this, e.g. UZI Zorgverlener signing certs (EKU = clientAuth + MS DocSigning,
+	// no serverAuth) would fail chain validation here. See issue #3956.
 	validatedChains, err := validationCert.Verify(x509.VerifyOptions{
 		Intermediates: core.NewCertPool(trustStore.IntermediateCAs),
 		Roots:         core.NewCertPool(trustStore.RootCAs),

@@ -8,7 +8,33 @@ Unreleased
 
 ## New features
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+* #4078: Allow policy profiles to define a ``service_provider`` PresentationDefinition for the OAuth client (RFC 7523 ``jwt-bearer`` flow) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4226
+* #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
+* #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
+
+****************
+Peanut (v6.2.7)
+****************
+
+Release date: 2026-05-27
+
+- Upgrade ``golang.org/x/crypto`` to v0.52.0 and ``golang.org/x/net`` to v0.55.0 to address `GO-2026-5018 <https://pkg.go.dev/vuln/GO-2026-5018>`_ (DoS via unbounded RSA/DSA key sizes in ``golang.org/x/crypto/ssh`` public key parsers) and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (privilege escalation in ``golang.org/x/net/idna`` where ``ToASCII``/``ToUnicode`` accept Punycode-encoded labels that decode to ASCII-only labels).
+- Upgrade ``github.com/go-jose/go-jose/v4`` to v4.1.4 to address `GO-2026-4945 <https://pkg.go.dev/vuln/GO-2026-4945>`_ (panic during JWE decryption of crafted tokens).
+- Upgrade OpenTelemetry OTLP HTTP exporters (``otlplog/otlploghttp`` to v0.19.0, ``otlptrace/otlptracehttp`` to v1.43.0) to address `GO-2026-4985 <https://pkg.go.dev/vuln/GO-2026-4985>`_ (memory exhaustion from oversized OTLP HTTP response bodies).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.6...v6.2.7
+
+****************
+Peanut (v6.2.6)
+****************
+
+Release date: 2026-05-18
+
+- Exclude retraction presentations from Discovery Service search results (backport of `#4193 <https://github.com/nuts-foundation/nuts-node/pull/4193>`_).
+- Make HTTP error handler idempotent on already-committed responses to prevent double-write attempts (backport of `#4243 <https://github.com/nuts-foundation/nuts-node/pull/4243>`_).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.5...v6.2.6
 
 ****************
 Peanut (v6.2.5)
@@ -463,6 +489,17 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.34)
+*************************
+
+Release date: 2026-05-27
+
+- Upgrade ``golang.org/x/crypto`` to v0.52.0 and ``golang.org/x/net`` to v0.55.0 to address `GO-2026-5018 <https://pkg.go.dev/vuln/GO-2026-5018>`_ (DoS via unbounded RSA/DSA key sizes in ``golang.org/x/crypto/ssh`` public key parsers) and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (privilege escalation in ``golang.org/x/net/idna`` where ``ToASCII``/``ToUnicode`` accept Punycode-encoded labels that decode to ASCII-only labels).
+- Upgrade ``github.com/go-jose/go-jose/v4`` to v4.1.4 to address `GO-2026-4945 <https://pkg.go.dev/vuln/GO-2026-4945>`_ (panic during JWE decryption of crafted tokens).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.33...v5.4.34
 
 *************************
 Hazelnut update (v5.4.33)

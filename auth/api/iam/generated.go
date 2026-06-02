@@ -188,14 +188,21 @@ type ServiceAccessTokenRequest struct {
 	// It currently only supports Dezi ID tokens.
 	IdToken *string `json:"id_token,omitempty"`
 
-	// PolicyId (Optional) The ID of the policy to use when requesting the access token.
-	// If set the presentation definition is resolved from the policy with this ID.
-	// This allows you to specify scopes that don't resolve to a presentation definition automatically.
-	// If not set, the scope is used to resolve the presentation definition.
-	PolicyId *string `json:"policy_id,omitempty"`
-
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
+
+	// ServiceProviderSubjectId **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+	// When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+	// VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+	// provider) using the `organization` PD; VP2 is built from the wallet identified here
+	// using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
+	// an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+	// and a `service_provider` PD configured for the requested credential profile.
+	//
+	// When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+	//
+	// Subject to change without notice.
+	ServiceProviderSubjectId *string `json:"service_provider_subject_id,omitempty"`
 
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
