@@ -6,12 +6,14 @@ on:
     branches:
       - master
       - project-gf
+      - project-gf-pilot
     tags:
       - 'v*'
   pull_request:
     branches:
       - master
       - project-gf
+      - project-gf-pilot
 
 # cancel build action if superseded by new commit on same branch
 concurrency:
