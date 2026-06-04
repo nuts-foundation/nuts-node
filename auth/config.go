@@ -45,6 +45,27 @@ type ExperimentalConfig struct {
 	// JwtBearerClient enables the RFC 7523 jwt-bearer two-VP token request flow.
 	// While disabled (the default), requests carrying a service-provider subject identifier are rejected.
 	JwtBearerClient bool `koanf:"jwtbearerclient"`
+	// Clients configures OAuth client authentication for outbound flows against external authorization servers
+	// (currently only the OpenID4VCI authorization code flow). When the node initiates a flow against an
+	// authorization server whose identifier matches an entry's ServerURL, it presents the configured client_id
+	// (and client_secret, if set) instead of the did:web + entity_id defaults.
+	//
+	// EXPERIMENTAL: this configuration may change or be removed without further notice.
+	Clients []OAuthClientConfig `koanf:"clients"`
+}
+
+// OAuthClientConfig holds client credentials the node presents to a specific external OAuth authorization server.
+//
+// EXPERIMENTAL: this configuration may change or be removed without further notice.
+type OAuthClientConfig struct {
+	// ServerURL is the OAuth Authorization Server identifier (issuer) to match against. For OpenID4VCI this is
+	// the entry from the Credential Issuer Metadata's authorization_servers, not the credential_issuer URL.
+	ServerURL string `koanf:"serverurl"`
+	// ClientID is the client identifier registered at the authorization server.
+	ClientID string `koanf:"clientid"`
+	// ClientSecret authenticates the client at the token endpoint using client_secret_post. Optional: when empty
+	// the node acts as a public client (relying on PKCE).
+	ClientSecret string `koanf:"clientsecret"`
 }
 
 type AuthorizationEndpointConfig struct {

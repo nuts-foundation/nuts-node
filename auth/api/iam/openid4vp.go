@@ -761,7 +761,8 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 	checkURL := baseURL.JoinPath(oauth.CallbackPath)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	// Configured client authentication (client_secret) applies only to the OpenID4VCI flow; the OpenID4VP wallet authenticates via did:web.
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, "", oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}

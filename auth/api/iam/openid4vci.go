@@ -128,7 +128,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
+	authzParams := map[string]string{
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
 		oauth.ClientIDParam:             clientID.String(),
@@ -137,7 +137,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.RedirectURIParam:          redirectUri.String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
-	})
+	}
+	// EXPERIMENTAL: when client credentials are configured for this authorization server, present the configured
+	// client_id and drop the Nuts-specific entity_id client_id scheme (which external servers don't understand).
+	if clientConfig, ok := r.auth.OAuthClientCredentials(authzServerMetadata.Issuer); ok {
+		authzParams[oauth.ClientIDParam] = clientConfig.ClientID
+		delete(authzParams, oauth.ClientIDSchemeParam)
+	}
+	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, authzParams)
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
 		RedirectURI: redirectUrl.String(),
@@ -155,8 +162,16 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "missing wallet DID in session"), appCallbackURI)
 	}
 
+	// EXPERIMENTAL: when client credentials are configured for this authorization server, present the configured
+	// client_id and authenticate with the client_secret (client_secret_post) instead of the did:web client_id.
+	var clientSecret string
+	if clientConfig, ok := r.auth.OAuthClientCredentials(oauthSession.IssuerURL); ok {
+		clientID = clientConfig.ClientID
+		clientSecret = clientConfig.ClientSecret
+	}
+
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, clientSecret, oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}

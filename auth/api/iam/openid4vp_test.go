@@ -753,7 +753,7 @@ func Test_handleCallback(t *testing.T) {
 		callbackURI := "https://example.com/oauth2/holder/callback"
 		codeVerifier := session.PKCEParams.Verifier
 
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderSubjectID, holderClientID, codeVerifier, false).Return(nil, assert.AnError)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderSubjectID, holderClientID, "", codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, code, &session)
 

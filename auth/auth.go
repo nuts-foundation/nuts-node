@@ -21,9 +21,11 @@ package auth
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net/url"
 	"path"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
@@ -151,6 +153,45 @@ func (auth *Auth) OpenID4VCIClient() openid4vci.Client {
 	return auth.openID4VCIClient
 }
 
+// OAuthClientCredentials returns the configured OAuth client credentials for the given Authorization Server issuer,
+// if an entry was configured under auth.experimental.clients. EXPERIMENTAL.
+func (auth *Auth) OAuthClientCredentials(authServerIssuer string) (*OAuthClientConfig, bool) {
+	target := normalizeServerURL(authServerIssuer)
+	for i := range auth.config.Experimental.Clients {
+		if normalizeServerURL(auth.config.Experimental.Clients[i].ServerURL) == target {
+			return &auth.config.Experimental.Clients[i], true
+		}
+	}
+	return nil, false
+}
+
+// validateOAuthClients validates the auth.experimental.clients configuration.
+func (auth *Auth) validateOAuthClients(strictMode bool) error {
+	seen := make(map[string]struct{}, len(auth.config.Experimental.Clients))
+	for i, client := range auth.config.Experimental.Clients {
+		if client.ServerURL == "" {
+			return fmt.Errorf("auth.experimental.clients[%d]: serverurl is required", i)
+		}
+		if _, err := core.ParsePublicURL(client.ServerURL, strictMode); err != nil {
+			return fmt.Errorf("auth.experimental.clients[%d]: invalid serverurl: %w", i, err)
+		}
+		if client.ClientID == "" {
+			return fmt.Errorf("auth.experimental.clients[%d]: clientid is required", i)
+		}
+		key := normalizeServerURL(client.ServerURL)
+		if _, duplicate := seen[key]; duplicate {
+			return fmt.Errorf("auth.experimental.clients[%d]: duplicate serverurl %q", i, client.ServerURL)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+// normalizeServerURL strips a single trailing slash so equivalent issuer identifiers match.
+func normalizeServerURL(serverURL string) string {
+	return strings.TrimSuffix(serverURL, "/")
+}
+
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.Irma.SchemeManager == "" {
@@ -159,6 +200,10 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 
 	if config.Strictmode && auth.config.Irma.SchemeManager != "pbdf" {
 		return errors.New("in strictmode the only valid irma-scheme-manager is 'pbdf'")
+	}
+
+	if err := auth.validateOAuthClients(config.Strictmode); err != nil {
+		return err
 	}
 
 	var err error

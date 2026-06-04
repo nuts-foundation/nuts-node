@@ -157,6 +157,8 @@ const (
 	AuthorizationDetailsParam = "authorization_details"
 	// ClientIDParam is the parameter name for the client_id parameter. (RFC6749)
 	ClientIDParam = "client_id"
+	// ClientSecretParam is the parameter name for the client_secret parameter, used for client_secret_post client authentication. (RFC6749 §2.3.1)
+	ClientSecretParam = "client_secret"
 	// ClientIDSchemeParam is the parameter name for the client_id_scheme parameter. (OpenID4VP)
 	ClientIDSchemeParam = "client_id_scheme"
 	// ClientMetadataParam is the parameter name for the client_metadata parameter. (OpenID4VP)

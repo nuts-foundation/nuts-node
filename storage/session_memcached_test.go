@@ -170,11 +170,27 @@ func memcachedTestServer(t *testing.T) *minimemcached.MiniMemcached {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Workaround for https://github.com/daangn/minimemcached/issues/14 (fix proposed in PR #13).
+	// Wait until the server's accept loop is actually serving connections before returning.
+	// minimemcached.Run spawns a goroutine that calls Accept() on the listener; Close() nils that
+	// listener. On really short tests Close() (in the cleanup below) could run before the goroutine
+	// entered Accept(), causing a nil pointer dereference in the dependency. Probing the server until
+	// it answers guarantees the accept loop is parked in Accept(), so Close() unblocks it cleanly.
+	// Remove this workaround once a minimemcached release includes the upstream fix.
+	require.Eventually(t, func() bool {
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", m.Port()), time.Second)
+		if err != nil {
+			return false
+		}
+		defer conn.Close()
+		if _, err = conn.Write([]byte("version\r\n")); err != nil {
+			return false
+		}
+		buf := make([]byte, 1)
+		_, err = conn.Read(buf)
+		return err == nil
+	}, 5*time.Second, 10*time.Millisecond, "memcached server did not start serving")
 	t.Cleanup(func() {
-		// Note on DATA RACE
-		// 		minimemcached.Run creates a new go routine to listen for new connections.
-		// 		In certain cases the new go routine may be created after/simultaneous with this cleanup resulting in a data race / nil pointer dereference.
-		// 		Mostly happens on CI during really short tests.
 		m.Close()
 	})
 	return m
