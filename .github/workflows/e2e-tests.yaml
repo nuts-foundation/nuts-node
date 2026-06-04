@@ -53,6 +53,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
+          cache-from: type=gha,scope=e2e
+          cache-to: type=gha,scope=e2e,mode=max
           secrets: |
             GIT_AUTH_TOKEN=${{ secrets.PACKAGE_SECRET }}
 
@@ -65,6 +67,8 @@ jobs:
           platforms: linux/amd64
           push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
           tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
+          cache-from: type=gha,scope=e2e
+          cache-to: type=gha,scope=e2e,mode=max
 
       - name: Run E2E tests
         run: |
