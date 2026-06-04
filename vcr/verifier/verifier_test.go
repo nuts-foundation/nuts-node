@@ -122,6 +122,25 @@ func TestVerifier_Verify(t *testing.T) {
 		})
 	})
 
+	t.Run("fails (instead of panicking) when issuer DID is unparseable", func(t *testing.T) {
+		// Regression test for #4235: an unparseable issuer DID (e.g. a did:x509 with trailing
+		// unsupported fields) must result in a validation error, not a nil-pointer panic.
+		ctx := newMockContext(t)
+		credID := ssi.MustParseURI("did:web:example.com#1")
+		cred := vc.VerifiableCredential{
+			Context:      []ssi.URI{vc.VCContextV1URI()},
+			Type:         []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("ExampleCredential")},
+			ID:           &credID,
+			Issuer:       ssi.MustParseURI("did:x509:0:sha256:abc::san:otherName:1.2.3.4#extra"),
+			IssuanceDate: time.Now().Add(-time.Hour),
+		}
+		ctx.store.EXPECT().GetRevocations(credID).Return(nil, ErrNotFound)
+
+		validationErr := ctx.verifier.Verify(cred, true, true, nil)
+
+		assert.ErrorContains(t, validationErr, "could not parse issuer DID")
+	})
+
 	t.Run("invalid when revoked", func(t *testing.T) {
 		vc := testCredential(t)
 		ctx := newMockContext(t)
