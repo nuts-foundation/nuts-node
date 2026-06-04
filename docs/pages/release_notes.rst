@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.8)
+****************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.7...v6.2.8
+
+****************
 Peanut (v6.2.7)
 ****************
 
