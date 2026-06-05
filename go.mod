@@ -5,7 +5,7 @@ module github.com/nuts-foundation/nuts-node
 go 1.26.3
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
 	github.com/PaesslerAG/jsonpath v0.1.2-0.20230323094847-3484786d6f97
 	github.com/alicebob/miniredis/v2 v2.38.0
