@@ -210,7 +210,7 @@ require (
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
-	go.opentelemetry.io/contrib/bridges/otellogrus v0.18.0
+	go.opentelemetry.io/contrib/bridges/otellogrus v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
