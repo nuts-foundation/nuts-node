@@ -75,7 +75,9 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          platforms: linux/amd64,linux/arm64
+          # On PRs we only verify the build doesn't break; arm64 under QEMU
+          # is ~5-8x slower and adds no signal there. Multi-arch on push/tag.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.docker_meta.outputs.tags }}
           build-args: |
