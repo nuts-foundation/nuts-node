@@ -144,6 +144,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		authzParams[oauth.ClientIDParam] = clientConfig.ClientID
 		delete(authzParams, oauth.ClientIDSchemeParam)
 	}
+	// Escape hatch: caller-supplied authorization request parameters for issuers that require extras
+	// (e.g. auth_method=SmartCard). Overlaid last, so caller values win; the caller owns the resulting request.
+	if request.Body.AuthorizationParams != nil {
+		for key, value := range *request.Body.AuthorizationParams {
+			authzParams[key] = value
+		}
+	}
 	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, authzParams)
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{

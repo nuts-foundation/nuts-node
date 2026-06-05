@@ -187,6 +187,19 @@ paths:
                     {
                       "some-requested-credential-attribute": "900184590"
                     }
+                authorization_params:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: |
+                    Optional key/value pairs merged into the OpenID4VCI authorization request (the redirect to the
+                    Authorization Server's authorization_endpoint). Use this for issuers that require extra authorization
+                    parameters (e.g. auth_method). Caller-supplied values override the node's defaults for the same key;
+                    the caller is responsible for the resulting request.
+                  example: |
+                    {
+                      "auth_method": "SmartCard"
+                    }
                 redirect_uri:
                   type: string
                   description: |
