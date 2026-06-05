@@ -14,6 +14,16 @@ Unreleased
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
 ****************
+Peanut (v6.2.8)
+****************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.7...v6.2.8
+
+****************
 Peanut (v6.2.7)
 ****************
 
@@ -489,6 +499,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.35)
+*************************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.34...v5.4.35
 
 *************************
 Hazelnut update (v5.4.34)
