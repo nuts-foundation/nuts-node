@@ -146,8 +146,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	}
 	// Escape hatch: caller-supplied authorization request parameters for issuers that require extras
 	// (e.g. auth_method=SmartCard). Overlaid last, so caller values win; the caller owns the resulting request.
-	if request.Body.AuthorizationParams != nil {
-		for key, value := range *request.Body.AuthorizationParams {
+	if request.Body.AuthorizationRequestParams != nil {
+		for key, value := range *request.Body.AuthorizationRequestParams {
 			authzParams[key] = value
 		}
 	}
