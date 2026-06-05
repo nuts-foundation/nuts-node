@@ -478,7 +478,7 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, "", codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			SubjectID: holderSubjectID,
@@ -512,7 +512,7 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, "", codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
 			SubjectID: holderSubjectID,
@@ -1649,6 +1649,8 @@ type testCtx struct {
 	subjectManager   *didsubject.MockManager
 	jar              *MockJAR
 	openid4vciClient *openid4vci.MockClient
+	// oauthClientCredentials, when set, is returned by the auth mock's OAuthClientCredentials for a matching ServerURL.
+	oauthClientCredentials *auth.OAuthClientConfig
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1704,7 +1706,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		jwtSigner:      jwtSigner,
 		jar:            mockJAR,
 	}
-	return &testCtx{
+	result := &testCtx{
 		ctrl:             ctrl,
 		authnServices:    authnServices,
 		policy:           policyInstance,
@@ -1724,4 +1726,13 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		client:           client,
 		openid4vciClient: openid4vciClient,
 	}
+	// By default no OAuth client credentials are configured (preserving did:web + entity_id behavior). A test can set
+	// result.oauthClientCredentials to exercise the configured-client path; it matches by exact ServerURL.
+	authnServices.EXPECT().OAuthClientCredentials(gomock.Any()).DoAndReturn(func(authServerIssuer string) (*auth.OAuthClientConfig, bool) {
+		if result.oauthClientCredentials != nil && result.oauthClientCredentials.ServerURL == authServerIssuer {
+			return result.oauthClientCredentials, true
+		}
+		return nil, false
+	}).AnyTimes()
+	return result
 }

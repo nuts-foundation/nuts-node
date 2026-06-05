@@ -224,7 +224,7 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 	return requestObject, nil
 }
 
-func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, subject string, clientID string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
+func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, subject string, clientID string, clientSecret string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
 	// validate tokenEndpoint
 	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
@@ -235,6 +235,10 @@ func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEnd
 	// call token endpoint
 	data := url.Values{}
 	data.Set(oauth.ClientIDParam, clientID)
+	// When a client secret is configured, authenticate the client using client_secret_post (RFC6749 §2.3.1).
+	if clientSecret != "" {
+		data.Set(oauth.ClientSecretParam, clientSecret)
+	}
 	data.Set(oauth.GrantTypeParam, oauth.AuthorizationCodeGrantType)
 	data.Set(oauth.CodeParam, code)
 	data.Set(oauth.RedirectURIParam, callbackURI)
