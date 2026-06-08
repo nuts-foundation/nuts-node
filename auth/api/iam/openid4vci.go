@@ -139,9 +139,13 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	}
 	// Optional caller-supplied authorization request parameters, for issuers that need extras
-	// (e.g. auth_method=SmartCard). Applied after the node's own parameters, so caller values win.
+	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
+	// OpenID4VCI parameters set by the node above, which are essential to the flow.
 	if request.Body.AuthorizationRequestParams != nil {
 		for key, value := range *request.Body.AuthorizationRequestParams {
+			if _, isNodeParam := authzParams[key]; isNodeParam {
+				return nil, core.InvalidInputError("authorization_request_params may not override the '%s' parameter set by the node", key)
+			}
 			authzParams[key] = value
 		}
 	}
