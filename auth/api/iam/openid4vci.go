@@ -144,10 +144,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		authzParams[oauth.ClientIDParam] = clientConfig.ClientID
 		delete(authzParams, oauth.ClientIDSchemeParam)
 	}
-	// Escape hatch: caller-supplied authorization request parameters for issuers that require extras
-	// (e.g. auth_method=SmartCard). Overlaid last, so caller values win; the caller owns the resulting request.
+	// Optional caller-supplied authorization request parameters, for issuers that need extras
+	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
+	// OpenID4VCI parameters set by the node above, which are essential to the flow.
 	if request.Body.AuthorizationRequestParams != nil {
 		for key, value := range *request.Body.AuthorizationRequestParams {
+			if _, isNodeParam := authzParams[key]; isNodeParam {
+				return nil, core.InvalidInputError("authorization_request_params may not override the '%s' parameter set by the node", key)
+			}
 			authzParams[key] = value
 		}
 	}
