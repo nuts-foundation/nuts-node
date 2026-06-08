@@ -68,13 +68,38 @@ func Test_clientRequestLogger(t *testing.T) {
 		// Body is left intact for the caller
 		responseBody, _ := io.ReadAll(response.Body)
 		assert.Equal(t, `{"hello":"world"}`, string(responseBody))
-		// Only request and response metadata is logged, no bodies
+		// Request and response metadata (incl. headers) is logged, but no bodies
 		require.Len(t, hook.Entries, 2)
 		assert.Equal(t, "HTTP client request", hook.Entries[0].Message)
 		assert.Equal(t, http.MethodPost, hook.Entries[0].Data["method"])
 		assert.Equal(t, "https://example.com/foo", hook.Entries[0].Data["uri"])
+		assert.Contains(t, hook.Entries[0].Data, "headers")
 		assert.Equal(t, "HTTP client response", hook.Entries[1].Message)
 		assert.Equal(t, http.StatusOK, hook.Entries[1].Data["status"])
+		assert.Contains(t, hook.Entries[1].Data, "headers")
+	})
+
+	t.Run("masks sensitive headers", func(t *testing.T) {
+		logger, hook := test.NewNullLogger()
+		transport := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			header := http.Header{}
+			header.Set("Content-Type", "application/json")
+			header.Set("WWW-Authenticate", "Bearer realm=\"example\"")
+			return &http.Response{StatusCode: http.StatusUnauthorized, Header: header, Body: io.NopCloser(strings.NewReader("{}"))}, nil
+		})
+		req := newRequest(t, "{}")
+		req.Header.Set("Authorization", "Bearer super-secret-token")
+		sut := &clientRequestLogger{transport: transport, logger: logger.WithFields(logrus.Fields{}), logBody: false}
+
+		_, err := sut.RoundTrip(req)
+
+		require.NoError(t, err)
+		requestHeaders := hook.Entries[0].Data["headers"].(http.Header)
+		assert.Equal(t, []string{"[MASKED]"}, requestHeaders["Authorization"])
+		assert.Equal(t, "application/json", requestHeaders.Get("Content-Type"))
+		// Response WWW-Authenticate is a challenge, not a credential, so it is not masked.
+		responseHeaders := hook.Entries[1].Data["headers"].(http.Header)
+		assert.Equal(t, "Bearer realm=\"example\"", responseHeaders.Get("WWW-Authenticate"))
 	})
 
 	t.Run("metadata and body", func(t *testing.T) {
@@ -96,6 +121,7 @@ func Test_clientRequestLogger(t *testing.T) {
 		assert.Equal(t, `{"hello":"world"}`, string(responseBody))
 		require.Len(t, hook.Entries, 4)
 		assert.Equal(t, "HTTP client request", hook.Entries[0].Message)
+		assert.Contains(t, hook.Entries[0].Data, "headers")
 		assert.Equal(t, "HTTP client request body: {\"foo\":\"bar\"}", hook.Entries[1].Message)
 		assert.Equal(t, "HTTP client response", hook.Entries[2].Message)
 		assert.Equal(t, "HTTP client response body: {\"hello\":\"world\"}", hook.Entries[3].Message)
@@ -119,20 +145,6 @@ func Test_clientRequestLogger(t *testing.T) {
 		require.Len(t, hook.Entries, 2)
 		assert.Equal(t, "HTTP client request", hook.Entries[0].Message)
 		assert.Equal(t, "HTTP client response", hook.Entries[1].Message)
-	})
-
-	t.Run("debug level logs headers", func(t *testing.T) {
-		logger, hook := test.NewNullLogger()
-		logger.SetLevel(logrus.DebugLevel)
-		transport := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-			return jsonResponse(`{}`), nil
-		})
-		sut := &clientRequestLogger{transport: transport, logger: logger.WithFields(logrus.Fields{}), logBody: false}
-
-		_, err := sut.RoundTrip(newRequest(t, ""))
-
-		require.NoError(t, err)
-		assert.Contains(t, hook.Entries[0].Data, "headers")
 	})
 
 	t.Run("transport error is logged and returned", func(t *testing.T) {
