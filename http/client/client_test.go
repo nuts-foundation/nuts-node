@@ -81,7 +81,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
-			ts := client.client.Transport.(*http.Transport)
+			ts := client.client.Transport.(*loggingTransport).base.(*http.Transport)
 			assert.True(t, ts.TLSClientConfig.InsecureSkipVerify)
 		})
 	})
@@ -215,14 +215,16 @@ func TestGetTransport(t *testing.T) {
 		assert.NotEqual(t, SafeHttpTransport, transport)
 	})
 
-	t.Run("returns base transport when tracing disabled", func(t *testing.T) {
+	t.Run("wraps base in logging transport when tracing disabled", func(t *testing.T) {
 		original := tracing.Enabled()
 		tracing.SetEnabled(false)
 		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		transport := getTransport(SafeHttpTransport)
 
-		assert.Equal(t, SafeHttpTransport, transport)
+		logging, ok := transport.(*loggingTransport)
+		require.True(t, ok)
+		assert.Equal(t, SafeHttpTransport, logging.base)
 	})
 }
 
@@ -245,6 +247,40 @@ func TestNew(t *testing.T) {
 
 		client := New(time.Second)
 
-		assert.Equal(t, SafeHttpTransport, client.client.Transport)
+		logging, ok := client.client.Transport.(*loggingTransport)
+		require.True(t, ok)
+		assert.Equal(t, SafeHttpTransport, logging.base)
 	})
+}
+
+func TestRequestLogger_setAfterClientCreation(t *testing.T) {
+	// Clients are created before the HTTP engine sets RequestLogger, so logging must take effect
+	// for clients that already exist when RequestLogger is configured.
+	originalTracing := tracing.Enabled()
+	tracing.SetEnabled(false)
+	t.Cleanup(func() { tracing.SetEnabled(originalTracing) })
+	t.Cleanup(func() { RequestLogger = nil })
+	StrictMode = false
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	// Create the client first, while RequestLogger is still nil.
+	RequestLogger = nil
+	client := New(time.Second)
+
+	// Now configure the logger, as the HTTP engine does later during startup.
+	var invoked atomic.Bool
+	RequestLogger = func(base http.RoundTripper) http.RoundTripper {
+		invoked.Store(true)
+		return base
+	}
+
+	httpRequest, _ := http.NewRequest(http.MethodGet, server.URL, nil)
+	_, err := client.Do(httpRequest)
+
+	require.NoError(t, err)
+	assert.True(t, invoked.Load(), "RequestLogger should be applied to clients created before it was set")
 }
