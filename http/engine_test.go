@@ -36,6 +36,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
@@ -240,6 +241,44 @@ func TestEngine_Configure(t *testing.T) {
 				})
 			})
 		})
+	})
+}
+
+func TestEngine_configureClient(t *testing.T) {
+	t.Run("logging disabled by default", func(t *testing.T) {
+		client.RequestLogger = nil
+		t.Cleanup(func() { client.RequestLogger = nil })
+		engine := New(func() {}, nil)
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.Nil(t, client.RequestLogger)
+	})
+	t.Run("logging enabled", func(t *testing.T) {
+		client.RequestLogger = nil
+		t.Cleanup(func() { client.RequestLogger = nil })
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataAndBodyLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		require.NotNil(t, client.RequestLogger)
+		wrapped := client.RequestLogger(http.DefaultTransport)
+		logger, ok := wrapped.(*clientRequestLogger)
+		require.True(t, ok)
+		assert.True(t, logger.logBody)
+	})
+	t.Run("metadata only does not log bodies", func(t *testing.T) {
+		client.RequestLogger = nil
+		t.Cleanup(func() { client.RequestLogger = nil })
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		require.NotNil(t, client.RequestLogger)
+		logger := client.RequestLogger(http.DefaultTransport).(*clientRequestLogger)
+		assert.False(t, logger.logBody)
 	})
 }
 
