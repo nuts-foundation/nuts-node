@@ -26,8 +26,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// maskedHeaders are HTTP headers whose values are replaced with a placeholder when logging,
+// to avoid leaking credentials into the logs.
+var maskedHeaders = map[string]struct{}{
+	"Authorization":       {},
+	"Proxy-Authorization": {},
+}
+
+const maskedHeaderValue = "[MASKED]"
+
 // clientRequestLogger is an http.RoundTripper that logs outgoing HTTP requests and their responses.
-// It mirrors the server-side request/body logging: metadata is always logged, bodies only when logBody is set.
+// Metadata (method, URI, status, headers) is always logged; bodies are logged only when logBody is set.
+// Sensitive headers are masked, see maskedHeaders.
 type clientRequestLogger struct {
 	transport http.RoundTripper
 	logger    *logrus.Entry
@@ -35,14 +45,11 @@ type clientRequestLogger struct {
 }
 
 func (c *clientRequestLogger) RoundTrip(request *http.Request) (*http.Response, error) {
-	fields := logrus.Fields{
-		"method": request.Method,
-		"uri":    request.URL.String(),
-	}
-	if c.logger.Logger.Level >= logrus.DebugLevel {
-		fields["headers"] = request.Header
-	}
-	c.logger.WithFields(fields).Info("HTTP client request")
+	c.logger.WithFields(logrus.Fields{
+		"method":  request.Method,
+		"uri":     request.URL.String(),
+		"headers": maskHeaders(request.Header),
+	}).Info("HTTP client request")
 
 	if c.logBody && request.Body != nil && isLoggableContentType(request.Header.Get("Content-Type")) {
 		body, err := io.ReadAll(request.Body)
@@ -64,9 +71,10 @@ func (c *clientRequestLogger) RoundTrip(request *http.Request) (*http.Response, 
 	}
 
 	c.logger.WithFields(logrus.Fields{
-		"method": request.Method,
-		"uri":    request.URL.String(),
-		"status": response.StatusCode,
+		"method":  request.Method,
+		"uri":     request.URL.String(),
+		"status":  response.StatusCode,
+		"headers": maskHeaders(response.Header),
 	}).Info("HTTP client response")
 
 	if c.logBody && response.Body != nil && isLoggableContentType(response.Header.Get("Content-Type")) {
@@ -80,4 +88,17 @@ func (c *clientRequestLogger) RoundTrip(request *http.Request) (*http.Response, 
 	}
 
 	return response, nil
+}
+
+// maskHeaders returns a copy of the given headers with the values of sensitive headers masked.
+func maskHeaders(header http.Header) http.Header {
+	masked := make(http.Header, len(header))
+	for name, values := range header {
+		if _, ok := maskedHeaders[http.CanonicalHeaderKey(name)]; ok {
+			masked[name] = []string{maskedHeaderValue}
+			continue
+		}
+		masked[name] = values
+	}
+	return masked
 }
