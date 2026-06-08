@@ -200,6 +200,33 @@ func TestService_CreateJwtBearerToken(t *testing.T) {
 		assert.Empty(t, token)
 	})
 
+	t.Run("AuthorizationServerEndpoint overrides service-based resolution", func(t *testing.T) {
+		ctx := createRPContext(t, nil)
+		const explicitEndpoint = "https://as.example.nl/ura/12345678/token"
+
+		// serviceResolver must NOT be called when AuthorizationServerEndpoint is provided.
+		ctx.didResolver.EXPECT().Resolve(authorizerDID, gomock.Any()).Return(authorizerDIDDocument, nil, nil).AnyTimes()
+		ctx.keyResolver.EXPECT().ResolveKey(requesterDID, nil, resolver.NutsSigningKeyType).MinTimes(1).Return(requesterSigningKeyID, requesterSigningKey, nil)
+
+		var capturedClaims map[string]interface{}
+		ctx.keyStore.EXPECT().SignJWT(gomock.Any(), gomock.Any(), nil, requesterSigningKeyID).
+			DoAndReturn(func(_ context.Context, claims map[string]interface{}, _ interface{}, _ interface{}) (string, error) {
+				capturedClaims = claims
+				return "token", nil
+			})
+
+		overrideRequest := request
+		overrideRequest.AuthorizationServerEndpoint = explicitEndpoint
+
+		token, err := ctx.relyingParty.CreateJwtGrant(ctx.audit, overrideRequest)
+
+		require.NoError(t, err)
+		assert.Equal(t, "token", token.BearerToken)
+		assert.Equal(t, explicitEndpoint, token.AuthorizationServerEndpoint)
+		assert.Equal(t, explicitEndpoint, capturedClaims["aud"], "JWT aud should be the provided endpoint")
+		assert.Equal(t, expectedService, capturedClaims[purposeOfUseClaim], "purposeOfUse claim must still come from request.Service")
+	})
+
 	t.Run("authorizer without endpoint", func(t *testing.T) {
 		ctx := createRPContext(t, nil)
 		document := getAuthorizerDIDDocument()

@@ -19,6 +19,7 @@
 package iam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,6 +39,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/tracing"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
@@ -169,6 +171,11 @@ func (hb HTTPClient) RequestObjectByPost(ctx context.Context, requestURI string,
 }
 
 func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data url.Values, dpopHeader string) (oauth.TokenResponse, error) {
+	// Start a dedicated span so oauth.* attributes land on the outbound token request, not the
+	// parent handler span (or no span at all). otelhttp will create the HTTP span as a child.
+	ctx, span := tracing.GetTracerProvider().Tracer("auth/client/iam").Start(ctx, "OAuth2 token request")
+	defer span.End()
+	oauth.SetSpanAttributes(ctx, data)
 	var token oauth.TokenResponse
 	tokenURL, err := url.Parse(tokenEndpoint)
 	if err != nil {
@@ -203,11 +210,22 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, err
 	}
 
+	// TODO: Remove this when Itzos fixed their Token Response
+	type LenientTokenResponse struct {
+		AccessToken string  `json:"access_token"`
+		DPoPKid     *string `json:"dpop_kid,omitempty"`
+		ExpiresAt   *any    `json:"expires_at,omitempty"`
+		ExpiresIn   *any    `json:"expires_in,omitempty"`
+		TokenType   string  `json:"token_type"`
+		Scope       *string `json:"scope,omitempty"`
+	}
+
 	var responseData []byte
 	if responseData, err = io.ReadAll(response.Body); err != nil {
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
-	if err = json.Unmarshal(responseData, &token); err != nil {
+	var lenientToken LenientTokenResponse
+	if err = json.Unmarshal(responseData, &lenientToken); err != nil {
 		// Cut off the response body to 100 characters max to prevent logging of large responses
 		responseBodyString := string(responseData)
 		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
@@ -215,7 +233,41 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		}
 		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, responseBodyString)
 	}
+	token.AccessToken = lenientToken.AccessToken
+	token.DPoPKid = lenientToken.DPoPKid
+	token.TokenType = lenientToken.TokenType
+	token.Scope = lenientToken.Scope
+	token.ExpiresAt, err = toInt(lenientToken.ExpiresAt)
+	if err != nil {
+		return token, fmt.Errorf("unable to parse expires_at: %w", err)
+	}
+	token.ExpiresIn, err = toInt(lenientToken.ExpiresIn)
+	if err != nil {
+		return token, fmt.Errorf("unable to parse expires_in: %w", err)
+	}
+
 	return token, nil
+}
+
+func toInt(value *any) (*int, error) {
+	// handle expires_in which can be int or string
+	if value == nil {
+		return nil, nil
+	}
+	switch v := (*value).(type) {
+	case float64:
+		intValue := int(v)
+		return &intValue, nil
+	case string:
+		var intValue int
+		_, err := fmt.Sscanf(v, "%d", &intValue)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse string to int: %w", err)
+		}
+		return &intValue, nil
+	default:
+		return nil, fmt.Errorf("unable to parse value of type %T to int", v)
+	}
 }
 
 // PostError posts an OAuth error to the redirect URL and returns the redirect URL with the error as query parameter.
@@ -291,6 +343,79 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 		keySink.Key(alg, publicKey)
 		return nil
 	}
+}
+
+func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
+	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
+	if err != nil {
+		return nil, err
+	}
+	var metadata oauth.OpenIDCredentialIssuerMetadata
+	err = hb.doGet(ctx, metadataURL.String(), &metadata)
+	if err != nil {
+		return nil, err
+	}
+	return &metadata, err
+}
+
+// CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as
+// CredentialRequestProof.
+type CredentialRequest struct {
+	Proof CredentialRequestProof `json:"proof"`
+}
+
+// CredentialRequestProof holds the ProofType and Jwt for a credential request
+type CredentialRequestProof struct {
+	ProofType string `json:"proof_type"`
+	Jwt       string `json:"jwt"`
+}
+
+// CredentialResponse represents the response of a verifiable credential request.
+// It contains the Format and the actual Credential in JSON format.
+type CredentialResponse struct {
+	Credential string `json:"credential"`
+}
+
+func (hb HTTPClient) VerifiableCredentials(ctx context.Context, credentialEndpoint string, accessToken string, proofJwt string) (*CredentialResponse, error) {
+	credentialEndpointURL, err := url.Parse(credentialEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	credentialRequest := CredentialRequest{
+		Proof: CredentialRequestProof{
+			ProofType: "jwt",
+			Jwt:       proofJwt,
+		},
+	}
+	jsonBody, _ := json.Marshal(credentialRequest)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, credentialEndpointURL.String(), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Add("Accept", "application/json")
+	request.Header.Add("Content-Type", "application/json")
+	request.Header.Add("Authorization", "Bearer "+accessToken)
+
+	response, err := hb.httpClient.Do(request.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call endpoint: %w", err)
+	}
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Logger().WithError(err).Warn("Trouble closing reader")
+		}
+	}(response.Body)
+	if err = core.TestResponseCodeWithLog(http.StatusOK, response, log.Logger()); err != nil {
+		return nil, err
+	}
+	var credential CredentialResponse
+	if err = json.NewDecoder(response.Body).Decode(&credential); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &credential, nil
+
 }
 
 func (hb HTTPClient) postFormExpectRedirect(ctx context.Context, form url.Values, redirectURL url.URL) (string, error) {

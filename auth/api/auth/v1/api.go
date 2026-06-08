@@ -260,13 +260,9 @@ func (w Wrapper) DrawUpContract(ctx context.Context, request DrawUpContractReque
 
 // CreateJwtGrant handles the http request (from the vendor's EPD/XIS) for creating a JWT bearer token which can be used to retrieve an access token from a remote Nuts node.
 func (w Wrapper) CreateJwtGrant(ctx context.Context, request CreateJwtGrantRequestObject) (CreateJwtGrantResponseObject, error) {
-
-	req := services.CreateJwtGrantRequest{
-		Requester:   request.Body.Requester,
-		Authorizer:  request.Body.Authorizer,
-		IdentityVP:  request.Body.Identity,
-		Service:     request.Body.Service,
-		Credentials: request.Body.Credentials,
+	req, err := toCreateJwtGrantRequest(request.Body)
+	if err != nil {
+		return nil, err
 	}
 
 	response, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
@@ -279,12 +275,9 @@ func (w Wrapper) CreateJwtGrant(ctx context.Context, request CreateJwtGrantReque
 
 // RequestAccessToken handles the HTTP request (from the vendor's EPD/XIS) for creating a JWT grant and using it as authorization grant to get an access token from the remote Nuts node.
 func (w Wrapper) RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error) {
-	req := services.CreateJwtGrantRequest{
-		Requester:   request.Body.Requester,
-		Authorizer:  request.Body.Authorizer,
-		IdentityVP:  request.Body.Identity,
-		Service:     request.Body.Service,
-		Credentials: request.Body.Credentials,
+	req, err := toCreateJwtGrantRequest(request.Body)
+	if err != nil {
+		return nil, err
 	}
 
 	jwtGrant, err := w.Auth.RelyingParty().CreateJwtGrant(ctx, req)
@@ -428,6 +421,27 @@ func (w *Wrapper) resolveCredential(credentialID string) (*vc.VerifiableCredenti
 		return nil, err
 	}
 	return w.CredentialResolver.Resolve(*id, nil)
+}
+
+// toCreateJwtGrantRequest translates the generated API request body into the internal
+// services.CreateJwtGrantRequest. If authorization_server_endpoint is set, it is validated
+// as a URL; an invalid URL is surfaced as a 400 InvalidInputError so we don't produce a
+// signed JWT with a malformed audience.
+func toCreateJwtGrantRequest(body *JwtGrantBaseRequest) (services.CreateJwtGrantRequest, error) {
+	req := services.CreateJwtGrantRequest{
+		Requester:   body.Requester,
+		Authorizer:  body.Authorizer,
+		IdentityVP:  body.Identity,
+		Service:     body.Service,
+		Credentials: body.Credentials,
+	}
+	if body.AuthorizationServerEndpoint != nil && *body.AuthorizationServerEndpoint != "" {
+		if _, err := url.Parse(*body.AuthorizationServerEndpoint); err != nil {
+			return services.CreateJwtGrantRequest{}, core.InvalidInputError("invalid authorization_server_endpoint: %w", err)
+		}
+		req.AuthorizationServerEndpoint = *body.AuthorizationServerEndpoint
+	}
+	return req, nil
 }
 
 // convertToMap converts an object to a map[string]interface{} using json conversion

@@ -108,16 +108,8 @@ type CreateAccessTokenRequest struct {
 	GrantType string `json:"grant_type"`
 }
 
-// CreateJwtGrantRequest Request for a JWT Grant. The grant can be used during a Access Token Request in the assertion field
-type CreateJwtGrantRequest struct {
-	Authorizer  string                  `json:"authorizer"`
-	Credentials []VerifiableCredential  `json:"credentials"`
-	Identity    *VerifiablePresentation `json:"identity,omitempty"`
-	Requester   string                  `json:"requester"`
-
-	// Service The service for which this access token can be used. The right oauth endpoint is selected based on the service.
-	Service string `json:"service"`
-}
+// CreateJwtGrantRequest Common fields shared by CreateJwtGrantRequest and RequestAccessTokenRequest.
+type CreateJwtGrantRequest = JwtGrantBaseRequest
 
 // DrawUpContractRequest defines model for DrawUpContractRequest.
 type DrawUpContractRequest struct {
@@ -141,19 +133,15 @@ type DrawUpContractRequest struct {
 	Version ContractVersion `json:"version"`
 }
 
-// JwtGrantResponse Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
-type JwtGrantResponse struct {
-	// AuthorizationServerEndpoint The URL that corresponds to the oauth endpoint of the selected service.
-	AuthorizationServerEndpoint string `json:"authorization_server_endpoint"`
-	BearerToken                 string `json:"bearer_token"`
-}
-
-// LegalEntity DID of the organization as registered in the Nuts registry.
-type LegalEntity = string
-
-// RequestAccessTokenRequest Request for a JWT Grant and use it as authorization grant to get the access token from the authorizer
-type RequestAccessTokenRequest struct {
-	Authorizer string `json:"authorizer"`
+// JwtGrantBaseRequest Common fields shared by CreateJwtGrantRequest and RequestAccessTokenRequest.
+type JwtGrantBaseRequest struct {
+	// AuthorizationServerEndpoint Optional. OAuth token endpoint URL of the authorizer (RFC 8414 `token_endpoint`).
+	// When provided, this URL is used directly as the JWT `aud` claim, bypassing the
+	// compound-service lookup on the authorizer's DID document. `service` remains
+	// required and is still used as the `purposeOfUse` JWT claim. Intended for
+	// clients that discover the endpoint out-of-band (e.g. via FHIR mCSD).
+	AuthorizationServerEndpoint *string `json:"authorization_server_endpoint,omitempty"`
+	Authorizer                  string  `json:"authorizer"`
 
 	// Credentials Verifiable Credentials to be included in the access token. If no VCs are to be included in the access token, the array can be left empty.
 	Credentials []VerifiableCredential  `json:"credentials"`
@@ -163,6 +151,21 @@ type RequestAccessTokenRequest struct {
 	// Service The service for which this access token can be used. The right oauth endpoint is selected based on the service.
 	Service string `json:"service"`
 }
+
+// JwtGrantResponse Response with a JWT Grant. It contains a JWT, signed with the private key of the requestor software vendor.
+type JwtGrantResponse struct {
+	// AuthorizationServerEndpoint The OAuth token endpoint URL of the authorizer (RFC 8414 `token_endpoint`).
+	// Despite the field name, this is the concrete endpoint to which a JWT bearer
+	// grant is POSTed, not an Authorization Server metadata/issuer URL.
+	AuthorizationServerEndpoint string `json:"authorization_server_endpoint"`
+	BearerToken                 string `json:"bearer_token"`
+}
+
+// LegalEntity DID of the organization as registered in the Nuts registry.
+type LegalEntity = string
+
+// RequestAccessTokenRequest Common fields shared by CreateJwtGrantRequest and RequestAccessTokenRequest.
+type RequestAccessTokenRequest = JwtGrantBaseRequest
 
 // SignSessionRequest defines model for SignSessionRequest.
 type SignSessionRequest struct {

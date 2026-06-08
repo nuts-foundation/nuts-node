@@ -47,11 +47,12 @@ type CreateAccessTokenRequest struct {
 
 // CreateJwtGrantRequest contains all information to create a JwtBearerToken
 type CreateJwtGrantRequest struct {
-	Requester   string
-	Authorizer  string
-	IdentityVP  *vc.VerifiablePresentation
-	Service     string
-	Credentials []vc.VerifiableCredential
+	Requester                   string
+	Authorizer                  string
+	IdentityVP                  *vc.VerifiablePresentation
+	Service                     string
+	AuthorizationServerEndpoint string
+	Credentials                 []vc.VerifiableCredential
 }
 
 // JwtBearerTokenResult defines the return value back to the api for the createJwtBearerToken method

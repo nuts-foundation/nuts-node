@@ -24,6 +24,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // DIDDocument is an alias
@@ -75,8 +76,6 @@ var responseModesSupported = []string{responseModeQuery, responseModeDirectPost}
 
 var responseTypesSupported = []string{oauth.CodeResponseType, oauth.VPTokenResponseType}
 
-var grantTypesSupported = []string{oauth.AuthorizationCodeGrantType, oauth.VpTokenGrantType}
-
 var clientIdSchemesSupported = []string{entityClientIDScheme}
 
 const entityClientIDScheme = "entity_id"
@@ -85,3 +84,35 @@ const (
 	AccessTokenTypeBearer = "Bearer"
 	AccessTokenTypeDPoP   = "DPoP"
 )
+
+// SpanAttributes returns the non-sensitive OAuth2 parameters from this token request as OTEL
+// attributes. Sensitive fields (assertions, client_assertion, code, code_verifier) are
+// deliberately excluded.
+func (r HandleTokenRequestRequestObject) SpanAttributes() []attribute.KeyValue {
+	if r.Body == nil {
+		return nil
+	}
+	attrs := []attribute.KeyValue{attribute.String("oauth.grant_type", r.Body.GrantType)}
+	if r.Body.ClientId != nil {
+		attrs = append(attrs, attribute.String("oauth.client_id", *r.Body.ClientId))
+	}
+	if r.Body.Scope != nil {
+		attrs = append(attrs, attribute.String("oauth.scope", *r.Body.Scope))
+	}
+	return attrs
+}
+
+// SpanAttributes returns the non-sensitive OAuth2 parameters from this authorize response as
+// OTEL attributes. Sensitive fields (presentation_submission, vp_token), state (per-request
+// client-side value, not useful for filtering) and error_description (verbose free-text, high
+// cardinality — logged instead) are deliberately excluded.
+func (r HandleAuthorizeResponseRequestObject) SpanAttributes() []attribute.KeyValue {
+	if r.Body == nil {
+		return nil
+	}
+	var attrs []attribute.KeyValue
+	if r.Body.Error != nil {
+		attrs = append(attrs, attribute.String("oauth.error", *r.Body.Error))
+	}
+	return attrs
+}

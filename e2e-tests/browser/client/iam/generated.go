@@ -177,6 +177,11 @@ type ServiceAccessTokenRequest struct {
 	// - proof/signature (MUST be omitted; integrity protection is covered by the VP's proof/signature)
 	Credentials *[]VerifiableCredential `json:"credentials,omitempty"`
 
+	// IdToken An optional ID Token (JWT) that represents the end-user.
+	// This ID token is included in the Verifiable Presentation that is used to request the access token.
+	// It currently only supports Dezi ID tokens.
+	IdToken *string `json:"id_token,omitempty"`
+
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
@@ -254,6 +259,13 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// The current implementation processes a single credential
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
+
+	// AuthorizationRequestParams Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+	// Authorization Server's authorization_endpoint). These may only add parameters; they must not
+	// override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+	// Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+	// that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+	AuthorizationRequestParams *map[string]string `json:"authorization_request_params,omitempty"`
 
 	// CredentialRequestParams Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
 	// the issuer's credential endpoint. Any field supplied here overrides the node's default —

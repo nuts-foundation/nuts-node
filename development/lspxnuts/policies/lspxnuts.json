@@ -1,0 +1,225 @@
+{
+  "nuts-lsp": {
+    "organization": {
+      "format": {
+        "ldp_vc": {
+          "proof_type": [
+            "JsonWebSignature2020"
+          ]
+        },
+        "jwt_vc": {
+          "alg": [
+            "PS256",
+            "RS256"
+          ]
+        },
+        "jwt_vp": {
+          "alg": [
+            "ES256"
+          ]
+        }
+      },
+      "id": "pd_any_care_organization",
+      "name": "Care organization",
+      "purpose": "Finding a care organization",
+      "input_descriptors": [
+        {
+          "id": "id_uzicert_uracredential",
+          "name": "Care organization identity from fake UZI-server certificate",
+          "purpose": "Finding a care organization for authorizing access to medical metadata.",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "X509Credential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "purpose": "We can only accept credentials from a trusted issuer",
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:x509:0:sha256:GwlhBZuEFlSHXSRUXQuTs3_YpQxAahColwJJj35US1A[\\w\\-.:%]*$"
+                }
+              },
+              {
+                "id": "organization_id",
+                "path": [
+                  "$.credentialSubject[0].id",
+                  "$.credentialSubject.id"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:web:"
+                }
+              },
+              {
+                "id": "organization_name",
+                "path": [
+                  "$.credentialSubject[0].subject.O",
+                  "$.credentialSubject.subject.O"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "organization_ura",
+                "path": [
+                  "$.credentialSubject[0].san.otherName",
+                  "$.credentialSubject.san.otherName"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^[0-9.]+-\\d+-\\d+-S-(\\d+)-00\\.000-\\d+$"
+                }
+              },
+              {
+                "id": "organization_city",
+                "path": [
+                  "$.credentialSubject[0].subject.L",
+                  "$.credentialSubject.subject.L"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_patient_enrollment",
+          "name": "The patient enrollment credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "PatientEnrollmentCredential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "purpose": "We can only accept credentials from a trusted issuer",
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:x509:0:sha256:KY3NR_y2OphPtJev5NxWhxJ7A-4bNta8OTRnalCbIv4[\\w\\-.:%]*$"
+                }
+              },
+              {
+                "id": "organization_id",
+                "path": [
+                  "$.credentialSubject[0].id",
+                  "$.credentialSubject.id"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:web:"
+                }
+              },
+              {
+                "id": "patient_id",
+                "path": [
+                  "$.credentialSubject[0].patientId",
+                  "$.credentialSubject.patientId"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "registered_by",
+                "path": [
+                  "$.credentialSubject[0].registeredBy",
+                  "$.credentialSubject.registeredBy"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_healthcare_professional_delegation",
+          "name": "The healthcare professional delegation credential",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "HealthCareProfessionalDelegationCredential"
+                }
+              },
+              {
+                "path": [
+                  "$.issuer"
+                ],
+                "purpose": "We can only accept credentials from a trusted issuer",
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:x509:0:sha256:KY3NR_y2OphPtJev5NxWhxJ7A-4bNta8OTRnalCbIv4[\\w\\-.:%]*$"
+                }
+              },
+              {
+                "id": "organization_id",
+                "path": [
+                  "$.credentialSubject[0].id",
+                  "$.credentialSubject.id"
+                ],
+                "filter": {
+                  "type": "string",
+                  "pattern": "^did:web:"
+                }
+              },
+              {
+                "id": "registered_by",
+                "path": [
+                  "$.credentialSubject[0].registeredBy",
+                  "$.credentialSubject.registeredBy"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "role_code",
+                "path": [
+                  "$.credentialSubject[0].roleCode",
+                  "$.credentialSubject.roleCode"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              },
+              {
+                "id": "authorization_rule",
+                "path": [
+                  "$.credentialSubject[0].authorizationRule",
+                  "$.credentialSubject.authorizationRule"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

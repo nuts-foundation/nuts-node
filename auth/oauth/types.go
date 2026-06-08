@@ -21,9 +21,10 @@ package oauth
 
 import (
 	"encoding/json"
+	"net/url"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -156,6 +157,8 @@ const (
 	AuthorizationDetailsParam = "authorization_details"
 	// ClientIDParam is the parameter name for the client_id parameter. (RFC6749)
 	ClientIDParam = "client_id"
+	// ClientSecretParam is the parameter name for the client_secret parameter, used for client_secret_post client authentication. (RFC6749 §2.3.1)
+	ClientSecretParam = "client_secret"
 	// ClientIDSchemeParam is the parameter name for the client_id_scheme parameter. (OpenID4VP)
 	ClientIDSchemeParam = "client_id_scheme"
 	// ClientMetadataParam is the parameter name for the client_metadata parameter. (OpenID4VP)
@@ -229,6 +232,10 @@ const (
 	// JwtBearerClientAssertionType is the canonical value of ClientAssertionTypeParam for the RFC 7523 JWT bearer client assertion.
 	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
+
+func SupportedGrantTypes() []string {
+	return []string{AuthorizationCodeGrantType, PreAuthorizedCodeGrantType, VpTokenGrantType, JwtBearerGrantType}
+}
 
 // response types
 const (
@@ -424,6 +431,18 @@ type OAuthClientMetadata struct {
 type Redirect struct {
 	// RedirectURI is the URI to redirect the user-agent to.
 	RedirectURI string `json:"redirect_uri"`
+}
+
+// OpenIDCredentialIssuerMetadata represents the metadata of an OpenID credential issuer
+type OpenIDCredentialIssuerMetadata struct {
+	// - CredentialIssuer: an url representing the credential issuer
+	CredentialIssuer string `json:"credential_issuer"`
+	// - CredentialEndpoint: an url representing the credential endpoint
+	CredentialEndpoint string `json:"credential_endpoint"`
+	// - AuthorizationServers: a slice of urls representing the authorization servers (optional)
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+	// - Display: a slice of maps where each map represents the display information (optional)
+	Display []map[string]string `json:"display,omitempty"`
 }
 
 // OpenIDConfiguration represents the OpenID configuration

@@ -20,10 +20,12 @@ package iam
 
 import (
 	"fmt"
+	"reflect"
+	"time"
+
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -59,34 +61,38 @@ type AccessToken struct {
 	PresentationDefinitions pe.WalletOwnerMapping `json:"presentation_definitions,omitempty"`
 }
 
+// AddInputDescriptorConstraintIdMap adds the given map to the access token.
+// If there are already values in the map, they MUST equal the new values, otherwise an error is returned.
+// This is used for having claims from multiple access policies/presentation definitions in the same access token,
+// while preventing conflicts between them (2 policies specifying the same credential ID field for different credentials).
+func (a *AccessToken) AddInputDescriptorConstraintIdMap(claims map[string]any) error {
+	if a.InputDescriptorConstraintIdMap == nil {
+		a.InputDescriptorConstraintIdMap = make(map[string]any)
+	}
+	for k, v := range claims {
+		if existing, ok := a.InputDescriptorConstraintIdMap[k]; ok {
+			if !reflect.DeepEqual(existing, v) {
+				return fmt.Errorf("conflicting values for input descriptor constraint id %s: existing value %v, new value %v", k, existing, v)
+			}
+		} else {
+			a.InputDescriptorConstraintIdMap[k] = v
+		}
+	}
+	return nil
+}
+
 // createAccessToken is used in both the s2s and openid4vp flows
-func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime time.Time, scope string, pexState PEXConsumer, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
-	credentialMap, err := pexState.credentialMap()
-	if err != nil {
-		return nil, err
-	}
-	fieldsMap, err := resolveInputDescriptorValues(pexState.RequiredPresentationDefinitions, credentialMap)
-	if err != nil {
-		return nil, err
-	}
+func (r Wrapper) createAccessToken(issuerURL string, clientID string, issueTime time.Time, scope string, template AccessToken, dpopToken *dpop.DPoP) (*oauth.TokenResponse, error) {
+	accessToken := template
+	accessToken.DPoP = dpopToken
+	accessToken.Token = crypto.GenerateNonce()
+	accessToken.Issuer = issuerURL
+	accessToken.IssuedAt = issueTime
+	accessToken.ClientId = clientID
+	accessToken.Expiration = issueTime.Add(accessTokenValidity)
+	accessToken.Scope = scope
 
-	accessToken := AccessToken{
-		DPoP:                           dpopToken,
-		Token:                          crypto.GenerateNonce(),
-		Issuer:                         issuerURL,
-		IssuedAt:                       issueTime,
-		ClientId:                       clientID,
-		Expiration:                     issueTime.Add(accessTokenValidity),
-		Scope:                          scope,
-		PresentationSubmissions:        pexState.Submissions,
-		PresentationDefinitions:        pexState.RequiredPresentationDefinitions,
-		InputDescriptorConstraintIdMap: fieldsMap,
-	}
-	for _, envelope := range pexState.SubmittedEnvelopes {
-		accessToken.VPToken = append(accessToken.VPToken, envelope.Presentations...)
-	}
-
-	err = r.accessTokenServerStore().Put(accessToken.Token, accessToken)
+	err := r.accessTokenServerStore().Put(accessToken.Token, accessToken)
 	if err != nil {
 		return nil, fmt.Errorf("unable to store access token: %w", err)
 	}

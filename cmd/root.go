@@ -23,12 +23,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"runtime/pprof"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/nuts-foundation/nuts-node/auth"
 	authAPIv1 "github.com/nuts-foundation/nuts-node/auth/api/auth/v1"

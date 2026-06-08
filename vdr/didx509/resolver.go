@@ -23,11 +23,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
-	"strings"
 )
 
 const (

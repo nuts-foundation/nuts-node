@@ -86,6 +86,20 @@ func (mr *MockAuthenticationServicesMockRecorder) ContractNotary() *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContractNotary", reflect.TypeOf((*MockAuthenticationServices)(nil).ContractNotary))
 }
 
+// GrantTypes mocks base method.
+func (m *MockAuthenticationServices) GrantTypes() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GrantTypes")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// GrantTypes indicates an expected call of GrantTypes.
+func (mr *MockAuthenticationServicesMockRecorder) GrantTypes() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GrantTypes", reflect.TypeOf((*MockAuthenticationServices)(nil).GrantTypes))
+}
+
 // IAMClient mocks base method.
 func (m *MockAuthenticationServices) IAMClient() iam.Client {
 	m.ctrl.T.Helper()
@@ -98,6 +112,21 @@ func (m *MockAuthenticationServices) IAMClient() iam.Client {
 func (mr *MockAuthenticationServicesMockRecorder) IAMClient() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IAMClient", reflect.TypeOf((*MockAuthenticationServices)(nil).IAMClient))
+}
+
+// OAuthClientCredentials mocks base method.
+func (m *MockAuthenticationServices) OAuthClientCredentials(authServerIssuer string) (*OAuthClientConfig, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "OAuthClientCredentials", authServerIssuer)
+	ret0, _ := ret[0].(*OAuthClientConfig)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// OAuthClientCredentials indicates an expected call of OAuthClientCredentials.
+func (mr *MockAuthenticationServicesMockRecorder) OAuthClientCredentials(authServerIssuer any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OAuthClientCredentials", reflect.TypeOf((*MockAuthenticationServices)(nil).OAuthClientCredentials), authServerIssuer)
 }
 
 // OpenID4VCIClient mocks base method.

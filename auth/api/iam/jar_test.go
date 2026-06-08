@@ -23,11 +23,13 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"testing"
+
+	"time"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/test"
-	"testing"
-	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jws"
@@ -141,7 +143,7 @@ func TestJar_Parse(t *testing.T) {
 	require.NoError(t, err)
 	token := string(bytes)
 	walletIssuerURL := test.MustParseURL(holderDID.String())
-	verifierMetadata := authorizationServerMetadata(verifierURL, []string{"web"})
+	verifierMetadata := authorizationServerMetadata(verifierURL, []string{"web"}, oauth.SupportedGrantTypes())
 	configuration := &oauth.OpenIDConfiguration{
 		JWKs: jwkSet,
 	}
@@ -181,7 +183,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 		t.Run("ok - post", func(t *testing.T) {
 			ctx := newJarTestCtx(t)
-			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(walletIssuerURL, []string{"web"}, oauth.SupportedGrantTypes())
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return(token, nil)
 			ctx.keyResolver.EXPECT().ResolveKeyByID(kid, nil, resolver.AssertionMethod).Return(privateKey.Public(), nil)
 			ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderClientID).Return(configuration, nil)
@@ -237,7 +239,7 @@ func TestJar_Parse(t *testing.T) {
 		})
 		t.Run("post (made by wallet)", func(t *testing.T) {
 			ctx := newJarTestCtx(t)
-			md := authorizationServerMetadata(walletIssuerURL, []string{"web"})
+			md := authorizationServerMetadata(walletIssuerURL, []string{"web"}, oauth.SupportedGrantTypes())
 			ctx.iamClient.EXPECT().RequestObjectByPost(context.Background(), "request_uri", md).Return("", errors.New("server error"))
 			res, err := ctx.jar.Parse(context.Background(), md,
 				map[string][]string{

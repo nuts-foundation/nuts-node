@@ -20,8 +20,9 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"time"
+
+	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 )
 
 // ModuleName is the name of this module.
@@ -31,6 +32,23 @@ const ModuleName = "VCR"
 type Config struct {
 	// OpenID4VCI holds the config for the OpenID4VCI credential issuer and wallet
 	OpenID4VCI openid4vci.Config `koanf:"openid4vci"`
+	Verifier   VerifierConfig    `koanf:"verifier"`
+	Dezi       DeziConfig        `koanf:"dezi"`
+}
+
+type VerifierConfig struct {
+	Revocation VerifierRevocationConfig `koanf:"revocation"`
+}
+
+type VerifierRevocationConfig struct {
+	MaxAge time.Duration `koanf:"maxage"`
+}
+
+type DeziConfig struct {
+	// AllowedJKU contains the list of JKU URLs from which Dezi attestation keys are allowed to be fetched.
+	// If not configured, defaults to production environment (https://auth.dezi.nl/dezi/jwks.json).
+	// In non-strict mode, acceptance environment is also allowed (https://acceptatie.auth.dezi.nl/dezi/jwks.json).
+	AllowedJKU []string `koanf:"allowedjku"`
 }
 
 // DefaultConfig returns a fresh Config filled with default values

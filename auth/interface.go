@@ -19,11 +19,12 @@
 package auth
 
 import (
+	"net/url"
+
 	"github.com/nuts-foundation/nuts-node/auth/client/iam"
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"net/url"
 )
 
 // ModuleName contains the name of this module
@@ -37,6 +38,9 @@ type AuthenticationServices interface {
 	IAMClient() iam.Client
 	// OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
 	OpenID4VCIClient() openid4vci.Client
+	// OAuthClientCredentials returns the configured OAuth client credentials for the given Authorization Server
+	// issuer, if an entry was configured under auth.experimental.clients. EXPERIMENTAL.
+	OAuthClientCredentials(authServerIssuer string) (*OAuthClientConfig, bool)
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary
@@ -47,4 +51,6 @@ type AuthenticationServices interface {
 	AuthorizationEndpointEnabled() bool
 	// SupportedDIDMethods lists the DID methods the Nuts node can resolve.
 	SupportedDIDMethods() []string
+	// GrantTypes lists the OAuth2 grant types that the Authorization Server supports and has enabled.
+	GrantTypes() []string
 }

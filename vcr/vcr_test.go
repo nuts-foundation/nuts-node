@@ -43,6 +43,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/events"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 	"go.etcd.io/bbolt"
 
@@ -107,6 +108,73 @@ func TestVCR_Configure(t *testing.T) {
 		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
 		assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
+	})
+	t.Run("Dezi AllowedJKU configuration", func(t *testing.T) {
+		t.Run("uses configured AllowedJKU", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			ctrl := gomock.NewController(t)
+			vdrInstance := vdr.NewMockVDR(ctrl)
+			vdrInstance.EXPECT().Resolver().AnyTimes()
+			pkiProvider := pki.NewMockProvider(ctrl)
+			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			networkInstance := network.NewMockTransactions(ctrl)
+			networkInstance.EXPECT().Disabled().AnyTimes()
+			instance := NewVCRInstance(nil, vdrInstance, networkInstance, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
+			
+			// Configure custom AllowedJKU
+			instance.config.Dezi.AllowedJKU = []string{"https://custom.dezi.nl/jwks.json"}
+
+			err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+				config.Datadir = testDirectory
+			}))
+
+			require.NoError(t, err)
+			// Verify that the configured value is used
+			assert.Equal(t, []string{"https://custom.dezi.nl/jwks.json"}, credential.DefaultDeziUserCredentialValidator.AllowedJKU)
+		})
+		t.Run("default: production only in strict mode", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			ctrl := gomock.NewController(t)
+			vdrInstance := vdr.NewMockVDR(ctrl)
+			vdrInstance.EXPECT().Resolver().AnyTimes()
+			pkiProvider := pki.NewMockProvider(ctrl)
+			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			networkInstance := network.NewMockTransactions(ctrl)
+			networkInstance.EXPECT().Disabled().AnyTimes()
+			instance := NewVCRInstance(nil, vdrInstance, networkInstance, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
+
+			err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+				config.Datadir = testDirectory
+				config.Strictmode = true
+			}))
+
+			require.NoError(t, err)
+			// Verify that only production is allowed
+			assert.Equal(t, []string{"https://auth.dezi.nl/dezi/jwks.json"}, credential.DefaultDeziUserCredentialValidator.AllowedJKU)
+		})
+		t.Run("default: production and acceptance in non-strict mode", func(t *testing.T) {
+			testDirectory := io.TestDirectory(t)
+			ctrl := gomock.NewController(t)
+			vdrInstance := vdr.NewMockVDR(ctrl)
+			vdrInstance.EXPECT().Resolver().AnyTimes()
+			pkiProvider := pki.NewMockProvider(ctrl)
+			pkiProvider.EXPECT().CreateTLSConfig(gomock.Any()).Return(nil, nil).AnyTimes()
+			networkInstance := network.NewMockTransactions(ctrl)
+			networkInstance.EXPECT().Disabled().AnyTimes()
+			instance := NewVCRInstance(nil, vdrInstance, networkInstance, jsonld.NewTestJSONLDManager(t), nil, storage.NewTestStorageEngine(t), pkiProvider).(*vcr)
+
+			err := instance.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+				config.Datadir = testDirectory
+				config.Strictmode = false
+			}))
+
+			require.NoError(t, err)
+			// Verify that both production and acceptance are allowed
+			assert.Equal(t, []string{
+				"https://auth.dezi.nl/dezi/jwks.json",
+				"https://acceptatie.auth.dezi.nl/dezi/jwks.json",
+			}, credential.DefaultDeziUserCredentialValidator.AllowedJKU)
+		})
 	})
 }
 

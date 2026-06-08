@@ -60,8 +60,34 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 		}
 	}
 
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, pexEnvelope.Presentations, SubmissionPresentationEvaluator(*submission, *pexEnvelope))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+// handleJWTBearerTokenRequest handles the /token request with jwt_bearer grant type, as specified by RFC7523.
+func (r Wrapper) handleJWTBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, assertion string) (HandleTokenRequestResponseObject, error) {
+	// TODO: support client_assertion
+	presentation, err := vc.ParseVerifiablePresentation(assertion)
+	if err != nil {
+		return nil, oauth.OAuth2Error{
+			Code:          oauth.InvalidRequest,
+			Description:   "assertion parameter is invalid",
+			InternalError: fmt.Errorf("parsing assertion as verifiable presentation: %w", err),
+		}
+	}
+	response, err := r.handleBearerTokenRequest(ctx, clientID, subject, scope, []VerifiablePresentation{*presentation}, BasicPresentationEvaluator(*presentation))
+	if err != nil {
+		return nil, err
+	}
+	return HandleTokenRequest200JSONResponse(*response), nil
+}
+
+func (r Wrapper) handleBearerTokenRequest(ctx context.Context, clientID string, subject string, scope string, presentations []VerifiablePresentation, evaluator CredentialProfile) (*oauth.TokenResponse, error) {
 	var credentialSubjectID did.DID
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := validateS2SPresentationMaxValidity(presentation); err != nil {
 			return nil, err
 		}
@@ -82,12 +108,14 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 	if err != nil {
 		return nil, err
 	}
-	pexConsumer := newPEXConsumer(credentialProfile.WalletOwnerMapping)
-	if err := pexConsumer.fulfill(*submission, *pexEnvelope); err != nil {
-		return nil, oauthError(oauth.InvalidRequest, err.Error())
+	// Validate Verifiable Presentation according to the required credential profile.
+	// How this is done, depends on the grant type (RFC021 VP token or RFC7523 JWT Bearer).
+	accessToken := new(AccessToken)
+	if err = evaluator(ctx, credentialProfile.WalletOwnerMapping, accessToken); err != nil {
+		return nil, err
 	}
 
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		if err := r.validateS2SPresentationNonce(presentation); err != nil {
 			return nil, err
 		}
@@ -101,7 +129,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 	}
 
 	// Check signatures of VP and VCs. Trust should be established by the Presentation Definition.
-	for _, presentation := range pexEnvelope.Presentations {
+	for _, presentation := range presentations {
 		_, err = r.vcr.Verifier().VerifyVP(presentation, true, true, nil)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
@@ -114,21 +142,9 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// Compute granted scopes based on scope policy. Never pass through the raw input scope
 	// directly — always derive granted scopes from the policy decision.
-	credentialMap, err := pexConsumer.credentialMap()
-	if err != nil {
-		return nil, oauth.OAuth2Error{
-			Code:          oauth.ServerError,
-			Description:   "failed to extract credentials for scope evaluation",
-			InternalError: err,
-		}
-	}
-	claims, err := resolveInputDescriptorValues(pexConsumer.RequiredPresentationDefinitions, credentialMap)
-	if err != nil {
-		return nil, err
-	}
 	grantedScope, err := granter.Grant(ctx, policy.GrantInput{
 		SubjectDID:         credentialSubjectID,
-		PresentationClaims: claims,
+		PresentationClaims: accessToken.InputDescriptorConstraintIdMap,
 	})
 	if err != nil {
 		return nil, err
@@ -136,11 +152,7 @@ func (r Wrapper) handleS2SAccessTokenRequest(ctx context.Context, clientID strin
 
 	// All OK, allow access
 	issuerURL := r.subjectToBaseURL(subject)
-	response, err := r.createAccessToken(issuerURL.String(), clientID, time.Now(), grantedScope, *pexConsumer, dpopProof)
-	if err != nil {
-		return nil, err
-	}
-	return HandleTokenRequest200JSONResponse(*response), nil
+	return r.createAccessToken(issuerURL.String(), clientID, time.Now(), grantedScope, *accessToken, dpopProof)
 }
 
 func resolveInputDescriptorValues(presentationDefinitions pe.WalletOwnerMapping, credentialMap map[string]vc.VerifiableCredential) (map[string]any, error) {

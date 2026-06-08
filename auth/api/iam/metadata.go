@@ -19,10 +19,11 @@
 package iam
 
 import (
-	"github.com/lestrrat-go/jwx/v2/jwk"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/lestrrat-go/jwx/v2/jwk"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -31,13 +32,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
-func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {
+func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string, grantTypes []string) oauth.AuthorizationServerMetadata {
 	metadata := &oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:                      "openid4vp:",
 		ClientIdSchemesSupported:                   clientIdSchemesSupported,
 		DIDMethodsSupported:                        supportedDIDMethods,
 		DPoPSigningAlgValuesSupported:              jwx.SupportedAlgorithmsAsStrings(),
-		GrantTypesSupported:                        grantTypesSupported,
+		GrantTypesSupported:                        grantTypes,
 		Issuer:                                     "https://self-issued.me/v2",
 		PreAuthorizedGrantAnonymousAccessSupported: true,
 		PresentationDefinitionUriSupported:         to.Ptr(true),
@@ -79,7 +80,7 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 	softwareID, softwareVersion, _ := strings.Cut(core.UserAgent(), "/")
 	return oauth.OAuthClientMetadata{
 		TokenEndpointAuthMethod: "none", // defaults is "client_secret_basic" if not provided
-		GrantTypes:              grantTypesSupported,
+		GrantTypes:              oauth.SupportedGrantTypes(),
 		ResponseTypes:           responseTypesSupported,
 		SoftwareID:              softwareID,      // nuts-node-refimpl
 		SoftwareVersion:         softwareVersion, // version tag or "unknown"
@@ -88,13 +89,13 @@ func clientMetadata(identity url.URL) oauth.OAuthClientMetadata {
 	}
 }
 
-func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods []string) oauth.OpenIDConfiguration {
+func openIDConfiguration(issuerURL url.URL, jwkSet jwk.Set, supportedDIDMethods []string, grantTypes []string) oauth.OpenIDConfiguration {
 	return oauth.OpenIDConfiguration{
 		Issuer:     issuerURL.String(),
 		IssuedAt:   time.Now().Unix(),
 		Expiration: time.Now().Add(time.Hour).Unix(), // just a number, data is retrieved runtime. Value must be larger than clock skew to prevent technical problems.
 		Subject:    issuerURL.String(),
 		JWKs:       jwkSet,
-		Metadata:   oauth.EntityStatementMetadata{OpenIDProvider: authorizationServerMetadata(&issuerURL, supportedDIDMethods)},
+		Metadata:   oauth.EntityStatementMetadata{OpenIDProvider: authorizationServerMetadata(&issuerURL, supportedDIDMethods, grantTypes)},
 	}
 }

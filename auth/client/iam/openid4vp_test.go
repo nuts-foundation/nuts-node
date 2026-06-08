@@ -24,24 +24,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	test2 "github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/http/client"
+	"github.com/nuts-foundation/nuts-node/policy"
+	test2 "github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/policy"
 	http2 "github.com/nuts-foundation/nuts-node/test/http"
 	"github.com/nuts-foundation/nuts-node/vcr/holder"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
@@ -64,12 +64,44 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("ok - client_secret_post when a client secret is configured", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		var gotClientID, gotClientSecret string
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			_ = request.ParseForm()
+			gotClientID = request.PostFormValue("client_id")
+			gotClientSecret = request.PostFormValue("client_secret")
+			writer.Header().Add("Content-Type", "application/json")
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		_, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "secret", codeVerifier, false)
+
+		require.NoError(t, err)
+		assert.Equal(t, clientID, gotClientID)
+		assert.Equal(t, "secret", gotClientSecret)
+	})
+	t.Run("ok - no client_secret sent for a public client", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		var hasSecret bool
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			_ = request.ParseForm()
+			_, hasSecret = request.PostForm["client_secret"]
+			writer.Header().Add("Content-Type", "application/json")
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		_, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
+
+		require.NoError(t, err)
+		assert.False(t, hasSecret, "public client must not send client_secret")
 	})
 	t.Run("ok - with DPoP", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -77,7 +109,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, true)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -88,7 +120,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.token = nil
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
 
 		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -99,7 +131,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("", assert.AnError)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, true)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)
@@ -921,7 +953,7 @@ type clientTestContext struct {
 type clientServerTestContext struct {
 	*clientTestContext
 	authzServerMetadata            *oauth.AuthorizationServerMetadata
-	openIDCredentialIssuerMetadata *openid4vci.OpenIDCredentialIssuerMetadata
+	openIDCredentialIssuerMetadata *oauth.OpenIDCredentialIssuerMetadata
 	handler                        http.HandlerFunc
 	tlsServer                      *httptest.Server
 	verifierDID                    did.DID
@@ -939,7 +971,7 @@ type clientServerTestContext struct {
 }
 
 func createClientServerTestContext(t *testing.T) *clientServerTestContext {
-	credentialIssuerMetadata := &openid4vci.OpenIDCredentialIssuerMetadata{}
+	credentialIssuerMetadata := &oauth.OpenIDCredentialIssuerMetadata{}
 	metadata := &oauth.AuthorizationServerMetadata{VPFormatsSupported: oauth.DefaultOpenIDSupportedFormats(), DIDMethodsSupported: []string{"test"}}
 	ctx := &clientServerTestContext{
 		clientTestContext: createClientTestContext(t, nil),
@@ -988,16 +1020,10 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
 			return
 		},
-		nonce: func(writer http.ResponseWriter) {
-			writer.Header().Add("Content-Type", "application/json")
-			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"c_nonce": "server-nonce"}`))
-			return
-		},
 		credentials: func(writer http.ResponseWriter) {
 			writer.Header().Add("Content-Type", "application/json")
 			writer.WriteHeader(http.StatusOK)
-			_, _ = writer.Write([]byte(`{"credentials": [{"credential": {"type": "VerifiableCredential"}}]}`))
+			_, _ = writer.Write([]byte(`{"format": "format", "credential": "credential"}`))
 			return
 		},
 		requestObjectJWT: func(writer http.ResponseWriter) {
@@ -1044,11 +1070,6 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 				ctx.token(writer, request)
 				return
 			}
-		case "/nonce":
-			if ctx.nonce != nil {
-				ctx.nonce(writer)
-				return
-			}
 		case "/credentials":
 			if ctx.credentials != nil {
 				ctx.credentials(writer)
@@ -1078,4 +1099,66 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.openIDCredentialIssuerMetadata.CredentialEndpoint = ctx.tlsServer.URL + "/credentials"
 
 	return ctx
+}
+
+func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		metadata, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, *ctx.openIDCredentialIssuerMetadata, *metadata)
+	})
+	t.Run("error - failed to get metadata", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		ctx.credentialIssuerMetadata = nil
+
+		response, err := ctx.client.OpenIdCredentialIssuerMetadata(context.Background(), ctx.tlsServer.URL+"/issuer")
+
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
+	})
+}
+
+func TestIAMClient_VerifiableCredentials(t *testing.T) {
+	accessToken := "code"
+	proowJWT := "top secret"
+
+	t.Run("ok", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+
+		require.NoError(t, err)
+		require.NotNil(t, response)
+		assert.Equal(t, "credential", response.Credential)
+	})
+	t.Run("error - failed to get access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		ctx.credentials = nil
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+
+		assert.EqualError(t, err, "remote server: failed to retrieve credentials: server returned HTTP 404 (expected: 200)")
+		assert.Nil(t, response)
+	})
+	t.Run("error - invalid access token", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+
+		ctx.credentials = func(writer http.ResponseWriter) {
+			writer.Header().Add("Content-Type", "application/json")
+			writer.WriteHeader(http.StatusOK)
+			_, _ = writer.Write([]byte(`{"format": "format", "credential": fail}`))
+			return
+		}
+
+		response, err := ctx.client.VerifiableCredentials(context.Background(), ctx.openIDCredentialIssuerMetadata.CredentialEndpoint, accessToken, proowJWT)
+
+		assert.Error(t, err)
+		assert.Nil(t, response)
+	})
 }

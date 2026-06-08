@@ -187,6 +187,20 @@ paths:
                     {
                       "some-requested-credential-attribute": "900184590"
                     }
+                authorization_request_params:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: |
+                    Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+                    Authorization Server's authorization_endpoint). These may only add parameters; they must not
+                    override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+                    Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+                    that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+                  example: |
+                    {
+                      "auth_method": "SmartCard"
+                    }
                 redirect_uri:
                   type: string
                   description: |
@@ -473,6 +487,12 @@ components:
           type: string
           description: The scope that will be the service for which this access token can be used.
           example: eOverdracht-sender
+        id_token:
+          type: string
+          description: |
+            An optional ID Token (JWT) that represents the end-user.
+            This ID token is included in the Verifiable Presentation that is used to request the access token.
+            It currently only supports Dezi ID tokens.
         credentials:
           type: array
           description: |
