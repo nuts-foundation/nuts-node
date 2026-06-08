@@ -55,6 +55,10 @@ func httpSpanName(_ string, r *http.Request) string {
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
 
+// RequestLogger, when set, wraps the transport of every HTTP client created by this package to log
+// outgoing requests and their responses. It is left nil (no logging) by default.
+var RequestLogger func(http.RoundTripper) http.RoundTripper
+
 // DefaultMaxHttpResponseSize is a default maximum size of an HTTP response body that will be read.
 // Very large or unbounded HTTP responses can cause denial-of-service, so it's good to limit how much data is read.
 // This of course heavily depends on the use case, but 1MB is a reasonable default.
@@ -81,15 +85,20 @@ func New(timeout time.Duration) *StrictHTTPClient {
 	}
 }
 
-// getTransport wraps the given transport with OpenTelemetry instrumentation if tracing is enabled.
+// getTransport wraps the given transport with request logging (if enabled) and OpenTelemetry
+// instrumentation (if tracing is enabled).
 func getTransport(base http.RoundTripper) http.RoundTripper {
+	transport := base
+	if RequestLogger != nil {
+		transport = RequestLogger(transport)
+	}
 	if tracing.Enabled() {
-		return otelhttp.NewTransport(base,
+		return otelhttp.NewTransport(transport,
 			otelhttp.WithSpanNameFormatter(httpSpanName),
 			otelhttp.WithTracerProvider(tracing.GetTracerProvider()),
 		)
 	}
-	return base
+	return transport
 }
 
 // NewWithCache creates a new HTTP client with the given timeout.

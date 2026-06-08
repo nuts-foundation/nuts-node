@@ -22,6 +22,9 @@ package http
 func DefaultConfig() Config {
 	return Config{
 		Log: LogMetadataLevel,
+		Client: ClientConfig{
+			Log: LogNothingLevel,
+		},
 		Internal: InternalConfig{
 			Address: "127.0.0.1:8081",
 		},
@@ -37,11 +40,18 @@ func DefaultConfig() Config {
 type Config struct {
 	// Log specifies what should be logged of HTTP requests.
 	Log      LogLevel       `koanf:"log"`
+	Client   ClientConfig   `koanf:"client"`
 	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
 	// ResponseCacheSize is the maximum number of bytes cached by HTTP clients.
 	ResponseCacheSize  int    `koanf:"cache.maxbytes"`
 	ClientIPHeaderName string `koanf:"clientipheader"`
+}
+
+// ClientConfig contains the configuration for outgoing HTTP requests made by the node.
+type ClientConfig struct {
+	// Log specifies what should be logged of outgoing HTTP requests.
+	Log LogLevel `koanf:"log"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.
