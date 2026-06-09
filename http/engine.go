@@ -100,6 +100,14 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 func (h *Engine) configureClient(serverConfig core.ServerConfig) {
 	client.StrictMode = serverConfig.Strictmode
+	// Configure logging of outgoing HTTP requests/responses.
+	switch h.config.Client.Log {
+	case LogMetadataLevel:
+		client.LogRequests = true
+	case LogMetadataAndBodyLevel:
+		client.LogRequests = true
+		client.LogRequestBodies = true
+	}
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)

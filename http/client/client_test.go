@@ -30,6 +30,8 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -81,7 +83,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
-			ts := client.client.Transport.(*http.Transport)
+			ts := client.client.Transport.(*loggingTransport).base.(*http.Transport)
 			assert.True(t, ts.TLSClientConfig.InsecureSkipVerify)
 		})
 	})
@@ -215,14 +217,16 @@ func TestGetTransport(t *testing.T) {
 		assert.NotEqual(t, SafeHttpTransport, transport)
 	})
 
-	t.Run("returns base transport when tracing disabled", func(t *testing.T) {
+	t.Run("wraps base in logging transport when tracing disabled", func(t *testing.T) {
 		original := tracing.Enabled()
 		tracing.SetEnabled(false)
 		t.Cleanup(func() { tracing.SetEnabled(original) })
 
 		transport := getTransport(SafeHttpTransport)
 
-		assert.Equal(t, SafeHttpTransport, transport)
+		logging, ok := transport.(*loggingTransport)
+		require.True(t, ok)
+		assert.Equal(t, SafeHttpTransport, logging.base)
 	})
 }
 
@@ -245,6 +249,42 @@ func TestNew(t *testing.T) {
 
 		client := New(time.Second)
 
-		assert.Equal(t, SafeHttpTransport, client.client.Transport)
+		logging, ok := client.client.Transport.(*loggingTransport)
+		require.True(t, ok)
+		assert.Equal(t, SafeHttpTransport, logging.base)
 	})
+}
+
+func TestLogging_enabledAfterClientCreation(t *testing.T) {
+	// Clients are created before the HTTP engine enables logging, so logging must take effect
+	// for clients that already exist when LogRequests is set.
+	originalTracing := tracing.Enabled()
+	tracing.SetEnabled(false)
+	t.Cleanup(func() { tracing.SetEnabled(originalTracing) })
+	t.Cleanup(func() { LogRequests = false })
+	StrictMode = false
+	LogRequests = false
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	// Create the client first, while logging is still disabled.
+	httpClient := New(time.Second)
+
+	// Now enable logging, as the HTTP engine does later during startup.
+	hook := test.NewLocal(logrus.StandardLogger())
+	LogRequests = true
+
+	httpRequest, _ := http.NewRequest(http.MethodGet, server.URL, nil)
+	_, err := httpClient.Do(httpRequest)
+
+	require.NoError(t, err)
+	messages := make([]string, 0, len(hook.AllEntries()))
+	for _, entry := range hook.AllEntries() {
+		messages = append(messages, entry.Message)
+	}
+	assert.Contains(t, messages, "HTTP client request", "logging should apply to clients created before it was enabled")
+	assert.Contains(t, messages, "HTTP client response")
 }
