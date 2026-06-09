@@ -41,6 +41,9 @@ type AuthenticationServices interface {
 	// OAuthClientCredentials returns the configured OAuth client credentials for the given Authorization Server
 	// issuer, if an entry was configured under auth.experimental.clients. EXPERIMENTAL.
 	OAuthClientCredentials(authServerIssuer string) (*OAuthClientConfig, bool)
+	// AuthorizationRequestProfile returns the authorization request parameters of the named profile (built-in
+	// merged with operator config), or false if the name is unknown. EXPERIMENTAL.
+	AuthorizationRequestProfile(name string) (map[string][]string, bool)
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary

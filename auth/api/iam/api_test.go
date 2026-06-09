@@ -1686,6 +1686,8 @@ type testCtx struct {
 	openid4vciClient *openid4vci.MockClient
 	// oauthClientCredentials, when set, is returned by the auth mock's OAuthClientCredentials for a matching ServerURL.
 	oauthClientCredentials *auth.OAuthClientConfig
+	// authorizationRequestProfiles maps profile name to its authrequest params, returned by the auth mock's AuthorizationRequestProfile.
+	authorizationRequestProfiles map[string]map[string][]string
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1769,6 +1771,11 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 			return result.oauthClientCredentials, true
 		}
 		return nil, false
+	}).AnyTimes()
+	// By default no request profiles exist. A test can set result.authorizationRequestProfiles to exercise the profile path.
+	authnServices.EXPECT().AuthorizationRequestProfile(gomock.Any()).DoAndReturn(func(name string) (map[string][]string, bool) {
+		profile, ok := result.authorizationRequestProfiles[name]
+		return profile, ok
 	}).AnyTimes()
 	return result
 }

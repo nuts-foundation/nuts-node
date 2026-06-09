@@ -96,6 +96,10 @@ func (m *mockAuthClient) OAuthClientCredentials(_ string) (*pkg2.OAuthClientConf
 	return nil, false
 }
 
+func (m *mockAuthClient) AuthorizationRequestProfile(_ string) (map[string][]string, bool) {
+	return nil, false
+}
+
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 	return m.contractNotary
 }

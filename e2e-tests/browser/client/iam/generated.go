@@ -278,6 +278,14 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// used to locate the OAuth2 Authorization Server metadata.
 	Issuer string `json:"issuer"`
 
+	// Profile Optional name of a request profile to apply to this flow. A profile is a curated, named bundle of
+	// request parameters, so callers don't have to spell out issuer-specific parameters themselves.
+	// Currently a profile sets authorization request parameters (see auth.experimental.profile.<name>.authrequest).
+	// The node ships built-in profiles; operator config of the same name is merged over the built-in.
+	// Built-in: 'aet' for the AET UZI smartcard credential issuer. An unknown profile is rejected.
+	// EXPERIMENTAL: subject to change without notice.
+	Profile *string `json:"profile,omitempty"`
+
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.
 	RedirectUri string `json:"redirect_uri"`
 

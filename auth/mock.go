@@ -58,6 +58,21 @@ func (mr *MockAuthenticationServicesMockRecorder) AuthorizationEndpointEnabled()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationEndpointEnabled", reflect.TypeOf((*MockAuthenticationServices)(nil).AuthorizationEndpointEnabled))
 }
 
+// AuthorizationRequestProfile mocks base method.
+func (m *MockAuthenticationServices) AuthorizationRequestProfile(name string) (map[string][]string, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AuthorizationRequestProfile", name)
+	ret0, _ := ret[0].(map[string][]string)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// AuthorizationRequestProfile indicates an expected call of AuthorizationRequestProfile.
+func (mr *MockAuthenticationServicesMockRecorder) AuthorizationRequestProfile(name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthorizationRequestProfile", reflect.TypeOf((*MockAuthenticationServices)(nil).AuthorizationRequestProfile), name)
+}
+
 // AuthzServer mocks base method.
 func (m *MockAuthenticationServices) AuthzServer() oauth.AuthorizationServer {
 	m.ctrl.T.Helper()

@@ -34,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -144,21 +143,40 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		authzParams[oauth.ClientIDParam] = clientConfig.ClientID
 		delete(authzParams, oauth.ClientIDSchemeParam)
 	}
+	// Record the node-controlled parameters and seed the query. The raw authorization_request_params below may
+	// not override these; a request profile may (it is trusted built-in/operator config).
+	nodeParamKeys := make(map[string]struct{}, len(authzParams))
+	authzQuery := authorizationEndpoint.Query()
+	for key, value := range authzParams {
+		nodeParamKeys[key] = struct{}{}
+		authzQuery.Set(key, value)
+	}
+	// EXPERIMENTAL: apply the selected request profile (built-in merged with operator config). Profiles are trusted
+	// config and may override node parameters; their authorization request parameters may be multi-valued.
+	if request.Body.Profile != nil && *request.Body.Profile != "" {
+		profileParams, ok := r.auth.AuthorizationRequestProfile(*request.Body.Profile)
+		if !ok {
+			return nil, core.InvalidInputError("unknown profile: %s", *request.Body.Profile)
+		}
+		for key, values := range profileParams {
+			authzQuery[key] = append([]string(nil), values...)
+		}
+	}
 	// Optional caller-supplied authorization request parameters, for issuers that need extras
 	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
 	// OpenID4VCI parameters set by the node above, which are essential to the flow.
 	if request.Body.AuthorizationRequestParams != nil {
 		for key, value := range *request.Body.AuthorizationRequestParams {
-			if _, isNodeParam := authzParams[key]; isNodeParam {
+			if _, isNodeParam := nodeParamKeys[key]; isNodeParam {
 				return nil, core.InvalidInputError("authorization_request_params may not override the '%s' parameter set by the node", key)
 			}
-			authzParams[key] = value
+			authzQuery.Set(key, value)
 		}
 	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, authzParams)
+	authorizationEndpoint.RawQuery = authzQuery.Encode()
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
-		RedirectURI: redirectUrl.String(),
+		RedirectURI: authorizationEndpoint.String(),
 	}, nil
 }
 
