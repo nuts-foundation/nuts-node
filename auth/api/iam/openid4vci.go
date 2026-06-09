@@ -151,6 +151,9 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		nodeParamKeys[key] = struct{}{}
 		authzQuery.Set(key, value)
 	}
+	// TEMPORARY (project-gf-pilot only): hardcode the AET scope so issuance can be tested without wiring a profile
+	// into the caller. To be removed once the request profile mechanism is wired up properly. See #4338.
+	authzQuery.Set(oauth.ScopeParam, "openid profile api")
 	// EXPERIMENTAL: apply the selected request profile (built-in merged with operator config). Profiles are trusted
 	// config and may override node parameters; their authorization request parameters may be multi-valued.
 	if request.Body.Profile != nil && *request.Body.Profile != "" {
