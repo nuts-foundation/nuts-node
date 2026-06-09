@@ -30,6 +30,8 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -253,34 +255,36 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestRequestLogger_setAfterClientCreation(t *testing.T) {
-	// Clients are created before the HTTP engine sets RequestLogger, so logging must take effect
-	// for clients that already exist when RequestLogger is configured.
+func TestLogging_enabledAfterClientCreation(t *testing.T) {
+	// Clients are created before the HTTP engine enables logging, so logging must take effect
+	// for clients that already exist when LogRequests is set.
 	originalTracing := tracing.Enabled()
 	tracing.SetEnabled(false)
 	t.Cleanup(func() { tracing.SetEnabled(originalTracing) })
-	t.Cleanup(func() { RequestLogger = nil })
+	t.Cleanup(func() { LogRequests = false })
 	StrictMode = false
+	LogRequests = false
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	t.Cleanup(server.Close)
 
-	// Create the client first, while RequestLogger is still nil.
-	RequestLogger = nil
-	client := New(time.Second)
+	// Create the client first, while logging is still disabled.
+	httpClient := New(time.Second)
 
-	// Now configure the logger, as the HTTP engine does later during startup.
-	var invoked atomic.Bool
-	RequestLogger = func(base http.RoundTripper) http.RoundTripper {
-		invoked.Store(true)
-		return base
-	}
+	// Now enable logging, as the HTTP engine does later during startup.
+	hook := test.NewLocal(logrus.StandardLogger())
+	LogRequests = true
 
 	httpRequest, _ := http.NewRequest(http.MethodGet, server.URL, nil)
-	_, err := client.Do(httpRequest)
+	_, err := httpClient.Do(httpRequest)
 
 	require.NoError(t, err)
-	assert.True(t, invoked.Load(), "RequestLogger should be applied to clients created before it was set")
+	messages := make([]string, 0, len(hook.AllEntries()))
+	for _, entry := range hook.AllEntries() {
+		messages = append(messages, entry.Message)
+	}
+	assert.Contains(t, messages, "HTTP client request", "logging should apply to clients created before it was enabled")
+	assert.Contains(t, messages, "HTTP client response")
 }
