@@ -55,13 +55,6 @@ func httpSpanName(_ string, r *http.Request) string {
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
 
-// RequestLogger wraps the transport of HTTP clients created by this package to log
-// outgoing requests and their responses. It is left nil (no logging) by default.
-// It is read at request time (not when the client is created), because clients are often created
-// before the HTTP engine configures it: the HTTP engine is configured last, while other engines
-// create their HTTP clients earlier.
-var RequestLogger func(http.RoundTripper) http.RoundTripper
-
 // DefaultMaxHttpResponseSize is a default maximum size of an HTTP response body that will be read.
 // Very large or unbounded HTTP responses can cause denial-of-service, so it's good to limit how much data is read.
 // This of course heavily depends on the use case, but 1MB is a reasonable default.
@@ -88,11 +81,11 @@ func New(timeout time.Duration) *StrictHTTPClient {
 	}
 }
 
-// getTransport wraps the given transport with request logging and OpenTelemetry
+// getTransport wraps the given transport with request/response logging and OpenTelemetry
 // instrumentation (if tracing is enabled).
 func getTransport(base http.RoundTripper) http.RoundTripper {
-	// Always install the logging indirection so RequestLogger can be configured after the client
-	// is created: whether to log is decided per request, not when the client is created.
+	// Always install the logging transport so logging can be enabled after the client is created:
+	// whether to log is decided per request (see loggingTransport), not when the client is created.
 	transport := http.RoundTripper(&loggingTransport{base: base})
 	if tracing.Enabled() {
 		return otelhttp.NewTransport(transport,
@@ -101,18 +94,6 @@ func getTransport(base http.RoundTripper) http.RoundTripper {
 		)
 	}
 	return transport
-}
-
-// loggingTransport applies the configured RequestLogger (if any) at request time.
-type loggingTransport struct {
-	base http.RoundTripper
-}
-
-func (l *loggingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	if logger := RequestLogger; logger != nil {
-		return logger(l.base).RoundTrip(request)
-	}
-	return l.base.RoundTrip(request)
 }
 
 // NewWithCache creates a new HTTP client with the given timeout.

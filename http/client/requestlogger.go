@@ -16,14 +16,25 @@
  *
  */
 
-package http
+package client
 
 import (
 	"bytes"
 	"io"
 	"net/http"
 
+	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/sirupsen/logrus"
+)
+
+// These flags control logging of outgoing HTTP requests and responses. They are read at request time
+// (not when a client is created), because clients are often created before the HTTP engine configures
+// logging: the HTTP engine is configured last, while other engines create their HTTP clients earlier.
+var (
+	// LogRequests enables logging of outgoing request and response metadata (method, URI, status, headers).
+	LogRequests bool
+	// LogRequestBodies additionally logs request and response bodies. It has no effect unless LogRequests is set.
+	LogRequestBodies bool
 )
 
 // maskedHeaders are HTTP headers whose values are replaced with a placeholder when logging,
@@ -35,56 +46,59 @@ var maskedHeaders = map[string]struct{}{
 
 const maskedHeaderValue = "[MASKED]"
 
-// clientRequestLogger is an http.RoundTripper that logs outgoing HTTP requests and their responses.
-// Metadata (method, URI, status, headers) is always logged; bodies are logged only when logBody is set.
-// Sensitive headers are masked, see maskedHeaders.
-type clientRequestLogger struct {
-	transport http.RoundTripper
-	logger    *logrus.Entry
-	logBody   bool
+// loggingTransport logs outgoing HTTP requests and their responses, according to LogRequests and
+// LogRequestBodies. It is installed on every client created by this package; whether anything is
+// logged is decided per request.
+type loggingTransport struct {
+	base http.RoundTripper
 }
 
-func (c *clientRequestLogger) RoundTrip(request *http.Request) (*http.Response, error) {
-	c.logger.WithFields(logrus.Fields{
+func (l *loggingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if !LogRequests {
+		return l.base.RoundTrip(request)
+	}
+	logger := log.Logger()
+
+	logger.WithFields(logrus.Fields{
 		"method":  request.Method,
 		"uri":     request.URL.String(),
 		"headers": maskHeaders(request.Header),
 	}).Info("HTTP client request")
 
-	if c.logBody && request.Body != nil && isLoggableContentType(request.Header.Get("Content-Type")) {
+	if LogRequestBodies && request.Body != nil && log.IsLoggableContentType(request.Header.Get("Content-Type")) {
 		body, err := io.ReadAll(request.Body)
 		_ = request.Body.Close()
 		if err != nil {
 			return nil, err
 		}
 		request.Body = io.NopCloser(bytes.NewReader(body))
-		c.logger.Infof("HTTP client request body: %s", string(body))
+		logger.Infof("HTTP client request body: %s", string(body))
 	}
 
-	response, err := c.transport.RoundTrip(request)
+	response, err := l.base.RoundTrip(request)
 	if err != nil {
-		c.logger.WithFields(logrus.Fields{
+		logger.WithFields(logrus.Fields{
 			"method": request.Method,
 			"uri":    request.URL.String(),
 		}).WithError(err).Info("HTTP client request failed")
 		return nil, err
 	}
 
-	c.logger.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"method":  request.Method,
 		"uri":     request.URL.String(),
 		"status":  response.StatusCode,
 		"headers": maskHeaders(response.Header),
 	}).Info("HTTP client response")
 
-	if c.logBody && response.Body != nil && isLoggableContentType(response.Header.Get("Content-Type")) {
+	if LogRequestBodies && response.Body != nil && log.IsLoggableContentType(response.Header.Get("Content-Type")) {
 		body, err := io.ReadAll(response.Body)
 		_ = response.Body.Close()
 		if err != nil {
 			return nil, err
 		}
 		response.Body = io.NopCloser(bytes.NewReader(body))
-		c.logger.Infof("HTTP client response body: %s", string(body))
+		logger.Infof("HTTP client response body: %s", string(body))
 	}
 
 	return response, nil

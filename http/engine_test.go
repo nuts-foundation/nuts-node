@@ -245,40 +245,38 @@ func TestEngine_Configure(t *testing.T) {
 }
 
 func TestEngine_configureClient(t *testing.T) {
+	reset := func() { client.LogRequests = false; client.LogRequestBodies = false }
 	t.Run("logging disabled by default", func(t *testing.T) {
-		client.RequestLogger = nil
-		t.Cleanup(func() { client.RequestLogger = nil })
+		reset()
+		t.Cleanup(reset)
 		engine := New(func() {}, nil)
 
 		engine.configureClient(*core.NewServerConfig())
 
-		assert.Nil(t, client.RequestLogger)
+		assert.False(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
 	})
-	t.Run("logging enabled", func(t *testing.T) {
-		client.RequestLogger = nil
-		t.Cleanup(func() { client.RequestLogger = nil })
-		engine := New(func() {}, nil)
-		engine.config.Client.Log = LogMetadataAndBodyLevel
-
-		engine.configureClient(*core.NewServerConfig())
-
-		require.NotNil(t, client.RequestLogger)
-		wrapped := client.RequestLogger(http.DefaultTransport)
-		logger, ok := wrapped.(*clientRequestLogger)
-		require.True(t, ok)
-		assert.True(t, logger.logBody)
-	})
-	t.Run("metadata only does not log bodies", func(t *testing.T) {
-		client.RequestLogger = nil
-		t.Cleanup(func() { client.RequestLogger = nil })
+	t.Run("metadata logs requests but not bodies", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
 		engine := New(func() {}, nil)
 		engine.config.Client.Log = LogMetadataLevel
 
 		engine.configureClient(*core.NewServerConfig())
 
-		require.NotNil(t, client.RequestLogger)
-		logger := client.RequestLogger(http.DefaultTransport).(*clientRequestLogger)
-		assert.False(t, logger.logBody)
+		assert.True(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
+	})
+	t.Run("metadata-and-body logs requests and bodies", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataAndBodyLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.True(t, client.LogRequests)
+		assert.True(t, client.LogRequestBodies)
 	})
 }
 
