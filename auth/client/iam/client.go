@@ -94,7 +94,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 		// Identifier-match check (RFC 8414 §3.3): the returned issuer MUST equal the
 		// requested identifier, so the fallback cannot be steered to a document the
 		// host serves under a different issuer. A mismatch falls through.
-		if metadata.Issuer != oauthIssuer {
+		if !oauth.IdentifiersMatch(metadata.Issuer, oauthIssuer) {
 			failures = append(failures, candidateFailure{
 				url: candidate,
 				err: fmt.Errorf("issuer %q does not match requested %q", metadata.Issuer, oauthIssuer),
@@ -429,7 +429,7 @@ func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIs
 		// Per OpenID4VCI §12.2.4: the credential_issuer value MUST equal the requested
 		// identifier, so the fallback cannot be steered to an attacker-chosen document.
 		// A mismatch falls through to the next candidate.
-		if metadata.CredentialIssuer != oauthIssuerURI {
+		if !oauth.IdentifiersMatch(metadata.CredentialIssuer, oauthIssuerURI) {
 			failures = append(failures, candidateFailure{
 				url: candidate,
 				err: fmt.Errorf("credential_issuer %q does not match requested %q", metadata.CredentialIssuer, oauthIssuerURI),
