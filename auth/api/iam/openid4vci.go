@@ -128,7 +128,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
-	authzParams := map[string]string{
+	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, map[string]string{
 		oauth.ResponseTypeParam:         oauth.CodeResponseType,
 		oauth.StateParam:                state,
 		oauth.ClientIDParam:             clientID.String(),
@@ -137,19 +137,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.RedirectURIParam:          redirectUri.String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
-	}
-	// Optional caller-supplied authorization request parameters, for issuers that need extras
-	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
-	// OpenID4VCI parameters set by the node above, which are essential to the flow.
-	if request.Body.AuthorizationRequestParams != nil {
-		for key, value := range *request.Body.AuthorizationRequestParams {
-			if _, isNodeParam := authzParams[key]; isNodeParam {
-				return nil, core.InvalidInputError("authorization_request_params may not override the '%s' parameter set by the node", key)
-			}
-			authzParams[key] = value
-		}
-	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, authzParams)
+	})
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
 		RedirectURI: redirectUrl.String(),
