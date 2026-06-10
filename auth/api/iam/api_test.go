@@ -1649,6 +1649,8 @@ type testCtx struct {
 	subjectManager   *didsubject.MockManager
 	jar              *MockJAR
 	openid4vciClient *openid4vci.MockClient
+	// authorizationRequestProfiles maps profile name to its authrequest params, returned by the auth mock's AuthorizationRequestProfile.
+	authorizationRequestProfiles map[string]map[string][]string
 }
 
 func newTestClient(t testing.TB) *testCtx {
@@ -1704,7 +1706,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		jwtSigner:      jwtSigner,
 		jar:            mockJAR,
 	}
-	return &testCtx{
+	result := &testCtx{
 		ctrl:             ctrl,
 		authnServices:    authnServices,
 		policy:           policyInstance,
@@ -1724,4 +1726,10 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		client:           client,
 		openid4vciClient: openid4vciClient,
 	}
+	// By default no request profiles exist. A test can set result.authorizationRequestProfiles to exercise the profile path.
+	authnServices.EXPECT().AuthorizationRequestProfile(gomock.Any()).DoAndReturn(func(name string) (map[string][]string, bool) {
+		profile, ok := result.authorizationRequestProfiles[name]
+		return profile, ok
+	}).AnyTimes()
+	return result
 }

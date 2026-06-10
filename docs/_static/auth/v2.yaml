@@ -201,6 +201,15 @@ paths:
                     {
                       "auth_method": "SmartCard"
                     }
+                profile:
+                  type: string
+                  description: |
+                    Optional name of a request profile to apply to this flow. A profile is a curated, named bundle of
+                    request parameters, so callers don't have to spell out issuer-specific parameters themselves.
+                    Currently a profile sets authorization request parameters (see auth.experimental.profile.<name>.authrequest).
+                    Built-in: 'aet' for the AET UZI smartcard credential issuer. An unknown profile is rejected.
+                    EXPERIMENTAL: subject to change without notice.
+                  example: aet
                 redirect_uri:
                   type: string
                   description: |
