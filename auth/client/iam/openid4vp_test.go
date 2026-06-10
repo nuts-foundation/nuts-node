@@ -266,7 +266,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "not found at any candidate location")
 	})
 }
 
@@ -414,7 +414,7 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "not found at any candidate location")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -1088,6 +1088,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.verifierURL = test2.MustParseURL(ctx.tlsServer.URL)
 	ctx.issuerDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL+"/issuer")
 	ctx.authzServerMetadata = metadata
+	ctx.authzServerMetadata.Issuer = ctx.tlsServer.URL
 	ctx.authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	ctx.authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
@@ -1095,7 +1096,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 
 	ctx.openIDCredentialIssuerMetadata = credentialIssuerMetadata
 	ctx.openIDCredentialIssuerMetadata.AuthorizationServers = []string{ctx.authzServerMetadata.AuthorizationEndpoint}
-	ctx.openIDCredentialIssuerMetadata.CredentialIssuer = "issuer"
+	ctx.openIDCredentialIssuerMetadata.CredentialIssuer = ctx.tlsServer.URL + "/issuer"
 	ctx.openIDCredentialIssuerMetadata.CredentialEndpoint = ctx.tlsServer.URL + "/credentials"
 
 	return ctx
@@ -1119,7 +1120,32 @@ func TestIAMClient_OpenIdCredentialIssuerMetadata(t *testing.T) {
 
 		require.Error(t, err)
 		assert.Nil(t, response)
-		assert.EqualError(t, err, "failed to retrieve Openid credential issuer metadata: server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "not found at any candidate location")
+	})
+	t.Run("falls back to append form when insert form 404s", func(t *testing.T) {
+		var requested []string
+		var issuer string
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requested = append(requested, r.URL.Path)
+			if r.URL.Path != "/issuer/.well-known/openid-credential-issuer" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(oauth.OpenIDCredentialIssuerMetadata{CredentialIssuer: issuer})
+		})
+		tlsServer, client := testServerAndClient(t, handler)
+		issuer = tlsServer.URL + "/issuer"
+
+		metadata, err := client.OpenIdCredentialIssuerMetadata(context.Background(), issuer)
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, issuer, metadata.CredentialIssuer)
+		assert.Equal(t, []string{
+			"/.well-known/openid-credential-issuer/issuer",
+			"/issuer/.well-known/openid-credential-issuer",
+		}, requested)
 	})
 }
 

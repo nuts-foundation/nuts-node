@@ -66,22 +66,88 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  - did:web:example.com becomes https://example.com/.well-known/oauth-authorization-server
 	//  - did:web:example.com:iam:123 becomes https://example.com/.well-known/oauth-authorization-server/did:web:example.com:iam:123
 
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
+	// Try the well-known locations in priority order and take the first that
+	// returns a matching document:
+	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
+	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
+	//  3. append openid-configuration: https://host/<path>/.well-known/openid-configuration
+	// Many authorization servers publish metadata only under the append convention.
+	candidates, err := oauth.WellKnownCandidates(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-	var metadata oauth.AuthorizationServerMetadata
-	if err = hb.doGet(ctx, metadataURL.String(), &metadata); err != nil {
-		// if this is a core.HttpError and the status code >= 500 then we want the caller to receive a 502 Bad Gateway
-		// we do this by changing the status code of the error
-		// any other error should result in a 400 Bad Request
-		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode >= 500 {
-			httpErr.StatusCode = http.StatusBadGateway
-			return nil, httpErr
-		}
-		return nil, errors.Join(ErrInvalidClientCall, err)
+	// OpenID4VCI also permits retrieving AS metadata via OIDC Discovery's openid-configuration
+	// document; add its append form (the last candidate) as a final fallback.
+	oidcCandidates, err := oauth.WellKnownCandidates(oauthIssuer, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
+	if err != nil {
+		return nil, err
 	}
-	return &metadata, err
+	candidates = append(candidates, oidcCandidates[len(oidcCandidates)-1])
+
+	var failures []candidateFailure
+	for _, candidate := range candidates {
+		var metadata oauth.AuthorizationServerMetadata
+		if getErr := hb.doGet(ctx, candidate, &metadata); getErr != nil {
+			failures = append(failures, candidateFailure{url: candidate, err: getErr, status: statusCodeOf(getErr)})
+			continue
+		}
+		// Identifier-match check (RFC 8414 §3.3): the returned issuer MUST equal the
+		// requested identifier, so the fallback cannot be steered to a document the
+		// host serves under a different issuer. A mismatch falls through.
+		if metadata.Issuer != oauthIssuer {
+			failures = append(failures, candidateFailure{
+				url: candidate,
+				err: fmt.Errorf("issuer %q does not match requested %q", metadata.Issuer, oauthIssuer),
+			})
+			continue
+		}
+		return &metadata, nil
+	}
+	return nil, metadataDiscoveryError("OAuth authorization server metadata", oauthIssuer, failures)
+}
+
+// candidateFailure records why a single metadata candidate URL was rejected.
+type candidateFailure struct {
+	url    string
+	err    error
+	status int
+}
+
+// statusCodeOf extracts the HTTP status code from a core.HttpError, or 0 if the
+// error is not an HTTP status error (e.g. a transport or decode failure).
+func statusCodeOf(err error) int {
+	var httpErr core.HttpError
+	if errors.As(err, &httpErr) {
+		return httpErr.StatusCode
+	}
+	return 0
+}
+
+// metadataDiscoveryError builds the error returned when every metadata candidate
+// was exhausted. It names the document and identifier and reports only the non-404
+// failures (a 404 just means "not at this location"). If any candidate failed with
+// a >= 500 status, that failure is surfaced as a 502 Bad Gateway, preserving the
+// existing severity mapping.
+func metadataDiscoveryError(document string, identifier string, failures []candidateFailure) error {
+	var diagnostics []string
+	for i := range failures {
+		f := failures[i]
+		if f.status >= 500 {
+			// Map upstream server errors to 502 Bad Gateway, keeping the core.HttpError
+			// so callers can still assert on it.
+			if httpErr, ok := f.err.(core.HttpError); ok {
+				httpErr.StatusCode = http.StatusBadGateway
+				return httpErr
+			}
+		}
+		if f.status != http.StatusNotFound {
+			diagnostics = append(diagnostics, fmt.Sprintf("%s: %v", f.url, f.err))
+		}
+	}
+	if len(diagnostics) == 0 {
+		return errors.Join(ErrInvalidClientCall, fmt.Errorf("%s not found at any candidate location for %q", document, identifier))
+	}
+	return errors.Join(ErrInvalidClientCall, fmt.Errorf("failed to retrieve %s for %q: %s", document, identifier, strings.Join(diagnostics, "; ")))
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
@@ -346,16 +412,33 @@ func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 }
 
 func (hb HTTPClient) OpenIdCredentialIssuerMetadata(ctx context.Context, oauthIssuerURI string) (*oauth.OpenIDCredentialIssuerMetadata, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
+	// Try the well-known locations in priority order (insert per RFC 8414, then
+	// append per OIDC Discovery) and take the first that returns a matching
+	// document. Many issuers publish metadata only under the append convention.
+	candidates, err := oauth.WellKnownCandidates(oauthIssuerURI, oauth.OpenIdCredIssuerWellKnown, hb.strictMode)
 	if err != nil {
 		return nil, err
 	}
-	var metadata oauth.OpenIDCredentialIssuerMetadata
-	err = hb.doGet(ctx, metadataURL.String(), &metadata)
-	if err != nil {
-		return nil, err
+	var failures []candidateFailure
+	for _, candidate := range candidates {
+		var metadata oauth.OpenIDCredentialIssuerMetadata
+		if getErr := hb.doGet(ctx, candidate, &metadata); getErr != nil {
+			failures = append(failures, candidateFailure{url: candidate, err: getErr, status: statusCodeOf(getErr)})
+			continue
+		}
+		// Per OpenID4VCI §12.2.4: the credential_issuer value MUST equal the requested
+		// identifier, so the fallback cannot be steered to an attacker-chosen document.
+		// A mismatch falls through to the next candidate.
+		if metadata.CredentialIssuer != oauthIssuerURI {
+			failures = append(failures, candidateFailure{
+				url: candidate,
+				err: fmt.Errorf("credential_issuer %q does not match requested %q", metadata.CredentialIssuer, oauthIssuerURI),
+			})
+			continue
+		}
+		return &metadata, nil
 	}
-	return &metadata, err
+	return nil, metadataDiscoveryError("OpenID credential issuer metadata", oauthIssuerURI, failures)
 }
 
 // CredentialRequest represents ths request to fetch a credential, the JSON object holds the proof as

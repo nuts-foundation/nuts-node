@@ -26,15 +26,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 )
-
-// wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2.2 for
-// retrieving the Credential Issuer Metadata document.
-const wellKnownPath = "/.well-known/openid-credential-issuer"
 
 // RequestCredentialOpts carries all parameters for a Credential Request.
 //
@@ -125,32 +122,59 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	if parsed, _ := url.Parse(issuerURL); parsed != nil && (parsed.RawQuery != "" || parsed.Fragment != "") {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: query and fragment components are not allowed")
 	}
-	wellKnownURL, err := credentialIssuerWellKnown(issuerURL)
+	// Try the well-known locations in priority order (insert per RFC 8414, then
+	// append per OIDC Discovery) and take the first that returns a matching
+	// document. Many issuers publish metadata only under the append convention.
+	candidates, err := oauth.WellKnownCandidates(issuerURL, oauth.OpenIdCredIssuerWellKnown, c.strictMode)
 	if err != nil {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wellKnownURL, http.NoBody)
+	var failures []string
+	for _, candidate := range candidates {
+		metadata, status, fetchErr := c.fetchIssuerMetadata(ctx, candidate, issuerURL)
+		if fetchErr == nil {
+			return metadata, nil
+		}
+		// A 404 just means "not at this location" and is noise; only non-404
+		// failures (403/405/5xx, decode errors, identifier mismatch) are worth
+		// surfacing when every candidate is exhausted.
+		if status != http.StatusNotFound {
+			failures = append(failures, fmt.Sprintf("%s: %v", candidate, fetchErr))
+		}
+	}
+	if len(failures) == 0 {
+		return nil, fmt.Errorf("openid4vci: issuer metadata not found at any candidate location for %q", issuerURL)
+	}
+	return nil, fmt.Errorf("openid4vci: failed to retrieve issuer metadata for %q: %s", issuerURL, strings.Join(failures, "; "))
+}
+
+// fetchIssuerMetadata retrieves and validates the Credential Issuer Metadata from a
+// single candidate URL. It returns the response status code (0 when no response was
+// received) so the caller can distinguish a 404 from other failures.
+func (c *client) fetchIssuerMetadata(ctx context.Context, candidateURL string, issuerURL string) (*OpenIDCredentialIssuerMetadata, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidateURL, http.NoBody)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("openid4vci: fetching issuer metadata returned status %d", resp.StatusCode)
+		return nil, resp.StatusCode, fmt.Errorf("fetching issuer metadata returned status %d", resp.StatusCode)
 	}
 	var metadata OpenIDCredentialIssuerMetadata
 	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
-		return nil, fmt.Errorf("openid4vci: decoding issuer metadata: %w", err)
+		return nil, resp.StatusCode, fmt.Errorf("decoding issuer metadata: %w", err)
 	}
 	// Per §12.2.4: the credential_issuer value MUST match the issuer identifier
-	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used.
+	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used,
+	// so a mismatch falls through to the next candidate.
 	if metadata.CredentialIssuer != issuerURL {
-		return nil, fmt.Errorf("openid4vci: credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
+		return nil, resp.StatusCode, fmt.Errorf("credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
 	}
-	return &metadata, nil
+	return &metadata, resp.StatusCode, nil
 }
 
 func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
@@ -236,26 +260,4 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 		return nil, fmt.Errorf("openid4vci: decoding credential response: %w", err)
 	}
 	return &credResp, nil
-}
-
-// credentialIssuerWellKnown returns the Credential Issuer Metadata URL for
-// the given issuer identifier per RFC 8615: the well-known segment is
-// inserted at the authority root, and the issuer's path is appended after.
-//
-// Example: https://example.com/oauth2/alice
-//
-//	->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
-func credentialIssuerWellKnown(issuerURL string) (string, error) {
-	u, err := url.Parse(issuerURL)
-	if err != nil {
-		return "", err
-	}
-	// Prepend the well-known segment to both Path (decoded) and RawPath
-	// (encoded) when the latter is set, so u.String() does not double-escape
-	// pre-encoded characters like %2F via EscapedPath's reescaping pass.
-	u.Path = wellKnownPath + u.Path
-	if u.RawPath != "" {
-		u.RawPath = wellKnownPath + u.RawPath
-	}
-	return u.String(), nil
 }
