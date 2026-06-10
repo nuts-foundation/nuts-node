@@ -43,11 +43,10 @@ const JWTTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 // (Section 12.2). The document is OpenID4VCI-defined; it is not an OAuth
 // authorization-server metadata document.
 type OpenIDCredentialIssuerMetadata struct {
-	CredentialIssuer     string              `json:"credential_issuer"`
-	CredentialEndpoint   string              `json:"credential_endpoint"`
-	NonceEndpoint        string              `json:"nonce_endpoint,omitempty"`
-	AuthorizationServers []string            `json:"authorization_servers,omitempty"`
-	Display              []map[string]string `json:"display,omitempty"`
+	CredentialIssuer     string   `json:"credential_issuer"`
+	CredentialEndpoint   string   `json:"credential_endpoint"`
+	NonceEndpoint        string   `json:"nonce_endpoint,omitempty"`
+	AuthorizationServers []string `json:"authorization_servers,omitempty"`
 }
 
 // NonceResponse is the body returned by the Nonce Endpoint (Section 7.2).
