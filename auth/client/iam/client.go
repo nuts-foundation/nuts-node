@@ -92,7 +92,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 		// Identifier-match check (RFC 8414 §3.3): the returned issuer MUST equal the
 		// requested identifier, so the fallback cannot be steered to a document the
 		// host serves under a different issuer. A mismatch falls through.
-		if metadata.Issuer != oauthIssuer {
+		if !oauth.IdentifiersMatch(metadata.Issuer, oauthIssuer) {
 			failures = append(failures, candidateFailure{
 				url: candidate,
 				err: fmt.Errorf("issuer %q does not match requested %q", metadata.Issuer, oauthIssuer),

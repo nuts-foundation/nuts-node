@@ -154,6 +154,27 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "/token", metadata.TokenEndpoint)
 		assert.Equal(t, issuer, metadata.Issuer)
 	})
+	t.Run("ok - metadata issuer with a trailing slash matches the requested identifier", func(t *testing.T) {
+		// Some servers (e.g. IdentityServer) normalize the issuer with a trailing slash;
+		// the append metadata is served with issuer = requested identifier + "/".
+		var issuer string
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/oauth/.well-known/oauth-authorization-server" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(oauth.AuthorizationServerMetadata{Issuer: issuer + "/", TokenEndpoint: "/token"})
+		})
+		tlsServer, client := testServerAndClient(t, handler)
+		issuer = tlsServer.URL + "/oauth"
+
+		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
+
+		require.NoError(t, err)
+		require.NotNil(t, metadata)
+		assert.Equal(t, issuer+"/", metadata.Issuer)
+	})
 	t.Run("error - non-404 status is preserved in the exhausted error", func(t *testing.T) {
 		tlsServer, client, _ := metadataServer(t, http.StatusForbidden, "/iam/123")
 

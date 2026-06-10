@@ -257,6 +257,16 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
 }
 
+// IdentifiersMatch reports whether two issuer / credential-issuer identifiers are
+// equal, tolerating a trailing-slash difference. RFC 8414 §3.3 and OpenID4VCI
+// §12.2.4 require the identifier in a metadata document to be byte-identical to
+// the requested identifier, but some servers (e.g. IdentityServer) normalize it
+// with a trailing slash. Treat those as a match so discovery does not reject
+// otherwise-valid metadata over a trailing slash.
+func IdentifiersMatch(a string, b string) bool {
+	return strings.TrimRight(a, "/") == strings.TrimRight(b, "/")
+}
+
 // WellKnownCandidates returns the metadata URLs to try for the given identifier
 // and well-known document, in priority order:
 //

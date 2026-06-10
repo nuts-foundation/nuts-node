@@ -67,6 +67,15 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 	})
 }
 
+func TestIdentifiersMatch(t *testing.T) {
+	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth"))
+	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth/", "https://nuts.nl/oauth"), "trailing slash on metadata issuer should match")
+	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth/"), "trailing slash on requested identifier should match")
+	assert.True(t, IdentifiersMatch("https://nuts.nl", "https://nuts.nl/"))
+	assert.False(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/other"))
+	assert.False(t, IdentifiersMatch("https://attacker.example", "https://nuts.nl"))
+}
+
 func TestWellKnownCandidates(t *testing.T) {
 	t.Run("identifier with path returns insert then append", func(t *testing.T) {
 		candidates, err := WellKnownCandidates("https://nuts.nl/iam/id", AuthzServerWellKnown, true)

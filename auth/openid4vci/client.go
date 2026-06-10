@@ -170,7 +170,7 @@ func (c *client) fetchIssuerMetadata(ctx context.Context, candidateURL string, i
 	// Per §12.2.4: the credential_issuer value MUST match the issuer identifier
 	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used,
 	// so a mismatch falls through to the next candidate.
-	if metadata.CredentialIssuer != issuerURL {
+	if !oauth.IdentifiersMatch(metadata.CredentialIssuer, issuerURL) {
 		return nil, resp.StatusCode, fmt.Errorf("credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
 	}
 	return &metadata, resp.StatusCode, nil
