@@ -34,3 +34,4 @@ nuts.yaml
 # Local scratch directory and Claude Code session state
 .scratch/
 .claude/scheduled_tasks.lock
+.claude/worktrees/
