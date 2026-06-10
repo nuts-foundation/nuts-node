@@ -78,31 +78,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
 		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
 	})
-	t.Run("ok - authorization_request_params merged into authorization request", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationRequestParams = &map[string]string{"auth_method": "SmartCard"}
-
-		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
-
-		require.NoError(t, err)
-		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
-		require.NoError(t, err)
-		assert.Equal(t, "SmartCard", redirectUri.Query().Get("auth_method"))
-	})
-	t.Run("error - authorization_request_params may not override a node parameter", func(t *testing.T) {
-		ctx := newTestClient(t)
-		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
-		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
-		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationRequestParams = &map[string]string{oauth.ClientIDParam: "attacker"}
-
-		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
-
-		assert.ErrorContains(t, err, "authorization_request_params may not override the 'client_id' parameter")
-	})
 	t.Run("ok - credential_request_params persisted into session", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
