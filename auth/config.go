@@ -53,8 +53,8 @@ type ExperimentalConfig struct {
 	// EXPERIMENTAL: this configuration may change or be removed without further notice.
 	Clients []OAuthClientConfig `koanf:"clients"`
 	// Profiles are named bundles of request parameters for outbound flows against external issuers/authorization
-	// servers. A request selects a profile by name; the node ships built-in profiles (e.g. "aet"), and operator
-	// config under the same name is merged over the built-in (per parameter key, operator wins).
+	// servers. A request selects a profile by name. Built-in profiles (e.g. "aet") are provided via DefaultConfig;
+	// operator config under the same name is layered over the default.
 	//
 	// EXPERIMENTAL: this configuration may change or be removed without further notice.
 	Profiles map[string]ProfileConfig `koanf:"profile"`
@@ -67,18 +67,6 @@ type ProfileConfig struct {
 	// AuthorizationRequest sets parameters on the OpenID4VCI authorization request. Each key may have multiple
 	// values (rendered as repeated query parameters; a single value is rendered as one parameter).
 	AuthorizationRequest map[string][]string `koanf:"authrequest"`
-}
-
-// builtinProfiles are the request profiles shipped with the node. Operator config under the same name is merged
-// over these per parameter key. EXPERIMENTAL.
-var builtinProfiles = map[string]ProfileConfig{
-	// aet targets the AET ZORG-ID issuer, which requires smartcard auth and a specific scope on the authorization request.
-	"aet": {
-		AuthorizationRequest: map[string][]string{
-			"auth_method": {"SmartCard"},
-			"scope":       {"openid profile api"},
-		},
-	},
 }
 
 // OAuthClientConfig holds client credentials the node presents to a specific external OAuth authorization server.
@@ -134,6 +122,18 @@ func DefaultConfig() Config {
 			oauth.AuthorizationCodeGrantType,
 			oauth.VpTokenGrantType,
 			oauth.JwtBearerGrantType,
+		},
+		Experimental: ExperimentalConfig{
+			// Built-in profiles. Operator config under auth.experimental.profile.<name> is layered over these.
+			Profiles: map[string]ProfileConfig{
+				// aet targets the AET ZORG-ID issuer, which requires smartcard auth and a specific scope on the authorization request.
+				"aet": {
+					AuthorizationRequest: map[string][]string{
+						"auth_method": {"SmartCard"},
+						"scope":       {"openid profile api"},
+					},
+				},
+			},
 		},
 	}
 }

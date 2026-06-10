@@ -165,23 +165,14 @@ func (auth *Auth) OAuthClientCredentials(authServerIssuer string) (*OAuthClientC
 	return nil, false
 }
 
-// AuthorizationRequestProfile returns the authorization request parameters of the named profile, merging the
-// built-in profile (if any) with operator config of the same name (operator wins per parameter key). It returns
-// false when no built-in or configured profile exists for the name. EXPERIMENTAL.
+// AuthorizationRequestProfile returns the authorization request parameters of the named profile, or false when no
+// profile (built-in default or operator-configured) exists for the name. EXPERIMENTAL.
 func (auth *Auth) AuthorizationRequestProfile(name string) (map[string][]string, bool) {
-	builtin, hasBuiltin := builtinProfiles[name]
-	configured, hasConfigured := auth.config.Experimental.Profiles[name]
-	if !hasBuiltin && !hasConfigured {
+	profile, ok := auth.config.Experimental.Profiles[name]
+	if !ok {
 		return nil, false
 	}
-	merged := make(map[string][]string)
-	for key, values := range builtin.AuthorizationRequest {
-		merged[key] = append([]string(nil), values...)
-	}
-	for key, values := range configured.AuthorizationRequest {
-		merged[key] = append([]string(nil), values...)
-	}
-	return merged, true
+	return profile.AuthorizationRequest, true
 }
 
 // validateOAuthClients validates the auth.experimental.clients configuration.

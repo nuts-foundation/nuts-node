@@ -26,32 +26,30 @@ import (
 )
 
 func TestAuth_AuthorizationRequestProfile(t *testing.T) {
-	t.Run("built-in aet", func(t *testing.T) {
-		params, ok := (&Auth{}).AuthorizationRequestProfile("aet")
+	t.Run("built-in aet (from DefaultConfig)", func(t *testing.T) {
+		a := &Auth{config: DefaultConfig()}
+		params, ok := a.AuthorizationRequestProfile("aet")
 		require.True(t, ok)
 		assert.Equal(t, []string{"SmartCard"}, params["auth_method"])
 		assert.Equal(t, []string{"openid profile api"}, params["scope"])
 	})
 	t.Run("unknown profile returns false", func(t *testing.T) {
-		params, ok := (&Auth{}).AuthorizationRequestProfile("does-not-exist")
+		a := &Auth{config: DefaultConfig()}
+		params, ok := a.AuthorizationRequestProfile("does-not-exist")
 		assert.False(t, ok)
 		assert.Nil(t, params)
 	})
-	t.Run("operator config merges over the built-in per key", func(t *testing.T) {
-		a := &Auth{config: Config{Experimental: ExperimentalConfig{Profiles: map[string]ProfileConfig{
-			"aet": {AuthorizationRequest: map[string][]string{"scope": {"openid"}}},
-		}}}}
-		params, ok := a.AuthorizationRequestProfile("aet")
-		require.True(t, ok)
-		assert.Equal(t, []string{"openid"}, params["scope"])          // overridden by operator
-		assert.Equal(t, []string{"SmartCard"}, params["auth_method"]) // kept from built-in
-	})
-	t.Run("operator-only profile", func(t *testing.T) {
+	t.Run("operator-configured profile", func(t *testing.T) {
 		a := &Auth{config: Config{Experimental: ExperimentalConfig{Profiles: map[string]ProfileConfig{
 			"custom": {AuthorizationRequest: map[string][]string{"foo": {"bar", "baz"}}},
 		}}}}
 		params, ok := a.AuthorizationRequestProfile("custom")
 		require.True(t, ok)
 		assert.Equal(t, []string{"bar", "baz"}, params["foo"])
+	})
+	t.Run("no profiles configured returns false", func(t *testing.T) {
+		params, ok := (&Auth{}).AuthorizationRequestProfile("aet")
+		assert.False(t, ok)
+		assert.Nil(t, params)
 	})
 }
