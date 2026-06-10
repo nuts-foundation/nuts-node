@@ -21,9 +21,11 @@ package oauth
 
 import (
 	"encoding/json"
+	"net/url"
+	"strings"
+
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
-	"net/url"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -253,6 +255,45 @@ func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url
 		return nil, err
 	}
 	return issuerURL.Parse(wellKnown + issuerURL.EscapedPath())
+}
+
+// WellKnownCandidates returns the metadata URLs to try for the given identifier
+// and well-known document, in priority order:
+//
+//  1. insert (RFC 8414):  https://host/.well-known/<doc>/<path>
+//  2. append (OIDC Disc): https://host/<path>/.well-known/<doc>
+//
+// When the identifier has no path, both forms collapse to the same URL and a
+// single candidate is returned. The caller fetches the candidates in order and
+// takes the first that returns a usable metadata document. Each candidate shares
+// the identifier's scheme and host, so the single core.ParsePublicURL SSRF check
+// on the identifier covers them all.
+func WellKnownCandidates(identifier string, wellKnown string, strictmode bool) ([]string, error) {
+	identifierURL, err := core.ParsePublicURL(identifier, strictmode)
+	if err != nil {
+		return nil, err
+	}
+	// insert form (RFC 8414): well-known segment at the authority root, identifier path appended.
+	// Set RawPath alongside Path when present so url.String() does not re-escape pre-encoded
+	// characters like %2F via EscapedPath's reescaping pass.
+	insert := *identifierURL
+	if strings.Trim(identifierURL.Path, "/") == "" {
+		// No path: insert and append are identical; a single candidate suffices.
+		insert.Path = wellKnown
+		insert.RawPath = ""
+		return []string{insert.String()}, nil
+	}
+	insert.Path = wellKnown + identifierURL.Path
+	if identifierURL.RawPath != "" {
+		insert.RawPath = wellKnown + identifierURL.RawPath
+	}
+	// append form (OIDC Discovery): well-known segment after the identifier path.
+	appended := *identifierURL
+	appended.Path = strings.TrimSuffix(identifierURL.Path, "/") + wellKnown
+	if identifierURL.RawPath != "" {
+		appended.RawPath = strings.TrimSuffix(identifierURL.RawPath, "/") + wellKnown
+	}
+	return []string{insert.String(), appended.String()}, nil
 }
 
 // AuthorizationServerMetadata defines the OAuth Authorization Server metadata.

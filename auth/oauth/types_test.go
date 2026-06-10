@@ -67,6 +67,40 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 	})
 }
 
+func TestWellKnownCandidates(t *testing.T) {
+	t.Run("identifier with path returns insert then append", func(t *testing.T) {
+		candidates, err := WellKnownCandidates("https://nuts.nl/iam/id", AuthzServerWellKnown, true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"https://nuts.nl/.well-known/oauth-authorization-server/iam/id",
+			"https://nuts.nl/iam/id/.well-known/oauth-authorization-server",
+		}, candidates)
+	})
+	t.Run("no path collapses to a single candidate", func(t *testing.T) {
+		candidates, err := WellKnownCandidates("https://nuts.nl", AuthzServerWellKnown, true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
+	})
+	t.Run("trailing-slash-only path collapses to a single candidate", func(t *testing.T) {
+		candidates, err := WellKnownCandidates("https://nuts.nl/", AuthzServerWellKnown, true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
+	})
+	t.Run("percent-encoded path is not double-escaped", func(t *testing.T) {
+		candidates, err := WellKnownCandidates("https://nuts.nl/foo%2Fbar", OpenIdCredIssuerWellKnown, true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"https://nuts.nl/.well-known/openid-credential-issuer/foo%2Fbar",
+			"https://nuts.nl/foo%2Fbar/.well-known/openid-credential-issuer",
+		}, candidates)
+	})
+	t.Run("invalid identifier returns the SSRF/parse error", func(t *testing.T) {
+		candidates, err := WellKnownCandidates("http://nuts.nl/iam/id", AuthzServerWellKnown, true)
+		assert.ErrorContains(t, err, "scheme must be https")
+		assert.Nil(t, candidates)
+	})
+}
+
 func TestTokenResponse_Marshalling(t *testing.T) {
 	expected := (&TokenResponse{AccessToken: "1234567", TokenType: "bearer", ExpiresIn: to.Ptr(5), Scope: to.Ptr("abc"), DPoPKid: to.Ptr("kid")}).With("c_nonce", "hello")
 
