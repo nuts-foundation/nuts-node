@@ -59,11 +59,11 @@ type Wallet interface {
 	// If the wallet does not contain any credentials for the given holder, it returns an empty list.
 	List(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
 
-	// SearchCredential returns all credentials in the wallet for the given holder.
-	// Unlike List, which filters out expired and revoked credentials, SearchCredential returns all credentials
-	// regardless of their validity status (signature, expired/revoked).
-	// This can be used to find credentials that can be removed, e.g. because they are expired or revoked.
-	SearchCredential(ctx context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error)
+	// Search returns wallet credentials matching the given filter options. Without any options it
+	// returns every credential in the wallet. Unlike List, Search does not validate the credentials
+	// it returns — it filters purely on stored metadata (holder, type, expiration_date), so callers
+	// can use it to find credentials that should be cleaned up (expired, wrong type, etc.).
+	Search(ctx context.Context, opts ...SearchOption) ([]vc.VerifiableCredential, error)
 
 	// Remove removes the given credential from the wallet.
 	// If the credential is not in the wallet, it returns ErrNotFound.

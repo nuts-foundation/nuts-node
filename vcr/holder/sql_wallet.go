@@ -56,12 +56,19 @@ type sqlWallet struct {
 func NewSQLWallet(
 	keyResolver resolver.KeyResolver, keyStore crypto.KeyStore, verifier verifier.Verifier, jsonldManager jsonld.JSONLD,
 	storageEngine storage.Engine) Wallet {
+	db := storageEngine.GetSQLDatabase()
+	// Migrate the expiration_date column for credentials stored before the column existed.
+	// Idempotent; safe to run on every startup. Logged-and-continued on error to avoid blocking
+	// node start.
+	if err := store.BackfillExpirationDates(db); err != nil {
+		log.Logger().WithError(err).Warn("failed to migrate credential expiration_date column")
+	}
 	return &sqlWallet{
 		keyResolver:   keyResolver,
 		keyStore:      keyStore,
 		verifier:      verifier,
 		jsonldManager: jsonldManager,
-		walletStore:   walletStore{db: storageEngine.GetSQLDatabase()},
+		walletStore:   walletStore{db: db},
 	}
 }
 
@@ -141,8 +148,8 @@ func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCr
 	return validCredentials, nil
 }
 
-func (h sqlWallet) SearchCredential(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
-	return h.walletStore.list(holderDID)
+func (h sqlWallet) Search(_ context.Context, opts ...SearchOption) ([]vc.VerifiableCredential, error) {
+	return h.walletStore.search(buildSearchQuery(opts))
 }
 
 func (h sqlWallet) Remove(ctx context.Context, holderDID did.DID, credentialID ssi.URI) error {
@@ -197,12 +204,33 @@ func (s walletStore) count() (int64, error) {
 }
 
 func (s walletStore) list(holderDID did.DID) ([]vc.VerifiableCredential, error) {
+	return s.search(searchQuery{holderDID: &holderDID})
+}
+
+func (s walletStore) search(q searchQuery) ([]vc.VerifiableCredential, error) {
+	tx := s.db.Model(walletRecord{}).Preload("Credential")
+	// Join credential when any option filters on credential.* columns.
+	if len(q.excludeCredentialTypes) > 0 || q.expiresAt != nil {
+		tx = tx.Joins("JOIN credential ON credential.id = wallet_credential.credential_id")
+	}
+	if q.holderDID != nil {
+		tx = tx.Where("wallet_credential.holder_did = ?", q.holderDID.String())
+	}
+	if len(q.excludeCredentialTypes) > 0 {
+		// Credentials with a NULL type column are kept; only known types are excluded.
+		tx = tx.Where("credential.type IS NULL OR credential.type NOT IN ?", q.excludeCredentialTypes)
+	}
+	if q.expiresAt != nil {
+		// Credentials without an expirationDate carry the never-expires sentinel (a far-future
+		// value), and legacy un-backfilled rows are NULL; <= excludes both, so neither shows up as
+		// expiring.
+		tx = tx.Where("credential.expiration_date <= ?", q.expiresAt.Unix())
+	}
 	var records []walletRecord
-	err := s.db.Model(walletRecord{}).Preload("Credential").Where("holder_did = ?", holderDID.String()).Find(&records).Error
-	if err != nil {
+	if err := tx.Find(&records).Error; err != nil {
 		return nil, err
 	}
-	results := make([]vc.VerifiableCredential, 0)
+	results := make([]vc.VerifiableCredential, 0, len(records))
 	for _, record := range records {
 		verifiableCredential, err := vc.ParseVerifiableCredential(record.Credential.Raw)
 		if err != nil {
