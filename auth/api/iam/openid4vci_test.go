@@ -45,7 +45,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		CredentialIssuer:     "issuer",
 		CredentialEndpoint:   "endpoint",
 		AuthorizationServers: []string{authServer},
-		Display:              nil,
 	}
 	authzMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:    "https://auth.server/authorize",
@@ -158,7 +157,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 				CredentialIssuer:     "issuer",
 				CredentialEndpoint:   "endpoint",
 				AuthorizationServers: []string{}, // empty
-				Display:              nil,
 			}
 			ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 			ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, issuerClientID).Return(nil, assert.AnError)
