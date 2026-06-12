@@ -26,7 +26,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -121,59 +120,13 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	if parsed, _ := url.Parse(issuerURL); parsed != nil && (parsed.RawQuery != "" || parsed.Fragment != "") {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: query and fragment components are not allowed")
 	}
-	// Try the well-known locations in priority order (insert per RFC 8414, then
-	// append per OIDC Discovery) and take the first that returns a matching
-	// document. Many issuers publish metadata only under the append convention.
-	candidates, err := oauth.WellKnownCandidates(issuerURL, oauth.OpenIdCredIssuerWellKnown, c.strictMode)
+	// Per §12.2.4 the credential_issuer in the document MUST match the requested issuer;
+	// FetchMetadata enforces that and tries the insert/append well-known placements.
+	metadata, err := oauth.FetchMetadata[OpenIDCredentialIssuerMetadata](ctx, c.httpClient, issuerURL, c.strictMode)
 	if err != nil {
-		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
+		return nil, fmt.Errorf("openid4vci: %w", err)
 	}
-	var failures []string
-	for _, candidate := range candidates {
-		metadata, status, fetchErr := c.fetchIssuerMetadata(ctx, candidate, issuerURL)
-		if fetchErr == nil {
-			return metadata, nil
-		}
-		// A 404 just means "not at this location" and is noise; only non-404
-		// failures (403/405/5xx, decode errors, identifier mismatch) are worth
-		// surfacing when every candidate is exhausted.
-		if status != http.StatusNotFound {
-			failures = append(failures, fmt.Sprintf("%s: %v", candidate, fetchErr))
-		}
-	}
-	if len(failures) == 0 {
-		return nil, fmt.Errorf("openid4vci: issuer metadata not found at any candidate location for %q", issuerURL)
-	}
-	return nil, fmt.Errorf("openid4vci: failed to retrieve issuer metadata for %q: %s", issuerURL, strings.Join(failures, "; "))
-}
-
-// fetchIssuerMetadata retrieves and validates the Credential Issuer Metadata from a
-// single candidate URL. It returns the response status code (0 when no response was
-// received) so the caller can distinguish a 404 from other failures.
-func (c *client) fetchIssuerMetadata(ctx context.Context, candidateURL string, issuerURL string) (*OpenIDCredentialIssuerMetadata, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidateURL, http.NoBody)
-	if err != nil {
-		return nil, 0, err
-	}
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, resp.StatusCode, fmt.Errorf("fetching issuer metadata returned status %d", resp.StatusCode)
-	}
-	var metadata OpenIDCredentialIssuerMetadata
-	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("decoding issuer metadata: %w", err)
-	}
-	// Per §12.2.4: the credential_issuer value MUST match the issuer identifier
-	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used,
-	// so a mismatch falls through to the next candidate.
-	if !oauth.IdentifiersMatch(metadata.CredentialIssuer, issuerURL) {
-		return nil, resp.StatusCode, fmt.Errorf("credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
-	}
-	return &metadata, resp.StatusCode, nil
+	return metadata, nil
 }
 
 func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {

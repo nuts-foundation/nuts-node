@@ -106,19 +106,6 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 			"/iam/123/.well-known/oauth-authorization-server",
 		}, *requested)
 	})
-	t.Run("ok - openid-configuration as third candidate", func(t *testing.T) {
-		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/openid-configuration")
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, []string{
-			"/.well-known/oauth-authorization-server/iam/123",
-			"/iam/123/.well-known/oauth-authorization-server",
-			"/iam/123/.well-known/openid-configuration",
-		}, *requested)
-	})
 	t.Run("error - all candidates 404 yields a plain not-found error naming the identifier", func(t *testing.T) {
 		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123")
 
@@ -128,7 +115,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.Contains(t, err.Error(), "not found at any candidate location")
 		assert.Contains(t, err.Error(), tlsServer.URL+"/iam/123")
-		assert.Len(t, *requested, 3)
+		assert.Len(t, *requested, 2)
 	})
 	t.Run("identifier mismatch on first candidate falls through to next", func(t *testing.T) {
 		// Insert form returns 200 but with a non-matching issuer; append form serves the match.

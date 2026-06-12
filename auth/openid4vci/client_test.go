@@ -144,7 +144,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client(), false)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "credential_issuer")
+		assert.Contains(t, err.Error(), "https://attacker.example")
 		assert.Contains(t, err.Error(), "does not match")
 	})
 
@@ -248,7 +248,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client(), false)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "decoding issuer metadata")
+		assert.Contains(t, err.Error(), "decoding metadata")
 	})
 }
 

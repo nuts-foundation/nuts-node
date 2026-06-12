@@ -68,84 +68,19 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	// returns a matching document:
 	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
 	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
-	//  3. append openid-configuration: https://host/<path>/.well-known/openid-configuration
 	// Many authorization servers publish metadata only under the append convention.
-	candidates, err := oauth.WellKnownCandidates(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
+	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
 	if err != nil {
-		return nil, err
-	}
-	// OpenID4VCI also permits retrieving AS metadata via OIDC Discovery's openid-configuration
-	// document; add its append form (the last candidate) as a final fallback.
-	oidcCandidates, err := oauth.WellKnownCandidates(oauthIssuer, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	candidates = append(candidates, oidcCandidates[len(oidcCandidates)-1])
-
-	var failures []candidateFailure
-	for _, candidate := range candidates {
-		var metadata oauth.AuthorizationServerMetadata
-		if getErr := hb.doGet(ctx, candidate, &metadata); getErr != nil {
-			failures = append(failures, candidateFailure{url: candidate, err: getErr, status: statusCodeOf(getErr)})
-			continue
+		// An upstream server error (5xx) is surfaced as a core.HttpError; map it to 502
+		// Bad Gateway. Any other failure is a bad client call.
+		httpErr, ok := errors.AsType[core.HttpError](err)
+		if ok && httpErr.StatusCode >= 500 {
+			httpErr.StatusCode = http.StatusBadGateway
+			return nil, httpErr
 		}
-		// Identifier-match check (RFC 8414 §3.3): the returned issuer MUST equal the
-		// requested identifier, so the fallback cannot be steered to a document the
-		// host serves under a different issuer. A mismatch falls through.
-		if !oauth.IdentifiersMatch(metadata.Issuer, oauthIssuer) {
-			failures = append(failures, candidateFailure{
-				url: candidate,
-				err: fmt.Errorf("issuer %q does not match requested %q", metadata.Issuer, oauthIssuer),
-			})
-			continue
-		}
-		return &metadata, nil
+		return nil, errors.Join(ErrInvalidClientCall, err)
 	}
-	return nil, authorizationServerMetadataError(oauthIssuer, failures)
-}
-
-// candidateFailure records why a single metadata candidate URL was rejected.
-type candidateFailure struct {
-	url    string
-	err    error
-	status int
-}
-
-// statusCodeOf extracts the HTTP status code from a core.HttpError, or 0 if the
-// error is not an HTTP status error (e.g. a transport or decode failure).
-func statusCodeOf(err error) int {
-	var httpErr core.HttpError
-	if errors.As(err, &httpErr) {
-		return httpErr.StatusCode
-	}
-	return 0
-}
-
-// authorizationServerMetadataError builds the error returned when every candidate
-// was exhausted. It names the identifier and reports only the non-404 failures
-// (a 404 just means "not at this location"). If any candidate failed with a
-// >= 500 status, that failure is surfaced as a 502 Bad Gateway, preserving the
-// existing severity mapping.
-func authorizationServerMetadataError(identifier string, failures []candidateFailure) error {
-	var diagnostics []string
-	for i := range failures {
-		f := failures[i]
-		if f.status >= 500 {
-			// Map upstream server errors to 502 Bad Gateway, keeping the core.HttpError
-			// so callers can still assert on it.
-			if httpErr, ok := f.err.(core.HttpError); ok {
-				httpErr.StatusCode = http.StatusBadGateway
-				return httpErr
-			}
-		}
-		if f.status != http.StatusNotFound {
-			diagnostics = append(diagnostics, fmt.Sprintf("%s: %v", f.url, f.err))
-		}
-	}
-	if len(diagnostics) == 0 {
-		return errors.Join(ErrInvalidClientCall, fmt.Errorf("OAuth authorization server metadata not found at any candidate location for %q", identifier))
-	}
-	return errors.Join(ErrInvalidClientCall, fmt.Errorf("failed to retrieve OAuth authorization server metadata for %q: %s", identifier, strings.Join(diagnostics, "; ")))
+	return metadata, nil
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.

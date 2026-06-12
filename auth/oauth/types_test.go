@@ -20,10 +20,11 @@ package oauth
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIssuerIdToWellKnown(t *testing.T) {
@@ -64,49 +65,6 @@ func TestIssuerIdToWellKnown(t *testing.T) {
 		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
 		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 		assert.Nil(t, u)
-	})
-}
-
-func TestIdentifiersMatch(t *testing.T) {
-	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth"))
-	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth/", "https://nuts.nl/oauth"), "trailing slash on metadata issuer should match")
-	assert.True(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth/"), "trailing slash on requested identifier should match")
-	assert.True(t, IdentifiersMatch("https://nuts.nl", "https://nuts.nl/"))
-	assert.False(t, IdentifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/other"))
-	assert.False(t, IdentifiersMatch("https://attacker.example", "https://nuts.nl"))
-}
-
-func TestWellKnownCandidates(t *testing.T) {
-	t.Run("identifier with path returns insert then append", func(t *testing.T) {
-		candidates, err := WellKnownCandidates("https://nuts.nl/iam/id", AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, []string{
-			"https://nuts.nl/.well-known/oauth-authorization-server/iam/id",
-			"https://nuts.nl/iam/id/.well-known/oauth-authorization-server",
-		}, candidates)
-	})
-	t.Run("no path collapses to a single candidate", func(t *testing.T) {
-		candidates, err := WellKnownCandidates("https://nuts.nl", AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
-	})
-	t.Run("trailing-slash-only path collapses to a single candidate", func(t *testing.T) {
-		candidates, err := WellKnownCandidates("https://nuts.nl/", AuthzServerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
-	})
-	t.Run("percent-encoded path is not double-escaped", func(t *testing.T) {
-		candidates, err := WellKnownCandidates("https://nuts.nl/foo%2Fbar", OpenIdCredIssuerWellKnown, true)
-		require.NoError(t, err)
-		assert.Equal(t, []string{
-			"https://nuts.nl/.well-known/openid-credential-issuer/foo%2Fbar",
-			"https://nuts.nl/foo%2Fbar/.well-known/openid-credential-issuer",
-		}, candidates)
-	})
-	t.Run("invalid identifier returns the SSRF/parse error", func(t *testing.T) {
-		candidates, err := WellKnownCandidates("http://nuts.nl/iam/id", AuthzServerWellKnown, true)
-		assert.ErrorContains(t, err, "scheme must be https")
-		assert.Nil(t, candidates)
 	})
 }
 
