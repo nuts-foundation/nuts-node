@@ -91,9 +91,13 @@ func TestSelect(t *testing.T) {
 		}`)
 		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
 
-		_, err := Select(pd, []vc.VerifiableCredential{cred})
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
 
 		assert.ErrorIs(t, err, ErrNoCredentials)
+		// Candidates stays populated on error: the unfilled descriptor is present for diagnostics.
+		require.Len(t, result.Candidates, 1)
+		assert.Equal(t, "patient_credential", result.Candidates[0].InputDescriptor.Id)
+		assert.Nil(t, result.Candidates[0].VC)
 	})
 
 	t.Run("multiple required descriptors all fill", func(t *testing.T) {
@@ -192,9 +196,13 @@ func TestSelect_InitialBindings(t *testing.T) {
 		vcA := parseVC(t, `{"id": "vc-a", "credentialSubject": {"patientId": "456"}}`)
 		vcB := parseVC(t, `{"id": "vc-b", "credentialSubject": {"patientId": "456"}}`)
 
-		_, err := Select(pd, []vc.VerifiableCredential{vcA, vcB}, WithInitialBindings(map[string]string{"patient_id": "456"}))
+		result, err := Select(pd, []vc.VerifiableCredential{vcA, vcB}, WithInitialBindings(map[string]string{"patient_id": "456"}))
 
 		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		// Candidates stays populated on error: the undecidable descriptor is present, unfilled.
+		require.Len(t, result.Candidates, 1)
+		assert.Equal(t, "patient_credential", result.Candidates[0].InputDescriptor.Id)
+		assert.Nil(t, result.Candidates[0].VC)
 	})
 
 	t.Run("caller-bound descriptor with zero matches returns ErrNoCredentials", func(t *testing.T) {
@@ -333,9 +341,14 @@ func TestSelect_SubmissionRequirements(t *testing.T) {
 		// only fills d1; nothing matches d2
 		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"f1": "x"}}`)
 
-		_, err := Select(pd, []vc.VerifiableCredential{cred})
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
 
 		assert.ErrorIs(t, err, ErrNoCredentials)
+		// Candidates stays populated on error: it carries the assignment the rule rejected.
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-1", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
 	})
 
 	t.Run("all rule with every group member filled keeps all descriptors", func(t *testing.T) {

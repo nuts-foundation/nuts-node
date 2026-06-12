@@ -75,7 +75,9 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		// Keep only candidates whose resolved id-values agree with the bindings (P3 consistency).
 		consistent := consistentCandidates(eligible, options.initialBindings)
 		// A descriptor pinned by the caller's bindings must resolve to exactly one candidate.
+		// The descriptor is still appended (unfilled) so Candidates reflects where selection failed.
 		if len(consistent) > 1 && isCallerBound(*descriptor, options.initialBindings) {
+			result.Candidates = append(result.Candidates, Candidate{InputDescriptor: *descriptor})
 			return result, fmt.Errorf("input descriptor '%s': %w", descriptor.Id, ErrMultipleCredentials)
 		}
 		var selected *vc.VerifiableCredential
