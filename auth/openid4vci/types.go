@@ -32,6 +32,8 @@ package openid4vci
 
 import (
 	"encoding/json"
+
+	"github.com/nuts-foundation/nuts-node/auth/oauth"
 )
 
 // JWTTypeOpenID4VCIProof is the JWT typ claim value used in OpenID4VCI key
@@ -48,6 +50,18 @@ type OpenIDCredentialIssuerMetadata struct {
 	NonceEndpoint        string              `json:"nonce_endpoint,omitempty"`
 	AuthorizationServers []string            `json:"authorization_servers,omitempty"`
 	Display              []map[string]string `json:"display,omitempty"`
+}
+
+// GetIssuer returns the credential issuer identifier, for metadata discovery
+// validation (see oauth.FetchMetadata).
+func (m OpenIDCredentialIssuerMetadata) GetIssuer() string {
+	return m.CredentialIssuer
+}
+
+// WellKnownPath returns the well-known path under which the Credential Issuer Metadata is
+// published (§12.2), used by oauth.FetchMetadata to derive the metadata URL.
+func (m OpenIDCredentialIssuerMetadata) WellKnownPath() string {
+	return oauth.OpenIdCredIssuerWellKnown
 }
 
 // NonceResponse is the body returned by the Nonce Endpoint (Section 7.2).

@@ -64,22 +64,23 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  - did:web:example.com becomes https://example.com/.well-known/oauth-authorization-server
 	//  - did:web:example.com:iam:123 becomes https://example.com/.well-known/oauth-authorization-server/did:web:example.com:iam:123
 
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
+	// Try the well-known locations in priority order and take the first that
+	// returns a matching document:
+	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
+	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
+	// Many authorization servers publish metadata only under the append convention.
+	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
 	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.AuthorizationServerMetadata
-	if err = hb.doGet(ctx, metadataURL.String(), &metadata); err != nil {
-		// if this is a core.HttpError and the status code >= 500 then we want the caller to receive a 502 Bad Gateway
-		// we do this by changing the status code of the error
-		// any other error should result in a 400 Bad Request
-		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode >= 500 {
+		// An upstream server error (5xx) is surfaced as a core.HttpError; map it to 502
+		// Bad Gateway. Any other failure is a bad client call.
+		httpErr, ok := errors.AsType[core.HttpError](err)
+		if ok && httpErr.StatusCode >= 500 {
 			httpErr.StatusCode = http.StatusBadGateway
 			return nil, httpErr
 		}
 		return nil, errors.Join(ErrInvalidClientCall, err)
 	}
-	return &metadata, err
+	return metadata, nil
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.

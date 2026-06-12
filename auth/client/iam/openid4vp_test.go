@@ -234,7 +234,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "not found at any candidate location")
 	})
 }
 
@@ -382,7 +382,7 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "not found at any candidate location")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -1067,6 +1067,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.verifierURL = test2.MustParseURL(ctx.tlsServer.URL)
 	ctx.issuerDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL+"/issuer")
 	ctx.authzServerMetadata = metadata
+	ctx.authzServerMetadata.Issuer = ctx.tlsServer.URL
 	ctx.authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	ctx.authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"
