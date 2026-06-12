@@ -334,6 +334,17 @@ func Test_engine_sessionDatabase(t *testing.T) {
 }
 
 func Test_logLeiaQueryStats(t *testing.T) {
+	// logLeiaQueryStats logs to the global logrus logger, which other tests and background
+	// goroutines also write to concurrently. Match the specific entry by message rather than
+	// relying on LastEntry(), which is racy.
+	findEntry := func(hook *logTest.Hook, substr string) *logrus.Entry {
+		for _, entry := range hook.AllEntries() {
+			if strings.Contains(entry.Message, substr) {
+				return entry
+			}
+		}
+		return nil
+	}
 	t.Run("full table scan logs warning without index", func(t *testing.T) {
 		hook := &logTest.Hook{}
 		logrus.AddHook(hook)
@@ -350,9 +361,9 @@ func Test_logLeiaQueryStats(t *testing.T) {
 			FilterEfficiency:      0,
 		})
 
-		require.NotNil(t, hook.LastEntry())
-		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
-		assert.Contains(t, hook.LastEntry().Message, "full table scan")
+		entry := findEntry(hook, "full table scan")
+		require.NotNil(t, entry)
+		assert.Equal(t, logrus.WarnLevel, entry.Level)
 	})
 	t.Run("suboptimal index usage logs warning with index name", func(t *testing.T) {
 		hook := &logTest.Hook{}
@@ -370,9 +381,9 @@ func Test_logLeiaQueryStats(t *testing.T) {
 			FilterEfficiency:      0.05,
 		})
 
-		require.NotNil(t, hook.LastEntry())
-		assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
-		assert.Contains(t, hook.LastEntry().Message, "suboptimal index")
-		assert.Equal(t, "field1_index", hook.LastEntry().Data["leia_index_used"])
+		entry := findEntry(hook, "suboptimal index")
+		require.NotNil(t, entry)
+		assert.Equal(t, logrus.WarnLevel, entry.Level)
+		assert.Equal(t, "field1_index", entry.Data["leia_index_used"])
 	})
 }
