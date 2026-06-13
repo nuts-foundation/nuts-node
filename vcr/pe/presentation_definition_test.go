@@ -24,11 +24,12 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/json"
+	"strings"
+	"testing"
+
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core/to"
 	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
-	"strings"
-	"testing"
 
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
