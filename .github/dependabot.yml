@@ -5,21 +5,30 @@ updates:
     # checks workflow files in /.github/workflows
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
 
   # Go
   - package-ecosystem: "gomod"
     # checks /go.mod
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
 
   # Docker
   - package-ecosystem: "docker"
     # checks /Dockerfile
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
 
   # Python (PRs disabled)
   - package-ecosystem: "pip"
