@@ -96,6 +96,20 @@ func TestConfigureTrustBundle(t *testing.T) {
 	})
 }
 
+func TestCertificateKind(t *testing.T) {
+	rootCA, rootKey := newTestCA(t)
+
+	t.Run("root CA", func(t *testing.T) {
+		assert.Equal(t, "root CA", certificateKind(rootCA))
+	})
+	t.Run("intermediate CA", func(t *testing.T) {
+		assert.Equal(t, "intermediate CA", certificateKind(newTestIntermediate(t, rootCA, rootKey)))
+	})
+	t.Run("non-CA certificate", func(t *testing.T) {
+		assert.Equal(t, "certificate", certificateKind(newTestLeaf(t, rootCA, rootKey)))
+	})
+}
+
 // TestConfigureTrustBundle_endToEnd verifies that a client backed by SafeHttpTransport can only reach an HTTPS server
 // whose certificate is signed by a custom CA after that CA is loaded via ConfigureTrustBundle.
 func TestConfigureTrustBundle_endToEnd(t *testing.T) {
@@ -173,6 +187,27 @@ func newTestCA(t *testing.T) (*x509.Certificate, *ecdsa.PrivateKey) {
 	cert, err := x509.ParseCertificate(der)
 	require.NoError(t, err)
 	return cert, key
+}
+
+// newTestIntermediate creates an intermediate CA certificate signed by the given parent CA.
+func newTestIntermediate(t *testing.T, parent *x509.Certificate, parentKey *ecdsa.PrivateKey) *x509.Certificate {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(4),
+		Subject:               pkix.Name{CommonName: "Test Intermediate CA"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, parent, &key.PublicKey, parentKey)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return cert
 }
 
 // newTestLeaf creates a leaf certificate signed by the given CA.
