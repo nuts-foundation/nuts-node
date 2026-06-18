@@ -72,7 +72,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "/authorize", redirectUri.Path)
 		assert.True(t, redirectUri.Query().Has("state"))
 		assert.True(t, redirectUri.Query().Has("code_challenge"))
-		assert.Equal(t, "https://example.com/oauth2/holder/callback", redirectUri.Query().Get("redirect_uri"))
+		assert.Equal(t, "https://example.com/oauth2/callback", redirectUri.Query().Get("redirect_uri"))
 		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
@@ -242,7 +242,7 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 }
 
 func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
-	redirectURI := "https://example.com/oauth2/holder/callback"
+	redirectURI := "https://example.com/oauth2/callback"
 	authServer := "https://auth.server"
 	tokenEndpoint := authServer + "/token"
 	nonceEndpoint := authServer + "/nonce"
@@ -304,10 +304,9 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
 		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
-				Code:  to.Ptr(code),
-				State: to.Ptr(state),
+				Code:  new(code),
+				State: new(state),
 			},
 		})
 

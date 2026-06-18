@@ -731,12 +731,10 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := baseURL.String()
-	checkURL := baseURL.JoinPath(oauth.CallbackPath)
+	clientID := r.subjectToBaseURL(*oauthSession.OwnSubject)
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
 	}
