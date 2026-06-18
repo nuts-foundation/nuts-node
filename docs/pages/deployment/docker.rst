@@ -73,6 +73,10 @@ The default working directory within the container is ``/nuts`` that provides de
     The container user (``18081``) has insufficient privileges by default to write to mounted directories.
     The required permissions can be granted by making the container user the owner of the ``data`` directory on the host. (``chown -R 18081:18081 </path/to/host/data-dir>``)
 
+* **/etc/nuts/http-trust.d/**: Directory with additional CA certificates (``*.pem``, ``*.crt``) that HTTP clients trust, on top of the OS CA bundle.
+    The image sets ``NUTS_HTTPCLIENT_TLS_EXTRACERTSDIR`` to this path by default, so mounting CA certificates here trusts them without rebuilding the image.
+    Files must be readable by the container user (``18081``); read-only is sufficient (``chmod -R o+r </path/to/host/ca-dir>``).
+
 .. note::
 
     - Nodes running the :ref:`recommended deployment <nuts-node-recommended-deployment>` (external storage configured for ``crypto.storage`` and ``storage.sql.connection``) that do not use did:nuts / gRPC network don't need to mount a ``data`` dir.
