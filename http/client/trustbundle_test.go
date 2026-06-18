@@ -22,10 +22,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,6 +94,64 @@ func TestConfigureTrustBundle(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+}
+
+// TestConfigureTrustBundle_endToEnd verifies that a client backed by SafeHttpTransport can only reach an HTTPS server
+// whose certificate is signed by a custom CA after that CA is loaded via ConfigureTrustBundle.
+func TestConfigureTrustBundle_endToEnd(t *testing.T) {
+	original := SafeHttpTransport.TLSClientConfig.RootCAs
+	t.Cleanup(func() { SafeHttpTransport.TLSClientConfig.RootCAs = original })
+	SafeHttpTransport.TLSClientConfig.RootCAs = nil
+
+	caCert, caKey := newTestCA(t)
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{newTestServerCert(t, caCert, caKey)}}
+	server.StartTLS()
+	defer server.Close()
+
+	// Before loading the CA, the server's certificate is signed by an unknown authority.
+	_, err := New(time.Second).Do(mustGet(t, server.URL))
+	require.Error(t, err)
+	// Exact wording is platform-dependent (Go's verifier vs. the OS verifier), so match the common prefix.
+	assert.Contains(t, err.Error(), "failed to verify certificate")
+
+	// Load the CA into the trust bundle.
+	dir := t.TempDir()
+	writePEM(t, filepath.Join(dir, "ca.pem"), caCert.Raw)
+	require.NoError(t, ConfigureTrustBundle(dir))
+
+	// Now the server is trusted.
+	response, err := New(time.Second).Do(mustGet(t, server.URL))
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, response.StatusCode)
+}
+
+func mustGet(t *testing.T, url string) *http.Request {
+	t.Helper()
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	require.NoError(t, err)
+	return request
+}
+
+// newTestServerCert creates a TLS server certificate for 127.0.0.1, signed by the given CA.
+func newTestServerCert(t *testing.T, ca *x509.Certificate, caKey *ecdsa.PrivateKey) tls.Certificate {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(3),
+		Subject:      pkix.Name{CommonName: "127.0.0.1"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, ca, &key.PublicKey, caKey)
+	require.NoError(t, err)
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }
 
 // newTestCA creates a self-signed CA certificate for use in tests.
