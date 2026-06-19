@@ -165,7 +165,6 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			paths := []string{
 				"/oauth2/:subjectID/user",
 				"/oauth2/:subjectID/authorize",
-				"/oauth2/callback",
 			}
 			for _, path := range paths {
 				if c.Path() == path {
