@@ -444,7 +444,7 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		ctx := newCustomTestClient(t, verifierURL, false)
 
-		response, err := ctx.client.Callback(nil, CallbackRequestObject{SubjectID: holderSubjectID})
+		response, err := ctx.client.Callback(nil, CallbackRequestObject{})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "callback endpoint is disabled")
 		assert.Nil(t, response)
@@ -454,7 +454,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State:            &state,
 				Error:            &errorCode,
@@ -478,10 +477,9 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -512,10 +510,9 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -525,27 +522,10 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
-	t.Run("err - did mismatch", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-
-		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
-
-		assert.Nil(t, res)
-		requireOAuthError(t, err, oauth.InvalidRequest, "session subject does not match request")
-
-	})
 	t.Run("err - missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code: &code,
 			},
@@ -557,7 +537,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Error:            &errorCode,
 				ErrorDescription: &errorDescription,
@@ -571,7 +550,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -585,7 +563,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State: &state,
 			},
@@ -601,7 +578,6 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,

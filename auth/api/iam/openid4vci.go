@@ -101,7 +101,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	redirectUri := clientID.JoinPath(oauth.CallbackPath)
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		AuthorizationServerMetadata: authzServerMetadata,
@@ -134,7 +133,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.ClientIDParam:             clientID.String(),
 		oauth.ClientIDSchemeParam:       entityClientIDScheme,
 		oauth.AuthorizationDetailsParam: string(authorizationDetails),
-		oauth.RedirectURIParam:          redirectUri.String(),
+		oauth.RedirectURIParam:          r.callbackURL().String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	}
@@ -159,16 +158,14 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
 	appCallbackURI := oauthSession.redirectURI()
 
-	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := baseURL.String()
-	checkURL := baseURL.JoinPath(oauth.CallbackPath)
+	clientID := r.subjectToBaseURL(*oauthSession.OwnSubject)
 
 	if oauthSession.OwnDID == nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "missing wallet DID in session"), appCallbackURI)
 	}
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
 	}
