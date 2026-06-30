@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.36)
+*************************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.35...v5.4.36
+
+*************************
 Hazelnut update (v5.4.35)
 *************************
 
