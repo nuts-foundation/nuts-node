@@ -14,6 +14,16 @@ Unreleased
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
 ****************
+Peanut (v6.2.9)
+****************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.8...v6.2.9
+
+****************
 Peanut (v6.2.8)
 ****************
 
@@ -499,6 +509,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.36)
+*************************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.35...v5.4.36
 
 *************************
 Hazelnut update (v5.4.35)
