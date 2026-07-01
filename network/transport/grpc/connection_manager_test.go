@@ -494,7 +494,7 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 		}, time.Second*2, "waiting for peer 1 to connect")
 	})
 	t.Run("outbound stream triggers observer", func(t *testing.T) {
-		_, authenticator1, _, listener := create(t)
+		cm1, authenticator1, _, listener := create(t)
 		cm2, authenticator2, _, _ := create(t, withBufconnDialer(listener))
 		authenticator1.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "1"}, nil)
 		authenticator2.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{ID: "2"}, nil)
@@ -507,9 +507,11 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 
 		cm2.Connect("bufnet", *nodeDID, nil)
 
+		// Wait until both sides have authenticated, otherwise the mock controller may
+		// run Finish() before authenticator1 fires and report a missing call.
 		test.WaitFor(t, func() (bool, error) {
-			return capturedPeer.Load() != nil, nil
-		}, time.Second*2, "waiting for peer 2 observers")
+			return capturedPeer.Load() != nil && len(cm1.Peers()) > 0, nil
+		}, time.Second*2, "waiting for both sides to authenticate")
 		assert.Equal(t, transport.Peer{ID: "2"}, capturedPeer.Load())
 		assert.Equal(t, transport.StateConnected, capturedState.Load())
 
@@ -533,9 +535,11 @@ func Test_grpcConnectionManager_Peers(t *testing.T) {
 
 		cm2.Connect("bufnet", *nodeDID, nil)
 
+		// Wait until both sides have authenticated, otherwise the mock controller may
+		// run Finish() before authenticator2 fires and report a missing call.
 		test.WaitFor(t, func() (bool, error) {
-			return capturedPeer.Load() != nil, nil
-		}, time.Second*2, "waiting for peer 1 observers")
+			return capturedPeer.Load() != nil && len(cm2.Peers()) > 0, nil
+		}, time.Second*2, "waiting for both sides to authenticate")
 		assert.Equal(t, transport.Peer{ID: "1"}, capturedPeer.Load())
 		assert.Equal(t, transport.StateConnected, capturedState.Load())
 
