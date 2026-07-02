@@ -42,8 +42,8 @@ import (
 // identifier covers them all.
 //
 // When every candidate fails, the returned error joins each candidate's failure. A per-candidate
-// core.HttpError is preserved through the join (see errors.AsType), so callers can still detect
-// an upstream 5xx and map it to 502.
+// core.HttpError stays recoverable through the join (see errors.AsType), so callers can still
+// inspect the original upstream status.
 func FetchMetadata[T interface {
 	WellKnownPath() string
 	GetIssuer() string

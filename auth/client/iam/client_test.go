@@ -112,7 +112,6 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.Contains(t, err.Error(), "failed to retrieve metadata")
 		assert.Contains(t, err.Error(), tlsServer.URL+"/iam/123")
 		assert.Len(t, *requested, 2)
@@ -158,7 +157,7 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
+		assert.Contains(t, err.Error(), "does not match requested identifier")
 	})
 	t.Run("error - non-404 status is preserved in the exhausted error", func(t *testing.T) {
 		tlsServer, client, _ := metadataServer(t, http.StatusForbidden, "/iam/123")
@@ -166,7 +165,6 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.Contains(t, err.Error(), "403")
 	})
 	t.Run("error - errors are returned as-is", func(t *testing.T) {

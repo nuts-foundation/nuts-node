@@ -168,26 +168,7 @@ func TestFetchMetadata(t *testing.T) {
 		assert.Contains(t, err.Error(), srv.URL+"/iam/123/.well-known/oauth-authorization-server")
 		assert.Len(t, *requested, 2)
 	})
-	t.Run("error - non-404 failure is reported with its status", func(t *testing.T) {
-		srv, _ := metadataServer(t, http.StatusForbidden, "/iam/123")
-
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to retrieve metadata")
-		assert.Contains(t, err.Error(), "403")
-	})
-	t.Run("error - upstream 5xx is surfaced as a core.HttpError so callers can map it to 502", func(t *testing.T) {
-		srv, _ := metadataServer(t, http.StatusInternalServerError, "")
-
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL, false)
-
-		require.Error(t, err)
-		var httpErr core.HttpError
-		require.ErrorAs(t, err, &httpErr)
-		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
-	})
-	t.Run("error - 5xx on every candidate is still surfaced as a core.HttpError after trying both", func(t *testing.T) {
+	t.Run("error - a candidate's core.HttpError stays recoverable through the join", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusInternalServerError, "/iam/123")
 
 		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)

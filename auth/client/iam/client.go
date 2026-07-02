@@ -41,9 +41,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 )
 
-// ErrInvalidClientCall is returned when the node makes a http call as client based on wrong information passed by the client.
-var ErrInvalidClientCall = errors.New("invalid client call")
-
 // ErrBadGateway is returned when the node makes a http call as client and the upstream returns an unexpected result.
 var ErrBadGateway = errors.New("upstream returned unexpected result")
 
@@ -69,17 +66,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
 	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
 	// Many authorization servers publish metadata only under the append convention.
-	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
-	if err != nil {
-		// An upstream server error (5xx) is returned as-is, carrying its original status.
-		// Any other failure is a bad client call.
-		httpErr, ok := errors.AsType[core.HttpError](err)
-		if ok && httpErr.StatusCode >= 500 {
-			return nil, err
-		}
-		return nil, errors.Join(ErrInvalidClientCall, err)
-	}
-	return metadata, nil
+	return oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.

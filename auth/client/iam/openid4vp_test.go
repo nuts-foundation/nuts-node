@@ -233,7 +233,6 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 		_, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.tlsServer.URL)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 }
@@ -381,7 +380,6 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
