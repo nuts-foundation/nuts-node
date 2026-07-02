@@ -148,53 +148,10 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		assert.Contains(t, err.Error(), "does not match")
 	})
 
-	t.Run("falls back to append form when insert form 404s", func(t *testing.T) {
-		var requested []string
-		var srv *httptest.Server
-		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			requested = append(requested, r.URL.Path)
-			if r.URL.Path != "/oauth2/alice/.well-known/openid-credential-issuer" {
-				http.Error(w, "not found", http.StatusNotFound)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: srv.URL + "/oauth2/alice"})
-		}))
-		defer srv.Close()
-
-		client := NewClient(srv.Client(), false)
-		metadata, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, []string{
-			"/.well-known/openid-credential-issuer/oauth2/alice",
-			"/oauth2/alice/.well-known/openid-credential-issuer",
-		}, requested)
-	})
-
-	t.Run("identifier mismatch on first candidate falls through to next", func(t *testing.T) {
-		var srv *httptest.Server
-		srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			switch r.URL.Path {
-			case "/.well-known/openid-credential-issuer/oauth2/alice":
-				// 200 but with a non-matching credential_issuer: must be rejected and fallen through.
-				_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: "https://attacker.example/"})
-			case "/oauth2/alice/.well-known/openid-credential-issuer":
-				_ = json.NewEncoder(w).Encode(OpenIDCredentialIssuerMetadata{CredentialIssuer: srv.URL + "/oauth2/alice"})
-			default:
-				http.Error(w, "not found", http.StatusNotFound)
-			}
-		}))
-		defer srv.Close()
-
-		client := NewClient(srv.Client(), false)
-		metadata, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, srv.URL+"/oauth2/alice", metadata.CredentialIssuer)
-	})
-
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic beyond the
+	// "openid4vci: " error prefix, so it's enough to confirm the wiring (well-known constant,
+	// httpClient, strictMode) and that prefix.
 	t.Run("all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
@@ -206,18 +163,6 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to retrieve metadata")
 		assert.Contains(t, err.Error(), srv.URL+"/oauth2/alice")
-	})
-
-	t.Run("non-404 status is preserved in the exhausted error", func(t *testing.T) {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "forbidden", http.StatusForbidden)
-		}))
-		defer srv.Close()
-
-		client := NewClient(srv.Client(), false)
-		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "403")
 	})
 
 	t.Run("rejects non-https issuer URL in strict mode", func(t *testing.T) {

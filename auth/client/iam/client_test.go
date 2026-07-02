@@ -74,26 +74,10 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		return tlsServer, client, &requested
 	}
 
-	t.Run("ok - insert form, root identifier, single request", func(t *testing.T) {
-		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "", "/.well-known/oauth-authorization-server")
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, "/token", metadata.TokenEndpoint)
-		assert.Equal(t, []string{"/.well-known/oauth-authorization-server"}, *requested)
-	})
-	t.Run("ok - insert form, identifier with path", func(t *testing.T) {
-		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/.well-known/oauth-authorization-server/iam/123")
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		// Insert form is tried first; no fallback request is made on the happy path.
-		assert.Equal(t, []string{"/.well-known/oauth-authorization-server/iam/123"}, *requested)
-	})
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic, so these
+	// tests only need to confirm the wiring (well-known constant, httpClient, strictMode) and
+	// that this specific bug (rewriting an upstream status code) doesn't reappear.
 	t.Run("ok - append form when insert 404s", func(t *testing.T) {
 		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/oauth-authorization-server")
 
@@ -105,67 +89,6 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 			"/.well-known/oauth-authorization-server/iam/123",
 			"/iam/123/.well-known/oauth-authorization-server",
 		}, *requested)
-	})
-	t.Run("error - all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
-		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123")
-
-		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to retrieve metadata")
-		assert.Contains(t, err.Error(), tlsServer.URL+"/iam/123")
-		assert.Len(t, *requested, 2)
-	})
-	t.Run("identifier mismatch on first candidate falls through to next", func(t *testing.T) {
-		// Insert form returns 200 but with a non-matching issuer; append form serves the match.
-		var issuer string
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			switch r.URL.Path {
-			case "/.well-known/oauth-authorization-server/iam/123":
-				_ = json.NewEncoder(w).Encode(oauth.AuthorizationServerMetadata{Issuer: "https://attacker.example", TokenEndpoint: "/evil"})
-			case "/iam/123/.well-known/oauth-authorization-server":
-				_ = json.NewEncoder(w).Encode(oauth.AuthorizationServerMetadata{Issuer: issuer, TokenEndpoint: "/token"})
-			default:
-				w.WriteHeader(http.StatusNotFound)
-			}
-		})
-		tlsServer, client := testServerAndClient(t, handler)
-		issuer = tlsServer.URL + "/iam/123"
-
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, "/token", metadata.TokenEndpoint)
-		assert.Equal(t, issuer, metadata.Issuer)
-	})
-	t.Run("error - metadata issuer with a trailing slash does not match the requested identifier", func(t *testing.T) {
-		// RFC 8414 §3.3 / OpenID4VCI §12.2.4 require a byte-exact comparison, no normalization.
-		var issuer string
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/oauth/.well-known/oauth-authorization-server" {
-				w.WriteHeader(http.StatusNotFound)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(oauth.AuthorizationServerMetadata{Issuer: issuer + "/", TokenEndpoint: "/token"})
-		})
-		tlsServer, client := testServerAndClient(t, handler)
-		issuer = tlsServer.URL + "/oauth"
-
-		_, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not match requested identifier")
-	})
-	t.Run("error - non-404 status is preserved in the exhausted error", func(t *testing.T) {
-		tlsServer, client, _ := metadataServer(t, http.StatusForbidden, "/iam/123")
-
-		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
-
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "403")
 	})
 	t.Run("error - errors are returned as-is", func(t *testing.T) {
 		tlsServer, client, _ := metadataServer(t, http.StatusInternalServerError, "")
