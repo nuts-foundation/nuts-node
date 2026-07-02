@@ -60,7 +60,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vcr"
 	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -1008,25 +1007,6 @@ func (r Wrapper) subjectOwns(ctx context.Context, subjectID string, subjectDID d
 		}
 	}
 	return false, nil
-}
-
-// subjectWebDID returns the subject's sole did:web DID.
-// It fails loud (InvalidInputError) if the subject has zero or multiple did:web DIDs.
-func (r Wrapper) subjectWebDID(ctx context.Context, subjectID string) (*did.DID, error) {
-	dids, err := r.subjectManager.ListDIDs(ctx, subjectID)
-	if err != nil {
-		return nil, err
-	}
-	var webDIDs []did.DID
-	for _, curr := range dids {
-		if curr.Method == didweb.MethodName {
-			webDIDs = append(webDIDs, curr)
-		}
-	}
-	if len(webDIDs) != 1 {
-		return nil, core.InvalidInputError("wallet_did is required: subject does not have exactly one did:web DID (found %d)", len(webDIDs))
-	}
-	return &webDIDs[0], nil
 }
 
 // todo select did method, and not the scheme

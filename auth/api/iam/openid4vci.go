@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -58,10 +59,21 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 			return nil, core.InvalidInputError("wallet DID does not belong to the subject")
 		}
 	} else {
-		walletDID, err = r.subjectWebDID(ctx, request.SubjectID)
+		// wallet_did omitted: default to the subject's sole did:web DID.
+		dids, err := r.subjectManager.ListDIDs(ctx, request.SubjectID)
 		if err != nil {
 			return nil, err
 		}
+		var webDIDs []did.DID
+		for _, curr := range dids {
+			if curr.Method == didweb.MethodName {
+				webDIDs = append(webDIDs, curr)
+			}
+		}
+		if len(webDIDs) != 1 {
+			return nil, core.InvalidInputError("wallet_did is required: subject does not have exactly one did:web DID (found %d)", len(webDIDs))
+		}
+		walletDID = &webDIDs[0]
 	}
 	// Parse the issuer
 	issuer := request.Body.Issuer
