@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/core/to"
 
+	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -60,7 +61,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential", Format: to.Ptr("vc+sd-jwt")}},
 				Issuer:               issuerClientID,
 				RedirectUri:          redirectURI,
-				WalletDid:            holderDID.String(),
+				WalletDid:            to.Ptr(holderDID.String()),
 			},
 		})
 		require.NoError(t, err)
@@ -76,6 +77,45 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
 		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+	})
+	t.Run("ok - wallet_did omitted, defaults to subject's sole did:web DID", func(t *testing.T) {
+		ctx := newTestClient(t)
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.WalletDid = nil
+
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		require.NoError(t, err)
+		redirectUri, _ := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		var stored OAuthSession
+		require.NoError(t, ctx.client.oauthClientStateStore().Get(redirectUri.Query().Get("state"), &stored))
+		assert.Equal(t, holderDID, *stored.OwnDID)
+	})
+	t.Run("error - wallet_did omitted, subject has multiple did:web DIDs", func(t *testing.T) {
+		subjectID := "multi-web"
+		otherWebDID := did.MustParseDID("did:web:example.com:iam:other")
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID, otherWebDID}, nil)
+		req := requestCredentials(subjectID, issuerClientID, redirectURI)
+		req.Body.WalletDid = nil
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		assert.ErrorContains(t, err, "wallet_did is required")
+	})
+	t.Run("error - wallet_did omitted, subject has no did:web DIDs", func(t *testing.T) {
+		subjectID := "no-web"
+		natsDID := did.MustParseDID("did:nuts:12345")
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{natsDID}, nil)
+		req := requestCredentials(subjectID, issuerClientID, redirectURI)
+		req.Body.WalletDid = nil
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		assert.ErrorContains(t, err, "wallet_did is required")
 	})
 	t.Run("ok - authorization_request_params merged into authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -234,7 +274,7 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 			AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential"}},
 			Issuer:               issuer,
 			RedirectUri:          redirectURI,
-			WalletDid:            holderDID.String(),
+			WalletDid:            to.Ptr(holderDID.String()),
 		},
 	}
 }

@@ -12,6 +12,7 @@ Unreleased
 * #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
+* #4365: ``request-credential`` API's ``wallet_did`` is now optional. When omitted, it defaults to the subject's sole ``did:web`` DID; the call fails with a 400 if the subject has zero or multiple ``did:web`` DIDs.
 
 ****************
 Peanut (v6.2.8)

@@ -45,14 +45,23 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
 	}
-	walletDID, err := did.ParseDID(request.Body.WalletDid)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid wallet DID")
-	}
-	if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
-		return nil, err
-	} else if !owned {
-		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
+	var walletDID *did.DID
+	var err error
+	if request.Body.WalletDid != nil {
+		walletDID, err = did.ParseDID(*request.Body.WalletDid)
+		if err != nil {
+			return nil, core.InvalidInputError("invalid wallet DID")
+		}
+		if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
+			return nil, err
+		} else if !owned {
+			return nil, core.InvalidInputError("wallet DID does not belong to the subject")
+		}
+	} else {
+		walletDID, err = r.subjectWebDID(ctx, request.SubjectID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// Parse the issuer
 	issuer := request.Body.Issuer

@@ -1516,6 +1516,44 @@ func TestWrapper_subjectOwns(t *testing.T) {
 	})
 }
 
+func TestWrapper_subjectWebDID(t *testing.T) {
+	t.Run("ok - sole did:web DID", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		result, err := ctx.client.subjectWebDID(context.Background(), holderSubjectID)
+
+		require.NoError(t, err)
+		assert.Equal(t, holderDID, *result)
+	})
+	t.Run("error - multiple did:web DIDs", func(t *testing.T) {
+		subjectID := "multi-web"
+		otherWebDID := did.MustParseDID("did:web:example.com:iam:other")
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID, otherWebDID}, nil)
+
+		_, err := ctx.client.subjectWebDID(context.Background(), subjectID)
+
+		assert.ErrorContains(t, err, "wallet_did is required")
+	})
+	t.Run("error - no did:web DIDs", func(t *testing.T) {
+		subjectID := "no-web"
+		natsDID := did.MustParseDID("did:nuts:12345")
+		ctx := newTestClient(t)
+		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{natsDID}, nil)
+
+		_, err := ctx.client.subjectWebDID(context.Background(), subjectID)
+
+		assert.ErrorContains(t, err, "wallet_did is required")
+	})
+	t.Run("unknown subject", func(t *testing.T) {
+		ctx := newTestClient(t)
+
+		_, err := ctx.client.subjectWebDID(context.Background(), unknownSubjectID)
+
+		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+}
+
 func TestWrapper_accessTokenRequestCacheKey(t *testing.T) {
 	expected := "080c4170aa372da86b76c6b5db2c3c08a532c7c8454b5d2f3fb0e1d239e59758"
 	key := accessTokenRequestCacheKey(RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: &RequestServiceAccessTokenJSONRequestBody{Scope: "test"}})
