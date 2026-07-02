@@ -30,15 +30,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIdentifiersMatch(t *testing.T) {
-	assert.True(t, identifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth"))
-	assert.True(t, identifiersMatch("https://nuts.nl/oauth/", "https://nuts.nl/oauth"), "trailing slash on metadata issuer should match")
-	assert.True(t, identifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/oauth/"), "trailing slash on requested identifier should match")
-	assert.True(t, identifiersMatch("https://nuts.nl", "https://nuts.nl/"))
-	assert.False(t, identifiersMatch("https://nuts.nl/oauth", "https://nuts.nl/other"))
-	assert.False(t, identifiersMatch("https://attacker.example", "https://nuts.nl"))
-}
-
 func TestWellKnownCandidates(t *testing.T) {
 	t.Run("identifier with path returns insert then append", func(t *testing.T) {
 		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id", true, AuthzServerWellKnown)
@@ -145,7 +136,8 @@ func TestFetchMetadata(t *testing.T) {
 		require.NotNil(t, metadata)
 		assert.Equal(t, "/token", metadata.TokenEndpoint)
 	})
-	t.Run("ok - issuer with a trailing slash matches the requested identifier", func(t *testing.T) {
+	t.Run("error - issuer with a trailing slash does not match the requested identifier", func(t *testing.T) {
+		// RFC 8414 §3.3 / OpenID4VCI §12.2.4 require a byte-exact comparison, no normalization.
 		var issuer string
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/oauth/.well-known/oauth-authorization-server" {
@@ -158,11 +150,10 @@ func TestFetchMetadata(t *testing.T) {
 		t.Cleanup(srv.Close)
 		issuer = srv.URL + "/oauth"
 
-		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer, false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer, false)
 
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, issuer+"/", metadata.Issuer)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not match requested identifier")
 	})
 	t.Run("error - all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusNotFound, "/iam/123")
@@ -170,7 +161,7 @@ func TestFetchMetadata(t *testing.T) {
 		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
 
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found at any candidate location")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
 		assert.Contains(t, err.Error(), srv.URL+"/iam/123")
 		// Every tried location is listed in the error.
 		assert.Contains(t, err.Error(), srv.URL+"/.well-known/oauth-authorization-server/iam/123")
@@ -195,6 +186,17 @@ func TestFetchMetadata(t *testing.T) {
 		var httpErr core.HttpError
 		require.ErrorAs(t, err, &httpErr)
 		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
+	})
+	t.Run("error - 5xx on every candidate is still surfaced as a core.HttpError after trying both", func(t *testing.T) {
+		srv, requested := metadataServer(t, http.StatusInternalServerError, "/iam/123")
+
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+
+		require.Error(t, err)
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
+		assert.Len(t, *requested, 2)
 	})
 	t.Run("error - invalid JSON body", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,7 @@ package oauth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -31,8 +32,7 @@ import (
 // FetchMetadata retrieves and validates a JSON metadata document of type T for identifier. The
 // well-known path is taken from T.WellKnownPath(); the document is tried in both placements in
 // priority order and the first candidate that returns 200, JSON-decodes into T, and whose
-// GetIssuer() matches identifier (a trailing slash difference is tolerated, see identifiersMatch)
-// is returned:
+// GetIssuer() is identical to identifier is returned:
 //
 //  1. insert (RFC 8414):  https://host/.well-known/<wellKnown>/<path>
 //  2. append (OIDC Disc): https://host/<path>/.well-known/<wellKnown>
@@ -41,9 +41,9 @@ import (
 // shares identifier's scheme and host, so the single core.ParsePublicURL SSRF check on
 // identifier covers them all.
 //
-// When every candidate fails it returns, in order of preference: an upstream server error
-// (core.HttpError with a 5xx status) as-is so callers can map it to 502; otherwise an error
-// listing the non-404 failures; otherwise a plain "not found" error naming the identifier.
+// When every candidate fails, the returned error joins each candidate's failure. A per-candidate
+// core.HttpError is preserved through the join (see errors.AsType), so callers can still detect
+// an upstream 5xx and map it to 502.
 func FetchMetadata[T interface {
 	WellKnownPath() string
 	GetIssuer() string
@@ -53,66 +53,44 @@ func FetchMetadata[T interface {
 	if err != nil {
 		return nil, err
 	}
-	// A 404 just means "not at this location" and is noise; only non-404 failures
-	// (403/405/5xx, decode errors, identifier mismatch) are worth surfacing.
-	var diagnostics []string
+	var errs []error
 	for _, candidate := range candidates {
-		metadata, status, fetchErr := fetchMetadataCandidate[T](ctx, httpClient, candidate, identifier)
+		metadata, fetchErr := fetchMetadataCandidate[T](ctx, httpClient, candidate, identifier)
 		if fetchErr == nil {
 			return metadata, nil
 		}
-		// Surface an upstream server error as-is (it is a core.HttpError carrying the
-		// status) so callers serving an API can map it to 502 Bad Gateway.
-		if status >= 500 {
-			return nil, fetchErr
-		}
-		if status != http.StatusNotFound {
-			diagnostics = append(diagnostics, fmt.Sprintf("%s: %v", candidate, fetchErr))
-		}
+		errs = append(errs, fmt.Errorf("%s: %w", candidate, fetchErr))
 	}
-	if len(diagnostics) == 0 {
-		return nil, fmt.Errorf("metadata not found at any candidate location for %q (tried: %s)", identifier, strings.Join(candidates, ", "))
-	}
-	return nil, fmt.Errorf("failed to retrieve metadata for %q: %s", identifier, strings.Join(diagnostics, "; "))
+	return nil, fmt.Errorf("failed to retrieve metadata for %q: %w", identifier, errors.Join(errs...))
 }
 
 // fetchMetadataCandidate retrieves, JSON-decodes and validates the metadata document from a
-// single candidate URL. It returns the HTTP status code (0 when no response was received) so the
-// caller can distinguish a 404 from other failures and map upstream 5xx to 502.
-func fetchMetadataCandidate[T interface{ GetIssuer() string }](ctx context.Context, httpClient core.HTTPRequestDoer, candidateURL string, identifier string) (*T, int, error) {
+// single candidate URL.
+func fetchMetadataCandidate[T interface{ GetIssuer() string }](ctx context.Context, httpClient core.HTTPRequestDoer, candidateURL string, identifier string) (*T, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, candidateURL, http.NoBody)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	if httpErr := core.TestResponseCode(http.StatusOK, resp); httpErr != nil {
-		return nil, resp.StatusCode, httpErr
+		return nil, httpErr
 	}
 	var metadata T
 	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("decoding metadata: %w", err)
+		return nil, fmt.Errorf("decoding metadata: %w", err)
 	}
-	// The issuer in the document MUST match the requested identifier, so a host cannot
-	// steer discovery to metadata it serves under a different issuer. A mismatch falls
-	// through to the next candidate.
-	if !identifiersMatch(metadata.GetIssuer(), identifier) {
-		return nil, resp.StatusCode, fmt.Errorf("issuer %q does not match requested identifier %q", metadata.GetIssuer(), identifier)
+	// The issuer in the document MUST be identical to the requested identifier (RFC 8414 §3.3,
+	// OpenID4VCI §12.2.4: byte-comparison, no normalization), so a host cannot steer discovery
+	// to metadata it serves under a different issuer. A mismatch falls through to the next
+	// candidate.
+	if metadata.GetIssuer() != identifier {
+		return nil, fmt.Errorf("issuer %q does not match requested identifier %q", metadata.GetIssuer(), identifier)
 	}
-	return &metadata, resp.StatusCode, nil
-}
-
-// identifiersMatch reports whether two issuer / credential-issuer identifiers are
-// equal, tolerating a trailing-slash difference. RFC 8414 §3.3 and OpenID4VCI
-// §12.2.4 require the identifier in a metadata document to be byte-identical to
-// the requested identifier, but some servers (e.g. IdentityServer) normalize it
-// with a trailing slash. Treat those as a match so discovery does not reject
-// otherwise-valid metadata over a trailing slash.
-func identifiersMatch(a string, b string) bool {
-	return strings.TrimRight(a, "/") == strings.TrimRight(b, "/")
+	return &metadata, nil
 }
 
 // wellKnownCandidates returns the metadata URLs to try for identifier, in priority order:

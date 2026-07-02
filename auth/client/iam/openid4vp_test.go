@@ -234,7 +234,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "not found at any candidate location")
+		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 }
 
@@ -382,7 +382,7 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "not found at any candidate location")
+		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)

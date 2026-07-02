@@ -195,7 +195,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		assert.Equal(t, srv.URL+"/oauth2/alice", metadata.CredentialIssuer)
 	})
 
-	t.Run("all candidates 404 yields a plain not-found error naming the identifier", func(t *testing.T) {
+	t.Run("all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
@@ -204,7 +204,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client(), false)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "not found at any candidate location")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
 		assert.Contains(t, err.Error(), srv.URL+"/oauth2/alice")
 	})
 

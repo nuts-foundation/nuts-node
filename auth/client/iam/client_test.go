@@ -106,14 +106,14 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 			"/iam/123/.well-known/oauth-authorization-server",
 		}, *requested)
 	})
-	t.Run("error - all candidates 404 yields a plain not-found error naming the identifier", func(t *testing.T) {
+	t.Run("error - all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123")
 
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.Contains(t, err.Error(), "not found at any candidate location")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
 		assert.Contains(t, err.Error(), tlsServer.URL+"/iam/123")
 		assert.Len(t, *requested, 2)
 	})
@@ -141,9 +141,8 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.Equal(t, "/token", metadata.TokenEndpoint)
 		assert.Equal(t, issuer, metadata.Issuer)
 	})
-	t.Run("ok - metadata issuer with a trailing slash matches the requested identifier", func(t *testing.T) {
-		// Some servers (e.g. IdentityServer) normalize the issuer with a trailing slash;
-		// the append metadata is served with issuer = requested identifier + "/".
+	t.Run("error - metadata issuer with a trailing slash does not match the requested identifier", func(t *testing.T) {
+		// RFC 8414 §3.3 / OpenID4VCI §12.2.4 require a byte-exact comparison, no normalization.
 		var issuer string
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/oauth/.well-known/oauth-authorization-server" {
@@ -156,11 +155,10 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		tlsServer, client := testServerAndClient(t, handler)
 		issuer = tlsServer.URL + "/oauth"
 
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
+		_, err := client.OAuthAuthorizationServerMetadata(ctx, issuer)
 
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, issuer+"/", metadata.Issuer)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
 	})
 	t.Run("error - non-404 status is preserved in the exhausted error", func(t *testing.T) {
 		tlsServer, client, _ := metadataServer(t, http.StatusForbidden, "/iam/123")
