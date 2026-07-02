@@ -208,6 +208,7 @@ func (r Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrDIDNotManagedByThisNode: http.StatusBadRequest,
 		pe.ErrNoCredentials:                 http.StatusPreconditionFailed,
 		didsubject.ErrSubjectNotFound:       http.StatusNotFound,
+		iamclient.ErrInvalidClientCall:      http.StatusBadRequest,
 		iamclient.ErrBadGateway:             http.StatusBadGateway,
 		iamclient.ErrPreconditionFailed:     http.StatusPreconditionFailed,
 	})

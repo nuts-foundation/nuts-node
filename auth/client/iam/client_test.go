@@ -100,6 +100,14 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		require.ErrorAs(t, err, &httpErr)
 		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
 	})
+	t.Run("error - all candidates 4xx classifies as ErrInvalidClientCall", func(t *testing.T) {
+		tlsServer, client, _ := metadataServer(t, http.StatusNotFound, "/iam/123")
+
+		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
+	})
 }
 
 func TestHTTPClient_PresentationDefinition(t *testing.T) {

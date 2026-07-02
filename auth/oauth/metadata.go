@@ -29,6 +29,12 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
+// ErrAllCandidates4xx indicates every well-known candidate for a FetchMetadata call responded
+// with an HTTP 4xx status. It typically means the requested identifier doesn't correspond to a
+// real issuer/AS, rather than the server being down or misconfigured; callers may use it to
+// classify the failure as a client error instead of the default server error.
+var ErrAllCandidates4xx = errors.New("metadata not found: every candidate returned a client error")
+
 // FetchMetadata retrieves and validates a JSON metadata document of type T for identifier. The
 // well-known path is taken from T.WellKnownPath(); the document is tried in both placements in
 // priority order and the first candidate that returns 200, JSON-decodes into T, and whose
@@ -43,7 +49,9 @@ import (
 //
 // When every candidate fails, the returned error joins each candidate's failure. A per-candidate
 // core.HttpError stays recoverable through the join (see errors.AsType), so callers can still
-// inspect the original upstream status.
+// inspect the original upstream status. If every candidate responded with an HTTP 4xx status (as
+// opposed to a 5xx, network failure, decode failure, or identifier mismatch), the returned error
+// also wraps ErrAllCandidates4xx.
 func FetchMetadata[T interface {
 	WellKnownPath() string
 	GetIssuer() string
@@ -54,14 +62,23 @@ func FetchMetadata[T interface {
 		return nil, err
 	}
 	var errs []error
+	allClientError := true
 	for _, candidate := range candidates {
 		metadata, fetchErr := fetchMetadataCandidate[T](ctx, httpClient, candidate, identifier)
 		if fetchErr == nil {
 			return metadata, nil
 		}
+		var httpErr core.HttpError
+		if !errors.As(fetchErr, &httpErr) || httpErr.StatusCode < 400 || httpErr.StatusCode >= 500 {
+			allClientError = false
+		}
 		errs = append(errs, fmt.Errorf("%s: %w", candidate, fetchErr))
 	}
-	return nil, fmt.Errorf("failed to retrieve metadata for %q: %w", identifier, errors.Join(errs...))
+	joined := fmt.Errorf("failed to retrieve metadata for %q: %w", identifier, errors.Join(errs...))
+	if allClientError {
+		return nil, errors.Join(ErrAllCandidates4xx, joined)
+	}
+	return nil, joined
 }
 
 // fetchMetadataCandidate retrieves, JSON-decodes and validates the metadata document from a

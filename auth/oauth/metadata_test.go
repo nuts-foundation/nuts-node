@@ -167,6 +167,8 @@ func TestFetchMetadata(t *testing.T) {
 		assert.Contains(t, err.Error(), srv.URL+"/.well-known/oauth-authorization-server/iam/123")
 		assert.Contains(t, err.Error(), srv.URL+"/iam/123/.well-known/oauth-authorization-server")
 		assert.Len(t, *requested, 2)
+		// Every candidate was a clean 4xx: callers may classify this as a client error.
+		assert.ErrorIs(t, err, ErrAllCandidates4xx)
 	})
 	t.Run("error - a candidate's core.HttpError stays recoverable through the join", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusInternalServerError, "/iam/123")
@@ -178,6 +180,28 @@ func TestFetchMetadata(t *testing.T) {
 		require.ErrorAs(t, err, &httpErr)
 		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
 		assert.Len(t, *requested, 2)
+		// A 5xx isn't the client's fault, so it must not be classified as one.
+		assert.NotErrorIs(t, err, ErrAllCandidates4xx)
+	})
+	t.Run("error - identifier mismatch does not count as a client error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/.well-known/oauth-authorization-server/iam/123":
+				w.WriteHeader(http.StatusNotFound)
+			case "/iam/123/.well-known/oauth-authorization-server":
+				// 200 but with a non-matching issuer: not an HTTP error status at all.
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(AuthorizationServerMetadata{Issuer: "https://attacker.example"})
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, ErrAllCandidates4xx)
 	})
 	t.Run("error - invalid JSON body", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
