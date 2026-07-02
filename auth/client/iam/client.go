@@ -71,12 +71,11 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	// Many authorization servers publish metadata only under the append convention.
 	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
 	if err != nil {
-		// An upstream server error (5xx) is surfaced as a core.HttpError; map it to 502
-		// Bad Gateway. Any other failure is a bad client call.
+		// An upstream server error (5xx) is returned as-is, carrying its original status.
+		// Any other failure is a bad client call.
 		httpErr, ok := errors.AsType[core.HttpError](err)
 		if ok && httpErr.StatusCode >= 500 {
-			httpErr.StatusCode = http.StatusBadGateway
-			return nil, httpErr
+			return nil, err
 		}
 		return nil, errors.Join(ErrInvalidClientCall, err)
 	}

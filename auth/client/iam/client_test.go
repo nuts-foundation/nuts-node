@@ -169,15 +169,15 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 		assert.ErrorIs(t, err, ErrInvalidClientCall)
 		assert.Contains(t, err.Error(), "403")
 	})
-	t.Run("error - server error changes status code to 502", func(t *testing.T) {
+	t.Run("error - errors are returned as-is", func(t *testing.T) {
 		tlsServer, client, _ := metadataServer(t, http.StatusInternalServerError, "")
 
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
 
 		require.Error(t, err)
-		httpErr, ok := err.(core.HttpError)
-		require.True(t, ok)
-		assert.Equal(t, http.StatusBadGateway, httpErr.StatusCode)
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
 	})
 }
 
