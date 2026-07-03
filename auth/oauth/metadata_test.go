@@ -49,6 +49,16 @@ func TestWellKnownCandidates(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
 	})
+	t.Run("terminating slash on the path is removed in both candidates", func(t *testing.T) {
+		// RFC 8414 §3.1 / OIDC Discovery §4.1: any terminating "/" MUST be removed
+		// before inserting/appending the well-known segment.
+		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id/", true, AuthzServerWellKnown)
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"https://nuts.nl/.well-known/oauth-authorization-server/iam/id",
+			"https://nuts.nl/iam/id/.well-known/oauth-authorization-server",
+		}, candidates)
+	})
 	t.Run("percent-encoded path is not double-escaped", func(t *testing.T) {
 		candidates, err := wellKnownCandidates("https://nuts.nl/foo%2Fbar", true, OpenIdCredIssuerWellKnown)
 		require.NoError(t, err)

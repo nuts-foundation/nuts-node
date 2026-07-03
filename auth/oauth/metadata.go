@@ -128,9 +128,10 @@ func wellKnownCandidates(identifier string, strictMode bool, wellKnown string) (
 		insert.RawPath = ""
 		return []string{insert.String()}, nil
 	}
-	insert.Path = wellKnown + identifierURL.Path
+	// RFC 8414 §3.1: any terminating "/" MUST be removed before inserting the well-known segment.
+	insert.Path = wellKnown + strings.TrimSuffix(identifierURL.Path, "/")
 	if identifierURL.RawPath != "" {
-		insert.RawPath = wellKnown + identifierURL.RawPath
+		insert.RawPath = wellKnown + strings.TrimSuffix(identifierURL.RawPath, "/")
 	}
 	// append places the well-known segment after the identifier path (OIDC Discovery).
 	appended := *identifierURL
