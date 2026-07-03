@@ -29,7 +29,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
@@ -77,9 +77,13 @@ type PublicKeyEntry struct {
 
 // FromJWK fills the publicKeyEntry with key material from the given key
 func (pke *PublicKeyEntry) FromJWK(key jwk.Key) error {
-	asMap, err := key.AsMap(context.Background())
-	if err != nil {
-		return err
+	asMap := make(map[string]interface{})
+	for _, k := range key.Keys() {
+		var v interface{}
+		if err := key.Get(k, &v); err != nil {
+			return err
+		}
+		asMap[k] = v
 	}
 	pke.Key = asMap
 	pke.parsedJWK = key

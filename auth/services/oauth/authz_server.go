@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	vc2 "github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/contract"
@@ -88,9 +88,9 @@ type organizationIdentity struct {
 }
 
 func (c validationContext) userIdentity() (*vc2.VerifiablePresentation, error) {
-	claim, ok := c.jwtBearerToken.Get(userIdentityClaim)
+	var claim interface{}
 	// If no credentials then OK
-	if !ok || claim == nil {
+	if err := c.jwtBearerToken.Get(userIdentityClaim, &claim); err != nil || claim == nil {
 		return nil, nil
 	}
 
@@ -104,8 +104,8 @@ func (c validationContext) userIdentity() (*vc2.VerifiablePresentation, error) {
 }
 
 func (c validationContext) stringVal(claim string) *string {
-	val, ok := c.jwtBearerToken.Get(claim)
-	if !ok {
+	var val interface{}
+	if err := c.jwtBearerToken.Get(claim, &val); err != nil {
 		return nil
 	}
 	stringVal, ok := val.(string)
@@ -118,10 +118,10 @@ func (c validationContext) stringVal(claim string) *string {
 
 func (c validationContext) verifiableCredentials() ([]vc2.VerifiableCredential, error) {
 	vcs := make([]vc2.VerifiableCredential, 0)
-	claim, ok := c.jwtBearerToken.Get(vcClaim)
+	var claim interface{}
 
 	// If no credentials then OK
-	if !ok || claim == nil {
+	if err := c.jwtBearerToken.Get(vcClaim, &claim); err != nil || claim == nil {
 		return vcs, nil
 	}
 
@@ -228,8 +228,8 @@ func (s *authzServer) CreateAccessToken(ctx context.Context, request services.Cr
 	if err != nil {
 		var requesterDID, authorizerDID string
 		if validationCtx.jwtBearerToken != nil {
-			requesterDID = validationCtx.jwtBearerToken.Issuer()
-			authorizerDID = validationCtx.jwtBearerToken.Subject()
+			requesterDID, _ = validationCtx.jwtBearerToken.Issuer()
+			authorizerDID, _ = validationCtx.jwtBearerToken.Subject()
 		}
 		log.Logger().
 			WithField(core.LogFieldRequesterDID, requesterDID).
@@ -336,18 +336,20 @@ func (s *authzServer) validatePurposeOfUse(context *validationContext) error {
 
 // check if the aud service identifier matches the oauth endpoint of the requested service
 func (s *authzServer) validateAudience(context *validationContext) error {
-	if len(context.jwtBearerToken.Audience()) != 1 {
+	audience, _ := context.jwtBearerToken.Audience()
+	if len(audience) != 1 {
 		return errors.New("aud does not contain a single URI")
 	}
 
 	// parsing is already done in a previous check
-	subject, _ := did.ParseDID(context.jwtBearerToken.Subject())
+	sub, _ := context.jwtBearerToken.Subject()
+	subject, _ := did.ParseDID(sub)
 
 	endpointURL, err := s.serviceResolver.GetCompoundServiceEndpoint(*subject, context.purposeOfUse, services.OAuthEndpointType, true)
 	if err != nil {
 		return err
 	}
-	if context.jwtBearerToken.Audience()[0] != endpointURL {
+	if audience[0] != endpointURL {
 		return errors.New("aud does not contain correct endpoint URL")
 	}
 	return nil
@@ -357,13 +359,14 @@ func (s *authzServer) validateAudience(context *validationContext) error {
 // - the signing key (KID) must be present as assertionMethod in the issuer's DID.
 // - the requester name/city which must match the login contract.
 func (s *authzServer) validateIssuer(vContext *validationContext) error {
-	if requester, err := did.ParseDID(vContext.jwtBearerToken.Issuer()); err != nil {
+	iss, _ := vContext.jwtBearerToken.Issuer()
+	if requester, err := did.ParseDID(iss); err != nil {
 		return fmt.Errorf(errInvalidIssuerFmt, err)
 	} else {
 		vContext.requester = requester
 	}
 
-	validationTime := vContext.jwtBearerToken.IssuedAt()
+	validationTime, _ := vContext.jwtBearerToken.IssuedAt()
 	metadata := &resolver.ResolveMetadata{
 		ResolveTime: &validationTime,
 	}
@@ -372,7 +375,7 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 	}
 
 	searchTerms := []vcr.SearchTerm{
-		{IRIPath: jsonld.CredentialSubjectPath, Value: vContext.jwtBearerToken.Issuer()},
+		{IRIPath: jsonld.CredentialSubjectPath, Value: iss},
 		{IRIPath: jsonld.OrganizationNamePath, Type: vcr.NotNil},
 		{IRIPath: jsonld.OrganizationCityPath, Type: vcr.NotNil},
 	}
@@ -408,17 +411,18 @@ func (s *authzServer) validateIssuer(vContext *validationContext) error {
 
 // check if the authorizer is registered by this vendor, according to RFC003 §5.2.1.8
 func (s *authzServer) validateSubject(ctx context.Context, validationCtx *validationContext) error {
-	if validationCtx.jwtBearerToken.Subject() == "" {
+	sub, _ := validationCtx.jwtBearerToken.Subject()
+	if sub == "" {
 		return fmt.Errorf(errInvalidSubjectFmt, errors.New("missing"))
 	}
 
-	subject, err := did.ParseDID(validationCtx.jwtBearerToken.Subject())
+	subject, err := did.ParseDID(sub)
 	if err != nil {
 		return fmt.Errorf(errInvalidSubjectFmt, err)
 	}
 	validationCtx.authorizer = subject
 
-	iat := validationCtx.jwtBearerToken.IssuedAt()
+	iat, _ := validationCtx.jwtBearerToken.IssuedAt()
 	signingKeyID, _, err := s.keyResolver.ResolveKey(*subject, &iat, resolver.NutsSigningKeyType)
 	if err != nil {
 		return err
@@ -459,9 +463,9 @@ func (s *authzServer) validateAuthorizationCredentials(context *validationContex
 		return nil
 	}
 
-	iat := context.jwtBearerToken.IssuedAt()
-	iss := context.jwtBearerToken.Issuer()
-	sub := context.jwtBearerToken.Subject()
+	iat, _ := context.jwtBearerToken.IssuedAt()
+	iss, _ := context.jwtBearerToken.Issuer()
+	sub, _ := context.jwtBearerToken.Subject()
 
 	for _, authCred := range vcs {
 		// first check if the VC is valid and if the signature is correct
@@ -519,14 +523,27 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 
 	result := &services.NutsAccessToken{}
 
-	if err := result.FromMap(token.PrivateClaims()); err != nil {
+	// Extract the private (non-registered) claims via the token's JSON representation. This mirrors
+	// jwx v2's token.PrivateClaims: it preserves null-valued claims (a per-claim Get loop errors on
+	// null values in v3).
+	privateClaims := make(map[string]interface{})
+	claimsJSON, _ := json.Marshal(token)
+	if err := json.Unmarshal(claimsJSON, &privateClaims); err != nil {
+		return nil, err
+	}
+	for _, k := range []string{jwt.IssuerKey, jwt.SubjectKey, jwt.AudienceKey, jwt.ExpirationKey, jwt.NotBeforeKey, jwt.IssuedAtKey, jwt.JwtIDKey} {
+		delete(privateClaims, k)
+	}
+	if err := result.FromMap(privateClaims); err != nil {
 		return nil, err
 	}
 
-	result.Subject = token.Subject()
-	result.Issuer = token.Issuer()
-	result.IssuedAt = token.IssuedAt().Unix()
-	result.Expiration = token.Expiration().Unix()
+	result.Subject, _ = token.Subject()
+	result.Issuer, _ = token.Issuer()
+	iat, _ := token.IssuedAt()
+	result.IssuedAt = iat.Unix()
+	exp, _ := token.Expiration()
+	result.Expiration = exp.Unix()
 
 	return result, nil
 }

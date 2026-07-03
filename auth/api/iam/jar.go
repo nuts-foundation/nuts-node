@@ -22,9 +22,10 @@ import (
 	"bytes"
 	"context"
 	"crypto"
+	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -183,8 +184,12 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}
-	claimsAsMap, err := token.AsMap(ctx)
-	if err != nil {
+	// Convert the token's claims to a map via its JSON representation. This mirrors jwx v2's
+	// token.AsMap: it preserves all claims including null-valued ones (a per-claim Get loop
+	// errors on null values in v3).
+	claimsAsMap := make(map[string]interface{})
+	claimsJSON, _ := json.Marshal(token)
+	if err := json.Unmarshal(claimsJSON, &claimsAsMap); err != nil {
 		// very unlikely
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}
 	}
@@ -213,7 +218,7 @@ func compareThumbprint(configurationKey jwk.Key, publicKey crypto.PublicKey) err
 	if err != nil {
 		return err
 	}
-	signerKey, err := jwk.FromRaw(publicKey)
+	signerKey, err := jwk.Import(publicKey)
 	if err != nil {
 		return err
 	}

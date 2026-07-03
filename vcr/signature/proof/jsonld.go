@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
 	ssi "github.com/nuts-foundation/go-did"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vcr/signature"
@@ -131,7 +131,6 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 		return err
 	}
 
-	jswVerifier, _ := jws.NewVerifier(alg)
 	// the jws lib can't do this for us, so we concat hdr with payload for verification
 	splittedJws := strings.Split(p.JWS, "..")
 	if len(splittedJws) != 2 {
@@ -142,7 +141,7 @@ func (p LDProof) Verify(document Document, suite signature.Suite, key crypto.Pub
 		return fmt.Errorf("could not base64 decode signature: %w", err)
 	}
 	challenge := fmt.Sprintf("%s.%s", splittedJws[0], tbv)
-	if err = jswVerifier.Verify([]byte(challenge), sig, key); err != nil {
+	if err = jwsbb.Verify(key, alg.String(), []byte(challenge), sig); err != nil {
 		return fmt.Errorf("invalid proof signature: %w", err)
 	}
 	return nil

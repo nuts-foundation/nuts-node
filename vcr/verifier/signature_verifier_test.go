@@ -32,16 +32,17 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/cert"
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/cert"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	testpki "github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vdr/didx509"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -64,7 +65,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	pkeJSON, _ := os.ReadFile("../test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
+	jwk.Export(pke.JWK(), pk)
 
 	t.Run("JSON-LD", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
@@ -119,7 +120,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
 		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
 		kid, key, err := keyStore.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
-			keyAsJWK, _ := jwk.FromRaw(key)
+			keyAsJWK, _ := jwk.Import(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
 		})
@@ -161,7 +162,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 			err = sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: could not verify message using any of the signatures or keys")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: jwt.ParseString: failed to parse string: signature verification failed for ES256: invalid ECDSA signature")
 		})
 		t.Run("expired token", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet, expires on Tue Oct 03 2023
@@ -175,7 +176,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			}
 			err := sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: \"exp\" not satisfied")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: jwt.ParseString: failed to parse string: jwt.Validate: validation failed: \"exp\" not satisfied: token is expired")
 		})
 		t.Run("without kid header, derived from issuer", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet
@@ -195,16 +196,23 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 		t.Run("no signature", func(t *testing.T) {
 			// Credential taken from Sphereon Wallet
 			const credentialJSON = `eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTYzMDE3MDgsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiZmlyc3ROYW1lIjoiSGVsbG8iLCJsYXN0TmFtZSI6IlNwaGVyZW9uIiwiZW1haWwiOiJzcGhlcmVvbkBleGFtcGxlLmNvbSIsInR5cGUiOiJTcGhlcmVvbiBHdWVzdCIsImlkIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEifX0sIkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOlsiVmVyaWZpYWJsZUNyZWRlbnRpYWwiLCJHdWVzdENyZWRlbnRpYWwiXSwiZXhwaXJhdGlvbkRhdGUiOiIyMDIzLTEwLTAzVDAyOjU1OjA4LjEzM1oiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJmaXJzdE5hbWUiOiJIZWxsbyIsImxhc3ROYW1lIjoiU3BoZXJlb24iLCJlbWFpbCI6InNwaGVyZW9uQGV4YW1wbGUuY29tIiwidHlwZSI6IlNwaGVyZW9uIEd1ZXN0IiwiaWQiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOa3NpTENKMWMyVWlPaUp6YVdjaUxDSnJkSGtpT2lKRlF5SXNJbU55ZGlJNkluTmxZM0F5TlRack1TSXNJbmdpT2lKak1WZFljemRYTTIxNWMyVlZaazVDY1hONFpGQlhRa2xIYUV0a05GUjZNRXhTTFVacU9FWk5XV0V3SWl3aWVTSTZJbGR0YTBOWWRURjNlWHBhWjBkT04xVjRUbUZ3Y0hGdVQxRmhUMnRYTWtOblQxTnVUMjk1VFVsVWRXTWlmUSJ9LCJpc3N1ZXIiOiJkaWQ6andrOmV5SmhiR2NpT2lKRlV6STFOaUlzSW5WelpTSTZJbk5wWnlJc0ltdDBlU0k2SWtWRElpd2lZM0oySWpvaVVDMHlOVFlpTENKNElqb2lWRWN5U0RKNE1tUlhXRTR6ZFVOeFduQnhSakY1YzBGUVVWWkVTa1ZPWDBndFEwMTBZbWRxWWkxT1p5SXNJbmtpT2lJNVRUaE9lR1F3VUU0eU1rMDViRkJFZUdSd1JIQnZWRXg2TVRWM1pubGFTbk0yV21oTFNWVktNek00SW4wIiwiaXNzdWFuY2VEYXRlIjoiMjAyMy0wOS0yOVQxMjozMTowOC4xMzNaIiwic3ViIjoiZGlkOmp3azpleUpoYkdjaU9pSkZVekkxTmtzaUxDSjFjMlVpT2lKemFXY2lMQ0pyZEhraU9pSkZReUlzSW1OeWRpSTZJbk5sWTNBeU5UWnJNU0lzSW5naU9pSmpNVmRZY3pkWE0yMTVjMlZWWms1Q2NYTjRaRkJYUWtsSGFFdGtORlI2TUV4U0xVWnFPRVpOV1dFd0lpd2llU0k2SWxkdGEwTllkVEYzZVhwYVowZE9OMVY0VG1Gd2NIRnVUMUZoVDJ0WE1rTm5UMU51VDI5NVRVbFVkV01pZlEiLCJuYmYiOjE2OTU5OTA2NjgsImlzcyI6ImRpZDpqd2s6ZXlKaGJHY2lPaUpGVXpJMU5pSXNJblZ6WlNJNkluTnBaeUlzSW10MGVTSTZJa1ZESWl3aVkzSjJJam9pVUMweU5UWWlMQ0o0SWpvaVZFY3lTREo0TW1SWFdFNHpkVU54V25CeFJqRjVjMEZRVVZaRVNrVk9YMGd0UTAxMFltZHFZaTFPWnlJc0lua2lPaUk1VFRoT2VHUXdVRTR5TWswNWJGQkVlR1J3UkhCdlZFeDZNVFYzWm5sYVNuTTJXbWhMU1ZWS016TTRJbjAifQ.`
-			cred, _ := vc.ParseVerifiableCredential(credentialJSON)
+			// A self-attested credential has no signature. In jwx v3 an empty compact signature
+			// is only accepted with an "alg":"none" protected header, so build the unsigned
+			// credential with a none-alg header (jwx v2 tolerated dropping the signature from a
+			// signed header, jwx v3 does not). Signature verification must still reject it.
+			parts := strings.Split(credentialJSON, ".")
+			noneHeader := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+			cred, err := vc.ParseVerifiableCredential(noneHeader + "." + parts[1] + ".")
+			require.NoError(t, err)
 
 			sv := signatureVerifier{
 				keyResolver: resolver.DIDKeyResolver{
 					Resolver: didjwk.NewResolver(),
 				},
 			}
-			err := sv.VerifySignature(*cred, nil)
+			err = sv.VerifySignature(*cred, nil)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: could not verify message using any of the signatures or keys")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: token signing algorithm is not supported: none")
 		})
 	})
 
@@ -233,7 +241,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 		err := sv.VerifySignature(vc2, nil)
 
-		assert.ErrorContains(t, err, "failed to verify signature")
+		assert.ErrorContains(t, err, "invalid ECDSA signature")
 	})
 
 	t.Run("error - wrong hashed proof", func(t *testing.T) {
@@ -248,7 +256,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 
 		err := sv.VerifySignature(vc2, nil)
 
-		assert.ErrorContains(t, err, "failed to verify signature")
+		assert.ErrorContains(t, err, "invalid ECDSA signature")
 	})
 
 	t.Run("error - no proof", func(t *testing.T) {
@@ -321,7 +329,7 @@ func buildX509Credential(chain *cert.Chain, signingCert *x509.Certificate, rootC
 
 	claims["vc"] = *credential
 
-	token, err := nutsCrypto.SignJWT(audit.TestContext(), signingKey, jwa.PS512, claims, headers)
+	token, err := nutsCrypto.SignJWT(audit.TestContext(), signingKey, jwa.PS512(), claims, headers)
 	if err != nil {
 		return nil, err
 	}

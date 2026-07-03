@@ -22,8 +22,8 @@ package jwx
 
 import (
 	"crypto"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

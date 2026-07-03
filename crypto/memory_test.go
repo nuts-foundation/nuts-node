@@ -25,13 +25,13 @@ import (
 	"github.com/nuts-foundation/nuts-node/audit"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMemoryKeyStore_SignJWT(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	privateKeyJWK, _ := jwk.FromRaw(pk)
+	privateKeyJWK, _ := jwk.Import(pk)
 	privateKeyJWK.Set(jwk.KeyIDKey, "123")
 	alg, _ := ecAlgUsingPublicKey(pk.PublicKey)
 	privateKeyJWK.Set(jwk.AlgorithmKey, alg)
@@ -53,7 +53,7 @@ func TestMemoryKeyStore_SignJWT(t *testing.T) {
 
 func TestMemoryJWTSigner_SignJWS(t *testing.T) {
 	pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	privateKeyJWK, _ := jwk.FromRaw(pk)
+	privateKeyJWK, _ := jwk.Import(pk)
 	privateKeyJWK.Set(jwk.KeyIDKey, "123")
 	alg, _ := ecAlgUsingPublicKey(pk.PublicKey)
 	privateKeyJWK.Set(jwk.AlgorithmKey, alg)

@@ -74,8 +74,9 @@ func PresentationIssuanceDate(presentation vc.VerifiablePresentation) *time.Time
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
 		jwt := presentation.JWT()
-		if result = jwt.NotBefore(); result.IsZero() {
-			result = jwt.IssuedAt()
+		nbf, _ := jwt.NotBefore()
+		if result = nbf; result.IsZero() {
+			result, _ = jwt.IssuedAt()
 		}
 	case vc.JSONLDPresentationProofFormat:
 		ldProof, err := ParseLDProof(presentation)
@@ -98,7 +99,7 @@ func PresentationExpirationDate(presentation vc.VerifiablePresentation) *time.Ti
 	var result time.Time
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		result = presentation.JWT().Expiration()
+		result, _ = presentation.JWT().Expiration()
 	case vc.JSONLDPresentationProofFormat:
 		ldProof, err := ParseLDProof(presentation)
 		if err != nil || ldProof.Expires == nil {

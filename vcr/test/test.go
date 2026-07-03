@@ -19,11 +19,10 @@
 package test
 
 import (
-	"context"
 	"crypto"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -60,7 +59,12 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
 	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	require.NoError(t, err)
-	claims, err = unsignedToken.AsMap(context.Background())
+	claims = make(map[string]interface{})
+	for _, k := range unsignedToken.Keys() {
+		var v interface{}
+		require.NoError(t, unsignedToken.Get(k, &v))
+		claims[k] = v
+	}
 	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, kid)
 	result, err := vc.ParseVerifiablePresentation(signedToken)
 	require.NoError(t, err)

@@ -29,8 +29,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
@@ -264,12 +264,17 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
-	claims, err := token.AsMap(ctx)
-	if err != nil {
+	// Convert the token's claims to a map via its JSON representation. This mirrors jwx v2's
+	// token.AsMap: it preserves all claims including null-valued ones (a per-claim Get loop
+	// errors on null values in v3).
+	claims := make(map[string]interface{})
+	claimsJSON, _ := json.Marshal(token)
+	if err = json.Unmarshal(claimsJSON, &claims); err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
 	// hack, broken iat
-	claims["iat"] = token.IssuedAt().Unix()
+	iat, _ := token.IssuedAt()
+	claims["iat"] = iat.Unix()
 	asJSON, _ := json.Marshal(claims)
 	if err = json.Unmarshal(asJSON, &configuration); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
@@ -279,7 +284,7 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 
 func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	return func(context context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
-		keyID := signature.ProtectedHeaders().KeyID()
+		keyID, _ := signature.ProtectedHeaders().KeyID()
 		publicKey, err := hb.keyResolver.ResolveKeyByID(keyID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)
