@@ -32,6 +32,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -264,12 +265,8 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
-	// Convert the token's claims to a map via its JSON representation. This mirrors jwx v2's
-	// token.AsMap: it preserves all claims including null-valued ones (a per-claim Get loop
-	// errors on null values in v3).
-	claims := make(map[string]interface{})
-	claimsJSON, _ := json.Marshal(token)
-	if err = json.Unmarshal(claimsJSON, &claims); err != nil {
+	claims, err := jwx.AsMap(token)
+	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
 	// hack, broken iat

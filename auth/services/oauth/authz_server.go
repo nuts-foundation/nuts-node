@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/services"
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/didman"
 	"github.com/nuts-foundation/nuts-node/jsonld"
 	"github.com/nuts-foundation/nuts-node/vcr"
@@ -523,12 +524,10 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 
 	result := &services.NutsAccessToken{}
 
-	// Extract the private (non-registered) claims via the token's JSON representation. This mirrors
-	// jwx v2's token.PrivateClaims: it preserves null-valued claims (a per-claim Get loop errors on
-	// null values in v3).
-	privateClaims := make(map[string]interface{})
-	claimsJSON, _ := json.Marshal(token)
-	if err := json.Unmarshal(claimsJSON, &privateClaims); err != nil {
+	// Extract all claims, then drop the registered ones to mirror jwx v2's token.PrivateClaims.
+	// jwx.AsMap preserves null-valued claims (a per-claim Get loop errors on null values in v3).
+	privateClaims, err := jwx.AsMap(token)
+	if err != nil {
 		return nil, err
 	}
 	for _, k := range []string{jwt.IssuerKey, jwt.SubjectKey, jwt.AudienceKey, jwt.ExpirationKey, jwt.NotBeforeKey, jwt.IssuedAtKey, jwt.JwtIDKey} {

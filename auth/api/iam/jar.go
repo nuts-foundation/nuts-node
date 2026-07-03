@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"encoding/json"
 	"errors"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -30,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"time"
@@ -184,12 +184,8 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}
-	// Convert the token's claims to a map via its JSON representation. This mirrors jwx v2's
-	// token.AsMap: it preserves all claims including null-valued ones (a per-claim Get loop
-	// errors on null values in v3).
-	claimsAsMap := make(map[string]interface{})
-	claimsJSON, _ := json.Marshal(token)
-	if err := json.Unmarshal(claimsJSON, &claimsAsMap); err != nil {
+	claimsAsMap, err := jwx.AsMap(token)
+	if err != nil {
 		// very unlikely
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}
 	}

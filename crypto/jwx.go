@@ -122,6 +122,8 @@ func (client *Crypto) DecryptJWE(ctx context.Context, message string) (body []by
 	if err != nil {
 		return nil, nil, err
 	}
+	// Iterate the headers with Get (rather than jwx.AsMap's JSON round-trip) so rich header
+	// values such as the x5c certificate chain keep their concrete Go types for callers.
 	headers = make(map[string]interface{})
 	for _, k := range protectedHeaders.Keys() {
 		var v interface{}
@@ -410,6 +412,8 @@ func ExtractProtectedHeaders(jwt string) (map[string]interface{}, error) {
 				return nil, ErrorInvalidNumberOfSignatures
 			}
 			protectedHeaders := message.Signatures()[0].ProtectedHeaders()
+			// Iterate with Get (rather than jwx.AsMap's JSON round-trip) so rich header values
+			// such as the x5c certificate chain keep their concrete Go types for callers.
 			for _, k := range protectedHeaders.Keys() {
 				var v interface{}
 				if err := protectedHeaders.Get(k, &v); err != nil {

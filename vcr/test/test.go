@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -59,12 +60,8 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
 	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	require.NoError(t, err)
-	claims = make(map[string]interface{})
-	for _, k := range unsignedToken.Keys() {
-		var v interface{}
-		require.NoError(t, unsignedToken.Get(k, &v))
-		claims[k] = v
-	}
+	claims, err = jwx.AsMap(unsignedToken)
+	require.NoError(t, err)
 	signedToken, err := keyStore.SignJWT(audit.TestContext(), claims, headers, kid)
 	result, err := vc.ParseVerifiablePresentation(signedToken)
 	require.NoError(t, err)

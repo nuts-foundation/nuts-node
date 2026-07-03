@@ -31,6 +31,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
@@ -77,13 +78,9 @@ type PublicKeyEntry struct {
 
 // FromJWK fills the publicKeyEntry with key material from the given key
 func (pke *PublicKeyEntry) FromJWK(key jwk.Key) error {
-	asMap := make(map[string]interface{})
-	for _, k := range key.Keys() {
-		var v interface{}
-		if err := key.Get(k, &v); err != nil {
-			return err
-		}
-		asMap[k] = v
+	asMap, err := jwx.AsMap(key)
+	if err != nil {
+		return err
 	}
 	pke.Key = asMap
 	pke.parsedJWK = key
