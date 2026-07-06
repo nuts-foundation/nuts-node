@@ -270,7 +270,6 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// request parameters, so callers don't have to spell out issuer-specific parameters themselves.
 	// Currently a profile sets authorization request parameters (see auth.experimental.profile.<name>.authrequest).
 	// Built-in: 'aet' for the AET UZI smartcard credential issuer. An unknown profile is rejected.
-	// EXPERIMENTAL: subject to change without notice.
 	Profile *string `json:"profile,omitempty"`
 
 	// RedirectUri The URL to which the user-agent will be redirected after the authorization request.

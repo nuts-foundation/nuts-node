@@ -38,7 +38,7 @@ type AuthenticationServices interface {
 	// OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
 	OpenID4VCIClient() openid4vci.Client
 	// AuthorizationRequestProfile returns the authorization request parameters of the named profile (built-in
-	// merged with operator config), or false if the name is unknown. EXPERIMENTAL.
+	// merged with operator config), or false if the name is unknown.
 	AuthorizationRequestProfile(name string) (map[string][]string, bool)
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty

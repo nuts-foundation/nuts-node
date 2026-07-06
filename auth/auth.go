@@ -151,7 +151,7 @@ func (auth *Auth) OpenID4VCIClient() openid4vci.Client {
 }
 
 // AuthorizationRequestProfile returns the authorization request parameters of the named profile, or false when no
-// profile (built-in default or operator-configured) exists for the name. EXPERIMENTAL.
+// profile (built-in default or operator-configured) exists for the name.
 func (auth *Auth) AuthorizationRequestProfile(name string) (map[string][]string, bool) {
 	profile, ok := auth.config.Experimental.Profiles[name]
 	if !ok {

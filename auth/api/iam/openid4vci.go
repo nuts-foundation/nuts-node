@@ -141,8 +141,8 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	for key, value := range authzParams {
 		authzQuery.Set(key, value)
 	}
-	// EXPERIMENTAL: apply the selected request profile (built-in default merged with operator config). Profiles are
-	// trusted config and may override node parameters; their authorization request parameters may be multi-valued.
+	// Apply the selected request profile (built-in default merged with operator config). A profile is trusted
+	// config and may override the parameters set above; its authorization request parameters may be multi-valued.
 	if request.Body.Profile != nil && *request.Body.Profile != "" {
 		profileParams, ok := r.auth.AuthorizationRequestProfile(*request.Body.Profile)
 		if !ok {

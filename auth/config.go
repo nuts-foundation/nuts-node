@@ -44,14 +44,10 @@ type ExperimentalConfig struct {
 	// Profiles are named bundles of request parameters for outbound flows against external issuers/authorization
 	// servers. A request selects a profile by name. Built-in profiles (e.g. "aet") are provided via DefaultConfig;
 	// operator config under the same name is layered over the default.
-	//
-	// EXPERIMENTAL: this configuration may change or be removed without further notice.
 	Profiles map[string]ProfileConfig `koanf:"profile"`
 }
 
 // ProfileConfig is a named bundle of request parameters for outbound OpenID4VCI flows.
-//
-// EXPERIMENTAL: this configuration may change or be removed without further notice.
 type ProfileConfig struct {
 	// AuthorizationRequest sets parameters on the OpenID4VCI authorization request. Each key may have multiple
 	// values (rendered as repeated query parameters; a single value is rendered as one parameter).
