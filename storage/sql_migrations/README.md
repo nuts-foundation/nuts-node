@@ -6,10 +6,10 @@ Files should be named according to the following: `<number>_<table/feature name>
 For instance: `002_usecase_list.sql`. Each file should contain `-- +goose Up` and `-- +goose Down`
 
 If a migration needs to change an existing column's type, the required syntax differs per database
-(`ALTER COLUMN ... TYPE` vs `MODIFY COLUMN`, etc.) and SQLite doesn't support it at all. Use the
-`$ALTER_COLUMN`/`$ALTER_COLUMN_TYPE` env vars (set per database in `engine.go`) to build the
-statement, and add a `<same-number>_..._sqlite.sql` file with an empty Up/Down as its SQLite
-counterpart; `engine.go` swaps the two in automatically based on the running database type.
+(`ALTER COLUMN ... TYPE` vs `MODIFY COLUMN`, etc.) and SQLite doesn't support it at all. For that
+case, use a Go migration (`goose.NewGoMigration`, registered via `goose.WithGoMigrations` in
+`engine.go`) instead of a `.sql` file, so the per-database statement can be picked with a plain Go
+switch/map on the database type. See `alterCredentialPropValueType` in `engine.go` for an example.
 
 AVOID changing migrations in master (unless the migration breaks the node horribly) for those running a `master` version.
 DO NOT alter migrations in a released version: it might break vendor deployments or cause data corruption.
