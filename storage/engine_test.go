@@ -166,12 +166,13 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			_ = e.Shutdown()
 		})
 
-		// count .sql files in sql_migration directory
+		// count distinct migration versions in sql_migration directory
+		// (a version may have a "_sqlite.sql" counterpart that replaces it for SQLite, see engine.go)
 		files, err := os.ReadDir("sql_migrations")
-		var sqlFiles []string
+		versions := map[string]bool{}
 		for _, curr := range files {
 			if strings.HasSuffix(curr.Name(), ".sql") {
-				sqlFiles = append(sqlFiles, curr.Name())
+				versions[strings.SplitN(curr.Name(), "_", 2)[0]] = true
 			}
 		}
 		require.NoError(t, err)
@@ -189,7 +190,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			totalMigrations++
 		}
 		require.NoError(t, err)
-		assert.Equal(t, len(sqlFiles), totalMigrations) // up and down migration files
+		assert.Equal(t, len(versions), totalMigrations)
 	})
 	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)

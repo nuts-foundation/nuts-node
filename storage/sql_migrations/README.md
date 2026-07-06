@@ -5,6 +5,12 @@ Refer to https://pressly.github.io/goose/ on how to write migrations.
 Files should be named according to the following: `<number>_<table/feature name>.sql`.
 For instance: `002_usecase_list.sql`. Each file should contain `-- +goose Up` and `-- +goose Down`
 
+If a migration needs to change an existing column's type, the required syntax differs per database
+(`ALTER COLUMN ... TYPE` vs `MODIFY COLUMN`, etc.) and SQLite doesn't support it at all. Use the
+`$ALTER_COLUMN`/`$ALTER_COLUMN_TYPE` env vars (set per database in `engine.go`) to build the
+statement, and add a `<same-number>_..._sqlite.sql` file with an empty Up/Down as its SQLite
+counterpart; `engine.go` swaps the two in automatically based on the running database type.
+
 AVOID changing migrations in master (unless the migration breaks the node horribly) for those running a `master` version.
 DO NOT alter migrations in a released version: it might break vendor deployments or cause data corruption.
 
