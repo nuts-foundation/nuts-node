@@ -261,13 +261,6 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
-	// AuthorizationRequestParams Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
-	// Authorization Server's authorization_endpoint). These may only add parameters; they must not
-	// override the OpenID4VCI parameters set by the node (the request is rejected if they do).
-	// Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
-	// that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
-	AuthorizationRequestParams *map[string]string `json:"authorization_request_params,omitempty"`
-
 	// CredentialRequestParams Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
 	// the issuer's credential endpoint. Any field supplied here overrides the node's default —
 	// including credential_configuration_id, credential_identifier and proofs. Use this for
