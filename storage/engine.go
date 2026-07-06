@@ -23,7 +23,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -368,19 +367,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		return err
 	}
 	defer os.Unsetenv("TEXT_TYPE")
-	// ALTER TABLE syntax to change an existing column's type is not portable across databases
-	// (e.g. "ALTER COLUMN ... TYPE" vs "MODIFY COLUMN"), so migrations that need it build the
-	// statement from these variables instead.
-	err = os.Setenv("ALTER_COLUMN", "alter column")
-	if err != nil {
-		return err
-	}
-	defer os.Unsetenv("ALTER_COLUMN")
-	err = os.Setenv("ALTER_COLUMN_TYPE", "type")
-	if err != nil {
-		return err
-	}
-	defer os.Unsetenv("ALTER_COLUMN_TYPE")
 	switch dbType {
 	case "sqlite":
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
@@ -399,14 +385,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		}
 		dialect = goose.DialectSQLite3
 	case "mysql":
-		err = os.Setenv("ALTER_COLUMN", "modify column")
-		if err != nil {
-			return err
-		}
-		err = os.Setenv("ALTER_COLUMN_TYPE", "")
-		if err != nil {
-			return err
-		}
 		e.sqlDB, err = gorm.Open(mysql.New(mysql.Config{
 			Conn: db,
 		}), gormConfig)
@@ -429,10 +407,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		if err != nil {
 			return err
 		}
-		err = os.Setenv("ALTER_COLUMN_TYPE", "")
-		if err != nil {
-			return err
-		}
 		e.sqlDB, err = gorm.Open(sqlserver.New(sqlserver.Config{
 			Conn: db,
 		}), gormConfig)
@@ -442,22 +416,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		dialect = goose.DialectMSSQL
 	default:
 		return errors.New("unsupported SQL database")
-	}
-
-	// Migration files suffixed "_sqlite.sql" replace their non-suffixed counterpart (same version
-	// number) specifically for SQLite, which lacks the ALTER TABLE ... ALTER/MODIFY COLUMN syntax
-	// those counterparts rely on. Elsewhere, "_sqlite.sql" files are excluded since they only apply to SQLite.
-	sqliteOnlyMigrations, err := fs.Glob(sql_migrations.SQLMigrationsFS, "*_sqlite.sql")
-	if err != nil {
-		return err
-	}
-	var excludeMigrations []string
-	if dbType == "sqlite" {
-		for _, name := range sqliteOnlyMigrations {
-			excludeMigrations = append(excludeMigrations, strings.TrimSuffix(name, "_sqlite.sql")+".sql")
-		}
-	} else {
-		excludeMigrations = sqliteOnlyMigrations
 	}
 
 	// Add OpenTelemetry tracing to GORM if tracing is enabled
@@ -472,7 +430,12 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	if err != nil {
 		return err
 	}
-	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS, goose.WithExcludeNames(excludeMigrations))
+	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS,
+		goose.WithGoMigrations(goose.NewGoMigration(11,
+			&goose.GoFunc{RunTx: alterCredentialPropValueType(dbType, true)},
+			&goose.GoFunc{RunTx: alterCredentialPropValueType(dbType, false)},
+		)),
+	)
 	if err != nil {
 		return err
 	}
@@ -492,6 +455,56 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 
 func sqliteConnectionString(datadir string) string {
 	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)")
+}
+
+// credentialPropValueType is the (up, down) ALTER TABLE statement that changes the type of
+// credential_prop.value, keyed by database type. The syntax for changing an existing column's
+// type is not portable, e.g.:
+//
+//	postgres:           alter table credential_prop alter column value type TEXT;
+//	mysql:              alter table credential_prop modify column value TEXT;
+//	sqlserver/azuresql: alter table credential_prop alter column value VARCHAR(MAX);
+//
+// SQLite has no ALTER COLUMN/MODIFY COLUMN syntax at all, and doesn't enforce varchar length
+// limits in the first place, so there's nothing to do there; it's simply absent from this map.
+var credentialPropValueType = map[string]struct{ up, down string }{
+	"postgres": {
+		up:   "alter table credential_prop alter column value type TEXT",
+		down: "alter table credential_prop alter column value type varchar(500)",
+	},
+	"mysql": {
+		up:   "alter table credential_prop modify column value TEXT",
+		down: "alter table credential_prop modify column value varchar(500)",
+	},
+	"sqlserver": {
+		up:   "alter table credential_prop alter column value VARCHAR(MAX)",
+		down: "alter table credential_prop alter column value varchar(500)",
+	},
+	"azuresql": {
+		up:   "alter table credential_prop alter column value VARCHAR(MAX)",
+		down: "alter table credential_prop alter column value varchar(500)",
+	},
+}
+
+// alterCredentialPropValueType returns the goose migration function that widens (up) or narrows
+// (down) credential_prop.value, see credentialPropValueType.
+//
+// This runs inside the transaction goose already holds for the migration (RunTx), rather than
+// against *sql.DB (RunDB): the latter needs to acquire a second connection from the pool, which
+// deadlocks against SQLite's single-connection pool (see storage.initSQLDatabase).
+func alterCredentialPropValueType(dbType string, up bool) func(ctx context.Context, tx *sql.Tx) error {
+	return func(ctx context.Context, tx *sql.Tx) error {
+		statements, ok := credentialPropValueType[dbType]
+		if !ok {
+			return nil
+		}
+		statement := statements.down
+		if up {
+			statement = statements.up
+		}
+		_, err := tx.ExecContext(ctx, statement)
+		return err
+	}
 }
 
 type provider struct {
