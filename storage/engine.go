@@ -431,10 +431,7 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		return err
 	}
 	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS,
-		goose.WithGoMigrations(goose.NewGoMigration(11,
-			&goose.GoFunc{RunTx: alterCredentialPropValueType(dbType, true)},
-			&goose.GoFunc{RunTx: alterCredentialPropValueType(dbType, false)},
-		)),
+		goose.WithGoMigrations(sql_migrations.Migration011CredentialPropValueType(dbType)),
 	)
 	if err != nil {
 		return err
@@ -455,56 +452,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 
 func sqliteConnectionString(datadir string) string {
 	return "sqlite:file:" + path.Join(datadir, "sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)")
-}
-
-// credentialPropValueType is the (up, down) ALTER TABLE statement that changes the type of
-// credential_prop.value, keyed by database type. The syntax for changing an existing column's
-// type is not portable, e.g.:
-//
-//	postgres:           alter table credential_prop alter column value type TEXT;
-//	mysql:              alter table credential_prop modify column value TEXT;
-//	sqlserver/azuresql: alter table credential_prop alter column value VARCHAR(MAX);
-//
-// SQLite has no ALTER COLUMN/MODIFY COLUMN syntax at all, and doesn't enforce varchar length
-// limits in the first place, so there's nothing to do there; it's simply absent from this map.
-var credentialPropValueType = map[string]struct{ up, down string }{
-	"postgres": {
-		up:   "alter table credential_prop alter column value type TEXT",
-		down: "alter table credential_prop alter column value type varchar(500)",
-	},
-	"mysql": {
-		up:   "alter table credential_prop modify column value TEXT",
-		down: "alter table credential_prop modify column value varchar(500)",
-	},
-	"sqlserver": {
-		up:   "alter table credential_prop alter column value VARCHAR(MAX)",
-		down: "alter table credential_prop alter column value varchar(500)",
-	},
-	"azuresql": {
-		up:   "alter table credential_prop alter column value VARCHAR(MAX)",
-		down: "alter table credential_prop alter column value varchar(500)",
-	},
-}
-
-// alterCredentialPropValueType returns the goose migration function that widens (up) or narrows
-// (down) credential_prop.value, see credentialPropValueType.
-//
-// This runs inside the transaction goose already holds for the migration (RunTx), rather than
-// against *sql.DB (RunDB): the latter needs to acquire a second connection from the pool, which
-// deadlocks against SQLite's single-connection pool (see storage.initSQLDatabase).
-func alterCredentialPropValueType(dbType string, up bool) func(ctx context.Context, tx *sql.Tx) error {
-	return func(ctx context.Context, tx *sql.Tx) error {
-		statements, ok := credentialPropValueType[dbType]
-		if !ok {
-			return nil
-		}
-		statement := statements.down
-		if up {
-			statement = statements.up
-		}
-		_, err := tx.ExecContext(ctx, statement)
-		return err
-	}
 }
 
 type provider struct {
