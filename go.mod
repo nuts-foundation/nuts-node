@@ -201,7 +201,7 @@ require (
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
-	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.29
+	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.30
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf
 	github.com/daangn/minimemcached v1.2.1
 	github.com/eko/gocache/lib/v4 v4.2.3
