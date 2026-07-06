@@ -65,23 +65,21 @@ var credentialPropValueType011 = map[string]struct{ up, down string }{
 // connection from the pool to run the migration, which deadlocks against SQLite's
 // single-connection pool (see storage.initSQLDatabase).
 func Migration011CredentialPropValueType(dbType string) *goose.Migration {
+	statements, ok := credentialPropValueType011[dbType]
 	return goose.NewGoMigration(11,
-		&goose.GoFunc{RunTx: alterCredentialPropValueType011(dbType, true)},
-		&goose.GoFunc{RunTx: alterCredentialPropValueType011(dbType, false)},
+		&goose.GoFunc{RunTx: func(ctx context.Context, tx *sql.Tx) error {
+			if !ok {
+				return nil
+			}
+			_, err := tx.ExecContext(ctx, statements.up)
+			return err
+		}},
+		&goose.GoFunc{RunTx: func(ctx context.Context, tx *sql.Tx) error {
+			if !ok {
+				return nil
+			}
+			_, err := tx.ExecContext(ctx, statements.down)
+			return err
+		}},
 	)
-}
-
-func alterCredentialPropValueType011(dbType string, up bool) func(ctx context.Context, tx *sql.Tx) error {
-	return func(ctx context.Context, tx *sql.Tx) error {
-		statements, ok := credentialPropValueType011[dbType]
-		if !ok {
-			return nil
-		}
-		statement := statements.down
-		if up {
-			statement = statements.up
-		}
-		_, err := tx.ExecContext(ctx, statement)
-		return err
-	}
 }
