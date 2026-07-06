@@ -23,6 +23,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -320,6 +321,19 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		return err
 	}
 	defer os.Unsetenv("TEXT_TYPE")
+	// ALTER TABLE syntax to change an existing column's type is not portable across databases
+	// (e.g. "ALTER COLUMN ... TYPE" vs "MODIFY COLUMN"), so migrations that need it build the
+	// statement from these variables instead.
+	err = os.Setenv("ALTER_COLUMN", "alter column")
+	if err != nil {
+		return err
+	}
+	defer os.Unsetenv("ALTER_COLUMN")
+	err = os.Setenv("ALTER_COLUMN_TYPE", "type")
+	if err != nil {
+		return err
+	}
+	defer os.Unsetenv("ALTER_COLUMN_TYPE")
 	switch dbType {
 	case "sqlite":
 		// SQLite does not support SELECT FOR UPDATE and allows only 1 active write transaction at any time,
@@ -338,6 +352,14 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		}
 		dialect = goose.DialectSQLite3
 	case "mysql":
+		err = os.Setenv("ALTER_COLUMN", "modify column")
+		if err != nil {
+			return err
+		}
+		err = os.Setenv("ALTER_COLUMN_TYPE", "")
+		if err != nil {
+			return err
+		}
 		e.sqlDB, err = gorm.Open(mysql.New(mysql.Config{
 			Conn: db,
 		}), gormConfig)
@@ -360,6 +382,10 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		if err != nil {
 			return err
 		}
+		err = os.Setenv("ALTER_COLUMN_TYPE", "")
+		if err != nil {
+			return err
+		}
 		e.sqlDB, err = gorm.Open(sqlserver.New(sqlserver.Config{
 			Conn: db,
 		}), gormConfig)
@@ -369,6 +395,22 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		dialect = goose.DialectMSSQL
 	default:
 		return errors.New("unsupported SQL database")
+	}
+
+	// Migration files suffixed "_sqlite.sql" replace their non-suffixed counterpart (same version
+	// number) specifically for SQLite, which lacks the ALTER TABLE ... ALTER/MODIFY COLUMN syntax
+	// those counterparts rely on. Elsewhere, "_sqlite.sql" files are excluded since they only apply to SQLite.
+	sqliteOnlyMigrations, err := fs.Glob(sql_migrations.SQLMigrationsFS, "*_sqlite.sql")
+	if err != nil {
+		return err
+	}
+	var excludeMigrations []string
+	if dbType == "sqlite" {
+		for _, name := range sqliteOnlyMigrations {
+			excludeMigrations = append(excludeMigrations, strings.TrimSuffix(name, "_sqlite.sql")+".sql")
+		}
+	} else {
+		excludeMigrations = sqliteOnlyMigrations
 	}
 
 	// Add OpenTelemetry tracing to GORM if tracing is enabled
@@ -383,7 +425,7 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	if err != nil {
 		return err
 	}
-	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
+	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS, goose.WithExcludeNames(excludeMigrations))
 	if err != nil {
 		return err
 	}
