@@ -144,20 +144,25 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client(), false)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "credential_issuer")
+		assert.Contains(t, err.Error(), "https://attacker.example")
 		assert.Contains(t, err.Error(), "does not match")
 	})
 
-	t.Run("error on non-2xx", func(t *testing.T) {
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic beyond the
+	// "openid4vci: " error prefix, so it's enough to confirm the wiring (well-known constant,
+	// httpClient, strictMode) and that prefix.
+	t.Run("all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
 		defer srv.Close()
 
 		client := NewClient(srv.Client(), false)
-		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "404")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
+		assert.Contains(t, err.Error(), srv.URL+"/oauth2/alice")
 	})
 
 	t.Run("rejects non-https issuer URL in strict mode", func(t *testing.T) {
@@ -188,7 +193,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client(), false)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "decoding issuer metadata")
+		assert.Contains(t, err.Error(), "decoding metadata")
 	})
 }
 

@@ -20,10 +20,11 @@ package oauth
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIssuerIdToWellKnown(t *testing.T) {
