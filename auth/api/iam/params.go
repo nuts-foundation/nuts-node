@@ -42,6 +42,13 @@ func (ssp oauthParameters) get(key string) string {
 		if len(typedValue) == 1 {
 			return typedValue[0]
 		}
+	case []interface{}:
+		// JWT claims decoded from JSON (e.g. via jwx.AsMap) carry arrays as []interface{}.
+		if len(typedValue) == 1 {
+			if str, ok := typedValue[0].(string); ok {
+				return str
+			}
+		}
 	}
 	return ""
 }
