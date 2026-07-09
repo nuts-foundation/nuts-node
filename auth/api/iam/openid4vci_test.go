@@ -344,7 +344,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		IssuerCredentialEndpoint:        credEndpoint,
 		IssuerNonceEndpoint:             nonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
-		IssuerCredentialType:            "ExampleType",
+		RequestedCredentialType:         "ExampleType",
 		IssuerCredentialIssuer:          issuerClientID,
 	}
 	sessionWithoutNonce := session
@@ -655,7 +655,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 	t.Run("error - issued credential type does not match requested credential_type", func(t *testing.T) {
 		ctx := newTestClient(t)
 		sessionWithDifferentType := session
-		sessionWithDifferentType.IssuerCredentialType = "SomeOtherCredentialType"
+		sessionWithDifferentType.RequestedCredentialType = "SomeOtherCredentialType"
 		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
 		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)

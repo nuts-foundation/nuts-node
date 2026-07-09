@@ -22,7 +22,6 @@ package oauth
 import (
 	"encoding/json"
 	"net/url"
-	"slices"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -366,12 +365,6 @@ func (m AuthorizationServerMetadata) SupportsClientIDScheme(scheme string) bool 
 		}
 	}
 	return false
-}
-
-// SupportsAuthorizationDetailsType checks if the Authorization Server supports the given
-// authorization_details type (RFC 9396).
-func (m AuthorizationServerMetadata) SupportsAuthorizationDetailsType(t string) bool {
-	return slices.Contains(m.AuthorizationDetailsTypesSupported, t)
 }
 
 // OAuthClientMetadata defines the OAuth Client metadata.

@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
@@ -113,7 +114,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
-		IssuerCredentialType:            credentialType,
+		RequestedCredentialType:         credentialType,
 		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
 		CredentialRequestParams:         credentialRequestParams,
 	})
@@ -138,7 +139,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	// openid_credential authorization_details type, use the Authorization Details flow. Otherwise,
 	// omit authorization_details entirely (Credential Configuration ID flow) — the resolved
 	// credential_configuration_id is identified later, at the Credential Request (§8.2).
-	if authzServerMetadata.SupportsAuthorizationDetailsType(openid4vci.AuthorizationDetailsTypeOpenIDCredential) {
+	if slices.Contains(authzServerMetadata.AuthorizationDetailsTypesSupported, openid4vci.AuthorizationDetailsTypeOpenIDCredential) {
 		authorizationDetails, _ := json.Marshal([]openid4vci.AuthorizationDetail{{
 			Type:                      openid4vci.AuthorizationDetailsTypeOpenIDCredential,
 			CredentialConfigurationID: credentialConfigID,
@@ -241,8 +242,8 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}
 	// Guard against an issuer returning a credential of a different type than requested, before
 	// it is stored in the wallet.
-	if !credential.IsType(ssi.MustParseURI(oauthSession.IssuerCredentialType)) {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("issued credential does not have the requested type %q", oauthSession.IssuerCredentialType)), appCallbackURI)
+	if !credential.IsType(ssi.MustParseURI(oauthSession.RequestedCredentialType)) {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("issued credential does not have the requested type %q", oauthSession.RequestedCredentialType)), appCallbackURI)
 	}
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
