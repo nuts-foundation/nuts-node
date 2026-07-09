@@ -118,6 +118,22 @@ func TestOpenIDCredentialIssuerMetadata_ResolveCredentialConfigurationID(t *test
 
 		assert.EqualError(t, err, `issuer offers "SomeCredential" only in format(s): mso_mdoc, vc+sd-jwt`)
 	})
+	t.Run("error - rejects the base VerifiableCredential type upfront", func(t *testing.T) {
+		metadata := OpenIDCredentialIssuerMetadata{
+			CredentialConfigurationsSupported: map[string]CredentialConfiguration{
+				"UniversityDegreeCredential_jwt_vc_json": {
+					Format:               "jwt_vc_json",
+					CredentialDefinition: &CredentialDefinition{Type: []string{"VerifiableCredential", "UniversityDegreeCredential"}},
+				},
+			},
+		}
+
+		// Every credential_definition.type array contains "VerifiableCredential"; without this
+		// guard it would resolve to an arbitrary, unrelated credential_configuration_id.
+		_, err := metadata.ResolveCredentialConfigurationID("VerifiableCredential")
+
+		assert.EqualError(t, err, `issuer does not offer a credential of type "VerifiableCredential"`)
+	})
 }
 
 func TestCredentialConfiguration_MatchesType(t *testing.T) {
@@ -130,13 +146,16 @@ func TestCredentialConfiguration_MatchesType(t *testing.T) {
 		assert.True(t, config.MatchesType("UniversityDegreeCredential"))
 		assert.False(t, config.MatchesType("OtherCredential"))
 	})
-	t.Run("ignores the base VerifiableCredential type", func(t *testing.T) {
+	t.Run("matches the base VerifiableCredential type like any other entry", func(t *testing.T) {
+		// Excluding "VerifiableCredential" as a resolvable type is the caller's
+		// responsibility (see ResolveCredentialConfigurationID); MatchesType itself does a
+		// plain membership check.
 		config := CredentialConfiguration{
 			Format:               "jwt_vc_json",
 			CredentialDefinition: &CredentialDefinition{Type: []string{"VerifiableCredential"}},
 		}
 
-		assert.False(t, config.MatchesType("VerifiableCredential"))
+		assert.True(t, config.MatchesType("VerifiableCredential"))
 	})
 	t.Run("matches vct", func(t *testing.T) {
 		config := CredentialConfiguration{Format: "vc+sd-jwt", Vct: "UniversityDegreeCredential"}

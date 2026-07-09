@@ -73,14 +73,13 @@ type CredentialConfiguration struct {
 
 // MatchesType checks whether this credential_configurations_supported entry is of the given
 // credential type, using the type-locating field per format (§12.2): credential_definition.type
-// (jwt_vc_json, ldp_vc; ignoring the base "VerifiableCredential" entry) or vct (vc+sd-jwt,
-// dc+sd-jwt). vct is still matched here, even though the node doesn't support those formats
-// (oauth.DefaultOpenIDSupportedFormats), so such entries produce the more useful "only offered in
-// unsupported format(s)" error instead of "does not offer this type at all".
+// (jwt_vc_json, ldp_vc) or vct (vc+sd-jwt, dc+sd-jwt). vct is still matched here, even though the
+// node doesn't support those formats (oauth.DefaultOpenIDSupportedFormats), so such entries
+// produce the more useful "only offered in unsupported format(s)" error instead of "does not offer
+// this type at all". Callers resolving a caller-supplied credential_type should reject the base
+// "VerifiableCredential" type themselves (see ResolveCredentialConfigurationID) — every entry's
+// credential_definition.type contains it, so it is not a useful match here.
 func (c CredentialConfiguration) MatchesType(credentialType string) bool {
-	if credentialType == "VerifiableCredential" {
-		return false
-	}
 	if c.CredentialDefinition != nil && slices.Contains(c.CredentialDefinition.Type, credentialType) {
 		return true
 	}
@@ -118,12 +117,17 @@ func (m OpenIDCredentialIssuerMetadata) WellKnownPath() string {
 // Matching is done on the type-locating field, not the map key: the spec lets
 // credential_configuration_id be an arbitrary issuer-chosen string.
 //
+//   - credentialType is the base "VerifiableCredential" type: rejected upfront, since every
+//     credential_definition.type array contains it and it does not identify a specific credential.
 //   - 0 matches: the issuer does not offer this credential type at all.
 //   - matches only in formats the node does not support (oauth.DefaultOpenIDSupportedFormats): the
 //     type exists, but the node cannot request it.
 //   - 1+ matches in a supported format: candidate IDs are sorted so the pick is deterministic
 //     (never Go map order); the smallest ID wins.
 func (m OpenIDCredentialIssuerMetadata) ResolveCredentialConfigurationID(credentialType string) (string, error) {
+	if credentialType == "VerifiableCredential" {
+		return "", fmt.Errorf("issuer does not offer a credential of type %q", credentialType)
+	}
 	supportedFormats := oauth.DefaultOpenIDSupportedFormats()
 	var matchedFormats []string
 	var supportedIDs []string
