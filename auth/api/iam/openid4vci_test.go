@@ -26,8 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core/to"
-
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -44,11 +42,18 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		CredentialIssuer:     "issuer",
 		CredentialEndpoint:   "endpoint",
 		AuthorizationServers: []string{authServer},
+		CredentialConfigurationsSupported: map[string]openid4vci.CredentialConfiguration{
+			"UniversityDegreeCredential_jwt_vc_json": {
+				Format:               "jwt_vc_json",
+				CredentialDefinition: &openid4vci.CredentialDefinition{Type: []string{"VerifiableCredential", "UniversityDegreeCredential"}},
+			},
+		},
 	}
 	authzMetadata := oauth.AuthorizationServerMetadata{
-		AuthorizationEndpoint:    "https://auth.server/authorize",
-		TokenEndpoint:            "https://auth.server/token",
-		ClientIdSchemesSupported: clientIdSchemesSupported,
+		AuthorizationEndpoint:              "https://auth.server/authorize",
+		TokenEndpoint:                      "https://auth.server/token",
+		ClientIdSchemesSupported:           clientIdSchemesSupported,
+		AuthorizationDetailsTypesSupported: []string{"openid_credential"},
 	}
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -57,10 +62,10 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, RequestOpenid4VCICredentialIssuanceRequestObject{
 			SubjectID: holderSubjectID,
 			Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-				AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential", Format: to.Ptr("vc+sd-jwt")}},
-				Issuer:               issuerClientID,
-				RedirectUri:          redirectURI,
-				WalletDid:            holderDID.String(),
+				CredentialType: "UniversityDegreeCredential",
+				Issuer:         issuerClientID,
+				RedirectUri:    redirectURI,
+				WalletDid:      holderDID.String(),
 			},
 		})
 		require.NoError(t, err)
@@ -75,7 +80,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
-		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
+		assert.Equal(t, `[{"type":"openid_credential","credential_configuration_id":"UniversityDegreeCredential_jwt_vc_json"}]`, redirectUri.Query().Get("authorization_details"))
 	})
 	t.Run("ok - authorization_request_params merged into authorization request", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -157,32 +162,103 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 
 		assert.EqualError(t, err, "issuer is empty")
 	})
-	t.Run("error - empty authorization_details", func(t *testing.T) {
-		// Schema declares minItems: 1 but the StrictServer middleware does not
-		// enforce array bounds at runtime; the handler must reject empty arrays
-		// before any outbound metadata fetches.
+	t.Run("error - empty credential_type", func(t *testing.T) {
 		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationDetails = []AuthorizationDetail{}
+		req.Body.CredentialType = ""
 		ctx := newTestClient(t)
 		// Deliberately no mock expectations: rejection must happen before
 		// metadata is fetched.
 
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
-		assert.ErrorContains(t, err, "must contain exactly one entry")
+		assert.EqualError(t, err, "credential_type is empty")
 	})
-	t.Run("error - multiple authorization_details", func(t *testing.T) {
-		// Schema declares maxItems: 1; same StrictServer gap as minItems.
-		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationDetails = []AuthorizationDetail{
-			{Type: "openid_credential", CredentialConfigurationId: "First"},
-			{Type: "openid_credential", CredentialConfigurationId: "Second"},
-		}
+	t.Run("error - issuer does not offer requested credential_type", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.CredentialType = "UnknownCredential"
 
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
-		assert.ErrorContains(t, err, "must contain exactly one entry")
+		assert.EqualError(t, err, `issuer does not offer a credential of type "UnknownCredential"`)
+	})
+	t.Run("error - credential_type only offered in a format the node does not support", func(t *testing.T) {
+		ctx := newTestClient(t)
+		unsupportedFormatMetadata := metadata
+		unsupportedFormatMetadata.CredentialConfigurationsSupported = map[string]openid4vci.CredentialConfiguration{
+			"MdocOnlyCredential_mso_mdoc": {
+				Format:               "mso_mdoc",
+				CredentialDefinition: &openid4vci.CredentialDefinition{Type: []string{"VerifiableCredential", "MdocOnlyCredential"}},
+			},
+		}
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&unsupportedFormatMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
+		req.Body.CredentialType = "MdocOnlyCredential"
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
+
+		assert.EqualError(t, err, `issuer offers "MdocOnlyCredential" only in format(s): mso_mdoc`)
+	})
+	t.Run("ok - multiple matches in supported formats resolved by sorted candidate ID", func(t *testing.T) {
+		ctx := newTestClient(t)
+		multiFormatMetadata := metadata
+		multiFormatMetadata.CredentialConfigurationsSupported = map[string]openid4vci.CredentialConfiguration{
+			"ZZZ_UniversityDegreeCredential_jwt_vc_json": {
+				Format:               "jwt_vc_json",
+				CredentialDefinition: &openid4vci.CredentialDefinition{Type: []string{"VerifiableCredential", "UniversityDegreeCredential"}},
+			},
+			"AAA_UniversityDegreeCredential_ldp_vc": {
+				Format:               "ldp_vc",
+				CredentialDefinition: &openid4vci.CredentialDefinition{Type: []string{"VerifiableCredential", "UniversityDegreeCredential"}},
+			},
+		}
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&multiFormatMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+
+		require.NoError(t, err)
+		redirectUri, _ := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		// Both formats are supported (oauth.DefaultOpenIDSupportedFormats); there is no format
+		// ranking between them, so the lexicographically smallest candidate ID wins.
+		assert.Contains(t, redirectUri.Query().Get("authorization_details"), `"credential_configuration_id":"AAA_UniversityDegreeCredential_ldp_vc"`)
+	})
+	t.Run("error - credential_type only offered via vct in an unsupported format", func(t *testing.T) {
+		ctx := newTestClient(t)
+		// The node does not support SD-JWT VCs; vct is still matched so this produces the more
+		// useful "only offered in format(s)" error instead of "does not offer this type at all".
+		sdJwtOnlyMetadata := metadata
+		sdJwtOnlyMetadata.CredentialConfigurationsSupported = map[string]openid4vci.CredentialConfiguration{
+			"UniversityDegreeCredential_sd_jwt": {
+				Format: "vc+sd-jwt",
+				Vct:    "UniversityDegreeCredential",
+			},
+		}
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&sdJwtOnlyMetadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
+
+		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+
+		assert.EqualError(t, err, `issuer offers "UniversityDegreeCredential" only in format(s): vc+sd-jwt`)
+	})
+	t.Run("ok - Credential Configuration ID flow when AS does not support authorization_details", func(t *testing.T) {
+		ctx := newTestClient(t)
+		authzMetadataNoDetails := authzMetadata
+		authzMetadataNoDetails.AuthorizationDetailsTypesSupported = nil
+		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
+		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadataNoDetails, nil)
+
+		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, requestCredentials(holderSubjectID, issuerClientID, redirectURI))
+
+		require.NoError(t, err)
+		redirectUri, _ := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
+		assert.False(t, redirectUri.Query().Has("authorization_details"))
+		var stored OAuthSession
+		require.NoError(t, ctx.client.oauthClientStateStore().Get(redirectUri.Query().Get("state"), &stored))
+		assert.Equal(t, "UniversityDegreeCredential_jwt_vc_json", stored.IssuerCredentialConfigurationID)
 	})
 	t.Run("error - invalid authorization endpoint in metadata", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -231,10 +307,10 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 	return RequestOpenid4VCICredentialIssuanceRequestObject{
 		SubjectID: subjectID,
 		Body: &RequestOpenid4VCICredentialIssuanceJSONRequestBody{
-			AuthorizationDetails: []AuthorizationDetail{{Type: "openid_credential", CredentialConfigurationId: "UniversityDegreeCredential"}},
-			Issuer:               issuer,
-			RedirectUri:          redirectURI,
-			WalletDid:            holderDID.String(),
+			CredentialType: "UniversityDegreeCredential",
+			Issuer:         issuer,
+			RedirectUri:    redirectURI,
+			WalletDid:      holderDID.String(),
 		},
 	}
 }
@@ -268,6 +344,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		IssuerCredentialEndpoint:        credEndpoint,
 		IssuerNonceEndpoint:             nonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		IssuerCredentialType:            "ExampleType",
 		IssuerCredentialIssuer:          issuerClientID,
 	}
 	sessionWithoutNonce := session
@@ -574,5 +651,21 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 		assert.Nil(t, callback)
 		assert.ErrorContains(t, err, "credential response does not contain any credentials")
+	})
+	t.Run("error - issued credential type does not match requested credential_type", func(t *testing.T) {
+		ctx := newTestClient(t)
+		sessionWithDifferentType := session
+		sessionWithDifferentType.IssuerCredentialType = "SomeOtherCredentialType"
+		ctx.iamClient.EXPECT().AccessToken(nil, code, tokenEndpoint, redirectURI, holderSubjectID, holderClientID, pkceParams.Verifier, false).Return(tokenResponse, nil)
+		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
+		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
+		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
+		ctx.openid4vciClient.EXPECT().RequestCredential(nil, openid4vci.RequestCredentialOpts{CredentialEndpoint: credEndpoint, AccessToken: accessToken, CredentialConfigurationID: credentialConfigID, ProofJWT: "signed-proof"}).Return(&credentialResponse, nil)
+		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
+
+		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &sessionWithDifferentType)
+
+		assert.Nil(t, callback)
+		assert.EqualError(t, err, `server_error - issued credential does not have the requested type "SomeOtherCredentialType"`)
 	})
 }

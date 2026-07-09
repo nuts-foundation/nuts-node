@@ -150,7 +150,7 @@ paths:
             schema:
               required:
                 - issuer
-                - authorization_details
+                - credential_type
                 - redirect_uri
                 - wallet_did
               properties:
@@ -164,16 +164,16 @@ paths:
                     The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
                     used to locate the OAuth2 Authorization Server metadata.
                   example: did:web:issuer.example.com
-                authorization_details:
+                credential_type:
+                  type: string
                   description: |
-                    Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
-                    The current implementation processes a single credential
-                    issuance per call and only consumes the first entry.
-                  type: array
-                  minItems: 1
-                  maxItems: 1
-                  items:
-                    $ref: '#/components/schemas/AuthorizationDetail'
+                    The type of Verifiable Credential to request (e.g. its `credential_definition.type` or `vct` value).
+                    The node resolves this to the issuer's `credential_configuration_id` by matching it against the
+                    issuer's Credential Issuer Metadata (`credential_configurations_supported`, OpenID4VCI 1.0 §12.2),
+                    and picks the authorization-stage flow (RFC 9396 `authorization_details` vs. `credential_configuration_id`
+                    at the Credential Request) from the Authorization Server metadata. The current implementation
+                    processes a single credential issuance per call.
+                  example: HealthcareProviderRoleTypeCredential
                 credential_request_params:
                   type: object
                   additionalProperties: true
@@ -759,31 +759,6 @@ components:
       description: |
         Presentation Definitions, as described in Presentation Exchange specification, fulfilled to obtain the access token
         The map key is the wallet owner (user/organization)
-    AuthorizationDetail:
-      description: |
-        A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
-        Only the fields used by the user/browser issuance flow are modeled.
-      type: object
-      required:
-        - type
-        - credential_configuration_id
-      properties:
-        type:
-          type: string
-          enum: [openid_credential]
-          description: |
-            The authorization details type. For OpenID4VCI flows this MUST
-            be "openid_credential" per §5.1.1.
-        credential_configuration_id:
-          type: string
-          description: |
-            References a credential configuration from the issuer's
-            credential_configurations_supported metadata. REQUIRED for
-            type=openid_credential per §5.1.1.
-        format:
-          type: string
-          description: |
-            Optional credential format hint (e.g. "vc+sd-jwt").
   securitySchemes:
     jwtBearerAuth:
       type: http

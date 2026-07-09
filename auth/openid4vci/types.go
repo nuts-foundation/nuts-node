@@ -32,6 +32,10 @@ package openid4vci
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
+	"sort"
+	"strings"
 
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 )
@@ -40,15 +44,61 @@ import (
 // proofs (Appendix F.1).
 const JWTTypeOpenID4VCIProof = "openid4vci-proof+jwt"
 
+// AuthorizationDetailsTypeOpenIDCredential is the RFC 9396 authorization_details
+// "type" value used for OpenID4VCI credential issuance (§5.1.1).
+const AuthorizationDetailsTypeOpenIDCredential = "openid_credential"
+
 // OpenIDCredentialIssuerMetadata describes the OpenID4VCI Credential Issuer
 // Metadata document published at /.well-known/openid-credential-issuer
 // (Section 12.2). The document is OpenID4VCI-defined; it is not an OAuth
 // authorization-server metadata document.
 type OpenIDCredentialIssuerMetadata struct {
-	CredentialIssuer     string   `json:"credential_issuer"`
-	CredentialEndpoint   string   `json:"credential_endpoint"`
-	NonceEndpoint        string   `json:"nonce_endpoint,omitempty"`
-	AuthorizationServers []string `json:"authorization_servers,omitempty"`
+	CredentialIssuer                  string                             `json:"credential_issuer"`
+	CredentialEndpoint                string                             `json:"credential_endpoint"`
+	NonceEndpoint                     string                             `json:"nonce_endpoint,omitempty"`
+	AuthorizationServers              []string                           `json:"authorization_servers,omitempty"`
+	CredentialConfigurationsSupported map[string]CredentialConfiguration `json:"credential_configurations_supported,omitempty"`
+}
+
+// CredentialConfiguration is one entry of credential_configurations_supported
+// in the Credential Issuer Metadata (§12.2). Only the fields needed to resolve
+// a credential_type to a credential_configuration_id are modeled: the
+// type-locating field depends on the format (CredentialDefinition.Type for
+// jwt_vc_json/ldp_vc, Vct for vc+sd-jwt/dc+sd-jwt).
+type CredentialConfiguration struct {
+	Format               string                `json:"format"`
+	CredentialDefinition *CredentialDefinition `json:"credential_definition,omitempty"`
+	Vct                  string                `json:"vct,omitempty"`
+}
+
+// MatchesType checks whether this credential_configurations_supported entry is of the given
+// credential type, using the type-locating field per format (§12.2): credential_definition.type
+// (jwt_vc_json, ldp_vc; ignoring the base "VerifiableCredential" entry) or vct (vc+sd-jwt,
+// dc+sd-jwt). vct is still matched here, even though the node doesn't support those formats
+// (oauth.DefaultOpenIDSupportedFormats), so such entries produce the more useful "only offered in
+// unsupported format(s)" error instead of "does not offer this type at all".
+func (c CredentialConfiguration) MatchesType(credentialType string) bool {
+	if credentialType == "VerifiableCredential" {
+		return false
+	}
+	if c.CredentialDefinition != nil && slices.Contains(c.CredentialDefinition.Type, credentialType) {
+		return true
+	}
+	return c.Vct != "" && c.Vct == credentialType
+}
+
+// CredentialDefinition carries the credential type array used by the
+// jwt_vc_json and ldp_vc formats.
+type CredentialDefinition struct {
+	Type []string `json:"type"`
+}
+
+// AuthorizationDetail is a single authorization_details entry (RFC 9396) sent
+// on the Authorization Request when the Authorization Server supports the
+// openid_credential type (§5.1.1).
+type AuthorizationDetail struct {
+	Type                      string `json:"type"`
+	CredentialConfigurationID string `json:"credential_configuration_id"`
 }
 
 // GetIssuer returns the credential issuer identifier, for metadata discovery
@@ -61,6 +111,53 @@ func (m OpenIDCredentialIssuerMetadata) GetIssuer() string {
 // published (§12.2), used by oauth.FetchMetadata to derive the metadata URL.
 func (m OpenIDCredentialIssuerMetadata) WellKnownPath() string {
 	return oauth.OpenIdCredIssuerWellKnown
+}
+
+// ResolveCredentialConfigurationID matches credentialType against
+// CredentialConfigurationsSupported (§12.2) and returns the matching credential_configuration_id.
+// Matching is done on the type-locating field, not the map key: the spec lets
+// credential_configuration_id be an arbitrary issuer-chosen string.
+//
+//   - 0 matches: the issuer does not offer this credential type at all.
+//   - matches only in formats the node does not support (oauth.DefaultOpenIDSupportedFormats): the
+//     type exists, but the node cannot request it.
+//   - 1+ matches in a supported format: candidate IDs are sorted so the pick is deterministic
+//     (never Go map order); the smallest ID wins.
+func (m OpenIDCredentialIssuerMetadata) ResolveCredentialConfigurationID(credentialType string) (string, error) {
+	type candidate struct {
+		id     string
+		format string
+	}
+	var matches []candidate
+	for id, config := range m.CredentialConfigurationsSupported {
+		if config.MatchesType(credentialType) {
+			matches = append(matches, candidate{id: id, format: config.Format})
+		}
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("issuer does not offer a credential of type %q", credentialType)
+	}
+	supportedFormats := oauth.DefaultOpenIDSupportedFormats()
+	var supportedMatches []candidate
+	for _, c := range matches {
+		if _, ok := supportedFormats[c.format]; ok {
+			supportedMatches = append(supportedMatches, c)
+		}
+	}
+	if len(supportedMatches) == 0 {
+		seenFormats := make(map[string]bool, len(matches))
+		unsupportedFormats := make([]string, 0, len(matches))
+		for _, c := range matches {
+			if !seenFormats[c.format] {
+				seenFormats[c.format] = true
+				unsupportedFormats = append(unsupportedFormats, c.format)
+			}
+		}
+		sort.Strings(unsupportedFormats)
+		return "", fmt.Errorf("issuer offers %q only in format(s): %s", credentialType, strings.Join(unsupportedFormats, ", "))
+	}
+	sort.Slice(supportedMatches, func(i, j int) bool { return supportedMatches[i].id < supportedMatches[j].id })
+	return supportedMatches[0].id, nil
 }
 
 // NonceResponse is the body returned by the Nonce Endpoint (Section 7.2).
