@@ -34,7 +34,6 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwe"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
-	"github.com/lestrrat-go/jwx/v3/jws/jwsbb"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -303,8 +302,11 @@ func ParseJWS(token []byte, f PublicKeyFunc) (payload []byte, err error) {
 		for _, part := range parts {
 			payload = append(payload, part...)
 		}
-		err = jwsbb.Verify(key, alg.String(), payload, signature.Signature())
+		verifier, err := jws.VerifierFor(alg)
 		if err != nil {
+			return nil, err
+		}
+		if err = verifier.Verify(key, payload, signature.Signature()); err != nil {
 			return nil, err
 		}
 	}
