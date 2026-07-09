@@ -35,7 +35,7 @@ func TestOauthParameters_get(t *testing.T) {
 	}
 	assert.Equal(t, "value", params.get("string"))
 	assert.Equal(t, "value", params.get("stringSlice"))
-	// JWT claims decoded from JSON (e.g. the "aud" claim via jwx.AsMap) arrive as []interface{}.
+	// JWT claims decoded from JSON (e.g. the "aud" claim via jwx.ClaimsAsMap) arrive as []interface{}.
 	assert.Equal(t, "value", params.get("interfaceSlice"))
 	assert.Empty(t, params.get("multiSlice"))
 	assert.Empty(t, params.get("nonStringSlice"))

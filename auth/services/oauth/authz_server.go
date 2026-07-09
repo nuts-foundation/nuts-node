@@ -525,8 +525,8 @@ func (s *authzServer) IntrospectAccessToken(ctx context.Context, accessToken str
 	result := &services.NutsAccessToken{}
 
 	// Extract all claims, then drop the registered ones to mirror jwx v2's token.PrivateClaims.
-	// jwx.AsMap preserves null-valued claims (a per-claim Get loop errors on null values in v3).
-	privateClaims, err := jwx.AsMap(token)
+	// jwx.ClaimsAsMap preserves null-valued claims (a per-claim Get loop errors on null values in v3).
+	privateClaims, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		return nil, err
 	}

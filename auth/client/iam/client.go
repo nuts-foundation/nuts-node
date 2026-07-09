@@ -261,7 +261,7 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
-	claims, err := jwx.AsMap(token)
+	claims, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}

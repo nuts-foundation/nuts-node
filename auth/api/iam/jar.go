@@ -184,7 +184,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}
-	claimsAsMap, err := jwx.AsMap(token)
+	claimsAsMap, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		// very unlikely
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}

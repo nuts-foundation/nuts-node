@@ -18,21 +18,24 @@
 
 package jwx
 
-import "encoding/json"
+import (
+	"encoding/json"
 
-// AsMap converts a JOSE object (a jwt.Token or jwk.Key) to a map of its fields, keyed by their
-// JSON member names.
+	"github.com/lestrrat-go/jwx/v3/jwt"
+)
+
+// ClaimsAsMap returns a JWT token's claims as a map, keyed by their JSON member names.
 //
-// It replaces jwx v2's AsMap methods, which were removed in v3. Marshaling via JSON (rather
-// than iterating keys and calling Get per field) is deliberate: v3's per-field Get returns an
-// error for a null-valued member, whereas the JSON round-trip preserves null members as nil -
-// matching v2's AsMap behaviour and avoiding rejection of otherwise-valid input.
+// It replaces jwx v2's token.AsMap, which was removed in v3. Marshaling via JSON (rather than
+// iterating keys and calling Get per claim) is deliberate: v3's per-field Get returns an error
+// for a null-valued claim, whereas the JSON round-trip preserves null claims as nil - matching
+// v2's AsMap behaviour and avoiding rejection of otherwise-valid tokens.
 //
-// Do NOT use this for jws/jwe protected headers: the JSON round-trip flattens rich header
+// For jws/jwe protected headers use HeadersAsMap instead: a JSON round-trip flattens rich header
 // values (e.g. the x5c certificate chain) into plain JSON types, breaking callers that expect
-// the concrete Go types. Use HeadersAsMap for headers.
-func AsMap(joseObject any) (map[string]interface{}, error) {
-	data, err := json.Marshal(joseObject)
+// the concrete Go types.
+func ClaimsAsMap(token jwt.Token) (map[string]interface{}, error) {
+	data, err := json.Marshal(token)
 	if err != nil {
 		return nil, err
 	}
