@@ -239,12 +239,15 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
 	CredentialRequestParams *map[string]interface{} `json:"credential_request_params,omitempty"`
 
-	// CredentialType The type of Verifiable Credential to request (e.g. its `credential_definition.type` or `vct` value).
-	// The node resolves this to the issuer's `credential_configuration_id` by matching it against the
-	// issuer's Credential Issuer Metadata (`credential_configurations_supported`, OpenID4VCI 1.0 §12.2),
-	// and picks the authorization-stage flow (RFC 9396 `authorization_details` vs. `credential_configuration_id`
-	// at the Credential Request) from the Authorization Server metadata. The current implementation
-	// processes a single credential issuance per call.
+	// CredentialType The type of Verifiable Credential to request, e.g. "HealthcareProviderRoleTypeCredential".
+	// The node takes care of the OpenID4VCI details:
+	//   1. It looks up this type in the issuer's published metadata to find the matching
+	//      credential configuration.
+	//   2. It checks the Authorization Server's metadata to decide how to ask for that
+	//      credential, since different issuers expect this differently.
+	//   3. Once the credential is issued, it checks the returned credential actually has
+	//      the requested type before storing it.
+	// Only one credential can be requested per call.
 	CredentialType string `json:"credential_type"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
