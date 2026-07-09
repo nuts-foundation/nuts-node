@@ -2,6 +2,16 @@
 Release notes
 #############
 
+*****************
+Peanut (v6.2.10)
+*****************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.9...v6.2.10
+
 ****************
 Peanut (v6.2.9)
 ****************
