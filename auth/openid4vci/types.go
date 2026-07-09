@@ -124,37 +124,28 @@ func (m OpenIDCredentialIssuerMetadata) WellKnownPath() string {
 //   - 1+ matches in a supported format: candidate IDs are sorted so the pick is deterministic
 //     (never Go map order); the smallest ID wins.
 func (m OpenIDCredentialIssuerMetadata) ResolveCredentialConfigurationID(credentialType string) (string, error) {
-	type candidate struct {
-		id     string
-		format string
-	}
-	var matches []candidate
+	supportedFormats := oauth.DefaultOpenIDSupportedFormats()
+	var matchedFormats []string
+	var supportedIDs []string
 	for id, config := range m.CredentialConfigurationsSupported {
-		if config.MatchesType(credentialType) {
-			matches = append(matches, candidate{id: id, format: config.Format})
+		if !config.MatchesType(credentialType) {
+			continue
+		}
+		matchedFormats = append(matchedFormats, config.Format)
+		if _, ok := supportedFormats[config.Format]; ok {
+			supportedIDs = append(supportedIDs, id)
 		}
 	}
-	if len(matches) == 0 {
+	if len(matchedFormats) == 0 {
 		return "", fmt.Errorf("issuer does not offer a credential of type %q", credentialType)
 	}
-	supportedFormats := oauth.DefaultOpenIDSupportedFormats()
-	var supportedMatches []candidate
-	for _, c := range matches {
-		if _, ok := supportedFormats[c.format]; ok {
-			supportedMatches = append(supportedMatches, c)
-		}
+	if len(supportedIDs) == 0 {
+		sort.Strings(matchedFormats)
+		matchedFormats = slices.Compact(matchedFormats)
+		return "", fmt.Errorf("issuer offers %q only in format(s): %s", credentialType, strings.Join(matchedFormats, ", "))
 	}
-	if len(supportedMatches) == 0 {
-		unsupportedFormats := make([]string, len(matches))
-		for i, c := range matches {
-			unsupportedFormats[i] = c.format
-		}
-		sort.Strings(unsupportedFormats)
-		unsupportedFormats = slices.Compact(unsupportedFormats)
-		return "", fmt.Errorf("issuer offers %q only in format(s): %s", credentialType, strings.Join(unsupportedFormats, ", "))
-	}
-	sort.Slice(supportedMatches, func(i, j int) bool { return supportedMatches[i].id < supportedMatches[j].id })
-	return supportedMatches[0].id, nil
+	sort.Strings(supportedIDs)
+	return supportedIDs[0], nil
 }
 
 // NonceResponse is the body returned by the Nonce Endpoint (Section 7.2).
