@@ -23,5 +23,5 @@ package jwx
 import "github.com/lestrrat-go/jwx/v3/jwa"
 
 func init() {
-	AddSupportedAlgorithm(jwa.ES256K)
+	AddSupportedAlgorithm(jwa.ES256K())
 }
