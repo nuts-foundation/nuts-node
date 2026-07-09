@@ -25,9 +25,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwt"
+
+	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -59,14 +62,9 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	if issuer == "" {
 		return nil, core.InvalidInputError("issuer is empty")
 	}
-	// Per §5.1.1 the openid_credential authorization_details flow requires at
-	// least one entry; the current implementation issues a single credential
-	// per call and only consumes the first entry. The OpenAPI schema declares
-	// both minItems: 1 and maxItems: 1, but the StrictServer middleware does
-	// not enforce array bounds at runtime, so reject here before any outbound
-	// metadata fetches.
-	if len(request.Body.AuthorizationDetails) != 1 {
-		return nil, core.InvalidInputError("authorization_details must contain exactly one entry")
+	credentialType := request.Body.CredentialType
+	if credentialType == "" {
+		return nil, core.InvalidInputError("credential_type is empty")
 	}
 	// Fetch metadata containing the endpoints
 	credentialIssuerMetadata, authzServerMetadata, err := r.openid4vciMetadata(ctx, request.Body.Issuer)
@@ -85,12 +83,12 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 
 	clientID := r.subjectToBaseURL(request.SubjectID)
 
-	// Per §5.1.1, type and credential_configuration_id are required on each
-	// openid_credential authorization_details entry; the OpenAPI schema
-	// enforces both. Non-emptiness was checked above before any outbound
-	// metadata fetches.
-	authorizationDetails, _ := json.Marshal(request.Body.AuthorizationDetails)
-	credentialConfigID := request.Body.AuthorizationDetails[0].CredentialConfigurationId
+	// Resolve the caller-supplied credential_type to a credential_configuration_id by matching it
+	// against the issuer's credential_configurations_supported metadata (§12.2).
+	credentialConfigID, err := credentialIssuerMetadata.ResolveCredentialConfigurationID(credentialType)
+	if err != nil {
+		return nil, core.InvalidInputError("%w", err)
+	}
 	// Capture optional credential_request_params, used as the base body of the Credential Request later in the flow.
 	var credentialRequestParams map[string]any
 	if request.Body.CredentialRequestParams != nil {
@@ -116,6 +114,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerCredentialEndpoint:        credentialIssuerMetadata.CredentialEndpoint,
 		IssuerNonceEndpoint:             credentialIssuerMetadata.NonceEndpoint,
 		IssuerCredentialConfigurationID: credentialConfigID,
+		RequestedCredentialType:         credentialType,
 		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
 		CredentialRequestParams:         credentialRequestParams,
 	})
@@ -128,14 +127,24 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		return nil, fmt.Errorf("failed to parse the authorization_endpoint: %w", err)
 	}
 	authzParams := map[string]string{
-		oauth.ResponseTypeParam:         oauth.CodeResponseType,
-		oauth.StateParam:                state,
-		oauth.ClientIDParam:             clientID.String(),
-		oauth.ClientIDSchemeParam:       entityClientIDScheme,
-		oauth.AuthorizationDetailsParam: string(authorizationDetails),
-		oauth.RedirectURIParam:          r.callbackURL().String(),
-		oauth.CodeChallengeParam:        pkceParams.Challenge,
-		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
+		oauth.ResponseTypeParam:        oauth.CodeResponseType,
+		oauth.StateParam:               state,
+		oauth.ClientIDParam:            clientID.String(),
+		oauth.ClientIDSchemeParam:      entityClientIDScheme,
+		oauth.RedirectURIParam:         r.callbackURL().String(),
+		oauth.CodeChallengeParam:       pkceParams.Challenge,
+		oauth.CodeChallengeMethodParam: pkceParams.ChallengeMethod,
+	}
+	// Authorization-stage flow selection (no probing): if the AS advertises support for the
+	// openid_credential authorization_details type, use the Authorization Details flow. Otherwise,
+	// omit authorization_details entirely (Credential Configuration ID flow) — the resolved
+	// credential_configuration_id is identified later, at the Credential Request (§8.2).
+	if slices.Contains(authzServerMetadata.AuthorizationDetailsTypesSupported, openid4vci.AuthorizationDetailsTypeOpenIDCredential) {
+		authorizationDetails, _ := json.Marshal([]openid4vci.AuthorizationDetail{{
+			Type:                      openid4vci.AuthorizationDetailsTypeOpenIDCredential,
+			CredentialConfigurationID: credentialConfigID,
+		}})
+		authzParams[oauth.AuthorizationDetailsParam] = string(authorizationDetails)
 	}
 	// Optional caller-supplied authorization request parameters, for issuers that need extras
 	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
@@ -231,6 +240,11 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), appCallbackURI)
 	}
+	// Guard against an issuer returning a credential of a different type than requested, before
+	// it is stored in the wallet.
+	if !credential.IsType(ssi.MustParseURI(oauthSession.RequestedCredentialType)) {
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("issued credential does not have the requested type %q", oauthSession.RequestedCredentialType)), appCallbackURI)
+	}
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while storing credential with id: %s, error: %s", credential.ID, err.Error())), appCallbackURI)
@@ -247,14 +261,22 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
-	return r.auth.OpenID4VCIClient().RequestCredential(ctx, openid4vci.RequestCredentialOpts{
-		CredentialEndpoint:        oauthSession.IssuerCredentialEndpoint,
-		AccessToken:               accessToken,
-		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
-		CredentialIdentifier:      credentialIdentifier,
-		ProofJWT:                  proofJWT,
-		CredentialRequestParams:   oauthSession.CredentialRequestParams,
-	})
+	opts := openid4vci.RequestCredentialOpts{
+		CredentialEndpoint:      oauthSession.IssuerCredentialEndpoint,
+		AccessToken:             accessToken,
+		ProofJWT:                proofJWT,
+		CredentialRequestParams: oauthSession.CredentialRequestParams,
+	}
+	// Per §8.2, credential_identifier and credential_configuration_id are mutually exclusive:
+	// exactly one MUST be present. Use credential_identifier when extractCredentialIdentifier
+	// found one in the Token Response (Authorization Details flow); otherwise identify the
+	// credential via the resolved credential_configuration_id (Credential Configuration ID flow).
+	if credentialIdentifier != "" {
+		opts.CredentialIdentifier = credentialIdentifier
+	} else {
+		opts.CredentialConfigurationID = oauthSession.IssuerCredentialConfigurationID
+	}
+	return r.auth.OpenID4VCIClient().RequestCredential(ctx, opts)
 }
 
 // extractCredentialIdentifier reads authorization_details from the Token
@@ -262,9 +284,15 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 // configuration. Per OpenID4VCI 1.0 §3.3.4 / §8.2, when the AS returns
 // authorization_details with credential_identifiers, the wallet MUST use a
 // credential_identifier in the Credential Request — silently falling back
-// to credential_configuration_id is not allowed. Returns ("", nil) only
-// when the Token Response did not carry authorization_details at all
-// (which permits the §3.3.4 scope-flow fallback to credential_configuration_id).
+// to credential_configuration_id is not allowed. Returns ("", nil) when the
+// Token Response carries no entry of type openid_credential at all — either
+// because authorization_details is absent entirely, or because it only
+// carries entries unrelated to credential issuance (the Credential
+// Configuration ID flow, which never requests authorization_details of type
+// openid_credential, is expected to hit this path). It is only an error when
+// an openid_credential entry is present but for a different
+// credential_configuration_id than requested — that is a genuine mismatch
+// between what was requested and what the AS granted.
 func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) (string, error) {
 	raw, ok := tokenResponse.GetAny(oauth.AuthorizationDetailsParam)
 	if !ok {
@@ -282,10 +310,12 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialC
 	if err := json.Unmarshal(bytes, &details); err != nil {
 		return "", fmt.Errorf("token response authorization_details malformed: %w", err)
 	}
+	sawOpenIDCredential := false
 	for _, d := range details {
-		if d.Type != "openid_credential" {
+		if d.Type != openid4vci.AuthorizationDetailsTypeOpenIDCredential {
 			continue
 		}
+		sawOpenIDCredential = true
 		if d.CredentialConfigurationID != credentialConfigurationID {
 			continue
 		}
@@ -293,6 +323,9 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialC
 			return "", fmt.Errorf("token response authorization_details for %q is missing credential_identifiers", credentialConfigurationID)
 		}
 		return d.CredentialIdentifiers[0], nil
+	}
+	if !sawOpenIDCredential {
+		return "", nil
 	}
 	return "", fmt.Errorf("token response authorization_details has no entry for credential_configuration_id %q", credentialConfigurationID)
 }

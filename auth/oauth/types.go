@@ -330,6 +330,11 @@ type AuthorizationServerMetadata struct {
 	// DPoPSigningAlgValuesSupported is a JSON array containing a list of the DPoP proof JWS signing algorithms ("alg" values) supported by the token endpoint.
 	DPoPSigningAlgValuesSupported []string `json:"dpop_signing_alg_values_supported,omitempty"`
 
+	// AuthorizationDetailsTypesSupported is a JSON array containing the authorization_details
+	// "type" values (RFC 9396) supported by this Authorization Server. OpenID4VCI wallets use this
+	// to decide whether the "openid_credential" type is supported for the Authorization Request (§5.1.1).
+	AuthorizationDetailsTypesSupported []string `json:"authorization_details_types_supported,omitempty"`
+
 	/* ******** JWT-Secured Authorization Request RFC9101 & OpenID Connect Core v1.0: §6. Passing Request Parameters as JWTs ******** */
 
 	// RequireSignedRequestObject specifies if the authorization server requires the use of signed request objects.
