@@ -33,6 +33,7 @@ package openid4vci
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -146,13 +147,10 @@ func (m OpenIDCredentialIssuerMetadata) ResolveCredentialConfigurationID(credent
 	}
 	if len(supportedMatches) == 0 {
 		seenFormats := make(map[string]bool, len(matches))
-		unsupportedFormats := make([]string, 0, len(matches))
 		for _, c := range matches {
-			if !seenFormats[c.format] {
-				seenFormats[c.format] = true
-				unsupportedFormats = append(unsupportedFormats, c.format)
-			}
+			seenFormats[c.format] = true
 		}
+		unsupportedFormats := slices.Collect(maps.Keys(seenFormats))
 		sort.Strings(unsupportedFormats)
 		return "", fmt.Errorf("issuer offers %q only in format(s): %s", credentialType, strings.Join(unsupportedFormats, ", "))
 	}
