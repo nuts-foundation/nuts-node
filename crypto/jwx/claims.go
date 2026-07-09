@@ -30,10 +30,6 @@ import (
 // iterating keys and calling Get per claim) is deliberate: v3's per-field Get returns an error
 // for a null-valued claim, whereas the JSON round-trip preserves null claims as nil - matching
 // v2's AsMap behaviour and avoiding rejection of otherwise-valid tokens.
-//
-// This is unsuitable for jws/jwe protected headers: a JSON round-trip flattens rich header
-// values (e.g. the x5c certificate chain) into plain JSON types, breaking callers that expect
-// the concrete Go types.
 func ClaimsAsMap(token jwt.Token) (map[string]interface{}, error) {
 	data, err := json.Marshal(token)
 	if err != nil {
