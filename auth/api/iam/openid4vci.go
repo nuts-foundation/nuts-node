@@ -276,9 +276,15 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 // configuration. Per OpenID4VCI 1.0 §3.3.4 / §8.2, when the AS returns
 // authorization_details with credential_identifiers, the wallet MUST use a
 // credential_identifier in the Credential Request — silently falling back
-// to credential_configuration_id is not allowed. Returns ("", nil) only
-// when the Token Response did not carry authorization_details at all
-// (which permits the §3.3.4 scope-flow fallback to credential_configuration_id).
+// to credential_configuration_id is not allowed. Returns ("", nil) when the
+// Token Response carries no entry of type openid_credential at all — either
+// because authorization_details is absent entirely, or because it only
+// carries entries unrelated to credential issuance (the Credential
+// Configuration ID flow, which never requests authorization_details of type
+// openid_credential, is expected to hit this path). It is only an error when
+// an openid_credential entry is present but for a different
+// credential_configuration_id than requested — that is a genuine mismatch
+// between what was requested and what the AS granted.
 func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialConfigurationID string) (string, error) {
 	raw, ok := tokenResponse.GetAny(oauth.AuthorizationDetailsParam)
 	if !ok {
@@ -296,10 +302,12 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialC
 	if err := json.Unmarshal(bytes, &details); err != nil {
 		return "", fmt.Errorf("token response authorization_details malformed: %w", err)
 	}
+	sawOpenIDCredential := false
 	for _, d := range details {
 		if d.Type != openid4vci.AuthorizationDetailsTypeOpenIDCredential {
 			continue
 		}
+		sawOpenIDCredential = true
 		if d.CredentialConfigurationID != credentialConfigurationID {
 			continue
 		}
@@ -307,6 +315,9 @@ func extractCredentialIdentifier(tokenResponse *oauth.TokenResponse, credentialC
 			return "", fmt.Errorf("token response authorization_details for %q is missing credential_identifiers", credentialConfigurationID)
 		}
 		return d.CredentialIdentifiers[0], nil
+	}
+	if !sawOpenIDCredential {
+		return "", nil
 	}
 	return "", fmt.Errorf("token response authorization_details has no entry for credential_configuration_id %q", credentialConfigurationID)
 }
