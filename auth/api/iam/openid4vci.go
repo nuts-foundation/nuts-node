@@ -86,7 +86,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	// against the issuer's credential_configurations_supported metadata (§12.2).
 	credentialConfigID, err := credentialIssuerMetadata.ResolveCredentialConfigurationID(credentialType)
 	if err != nil {
-		return nil, core.InvalidInputError("%s", err.Error())
+		return nil, core.InvalidInputError("%w", err)
 	}
 	// Capture optional credential_request_params, used as the base body of the Credential Request later in the flow.
 	var credentialRequestParams map[string]any

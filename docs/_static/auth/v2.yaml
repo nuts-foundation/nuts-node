@@ -169,9 +169,10 @@ paths:
                   description: |
                     The type of Verifiable Credential to request, e.g. "HealthcareProviderRoleTypeCredential".
                     The node takes care of the OpenID4VCI details:
-                      1. It matches this type against each entry's `credential_definition.type` or `vct`
-                         in the issuer's `credential_configurations_supported` metadata (§12.2), to find
-                         the matching `credential_configuration_id`.
+                      1. It reads the issuer's Credential Issuer Metadata (`/.well-known/openid-credential-issuer`,
+                         §12.2) and matches this type against each entry's `credential_definition.type` or
+                         `vct` in `credential_configurations_supported`, to find the matching
+                         `credential_configuration_id`.
                       2. It checks the Authorization Server's `authorization_details_types_supported`
                          metadata to decide whether to send that `credential_configuration_id` via an
                          `authorization_details` parameter (RFC 9396) on the authorization request, or via
