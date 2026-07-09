@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.37)
+*************************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.36...v5.4.37
+
+*************************
 Hazelnut update (v5.4.36)
 *************************
 
