@@ -509,12 +509,14 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.openid4vciClient.EXPECT().RequestNonce(nil, nonceEndpoint).Return(cNonce, nil)
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), "kid").Return("signed-proof", nil)
+		// Per §8.2, credential_identifier and credential_configuration_id are mutually
+		// exclusive: credential_configuration_id MUST NOT be present when
+		// credential_identifier is used.
 		ctx.openid4vciClient.EXPECT().RequestCredential(nil, openid4vci.RequestCredentialOpts{
-			CredentialEndpoint:        credEndpoint,
-			AccessToken:               accessToken,
-			CredentialConfigurationID: credentialConfigID,
-			CredentialIdentifier:      "CivilEngineeringDegree-2023",
-			ProofJWT:                  "signed-proof",
+			CredentialEndpoint:   credEndpoint,
+			AccessToken:          accessToken,
+			CredentialIdentifier: "CivilEngineeringDegree-2023",
+			ProofJWT:             "signed-proof",
 		}).Return(&credentialResponse, nil)
 		ctx.vcVerifier.EXPECT().Verify(*verifiableCredential, true, true, nil)
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)

@@ -261,14 +261,22 @@ func (r Wrapper) requestCredentialWithProof(ctx context.Context, oauthSession *O
 	if err != nil {
 		return nil, fmt.Errorf("error building proof: %w", err)
 	}
-	return r.auth.OpenID4VCIClient().RequestCredential(ctx, openid4vci.RequestCredentialOpts{
-		CredentialEndpoint:        oauthSession.IssuerCredentialEndpoint,
-		AccessToken:               accessToken,
-		CredentialConfigurationID: oauthSession.IssuerCredentialConfigurationID,
-		CredentialIdentifier:      credentialIdentifier,
-		ProofJWT:                  proofJWT,
-		CredentialRequestParams:   oauthSession.CredentialRequestParams,
-	})
+	opts := openid4vci.RequestCredentialOpts{
+		CredentialEndpoint:      oauthSession.IssuerCredentialEndpoint,
+		AccessToken:             accessToken,
+		ProofJWT:                proofJWT,
+		CredentialRequestParams: oauthSession.CredentialRequestParams,
+	}
+	// Per §8.2, credential_identifier and credential_configuration_id are mutually exclusive:
+	// exactly one MUST be present. Use credential_identifier when extractCredentialIdentifier
+	// found one in the Token Response (Authorization Details flow); otherwise identify the
+	// credential via the resolved credential_configuration_id (Credential Configuration ID flow).
+	if credentialIdentifier != "" {
+		opts.CredentialIdentifier = credentialIdentifier
+	} else {
+		opts.CredentialConfigurationID = oauthSession.IssuerCredentialConfigurationID
+	}
+	return r.auth.OpenID4VCIClient().RequestCredential(ctx, opts)
 }
 
 // extractCredentialIdentifier reads authorization_details from the Token
