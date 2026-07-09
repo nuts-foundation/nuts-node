@@ -20,13 +20,17 @@ package jwx
 
 import "encoding/json"
 
-// AsMap converts a JOSE object (a jwt.Token, jws/jwe Headers, or jwk.Key) to a map of its
-// fields, keyed by their JSON member names.
+// AsMap converts a JOSE object (a jwt.Token or jwk.Key) to a map of its fields, keyed by their
+// JSON member names.
 //
 // It replaces jwx v2's AsMap methods, which were removed in v3. Marshaling via JSON (rather
 // than iterating keys and calling Get per field) is deliberate: v3's per-field Get returns an
 // error for a null-valued member, whereas the JSON round-trip preserves null members as nil -
 // matching v2's AsMap behaviour and avoiding rejection of otherwise-valid input.
+//
+// Do NOT use this for jws/jwe protected headers: the JSON round-trip flattens rich header
+// values (e.g. the x5c certificate chain) into plain JSON types, breaking callers that expect
+// the concrete Go types. Use HeadersAsMap for headers.
 func AsMap(joseObject any) (map[string]interface{}, error) {
 	data, err := json.Marshal(joseObject)
 	if err != nil {
@@ -37,4 +41,31 @@ func AsMap(joseObject any) (map[string]interface{}, error) {
 		return nil, err
 	}
 	return result, nil
+}
+
+// HeadersAsMap converts jws or jwe protected headers to a map of their members, keyed by JSON
+// member name.
+//
+// Unlike AsMap it iterates the members with Get, preserving the concrete Go types of rich
+// members such as the x5c certificate chain (a JSON round-trip would flatten those). It
+// replaces jwx v2's Headers.AsMap: a null-valued member is stored as nil rather than causing an
+// error, because v3's per-field Get fails on a null value and would otherwise reject an
+// otherwise-valid header set.
+func HeadersAsMap(headers interface {
+	Keys() []string
+	Get(string, any) error
+}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, k := range headers.Keys() {
+		var v interface{}
+		if err := headers.Get(k, &v); err != nil {
+			// k comes from Keys() so the member exists, and the destination is interface{},
+			// which accepts any non-nil value; the only failure mode is a null-valued member.
+			// Represent it as nil, matching v2's Headers.AsMap.
+			result[k] = nil
+			continue
+		}
+		result[k] = v
+	}
+	return result
 }
