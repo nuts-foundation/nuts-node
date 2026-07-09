@@ -216,7 +216,10 @@ func (t DPoP) HTM() string {
 // for the url, the port is stripped.
 // If there is a mismatch, the reason is returned in an error.
 func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
-	key, _ := t.Headers.JWK()
+	key, ok := t.Headers.JWK()
+	if !ok {
+		return false, errors.New("missing jwk header")
+	}
 	tp, _ := key.Thumbprint(crypto.SHA256)
 	base64tp := base64.RawURLEncoding.EncodeToString(tp)
 

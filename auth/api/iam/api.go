@@ -402,7 +402,10 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// SHA256 hashing won't fail.
 	var cnf *Cnf
 	if token.DPoP != nil {
-		key, _ := token.DPoP.Headers.JWK()
+		key, ok := token.DPoP.Headers.JWK()
+		if !ok {
+			return nil, errors.New("DPoP header is missing the jwk")
+		}
 		hash, _ := key.Thumbprint(crypto.SHA256)
 		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
 		cnf = &Cnf{Jkt: base64Hash}
