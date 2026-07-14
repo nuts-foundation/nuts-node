@@ -28,10 +28,25 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 )
 
+// SelectionStrategy controls what Select does when more than one complete, binding-consistent
+// assignment exists. It gates only the ambiguity policy; binding consistency itself is always on.
+type SelectionStrategy int
+
+const (
+	// FirstMatch takes the first consistent assignment (the lenient, backward-compatible default).
+	FirstMatch SelectionStrategy = iota
+	// Strict returns ErrMultipleCredentials when a rival assignment exists: one that fills a
+	// common descriptor with different id-bearing values. Interchangeable credentials (identical
+	// binding tuples) are never rivals, since no credential_selection key could separate them.
+	Strict
+)
+
 // selectOptions holds the knobs configured by the Option functions passed to Select.
 type selectOptions struct {
 	// initialBindings seeds the id->value bindings (typically from a credential_selection parameter).
 	initialBindings map[string]string
+	// strategy selects the ambiguity policy; the zero value is FirstMatch.
+	strategy SelectionStrategy
 }
 
 // Option configures a single Select call. Options exist so that callers can opt in to
@@ -45,6 +60,13 @@ type Option func(*selectOptions)
 func WithInitialBindings(b map[string]string) Option {
 	return func(o *selectOptions) {
 		o.initialBindings = b
+	}
+}
+
+// WithStrategy selects the ambiguity policy; the default is FirstMatch.
+func WithStrategy(s SelectionStrategy) Option {
+	return func(o *selectOptions) {
+		o.strategy = s
 	}
 }
 
@@ -102,9 +124,15 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	// Step 2: search for a complete binding-consistent assignment.
 	assignment := make([]*candidateGroup, len(pools))
 	found := false
+	var ambiguous []string
 	if boundErr == nil {
-		s := searcher{pools: pools, required: requiredDescriptors(pd)}
-		found = s.search(0, copyBindings(options.initialBindings), assignment)
+		s := &searcher{pools: pools, required: requiredDescriptors(pd), strict: options.strategy == Strict}
+		s.search(0, copyBindings(options.initialBindings), make([]*candidateGroup, len(pools)))
+		found = s.first != nil
+		ambiguous = s.ambiguous
+		if found {
+			copy(assignment, s.first)
+		}
 	}
 	if !found {
 		// Best-effort assignment for diagnostics: each descriptor on its own, first candidate
@@ -126,6 +154,10 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	}
 	if boundErr != nil {
 		return result, boundErr
+	}
+	if len(ambiguous) > 0 {
+		// The decisive assignment stays in Candidates so the caller can see what would have won.
+		return result, fmt.Errorf("ambiguous input descriptors %v: %w", ambiguous, ErrMultipleCredentials)
 	}
 
 	// Step 3: enforce the submission-requirement rules. Candidates is returned even on error so
@@ -151,36 +183,66 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	return result, nil
 }
 
-// searcher carries the immutable inputs of the step-2 backtracking search.
+// searcher carries the inputs and outcome of the step-2 backtracking search.
 type searcher struct {
 	pools    []descriptorPool
 	required []bool
+	strict   bool
+	// first is the first complete assignment found (the decisive one), nil until then.
+	first []*candidateGroup
+	// ambiguous holds, under Strict, the descriptors a rival assignment fills differently.
+	ambiguous []string
 }
 
-// search fills assignment[i:] with a binding-consistent choice per descriptor, depth-first in PD
-// order, and reports whether a complete assignment was found. Candidates are preferred over
-// skipping: an optional descriptor is left unfilled (nil) only after all its consistent candidates
-// have been tried; a required descriptor with no consistent candidate fails the branch, which
-// backtracks into a different choice at an earlier descriptor. The bindings map is mutated during
-// descent and restored on backtrack.
-func (s searcher) search(i int, bindings map[string]string, assignment []*candidateGroup) bool {
+// search explores binding-consistent choices per descriptor, depth-first in PD order, and reports
+// whether the caller should stop descending. Candidates are preferred over skipping: an optional
+// descriptor is left unfilled (nil) only after all its consistent candidates have been tried; a
+// required descriptor with no consistent candidate fails the branch, which backtracks into a
+// different choice at an earlier descriptor. The bindings map is mutated during descent and
+// restored on backtrack. Under FirstMatch the search stops at the first complete assignment;
+// under Strict it continues until a rival assignment is found or the space is exhausted.
+func (s *searcher) search(i int, bindings map[string]string, current []*candidateGroup) bool {
 	if i == len(s.pools) {
-		return true
+		return s.emit(current)
 	}
 	for _, gi := range s.pools[i].consistentGroups(bindings) {
 		group := &s.pools[i].groups[gi]
-		assignment[i] = group
+		current[i] = group
 		added := addBindings(bindings, group.idValues)
-		if s.search(i+1, bindings, assignment) {
-			return true
-		}
+		stop := s.search(i+1, bindings, current)
 		for _, key := range added {
 			delete(bindings, key)
 		}
+		if stop {
+			return true
+		}
 	}
-	assignment[i] = nil
+	current[i] = nil
 	if !s.required[i] {
-		return s.search(i+1, bindings, assignment)
+		return s.search(i+1, bindings, current)
+	}
+	return false
+}
+
+// emit records a complete assignment. The first one is kept as the decisive assignment. Under
+// Strict, a later assignment is a rival only when it fills a descriptor the first one also fills
+// with a different binding tuple: interchangeable credentials share a group and can never differ,
+// and a skipped descriptor is not an alternative to a filled one (the skip branch is the
+// after-exhaustion path, which keeps either-or pick groups deterministic).
+func (s *searcher) emit(current []*candidateGroup) bool {
+	if s.first == nil {
+		s.first = append([]*candidateGroup(nil), current...)
+		return !s.strict
+	}
+	var ambiguous []string
+	for i := range current {
+		if s.first[i] != nil && current[i] != nil && s.first[i] != current[i] {
+			ambiguous = append(ambiguous, s.pools[i].descriptor.Id)
+		}
+	}
+	if len(ambiguous) > 0 {
+		s.ambiguous = ambiguous
+		return true
 	}
 	return false
 }

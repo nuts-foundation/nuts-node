@@ -588,6 +588,118 @@ func TestSelect_SameIDBinding(t *testing.T) {
 	})
 }
 
+func TestSelect_Strategy(t *testing.T) {
+	// Policy 5 worked example: two genuinely different ways to satisfy the PD.
+	ambiguousPD := `{
+		"id": "test-pd",
+		"input_descriptors": [
+			{"id": "A", "constraints": {"fields": [
+				{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+				{"id": "foo", "path": ["$.credentialSubject.foo"]}
+			]}},
+			{"id": "B", "constraints": {"fields": [
+				{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+				{"id": "foo", "path": ["$.credentialSubject.foo"]}
+			]}}
+		]
+	}`
+	a1 := `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "X"}}`
+	a2 := `{"id": "a2", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "Y"}}`
+	b1 := `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "X"}}`
+	b2 := `{"id": "b2", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "Y"}}`
+
+	t.Run("Strict reports a rival assignment naming the ambiguous descriptors", func(t *testing.T) {
+		pd := parsePD(t, ambiguousPD)
+		creds := []vc.VerifiableCredential{parseVC(t, a1), parseVC(t, a2), parseVC(t, b1), parseVC(t, b2)}
+
+		result, err := Select(pd, creds, WithStrategy(Strict))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		assert.ErrorContains(t, err, "A")
+		assert.ErrorContains(t, err, "B")
+		// the decisive (first) assignment is still reported for diagnostics
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a1", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("FirstMatch returns the first assignment for the same PD", func(t *testing.T) {
+		pd := parsePD(t, ambiguousPD)
+		creds := []vc.VerifiableCredential{parseVC(t, a1), parseVC(t, a2), parseVC(t, b1), parseVC(t, b2)}
+
+		result, err := Select(pd, creds)
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a1", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "b1", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("Strict with a disambiguating initial binding succeeds", func(t *testing.T) {
+		pd := parsePD(t, ambiguousPD)
+		creds := []vc.VerifiableCredential{parseVC(t, a1), parseVC(t, a2), parseVC(t, b1), parseVC(t, b2)}
+
+		result, err := Select(pd, creds, WithStrategy(Strict), WithInitialBindings(map[string]string{"foo": "X"}))
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a1", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "b1", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("Strict does not flag interchangeable credentials", func(t *testing.T) {
+		// A reissued duplicate: identical id-bearing values, one binding tuple, one rival.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "A",
+				"constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}
+			}]
+		}`)
+		first := parseVC(t, `{"id": "a-first", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "X"}}`)
+		duplicate := parseVC(t, `{"id": "a-duplicate", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "X"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{first, duplicate}, WithStrategy(Strict))
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a-first", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("Strict does not flag an either-or pick-1 group", func(t *testing.T) {
+		// The alternatives live in different descriptors of a pick-1 group; no descriptor is
+		// filled by both assignments, so there is no rival.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "doctor", "count": 1}],
+			"input_descriptors": [
+				{"id": "enrollment", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "EnrollmentCredential"}},
+					{"id": "doctor_id", "path": ["$.credentialSubject.doctorId"]}
+				]}},
+				{"id": "consent", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ConsentCredential"}},
+					{"id": "doctor_id", "path": ["$.credentialSubject.doctorId"]}
+				]}}
+			]
+		}`)
+		enrollment := parseVC(t, `{"id": "enrollment-1", "type": ["VerifiableCredential", "EnrollmentCredential"], "credentialSubject": {"doctorId": "A"}}`)
+		consent := parseVC(t, `{"id": "consent-1", "type": ["VerifiableCredential", "ConsentCredential"], "credentialSubject": {"doctorId": "B"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{enrollment, consent}, WithStrategy(Strict))
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "enrollment-1", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
+	})
+}
+
 func TestSelect_SubmissionRequirements(t *testing.T) {
 	t.Run("all rule with an unfilled group member returns ErrNoCredentials", func(t *testing.T) {
 		pd := parsePD(t, `{
