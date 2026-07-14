@@ -67,6 +67,7 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	}
 
 	var result Result
+	var selectErr error
 	for _, descriptor := range pd.InputDescriptors {
 		eligible, err := eligibleCandidates(pd, *descriptor, candidates)
 		if err != nil {
@@ -75,10 +76,14 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		// Keep only candidates whose resolved id-values agree with the bindings (P3 consistency).
 		consistent := consistentCandidates(eligible, options.initialBindings)
 		// A descriptor pinned by the caller's bindings must resolve to exactly one candidate.
-		// The descriptor is still appended (unfilled) so Candidates reflects where selection failed.
+		// The descriptor is left unfilled and the remaining descriptors are still evaluated, so
+		// Candidates keeps one entry per descriptor (best-effort) for diagnostics.
 		if len(consistent) > 1 && isCallerBound(*descriptor, options.initialBindings) {
 			result.Candidates = append(result.Candidates, Candidate{InputDescriptor: *descriptor})
-			return result, fmt.Errorf("input descriptor '%s': %w", descriptor.Id, ErrMultipleCredentials)
+			if selectErr == nil {
+				selectErr = fmt.Errorf("input descriptor '%s': %w", descriptor.Id, ErrMultipleCredentials)
+			}
+			continue
 		}
 		var selected *vc.VerifiableCredential
 		if len(consistent) > 0 {
@@ -88,6 +93,9 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 			InputDescriptor: *descriptor,
 			VC:              selected,
 		})
+	}
+	if selectErr != nil {
+		return result, selectErr
 	}
 
 	// Step 3: enforce the submission-requirement rules. Candidates is returned even on error so

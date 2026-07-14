@@ -262,6 +262,33 @@ func TestSelect_InitialBindings(t *testing.T) {
 		assert.Nil(t, result.Candidates[0].VC)
 	})
 
+	t.Run("candidates stay full length when a later descriptor errors", func(t *testing.T) {
+		// The failing descriptor comes first; the descriptor after it must still appear in
+		// Result.Candidates (one entry per descriptor, PD order, on every path).
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "patient_credential", "constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}},
+				{"id": "org_credential", "constraints": {"fields": [{"id": "ura", "path": ["$.credentialSubject.ura"]}]}}
+			]
+		}`)
+		patA := parseVC(t, `{"id": "pat-a", "credentialSubject": {"patientId": "456"}}`)
+		patB := parseVC(t, `{"id": "pat-b", "credentialSubject": {"patientId": "456"}}`)
+		org := parseVC(t, `{"id": "org-1", "credentialSubject": {"ura": "URA-001"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{patA, patB, org},
+			WithInitialBindings(map[string]string{"patient_id": "456"}))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		require.Len(t, result.Candidates, 2)
+		assert.Equal(t, "patient_credential", result.Candidates[0].InputDescriptor.Id)
+		assert.Nil(t, result.Candidates[0].VC)
+		// best-effort: the unaffected descriptor is still reported with its match
+		assert.Equal(t, "org_credential", result.Candidates[1].InputDescriptor.Id)
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "org-1", result.Candidates[1].VC.ID.String())
+	})
+
 	t.Run("caller-bound descriptor with zero matches returns ErrNoCredentials", func(t *testing.T) {
 		pd := parsePD(t, `{
 			"id": "test-pd",
