@@ -24,7 +24,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -264,7 +264,7 @@ func TestMiddleware_createUserSessionCookie(t *testing.T) {
 func TestUserWallet_Key(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		pk, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		keyAsJWK, err := jwk.FromRaw(pk)
+		keyAsJWK, err := jwk.Import(pk)
 		require.NoError(t, err)
 		jwkAsJSON, _ := json.Marshal(keyAsJWK)
 		wallet := Wallet{

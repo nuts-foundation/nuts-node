@@ -24,7 +24,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -280,6 +281,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 	ctx := context.Background()
 	configuration := oauth.OpenIDConfiguration{
 		Issuer: "issuer",
+		JWKs:   jwk.NewSet(),
 	}
 
 	// create jwt
@@ -288,6 +290,9 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 		claims := make(map[string]interface{})
 		asJson, _ := json.Marshal(configuration)
 		_ = json.Unmarshal(asJson, &claims)
+		// jwx v3 rejects a token whose "exp" is set to the zero value (epoch) as expired;
+		// the marshaled zero-value OpenIDConfiguration includes "exp":0, so drop it to keep the token valid.
+		delete(claims, "exp")
 		alg, _ := nutsCrypto.SignatureAlgorithm(testKey.Public())
 		headers := map[string]interface{}{jws.AlgorithmKey: alg, jws.KeyIDKey: "test"}
 		token, err := nutsCrypto.SignJWT(audit.TestContext(), testKey, alg, claims, headers)
@@ -335,7 +340,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, response)
-		assert.EqualError(t, err, "unable to parse response: failed to parse jws: invalid byte sequence")
+		assert.EqualError(t, err, "unable to parse response: jwt.Parse: failed to parse token: jws.Verify: failed to parse jws: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
 	})
 	t.Run("error - unknown key", func(t *testing.T) {
 		otherClient := &HTTPClient{
@@ -349,7 +354,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, response)
-		assert.EqualError(t, err, "unable to parse response: could not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "unable to parse response: jwt.Parse: failed to parse token: jws.Verify: could not verify message using any of the signatures or keys: jws.Verify: failed to verify signature #1 with key *ecdsa.PublicKey: invalid ECDSA signature\njws.Verify: signature #1: tried 1 key(s) but none verified successfully")
 	})
 }
 

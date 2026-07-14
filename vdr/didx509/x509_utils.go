@@ -29,7 +29,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/lestrrat-go/jwx/v3/cert"
 	"strings"
 )
 

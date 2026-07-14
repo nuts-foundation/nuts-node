@@ -34,8 +34,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -598,8 +598,7 @@ func extractChallenge(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
+		_ = presentation.JWT().Get("nonce", &nonce)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {
