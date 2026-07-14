@@ -47,6 +47,8 @@ type selectOptions struct {
 	initialBindings map[string]string
 	// strategy selects the ambiguity policy; the zero value is FirstMatch.
 	strategy SelectionStrategy
+	// trace enables the MatchReport diagnostics.
+	trace bool
 }
 
 // Option configures a single Select call. Options exist so that callers can opt in to
@@ -70,6 +72,14 @@ func WithStrategy(s SelectionStrategy) Option {
 	}
 }
 
+// WithSelectionTrace populates Result.Report with a MatchReport explaining, per descriptor, why
+// each candidate was or wasn't selected. Off by default; a non-traced run pays nothing for it.
+func WithSelectionTrace() Option {
+	return func(o *selectOptions) {
+		o.trace = true
+	}
+}
+
 // Result is the outcome of a Select call.
 type Result struct {
 	// Candidates pairs every input descriptor (in PD order) with the VC chosen for it, on every
@@ -79,29 +89,40 @@ type Result struct {
 	Candidates []Candidate
 	// Bindings holds the resolved field-id to value pairs of the chosen assignment.
 	Bindings map[string]string
+	// Report explains the selection per descriptor; non-nil only under WithSelectionTrace.
+	Report *MatchReport
 }
 
 // Select resolves a presentation definition against a set of candidate credentials and
 // returns the chosen descriptor-to-VC assignment. It is the single matching engine: it
 // matches each descriptor on its own (step 1), searches for a binding-consistent combination
 // across descriptors (step 2), and applies the submission requirement rules (step 3).
-func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opts ...Option) (Result, error) {
+func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opts ...Option) (result Result, err error) {
 	var options selectOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
 
-	result := Result{Candidates: make([]Candidate, len(pd.InputDescriptors))}
+	result = Result{Candidates: make([]Candidate, len(pd.InputDescriptors))}
 	for i, descriptor := range pd.InputDescriptors {
 		result.Candidates[i].InputDescriptor = *descriptor
+	}
+
+	required := requiredDescriptors(pd)
+	assignment := make([]*candidateGroup, len(pd.InputDescriptors))
+	var ambiguous []string
+	if options.trace {
+		defer func() {
+			result.Report = buildReport(pd, candidates, required, assignment, ambiguous, result, err, options.initialBindings)
+		}()
 	}
 
 	// Step 1: per-descriptor eligibility, indexed for the search.
 	pools := make([]descriptorPool, len(pd.InputDescriptors))
 	for i, descriptor := range pd.InputDescriptors {
-		pool, err := buildPool(pd, *descriptor, candidates)
-		if err != nil {
-			return result, err
+		pool, poolErr := buildPool(pd, *descriptor, candidates)
+		if poolErr != nil {
+			return result, poolErr
 		}
 		pool.strictIDs = strictBoundIDs(*descriptor, options.initialBindings)
 		pools[i] = pool
@@ -122,11 +143,9 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	}
 
 	// Step 2: search for a complete binding-consistent assignment.
-	assignment := make([]*candidateGroup, len(pools))
 	found := false
-	var ambiguous []string
 	if boundErr == nil {
-		s := &searcher{pools: pools, required: requiredDescriptors(pd), strict: options.strategy == Strict}
+		s := &searcher{pools: pools, required: required, strict: options.strategy == Strict}
 		s.search(0, copyBindings(options.initialBindings), make([]*candidateGroup, len(pools)))
 		found = s.first != nil
 		ambiguous = s.ambiguous

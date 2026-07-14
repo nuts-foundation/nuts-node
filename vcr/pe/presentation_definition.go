@@ -398,21 +398,7 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 // LimitDisclosure is not supported for now.
 // If the constraint matches, it returns true and a map containing constraint field IDs and matched values.
 func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, map[string]interface{}, error) {
-	// jsonpath works on interfaces, so convert the VC to an interface
-	var credentialAsMap map[string]interface{}
-	var err error
-	switch credential.Format() {
-	case vc.JWTCredentialProofFormat:
-		// JWT-VCs marshal to a JSON string, so marshal an alias to make sure we get a JSON object with the VC properties,
-		// instead of a JWT string.
-		type Alias vc.VerifiableCredential
-		credentialAsMap, err = remarshalToMap(Alias(credential))
-	case vc.JSONLDCredentialProofFormat:
-		fallthrough
-	case "": // holder credential
-		credentialAsMap, err = remarshalToMap(credential)
-	}
-
+	credentialAsMap, err := credentialAsMap(credential)
 	if err != nil {
 		return false, nil, err
 	}
@@ -433,6 +419,19 @@ func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential
 		}
 	}
 	return true, values, nil
+}
+
+// credentialAsMap converts a VC to a plain JSON object, the form the JSONPath evaluation works on.
+func credentialAsMap(credential vc.VerifiableCredential) (map[string]interface{}, error) {
+	switch credential.Format() {
+	case vc.JWTCredentialProofFormat:
+		// JWT-VCs marshal to a JSON string, so marshal an alias to make sure we get a JSON object
+		// with the VC properties, instead of a JWT string.
+		type Alias vc.VerifiableCredential
+		return remarshalToMap(Alias(credential))
+	default: // JSON-LD or holder credential
+		return remarshalToMap(credential)
+	}
 }
 
 // matchField matches the field against the VC.

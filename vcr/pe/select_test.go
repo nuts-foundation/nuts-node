@@ -817,6 +817,153 @@ func TestSelect_Strategy(t *testing.T) {
 	})
 }
 
+func TestSelect_Trace(t *testing.T) {
+	filterPD := `{
+		"id": "test-pd",
+		"input_descriptors": [{
+			"id": "patient_credential",
+			"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"], "filter": {"type": "string", "const": "999"}}]}
+		}]
+	}`
+
+	t.Run("trace off leaves Report nil", func(t *testing.T) {
+		pd := parsePD(t, filterPD)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "999"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		require.NoError(t, err)
+		assert.Nil(t, result.Report)
+	})
+
+	t.Run("filter dismissal and selection are reported", func(t *testing.T) {
+		pd := parsePD(t, filterPD)
+		wrong := parseVC(t, `{"id": "vc-wrong", "credentialSubject": {"patientId": "123"}}`)
+		right := parseVC(t, `{"id": "vc-right", "credentialSubject": {"patientId": "999"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{wrong, right}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeMatched, result.Report.Outcome)
+		require.Len(t, result.Report.Descriptors, 1)
+		descriptor := result.Report.Descriptors[0]
+		assert.Equal(t, "patient_credential", descriptor.DescriptorID)
+		assert.Equal(t, "vc-right", descriptor.SelectedID)
+		assert.False(t, descriptor.Skipped)
+		require.Len(t, descriptor.Considered, 2)
+		dismissed := descriptor.Considered[0]
+		assert.Equal(t, "vc-wrong", dismissed.CredentialID)
+		assert.False(t, dismissed.Eligible)
+		require.NotNil(t, dismissed.Dismissal)
+		assert.Equal(t, ReasonFilter, dismissed.Dismissal.Reason)
+		selected := descriptor.Considered[1]
+		assert.True(t, selected.Eligible)
+		assert.Nil(t, selected.Dismissal)
+	})
+
+	t.Run("missing value is reported as constraint_no_value", func(t *testing.T) {
+		pd := parsePD(t, filterPD)
+		unrelated := parseVC(t, `{"id": "vc-unrelated", "credentialSubject": {"somethingElse": "x"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{unrelated}, WithSelectionTrace())
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeNoCredentials, result.Report.Outcome)
+		dismissed := result.Report.Descriptors[0].Considered[0]
+		require.NotNil(t, dismissed.Dismissal)
+		assert.Equal(t, ReasonNoValue, dismissed.Dismissal.Reason)
+	})
+
+	t.Run("format mismatch is reported", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"format": {"ldp_vc": {"proof_type": ["JsonWebSignature2020"]}},
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		wrongProof := parseVC(t, `{"id": "vc-wrong", "credentialSubject": {"patientId": "123"}, "proof": [{"type": "RsaSignature2018"}]}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{wrongProof}, WithSelectionTrace())
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		require.NotNil(t, result.Report)
+		dismissed := result.Report.Descriptors[0].Considered[0]
+		require.NotNil(t, dismissed.Dismissal)
+		assert.Equal(t, ReasonFormat, dismissed.Dismissal.Reason)
+	})
+
+	t.Run("binding conflict on the decisive path is reported", func(t *testing.T) {
+		// P3 worked example under trace: HCP-A is eligible but disagrees with the decisive
+		// assignment's org_ura=2.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "id_healthcare_provider", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "HCPCredential"}},
+					{"id": "org_ura", "path": ["$.credentialSubject.ura"]}
+				]}},
+				{"id": "id_professional_delegation", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "DelegationCredential"}},
+					{"id": "org_ura", "path": ["$.credentialSubject.ura"]}
+				]}}
+			]
+		}`)
+		hcpA := parseVC(t, `{"id": "hcp-a", "type": ["VerifiableCredential", "HCPCredential"], "credentialSubject": {"ura": "1"}}`)
+		hcpB := parseVC(t, `{"id": "hcp-b", "type": ["VerifiableCredential", "HCPCredential"], "credentialSubject": {"ura": "2"}}`)
+		delegationX := parseVC(t, `{"id": "delegation-x", "type": ["VerifiableCredential", "DelegationCredential"], "credentialSubject": {"ura": "2"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{hcpA, hcpB, delegationX}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeMatched, result.Report.Outcome)
+		hcpReport := result.Report.Descriptors[0]
+		assert.Equal(t, "hcp-b", hcpReport.SelectedID)
+		require.Len(t, hcpReport.Considered, 3)
+		dismissed := hcpReport.Considered[0]
+		assert.Equal(t, "hcp-a", dismissed.CredentialID)
+		assert.True(t, dismissed.Eligible)
+		require.NotNil(t, dismissed.Dismissal)
+		assert.Equal(t, ReasonBindingConflict, dismissed.Dismissal.Reason)
+		assert.Equal(t, "org_ura", dismissed.Dismissal.FieldID)
+		assert.Equal(t, "2", dismissed.Dismissal.Expected)
+		assert.Equal(t, "1", dismissed.Dismissal.Found)
+	})
+
+	t.Run("ambiguity is reported with the ambiguous descriptors", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "A", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}},
+				{"id": "B", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}}
+			]
+		}`)
+		creds := []vc.VerifiableCredential{
+			parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "X"}}`),
+			parseVC(t, `{"id": "a2", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "Y"}}`),
+			parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "X"}}`),
+			parseVC(t, `{"id": "b2", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "Y"}}`),
+		}
+
+		result, err := Select(pd, creds, WithStrategy(Strict), WithSelectionTrace())
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeMultipleCredentials, result.Report.Outcome)
+		assert.Equal(t, []string{"A", "B"}, result.Report.AmbiguousDescriptors)
+	})
+}
+
 func TestSelect_SubmissionRequirements(t *testing.T) {
 	t.Run("all rule with an unfilled group member returns ErrNoCredentials", func(t *testing.T) {
 		pd := parsePD(t, `{
