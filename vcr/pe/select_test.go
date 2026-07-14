@@ -412,6 +412,109 @@ func TestSelect_InitialBindings(t *testing.T) {
 	})
 }
 
+func TestSelect_SameIDBinding(t *testing.T) {
+	t.Run("same id across descriptors must agree, backtracking into a consistent pair", func(t *testing.T) {
+		// Policy 3 worked example: HCP-A (ura=1) is tried first, conflicts with the only
+		// delegation (ura=2), so the search backtracks and lands on (HCP-B, Delegation-X).
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "id_healthcare_provider", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "HCPCredential"}},
+					{"id": "org_ura", "path": ["$.credentialSubject.ura"]}
+				]}},
+				{"id": "id_professional_delegation", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "DelegationCredential"}},
+					{"id": "org_ura", "path": ["$.credentialSubject.ura"]}
+				]}}
+			]
+		}`)
+		hcpA := parseVC(t, `{"id": "hcp-a", "type": ["VerifiableCredential", "HCPCredential"], "credentialSubject": {"ura": "1"}}`)
+		hcpB := parseVC(t, `{"id": "hcp-b", "type": ["VerifiableCredential", "HCPCredential"], "credentialSubject": {"ura": "2"}}`)
+		delegationX := parseVC(t, `{"id": "delegation-x", "type": ["VerifiableCredential", "DelegationCredential"], "credentialSubject": {"ura": "2"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{hcpA, hcpB, delegationX})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "hcp-b", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "delegation-x", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("optional descriptor is skipped only after exhausting alternatives elsewhere", func(t *testing.T) {
+		// Policy 4 worked example: A1's binding admits B1 but kills C1; A2's binding kills B1
+		// but admits C1. Skipping optional B under A1 does not save C, so the search must
+		// revise A. Expected: A=A2, B=nil, C=C1.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "GA"},
+				{"rule": "pick", "from": "GB", "min": 0, "max": 1},
+				{"rule": "all", "from": "GC"}
+			],
+			"input_descriptors": [
+				{"id": "A", "group": ["GA"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}},
+				{"id": "B", "group": ["GB"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}},
+				{"id": "C", "group": ["GC"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "CCredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "1"}}`)
+		a2 := parseVC(t, `{"id": "a2", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "2"}}`)
+		b1 := parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "1"}}`)
+		c1 := parseVC(t, `{"id": "c1", "type": ["VerifiableCredential", "CCredential"], "credentialSubject": {"foo": "2"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{a1, a2, b1, c1})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 3)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a2", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
+		require.NotNil(t, result.Candidates[2].VC)
+		assert.Equal(t, "c1", result.Candidates[2].VC.ID.String())
+	})
+
+	t.Run("either-or pick-1 sharing an id fills one descriptor and skips the other", func(t *testing.T) {
+		// Both descriptors carry doctor_id but resolve different values; a pick-1 group is
+		// satisfied by the first in PD order, without a binding conflict or ambiguity error.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "doctor", "count": 1}],
+			"input_descriptors": [
+				{"id": "enrollment", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "EnrollmentCredential"}},
+					{"id": "doctor_id", "path": ["$.credentialSubject.doctorId"]}
+				]}},
+				{"id": "consent", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ConsentCredential"}},
+					{"id": "doctor_id", "path": ["$.credentialSubject.doctorId"]}
+				]}}
+			]
+		}`)
+		enrollment := parseVC(t, `{"id": "enrollment-1", "type": ["VerifiableCredential", "EnrollmentCredential"], "credentialSubject": {"doctorId": "A"}}`)
+		consent := parseVC(t, `{"id": "consent-1", "type": ["VerifiableCredential", "ConsentCredential"], "credentialSubject": {"doctorId": "B"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{enrollment, consent})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "enrollment-1", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
+	})
+}
+
 func TestSelect_SubmissionRequirements(t *testing.T) {
 	t.Run("all rule with an unfilled group member returns ErrNoCredentials", func(t *testing.T) {
 		pd := parsePD(t, `{
