@@ -165,6 +165,63 @@ func TestSelect(t *testing.T) {
 	})
 }
 
+func TestSelect_Eligibility(t *testing.T) {
+	t.Run("PD-level format excludes a non-matching proof type", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"format": {"ldp_vc": {"proof_type": ["JsonWebSignature2020"]}},
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		wrongProof := parseVC(t, `{"id": "vc-wrong", "credentialSubject": {"patientId": "123"}, "proof": [{"type": "RsaSignature2018"}]}`)
+		rightProof := parseVC(t, `{"id": "vc-right", "credentialSubject": {"patientId": "456"}, "proof": [{"type": "JsonWebSignature2020"}]}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{wrongProof, rightProof})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-right", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("descriptor-level format excludes a non-matching proof type", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"format": {"ldp_vc": {"proof_type": ["JsonWebSignature2020"]}},
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		wrongProof := parseVC(t, `{"id": "vc-wrong", "credentialSubject": {"patientId": "123"}, "proof": [{"type": "RsaSignature2018"}]}`)
+		rightProof := parseVC(t, `{"id": "vc-right", "credentialSubject": {"patientId": "456"}, "proof": [{"type": "JsonWebSignature2020"}]}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{wrongProof, rightProof})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-right", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("descriptor without constraints matches any credential", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{"id": "anything"}]
+		}`)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"foo": "bar"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-1", result.Candidates[0].VC.ID.String())
+	})
+}
+
 func TestSelect_InitialBindings(t *testing.T) {
 	t.Run("initial binding selects the credential by field value", func(t *testing.T) {
 		pd := parsePD(t, `{
