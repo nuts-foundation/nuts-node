@@ -588,6 +588,123 @@ func TestSelect_SameIDBinding(t *testing.T) {
 	})
 }
 
+func TestSelect_Bindings(t *testing.T) {
+	t.Run("bindings expose the resolved id-values of the chosen assignment", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "org_credential", "constraints": {"fields": [{"id": "ura", "path": ["$.credentialSubject.ura"]}]}},
+				{"id": "patient_enrollment", "constraints": {"fields": [{"id": "bsn", "path": ["$.credentialSubject.bsn"]}]}}
+			]
+		}`)
+		orgVC := parseVC(t, `{"id": "org-1", "credentialSubject": {"ura": "URA-001"}}`)
+		patientVC := parseVC(t, `{"id": "patient-1", "credentialSubject": {"bsn": "BSN-111"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{orgVC, patientVC})
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"ura": "URA-001", "bsn": "BSN-111"}, result.Bindings)
+	})
+
+	t.Run("a descriptor cleared by a rule contributes no bindings", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "doctor", "count": 1}],
+			"input_descriptors": [
+				{"id": "enrollment", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "EnrollmentCredential"}},
+					{"id": "doctor_id", "path": ["$.credentialSubject.doctorId"]}
+				]}},
+				{"id": "consent", "group": ["doctor"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ConsentCredential"}},
+					{"id": "consent_id", "path": ["$.credentialSubject.consentId"]}
+				]}}
+			]
+		}`)
+		enrollment := parseVC(t, `{"id": "enrollment-1", "type": ["VerifiableCredential", "EnrollmentCredential"], "credentialSubject": {"doctorId": "A"}}`)
+		consent := parseVC(t, `{"id": "consent-1", "type": ["VerifiableCredential", "ConsentCredential"], "credentialSubject": {"consentId": "C"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{enrollment, consent})
+
+		require.NoError(t, err)
+		// pick-1 keeps enrollment and clears consent; only the surviving credential binds
+		assert.Equal(t, map[string]string{"doctor_id": "A"}, result.Bindings)
+	})
+
+	t.Run("unknown initial binding keys are not echoed", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred},
+			WithInitialBindings(map[string]string{"patient_id": "123", "sp_only_key": "whatever"}))
+
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"patient_id": "123"}, result.Bindings)
+	})
+
+	t.Run("no bindings on error", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"], "filter": {"type": "string", "const": "999"}}]}
+			}]
+		}`)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		assert.Nil(t, result.Bindings)
+	})
+
+	t.Run("two-VP composition chains bindings through a field-id filter", func(t *testing.T) {
+		// Policy 2 as straight Go at the call site: build the org VP, filter its bindings down
+		// to the SP PD's field ids, seed the SP build with the survivors.
+		orgPD := parsePD(t, `{
+			"id": "org-pd",
+			"input_descriptors": [
+				{"id": "org", "constraints": {"fields": [{"id": "org_did", "path": ["$.credentialSubject.orgDid"]}]}},
+				{"id": "patient", "constraints": {"fields": [{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]}]}}
+			]
+		}`)
+		spPD := parsePD(t, `{
+			"id": "sp-pd",
+			"input_descriptors": [
+				{"id": "delegation", "constraints": {"fields": [{"id": "org_did", "path": ["$.credentialSubject.issuedTo"]}]}}
+			]
+		}`)
+		orgVC := parseVC(t, `{"id": "org-1", "credentialSubject": {"orgDid": "did:web:org"}}`)
+		patientVC := parseVC(t, `{"id": "patient-1", "credentialSubject": {"bsn": "999911234"}}`)
+		delegationRight := parseVC(t, `{"id": "delegation-right", "credentialSubject": {"issuedTo": "did:web:org"}}`)
+		delegationWrong := parseVC(t, `{"id": "delegation-wrong", "credentialSubject": {"issuedTo": "did:web:other"}}`)
+
+		orgResult, err := Select(orgPD, []vc.VerifiableCredential{orgVC, patientVC})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{"org_did": "did:web:org", "patient_bsn": "999911234"}, orgResult.Bindings)
+
+		// caller-side filter: keep only keys that are field ids on the SP PD
+		spFieldIDs := map[string]bool{"org_did": true}
+		seed := make(map[string]string)
+		for key, value := range orgResult.Bindings {
+			if spFieldIDs[key] {
+				seed[key] = value
+			}
+		}
+
+		spResult, err := Select(spPD, []vc.VerifiableCredential{delegationWrong, delegationRight}, WithInitialBindings(seed))
+		require.NoError(t, err)
+		require.NotNil(t, spResult.Candidates[0].VC)
+		assert.Equal(t, "delegation-right", spResult.Candidates[0].VC.ID.String())
+	})
+}
+
 func TestSelect_Strategy(t *testing.T) {
 	// Policy 5 worked example: two genuinely different ways to satisfy the PD.
 	ambiguousPD := `{

@@ -180,6 +180,18 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		return result, fmt.Errorf("no binding-consistent assignment found: %w", ErrNoCredentials)
 	}
 
+	// Expose the resolved id-values of the surviving credentials, so a caller can chain them into
+	// a next Select (the two-VP composition) or report them.
+	result.Bindings = make(map[string]string)
+	for i := range assignment {
+		if assignment[i] == nil || result.Candidates[i].VC == nil {
+			continue
+		}
+		for id, value := range assignment[i].idValues {
+			result.Bindings[id] = value
+		}
+	}
+
 	return result, nil
 }
 
