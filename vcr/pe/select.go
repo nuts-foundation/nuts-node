@@ -144,11 +144,13 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 
 	// Step 2: search for a complete binding-consistent assignment.
 	found := false
+	limited := false
 	if boundErr == nil {
 		s := &searcher{pools: pools, required: required, strict: options.strategy == Strict}
 		s.search(0, copyBindings(options.initialBindings), make([]*candidateGroup, len(pools)))
 		found = s.first != nil
 		ambiguous = s.ambiguous
+		limited = s.limited
 		if found {
 			copy(assignment, s.first)
 		}
@@ -173,6 +175,11 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	}
 	if boundErr != nil {
 		return result, boundErr
+	}
+	if limited {
+		// A found-but-unproven assignment is not returned as a success: under Strict that would
+		// silently downgrade the ambiguity guarantee.
+		return result, fmt.Errorf("presentation definition '%s': search aborted, node limit reached (%d)", pd.Id, searchNodeLimit)
 	}
 	if len(ambiguous) > 0 {
 		// The decisive assignment stays in Candidates so the caller can see what would have won.
@@ -214,6 +221,12 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	return result, nil
 }
 
+// searchNodeLimit bounds the number of node visits of a single search. Presentation definitions
+// arrive from the counterparty in wallet flows, so an unbounded backtracking search would be
+// remotely triggerable CPU exhaustion; legitimate wallets stay orders of magnitude below this.
+// A variable so tests can lower it.
+var searchNodeLimit = 1_000_000
+
 // searcher carries the inputs and outcome of the step-2 backtracking search.
 type searcher struct {
 	pools    []descriptorPool
@@ -223,6 +236,10 @@ type searcher struct {
 	first []*candidateGroup
 	// ambiguous holds, under Strict, the descriptors a rival assignment fills differently.
 	ambiguous []string
+	// visited counts node visits; when it exceeds searchNodeLimit, limited is set and the
+	// search unwinds.
+	visited int
+	limited bool
 }
 
 // search explores binding-consistent choices per descriptor, depth-first in PD order, and reports
@@ -233,6 +250,11 @@ type searcher struct {
 // restored on backtrack. Under FirstMatch the search stops at the first complete assignment;
 // under Strict it continues until a rival assignment is found or the space is exhausted.
 func (s *searcher) search(i int, bindings map[string]string, current []*candidateGroup) bool {
+	s.visited++
+	if s.visited > searchNodeLimit {
+		s.limited = true
+		return true
+	}
 	if i == len(s.pools) {
 		return s.emit(current)
 	}

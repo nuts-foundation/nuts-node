@@ -20,6 +20,7 @@ package pe
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -961,6 +962,61 @@ func TestSelect_Trace(t *testing.T) {
 		require.NotNil(t, result.Report)
 		assert.Equal(t, OutcomeMultipleCredentials, result.Report.Outcome)
 		assert.Equal(t, []string{"A", "B"}, result.Report.AmbiguousDescriptors)
+	})
+}
+
+func TestSelect_NodeLimit(t *testing.T) {
+	// A PD engineered to explode: descriptors with independent ids multiply combinations, and a
+	// final unfillable descriptor forces the search to visit all of them before concluding
+	// failure. PDs are counterparty-supplied in wallet flows, so the search must abort instead
+	// of burning CPU.
+	t.Run("a pathological search aborts with a limit error", func(t *testing.T) {
+		originalLimit := searchNodeLimit
+		searchNodeLimit = 100
+		defer func() { searchNodeLimit = originalLimit }()
+
+		descriptors := ""
+		var creds []vc.VerifiableCredential
+		for d := 0; d < 6; d++ {
+			descriptors += fmt.Sprintf(`{"id": "d%d", "constraints": {"fields": [
+				{"path": ["$.type"], "filter": {"type": "string", "const": "Type%d"}},
+				{"id": "id%d", "path": ["$.credentialSubject.value"]}
+			]}},`, d, d, d)
+			for c := 0; c < 3; c++ {
+				creds = append(creds, parseVC(t, fmt.Sprintf(
+					`{"id": "vc-%d-%d", "type": ["VerifiableCredential", "Type%d"], "credentialSubject": {"value": "v%d"}}`, d, c, d, c)))
+			}
+		}
+		pd := parsePD(t, `{
+			"id": "exploding-pd",
+			"input_descriptors": [`+descriptors+`
+				{"id": "impossible", "constraints": {"fields": [
+					{"path": ["$.credentialSubject.nonexistent"], "filter": {"type": "string", "const": "never"}}
+				]}}
+			]
+		}`)
+
+		_, err := Select(pd, creds)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "exploding-pd")
+		assert.ErrorContains(t, err, "limit")
+	})
+
+	t.Run("a realistic search stays far below the default limit", func(t *testing.T) {
+		// sanity check: the P3 worked example never comes close to the cap
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		require.NoError(t, err)
 	})
 }
 
