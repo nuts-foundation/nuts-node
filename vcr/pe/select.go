@@ -21,6 +21,7 @@ package pe
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -49,8 +50,10 @@ func WithInitialBindings(b map[string]string) Option {
 
 // Result is the outcome of a Select call.
 type Result struct {
-	// Candidates pairs every input descriptor (in PD order) with the VC chosen for it.
-	// A nil VC means the descriptor was left unfilled (optional and skipped, or dropped by a rule).
+	// Candidates pairs every input descriptor (in PD order) with the VC chosen for it, on every
+	// path including errors (best-effort on failure, for diagnostics).
+	// A nil VC means the descriptor was left unfilled (optional and skipped, dropped by a rule,
+	// or unfillable).
 	Candidates []Candidate
 	// Bindings holds the resolved field-id to value pairs of the chosen assignment.
 	Bindings map[string]string
@@ -58,44 +61,70 @@ type Result struct {
 
 // Select resolves a presentation definition against a set of candidate credentials and
 // returns the chosen descriptor-to-VC assignment. It is the single matching engine: it
-// matches each descriptor on its own, searches for a binding-consistent combination across
-// descriptors, and applies the submission requirement rules.
+// matches each descriptor on its own (step 1), searches for a binding-consistent combination
+// across descriptors (step 2), and applies the submission requirement rules (step 3).
 func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opts ...Option) (Result, error) {
 	var options selectOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
 
-	var result Result
-	var selectErr error
-	for _, descriptor := range pd.InputDescriptors {
-		eligible, err := eligibleCandidates(pd, *descriptor, candidates)
+	result := Result{Candidates: make([]Candidate, len(pd.InputDescriptors))}
+	for i, descriptor := range pd.InputDescriptors {
+		result.Candidates[i].InputDescriptor = *descriptor
+	}
+
+	// Step 1: per-descriptor eligibility, indexed for the search.
+	pools := make([]descriptorPool, len(pd.InputDescriptors))
+	for i, descriptor := range pd.InputDescriptors {
+		pool, err := buildPool(pd, *descriptor, candidates)
 		if err != nil {
 			return result, err
 		}
-		// Keep only candidates whose resolved id-values agree with the bindings (P3 consistency).
-		consistent := consistentCandidates(eligible, options.initialBindings)
-		// A descriptor pinned by the caller's bindings must resolve to exactly one candidate.
-		// The descriptor is left unfilled and the remaining descriptors are still evaluated, so
-		// Candidates keeps one entry per descriptor (best-effort) for diagnostics.
-		if len(consistent) > 1 && isCallerBound(*descriptor, options.initialBindings) {
-			result.Candidates = append(result.Candidates, Candidate{InputDescriptor: *descriptor})
-			if selectErr == nil {
-				selectErr = fmt.Errorf("input descriptor '%s': %w", descriptor.Id, ErrMultipleCredentials)
-			}
-			continue
-		}
-		var selected *vc.VerifiableCredential
-		if len(consistent) > 0 {
-			selected = &consistent[0].vc
-		}
-		result.Candidates = append(result.Candidates, Candidate{
-			InputDescriptor: *descriptor,
-			VC:              selected,
-		})
+		pools[i] = pool
 	}
-	if selectErr != nil {
-		return result, selectErr
+
+	// A descriptor pinned by the caller's bindings must resolve to exactly one credential (the
+	// legacy field-selector contract). This is a per-descriptor check against the initial
+	// bindings only; it is deliberately separate from the whole-assignment ambiguity check.
+	var boundErr error
+	boundFailed := make([]bool, len(pools))
+	for i := range pools {
+		if err := callerBoundError(pools[i], options.initialBindings); err != nil {
+			boundFailed[i] = true
+			if boundErr == nil {
+				boundErr = err
+			}
+		}
+	}
+
+	// Step 2: search for a complete binding-consistent assignment.
+	assignment := make([]*candidateGroup, len(pools))
+	found := false
+	if boundErr == nil {
+		s := searcher{pools: pools, required: requiredDescriptors(pd)}
+		found = s.search(0, copyBindings(options.initialBindings), assignment)
+	}
+	if !found {
+		// Best-effort assignment for diagnostics: each descriptor on its own, first candidate
+		// consistent with the initial bindings.
+		for i := range pools {
+			assignment[i] = nil
+			if boundFailed[i] {
+				continue
+			}
+			if groups := pools[i].consistentGroups(options.initialBindings); len(groups) > 0 {
+				assignment[i] = &pools[i].groups[groups[0]]
+			}
+		}
+	}
+	for i := range assignment {
+		if assignment[i] != nil {
+			result.Candidates[i].VC = &assignment[i].creds[0]
+		}
+	}
+	if boundErr != nil {
+		return result, boundErr
 	}
 
 	// Step 3: enforce the submission-requirement rules. Candidates is returned even on error so
@@ -112,8 +141,276 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		}
 		result.Candidates = applied
 	}
+	if !found {
+		// The search proved no consistent assignment exists; the diagnostic assignment satisfying
+		// the rules anyway (possible once bindings conflict across descriptors) is not a success.
+		return result, fmt.Errorf("no binding-consistent assignment found: %w", ErrNoCredentials)
+	}
 
 	return result, nil
+}
+
+// searcher carries the immutable inputs of the step-2 backtracking search.
+type searcher struct {
+	pools    []descriptorPool
+	required []bool
+}
+
+// search fills assignment[i:] with a binding-consistent choice per descriptor, depth-first in PD
+// order, and reports whether a complete assignment was found. Candidates are preferred over
+// skipping: an optional descriptor is left unfilled (nil) only after all its consistent candidates
+// have been tried; a required descriptor with no consistent candidate fails the branch, which
+// backtracks into a different choice at an earlier descriptor. The bindings map is mutated during
+// descent and restored on backtrack.
+func (s searcher) search(i int, bindings map[string]string, assignment []*candidateGroup) bool {
+	if i == len(s.pools) {
+		return true
+	}
+	for _, gi := range s.pools[i].consistentGroups(bindings) {
+		group := &s.pools[i].groups[gi]
+		assignment[i] = group
+		added := addBindings(bindings, group.idValues)
+		if s.search(i+1, bindings, assignment) {
+			return true
+		}
+		for _, key := range added {
+			delete(bindings, key)
+		}
+	}
+	assignment[i] = nil
+	if !s.required[i] {
+		return s.search(i+1, bindings, assignment)
+	}
+	return false
+}
+
+// addBindings merges a chosen candidate's id-values into the running bindings and returns the keys
+// it actually added, so the caller can restore the map on backtrack. Keys already bound are left
+// untouched: the candidate passed the consistency check, so its values agree.
+func addBindings(bindings map[string]string, idValues map[string]string) []string {
+	var added []string
+	for key, value := range idValues {
+		if _, bound := bindings[key]; !bound {
+			bindings[key] = value
+			added = append(added, key)
+		}
+	}
+	return added
+}
+
+// requiredDescriptors derives, per input descriptor, whether the search must fill it. This is the
+// coarse rule: with no submission requirements every descriptor is required; otherwise only
+// descriptors whose group is demanded in full by an "all" rule are required. Members of "pick"
+// groups may be left unfilled by the search; whether enough of them were filled is checked by the
+// rule engine in step 3 (the documented pick-min-floor deferral).
+func requiredDescriptors(pd PresentationDefinition) []bool {
+	required := make([]bool, len(pd.InputDescriptors))
+	if len(pd.SubmissionRequirements) == 0 {
+		for i := range required {
+			required[i] = true
+		}
+		return required
+	}
+	allGroups := make(map[string]bool)
+	var collect func(requirement SubmissionRequirement)
+	collect = func(requirement SubmissionRequirement) {
+		if requirement.Rule != "all" {
+			// members under a "pick" are selectable, never individually required
+			return
+		}
+		if requirement.From != "" {
+			allGroups[requirement.From] = true
+		}
+		for _, nested := range requirement.FromNested {
+			collect(*nested)
+		}
+	}
+	for _, requirement := range pd.SubmissionRequirements {
+		collect(*requirement)
+	}
+	for i, descriptor := range pd.InputDescriptors {
+		for _, group := range descriptor.Group {
+			if allGroups[group] {
+				required[i] = true
+				break
+			}
+		}
+	}
+	return required
+}
+
+// callerBoundError reproduces the legacy field-selector contract: a descriptor pinned by the
+// caller's bindings must resolve to exactly one credential; more than one is
+// ErrMultipleCredentials. Counted per credential (not per binding tuple), because that is the
+// behavior existing callers rely on. Zero matches is a soft failure: the descriptor is left
+// unfilled and step 3 decides.
+func callerBoundError(pool descriptorPool, initialBindings map[string]string) error {
+	if !isCallerBound(pool.descriptor, initialBindings) {
+		return nil
+	}
+	count := 0
+	for _, gi := range pool.consistentGroups(initialBindings) {
+		count += len(pool.groups[gi].creds)
+	}
+	if count > 1 {
+		return fmt.Errorf("input descriptor '%s': %w", pool.descriptor.Id, ErrMultipleCredentials)
+	}
+	return nil
+}
+
+// candidateGroup is a set of credentials that are interchangeable for one descriptor: they passed
+// its constraints and resolve identical values for every id-bearing field. The search branches per
+// group, not per credential; creds[0] represents the group in the final assignment.
+type candidateGroup struct {
+	idValues map[string]string
+	creds    []vc.VerifiableCredential // in candidate order
+}
+
+// descriptorPool is the step-1 output for one descriptor: its eligible credentials grouped by
+// binding tuple, with inverted indexes so that consistency filtering during the search is a lookup
+// instead of a scan over the pool.
+type descriptorPool struct {
+	descriptor InputDescriptor
+	groups     []candidateGroup
+	// byValue maps field id -> resolved value -> ascending indices of groups carrying that value.
+	// Its key set is the pool's id universe: ids resolved by at least one group.
+	byValue map[string]map[string][]int
+	// lacking maps field id (from the same universe) -> ascending indices of groups that do not
+	// resolve the id. Such groups are consistent with any bound value for it.
+	lacking map[string][]int
+}
+
+// buildPool evaluates every candidate against a single input descriptor (its constraints and both
+// format gates) and indexes the eligible ones. This is step 1, independent of any cross-descriptor
+// binding.
+func buildPool(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) (descriptorPool, error) {
+	eligible, err := eligibleCandidates(pd, descriptor, candidates)
+	if err != nil {
+		return descriptorPool{}, err
+	}
+	pool := descriptorPool{
+		descriptor: descriptor,
+		byValue:    make(map[string]map[string][]int),
+		lacking:    make(map[string][]int),
+	}
+	groupIndex := make(map[string]int)
+	for _, candidate := range eligible {
+		key := tupleKey(candidate.idValues)
+		gi, ok := groupIndex[key]
+		if !ok {
+			gi = len(pool.groups)
+			groupIndex[key] = gi
+			pool.groups = append(pool.groups, candidateGroup{idValues: candidate.idValues})
+		}
+		pool.groups[gi].creds = append(pool.groups[gi].creds, candidate.vc)
+	}
+	for gi, group := range pool.groups {
+		for id, value := range group.idValues {
+			values := pool.byValue[id]
+			if values == nil {
+				values = make(map[string][]int)
+				pool.byValue[id] = values
+			}
+			values[value] = append(values[value], gi)
+		}
+	}
+	for id := range pool.byValue {
+		for gi, group := range pool.groups {
+			if _, ok := group.idValues[id]; !ok {
+				pool.lacking[id] = append(pool.lacking[id], gi)
+			}
+		}
+	}
+	return pool, nil
+}
+
+// consistentGroups returns the ascending indices of the groups that agree with the bindings on
+// every shared id. Bound ids outside the pool's universe are irrelevant. When at least one bound
+// id is in the universe, the scan is narrowed to the smallest posting list (groups carrying the
+// bound value, plus groups not resolving the id at all) before the full per-group check.
+func (p descriptorPool) consistentGroups(bindings map[string]string) []int {
+	var narrowed []int
+	haveNarrowed := false
+	for id, value := range bindings {
+		values, known := p.byValue[id]
+		if !known {
+			continue
+		}
+		merged := mergeSorted(values[value], p.lacking[id])
+		if !haveNarrowed || len(merged) < len(narrowed) {
+			narrowed, haveNarrowed = merged, true
+		}
+	}
+	if !haveNarrowed {
+		all := make([]int, len(p.groups))
+		for i := range all {
+			all[i] = i
+		}
+		return all
+	}
+	var consistent []int
+	for _, gi := range narrowed {
+		if consistentIDValues(p.groups[gi].idValues, bindings) {
+			consistent = append(consistent, gi)
+		}
+	}
+	return consistent
+}
+
+// consistentIDValues reports whether resolved id-values agree with the bindings on every shared
+// id. An id one side does not carry is irrelevant, so a stray binding key has no effect.
+func consistentIDValues(idValues map[string]string, bindings map[string]string) bool {
+	for id, value := range idValues {
+		if bound, ok := bindings[id]; ok && bound != value {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeSorted merges two ascending, disjoint index slices into one ascending slice.
+func mergeSorted(a, b []int) []int {
+	merged := make([]int, 0, len(a)+len(b))
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if a[i] < b[j] {
+			merged = append(merged, a[i])
+			i++
+		} else {
+			merged = append(merged, b[j])
+			j++
+		}
+	}
+	merged = append(merged, a[i:]...)
+	merged = append(merged, b[j:]...)
+	return merged
+}
+
+// tupleKey renders id-values as a canonical string so credentials with identical binding tuples
+// land in the same group.
+func tupleKey(idValues map[string]string) string {
+	ids := make([]string, 0, len(idValues))
+	for id := range idValues {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var builder strings.Builder
+	for _, id := range ids {
+		builder.WriteString(strconv.Quote(id))
+		builder.WriteByte(':')
+		builder.WriteString(strconv.Quote(idValues[id]))
+		builder.WriteByte(',')
+	}
+	return builder.String()
+}
+
+// copyBindings clones the initial bindings so the search can mutate its working map freely.
+func copyBindings(bindings map[string]string) map[string]string {
+	copied := make(map[string]string, len(bindings))
+	for key, value := range bindings {
+		copied[key] = value
+	}
+	return copied
 }
 
 // applySubmissionRequirements enforces the submission-requirement rules over the chosen assignment
@@ -193,13 +490,12 @@ type eligibleCandidate struct {
 }
 
 // eligibleCandidates returns the credentials that satisfy a single input descriptor on its own:
-// its constraints (matchConstraint) and both the PD-level and descriptor-level format gates. This
-// is step 1, evaluated independently of any cross-descriptor binding. The matched id-bearing field
-// values are recorded (stringified) for later consistency checks.
+// its constraints (matchConstraint) and both the PD-level and descriptor-level format gates. The
+// matched id-bearing field values are recorded (stringified) for later consistency checks.
 func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) ([]eligibleCandidate, error) {
 	var eligible []eligibleCandidate
 	for _, candidate := range candidates {
-		var idValues map[string]string
+		idValues := make(map[string]string)
 		if descriptor.Constraints != nil {
 			isMatch, values, err := matchConstraint(descriptor.Constraints, candidate)
 			if err != nil {
@@ -208,7 +504,6 @@ func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, c
 			if !isMatch {
 				continue
 			}
-			idValues = make(map[string]string)
 			for id, value := range values {
 				if s, ok := stringifyBindingValue(value); ok {
 					idValues[id] = s
@@ -222,32 +517,6 @@ func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, c
 		eligible = append(eligible, eligibleCandidate{vc: candidate, idValues: idValues})
 	}
 	return eligible, nil
-}
-
-// consistentCandidates keeps the eligible candidates whose resolved id-values agree with the
-// running bindings. With no bindings every eligible candidate is consistent.
-func consistentCandidates(eligible []eligibleCandidate, bindings map[string]string) []eligibleCandidate {
-	if len(bindings) == 0 {
-		return eligible
-	}
-	var consistent []eligibleCandidate
-	for _, candidate := range eligible {
-		if candidate.consistentWith(bindings) {
-			consistent = append(consistent, candidate)
-		}
-	}
-	return consistent
-}
-
-// consistentWith reports whether the candidate agrees with the bindings on every shared id. A
-// binding key the candidate does not resolve is irrelevant, so a stray key has no effect.
-func (c eligibleCandidate) consistentWith(bindings map[string]string) bool {
-	for id, value := range c.idValues {
-		if bound, ok := bindings[id]; ok && bound != value {
-			return false
-		}
-	}
-	return true
 }
 
 // isCallerBound reports whether the caller pinned this descriptor by binding one of its field ids.
