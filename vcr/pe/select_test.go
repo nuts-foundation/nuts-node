@@ -391,6 +391,79 @@ func TestSelect_InitialBindings(t *testing.T) {
 		assert.Equal(t, "pat-c", result.Candidates[1].VC.ID.String())
 	})
 
+	t.Run("unresolved optional field does not bind between descriptors", func(t *testing.T) {
+		// Policy 6: descriptor A's optional foo does not resolve on its candidate, so it must
+		// not manufacture a binding that conflicts with descriptor B's resolved foo=Z.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "A", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"], "optional": true}
+				]}},
+				{"id": "B", "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"bar": "unrelated"}}`)
+		b1 := parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"foo": "Z"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{a1, b1})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a1", result.Candidates[0].VC.ID.String())
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "b1", result.Candidates[1].VC.ID.String())
+	})
+
+	t.Run("caller-bound field must resolve: all candidates unresolved is ErrNoCredentials", func(t *testing.T) {
+		// Initial bindings are strict (legacy field-selector semantics): a caller who pins foo
+		// never receives a credential without a resolvable foo. Two such candidates must not
+		// drift into ErrMultipleCredentials via the P6 unresolved-is-consistent leniency.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "A",
+				"constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"], "optional": true}
+				]}
+			}]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"bar": "x"}}`)
+		a2 := parseVC(t, `{"id": "a2", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"bar": "y"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{a1, a2}, WithInitialBindings(map[string]string{"foo": "Z"}))
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+
+	t.Run("caller-bound field must resolve: the resolving candidate wins over unresolved ones", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "A",
+				"constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"], "optional": true}
+				]}
+			}]
+		}`)
+		unresolved := parseVC(t, `{"id": "a-unresolved", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"bar": "x"}}`)
+		resolving := parseVC(t, `{"id": "a-resolving", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "Z"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{unresolved, resolving}, WithInitialBindings(map[string]string{"foo": "Z"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "a-resolving", result.Candidates[0].VC.ID.String())
+	})
+
 	t.Run("unknown binding key is silently dropped", func(t *testing.T) {
 		pd := parsePD(t, `{
 			"id": "test-pd",

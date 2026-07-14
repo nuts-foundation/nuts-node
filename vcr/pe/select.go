@@ -81,6 +81,7 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 		if err != nil {
 			return result, err
 		}
+		pool.strictIDs = strictBoundIDs(*descriptor, options.initialBindings)
 		pools[i] = pool
 	}
 
@@ -245,7 +246,7 @@ func requiredDescriptors(pd PresentationDefinition) []bool {
 // behavior existing callers rely on. Zero matches is a soft failure: the descriptor is left
 // unfilled and step 3 decides.
 func callerBoundError(pool descriptorPool, initialBindings map[string]string) error {
-	if !isCallerBound(pool.descriptor, initialBindings) {
+	if len(pool.strictIDs) == 0 {
 		return nil
 	}
 	count := 0
@@ -278,6 +279,27 @@ type descriptorPool struct {
 	// lacking maps field id (from the same universe) -> ascending indices of groups that do not
 	// resolve the id. Such groups are consistent with any bound value for it.
 	lacking map[string][]int
+	// strictIDs are the descriptor's field ids bound by the caller. For these ids a group must
+	// resolve the field to the bound value; unresolved is not acceptable (legacy field-selector
+	// semantics). Policy 6 leniency covers only bindings accumulated during the search.
+	strictIDs []string
+}
+
+// strictBoundIDs returns the descriptor's field ids that appear in the caller's initial bindings.
+func strictBoundIDs(descriptor InputDescriptor, initialBindings map[string]string) []string {
+	if descriptor.Constraints == nil {
+		return nil
+	}
+	var ids []string
+	for _, field := range descriptor.Constraints.Fields {
+		if field.Id == nil {
+			continue
+		}
+		if _, ok := initialBindings[*field.Id]; ok {
+			ids = append(ids, *field.Id)
+		}
+	}
+	return ids
 }
 
 // buildPool evaluates every candidate against a single input descriptor (its constraints and both
@@ -325,12 +347,27 @@ func buildPool(pd PresentationDefinition, descriptor InputDescriptor, candidates
 }
 
 // consistentGroups returns the ascending indices of the groups that agree with the bindings on
-// every shared id. Bound ids outside the pool's universe are irrelevant. When at least one bound
-// id is in the universe, the scan is narrowed to the smallest posting list (groups carrying the
-// bound value, plus groups not resolving the id at all) before the full per-group check.
+// every shared id. Bound ids outside the pool's universe are irrelevant, except strict ids, which
+// a group must resolve to the bound value. When at least one bound id is in the universe, the scan
+// is narrowed to the smallest posting list (groups carrying the bound value, plus, for non-strict
+// ids, groups not resolving the id at all) before the full per-group check.
 func (p descriptorPool) consistentGroups(bindings map[string]string) []int {
 	var narrowed []int
 	haveNarrowed := false
+	for _, id := range p.strictIDs {
+		bound, ok := bindings[id]
+		if !ok {
+			continue
+		}
+		// no lacking-list here: a group that does not resolve a strict id is out
+		list := p.byValue[id][bound]
+		if len(list) == 0 {
+			return nil
+		}
+		if !haveNarrowed || len(list) < len(narrowed) {
+			narrowed, haveNarrowed = list, true
+		}
+	}
 	for id, value := range bindings {
 		values, known := p.byValue[id]
 		if !known {
@@ -350,11 +387,27 @@ func (p descriptorPool) consistentGroups(bindings map[string]string) []int {
 	}
 	var consistent []int
 	for _, gi := range narrowed {
-		if consistentIDValues(p.groups[gi].idValues, bindings) {
-			consistent = append(consistent, gi)
+		group := p.groups[gi]
+		if !consistentIDValues(group.idValues, bindings) {
+			continue
 		}
+		if !resolvesStrictIDs(group, p.strictIDs) {
+			continue
+		}
+		consistent = append(consistent, gi)
 	}
 	return consistent
+}
+
+// resolvesStrictIDs reports whether the group resolves every strictly bound id. Equality with the
+// bound value is covered by the consistency check; this guards only against unresolved fields.
+func resolvesStrictIDs(group candidateGroup, strictIDs []string) bool {
+	for _, id := range strictIDs {
+		if _, ok := group.idValues[id]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // consistentIDValues reports whether resolved id-values agree with the bindings on every shared
@@ -517,23 +570,6 @@ func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, c
 		eligible = append(eligible, eligibleCandidate{vc: candidate, idValues: idValues})
 	}
 	return eligible, nil
-}
-
-// isCallerBound reports whether the caller pinned this descriptor by binding one of its field ids.
-// Such a descriptor must resolve to a single credential, mirroring the legacy field selector.
-func isCallerBound(descriptor InputDescriptor, bindings map[string]string) bool {
-	if descriptor.Constraints == nil {
-		return false
-	}
-	for _, field := range descriptor.Constraints.Fields {
-		if field.Id == nil {
-			continue
-		}
-		if _, ok := bindings[*field.Id]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 // stringifyBindingValue renders a resolved field value as the string used for binding comparison:
