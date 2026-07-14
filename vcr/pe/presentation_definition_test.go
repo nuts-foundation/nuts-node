@@ -23,6 +23,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core/to"
@@ -30,8 +31,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
@@ -221,7 +222,7 @@ func TestMatch(t *testing.T) {
 			t.Run("unsupported JOSE alg", func(t *testing.T) {
 				token := jwt.New()
 				privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+				signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256(), privateKey))
 				require.NoError(t, err)
 				jwtCredential, err := vc.ParseVerifiableCredential(string(signedToken))
 				require.NoError(t, err)
@@ -513,8 +514,13 @@ txJy6M1-lD7a5HTzanYTWBPAUHDZGyGKXdJw-W_x0IWChBzI8t3kpG253fg6V3tPgHeKXE94fz_QpYfg
 			assert.False(t, match)
 		})
 		t.Run("no proof in credential (self-attested)", func(t *testing.T) {
+			// A self-attested credential carries no signature. In jwx v3 an empty compact
+			// signature is only valid when the protected header declares "alg":"none", so
+			// build the unsigned credential with a none-alg header (jwx v2 tolerated dropping
+			// the signature from a signed header, jwx v3 does not).
 			jwtCredNoProof := strings.Split(jwtCredential, ".")
-			credNoProof, err := vc.ParseVerifiableCredential(jwtCredNoProof[0] + "." + jwtCredNoProof[1] + ".")
+			noneHeader := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+			credNoProof, err := vc.ParseVerifiableCredential(noneHeader + "." + jwtCredNoProof[1] + ".")
 			require.NoError(t, err)
 			match := matchFormat(&PresentationDefinitionClaimFormatDesignations{
 				"jwt_vc": {"alg": {"ES521"}},

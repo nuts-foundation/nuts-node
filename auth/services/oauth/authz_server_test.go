@@ -23,7 +23,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,9 +31,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -517,7 +516,7 @@ func TestService_validateAuthorizationCredentials(t *testing.T) {
 
 		err := ctx.oauthService.validateAuthorizationCredentials(tokenCtx)
 
-		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: invalid JWT")
+		assert.EqualError(t, err, "invalid jwt.vcs: cannot unmarshal authorization credential: jwt.Parse: failed to parse token: unknown payload type (payload is not JWT?)")
 	})
 
 	t.Run("error - jwt.iss <> credentialSubject.ID mismatch", func(t *testing.T) {
@@ -563,30 +562,26 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		}
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.Nil(t, tokenCtx.jwtBearerToken)
-		assert.Equal(t, "invalid compact serialization format: invalid number of segments", err.Error())
+		assert.Equal(t, "jws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments", err.Error())
 
 		tokenCtx2 := &validationContext{
 			rawJwtBearerToken: "123.456.787",
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx2)
 		assert.Nil(t, tokenCtx.jwtBearerToken)
-		assert.Equal(t, "failed to parse JOSE headers: invalid character '×' looking for beginning of value", err.Error())
+		assert.Equal(t, "jws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: failed to parse JOSE headers: invalid character '×' looking for beginning of value", err.Error())
 	})
 
 	t.Run("wrong signing algorithm", func(t *testing.T) {
-		t.Setenv("GODEBUG", "rsa1024min=0") // minimum key-length has changed to 1024 -> https://pkg.go.dev/crypto/rsa#hdr-Minimum_key_size
-		privateKey, err := rsa.GenerateKey(rand.Reader, 512)
-		require.NoError(t, err)
-
 		keyID := "did:nuts:somedid#key-id"
+		secret := []byte("test-hmac-secret")
 
-		ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).Return(privateKey.Public(), nil)
+		ctx.keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).Return(secret, nil)
 
-		// alg: RS256
 		token := jwt.New()
 		hdrs := jws.NewHeaders()
 		hdrs.Set(jws.KeyIDKey, keyID)
-		signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, privateKey, jws.WithProtectedHeaders(hdrs)))
+		signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.HS256(), secret, jws.WithProtectedHeaders(hdrs)))
 		require.NoError(t, err)
 
 		tokenCtx := &validationContext{
@@ -594,7 +589,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.Nil(t, tokenCtx.jwtBearerToken)
-		assert.Equal(t, "token signing algorithm is not supported: RS256", err.Error())
+		assert.Equal(t, "token signing algorithm is not supported: HS256", err.Error())
 	})
 
 	t.Run("valid token", func(t *testing.T) {
@@ -605,7 +600,8 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
 		assert.NoError(t, err)
-		assert.Equal(t, requesterDID.String(), tokenCtx.jwtBearerToken.Issuer())
+		iss, _ := tokenCtx.jwtBearerToken.Issuer()
+		assert.Equal(t, requesterDID.String(), iss)
 		assert.Equal(t, requesterSigningKeyID, tokenCtx.kid)
 	})
 
@@ -636,7 +632,7 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKeyByID(requesterSigningKeyID, nil, resolver.NutsSigningKeyType).Return(requesterSigningKey.PublicKey, nil)
 
 		err := ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx)
-		assert.EqualError(t, err, "\"exp\" not satisfied")
+		assert.EqualError(t, err, "jwt.ParseString: failed to parse string: jwt.Validate: validation failed: \"exp\" not satisfied: token is expired")
 	})
 }
 
@@ -698,10 +694,14 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, claims)
 
-		assert.Equal(t, tokenCtx.jwtBearerToken.Subject(), claims.Subject)
-		assert.Equal(t, tokenCtx.jwtBearerToken.Issuer(), claims.Issuer)
-		assert.Equal(t, tokenCtx.jwtBearerToken.IssuedAt().Unix(), claims.IssuedAt)
-		assert.Equal(t, tokenCtx.jwtBearerToken.Expiration().Unix(), claims.Expiration)
+		subject, _ := tokenCtx.jwtBearerToken.Subject()
+		issuer, _ := tokenCtx.jwtBearerToken.Issuer()
+		issuedAt, _ := tokenCtx.jwtBearerToken.IssuedAt()
+		expiration, _ := tokenCtx.jwtBearerToken.Expiration()
+		assert.Equal(t, subject, claims.Subject)
+		assert.Equal(t, issuer, claims.Issuer)
+		assert.Equal(t, issuedAt.Unix(), claims.IssuedAt)
+		assert.Equal(t, expiration.Unix(), claims.Expiration)
 		assert.Equal(t, expectedService, claims.Service)
 	})
 
@@ -719,7 +719,7 @@ func TestService_IntrospectAccessToken(t *testing.T) {
 		// Signature verification should fail
 		claims, err := ctx.oauthService.IntrospectAccessToken(ctx.audit, tokenCtx.rawJwtBearerToken)
 
-		require.EqualError(t, err, "could not verify message using any of the signatures or keys")
+		require.EqualError(t, err, "jwt.ParseString: failed to parse string: signature verification failed for ES256: invalid ECDSA signature")
 		require.Nil(t, claims)
 	})
 
@@ -956,7 +956,7 @@ func signTokenWithKeyAndHeaders(context *validationContext, key *ecdsa.PrivateKe
 			panic(err)
 		}
 	}
-	signedToken, err := jwt.Sign(context.jwtBearerToken, jwt.WithKey(jwa.ES256, key, jws.WithProtectedHeaders(hdrs)))
+	signedToken, err := jwt.Sign(context.jwtBearerToken, jwt.WithKey(jwa.ES256(), key, jws.WithProtectedHeaders(hdrs)))
 	if err != nil {
 		panic(err)
 	}

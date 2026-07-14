@@ -25,8 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -326,8 +326,9 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	// Validate audience
+	audience, _ := token.Audience()
 	audienceMatches := false
-	for _, aud := range token.Audience() {
+	for _, aud := range audience {
 		if aud == i.issuerIdentifierURL {
 			audienceMatches = true
 			break
@@ -335,7 +336,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 	if !audienceMatches {
 		return generateProofError(openid4vci.Error{
-			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", token.Audience()),
+			Err:        fmt.Errorf("audience doesn't match credential issuer (aud=%s)", audience),
 			Code:       openid4vci.InvalidProof,
 			StatusCode: http.StatusBadRequest,
 		})
@@ -352,7 +353,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 		// I think this is impossible
 		return errors.New("expected exactly one signature")
 	}
-	typ := message.Signatures()[0].ProtectedHeaders().Type()
+	typ, _ := message.Signatures()[0].ProtectedHeaders().Type()
 	if typ == "" {
 		return generateProofError(openid4vci.Error{
 			Err:        errors.New("missing typ header"),
@@ -369,8 +370,8 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	// given the JWT typ, the nonce is in the 'nonce' claim
-	nonce, ok := token.Get("nonce")
-	if !ok {
+	var nonce string
+	if err := token.Get("nonce", &nonce); err != nil {
 		return generateProofError(openid4vci.Error{
 			Err:        errors.New("missing nonce claim"),
 			Code:       openid4vci.InvalidProof,
@@ -379,7 +380,7 @@ func (i *openidHandler) validateProof(ctx context.Context, flow *Flow, request o
 	}
 
 	// check if the nonce matches the one we sent in the offer
-	flowFromNonce, err := i.store.FindByReference(ctx, cNonceRefType, nonce.(string))
+	flowFromNonce, err := i.store.FindByReference(ctx, cNonceRefType, nonce)
 	if err != nil {
 		return err
 	}

@@ -35,8 +35,8 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage/orm"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -452,7 +452,7 @@ func Test_verifier_CheckAndStoreRevocation(t *testing.T) {
 		otherKey, _ := spi.GenerateKeyPair()
 		sut.keyResolver.EXPECT().ResolveKeyByID(revocation.Proof.VerificationMethod.String(), &metadata, resolver.NutsSigningKeyType).Return(otherKey, nil)
 		err := sut.verifier.RegisterRevocation(revocation)
-		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: failed to verify signature using ecdsa")
+		assert.EqualError(t, err, "unable to verify revocation signature: invalid proof signature: invalid ECDSA signature")
 	})
 }
 
@@ -469,7 +469,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 }`))
 		require.NoError(t, err)
 		var publicKey crypto.PublicKey
-		require.NoError(t, key.Raw(&publicKey))
+		require.NoError(t, jwk.Export(key, &publicKey))
 
 		const rawVP = `eyJhbGciOiJFUzI1NiIsImtpZCI6ImRpZDpudXRzOkd2a3p4c2V6SHZFYzhuR2hnejZYbzNqYnFrSHdzd0xtV3czQ1l0Q203aEFXI2FiYy1tZXRob2QtMSIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTc2OTY3NDEsImlzcyI6ImRpZDpudXRzOkd2a3p4c2V6SHZFYzhuR2hnejZYbzNqYnFrSHdzd0xtV3czQ1l0Q203aEFXIiwibmJmIjoxNjk3NjEwMzQxLCJzdWIiOiJkaWQ6bnV0czpHdmt6eHNlekh2RWM4bkdoZ3o2WG8zamJxa0h3c3dMbVd3M0NZdENtN2hBVyIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sInR5cGUiOiJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIiwidmVyaWZpYWJsZUNyZWRlbnRpYWwiOnsiQGNvbnRleHQiOlsiaHR0cHM6Ly93d3cudzMub3JnLzIwMTgvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL251dHMubmwvY3JlZGVudGlhbHMvdjEiLCJodHRwczovL3czYy1jY2cuZ2l0aHViLmlvL2xkcy1qd3MyMDIwL2NvbnRleHRzL2xkcy1qd3MyMDIwLXYxLmpzb24iXSwiY3JlZGVudGlhbFN1YmplY3QiOnsiY29tcGFueSI6eyJjaXR5IjoiSGVuZ2VsbyIsIm5hbWUiOiJEZSBiZXN0ZSB6b3JnIn0sImlkIjoiZGlkOm51dHM6R3ZrenhzZXpIdkVjOG5HaGd6NlhvM2picWtId3N3TG1XdzNDWXRDbTdoQVcifSwiaWQiOiJkaWQ6bnV0czo0dHpNYVdmcGl6VktlQThmc2NDM0pUZFdCYzNhc1VXV01qNWhVRkhkV1gzSCNmNDNiZWY0Zi0xYTc5LTQzNjQtOTJmMy0zZmM3NDNmYTlmMTkiLCJpc3N1YW5jZURhdGUiOiIyMDIxLTEyLTI0VDEzOjIxOjI5LjA4NzIwNSswMTowMCIsImlzc3VlciI6ImRpZDpudXRzOjR0ek1hV2ZwaXpWS2VBOGZzY0MzSlRkV0JjM2FzVVdXTWo1aFVGSGRXWDNIIiwicHJvb2YiOnsiY3JlYXRlZCI6IjIwMjEtMTItMjRUMTM6MjE6MjkuMDg3MjA1KzAxOjAwIiwiandzIjoiZXlKaGJHY2lPaUpGVXpJMU5pSXNJbUkyTkNJNlptRnNjMlVzSW1OeWFYUWlPbHNpWWpZMElsMTkuLmhQTTJHTGMxSzlkMkQ4U2J2ZTAwNHg5U3VtakxxYVhUaldoVWh2cVdSd3hmUldsd2ZwNWdIRFVZdVJvRWpoQ1hmTHQtX3Uta25DaFZtSzk4ME4zTEJ3IiwicHJvb2ZQdXJwb3NlIjoiTnV0c1NpZ25pbmdLZXlUeXBlIiwidHlwZSI6Ikpzb25XZWJTaWduYXR1cmUyMDIwIiwidmVyaWZpY2F0aW9uTWV0aG9kIjoiZGlkOm51dHM6R3ZrenhzZXpIdkVjOG5HaGd6NlhvM2picWtId3N3TG1XdzNDWXRDbTdoQVcjYWJjLW1ldGhvZC0xIn0sInR5cGUiOlsiQ29tcGFueUNyZWRlbnRpYWwiLCJWZXJpZmlhYmxlQ3JlZGVudGlhbCJdfX19.v3beJvGa3HeImU3VLvsrZjnHs0krKPaCdTEh-qHS7j26LIQYcMHhrLkIexrpPO5z0TKSDnKq5Jl10SWaJpLRIA`
 
@@ -510,7 +510,8 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			}
 			t.Run("ok - credential has no own proof", func(t *testing.T) {
 				vp, key := test.CreateJWTPresentation(t, subjectDID, func(token jwt.Token) {
-					vpRaw, _ := token.Get("vp")
+					var vpRaw interface{}
+					_ = token.Get("vp", &vpRaw)
 					castVP := vpRaw.(vc.VerifiablePresentation)
 					castVP.Holder, _ = ssi.ParseURI(subjectDID.String())
 					_ = token.Set("vp", castVP)
@@ -547,7 +548,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 			validAt := time.Date(2023, 10, 21, 12, 0, 0, 0, time.UTC)
 			vcs, err := ctx.verifier.VerifyVP(*presentation, false, false, &validAt)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: \"exp\" not satisfied")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: unable to validate JWT signature: jwt.ParseString: failed to parse string: jwt.Validate: validation failed: \"exp\" not satisfied: token is expired")
 			assert.Empty(t, vcs)
 		})
 		t.Run("VP signer != VC credentialSubject.id", func(t *testing.T) {
@@ -710,7 +711,7 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: invalid signature: invalid proof signature: failed to verify signature using ecdsa")
+			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: invalid signature: invalid proof signature: invalid ECDSA signature")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - signing key unknown", func(t *testing.T) {

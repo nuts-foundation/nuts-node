@@ -199,8 +199,7 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
+		_ = presentation.JWT().Get("nonce", &nonce)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {

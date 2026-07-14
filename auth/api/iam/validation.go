@@ -55,7 +55,7 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		audience = presentation.JWT().Audience()
+		audience, _ = presentation.JWT().Audience()
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {
