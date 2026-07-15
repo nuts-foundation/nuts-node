@@ -58,7 +58,37 @@ const (
 )
 
 // MatchReport explains, per input descriptor, why each candidate credential was or wasn't
-// selected. It is produced only under WithSelectionTrace.
+// selected. It answers the developer question "why doesn't my wallet satisfy this presentation
+// definition" without trimming the policy file by hand.
+//
+// A report is produced only when Select is called with WithSelectionTrace; without it,
+// Result.Report is nil and the run pays no reporting cost. The report is assembled after the
+// selection by re-evaluating each candidate, so enabling it does not change the outcome.
+//
+// How to read it:
+//
+//   - Outcome classifies the run as a whole. OutcomeMatched can coexist with unfilled
+//     descriptors (optional ones that were skipped or dropped by a pick rule).
+//   - Descriptors follows PD order. Each entry names the selected credential (SelectedID),
+//     whether the descriptor went unfilled (Skipped) and whether that was allowed (Optional).
+//   - Considered holds one entry per candidate credential, in candidate order. The selected
+//     credential has a nil Dismissal; every other candidate carries the reason it was not used,
+//     with the offending field id, JSONPath, and expected/found values where known.
+//   - AmbiguousDescriptors names the descriptors that carried more than one choice when Outcome
+//     is OutcomeMultipleCredentials. These are the descriptors to disambiguate with
+//     credential_selection keys.
+//   - DivergingAlternatives (per descriptor) points at wallet hygiene: interchangeable
+//     credentials whose subjects differ in fields the PD does not declare. Selection is
+//     unaffected by contract, but the wallet holds potentially contradicting claims.
+//
+// Binding conflicts are explained against the decisive path: the chosen assignment (or the
+// best-effort assignment on failure), with the candidate's own descriptor excluded so that a
+// candidate that merely lost to an earlier pick reads as ReasonNotSelected, not as a conflict.
+// The report does not narrate every combination the backtracking search visited.
+//
+// The report is a diagnostic surface for developer tooling (a dev endpoint or UI is a planned
+// follow-up); selection outcomes should be branched on Result and the returned error, not on
+// report contents.
 type MatchReport struct {
 	// Descriptors reports on every input descriptor, in PD order.
 	Descriptors []DescriptorReport
