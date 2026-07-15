@@ -272,7 +272,7 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while parsing the credential: super invalid, error: invalid JWT")
+		assert.EqualError(t, err, "server_error - error while parsing the credential: super invalid, error: jwt.Parse: failed to parse token: unknown payload type (payload is not JWT?)")
 	})
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
