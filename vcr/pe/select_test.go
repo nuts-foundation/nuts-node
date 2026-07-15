@@ -243,7 +243,9 @@ func TestSelect_InitialBindings(t *testing.T) {
 		assert.Equal(t, "vc-2", result.Candidates[0].VC.ID.String())
 	})
 
-	t.Run("caller-bound descriptor with multiple matches returns ErrMultipleCredentials", func(t *testing.T) {
+	t.Run("caller-bound matches agreeing on every declared field are interchangeable", func(t *testing.T) {
+		// The matches are identical on all declared field ids (a reissued duplicate); no
+		// credential_selection key could separate them, so the engine picks the first.
 		pd := parsePD(t, `{
 			"id": "test-pd",
 			"input_descriptors": [{
@@ -256,25 +258,76 @@ func TestSelect_InitialBindings(t *testing.T) {
 
 		result, err := Select(pd, []vc.VerifiableCredential{vcA, vcB}, WithInitialBindings(map[string]string{"patient_id": "456"}))
 
-		assert.ErrorIs(t, err, ErrMultipleCredentials)
-		// Candidates stays populated on error: the undecidable descriptor is present, unfilled.
+		require.NoError(t, err)
 		require.Len(t, result.Candidates, 1)
-		assert.Equal(t, "patient_credential", result.Candidates[0].InputDescriptor.Id)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-a", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("caller-bound matches differing on another declared field return ErrMultipleCredentials", func(t *testing.T) {
+		// The consent scenario with consent_status declared: the caller pins the patient, but
+		// the survivors contradict each other on a declared id. Erroring is actionable: bind
+		// consent_status.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent_credential",
+				"constraints": {"fields": [
+					{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]},
+					{"id": "consent_status", "path": ["$.credentialSubject.consentStatus"]}
+				]}
+			}]
+		}`)
+		granted := parseVC(t, `{"id": "consent-granted", "credentialSubject": {"bsn": "999911234", "consentStatus": true}}`)
+		withdrawn := parseVC(t, `{"id": "consent-withdrawn", "credentialSubject": {"bsn": "999911234", "consentStatus": false}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{granted, withdrawn},
+			WithInitialBindings(map[string]string{"patient_bsn": "999911234"}))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		require.Len(t, result.Candidates, 1)
 		assert.Nil(t, result.Candidates[0].VC)
 	})
 
+	t.Run("caller-bound matches differing only in undeclared fields are interchangeable", func(t *testing.T) {
+		// The same consent scenario without consent_status in the PD: the PD is the data
+		// contract (undeclared fields are not introspectable), so the difference plays no role
+		// and the engine picks the first. The divergence is surfaced in the MatchReport.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent_credential",
+				"constraints": {"fields": [{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]}]}
+			}]
+		}`)
+		granted := parseVC(t, `{"id": "consent-granted", "credentialSubject": {"bsn": "999911234", "consentStatus": true}}`)
+		withdrawn := parseVC(t, `{"id": "consent-withdrawn", "credentialSubject": {"bsn": "999911234", "consentStatus": false}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{granted, withdrawn},
+			WithInitialBindings(map[string]string{"patient_bsn": "999911234"}))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 1)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "consent-granted", result.Candidates[0].VC.ID.String())
+	})
+
 	t.Run("candidates stay full length when a later descriptor errors", func(t *testing.T) {
-		// The failing descriptor comes first; the descriptor after it must still appear in
-		// Result.Candidates (one entry per descriptor, PD order, on every path).
+		// The failing descriptor comes first (bound matches contradict on the declared status
+		// field); the descriptor after it must still appear in Result.Candidates (one entry per
+		// descriptor, PD order, on every path).
 		pd := parsePD(t, `{
 			"id": "test-pd",
 			"input_descriptors": [
-				{"id": "patient_credential", "constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}},
+				{"id": "patient_credential", "constraints": {"fields": [
+					{"id": "patient_id", "path": ["$.credentialSubject.patientId"]},
+					{"id": "status", "path": ["$.credentialSubject.status"]}
+				]}},
 				{"id": "org_credential", "constraints": {"fields": [{"id": "ura", "path": ["$.credentialSubject.ura"]}]}}
 			]
 		}`)
-		patA := parseVC(t, `{"id": "pat-a", "credentialSubject": {"patientId": "456"}}`)
-		patB := parseVC(t, `{"id": "pat-b", "credentialSubject": {"patientId": "456"}}`)
+		patA := parseVC(t, `{"id": "pat-a", "credentialSubject": {"patientId": "456", "status": "active"}}`)
+		patB := parseVC(t, `{"id": "pat-b", "credentialSubject": {"patientId": "456", "status": "inactive"}}`)
 		org := parseVC(t, `{"id": "org-1", "credentialSubject": {"ura": "URA-001"}}`)
 
 		result, err := Select(pd, []vc.VerifiableCredential{patA, patB, org},

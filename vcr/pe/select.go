@@ -355,20 +355,17 @@ func requiredDescriptors(pd PresentationDefinition) []bool {
 	return required
 }
 
-// callerBoundError reproduces the legacy field-selector contract: a descriptor pinned by the
-// caller's bindings must resolve to exactly one credential; more than one is
-// ErrMultipleCredentials. Counted per credential (not per binding tuple), because that is the
-// behavior existing callers rely on. Zero matches is a soft failure: the descriptor is left
-// unfilled and step 3 decides.
+// callerBoundError enforces the caller-bound multiplicity rule: a descriptor pinned by the
+// caller's bindings must resolve to exactly one interchangeable set of credentials. Counted per
+// binding tuple: matches that differ on some other declared field id are distinct choices and the
+// error names a real remedy (bind that id too), while matches agreeing on every declared id are
+// interchangeable and the first one is used. Zero matches is a soft failure: the descriptor is
+// left unfilled and step 3 decides.
 func callerBoundError(pool descriptorPool, initialBindings map[string]string) error {
 	if len(pool.strictIDs) == 0 {
 		return nil
 	}
-	count := 0
-	for _, gi := range pool.consistentGroups(initialBindings) {
-		count += len(pool.groups[gi].creds)
-	}
-	if count > 1 {
+	if len(pool.consistentGroups(initialBindings)) > 1 {
 		return fmt.Errorf("input descriptor '%s': %w", pool.descriptor.Id, ErrMultipleCredentials)
 	}
 	return nil
