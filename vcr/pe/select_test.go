@@ -1372,6 +1372,29 @@ func TestSelect_SubmissionRequirements(t *testing.T) {
 		assert.Equal(t, "vc-2", result.Candidates[1].VC.ID.String())
 	})
 
+	t.Run("one credential filling two pick-group descriptors is kept on the first only", func(t *testing.T) {
+		// The rules select credentials, not descriptors: pick count 1 selects one credential,
+		// and a credential filling several descriptors must not multiply past that count.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "A", "count": 1}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["A"], "constraints": {"fields": [{"id": "f1", "path": ["$.credentialSubject.f1"]}]}},
+				{"id": "d2", "group": ["A"], "constraints": {"fields": [{"id": "f2", "path": ["$.credentialSubject.f2"]}]}}
+			]
+		}`)
+		// satisfies both descriptors
+		cred := parseVC(t, `{"id": "vc-both", "credentialSubject": {"f1": "x", "f2": "y"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Equal(t, "vc-both", result.Candidates[0].VC.ID.String())
+		assert.Nil(t, result.Candidates[1].VC)
+	})
+
 	t.Run("pick rule selects a subset and clears the rest", func(t *testing.T) {
 		pd := parsePD(t, `{
 			"id": "test-pd",

@@ -637,25 +637,27 @@ func applySubmissionRequirements(pd PresentationDefinition, candidates []Candida
 	}
 	selectedVCs = deduplicate(selectedVCs)
 
-	// Clear the descriptors whose chosen VC a rule excluded.
+	// Keep each selected credential on the first descriptor that carries it (PD order) and clear
+	// the rest. The rules select credentials, not descriptors: consuming the selection prevents a
+	// credential that fills several descriptors from multiplying past the rule's count, and
+	// matches the legacy first-descriptor mapping.
+	remaining := selectedVCs
 	result := make([]Candidate, len(candidates))
 	for i, candidate := range candidates {
 		result[i] = candidate
-		if candidate.VC == nil || !containsVC(selectedVCs, *candidate.VC) {
-			result[i].VC = nil
+		result[i].VC = nil
+		if candidate.VC == nil {
+			continue
+		}
+		for j, selected := range remaining {
+			if vcEqual(selected, *candidate.VC) {
+				result[i].VC = candidate.VC
+				remaining = append(remaining[:j], remaining[j+1:]...)
+				break
+			}
 		}
 	}
 	return result, nil
-}
-
-// containsVC reports whether target is present in vcs, compared by value.
-func containsVC(vcs []vc.VerifiableCredential, target vc.VerifiableCredential) bool {
-	for _, candidate := range vcs {
-		if vcEqual(candidate, target) {
-			return true
-		}
-	}
-	return false
 }
 
 // requireAllFilled reports ErrNoCredentials when any descriptor was left unfilled. It encodes the
