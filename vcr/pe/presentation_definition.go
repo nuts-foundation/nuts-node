@@ -429,8 +429,13 @@ func credentialAsMap(credential vc.VerifiableCredential) (map[string]interface{}
 		// with the VC properties, instead of a JWT string.
 		type Alias vc.VerifiableCredential
 		return remarshalToMap(Alias(credential))
-	default: // JSON-LD or holder credential
+	case vc.JSONLDCredentialProofFormat, "": // "" is a holder credential
 		return remarshalToMap(credential)
+	default:
+		// fail closed: a format this engine does not know resolves no fields and is never
+		// eligible, rather than being remarshaled by guesswork (a token-backed format would
+		// marshal to a JSON string and turn into an error that aborts the whole match).
+		return nil, nil
 	}
 }
 

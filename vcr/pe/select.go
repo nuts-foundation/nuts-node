@@ -205,7 +205,7 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	if limited {
 		// A found-but-unproven assignment is not returned as a success: under Strict that would
 		// silently downgrade the ambiguity guarantee.
-		return result, fmt.Errorf("presentation definition '%s': search aborted, node limit reached (%d)", pd.Id, searchNodeLimit)
+		return result, fmt.Errorf("presentation definition '%s': search aborted, %w (%d)", pd.Id, ErrSearchLimitReached, searchNodeLimit)
 	}
 	if len(ambiguous) > 0 {
 		// The decisive assignment stays in Candidates so the caller can see what would have won.
@@ -246,6 +246,11 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 
 	return result, nil
 }
+
+// ErrSearchLimitReached is returned when the backtracking search exceeds its node-visit limit, a
+// defense against pathological (counterparty-supplied) presentation definitions. It is a distinct
+// failure class: neither "no credentials" nor "multiple credentials".
+var ErrSearchLimitReached = errors.New("search node limit reached")
 
 // searchNodeLimit bounds the number of node visits of a single search. Presentation definitions
 // arrive from the counterparty in wallet flows, so an unbounded backtracking search would be

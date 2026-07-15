@@ -1305,9 +1305,9 @@ func TestSelect_NodeLimit(t *testing.T) {
 
 		_, err := Select(pd, creds)
 
-		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrSearchLimitReached)
+		assert.NotErrorIs(t, err, ErrNoCredentials)
 		assert.ErrorContains(t, err, "exploding-pd")
-		assert.ErrorContains(t, err, "limit")
 	})
 
 	t.Run("a realistic search stays far below the default limit", func(t *testing.T) {
