@@ -988,6 +988,44 @@ func TestSelect_Trace(t *testing.T) {
 		assert.Equal(t, "1", dismissed.Dismissal.Found)
 	})
 
+	t.Run("diverging interchangeable alternatives are flagged", func(t *testing.T) {
+		// Two consents for the same bsn differ in an undeclared field: interchangeable by
+		// contract, but the report flags the divergence for the operator.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent_credential",
+				"constraints": {"fields": [{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]}]}
+			}]
+		}`)
+		granted := parseVC(t, `{"id": "consent-granted", "credentialSubject": {"bsn": "999911234", "consentStatus": true}}`)
+		withdrawn := parseVC(t, `{"id": "consent-withdrawn", "credentialSubject": {"bsn": "999911234", "consentStatus": false}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{granted, withdrawn}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		assert.True(t, result.Report.Descriptors[0].DivergingAlternatives)
+	})
+
+	t.Run("true duplicates are not flagged as diverging", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent_credential",
+				"constraints": {"fields": [{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]}]}
+			}]
+		}`)
+		original := parseVC(t, `{"id": "consent-1", "credentialSubject": {"bsn": "999911234", "consentStatus": true}}`)
+		reissued := parseVC(t, `{"id": "consent-2", "credentialSubject": {"bsn": "999911234", "consentStatus": true}, "proof": [{"type": "JsonWebSignature2020"}]}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{original, reissued}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		assert.False(t, result.Report.Descriptors[0].DivergingAlternatives)
+	})
+
 	t.Run("ambiguity is reported with the ambiguous descriptors", func(t *testing.T) {
 		pd := parsePD(t, `{
 			"id": "test-pd",

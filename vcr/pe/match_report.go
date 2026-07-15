@@ -19,6 +19,8 @@
 package pe
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -78,6 +80,11 @@ type DescriptorReport struct {
 	SelectedID string
 	// Skipped is whether the descriptor ended up without a credential.
 	Skipped bool
+	// DivergingAlternatives is whether the chosen credential was picked among interchangeable
+	// alternatives (agreeing on every declared field id) whose credentialSubjects nevertheless
+	// differ. The PD does not declare the differing fields, so they played no role in selection;
+	// this flag gives the operator visibility into a wallet holding such diverging credentials.
+	DivergingAlternatives bool
 }
 
 // CandidateReport explains one credential's evaluation against one descriptor.
@@ -147,6 +154,10 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 		descriptorReport.Skipped = selected == nil
 		strictIDs := strictBoundIDs(*descriptor, initialBindings)
 
+		var selectedIDValues map[string]string
+		if selected != nil {
+			_, selectedIDValues = evaluateCandidate(pd, *descriptor, *selected)
+		}
 		selectedSeen := false
 		for _, candidate := range candidates {
 			candidateReport := CandidateReport{}
@@ -162,12 +173,25 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 				selectedSeen = true // the chosen credential carries no dismissal
 			default:
 				candidateReport.Dismissal = explainNotChosen(idValues, bindings, strictIDs)
+				// An interchangeable alternative (same binding tuple as the chosen credential)
+				// whose subject nevertheless differs is worth the operator's attention.
+				if selected != nil && tupleKey(idValues) == tupleKey(selectedIDValues) && !subjectsEqual(candidate, *selected) {
+					descriptorReport.DivergingAlternatives = true
+				}
 			}
 			descriptorReport.Considered = append(descriptorReport.Considered, candidateReport)
 		}
 		report.Descriptors = append(report.Descriptors, descriptorReport)
 	}
 	return report
+}
+
+// subjectsEqual reports whether two credentials carry structurally equal credentialSubjects.
+// Metadata (proof, VC id, dates) is deliberately not compared.
+func subjectsEqual(a, b vc.VerifiableCredential) bool {
+	aJSON, errA := json.Marshal(a.CredentialSubject)
+	bJSON, errB := json.Marshal(b.CredentialSubject)
+	return errA == nil && errB == nil && bytes.Equal(aJSON, bJSON)
 }
 
 // evaluateCandidate re-runs the step-1 eligibility of one credential for one descriptor.
