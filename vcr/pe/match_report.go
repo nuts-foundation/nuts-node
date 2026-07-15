@@ -129,20 +129,22 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 		report.Outcome = OutcomeNoCredentials
 	}
 
-	// the decisive bindings: the caller's plus everything the decisive assignment resolved
-	bindings := copyBindings(initialBindings)
-	for _, group := range assignment {
-		if group == nil {
-			continue
-		}
-		for id, value := range group.idValues {
-			if _, bound := bindings[id]; !bound {
-				bindings[id] = value
+	for i, descriptor := range pd.InputDescriptors {
+		// The decisive bindings for this descriptor's candidates: the caller's plus everything
+		// the OTHER descriptors' choices resolved. The own descriptor's pick is excluded, so a
+		// candidate that merely lost to an earlier candidate is not misreported as a binding
+		// conflict with the winner.
+		bindings := copyBindings(initialBindings)
+		for j, group := range assignment {
+			if j == i || group == nil {
+				continue
+			}
+			for id, value := range group.idValues {
+				if _, bound := bindings[id]; !bound {
+					bindings[id] = value
+				}
 			}
 		}
-	}
-
-	for i, descriptor := range pd.InputDescriptors {
 		descriptorReport := DescriptorReport{
 			DescriptorID: descriptor.Id,
 			Optional:     i < len(required) && !required[i],

@@ -163,6 +163,8 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	for i := range pools {
 		if err := callerBoundError(pools[i], options.initialBindings); err != nil {
 			boundFailed[i] = true
+			// the pinned-but-ambiguous descriptors are the report's ambiguous descriptors
+			ambiguous = append(ambiguous, pools[i].descriptor.Id)
 			if boundErr == nil {
 				boundErr = err
 			}

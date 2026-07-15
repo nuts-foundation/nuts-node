@@ -1087,6 +1087,123 @@ func TestSelect_Trace(t *testing.T) {
 		assert.Equal(t, "1", dismissed.Dismissal.Found)
 	})
 
+	t.Run("trace off leaves Report nil on the error path too", func(t *testing.T) {
+		pd := parsePD(t, filterPD)
+		cred := parseVC(t, `{"id": "vc-1", "credentialSubject": {"patientId": "123"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{cred})
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+		assert.Nil(t, result.Report)
+	})
+
+	t.Run("an eligible loser is reported as not_selected", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "patient_credential",
+				"constraints": {"fields": [{"id": "patient_id", "path": ["$.credentialSubject.patientId"]}]}
+			}]
+		}`)
+		winner := parseVC(t, `{"id": "vc-winner", "credentialSubject": {"patientId": "123"}}`)
+		loser := parseVC(t, `{"id": "vc-loser", "credentialSubject": {"patientId": "456"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{winner, loser}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		loserReport := result.Report.Descriptors[0].Considered[1]
+		assert.True(t, loserReport.Eligible)
+		require.NotNil(t, loserReport.Dismissal)
+		assert.Equal(t, ReasonNotSelected, loserReport.Dismissal.Reason)
+	})
+
+	t.Run("a skipped optional descriptor is reported with a matched outcome", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "GA"},
+				{"rule": "pick", "from": "GB", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "A", "group": ["GA"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "a_id", "path": ["$.credentialSubject.aId"]}
+				]}},
+				{"id": "B", "group": ["GB"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "status", "path": ["$.credentialSubject.status"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"aId": "a"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{a1}, WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeMatched, result.Report.Outcome)
+		aReport := result.Report.Descriptors[0]
+		assert.False(t, aReport.Optional)
+		assert.False(t, aReport.Skipped)
+		assert.Equal(t, "a1", aReport.SelectedID)
+		bReport := result.Report.Descriptors[1]
+		assert.True(t, bReport.Optional)
+		assert.True(t, bReport.Skipped)
+		assert.Empty(t, bReport.SelectedID)
+	})
+
+	t.Run("caller-bound multiplicity names the descriptor in AmbiguousDescriptors", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "consent_credential",
+				"constraints": {"fields": [
+					{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]},
+					{"id": "consent_status", "path": ["$.credentialSubject.consentStatus"]}
+				]}
+			}]
+		}`)
+		granted := parseVC(t, `{"id": "consent-granted", "credentialSubject": {"bsn": "999911234", "consentStatus": true}}`)
+		withdrawn := parseVC(t, `{"id": "consent-withdrawn", "credentialSubject": {"bsn": "999911234", "consentStatus": false}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{granted, withdrawn},
+			WithInitialBindings(map[string]string{"patient_bsn": "999911234"}), WithSelectionTrace())
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		require.NotNil(t, result.Report)
+		assert.Equal(t, OutcomeMultipleCredentials, result.Report.Outcome)
+		assert.Equal(t, []string{"consent_credential"}, result.Report.AmbiguousDescriptors)
+	})
+
+	t.Run("a bound field that does not resolve is reported as a binding conflict", func(t *testing.T) {
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "A",
+				"constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "foo", "path": ["$.credentialSubject.foo"], "optional": true}
+				]}
+			}]
+		}`)
+		unresolved := parseVC(t, `{"id": "a-unresolved", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"bar": "x"}}`)
+		resolving := parseVC(t, `{"id": "a-resolving", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"foo": "Z"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{unresolved, resolving},
+			WithInitialBindings(map[string]string{"foo": "Z"}), WithSelectionTrace())
+
+		require.NoError(t, err)
+		require.NotNil(t, result.Report)
+		dismissed := result.Report.Descriptors[0].Considered[0]
+		assert.True(t, dismissed.Eligible)
+		require.NotNil(t, dismissed.Dismissal)
+		assert.Equal(t, ReasonBindingConflict, dismissed.Dismissal.Reason)
+		assert.Equal(t, "foo", dismissed.Dismissal.FieldID)
+		assert.Equal(t, "Z", dismissed.Dismissal.Expected)
+		assert.Empty(t, dismissed.Dismissal.Found)
+	})
+
 	t.Run("diverging interchangeable alternatives are flagged", func(t *testing.T) {
 		// Two consents for the same bsn differ in an undeclared field: interchangeable by
 		// contract, but the report flags the divergence for the operator.
