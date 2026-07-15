@@ -74,9 +74,10 @@ const (
 //   - Considered holds one entry per candidate credential, in candidate order. The selected
 //     credential has a nil Dismissal; every other candidate carries the reason it was not used,
 //     with the offending field id, JSONPath, and expected/found values where known.
-//   - AmbiguousDescriptors names the descriptors that carried more than one choice when Outcome
-//     is OutcomeMultipleCredentials. These are the descriptors to disambiguate with
-//     credential_selection keys.
+//   - AmbiguousDescriptors names the descriptors to disambiguate with credential_selection keys
+//     when Outcome is OutcomeMultipleCredentials. The search stops at the first rival assignment
+//     it finds, so the list covers that rival only: a wallet can hold further ambiguities that
+//     surface on a later run, after the named ones are pinned.
 //   - DivergingAlternatives (per descriptor) points at wallet hygiene: interchangeable
 //     credentials whose subjects differ in fields the PD does not declare. Selection is
 //     unaffected by contract, but the wallet holds potentially contradicting claims.
@@ -84,7 +85,11 @@ const (
 // Binding conflicts are explained against the decisive assignment, with the pick at the
 // candidate's own descriptor excluded, so that a candidate that merely lost to an earlier pick
 // reads as ReasonNotSelected, not as a conflict. The report does not narrate every combination
-// the backtracking search visited.
+// the backtracking search visited. On a failed run the decisive assignment is best-effort: each
+// descriptor's first candidate consistent with the initial bindings, chosen independently, so
+// SelectedID and the Expected values in conflict explanations are relative to that assignment
+// and can vary with candidate order; they show one concrete way the selection fails, not an
+// authoritative commitment.
 //
 // The report is a diagnostic surface for developer tooling (a dev endpoint or UI is a planned
 // follow-up); selection outcomes should be branched on Result and the returned error, not on
@@ -94,8 +99,8 @@ type MatchReport struct {
 	Descriptors []DescriptorReport
 	// Outcome classifies the overall result.
 	Outcome Outcome
-	// AmbiguousDescriptors names the descriptors that carried more than one choice
-	// (OutcomeMultipleCredentials only).
+	// AmbiguousDescriptors names the descriptors to disambiguate (OutcomeMultipleCredentials
+	// only). Populated from the first rival assignment found; see the type documentation.
 	AmbiguousDescriptors []string
 }
 
@@ -187,8 +192,10 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 		strictIDs := strictBoundIDs(*descriptor, initialBindings)
 
 		var selectedIDValues map[string]string
+		selectedKey := ""
 		if selected != nil {
-			_, selectedIDValues = evaluateCandidate(pd, *descriptor, *selected)
+			_, selectedIDValues, _ = evaluateCandidate(pd, *descriptor, *selected)
+			selectedKey = tupleKey(selectedIDValues)
 		}
 		selectedSeen := false
 		for _, candidate := range candidates {
@@ -196,18 +203,22 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 			if candidate.ID != nil {
 				candidateReport.CredentialID = candidate.ID.String()
 			}
-			eligible, idValues := evaluateCandidate(pd, *descriptor, candidate)
+			if selected != nil && !selectedSeen && vcEqual(candidate, *selected) {
+				// the chosen credential carries no dismissal; its evaluation is already done
+				selectedSeen = true
+				candidateReport.Eligible = true
+				descriptorReport.Considered = append(descriptorReport.Considered, candidateReport)
+				continue
+			}
+			eligible, idValues, _ := evaluateCandidate(pd, *descriptor, candidate)
 			candidateReport.Eligible = eligible
-			switch {
-			case !eligible:
+			if !eligible {
 				candidateReport.Dismissal = explainIneligible(pd, *descriptor, candidate)
-			case selected != nil && !selectedSeen && vcEqual(candidate, *selected):
-				selectedSeen = true // the chosen credential carries no dismissal
-			default:
+			} else {
 				candidateReport.Dismissal = explainNotChosen(idValues, bindings, strictIDs)
 				// An interchangeable alternative (same binding tuple as the chosen credential)
 				// whose subject nevertheless differs is worth the operator's attention.
-				if selected != nil && tupleKey(idValues) == tupleKey(selectedIDValues) && !subjectsEqual(candidate, *selected) {
+				if selected != nil && tupleKey(idValues) == selectedKey && !subjectsEqual(candidate, *selected) {
 					descriptorReport.DivergingAlternatives = true
 				}
 			}
@@ -224,26 +235,6 @@ func subjectsEqual(a, b vc.VerifiableCredential) bool {
 	aJSON, errA := json.Marshal(a.CredentialSubject)
 	bJSON, errB := json.Marshal(b.CredentialSubject)
 	return errA == nil && errB == nil && bytes.Equal(aJSON, bJSON)
-}
-
-// evaluateCandidate re-runs the step-1 eligibility of one credential for one descriptor.
-func evaluateCandidate(pd PresentationDefinition, descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, map[string]string) {
-	idValues := make(map[string]string)
-	if descriptor.Constraints != nil {
-		isMatch, values, err := matchConstraint(descriptor.Constraints, credential)
-		if err != nil || !isMatch {
-			return false, nil
-		}
-		for id, value := range values {
-			if s, ok := stringifyBindingValue(value); ok {
-				idValues[id] = s
-			}
-		}
-	}
-	if !matchFormat(pd.Format, credential) || !matchFormat(descriptor.Format, credential) {
-		return false, nil
-	}
-	return true, idValues
 }
 
 // explainIneligible pinpoints why a credential failed step 1: the first failing constraint field

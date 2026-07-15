@@ -21,6 +21,7 @@ package pe
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -426,6 +427,9 @@ type descriptorPool struct {
 	// resolve the field to the bound value; unresolved is not acceptable (legacy field-selector
 	// semantics). The unresolved-optional leniency covers only bindings accumulated during the search.
 	strictIDs []string
+	// all holds every group index in ascending order, shared across search-node visits so an
+	// unnarrowed consistency check allocates nothing. Callers must not mutate it.
+	all []int
 }
 
 // strictBoundIDs returns the descriptor's field ids that appear in the caller's initial bindings.
@@ -486,6 +490,10 @@ func buildPool(pd PresentationDefinition, descriptor InputDescriptor, candidates
 			}
 		}
 	}
+	pool.all = make([]int, len(pool.groups))
+	for i := range pool.all {
+		pool.all[i] = i
+	}
 	return pool, nil
 }
 
@@ -493,10 +501,13 @@ func buildPool(pd PresentationDefinition, descriptor InputDescriptor, candidates
 // every shared id. Bound ids outside the pool's universe are irrelevant, except strict ids, which
 // a group must resolve to the bound value. When at least one bound id is in the universe, the scan
 // is narrowed to the smallest posting list (groups carrying the bound value, plus, for non-strict
-// ids, groups not resolving the id at all) before the full per-group check.
+// ids, groups not resolving the id at all) before the full per-group check. This runs on every
+// search-node visit: the narrowest list is chosen by length alone, and only that one is
+// materialized, so an unnarrowed visit allocates nothing.
 func (p descriptorPool) consistentGroups(bindings map[string]string) []int {
-	var narrowed []int
-	haveNarrowed := false
+	narrowID := ""
+	narrowLen := -1
+	narrowStrict := false
 	for _, id := range p.strictIDs {
 		bound, ok := bindings[id]
 		if !ok {
@@ -507,28 +518,34 @@ func (p descriptorPool) consistentGroups(bindings map[string]string) []int {
 		if len(list) == 0 {
 			return nil
 		}
-		if !haveNarrowed || len(list) < len(narrowed) {
-			narrowed, haveNarrowed = list, true
+		if narrowLen < 0 || len(list) < narrowLen {
+			narrowID, narrowLen, narrowStrict = id, len(list), true
 		}
 	}
-	for id, value := range bindings {
-		values, known := p.byValue[id]
-		if !known {
+	// iterate the pool's id universe (bounded by the descriptor's declared ids) rather than the
+	// bindings map, which grows with search depth
+	for id := range p.byValue {
+		value, bound := bindings[id]
+		if !bound {
 			continue
 		}
-		merged := mergeSorted(values[value], p.lacking[id])
-		if !haveNarrowed || len(merged) < len(narrowed) {
-			narrowed, haveNarrowed = merged, true
+		mergedLen := len(p.byValue[id][value]) + len(p.lacking[id])
+		if narrowLen < 0 || mergedLen < narrowLen {
+			narrowID, narrowLen, narrowStrict = id, mergedLen, false
 		}
 	}
-	if !haveNarrowed {
-		all := make([]int, len(p.groups))
-		for i := range all {
-			all[i] = i
-		}
-		return all
+	var narrowed []int
+	switch {
+	case narrowLen < 0:
+		// no bound id touches this pool: every group is consistent (a strict id is always
+		// bound, so strictIDs is empty here) and the shared index is returned as-is
+		return p.all
+	case narrowStrict:
+		narrowed = p.byValue[narrowID][bindings[narrowID]]
+	default:
+		narrowed = mergeSorted(p.byValue[narrowID][bindings[narrowID]], p.lacking[narrowID])
 	}
-	var consistent []int
+	consistent := narrowed[:0:0] // nil-preserving; appended below, never mutates narrowed
 	for _, gi := range narrowed {
 		group := p.groups[gi]
 		if !consistentIDValues(group.idValues, bindings) {
@@ -601,11 +618,10 @@ func tupleKey(idValues map[string]string) string {
 }
 
 // copyBindings clones the initial bindings so the search can mutate its working map freely.
+// Not maps.Clone: that returns nil for a nil input, and the search needs a writable map.
 func copyBindings(bindings map[string]string) map[string]string {
 	copied := make(map[string]string, len(bindings))
-	for key, value := range bindings {
-		copied[key] = value
-	}
+	maps.Copy(copied, bindings)
 	return copied
 }
 
@@ -687,34 +703,48 @@ type eligibleCandidate struct {
 	idValues map[string]string
 }
 
-// eligibleCandidates returns the credentials that satisfy a single input descriptor on its own:
-// its constraints (matchConstraint) and both the PD-level and descriptor-level format gates. The
-// resolved field-id values are recorded (stringified) as the candidate's binding tuple.
+// eligibleCandidates returns the credentials that satisfy a single input descriptor on its own,
+// each paired with its binding tuple.
 func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) ([]eligibleCandidate, error) {
 	var eligible []eligibleCandidate
 	for _, candidate := range candidates {
-		idValues := make(map[string]string)
-		if descriptor.Constraints != nil {
-			isMatch, values, err := matchConstraint(descriptor.Constraints, candidate)
-			if err != nil {
-				return nil, err
-			}
-			if !isMatch {
-				continue
-			}
-			for id, value := range values {
-				if s, ok := stringifyBindingValue(value); ok {
-					idValues[id] = s
-				}
-			}
+		ok, idValues, err := evaluateCandidate(pd, descriptor, candidate)
+		if err != nil {
+			return nil, err
 		}
-		// InputDescriptor formats must be a subset of the PresentationDefinition formats, so satisfy both.
-		if !matchFormat(pd.Format, candidate) || !matchFormat(descriptor.Format, candidate) {
-			continue
+		if ok {
+			eligible = append(eligible, eligibleCandidate{vc: candidate, idValues: idValues})
 		}
-		eligible = append(eligible, eligibleCandidate{vc: candidate, idValues: idValues})
 	}
 	return eligible, nil
+}
+
+// evaluateCandidate is the step-1 eligibility primitive for one credential and one descriptor:
+// the descriptor's constraints (matchConstraint) and both the PD-level and descriptor-level
+// format gates. The resolved field-id values are returned (stringified) as the candidate's
+// binding tuple. Both the selection and the MatchReport use this single primitive, so a traced
+// report cannot drift from what the selection actually did.
+func evaluateCandidate(pd PresentationDefinition, descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, map[string]string, error) {
+	idValues := make(map[string]string)
+	if descriptor.Constraints != nil {
+		isMatch, values, err := matchConstraint(descriptor.Constraints, credential)
+		if err != nil {
+			return false, nil, err
+		}
+		if !isMatch {
+			return false, nil, nil
+		}
+		for id, value := range values {
+			if s, ok := stringifyBindingValue(value); ok {
+				idValues[id] = s
+			}
+		}
+	}
+	// InputDescriptor formats must be a subset of the PresentationDefinition formats, so satisfy both.
+	if !matchFormat(pd.Format, credential) || !matchFormat(descriptor.Format, credential) {
+		return false, nil, nil
+	}
+	return true, idValues, nil
 }
 
 // stringifyBindingValue renders a resolved field value as the string used for binding comparison:
