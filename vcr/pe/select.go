@@ -97,6 +97,33 @@ type Result struct {
 // returns the chosen descriptor-to-VC assignment. It is the single matching engine: it
 // matches each descriptor on its own (step 1), searches for a binding-consistent combination
 // across descriptors (step 2), and applies the submission requirement rules (step 3).
+//
+// The search follows these rules:
+//
+//   - Binding consistency: a field id is a binding name. Wherever the same id appears, across
+//     descriptors or in the caller's initial bindings, the resolved values must agree in the
+//     chosen assignment.
+//   - Prefer fill over skip: an optional descriptor is left unfilled only after all its
+//     consistent candidates are exhausted; a required descriptor with no consistent candidate
+//     makes the search revise an earlier choice.
+//   - Interchangeability: credentials that resolve identical values for every declared field id
+//     are interchangeable, and the first in candidate order is used. Fields the PD does not
+//     declare play no role: the PD is the data contract (only declared fields are mapped to
+//     token introspection), and a filter admitting several values, such as an issuer pattern,
+//     is a deliberate equivalence declaration by the PD author. Interchangeable credentials
+//     whose subjects nevertheless differ are flagged in the MatchReport.
+//   - Caller-bound multiplicity: a descriptor with a field id in the initial bindings must
+//     resolve to exactly one interchangeable set; more than one is ErrMultipleCredentials, and
+//     the remedy is always a bindable key. The bound field must resolve on the chosen
+//     credential; an unresolved optional field does not satisfy a bound id.
+//   - Unresolved optional fields bind nothing: between descriptors, a field that resolves no
+//     value contributes no binding entry.
+//   - Ambiguity (Strict only): when a rival assignment exists that fills a common descriptor
+//     with a different binding tuple, the selection errors instead of silently picking one.
+//
+// These rules originate as the numbered policies of the design in
+// https://github.com/nuts-foundation/nuts-node/issues/4253. Candidates are expected to be
+// time-valid; the wallet filters expired and revoked credentials before calling the engine.
 func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opts ...Option) (result Result, err error) {
 	var options selectOptions
 	for _, opt := range opts {
@@ -393,7 +420,7 @@ type descriptorPool struct {
 	lacking map[string][]int
 	// strictIDs are the descriptor's field ids bound by the caller. For these ids a group must
 	// resolve the field to the bound value; unresolved is not acceptable (legacy field-selector
-	// semantics). Policy 6 leniency covers only bindings accumulated during the search.
+	// semantics). The unresolved-optional leniency covers only bindings accumulated during the search.
 	strictIDs []string
 }
 

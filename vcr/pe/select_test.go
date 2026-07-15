@@ -446,7 +446,7 @@ func TestSelect_InitialBindings(t *testing.T) {
 	})
 
 	t.Run("unresolved optional field does not bind between descriptors", func(t *testing.T) {
-		// Policy 6: descriptor A's optional foo does not resolve on its candidate, so it must
+		// Unresolved-optional rule: descriptor A's optional foo does not resolve on its candidate, so it must
 		// not manufacture a binding that conflicts with descriptor B's resolved foo=Z.
 		pd := parsePD(t, `{
 			"id": "test-pd",
@@ -477,7 +477,7 @@ func TestSelect_InitialBindings(t *testing.T) {
 	t.Run("caller-bound field must resolve: all candidates unresolved is ErrNoCredentials", func(t *testing.T) {
 		// Initial bindings are strict (legacy field-selector semantics): a caller who pins foo
 		// never receives a credential without a resolvable foo. Two such candidates must not
-		// drift into ErrMultipleCredentials via the P6 unresolved-is-consistent leniency.
+		// drift into ErrMultipleCredentials via the unresolved-is-consistent leniency.
 		pd := parsePD(t, `{
 			"id": "test-pd",
 			"input_descriptors": [{
@@ -541,7 +541,7 @@ func TestSelect_InitialBindings(t *testing.T) {
 
 func TestSelect_SameIDBinding(t *testing.T) {
 	t.Run("same id across descriptors must agree, backtracking into a consistent pair", func(t *testing.T) {
-		// Policy 3 worked example: HCP-A (ura=1) is tried first, conflicts with the only
+		// Same-id agreement worked example (design #4253): HCP-A (ura=1) is tried first, conflicts with the only
 		// delegation (ura=2), so the search backtracks and lands on (HCP-B, Delegation-X).
 		pd := parsePD(t, `{
 			"id": "test-pd",
@@ -571,7 +571,7 @@ func TestSelect_SameIDBinding(t *testing.T) {
 	})
 
 	t.Run("optional descriptor is skipped only after exhausting alternatives elsewhere", func(t *testing.T) {
-		// Policy 4 worked example: A1's binding admits B1 but kills C1; A2's binding kills B1
+		// Prefer-fill-over-skip worked example (design #4253): A1's binding admits B1 but kills C1; A2's binding kills B1
 		// but admits C1. Skipping optional B under A1 does not save C, so the search must
 		// revise A. Expected: A=A2, B=nil, C=C1.
 		pd := parsePD(t, `{
@@ -719,7 +719,7 @@ func TestSelect_Bindings(t *testing.T) {
 	})
 
 	t.Run("two-VP composition chains bindings through a field-id filter", func(t *testing.T) {
-		// Policy 2 as straight Go at the call site: build the org VP, filter its bindings down
+		// Cross-VP capture as straight Go at the call site: build the org VP, filter its bindings down
 		// to the SP PD's field ids, seed the SP build with the survivors.
 		orgPD := parsePD(t, `{
 			"id": "org-pd",
@@ -760,7 +760,7 @@ func TestSelect_Bindings(t *testing.T) {
 }
 
 func TestSelect_Strategy(t *testing.T) {
-	// Policy 5 worked example: two genuinely different ways to satisfy the PD.
+	// Ambiguity worked example (design #4253): two genuinely different ways to satisfy the PD.
 	ambiguousPD := `{
 		"id": "test-pd",
 		"input_descriptors": [
@@ -951,7 +951,7 @@ func TestSelect_Trace(t *testing.T) {
 	})
 
 	t.Run("binding conflict on the decisive path is reported", func(t *testing.T) {
-		// P3 worked example under trace: HCP-A is eligible but disagrees with the decisive
+		// Same-id agreement example under trace: HCP-A is eligible but disagrees with the decisive
 		// assignment's org_ura=2.
 		pd := parsePD(t, `{
 			"id": "test-pd",
@@ -1095,7 +1095,7 @@ func TestSelect_NodeLimit(t *testing.T) {
 	})
 
 	t.Run("a realistic search stays far below the default limit", func(t *testing.T) {
-		// sanity check: the P3 worked example never comes close to the cap
+		// sanity check: an ordinary single-descriptor match never comes close to the cap
 		pd := parsePD(t, `{
 			"id": "test-pd",
 			"input_descriptors": [{
