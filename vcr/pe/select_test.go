@@ -518,6 +518,43 @@ func TestSelect_InitialBindings(t *testing.T) {
 		assert.Equal(t, "a-resolving", result.Candidates[0].VC.ID.String())
 	})
 
+	t.Run("caller-bound multiplicity errors even on an optional descriptor", func(t *testing.T) {
+		// Optionality governs zero-vs-some, not one-vs-many: skipping an optional descriptor
+		// because the caller's explicit selection turned out ambiguous would silently discard
+		// an instruction. The error names the descriptor; the remedy is a second key (status).
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "GA"},
+				{"rule": "pick", "from": "GB", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "A", "group": ["GA"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "a_id", "path": ["$.credentialSubject.aId"]}
+				]}},
+				{"id": "B", "group": ["GB"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]},
+					{"id": "status", "path": ["$.credentialSubject.status"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"aId": "a"}}`)
+		b1 := parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"bsn": "999911234", "status": "active"}}`)
+		b2 := parseVC(t, `{"id": "b2", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"bsn": "999911234", "status": "inactive"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{a1, b1, b2},
+			WithInitialBindings(map[string]string{"patient_bsn": "999911234"}))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		assert.ErrorContains(t, err, "B")
+		// full-length candidates: the pinned-but-ambiguous descriptor is unfilled, A is best-effort
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[0].VC)
+		assert.Nil(t, result.Candidates[1].VC)
+	})
+
 	t.Run("unknown binding key is silently dropped", func(t *testing.T) {
 		pd := parsePD(t, `{
 			"id": "test-pd",
@@ -840,6 +877,68 @@ func TestSelect_Strategy(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result.Candidates[0].VC)
 		assert.Equal(t, "a-first", result.Candidates[0].VC.ID.String())
+	})
+
+	t.Run("Strict flags a rival on an optional descriptor", func(t *testing.T) {
+		// Optionality does not exempt a descriptor from ambiguity: two materially different
+		// credentials can fill it, so the selection is ambiguous even though skipping it would
+		// also have been acceptable.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "GA"},
+				{"rule": "pick", "from": "GB", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "A", "group": ["GA"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "a_id", "path": ["$.credentialSubject.aId"]}
+				]}},
+				{"id": "B", "group": ["GB"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "status", "path": ["$.credentialSubject.status"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"aId": "a"}}`)
+		b1 := parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"status": "active"}}`)
+		b2 := parseVC(t, `{"id": "b2", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"status": "inactive"}}`)
+
+		_, err := Select(pd, []vc.VerifiableCredential{a1, b1, b2}, WithStrategy(Strict))
+
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		assert.ErrorContains(t, err, "B")
+	})
+
+	t.Run("Strict stays silent on fill-versus-skip for an optional descriptor", func(t *testing.T) {
+		// With a single candidate for the optional descriptor, the skip branch also produces a
+		// complete assignment, but fill is deterministically preferred and never rivals skip.
+		pd := parsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "GA"},
+				{"rule": "pick", "from": "GB", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "A", "group": ["GA"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "ACredential"}},
+					{"id": "a_id", "path": ["$.credentialSubject.aId"]}
+				]}},
+				{"id": "B", "group": ["GB"], "constraints": {"fields": [
+					{"path": ["$.type"], "filter": {"type": "string", "const": "BCredential"}},
+					{"id": "status", "path": ["$.credentialSubject.status"]}
+				]}}
+			]
+		}`)
+		a1 := parseVC(t, `{"id": "a1", "type": ["VerifiableCredential", "ACredential"], "credentialSubject": {"aId": "a"}}`)
+		b1 := parseVC(t, `{"id": "b1", "type": ["VerifiableCredential", "BCredential"], "credentialSubject": {"status": "active"}}`)
+
+		result, err := Select(pd, []vc.VerifiableCredential{a1, b1}, WithStrategy(Strict))
+
+		require.NoError(t, err)
+		require.Len(t, result.Candidates, 2)
+		require.NotNil(t, result.Candidates[1].VC)
+		assert.Equal(t, "b1", result.Candidates[1].VC.ID.String())
 	})
 
 	t.Run("Strict does not flag an either-or pick-1 group", func(t *testing.T) {
