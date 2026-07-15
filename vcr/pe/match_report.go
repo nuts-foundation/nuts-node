@@ -81,10 +81,10 @@ const (
 //     credentials whose subjects differ in fields the PD does not declare. Selection is
 //     unaffected by contract, but the wallet holds potentially contradicting claims.
 //
-// Binding conflicts are explained against the decisive path: the chosen assignment (or the
-// best-effort assignment on failure), with the candidate's own descriptor excluded so that a
-// candidate that merely lost to an earlier pick reads as ReasonNotSelected, not as a conflict.
-// The report does not narrate every combination the backtracking search visited.
+// Binding conflicts are explained against the decisive assignment, with the pick at the
+// candidate's own descriptor excluded, so that a candidate that merely lost to an earlier pick
+// reads as ReasonNotSelected, not as a conflict. The report does not narrate every combination
+// the backtracking search visited.
 //
 // The report is a diagnostic surface for developer tooling (a dev endpoint or UI is a planned
 // follow-up); selection outcomes should be branched on Result and the returned error, not on

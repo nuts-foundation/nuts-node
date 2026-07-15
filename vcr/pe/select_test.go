@@ -858,7 +858,7 @@ func TestSelect_Strategy(t *testing.T) {
 	})
 
 	t.Run("Strict does not flag interchangeable credentials", func(t *testing.T) {
-		// A reissued duplicate: identical id-bearing values, one binding tuple, one rival.
+		// A reissued duplicate: identical binding tuples, so a single interchangeable choice.
 		pd := parsePD(t, `{
 			"id": "test-pd",
 			"input_descriptors": [{

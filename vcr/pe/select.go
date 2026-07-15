@@ -36,8 +36,8 @@ const (
 	// FirstMatch takes the first consistent assignment (the lenient, backward-compatible default).
 	FirstMatch SelectionStrategy = iota
 	// Strict returns ErrMultipleCredentials when a rival assignment exists: one that fills a
-	// common descriptor with different id-bearing values. Interchangeable credentials (identical
-	// binding tuples) are never rivals, since no credential_selection key could separate them.
+	// common descriptor with a different binding tuple. Interchangeable credentials are never
+	// rivals, since no credential_selection key could separate them.
 	Strict
 )
 
@@ -87,7 +87,9 @@ type Result struct {
 	// A nil VC means the descriptor was left unfilled (optional and skipped, dropped by a rule,
 	// or unfillable).
 	Candidates []Candidate
-	// Bindings holds the resolved field-id to value pairs of the chosen assignment.
+	// Bindings holds the id-to-value pairs resolved by the surviving credentials of the
+	// decisive assignment, for chaining into a next Select (the two-VP composition) or for
+	// reporting. Nil when Select returns an error.
 	Bindings map[string]string
 	// Report explains the selection per descriptor; non-nil only under WithSelectionTrace.
 	Report *MatchReport
@@ -95,35 +97,30 @@ type Result struct {
 
 // Select resolves a presentation definition against a set of candidate credentials and
 // returns the chosen descriptor-to-VC assignment. It is the single matching engine: it
-// matches each descriptor on its own (step 1), searches for a binding-consistent combination
-// across descriptors (step 2), and applies the submission requirement rules (step 3).
+// determines each descriptor's eligible credentials (step 1), searches for an assignment with
+// consistent bindings (step 2), and applies the submission requirement rules (step 3).
 //
-// The search follows these rules:
+// The vocabulary (binding, caller-bound, interchangeable, decisive assignment) is defined in
+// the package documentation. The search follows these rules:
 //
-//   - Binding consistency: a field id is a binding name. Wherever the same id appears, across
-//     descriptors or in the caller's initial bindings, the resolved values must agree in the
-//     chosen assignment.
+//   - Binding consistency: equal field ids resolve to equal values in the chosen assignment,
+//     across descriptors and against the initial bindings.
 //   - Prefer fill over skip: an optional descriptor is left unfilled only after all its
 //     consistent candidates are exhausted; a required descriptor with no consistent candidate
 //     makes the search revise an earlier choice.
-//   - Interchangeability: credentials that resolve identical values for every declared field id
-//     are interchangeable, and the first in candidate order is used. Fields the PD does not
-//     declare play no role: the PD is the data contract (only declared fields are mapped to
-//     token introspection), and a filter admitting several values, such as an issuer pattern,
-//     is a deliberate equivalence declaration by the PD author. Interchangeable credentials
-//     whose subjects nevertheless differ are flagged in the MatchReport.
-//   - Caller-bound multiplicity: a descriptor with a field id in the initial bindings must
-//     resolve to exactly one interchangeable set; more than one is ErrMultipleCredentials, and
-//     the remedy is always a bindable key. The bound field must resolve on the chosen
-//     credential; an unresolved optional field does not satisfy a bound id.
+//   - Interchangeability: credentials with identical binding tuples are a single choice; the
+//     first in candidate order is used. Fields the PD does not declare play no role.
+//   - Caller-bound multiplicity: a caller-bound descriptor must resolve to exactly one
+//     interchangeable set; more than one is ErrMultipleCredentials, and the remedy is always a
+//     bindable key. The bound field must actually resolve; an unresolved optional field does
+//     not satisfy a bound id.
 //   - Unresolved optional fields bind nothing: between descriptors, a field that resolves no
 //     value contributes no binding entry.
-//   - Ambiguity (Strict only): when a rival assignment exists that fills a common descriptor
-//     with a different binding tuple, the selection errors instead of silently picking one.
+//   - Ambiguity (Strict only): a rival assignment, one that fills a common descriptor with a
+//     different binding tuple, is ErrMultipleCredentials instead of a silent pick.
 //
-// These rules originate as the numbered policies of the design in
-// https://github.com/nuts-foundation/nuts-node/issues/4253. Candidates are expected to be
-// time-valid; the wallet filters expired and revoked credentials before calling the engine.
+// Candidates are expected to be time-valid; the wallet filters expired and revoked credentials
+// before calling the engine.
 func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opts ...Option) (result Result, err error) {
 	var options selectOptions
 	for _, opt := range opts {
@@ -401,7 +398,7 @@ func callerBoundError(pool descriptorPool, initialBindings map[string]string) er
 }
 
 // candidateGroup is a set of credentials that are interchangeable for one descriptor: they passed
-// its constraints and resolve identical values for every id-bearing field. The search branches per
+// its constraints with identical binding tuples (they are interchangeable). The search branches per
 // group, not per credential; creds[0] represents the group in the final assignment.
 type candidateGroup struct {
 	idValues map[string]string
@@ -685,7 +682,7 @@ type eligibleCandidate struct {
 
 // eligibleCandidates returns the credentials that satisfy a single input descriptor on its own:
 // its constraints (matchConstraint) and both the PD-level and descriptor-level format gates. The
-// matched id-bearing field values are recorded (stringified) for later consistency checks.
+// resolved field-id values are recorded (stringified) as the candidate's binding tuple.
 func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) ([]eligibleCandidate, error) {
 	var eligible []eligibleCandidate
 	for _, candidate := range candidates {
