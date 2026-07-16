@@ -329,3 +329,103 @@ func TestValidate_SameIDConsistency(t *testing.T) {
 		assert.NoError(t, Validate(mustParsePD(t, `{"id": "empty", "input_descriptors": []}`)))
 	})
 }
+
+// singleFilterPD builds a PD with one descriptor carrying one field with the given filter JSON.
+func singleFilterPD(t *testing.T, filter string) PresentationDefinition {
+	t.Helper()
+	return mustParsePD(t, `{
+		"id": "test-pd",
+		"input_descriptors": [{
+			"id": "d1",
+			"constraints": {"fields": [{"id": "x", "path": ["$.credentialSubject.x"], "filter": `+filter+`}]}
+		}]
+	}`)
+}
+
+func TestValidate_FilterSanity(t *testing.T) {
+	t.Run("const on a non-string type can never match", func(t *testing.T) {
+		// matchFilter compares const as a string; a boolean value never equals it
+		err := Validate(singleFilterPD(t, `{"type": "boolean", "const": "true"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+		assert.ErrorContains(t, err, "true")
+	})
+
+	t.Run("empty enum can never match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "enum": []}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("const failing its own pattern can never match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "const": "abc", "pattern": "^\\d+$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("non-compiling pattern is reported", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "pattern": "["}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictInvalidPattern}, kinds["x"])
+	})
+
+	t.Run("pattern with more than one capture group errors on every match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "pattern": "^(\\d+)-(\\d+)$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictInvalidPattern}, kinds["x"])
+	})
+
+	t.Run("pattern on a non-string type is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "pattern": "^\\d+$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("const alongside enum is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "enum": ["A", "B"], "const": "Z"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("non-string type alongside enum is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "enum": ["1", "2"]}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("unsupported JSON Schema keywords are reported instead of silently dropped", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "minimum": 18}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+		assert.ErrorContains(t, err, "minimum")
+	})
+
+	t.Run("a dead filter on a field without an id is reported under the descriptor id", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "d1",
+				"constraints": {"fields": [{"path": ["$.credentialSubject.x"], "filter": {"type": "boolean", "const": "true"}}]}
+			}]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["d1"])
+	})
+
+	t.Run("allowed: well-formed filters", func(t *testing.T) {
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "const": "A", "pattern": "^[A-Z]$"}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "enum": ["A", "B"]}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "pattern": "^(\\d+)$"}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "number"}`)))
+	})
+}

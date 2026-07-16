@@ -78,6 +78,7 @@ func (e *PDValidationError) Error() string {
 func Validate(pd PresentationDefinition) error {
 	var conflicts []FieldIDConflict
 	conflicts = append(conflicts, duplicateConflicts(pd)...)
+	conflicts = append(conflicts, filterSanityConflicts(pd)...)
 	conflicts = append(conflicts, sameIDConflicts(pd)...)
 	if len(conflicts) == 0 {
 		return nil
@@ -130,6 +131,113 @@ func duplicateConflicts(pd PresentationDefinition) []FieldIDConflict {
 				})
 			}
 			fieldSeen[*field.Id] = true
+		}
+	}
+	return conflicts
+}
+
+// filterSanityConflicts checks every filter on its own, following the matcher's actual semantics
+// (see matchFilter): filters that can never match anything, patterns that error, and declared
+// constraints the matcher silently ignores (leaving the filter weaker than its author intended).
+// A conflict is reported under the field id, or under the descriptor id for id-less fields.
+func filterSanityConflicts(pd PresentationDefinition) []FieldIDConflict {
+	var conflicts []FieldIDConflict
+	for _, descriptor := range pd.InputDescriptors {
+		if descriptor.Constraints == nil {
+			continue
+		}
+		for _, field := range descriptor.Constraints.Fields {
+			if field.Filter == nil {
+				continue
+			}
+			subject := descriptor.Id
+			if field.Id != nil {
+				subject = *field.Id
+			}
+			for _, conflict := range singleFilterConflicts(*field.Filter) {
+				conflict.FieldID = subject
+				conflicts = append(conflicts, conflict)
+			}
+		}
+	}
+	return conflicts
+}
+
+// singleFilterConflicts derives the problems of one filter; FieldID is filled in by the caller.
+func singleFilterConflicts(filter Filter) []FieldIDConflict {
+	var conflicts []FieldIDConflict
+	if len(filter.unsupported) > 0 {
+		conflicts = append(conflicts, FieldIDConflict{
+			Kind:   ConflictIgnoredConstraint,
+			Detail: fmt.Sprintf("unsupported filter keywords [%s] are not evaluated: the filter is weaker than declared", strings.Join(filter.unsupported, ", ")),
+		})
+	}
+
+	if filter.Enum != nil {
+		// enum shadows type, const and pattern (matchFilter returns from the enum branch)
+		if len(filter.Enum) == 0 {
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictUnsatisfiable,
+				Detail: "enum is empty: the filter can never match",
+			})
+		}
+		if filter.Const != nil {
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictIgnoredConstraint,
+				Detail: fmt.Sprintf("const %q is ignored because enum is set", *filter.Const),
+			})
+		}
+		if filter.Pattern != nil {
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictIgnoredConstraint,
+				Detail: "pattern is ignored because enum is set",
+			})
+		}
+		if filter.Type != "" && filter.Type != "string" {
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictIgnoredConstraint,
+				Detail: fmt.Sprintf("type %q is ignored because enum forces string matching", filter.Type),
+			})
+		}
+		return conflicts
+	}
+
+	if filter.Const != nil && filter.Type != "string" {
+		// the const compares as a string, but the type gate never lets a string value through
+		conflicts = append(conflicts, FieldIDConflict{
+			Kind:   ConflictUnsatisfiable,
+			Detail: fmt.Sprintf("const %q can never match: it requires type \"string\", declared type is %q", *filter.Const, filter.Type),
+		})
+	}
+
+	if filter.Pattern != nil {
+		pattern, err := regexp2.Compile(*filter.Pattern, regexp2.ECMAScript)
+		switch {
+		case err != nil:
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictInvalidPattern,
+				Detail: fmt.Sprintf("pattern %q does not compile: %s", *filter.Pattern, err),
+			})
+		case len(pattern.GetGroupNumbers()) > 2:
+			// matchFilter returns an error whenever a pattern with more than one capture
+			// group matches a value
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictInvalidPattern,
+				Detail: fmt.Sprintf("pattern %q has more than one capture group: every match errors", *filter.Pattern),
+			})
+		case filter.Type != "string":
+			// the matcher applies patterns to string-typed filters only
+			conflicts = append(conflicts, FieldIDConflict{
+				Kind:   ConflictIgnoredConstraint,
+				Detail: fmt.Sprintf("pattern is ignored because the declared type is %q: patterns apply to strings only", filter.Type),
+			})
+		case filter.Const != nil:
+			if match, _ := pattern.FindStringMatch(*filter.Const); match == nil {
+				conflicts = append(conflicts, FieldIDConflict{
+					Kind:   ConflictUnsatisfiable,
+					Detail: fmt.Sprintf("const %q does not match the field's own pattern %q", *filter.Const, *filter.Pattern),
+				})
+			}
 		}
 	}
 	return conflicts
