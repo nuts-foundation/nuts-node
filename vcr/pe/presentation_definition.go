@@ -398,27 +398,55 @@ func matchCredential(descriptor InputDescriptor, credential vc.VerifiableCredent
 // LimitDisclosure is not supported for now.
 // If the constraint matches, it returns true and a map containing constraint field IDs and matched values.
 func matchConstraint(constraint *Constraints, credential vc.VerifiableCredential) (bool, map[string]interface{}, error) {
-	credentialAsMap, err := credentialAsMap(credential)
+	credentialJSON, err := credentialAsMap(credential)
 	if err != nil {
 		return false, nil, err
 	}
-
-	// for each field in constraint.fields:
-	//   a vc must match the field
+	isMatch, fields, err := matchConstraintOnMap(constraint, credentialJSON)
+	if err != nil || !isMatch {
+		return false, nil, err
+	}
 	values := make(map[string]interface{})
-	for _, field := range constraint.Fields {
-		match, value, err := matchField(field, credentialAsMap)
-		if err != nil {
-			return false, nil, err
-		}
-		if !match {
-			return false, nil, nil
-		}
+	for i, field := range constraint.Fields {
 		if field.Id != nil {
-			values[*field.Id] = value
+			values[*field.Id] = fields[i].value
 		}
 	}
 	return true, values, nil
+}
+
+// matchConstraintOnMap matches the constraint against a credential already converted to its JSON
+// object form (credentialAsMap), returning the per-field outcomes. All fields need to match; the
+// evaluation stops at the first field that does not, so on a mismatch the last element of the
+// returned slice is the failing field's outcome. Conversion is the caller's job, so that one
+// conversion can serve many constraint evaluations: the selection engine evaluates every input
+// descriptor against every candidate credential.
+func matchConstraintOnMap(constraint *Constraints, credentialJSON map[string]interface{}) (bool, []fieldResult, error) {
+	results := make([]fieldResult, 0, len(constraint.Fields))
+	for _, field := range constraint.Fields {
+		result, err := matchField(field, credentialJSON)
+		if err != nil {
+			return false, nil, err
+		}
+		results = append(results, result)
+		if !result.match {
+			return false, results, nil
+		}
+	}
+	return true, results, nil
+}
+
+// fieldResult is the outcome of evaluating one constraint field against a credential. It carries
+// enough detail for diagnostics, so no second evaluation pass is needed to explain a mismatch.
+type fieldResult struct {
+	// match is whether the field accepts the credential.
+	match bool
+	// value is the resolved value; nil for an unresolved optional field.
+	value interface{}
+	// rejectedPath and rejectedValue describe the first path where a value was found but the
+	// filter rejected it. rejectedValue is nil when no path produced a value at all.
+	rejectedPath  string
+	rejectedValue interface{}
 }
 
 // credentialAsMap converts a VC to a plain JSON object, the form the JSONPath evaluation works on.
@@ -439,44 +467,49 @@ func credentialAsMap(credential vc.VerifiableCredential) (map[string]interface{}
 	}
 }
 
-// matchField matches the field against the VC.
-// If the field matches, it returns true and the matched value. The matched value can be nil if the field is optional.
+// matchField matches the field against the VC (in its JSON object form).
+// The matched value can be nil if the field is optional.
 // All fields need to match unless optional is set to true and no values are found for all the paths.
-func matchField(field Field, credential map[string]interface{}) (bool, interface{}, error) {
+func matchField(field Field, credential map[string]interface{}) (fieldResult, error) {
 	// for each path in field.paths:
 	//   a vc must match one of the path
+	var result fieldResult
 	var optionalInvalid int
 	for _, path := range field.Path {
 		// if path is not found continue
 		value, err := getValueAtPath(path, credential)
 		if err != nil {
-			return false, nil, fmt.Errorf("path %q: %w", path, err)
+			return fieldResult{}, fmt.Errorf("path %q: %w", path, err)
 		}
 		if value == nil {
 			continue
 		}
 
 		if field.Filter == nil {
-			return true, value, nil
+			return fieldResult{match: true, value: value}, nil
 		}
 
 		// if filter at path matches return true
 		match, matchedValue, err := matchFilter(*field.Filter, value)
 		if err != nil {
-			return false, nil, fmt.Errorf("path %q: %w", path, err)
+			return fieldResult{}, fmt.Errorf("path %q: %w", path, err)
 		}
 		if match {
-			return true, matchedValue, nil
+			return fieldResult{match: true, value: matchedValue}, nil
 		}
-		// if filter at path does not match continue and set optionalInvalid
+		// if filter at path does not match continue and set optionalInvalid;
+		// remember the first rejection for diagnostics
+		if optionalInvalid == 0 {
+			result.rejectedPath, result.rejectedValue = path, value
+		}
 		optionalInvalid++
 	}
 	// no matches, check optional. Optional is only valid if all paths returned no results
 	// not if a filter did not match
 	if field.Optional != nil && *field.Optional && optionalInvalid == 0 {
-		return true, nil, nil
+		return fieldResult{match: true}, nil
 	}
-	return false, nil, nil
+	return result, nil
 }
 
 // getValueAtPath uses the JSON path expression to get the value from the VC

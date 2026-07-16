@@ -147,10 +147,11 @@ type Dismissal struct {
 }
 
 // buildReport assembles the MatchReport after a Select run. It re-evaluates step 1 per descriptor
-// and candidate to recover the dismissal reasons, so a non-traced run pays nothing. Binding
-// conflicts are explained against the decisive assignment (the chosen one, or the best-effort
-// diagnostic assignment on failure), not against every backtracking visit.
-func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential, required []bool,
+// and candidate (on the pre-converted credentials, so no repeated JSON conversion) to recover
+// the dismissal reasons, so a non-traced run pays nothing. Binding conflicts are explained
+// against the decisive assignment (the chosen one, or the best-effort diagnostic assignment on
+// failure), not against every backtracking visit.
+func buildReport(pd PresentationDefinition, candidates []evaluatedCredential, required []bool,
 	assignment []*candidateGroup, ambiguous []string, result Result, err error, initialBindings map[string]string) *MatchReport {
 	report := &MatchReport{
 		Outcome:              OutcomeMatched,
@@ -194,31 +195,36 @@ func buildReport(pd PresentationDefinition, candidates []vc.VerifiableCredential
 		var selectedIDValues map[string]string
 		selectedKey := ""
 		if selected != nil {
-			_, selectedIDValues, _ = evaluateCandidate(pd, *descriptor, *selected)
+			for _, candidate := range candidates {
+				if vcEqual(candidate.vc, *selected) {
+					_, selectedIDValues, _ = evaluateCandidate(*descriptor, candidate)
+					break
+				}
+			}
 			selectedKey = tupleKey(selectedIDValues)
 		}
 		selectedSeen := false
 		for _, candidate := range candidates {
 			candidateReport := CandidateReport{}
-			if candidate.ID != nil {
-				candidateReport.CredentialID = candidate.ID.String()
+			if candidate.vc.ID != nil {
+				candidateReport.CredentialID = candidate.vc.ID.String()
 			}
-			if selected != nil && !selectedSeen && vcEqual(candidate, *selected) {
+			if selected != nil && !selectedSeen && vcEqual(candidate.vc, *selected) {
 				// the chosen credential carries no dismissal; its evaluation is already done
 				selectedSeen = true
 				candidateReport.Eligible = true
 				descriptorReport.Considered = append(descriptorReport.Considered, candidateReport)
 				continue
 			}
-			eligible, idValues, _ := evaluateCandidate(pd, *descriptor, candidate)
+			eligible, idValues, evalErr := evaluateCandidate(*descriptor, candidate)
 			candidateReport.Eligible = eligible
 			if !eligible {
-				candidateReport.Dismissal = explainIneligible(pd, *descriptor, candidate)
+				candidateReport.Dismissal = explainIneligible(*descriptor, candidate, evalErr)
 			} else {
 				candidateReport.Dismissal = explainNotChosen(idValues, bindings, strictIDs)
 				// An interchangeable alternative (same binding tuple as the chosen credential)
 				// whose subject nevertheless differs is worth the operator's attention.
-				if selected != nil && tupleKey(idValues) == selectedKey && !subjectsEqual(candidate, *selected) {
+				if selected != nil && tupleKey(idValues) == selectedKey && !subjectsEqual(candidate.vc, *selected) {
 					descriptorReport.DivergingAlternatives = true
 				}
 			}
@@ -237,41 +243,41 @@ func subjectsEqual(a, b vc.VerifiableCredential) bool {
 	return errA == nil && errB == nil && bytes.Equal(aJSON, bJSON)
 }
 
-// explainIneligible pinpoints why a credential failed step 1: the first failing constraint field
-// (filter rejection or missing value), or the format gate.
-func explainIneligible(pd PresentationDefinition, descriptor InputDescriptor, credential vc.VerifiableCredential) *Dismissal {
+// explainIneligible derives the dismissal for a credential that failed step 1 from the same
+// primitive the selection uses: the failing field's outcome (matchConstraintOnMap), or the
+// format gate.
+func explainIneligible(descriptor InputDescriptor, candidate evaluatedCredential, evalErr error) *Dismissal {
+	if evalErr != nil {
+		return &Dismissal{Reason: ReasonNoValue, Message: evalErr.Error()}
+	}
 	if descriptor.Constraints != nil {
-		credentialJSON, err := credentialAsMap(credential)
+		isMatch, fields, err := matchConstraintOnMap(descriptor.Constraints, candidate.json)
 		if err != nil {
 			return &Dismissal{Reason: ReasonNoValue, Message: err.Error()}
 		}
-		for _, field := range descriptor.Constraints.Fields {
-			if match, _, err := matchField(field, credentialJSON); err == nil && match {
-				continue
-			}
-			return explainFieldMismatch(field, credentialJSON)
+		if !isMatch {
+			// on a mismatch the last outcome is the failing field's
+			failed := len(fields) - 1
+			return renderFieldDismissal(descriptor.Constraints.Fields[failed], fields[failed])
 		}
 	}
-	dismissal := &Dismissal{Reason: ReasonFormat}
-	dismissal.Message = fmt.Sprintf("credential format does not satisfy the format requirements of the presentation definition or input descriptor '%s'", descriptor.Id)
-	return dismissal
+	return &Dismissal{
+		Reason:  ReasonFormat,
+		Message: fmt.Sprintf("credential format does not satisfy the format requirements of the presentation definition or input descriptor '%s'", descriptor.Id),
+	}
 }
 
-// explainFieldMismatch distinguishes "a value was found but the filter rejected it" from "no path
-// produced a value".
-func explainFieldMismatch(field Field, credentialJSON map[string]interface{}) *Dismissal {
+// renderFieldDismissal renders a failing field outcome: a value was found but the filter rejected
+// it, or no path produced a value.
+func renderFieldDismissal(field Field, outcome fieldResult) *Dismissal {
 	dismissal := &Dismissal{}
 	if field.Id != nil {
 		dismissal.FieldID = *field.Id
 	}
-	for _, path := range field.Path {
-		value, err := getValueAtPath(path, credentialJSON)
-		if err != nil || value == nil {
-			continue
-		}
+	if outcome.rejectedValue != nil {
 		dismissal.Reason = ReasonFilter
-		dismissal.Path = path
-		dismissal.Found = fmt.Sprintf("%v", value)
+		dismissal.Path = outcome.rejectedPath
+		dismissal.Found = fmt.Sprintf("%v", outcome.rejectedValue)
 		if field.Filter != nil {
 			if field.Filter.Const != nil {
 				dismissal.Expected = *field.Filter.Const
@@ -279,7 +285,7 @@ func explainFieldMismatch(field Field, credentialJSON map[string]interface{}) *D
 				dismissal.Expected = field.Filter.Type
 			}
 		}
-		dismissal.Message = fmt.Sprintf("value at %s does not satisfy the filter: expected %s, found %s", path, dismissal.Expected, dismissal.Found)
+		dismissal.Message = fmt.Sprintf("value at %s does not satisfy the filter: expected %s, found %s", outcome.rejectedPath, dismissal.Expected, dismissal.Found)
 		return dismissal
 	}
 	dismissal.Reason = ReasonNoValue
