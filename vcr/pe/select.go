@@ -136,16 +136,23 @@ func Select(pd PresentationDefinition, candidates []vc.VerifiableCredential, opt
 	required := requiredDescriptors(pd)
 	assignment := make([]*candidateGroup, len(pd.InputDescriptors))
 	var ambiguous []string
+	var converted []evaluatedCredential
 	if options.trace {
 		defer func() {
-			result.Report = buildReport(pd, candidates, required, assignment, ambiguous, result, err, options.initialBindings)
+			result.Report = buildReport(pd, converted, required, assignment, ambiguous, result, err, options.initialBindings)
 		}()
 	}
 
-	// Step 1: per-descriptor eligibility, indexed for the search.
+	// Step 1: convert every candidate once (JSON form and PD-level format gate are the same for
+	// every descriptor), then index per-descriptor eligibility for the search.
+	var convErr error
+	converted, convErr = convertCandidates(pd, candidates)
+	if convErr != nil {
+		return result, convErr
+	}
 	pools := make([]descriptorPool, len(pd.InputDescriptors))
 	for i, descriptor := range pd.InputDescriptors {
-		pool, poolErr := buildPool(pd, *descriptor, candidates)
+		pool, poolErr := buildPool(*descriptor, converted)
 		if poolErr != nil {
 			return result, poolErr
 		}
@@ -452,8 +459,8 @@ func strictBoundIDs(descriptor InputDescriptor, initialBindings map[string]strin
 // buildPool evaluates every candidate against a single input descriptor (its constraints and both
 // format gates) and indexes the eligible ones. This is step 1, independent of any cross-descriptor
 // binding.
-func buildPool(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) (descriptorPool, error) {
-	eligible, err := eligibleCandidates(pd, descriptor, candidates)
+func buildPool(descriptor InputDescriptor, candidates []evaluatedCredential) (descriptorPool, error) {
+	eligible, err := eligibleCandidates(descriptor, candidates)
 	if err != nil {
 		return descriptorPool{}, err
 	}
@@ -703,45 +710,74 @@ type eligibleCandidate struct {
 	idValues map[string]string
 }
 
+// evaluatedCredential is a candidate prepared for evaluation: the JSON object form the JSONPath
+// evaluation works on, and the PD-level format gate outcome. Both are the same for every input
+// descriptor, so they are computed once per credential instead of once per descriptor.
+type evaluatedCredential struct {
+	vc         vc.VerifiableCredential
+	json       map[string]interface{}
+	pdFormatOK bool
+}
+
+// convertCandidates prepares every candidate once for evaluation against all descriptors.
+func convertCandidates(pd PresentationDefinition, candidates []vc.VerifiableCredential) ([]evaluatedCredential, error) {
+	converted := make([]evaluatedCredential, len(candidates))
+	for i, candidate := range candidates {
+		credentialJSON, err := credentialAsMap(candidate)
+		if err != nil {
+			return nil, err
+		}
+		converted[i] = evaluatedCredential{
+			vc:         candidate,
+			json:       credentialJSON,
+			pdFormatOK: matchFormat(pd.Format, candidate),
+		}
+	}
+	return converted, nil
+}
+
 // eligibleCandidates returns the credentials that satisfy a single input descriptor on its own,
 // each paired with its binding tuple.
-func eligibleCandidates(pd PresentationDefinition, descriptor InputDescriptor, candidates []vc.VerifiableCredential) ([]eligibleCandidate, error) {
+func eligibleCandidates(descriptor InputDescriptor, candidates []evaluatedCredential) ([]eligibleCandidate, error) {
 	var eligible []eligibleCandidate
 	for _, candidate := range candidates {
-		ok, idValues, err := evaluateCandidate(pd, descriptor, candidate)
+		ok, idValues, err := evaluateCandidate(descriptor, candidate)
 		if err != nil {
 			return nil, err
 		}
 		if ok {
-			eligible = append(eligible, eligibleCandidate{vc: candidate, idValues: idValues})
+			eligible = append(eligible, eligibleCandidate{vc: candidate.vc, idValues: idValues})
 		}
 	}
 	return eligible, nil
 }
 
 // evaluateCandidate is the step-1 eligibility primitive for one credential and one descriptor:
-// the descriptor's constraints (matchConstraint) and both the PD-level and descriptor-level
-// format gates. The resolved field-id values are returned (stringified) as the candidate's
-// binding tuple. Both the selection and the MatchReport use this single primitive, so a traced
-// report cannot drift from what the selection actually did.
-func evaluateCandidate(pd PresentationDefinition, descriptor InputDescriptor, credential vc.VerifiableCredential) (bool, map[string]string, error) {
+// the descriptor's constraints (matchConstraintOnMap, on the pre-converted JSON) and both format
+// gates. The resolved field-id values are returned (stringified) as the candidate's binding
+// tuple. Both the selection and the MatchReport use this single primitive, so a traced report
+// cannot drift from what the selection actually did.
+func evaluateCandidate(descriptor InputDescriptor, candidate evaluatedCredential) (bool, map[string]string, error) {
 	idValues := make(map[string]string)
 	if descriptor.Constraints != nil {
-		isMatch, values, err := matchConstraint(descriptor.Constraints, credential)
+		isMatch, fields, err := matchConstraintOnMap(descriptor.Constraints, candidate.json)
 		if err != nil {
 			return false, nil, err
 		}
 		if !isMatch {
 			return false, nil, nil
 		}
-		for id, value := range values {
-			if s, ok := stringifyBindingValue(value); ok {
-				idValues[id] = s
+		for i, field := range descriptor.Constraints.Fields {
+			if field.Id == nil {
+				continue
+			}
+			if s, ok := stringifyBindingValue(fields[i].value); ok {
+				idValues[*field.Id] = s
 			}
 		}
 	}
 	// InputDescriptor formats must be a subset of the PresentationDefinition formats, so satisfy both.
-	if !matchFormat(pd.Format, credential) || !matchFormat(descriptor.Format, credential) {
+	if !candidate.pdFormatOK || !matchFormat(descriptor.Format, candidate.vc) {
 		return false, nil, nil
 	}
 	return true, idValues, nil

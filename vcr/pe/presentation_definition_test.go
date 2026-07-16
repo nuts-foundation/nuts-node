@@ -674,58 +674,58 @@ func Test_matchField(t *testing.T) {
 	testCredentialMap, _ := remarshalToMap(testCredential)
 
 	t.Run("single path match", func(t *testing.T) {
-		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Equal(t, "value", value)
-		assert.True(t, match)
+		assert.Equal(t, "value", result.value)
+		assert.True(t, result.match)
 	})
 	t.Run("multi path match", func(t *testing.T) {
-		match, value, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.other", "$.credentialSubject.field"}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Equal(t, "value", value)
-		assert.True(t, match)
+		assert.Equal(t, "value", result.value)
+		assert.True(t, result.match)
 	})
 	t.Run("no match", func(t *testing.T) {
-		match, value, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.foo", "$.bar"}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Nil(t, value)
-		assert.False(t, match)
+		assert.Nil(t, result.value)
+		assert.False(t, result.match)
 	})
 	t.Run("no match, but optional", func(t *testing.T) {
 		trueVal := true
-		match, value, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.foo", "$.bar"}, Optional: &trueVal}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Nil(t, value)
-		assert.True(t, match)
+		assert.Nil(t, result.value)
+		assert.True(t, result.match)
 	})
 	t.Run("invalid match and optional", func(t *testing.T) {
 		trueVal := true
 		stringVal := "bar"
-		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.credentialSubject.field", "$.foo"}, Optional: &trueVal, Filter: &Filter{Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Nil(t, value)
-		assert.False(t, match)
+		assert.Nil(t, result.value)
+		assert.False(t, result.match)
 	})
 	t.Run("valid match with Filter", func(t *testing.T) {
 		stringVal := "value"
-		match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Equal(t, stringVal, value)
-		assert.True(t, match)
+		assert.Equal(t, stringVal, result.value)
+		assert.True(t, result.match)
 	})
 	t.Run("match on type", func(t *testing.T) {
 		stringVal := "VerifiableCredential"
-		match, value, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Equal(t, stringVal, value)
-		assert.True(t, match)
+		assert.Equal(t, stringVal, result.value)
+		assert.True(t, result.match)
 	})
 	t.Run("match on type array", func(t *testing.T) {
 		testCredentialString = `
@@ -737,28 +737,28 @@ func Test_matchField(t *testing.T) {
 }`
 		_ = json.Unmarshal([]byte(testCredentialString), &testCredentialMap)
 		stringVal := "VerifiableCredential"
-		match, value, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
+		result, err := matchField(Field{Path: []string{"$.type"}, Filter: &Filter{Type: "string", Const: &stringVal}}, testCredentialMap)
 
 		require.NoError(t, err)
-		assert.Equal(t, []interface{}{"VerifiableCredential"}, value)
-		assert.True(t, match)
+		assert.Equal(t, []interface{}{"VerifiableCredential"}, result.value)
+		assert.True(t, result.match)
 	})
 
 	t.Run("errors", func(t *testing.T) {
 		t.Run("invalid path", func(t *testing.T) {
-			match, value, err := matchField(Field{Path: []string{"$$"}}, testCredentialMap)
+			result, err := matchField(Field{Path: []string{"$$"}}, testCredentialMap)
 
 			require.Error(t, err)
-			assert.Nil(t, value)
-			assert.False(t, match)
+			assert.Nil(t, result.value)
+			assert.False(t, result.match)
 		})
 		t.Run("invalid pattern", func(t *testing.T) {
 			pattern := "["
-			match, value, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredentialMap)
+			result, err := matchField(Field{Path: []string{"$.credentialSubject.field"}, Filter: &Filter{Type: "string", Pattern: &pattern}}, testCredentialMap)
 
 			require.Error(t, err)
-			assert.Nil(t, value)
-			assert.False(t, match)
+			assert.Nil(t, result.value)
+			assert.False(t, result.match)
 		})
 	})
 }
