@@ -764,6 +764,19 @@ func Test_matchField(t *testing.T) {
 }
 
 func Test_matchFilter(t *testing.T) {
+	t.Run("array value with a string pattern filter and no matching element does not panic", func(t *testing.T) {
+		// an array whose elements all fail the filter falls through the type switch; the
+		// pattern check must not assume the value is a string
+		pattern := "^Nuts"
+		filter := Filter{Type: "string", Pattern: &pattern}
+
+		match, value, err := matchFilter(filter, []interface{}{"SomethingElse"})
+
+		require.NoError(t, err)
+		assert.False(t, match)
+		assert.Nil(t, value)
+	})
+
 	// values for pointer fields
 	stringValue := "test"
 	boolValue := true
