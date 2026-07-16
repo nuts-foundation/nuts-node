@@ -75,6 +75,28 @@ func (e *PDValidationError) Error() string {
 // semantic pass on the parsed definition, layered after JSON-schema validation (v2.Validate),
 // which cannot express these cross-field rules. It returns a PDValidationError aggregating every
 // conflict, or nil.
+//
+// # Filter semantics
+//
+// The checks follow the matcher's actual filter semantics (matchFilter), which implement a
+// subset of JSON Schema with these properties:
+//
+//   - enum shadows every other keyword: when enum is set, type, const and pattern are not
+//     evaluated, and the enum values compare as strings.
+//   - const compares as a string and therefore requires type "string"; combined with any other
+//     type the filter can never match.
+//   - pattern applies only when type is "string"; on any other type it is not evaluated.
+//   - numeric values can be required to be numbers (type "number"), but their value cannot be
+//     constrained: const, enum and pattern are string-only, and the numeric JSON Schema keywords
+//     (minimum, maximum, multipleOf) are not evaluated. Issue claims as strings when their
+//     values must be filtered or selected.
+//   - any other JSON Schema keyword is parsed but not evaluated; Validate reports it as an
+//     ignored constraint, because the filter matches more than its author declared.
+//
+// A field id used on fields of several descriptors binds one value across the chosen
+// credentials, so the filters carrying the id are checked for a common acceptable value. The
+// only case deferred to request time is two or more patterns with no const or enum anywhere:
+// pattern intersection is undecidable in general.
 func Validate(pd PresentationDefinition) error {
 	var conflicts []FieldIDConflict
 	conflicts = append(conflicts, duplicateConflicts(pd)...)
