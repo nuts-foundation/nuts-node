@@ -422,6 +422,127 @@ func TestValidate_FilterSanity(t *testing.T) {
 		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["d1"])
 	})
 
+	t.Run("structural: descriptor group not covered by any submission requirement", func(t *testing.T) {
+		// runtime fails every request on this PD with "group is required but not available"
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "org"}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}},
+				{"id": "d2", "group": ["delegation"], "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictSubmissionRequirement}, kinds["delegation"])
+	})
+
+	t.Run("structural: groups without submission requirements are fine", func(t *testing.T) {
+		// with no submission requirements at all, groups are decorative (all-required matching)
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("structural: unknown rule", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "any", "from": "org"}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		assert.ErrorContains(t, err, "any")
+	})
+
+	t.Run("structural: from and from_nested are mutually exclusive and required", func(t *testing.T) {
+		both := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "org", "from_nested": [{"rule": "all", "from": "org"}]}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+		neither := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all"}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		for _, pd := range []PresentationDefinition{both, neither} {
+			err := Validate(pd)
+			var pdErr *PDValidationError
+			require.ErrorAs(t, err, &pdErr)
+			require.NotEmpty(t, pdErr.Conflicts)
+			assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		}
+	})
+
+	t.Run("structural: impossible pick bounds", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "org", "min": 3, "max": 1}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+	})
+
+	t.Run("structural: pick demanding credentials from a group no descriptor carries", func(t *testing.T) {
+		// apply() sees an empty group and fails every request
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "org"},
+				{"rule": "pick", "from": "ghost", "count": 1}
+			],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictSubmissionRequirement}, kinds["ghost"])
+	})
+
+	t.Run("structural: nested submission requirements are walked", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "count": 1, "from_nested": [
+				{"rule": "any", "from": "org"}
+			]}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		assert.ErrorContains(t, err, "any")
+	})
+
+	t.Run("structural: a valid submission requirement setup passes", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "org"},
+				{"rule": "pick", "from": "consent", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}},
+				{"id": "d2", "group": ["consent"], "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
 	t.Run("allowed: well-formed filters", func(t *testing.T) {
 		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "const": "A", "pattern": "^[A-Z]$"}`)))
 		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "enum": ["A", "B"]}`)))

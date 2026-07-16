@@ -80,6 +80,7 @@ func Validate(pd PresentationDefinition) error {
 	conflicts = append(conflicts, duplicateConflicts(pd)...)
 	conflicts = append(conflicts, filterSanityConflicts(pd)...)
 	conflicts = append(conflicts, sameIDConflicts(pd)...)
+	conflicts = append(conflicts, submissionRequirementConflicts(pd)...)
 	if len(conflicts) == 0 {
 		return nil
 	}
@@ -397,6 +398,99 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 				break
 			}
 		}
+	}
+	return conflicts
+}
+
+// submissionRequirementConflicts checks the submission requirements for mistakes that fail every
+// request at runtime: a descriptor group no requirement covers, unknown rules, from/from_nested
+// violations, impossible bounds, and a rule demanding credentials from a group no descriptor
+// carries. Groups are only meaningful when submission requirements are present; without them the
+// matcher ignores groups entirely.
+func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict {
+	if len(pd.SubmissionRequirements) == 0 {
+		return nil
+	}
+	var conflicts []FieldIDConflict
+
+	covered := make(map[string]bool)
+	for _, requirement := range pd.SubmissionRequirements {
+		for _, group := range requirement.groups() {
+			covered[group] = true
+		}
+	}
+	descriptorGroups := make(map[string]bool)
+	for _, descriptor := range pd.InputDescriptors {
+		for _, group := range descriptor.Group {
+			descriptorGroups[group] = true
+			if !covered[group] {
+				covered[group] = true // report once
+				conflicts = append(conflicts, FieldIDConflict{
+					FieldID: group,
+					Kind:    ConflictSubmissionRequirement,
+					Detail:  fmt.Sprintf("group '%s' (input descriptor '%s') is not covered by any submission requirement: every request fails", group, descriptor.Id),
+				})
+			}
+		}
+	}
+
+	var walk func(requirement SubmissionRequirement, name string)
+	walk = func(requirement SubmissionRequirement, name string) {
+		if requirement.Name != "" {
+			name = fmt.Sprintf("%s (%s)", name, requirement.Name)
+		}
+		if requirement.Rule != "all" && requirement.Rule != "pick" {
+			conflicts = append(conflicts, FieldIDConflict{
+				FieldID: name,
+				Kind:    ConflictSubmissionRequirement,
+				Detail:  fmt.Sprintf("unknown rule %q (must be \"all\" or \"pick\")", requirement.Rule),
+			})
+		}
+		hasFrom := requirement.From != ""
+		hasNested := len(requirement.FromNested) > 0
+		if hasFrom == hasNested {
+			conflicts = append(conflicts, FieldIDConflict{
+				FieldID: name,
+				Kind:    ConflictSubmissionRequirement,
+				Detail:  "exactly one of 'from' and 'from_nested' must be set",
+			})
+		}
+		for _, bound := range []struct {
+			name  string
+			value *int
+		}{{"count", requirement.Count}, {"min", requirement.Min}, {"max", requirement.Max}} {
+			if bound.value != nil && *bound.value < 0 {
+				conflicts = append(conflicts, FieldIDConflict{
+					FieldID: name,
+					Kind:    ConflictSubmissionRequirement,
+					Detail:  fmt.Sprintf("'%s' must not be negative", bound.name),
+				})
+			}
+		}
+		if requirement.Min != nil && requirement.Max != nil && *requirement.Min > *requirement.Max {
+			conflicts = append(conflicts, FieldIDConflict{
+				FieldID: name,
+				Kind:    ConflictSubmissionRequirement,
+				Detail:  fmt.Sprintf("'min' (%d) exceeds 'max' (%d)", *requirement.Min, *requirement.Max),
+			})
+		}
+		// a rule demanding at least one credential from a group no descriptor carries fails
+		// every request; "all" over an empty group passes vacuously and is left alone
+		demandsCredentials := (requirement.Count != nil && *requirement.Count > 0) ||
+			(requirement.Min != nil && *requirement.Min > 0)
+		if hasFrom && demandsCredentials && !descriptorGroups[requirement.From] {
+			conflicts = append(conflicts, FieldIDConflict{
+				FieldID: requirement.From,
+				Kind:    ConflictSubmissionRequirement,
+				Detail:  fmt.Sprintf("no input descriptor carries group '%s', but the rule demands credentials from it: every request fails", requirement.From),
+			})
+		}
+		for i, nested := range requirement.FromNested {
+			walk(*nested, fmt.Sprintf("%s.from_nested[%d]", name, i))
+		}
+	}
+	for i, requirement := range pd.SubmissionRequirements {
+		walk(*requirement, fmt.Sprintf("submission_requirements[%d]", i))
 	}
 	return conflicts
 }
