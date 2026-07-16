@@ -553,11 +553,17 @@ func matchFilter(filter Filter, value interface{}) (bool, interface{}, error) {
 	}
 
 	if filter.Pattern != nil && filter.Type == "string" {
+		str, isString := value.(string)
+		if !isString {
+			// arrays whose elements all failed the filter fall through the type switch;
+			// a pattern can only accept strings
+			return false, nil, nil
+		}
 		re, err := regexp2.Compile(*filter.Pattern, regexp2.ECMAScript)
 		if err != nil {
 			return false, nil, err
 		}
-		match, err := re.FindStringMatch(value.(string))
+		match, err := re.FindStringMatch(str)
 		if err != nil {
 			return false, nil, err
 		}

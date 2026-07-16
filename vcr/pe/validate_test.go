@@ -1,0 +1,664 @@
+/*
+ * Copyright (C) 2026 Nuts community
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+package pe
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// mustParsePD unmarshals a presentation definition from its JSON wire form. JSON keeps the
+// deeply-nested PDs readable; DisallowUnknownFields turns a misspelled key into a loud error.
+func mustParsePD(t *testing.T, jsonStr string) PresentationDefinition {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(jsonStr))
+	dec.DisallowUnknownFields()
+	var pd PresentationDefinition
+	require.NoError(t, dec.Decode(&pd))
+	return pd
+}
+
+func TestValidateSelectionKeys(t *testing.T) {
+	singlePD := `{
+		"id": "single-pd",
+		"input_descriptors": [{
+			"id": "patient",
+			"constraints": {"fields": [
+				{"id": "patient_bsn", "path": ["$.credentialSubject.bsn"]},
+				{"path": ["$.type"], "filter": {"type": "string", "const": "PatientCredential"}}
+			]}
+		}]
+	}`
+	spPD := `{
+		"id": "sp-pd",
+		"input_descriptors": [{
+			"id": "delegation",
+			"constraints": {"fields": [{"id": "sp_did", "path": ["$.credentialSubject.id"]}]}
+		}]
+	}`
+
+	t.Run("all keys known passes", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"patient_bsn": "999911234"}, mustParsePD(t, singlePD))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("unknown key against a single PD is reported", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"favourite_color": "blue"}, mustParsePD(t, singlePD))
+
+		var unknownErr *UnknownSelectionKeysError
+		require.ErrorAs(t, err, &unknownErr)
+		assert.Equal(t, []string{"favourite_color"}, unknownErr.Keys)
+		assert.EqualError(t, err, "unknown credential_selection keys: favourite_color")
+	})
+
+	t.Run("key targeting one side of a two-PD union passes", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"patient_bsn": "999911234", "sp_did": "did:web:sp"},
+			mustParsePD(t, singlePD), mustParsePD(t, spPD))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("unknown key is validated against the union, not each PD independently", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"org_urra": "1"},
+			mustParsePD(t, singlePD), mustParsePD(t, spPD))
+
+		var unknownErr *UnknownSelectionKeysError
+		require.ErrorAs(t, err, &unknownErr)
+		assert.Equal(t, []string{"org_urra"}, unknownErr.Keys)
+	})
+
+	t.Run("empty-string values are validated by name only", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"patient_bsn": ""}, mustParsePD(t, singlePD))
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("multiple unknown keys are all listed, sorted", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"zeta": "1", "alpha": "2", "patient_bsn": "3"},
+			mustParsePD(t, singlePD))
+
+		var unknownErr *UnknownSelectionKeysError
+		require.ErrorAs(t, err, &unknownErr)
+		assert.Equal(t, []string{"alpha", "zeta"}, unknownErr.Keys)
+	})
+
+	t.Run("no PDs supplied makes every key unknown", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"patient_bsn": "999911234"})
+
+		var unknownErr *UnknownSelectionKeysError
+		require.ErrorAs(t, err, &unknownErr)
+		assert.Equal(t, []string{"patient_bsn"}, unknownErr.Keys)
+	})
+
+	t.Run("nil selection passes", func(t *testing.T) {
+		assert.NoError(t, ValidateSelectionKeys(nil, mustParsePD(t, singlePD)))
+	})
+
+	t.Run("id-less fields do not make the empty key known", func(t *testing.T) {
+		err := ValidateSelectionKeys(map[string]string{"": "x"}, mustParsePD(t, singlePD))
+
+		var unknownErr *UnknownSelectionKeysError
+		require.ErrorAs(t, err, &unknownErr)
+		assert.Equal(t, []string{""}, unknownErr.Keys)
+	})
+
+	t.Run("keys are harvested regardless of PD validity", func(t *testing.T) {
+		// a duplicated descriptor id fails Validate, but key validation stays decoupled
+		pd := mustParsePD(t, `{
+			"id": "invalid-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [{"id": "patient_bsn", "path": ["$.a"]}]}},
+				{"id": "d1", "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+
+		assert.NoError(t, ValidateSelectionKeys(map[string]string{"patient_bsn": "x"}, pd))
+	})
+}
+
+// twoFieldPD builds a PD with two descriptors, each carrying one field with the given id and
+// filter JSON (empty filter string means no filter). Most same-id consistency cases fit this shape.
+func twoFieldPD(t *testing.T, id string, filterA string, filterB string) PresentationDefinition {
+	t.Helper()
+	field := func(filter string) string {
+		if filter == "" {
+			return `{"id": "` + id + `", "path": ["$.credentialSubject.a"]}`
+		}
+		return `{"id": "` + id + `", "path": ["$.credentialSubject.a"], "filter": ` + filter + `}`
+	}
+	return mustParsePD(t, `{
+		"id": "test-pd",
+		"input_descriptors": [
+			{"id": "d1", "constraints": {"fields": [`+field(filterA)+`]}},
+			{"id": "d2", "constraints": {"fields": [`+field(filterB)+`]}}
+		]
+	}`)
+}
+
+// conflictKinds maps FieldID to the conflict kinds reported for it.
+func conflictKinds(t *testing.T, err error) map[string][]ConflictKind {
+	t.Helper()
+	var pdErr *PDValidationError
+	require.ErrorAs(t, err, &pdErr)
+	kinds := make(map[string][]ConflictKind)
+	for _, conflict := range pdErr.Conflicts {
+		kinds[conflict.Subject] = append(kinds[conflict.Subject], conflict.Kind)
+	}
+	return kinds
+}
+
+func TestValidate_Duplicates(t *testing.T) {
+	t.Run("duplicate field id within one constraints object", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "d1",
+				"constraints": {"fields": [
+					{"id": "org_ura", "path": ["$.credentialSubject.ura"]},
+					{"id": "org_ura", "path": ["$.credentialSubject.organization.ura"]}
+				]}
+			}]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictDuplicate}, kinds["org_ura"])
+	})
+
+	t.Run("same id across descriptors is not a duplicate", func(t *testing.T) {
+		assert.NoError(t, Validate(twoFieldPD(t, "org_ura", "", "")))
+	})
+
+	t.Run("duplicate input descriptor ids", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [{"path": ["$.a"]}]}},
+				{"id": "d1", "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictDuplicate}, kinds["d1"])
+	})
+}
+
+func TestValidate_SameIDConsistency(t *testing.T) {
+	t.Run("conflicting filter types", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "org_ura",
+			`{"type": "string", "pattern": "^\\d{8}$"}`,
+			`{"type": "number"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictType}, kinds["org_ura"])
+		assert.ErrorContains(t, err, "number")
+		assert.ErrorContains(t, err, "string")
+	})
+
+	t.Run("enum forces string matching, so enum vs type number conflicts", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "enum": ["a"]}`,
+			`{"type": "number"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictType}, kinds["x"])
+	})
+
+	t.Run("differing consts", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "const": "A"}`,
+			`{"type": "string", "const": "B"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("const not in enum", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "const": "Z"}`,
+			`{"type": "string", "enum": ["A", "B"]}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("disjoint enums", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "enum": ["A", "B"]}`,
+			`{"type": "string", "enum": ["C"]}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("const failing another field's pattern", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "const": "99991123"}`,
+			`{"type": "string", "pattern": "^\\d{9}$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("enum with no member matching another field's pattern", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "enum": ["GRANTED", "WITHDRAWN"]}`,
+			`{"type": "string", "pattern": "^[a-z]+$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("allowed: overlapping value sets", func(t *testing.T) {
+		assert.NoError(t, Validate(twoFieldPD(t, "x",
+			`{"type": "string", "const": "granted"}`,
+			`{"type": "string", "enum": ["granted", "withdrawn"]}`)))
+	})
+
+	t.Run("allowed: path-only difference, no filters", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [{"id": "org_did", "path": ["$.credentialSubject.id"]}]}},
+				{"id": "d2", "constraints": {"fields": [{"id": "org_did", "path": ["$.credentialSubject.issuedTo"]}]}}
+			]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("allowed: matching type-only filters", func(t *testing.T) {
+		assert.NoError(t, Validate(twoFieldPD(t, "x",
+			`{"type": "string"}`,
+			`{"type": "string"}`)))
+	})
+
+	t.Run("allowed: single occurrence with a filter", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "d1",
+				"constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "const": "A"}}]}
+			}]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("deferred: pattern versus pattern", func(t *testing.T) {
+		// two compilable patterns with an empty intersection are not detected at load;
+		// this degrades to a request-time no-match, surfaced by the MatchReport
+		assert.NoError(t, Validate(twoFieldPD(t, "x",
+			`{"type": "string", "pattern": "^a"}`,
+			`{"type": "string", "pattern": "^b"}`)))
+	})
+
+	t.Run("multiple conflicts are aggregated and sorted", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [
+					{"id": "zeta", "path": ["$.a"], "filter": {"type": "string", "const": "A"}},
+					{"id": "alpha", "path": ["$.b"], "filter": {"type": "string"}}
+				]}},
+				{"id": "d2", "constraints": {"fields": [
+					{"id": "zeta", "path": ["$.a"], "filter": {"type": "string", "const": "B"}},
+					{"id": "alpha", "path": ["$.b"], "filter": {"type": "number"}}
+				]}}
+			]
+		}`)
+
+		err := Validate(pd)
+
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 2)
+		assert.Equal(t, "alpha", pdErr.Conflicts[0].Subject)
+		assert.Equal(t, ConflictType, pdErr.Conflicts[0].Kind)
+		assert.Equal(t, "zeta", pdErr.Conflicts[1].Subject)
+		assert.Equal(t, ConflictUnsatisfiable, pdErr.Conflicts[1].Kind)
+		assert.ErrorContains(t, err, "test-pd")
+	})
+
+	t.Run("three-way intersection: pairwise overlapping but globally disjoint enums", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["A", "B"]}}]}},
+				{"id": "d2", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["B", "C"]}}]}},
+				{"id": "d3", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["A", "C"]}}]}}
+			]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("three-way intersection with a surviving value passes", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["A", "B"]}}]}},
+				{"id": "d2", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["B", "C"]}}]}},
+				{"id": "d3", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "enum": ["B"]}}]}}
+			]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("a within-descriptor duplicate still participates in same-id consistency", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [
+				{"id": "d1", "constraints": {"fields": [
+					{"id": "x", "path": ["$.a"], "filter": {"type": "string", "const": "A"}},
+					{"id": "x", "path": ["$.b"], "filter": {"type": "string", "const": "B"}}
+				]}},
+				{"id": "d2", "constraints": {"fields": [{"id": "x", "path": ["$.a"], "filter": {"type": "string", "const": "A"}}]}}
+			]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.ElementsMatch(t, []ConflictKind{ConflictDuplicate, ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("a dead filter is excluded from same-id consistency", func(t *testing.T) {
+		// the dead filter earns its own conflict; it must not also produce a bogus type conflict
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "boolean", "const": "true"}`,
+			`{"type": "string", "const": "A"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("the aggregated error string is stable", func(t *testing.T) {
+		err := Validate(twoFieldPD(t, "x",
+			`{"type": "string", "const": "A"}`,
+			`{"type": "string", "const": "B"}`))
+
+		assert.EqualError(t, err, "presentation definition 'test-pd' is invalid: x: const/enum values across descriptors share no common value")
+	})
+
+	t.Run("descriptors without constraints are skipped", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{"id": "d1"}, {"id": "d2"}]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("empty PD is valid", func(t *testing.T) {
+		assert.NoError(t, Validate(mustParsePD(t, `{"id": "empty", "input_descriptors": []}`)))
+	})
+}
+
+// singleFilterPD builds a PD with one descriptor carrying one field with the given filter JSON.
+func singleFilterPD(t *testing.T, filter string) PresentationDefinition {
+	t.Helper()
+	return mustParsePD(t, `{
+		"id": "test-pd",
+		"input_descriptors": [{
+			"id": "d1",
+			"constraints": {"fields": [{"id": "x", "path": ["$.credentialSubject.x"], "filter": `+filter+`}]}
+		}]
+	}`)
+}
+
+func TestValidate_FilterSanity(t *testing.T) {
+	t.Run("const on a non-string type can never match", func(t *testing.T) {
+		// matchFilter compares const as a string; a boolean value never equals it
+		err := Validate(singleFilterPD(t, `{"type": "boolean", "const": "true"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+		assert.ErrorContains(t, err, "true")
+	})
+
+	t.Run("empty enum can never match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "enum": []}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("const failing its own pattern can never match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "const": "abc", "pattern": "^\\d+$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["x"])
+	})
+
+	t.Run("non-compiling pattern is reported", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "pattern": "["}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictInvalidPattern}, kinds["x"])
+	})
+
+	t.Run("pattern with more than one capture group errors on every match", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "pattern": "^(\\d+)-(\\d+)$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictInvalidPattern}, kinds["x"])
+	})
+
+	t.Run("pattern on a non-string type is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "pattern": "^\\d+$"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("const alongside enum is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "string", "enum": ["A", "B"], "const": "Z"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("non-string type alongside enum is silently ignored by the matcher", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "enum": ["1", "2"]}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("unsupported JSON Schema keywords are reported instead of silently dropped", func(t *testing.T) {
+		err := Validate(singleFilterPD(t, `{"type": "number", "minimum": 18}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+		assert.ErrorContains(t, err, "minimum")
+	})
+
+	t.Run("a dead filter on a field without an id is reported under the descriptor id", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{
+				"id": "d1",
+				"constraints": {"fields": [{"path": ["$.credentialSubject.x"], "filter": {"type": "boolean", "const": "true"}}]}
+			}]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictUnsatisfiable}, kinds["d1"])
+	})
+
+	t.Run("structural: descriptor group not covered by any submission requirement", func(t *testing.T) {
+		// runtime fails every request on this PD with "group is required but not available"
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "org"}],
+			"input_descriptors": [
+				{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}},
+				{"id": "d2", "group": ["delegation"], "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictSubmissionRequirement}, kinds["delegation"])
+	})
+
+	t.Run("structural: groups without submission requirements are fine", func(t *testing.T) {
+		// with no submission requirements at all, groups are decorative (all-required matching)
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("structural: unknown rule", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "any", "from": "org"}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		assert.ErrorContains(t, err, "any")
+	})
+
+	t.Run("structural: from and from_nested are mutually exclusive and required", func(t *testing.T) {
+		both := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all", "from": "org", "from_nested": [{"rule": "all", "from": "org"}]}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+		neither := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "all"}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		for _, pd := range []PresentationDefinition{both, neither} {
+			err := Validate(pd)
+			var pdErr *PDValidationError
+			require.ErrorAs(t, err, &pdErr)
+			require.NotEmpty(t, pdErr.Conflicts)
+			assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		}
+	})
+
+	t.Run("structural: impossible pick bounds", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "from": "org", "min": 3, "max": 1}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+	})
+
+	t.Run("structural: pick demanding credentials from a group no descriptor carries", func(t *testing.T) {
+		// apply() sees an empty group and fails every request
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "org"},
+				{"rule": "pick", "from": "ghost", "count": 1}
+			],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		kinds := conflictKinds(t, Validate(pd))
+		assert.Equal(t, []ConflictKind{ConflictSubmissionRequirement}, kinds["ghost"])
+	})
+
+	t.Run("structural: nested submission requirements are walked", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [{"rule": "pick", "count": 1, "from_nested": [
+				{"rule": "any", "from": "org"}
+			]}],
+			"input_descriptors": [{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}}]
+		}`)
+
+		err := Validate(pd)
+		var pdErr *PDValidationError
+		require.ErrorAs(t, err, &pdErr)
+		require.Len(t, pdErr.Conflicts, 1)
+		assert.Equal(t, ConflictSubmissionRequirement, pdErr.Conflicts[0].Kind)
+		assert.ErrorContains(t, err, "any")
+	})
+
+	t.Run("structural: a valid submission requirement setup passes", func(t *testing.T) {
+		pd := mustParsePD(t, `{
+			"id": "test-pd",
+			"submission_requirements": [
+				{"rule": "all", "from": "org"},
+				{"rule": "pick", "from": "consent", "min": 0, "max": 1}
+			],
+			"input_descriptors": [
+				{"id": "d1", "group": ["org"], "constraints": {"fields": [{"path": ["$.a"]}]}},
+				{"id": "d2", "group": ["consent"], "constraints": {"fields": [{"path": ["$.b"]}]}}
+			]
+		}`)
+		assert.NoError(t, Validate(pd))
+	})
+
+	t.Run("annotation keywords are not flagged", func(t *testing.T) {
+		assert.NoError(t, Validate(singleFilterPD(t,
+			`{"type": "string", "pattern": "^Nuts", "description": "the credential type", "title": "Type", "examples": ["NutsOrganizationCredential"]}`)))
+	})
+
+	t.Run("unrecognized type values are flagged", func(t *testing.T) {
+		// matchFilter's type gate recognizes string, number and boolean only; "integer" is
+		// valid JSON Schema but rejects every scalar at runtime
+		err := Validate(singleFilterPD(t, `{"type": "integer"}`))
+
+		kinds := conflictKinds(t, err)
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+		assert.ErrorContains(t, err, "integer")
+	})
+
+	t.Run("unsupported keywords survive the production parser", func(t *testing.T) {
+		// ParsePresentationDefinition runs the DIF JSON schema first (which allows any draft-07
+		// keyword), then unmarshals; the capture must reach Validate through that path
+		pd, err := ParsePresentationDefinition([]byte(`{
+			"id": "e2e-pd",
+			"input_descriptors": [{
+				"id": "d1",
+				"constraints": {"fields": [{"id": "x", "path": ["$.credentialSubject.age"], "filter": {"type": "number", "minimum": 18}}]}
+			}]
+		}`))
+		require.NoError(t, err)
+
+		kinds := conflictKinds(t, Validate(*pd))
+		assert.Equal(t, []ConflictKind{ConflictIgnoredConstraint}, kinds["x"])
+	})
+
+	t.Run("allowed: well-formed filters", func(t *testing.T) {
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "const": "A", "pattern": "^[A-Z]$"}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "enum": ["A", "B"]}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "string", "pattern": "^(\\d+)$"}`)))
+		assert.NoError(t, Validate(singleFilterPD(t, `{"type": "number"}`)))
+	})
+}

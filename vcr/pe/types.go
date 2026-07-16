@@ -19,7 +19,11 @@
 // Package pe stands for Presentation Exchange which includes Presentation Definition and Presentation Submission
 package pe
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+	"sort"
+)
 
 var ErrNoCredentials = errors.New("missing credentials")
 var ErrMultipleCredentials = errors.New("multiple matching credentials")
@@ -130,6 +134,38 @@ type Filter struct {
 	Enum []string `json:"enum,omitempty"`
 	// Pattern is a pattern to match according to ECMA-262, section 21.2.1
 	Pattern *string `json:"pattern,omitempty"`
+	// unsupported records JSON Schema keywords present in the filter JSON that this
+	// implementation does not evaluate. Parsing stays lenient (remote presentation definitions
+	// keep working); Validate reports them, because a dropped keyword silently weakens the
+	// filter below what its author declared.
+	unsupported []string
+}
+
+// UnmarshalJSON parses the filter and records unsupported keywords instead of silently dropping
+// them.
+func (f *Filter) UnmarshalJSON(data []byte) error {
+	type alias Filter
+	var parsed alias
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+	*f = Filter(parsed)
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for keyword := range raw {
+		switch keyword {
+		case "type", "const", "enum", "pattern":
+		// annotation keywords carry no constraint, so dropping them weakens nothing
+		case "description", "title", "$comment", "$schema", "$id", "examples", "default",
+			"readOnly", "writeOnly", "deprecated":
+		default:
+			f.unsupported = append(f.unsupported, keyword)
+		}
+	}
+	sort.Strings(f.unsupported)
+	return nil
 }
 
 // SubmissionRequirement

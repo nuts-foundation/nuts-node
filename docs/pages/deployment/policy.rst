@@ -132,6 +132,44 @@ You can define the following field in the input descriptor constraint, to have t
 
 Only 1 capture group is supported in regular expressions. If multiple capture groups are defined, an error will be returned.
 
+Presentation definition validation
+**********************************
+
+The node validates presentation definitions when loading policy files, and refuses to start on a definition
+that would fail or misbehave on every request. All problems are reported at once. The checks are:
+
+- **Duplicate ids.** An input descriptor id may be used once per definition, and a field id once per
+  input descriptor. The same field id on fields of *different* descriptors is allowed and meaningful:
+  the chosen credentials must agree on that field's value.
+- **Same-id consistency.** Filters on fields that share an id must allow at least one common value.
+  For example, a ``const`` on one descriptor that is not in another descriptor's ``enum`` for the same
+  id can never be satisfied and fails validation. Two ``pattern`` filters without any ``const`` or
+  ``enum`` are not checked (undecidable); such a conflict surfaces at request time instead.
+- **Filters that can never match.** A ``const`` combined with a non-string ``type``, or an empty
+  ``enum``, rejects every credential. A ``pattern`` that does not compile, or that has more than one
+  capture group, errors on every evaluation.
+- **Ignored constraints.** Keywords the matcher does not evaluate are rejected instead of silently
+  weakening the filter: ``const`` or ``pattern`` next to ``enum`` (``enum`` takes precedence),
+  ``pattern`` on a non-string ``type``, and unsupported JSON Schema keywords such as ``minimum``.
+- **Submission requirements.** Every group referenced by an input descriptor must be covered by a
+  submission requirement, rules must be ``all`` or ``pick``, exactly one of ``from``/``from_nested``
+  must be set, and bounds must be possible (``min`` not above ``max``, no negative values).
+
+A failing definition is reported with every conflict, for example::
+
+  presentation definition 'example-care-pd' is invalid: active: const "true" can never match: it
+  requires type "string", declared type is "boolean"; org_ura: conflicting filter types: string vs number
+
+Guidance for policy authors:
+
+- Issue claims whose values must be filtered or selected **as strings**. The matcher can require a
+  value to be a number (``"type": "number"``), but cannot constrain a number's value: ``const``,
+  ``enum`` and ``pattern`` compare as strings, and numeric JSON Schema keywords are not evaluated.
+- Give every claim used for logging, authorization, or credential selection a distinct field ``id``;
+  only declared field ids are returned by token introspection and usable in ``credential_selection``.
+- When reusing a field ``id`` across input descriptors, make sure the filters agree: the id binds a
+  single value across the chosen credentials.
+
 Two-VP flow and cross-VP binding (experimental)
 ***********************************************
 
