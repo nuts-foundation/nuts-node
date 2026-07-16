@@ -26,7 +26,7 @@ import (
 	"github.com/dlclark/regexp2"
 )
 
-// ConflictKind classifies a FieldIDConflict.
+// ConflictKind classifies a ValidationConflict.
 type ConflictKind string
 
 const (
@@ -46,10 +46,11 @@ const (
 	ConflictSubmissionRequirement ConflictKind = "submission_requirement"
 )
 
-// FieldIDConflict is one problem found by Validate. FieldID names the field id involved; for
-// structural problems it names the input descriptor id, group, or submission requirement instead.
-type FieldIDConflict struct {
-	FieldID string
+// ValidationConflict is one problem found by Validate. Subject names what the conflict is
+// about: a field id for filter and same-id problems, an input descriptor id for duplicates and
+// id-less fields, or a group name / submission requirement position for structural problems.
+type ValidationConflict struct {
+	Subject string
 	Kind    ConflictKind
 	Detail  string
 }
@@ -58,13 +59,14 @@ type FieldIDConflict struct {
 // definition, sorted, so the author sees all problems at once.
 type PDValidationError struct {
 	PDID      string
-	Conflicts []FieldIDConflict
+	Conflicts []ValidationConflict
 }
 
+// Error renders every conflict in one line, for logs and startup output.
 func (e *PDValidationError) Error() string {
 	lines := make([]string, len(e.Conflicts))
 	for i, conflict := range e.Conflicts {
-		lines[i] = conflict.FieldID + ": " + conflict.Detail
+		lines[i] = conflict.Subject + ": " + conflict.Detail
 	}
 	return fmt.Sprintf("presentation definition '%s' is invalid: %s", e.PDID, strings.Join(lines, "; "))
 }
@@ -98,7 +100,7 @@ func (e *PDValidationError) Error() string {
 // only case deferred to request time is two or more patterns with no const or enum anywhere:
 // pattern intersection is undecidable in general.
 func Validate(pd PresentationDefinition) error {
-	var conflicts []FieldIDConflict
+	var conflicts []ValidationConflict
 	conflicts = append(conflicts, duplicateConflicts(pd)...)
 	conflicts = append(conflicts, filterSanityConflicts(pd)...)
 	conflicts = append(conflicts, sameIDConflicts(pd)...)
@@ -108,8 +110,8 @@ func Validate(pd PresentationDefinition) error {
 	}
 	sort.Slice(conflicts, func(i, j int) bool {
 		a, b := conflicts[i], conflicts[j]
-		if a.FieldID != b.FieldID {
-			return a.FieldID < b.FieldID
+		if a.Subject != b.Subject {
+			return a.Subject < b.Subject
 		}
 		if a.Kind != b.Kind {
 			return a.Kind < b.Kind
@@ -122,15 +124,15 @@ func Validate(pd PresentationDefinition) error {
 // duplicateConflicts reports input descriptor ids used more than once, and field ids declared
 // more than once within a single constraints object. The same field id on different descriptors
 // is not a duplicate: that is the binding mechanism.
-func duplicateConflicts(pd PresentationDefinition) []FieldIDConflict {
-	var conflicts []FieldIDConflict
+func duplicateConflicts(pd PresentationDefinition) []ValidationConflict {
+	var conflicts []ValidationConflict
 	descriptorSeen := make(map[string]bool)
 	descriptorReported := make(map[string]bool)
 	for _, descriptor := range pd.InputDescriptors {
 		if descriptorSeen[descriptor.Id] && !descriptorReported[descriptor.Id] {
 			descriptorReported[descriptor.Id] = true
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: descriptor.Id,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: descriptor.Id,
 				Kind:    ConflictDuplicate,
 				Detail:  fmt.Sprintf("input descriptor id '%s' is declared more than once", descriptor.Id),
 			})
@@ -147,8 +149,8 @@ func duplicateConflicts(pd PresentationDefinition) []FieldIDConflict {
 			}
 			if fieldSeen[*field.Id] && !fieldReported[*field.Id] {
 				fieldReported[*field.Id] = true
-				conflicts = append(conflicts, FieldIDConflict{
-					FieldID: *field.Id,
+				conflicts = append(conflicts, ValidationConflict{
+					Subject: *field.Id,
 					Kind:    ConflictDuplicate,
 					Detail:  fmt.Sprintf("field id '%s' is declared more than once in input descriptor '%s'", *field.Id, descriptor.Id),
 				})
@@ -163,8 +165,8 @@ func duplicateConflicts(pd PresentationDefinition) []FieldIDConflict {
 // (see matchFilter): filters that can never match anything, patterns that error, and declared
 // constraints the matcher silently ignores (leaving the filter weaker than its author intended).
 // A conflict is reported under the field id, or under the descriptor id for id-less fields.
-func filterSanityConflicts(pd PresentationDefinition) []FieldIDConflict {
-	var conflicts []FieldIDConflict
+func filterSanityConflicts(pd PresentationDefinition) []ValidationConflict {
+	var conflicts []ValidationConflict
 	for _, descriptor := range pd.InputDescriptors {
 		if descriptor.Constraints == nil {
 			continue
@@ -178,7 +180,7 @@ func filterSanityConflicts(pd PresentationDefinition) []FieldIDConflict {
 				subject = *field.Id
 			}
 			for _, conflict := range singleFilterConflicts(*field.Filter) {
-				conflict.FieldID = subject
+				conflict.Subject = subject
 				conflicts = append(conflicts, conflict)
 			}
 		}
@@ -186,11 +188,11 @@ func filterSanityConflicts(pd PresentationDefinition) []FieldIDConflict {
 	return conflicts
 }
 
-// singleFilterConflicts derives the problems of one filter; FieldID is filled in by the caller.
-func singleFilterConflicts(filter Filter) []FieldIDConflict {
-	var conflicts []FieldIDConflict
+// singleFilterConflicts derives the problems of one filter; Subject is filled in by the caller.
+func singleFilterConflicts(filter Filter) []ValidationConflict {
+	var conflicts []ValidationConflict
 	if len(filter.unsupported) > 0 {
-		conflicts = append(conflicts, FieldIDConflict{
+		conflicts = append(conflicts, ValidationConflict{
 			Kind:   ConflictIgnoredConstraint,
 			Detail: fmt.Sprintf("unsupported filter keywords [%s] are not evaluated: the filter is weaker than declared", strings.Join(filter.unsupported, ", ")),
 		})
@@ -199,25 +201,25 @@ func singleFilterConflicts(filter Filter) []FieldIDConflict {
 	if filter.Enum != nil {
 		// enum shadows type, const and pattern (matchFilter returns from the enum branch)
 		if len(filter.Enum) == 0 {
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictUnsatisfiable,
 				Detail: "enum is empty: the filter can never match",
 			})
 		}
 		if filter.Const != nil {
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictIgnoredConstraint,
 				Detail: fmt.Sprintf("const %q is ignored because enum is set", *filter.Const),
 			})
 		}
 		if filter.Pattern != nil {
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictIgnoredConstraint,
 				Detail: "pattern is ignored because enum is set",
 			})
 		}
 		if filter.Type != "" && filter.Type != "string" {
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictIgnoredConstraint,
 				Detail: fmt.Sprintf("type %q is ignored because enum forces string matching", filter.Type),
 			})
@@ -225,9 +227,20 @@ func singleFilterConflicts(filter Filter) []FieldIDConflict {
 		return conflicts
 	}
 
+	switch filter.Type {
+	case "", "string", "number", "boolean":
+	default:
+		// matchFilter's type gate recognizes string, number and boolean only; any other value
+		// (e.g. "integer", "object") rejects every scalar and matches array values by accident
+		conflicts = append(conflicts, ValidationConflict{
+			Kind:   ConflictIgnoredConstraint,
+			Detail: fmt.Sprintf("type %q is not evaluated: the matcher recognizes \"string\", \"number\" and \"boolean\" only", filter.Type),
+		})
+	}
+
 	if filter.Const != nil && filter.Type != "string" {
 		// the const compares as a string, but the type gate never lets a string value through
-		conflicts = append(conflicts, FieldIDConflict{
+		conflicts = append(conflicts, ValidationConflict{
 			Kind:   ConflictUnsatisfiable,
 			Detail: fmt.Sprintf("const %q can never match: it requires type \"string\", declared type is %q", *filter.Const, filter.Type),
 		})
@@ -237,26 +250,26 @@ func singleFilterConflicts(filter Filter) []FieldIDConflict {
 		pattern, err := regexp2.Compile(*filter.Pattern, regexp2.ECMAScript)
 		switch {
 		case err != nil:
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictInvalidPattern,
 				Detail: fmt.Sprintf("pattern %q does not compile: %s", *filter.Pattern, err),
 			})
 		case len(pattern.GetGroupNumbers()) > 2:
 			// matchFilter returns an error whenever a pattern with more than one capture
 			// group matches a value
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictInvalidPattern,
 				Detail: fmt.Sprintf("pattern %q has more than one capture group: every match errors", *filter.Pattern),
 			})
 		case filter.Type != "string":
 			// the matcher applies patterns to string-typed filters only
-			conflicts = append(conflicts, FieldIDConflict{
+			conflicts = append(conflicts, ValidationConflict{
 				Kind:   ConflictIgnoredConstraint,
 				Detail: fmt.Sprintf("pattern is ignored because the declared type is %q: patterns apply to strings only", filter.Type),
 			})
 		case filter.Const != nil:
 			if match, _ := pattern.FindStringMatch(*filter.Const); match == nil {
-				conflicts = append(conflicts, FieldIDConflict{
+				conflicts = append(conflicts, ValidationConflict{
 					Kind:   ConflictUnsatisfiable,
 					Detail: fmt.Sprintf("const %q does not match the field's own pattern %q", *filter.Const, *filter.Pattern),
 				})
@@ -326,7 +339,7 @@ type idOccurrence struct {
 // the id binds to must be able to satisfy all of them at once (Policy 7). Types must agree, and
 // the intersection of the accepted-value sets must not be provably empty. Only the
 // pattern-versus-pattern case (no const or enum anywhere) is deferred to request time.
-func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
+func sameIDConflicts(pd PresentationDefinition) []ValidationConflict {
 	occurrences := make(map[string][]idOccurrence)
 	var order []string
 	for _, descriptor := range pd.InputDescriptors {
@@ -347,7 +360,7 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 		}
 	}
 
-	var conflicts []FieldIDConflict
+	var conflicts []ValidationConflict
 	for _, id := range order {
 		fields := occurrences[id]
 		if len(fields) < 2 {
@@ -374,8 +387,8 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 				names = append(names, name)
 			}
 			sort.Strings(names)
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: id,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: id,
 				Kind:    ConflictType,
 				Detail:  "conflicting filter types: " + strings.Join(names, " vs "),
 			})
@@ -399,8 +412,8 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 			continue // universes always overlap; pattern-versus-pattern is deferred
 		}
 		if len(candidates) == 0 {
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: id,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: id,
 				Kind:    ConflictUnsatisfiable,
 				Detail:  "const/enum values across descriptors share no common value",
 			})
@@ -412,8 +425,8 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 			}
 			candidates = matchingCandidates(candidates, set.pattern)
 			if len(candidates) == 0 {
-				conflicts = append(conflicts, FieldIDConflict{
-					FieldID: id,
+				conflicts = append(conflicts, ValidationConflict{
+					Subject: id,
 					Kind:    ConflictUnsatisfiable,
 					Detail:  fmt.Sprintf("no shared const/enum value matches pattern '%s'", set.pattern.String()),
 				})
@@ -429,11 +442,11 @@ func sameIDConflicts(pd PresentationDefinition) []FieldIDConflict {
 // violations, impossible bounds, and a rule demanding credentials from a group no descriptor
 // carries. Groups are only meaningful when submission requirements are present; without them the
 // matcher ignores groups entirely.
-func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict {
+func submissionRequirementConflicts(pd PresentationDefinition) []ValidationConflict {
 	if len(pd.SubmissionRequirements) == 0 {
 		return nil
 	}
-	var conflicts []FieldIDConflict
+	var conflicts []ValidationConflict
 
 	covered := make(map[string]bool)
 	for _, requirement := range pd.SubmissionRequirements {
@@ -447,8 +460,8 @@ func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict
 			descriptorGroups[group] = true
 			if !covered[group] {
 				covered[group] = true // report once
-				conflicts = append(conflicts, FieldIDConflict{
-					FieldID: group,
+				conflicts = append(conflicts, ValidationConflict{
+					Subject: group,
 					Kind:    ConflictSubmissionRequirement,
 					Detail:  fmt.Sprintf("group '%s' (input descriptor '%s') is not covered by any submission requirement: every request fails", group, descriptor.Id),
 				})
@@ -462,8 +475,8 @@ func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict
 			name = fmt.Sprintf("%s (%s)", name, requirement.Name)
 		}
 		if requirement.Rule != "all" && requirement.Rule != "pick" {
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: name,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: name,
 				Kind:    ConflictSubmissionRequirement,
 				Detail:  fmt.Sprintf("unknown rule %q (must be \"all\" or \"pick\")", requirement.Rule),
 			})
@@ -471,8 +484,8 @@ func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict
 		hasFrom := requirement.From != ""
 		hasNested := len(requirement.FromNested) > 0
 		if hasFrom == hasNested {
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: name,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: name,
 				Kind:    ConflictSubmissionRequirement,
 				Detail:  "exactly one of 'from' and 'from_nested' must be set",
 			})
@@ -482,16 +495,16 @@ func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict
 			value *int
 		}{{"count", requirement.Count}, {"min", requirement.Min}, {"max", requirement.Max}} {
 			if bound.value != nil && *bound.value < 0 {
-				conflicts = append(conflicts, FieldIDConflict{
-					FieldID: name,
+				conflicts = append(conflicts, ValidationConflict{
+					Subject: name,
 					Kind:    ConflictSubmissionRequirement,
 					Detail:  fmt.Sprintf("'%s' must not be negative", bound.name),
 				})
 			}
 		}
 		if requirement.Min != nil && requirement.Max != nil && *requirement.Min > *requirement.Max {
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: name,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: name,
 				Kind:    ConflictSubmissionRequirement,
 				Detail:  fmt.Sprintf("'min' (%d) exceeds 'max' (%d)", *requirement.Min, *requirement.Max),
 			})
@@ -501,8 +514,8 @@ func submissionRequirementConflicts(pd PresentationDefinition) []FieldIDConflict
 		demandsCredentials := (requirement.Count != nil && *requirement.Count > 0) ||
 			(requirement.Min != nil && *requirement.Min > 0)
 		if hasFrom && demandsCredentials && !descriptorGroups[requirement.From] {
-			conflicts = append(conflicts, FieldIDConflict{
-				FieldID: requirement.From,
+			conflicts = append(conflicts, ValidationConflict{
+				Subject: requirement.From,
 				Kind:    ConflictSubmissionRequirement,
 				Detail:  fmt.Sprintf("no input descriptor carries group '%s', but the rule demands credentials from it: every request fails", requirement.From),
 			})
@@ -552,6 +565,7 @@ type UnknownSelectionKeysError struct {
 	Keys []string
 }
 
+// Error lists every unknown key in one line.
 func (e *UnknownSelectionKeysError) Error() string {
 	return "unknown credential_selection keys: " + strings.Join(e.Keys, ", ")
 }

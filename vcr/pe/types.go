@@ -157,6 +157,9 @@ func (f *Filter) UnmarshalJSON(data []byte) error {
 	for keyword := range raw {
 		switch keyword {
 		case "type", "const", "enum", "pattern":
+		// annotation keywords carry no constraint, so dropping them weakens nothing
+		case "description", "title", "$comment", "$schema", "$id", "examples", "default",
+			"readOnly", "writeOnly", "deprecated":
 		default:
 			f.unsupported = append(f.unsupported, keyword)
 		}

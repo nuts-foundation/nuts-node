@@ -133,7 +133,7 @@ You can define the following field in the input descriptor constraint, to have t
 Only 1 capture group is supported in regular expressions. If multiple capture groups are defined, an error will be returned.
 
 Presentation definition validation
-==================================
+**********************************
 
 The node validates presentation definitions when loading policy files, and refuses to start on a definition
 that would fail or misbehave on every request. All problems are reported at once. The checks are:
