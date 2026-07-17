@@ -24,7 +24,7 @@ import (
 	"errors"
 	"maps"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 )
 
@@ -42,11 +42,11 @@ func (m MemoryJWTSigner) SignJWT(ctx context.Context, claims map[string]interfac
 	headersLocal := make(map[string]interface{})
 	maps.Copy(headersLocal, headers)
 
-	if kid != m.Key.KeyID() {
+	if keyID, _ := m.Key.KeyID(); kid != keyID {
 		return "", ErrPrivateKeyNotFound
 	}
 	var signer crypto.Signer
-	if err := m.Key.Raw(&signer); err != nil {
+	if err := jwk.Export(m.Key, &signer); err != nil {
 		return "", err
 	}
 	alg, err := signingAlg(signer.Public())
@@ -60,10 +60,10 @@ func (m MemoryJWTSigner) SignJWT(ctx context.Context, claims map[string]interfac
 
 func (m MemoryJWTSigner) SignJWS(ctx context.Context, payload []byte, headers map[string]interface{}, kid string, detached bool) (string, error) {
 	var signer crypto.Signer
-	if err := m.Key.Raw(&signer); err != nil {
+	if err := jwk.Export(m.Key, &signer); err != nil {
 		return "", err
 	}
-	if kid != m.Key.KeyID() {
+	if keyID, _ := m.Key.KeyID(); kid != keyID {
 		return "", ErrPrivateKeyNotFound
 	}
 	headers["kid"] = kid

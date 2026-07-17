@@ -29,7 +29,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -172,7 +172,7 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 		require.NoError(t, err)
 		require.IsType(t, ValidateDPoPProof200JSONResponse{}, resp)
 		assert.False(t, resp.(ValidateDPoPProof200JSONResponse).Valid)
-		assert.Equal(t, "failed to parse DPoP header: invalid DPoP token\ninvalid compact serialization format: invalid number of segments", *resp.(ValidateDPoPProof200JSONResponse).Reason)
+		assert.Equal(t, "failed to parse DPoP header: invalid DPoP token\njws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments", *resp.(ValidateDPoPProof200JSONResponse).Reason)
 	})
 	t.Run("invalid accestoken", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -188,7 +188,8 @@ func TestWrapper_ValidateDPoPProof(t *testing.T) {
 	})
 	t.Run("already used once", func(t *testing.T) {
 		ctx := newTestClient(t)
-		_ = ctx.client.useNonceOnceStore().Put(dpopProof.Token.JwtID(), struct{}{})
+		jti, _ := dpopProof.Token.JwtID()
+		_ = ctx.client.useNonceOnceStore().Put(jti, struct{}{})
 
 		resp, err := ctx.client.ValidateDPoPProof(nil, request)
 
@@ -229,9 +230,10 @@ func newSignedTestDPoP() (*dpop.DPoP, *dpop.DPoP, string) {
 	withProof := newTestDPoP()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	_ = withProof.GenerateProof("token")
-	_, _ = withProof.Sign("kid", keyPair, jwa.ES256)
-	_, _ = dpopToken.Sign("kid", keyPair, jwa.ES256)
-	thumbprintBytes, _ := dpopToken.Headers.JWK().Thumbprint(crypto2.SHA256)
+	_, _ = withProof.Sign("kid", keyPair, jwa.ES256())
+	_, _ = dpopToken.Sign("kid", keyPair, jwa.ES256())
+	jwkKey, _ := dpopToken.Headers.JWK()
+	thumbprintBytes, _ := jwkKey.Thumbprint(crypto2.SHA256)
 	thumbprint := base64.RawURLEncoding.EncodeToString(thumbprintBytes)
 	return dpopToken, withProof, thumbprint
 }

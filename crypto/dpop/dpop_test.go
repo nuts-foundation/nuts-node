@@ -24,13 +24,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"net/http"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,12 +42,13 @@ func TestNewDPoP(t *testing.T) {
 		token := New(*request)
 
 		require.NotNil(t, token)
-		assert.Equal(t, DPopType, token.Headers.Type())
+		headerType, _ := token.Headers.Type()
+		assert.Equal(t, DPopType, headerType)
 		assert.Equal(t, "POST", token.HTM())
 		assert.Equal(t, "https://server.example.com/token", token.HTU())
 		// check if jti is set
-		jti, ok := token.Token.Get(jwt.JwtIDKey)
-		require.True(t, ok)
+		var jti string
+		require.NoError(t, token.Token.Get(jwt.JwtIDKey, &jti))
 		assert.NotEmpty(t, jti)
 	})
 }
@@ -59,14 +60,14 @@ func TestDPoP_Proof(t *testing.T) {
 		token := New(*request)
 		token.GenerateProof("token")
 
-		ath, ok := token.Token.Get(ATHKey)
-		require.True(t, ok)
+		var ath string
+		require.NoError(t, token.Token.Get(ATHKey, &ath))
 		assert.Equal(t, "PEaenWxYddN6Q_NT1PiOYfz4EsZu7jRXRlpAsNpBU-A", ath)
 	})
 }
 
 func TestDPoP_Sign(t *testing.T) {
-	const alg = jwa.ES256
+	var alg = jwa.ES256()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
@@ -80,9 +81,10 @@ func TestDPoP_Sign(t *testing.T) {
 		// check if jwk header is set and if the private part of the is omitted
 		message, err := jws.ParseString(tokenString)
 		require.NoError(t, err)
-		actualJWK, ok := message.Signatures()[0].ProtectedHeaders().Get(jws.JWKKey)
-		require.True(t, ok)
-		assert.Equal(t, alg, actualJWK.(jwk.Key).Algorithm())
+		var actualJWK jwk.Key
+		require.NoError(t, message.Signatures()[0].ProtectedHeaders().Get(jws.JWKKey, &actualJWK))
+		actualAlg, _ := actualJWK.Algorithm()
+		assert.Equal(t, alg, actualAlg)
 		assert.Equal(t, "kid", token.Kid)
 	})
 	t.Run("already signed", func(t *testing.T) {
@@ -97,10 +99,10 @@ func TestDPoP_Sign(t *testing.T) {
 }
 
 func TestParseDPoP(t *testing.T) {
-	const alg = jwa.ES256
+	var alg = jwa.ES256()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	jwkKey, _ := jwk.FromRaw(keyPair)
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
+	jwkKey, _ := jwk.Import(keyPair)
+	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256())
 	pkey, _ := jwkKey.PublicKey()
 	request, _ := http.NewRequest("GET", "https://server.example.com/token", nil)
 
@@ -112,7 +114,8 @@ func TestParseDPoP(t *testing.T) {
 		token, err := Parse(dpopString)
 		require.NoError(t, err)
 
-		assert.Equal(t, pkey, token.Headers.JWK())
+		headerJWK, _ := token.Headers.JWK()
+		assert.Equal(t, pkey, headerJWK)
 		assert.Equal(t, "GET", token.HTM())
 		assert.Equal(t, "https://server.example.com/token", token.HTU())
 	})
@@ -120,7 +123,7 @@ func TestParseDPoP(t *testing.T) {
 		_, err := Parse("invalid")
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "invalid DPoP token\ninvalid compact serialization format: invalid number of segments")
+		assert.EqualError(t, err, "invalid DPoP token\njws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
 	})
 	t.Run("unsupported algorithm", func(t *testing.T) {
 		customJwt := jwt.New()
@@ -147,7 +150,7 @@ func TestParseDPoP(t *testing.T) {
 		altHeaders := jws.NewHeaders()
 		altHeaders.Set(jws.TypeKey, DPopType)
 
-		tokenBytes, _ := jwt.Sign(altToken, jwt.WithKey(jwa.SignatureAlgorithm(jwkKey.Algorithm().String()), jwkKey, jws.WithProtectedHeaders(altHeaders)))
+		tokenBytes, _ := jwt.Sign(altToken, jwt.WithKey(alg, jwkKey, jws.WithProtectedHeaders(altHeaders)))
 
 		_, err := Parse(string(tokenBytes))
 
@@ -160,7 +163,7 @@ func TestParseDPoP(t *testing.T) {
 		altHeaders.Set(jws.TypeKey, DPopType)
 		altHeaders.Set(jws.JWKKey, jwkKey)
 
-		tokenBytes, _ := jwt.Sign(altToken, jwt.WithKey(jwa.SignatureAlgorithm(jwkKey.Algorithm().String()), jwkKey, jws.WithProtectedHeaders(altHeaders)))
+		tokenBytes, _ := jwt.Sign(altToken, jwt.WithKey(alg, jwkKey, jws.WithProtectedHeaders(altHeaders)))
 
 		_, err := Parse(string(tokenBytes))
 
@@ -174,7 +177,7 @@ func TestParseDPoP(t *testing.T) {
 		_, err := Parse(dpopString + "0")
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "invalid DPoP token\ncould not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "invalid DPoP token\njwt.ParseString: failed to parse string: signature verification failed for ES256: dsig.VerifyECDSA: failed to unpack ECDSA signature: invalid signature length for curve \"P-256\"")
 	})
 	t.Run("missing iat claim", func(t *testing.T) {
 		dpopToken := New(*request)
@@ -232,11 +235,11 @@ func TestParseDPoP(t *testing.T) {
 }
 
 func TestDPoP_Match(t *testing.T) {
-	const alg = jwa.ES256
+	var alg = jwa.ES256()
 	accessToken := "token"
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	jwkKey, _ := jwk.FromRaw(keyPair)
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
+	jwkKey, _ := jwk.Import(keyPair)
+	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256())
 	thumbprint, _ := jwkKey.Thumbprint(crypto.SHA256)
 	thumbprintString := base64.RawURLEncoding.EncodeToString(thumbprint)
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
@@ -317,10 +320,10 @@ func TestDPoP_Match(t *testing.T) {
 }
 
 func TestDPoP_marshalling(t *testing.T) {
-	const alg = jwa.ES256
+	var alg = jwa.ES256()
 	keyPair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	jwkKey, _ := jwk.FromRaw(keyPair)
-	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256)
+	jwkKey, _ := jwk.Import(keyPair)
+	_ = jwkKey.Set(jwk.AlgorithmKey, jwa.ES256())
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
 	t.Run("marshal", func(t *testing.T) {

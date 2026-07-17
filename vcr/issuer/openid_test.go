@@ -234,7 +234,7 @@ func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 
 				response, err := service.HandleCredentialRequest(ctx, invalidRequest, accessToken)
 
-				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - invalid compact serialization format: invalid number of segments")
+				assertProtocolError(t, err, http.StatusBadRequest, "invalid_proof - jws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
 				assert.Nil(t, response)
 			})
 			t.Run("not signed by intended wallet (DID differs)", func(t *testing.T) {

@@ -87,7 +87,7 @@ func TestResolver_Resolve(t *testing.T) {
 		t.Run("Invalid base64 data fails", failure(b64(canonicalJWK)+":invalid-base64-data", "illegal base64 data at input"))
 
 		// Ensure a DID with invalid JSON fails
-		t.Run("base64 encoded non-JSON fails", failure(b64("__NOT_JSON__"), "failed to unmarshal JSON"))
+		t.Run("base64 encoded non-JSON fails", failure(b64("__NOT_JSON__"), "failed to unmarshal data"))
 
 		// Ensure valid JSON as an invalid JWK fails
 		t.Run("base64+JSON encoded non-JWK fails", failure(b64(validJSONInvalidJWK), "invalid key type from JSON"))

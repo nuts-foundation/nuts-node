@@ -37,11 +37,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwe"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwe"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/mr-tron/base58"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/test"
@@ -60,7 +60,7 @@ func TestSignJWT(t *testing.T) {
 	claims := map[string]interface{}{"iss": "nuts"}
 	t.Run("creates valid JWT using rsa keys", func(t *testing.T) {
 		rsaKey := test.GenerateRSAKey()
-		tokenString, err := SignJWT(audit.TestContext(), rsaKey, jwa.PS256, claims, nil)
+		tokenString, err := SignJWT(audit.TestContext(), rsaKey, jwa.PS256(), claims, nil)
 
 		assert.Nil(t, err)
 
@@ -70,7 +70,8 @@ func TestSignJWT(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.Equal(t, "nuts", token.Issuer())
+		issuer, _ := token.Issuer()
+		assert.Equal(t, "nuts", issuer)
 	})
 
 	t.Run("creates valid JWT using ec keys", func(t *testing.T) {
@@ -79,7 +80,7 @@ func TestSignJWT(t *testing.T) {
 		p521, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 
 		keys := []*ecdsa.PrivateKey{p256, p384, p521}
-		algs := []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512}
+		algs := []jwa.SignatureAlgorithm{jwa.ES256(), jwa.ES384(), jwa.ES512()}
 
 		for i, ecKey := range keys {
 			name := fmt.Sprintf("using %s", ecKey.Params().Name)
@@ -93,26 +94,28 @@ func TestSignJWT(t *testing.T) {
 				})
 
 				require.NoError(t, err)
-				assert.Equal(t, "nuts", token.Issuer())
+				issuer, _ := token.Issuer()
+				assert.Equal(t, "nuts", issuer)
 			})
 		}
 	})
 
 	t.Run("sets correct headers", func(t *testing.T) {
 		ecKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		tokenString, err := SignJWT(audit.TestContext(), ecKey, jwa.ES256, claims, nil)
+		tokenString, err := SignJWT(audit.TestContext(), ecKey, jwa.ES256(), claims, nil)
 
 		require.NoError(t, err)
 
 		msg, err := jws.ParseString(tokenString)
 		require.NoError(t, err)
 		hdrs := msg.Signatures()[0].ProtectedHeaders()
-		alg, _ := hdrs.Get(jwk.AlgorithmKey)
-		assert.Equal(t, jwa.ES256, alg)
+		var alg jwa.SignatureAlgorithm
+		require.NoError(t, hdrs.Get(jwk.AlgorithmKey, &alg))
+		assert.Equal(t, jwa.ES256(), alg)
 	})
 
 	t.Run("invalid claim", func(t *testing.T) {
-		tokenString, err := SignJWT(audit.TestContext(), nil, jwa.ES256, map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
+		tokenString, err := SignJWT(audit.TestContext(), nil, jwa.ES256(), map[string]interface{}{jwt.IssuedAtKey: "foobar"}, nil)
 		assert.Empty(t, tokenString)
 		assert.EqualError(t, err, "invalid value for iat key: failed to accept string \"foobar\": value is not number of seconds since the epoch, and attempt to parse it as RFC3339 timestamp failed: parsing time \"foobar\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"foobar\" as \"2006\"")
 	})
@@ -122,7 +125,7 @@ func TestParseJWT(t *testing.T) {
 	t.Run("unsupported algorithm", func(t *testing.T) {
 		rsaKey := test.GenerateRSAKey()
 		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256, rsaKey))
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.RS256(), rsaKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return rsaKey.Public(), nil
 		})
@@ -135,7 +138,7 @@ func TestParseJWT(t *testing.T) {
 		token := jwt.New()
 		err := token.Set(jwt.IssuedAtKey, time.Now().Add(4*time.Second).Unix())
 		assert.NoError(t, err)
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, ecKey))
+		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256(), ecKey))
 		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
 			return ecKey.Public(), nil
 		}, jwt.WithAcceptableSkew(5000*time.Millisecond))
@@ -148,14 +151,14 @@ func TestParseJWT(t *testing.T) {
 		authenticKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		attackerKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		token := jwt.New()
-		validToken, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256, authenticKey))
+		validToken, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256(), authenticKey))
 
 		parsedToken, err := ParseJWT(string(validToken), func(_ string) (crypto.PublicKey, error) {
 			return attackerKey.Public(), nil
 		})
 
 		assert.Nil(t, parsedToken)
-		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "jwt.ParseString: failed to parse string: signature verification failed for ES256: invalid ECDSA signature")
 	})
 }
 
@@ -178,7 +181,8 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.Equal(t, "nuts", token.Issuer())
+		issuer, _ := token.Issuer()
+		assert.Equal(t, "nuts", issuer)
 		assert.Equal(t, kid, actualKID)
 	})
 	t.Run("creates valid JWT using external key", func(t *testing.T) {
@@ -203,7 +207,8 @@ func TestCrypto_SignJWT(t *testing.T) {
 
 		require.NoError(t, err)
 
-		assert.Equal(t, "nuts", token.Issuer())
+		issuer, _ := token.Issuer()
+		assert.Equal(t, "nuts", issuer)
 		assert.Equal(t, kid, actualKID)
 	})
 	t.Run("writes audit logs", func(t *testing.T) {
@@ -285,7 +290,7 @@ func TestCrypto_SignJWS(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
 		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
-		publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
+		publicKeyAsJWK, _ := jwk.Import(key.Public())
 		hdrs := map[string]interface{}{
 			"kid": kid,
 			"jwk": publicKeyAsJWK,
@@ -297,7 +302,8 @@ func TestCrypto_SignJWS(t *testing.T) {
 		auditLogs.AssertContains(t, ModuleName, "SignJWS", audit.TestActor, "Signing a JWS with key: kid")
 		// kid is not in headers
 		msg, err := jws.Parse([]byte(signature))
-		assert.Empty(t, msg.Signatures()[0].ProtectedHeaders().KeyID())
+		kid, _ := msg.Signatures()[0].ProtectedHeaders().KeyID()
+		assert.Empty(t, kid)
 	})
 
 	t.Run("returns error for not found", func(t *testing.T) {
@@ -361,7 +367,7 @@ func TestCrypto_EncryptJWE(t *testing.T) {
 		privateKey, _, err := client.getPrivateKey(context.Background(), kid)
 		require.NoError(t, err)
 
-		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwa.ECDH_ES, privateKey))
+		token, err := jwe.Decrypt([]byte(tokenString), jwe.WithKey(jwa.ECDH_ES(), privateKey))
 		require.NoError(t, err)
 
 		var body = make(map[string]interface{})
@@ -493,19 +499,21 @@ func TestSignJWS(t *testing.T) {
 			sig := message.Signatures()
 			assert.Len(t, sig, 1,
 				"there must be one signature in the parsed message")
-			fooValue, _ := sig[0].ProtectedHeaders().Get("foo")
-			assert.Equal(t, "bar", fooValue.(string),
+			var fooValue string
+			_ = sig[0].ProtectedHeaders().Get("foo", &fooValue)
+			assert.Equal(t, "bar", fooValue,
 				"the protected headers must contain the 'foo' key with 'bar' value")
 
 			// Sanity check: verify signature
-			actualPayload, err := jws.Verify([]byte(signature), jws.WithKey(sig[0].ProtectedHeaders().Algorithm(), key.Public()))
+			sigAlg, _ := sig[0].ProtectedHeaders().Algorithm()
+			actualPayload, err := jws.Verify([]byte(signature), jws.WithKey(sigAlg, key.Public()))
 			require.NoError(t, err, "the signature could not be validated")
 			assert.Equal(t, payload, actualPayload)
 		})
 		t.Run("public key in JWK header is allowed", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 
-			publicKeyAsJWK, _ := jwk.FromRaw(key.Public())
+			publicKeyAsJWK, _ := jwk.Import(key.Public())
 			hdrs := map[string]interface{}{"jwk": publicKeyAsJWK}
 			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			assert.NoError(t, err)
@@ -518,13 +526,13 @@ func TestSignJWS(t *testing.T) {
 			payload := []byte{'.'}
 
 			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
-			assert.EqualError(t, err, "unable to sign JWS failed to generate signature for signer #0 (alg=ES256): payload must not contain a \".\"")
+			assert.EqualError(t, err, "unable to sign JWS jws.Sign: failed to populate message: failed to build signature 0: compact serialization with b64=false requires payload to contain no \".\" characters per RFC 7797 §5.2; use jws.WithDetachedPayload to keep the payload out of the wire format")
 			assert.Empty(t, signature)
 		})
 		t.Run("private key in JWK header is not allowed", func(t *testing.T) {
 			payload := []byte{1, 2, 3}
 
-			privateKeyAsJWK, _ := jwk.FromRaw(key)
+			privateKeyAsJWK, _ := jwk.Import(key)
 			hdrs := map[string]interface{}{"jwk": privateKeyAsJWK}
 			signature, err := SignJWS(audit.TestContext(), payload, hdrs, key, false)
 			assert.EqualError(t, err, "refusing to sign JWS with private key in JWK header")
@@ -554,7 +562,7 @@ func TestCrypto_convertHeaders(t *testing.T) {
 	t.Run("nil headers", func(t *testing.T) {
 		jwtHeader, err := convertHeaders(nil)
 		require.NoError(t, err)
-		assert.Len(t, jwtHeader.PrivateParams(), 0)
+		assert.Len(t, jwtHeader.Keys(), 0)
 	})
 
 	t.Run("ok", func(t *testing.T) {
@@ -563,7 +571,8 @@ func TestCrypto_convertHeaders(t *testing.T) {
 		}
 
 		jwtHeader, err := convertHeaders(rawHeaders)
-		v, _ := jwtHeader.Get("key")
+		var v string
+		require.NoError(t, jwtHeader.Get("key", &v))
 		require.NoError(t, err)
 		assert.Equal(t, "value", v)
 	})
@@ -580,9 +589,9 @@ func TestCrypto_convertHeaders(t *testing.T) {
 }
 
 func Test_isAlgorithmSupported(t *testing.T) {
-	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256))
-	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256))
-	assert.False(t, jwx.IsAlgorithmSupported(""))
+	assert.True(t, jwx.IsAlgorithmSupported(jwa.PS256()))
+	assert.False(t, jwx.IsAlgorithmSupported(jwa.RS256()))
+	assert.False(t, jwx.IsAlgorithmSupported(jwa.SignatureAlgorithm{}))
 }
 
 func TestSignatureAlgorithm(t *testing.T) {
@@ -610,16 +619,16 @@ func TestSignatureAlgorithm(t *testing.T) {
 		key  interface{}
 		alg  jwa.SignatureAlgorithm
 	}{
-		{"EC private key as pointer", ecKey256, jwa.ES256},
-		{"EC private key", *ecKey256, jwa.ES256},
-		{"EC public key as pointer", &ecKey384.PublicKey, jwa.ES384},
-		{"EC public key", ecKey521.PublicKey, jwa.ES512},
-		{"RSA private key as pointer", rsaKey, jwa.PS256},
-		{"RSA private key", *rsaKey, jwa.PS256},
-		{"RSA public key as pointer", &rsaKey.PublicKey, jwa.PS256},
-		{"RSA public key", rsaKey.PublicKey, jwa.PS256},
-		{"ED25519 private key", pEDKey, jwa.EdDSA},
-		{"ED25519 public key", sEDKey, jwa.EdDSA},
+		{"EC private key as pointer", ecKey256, jwa.ES256()},
+		{"EC private key", *ecKey256, jwa.ES256()},
+		{"EC public key as pointer", &ecKey384.PublicKey, jwa.ES384()},
+		{"EC public key", ecKey521.PublicKey, jwa.ES512()},
+		{"RSA private key as pointer", rsaKey, jwa.PS256()},
+		{"RSA private key", *rsaKey, jwa.PS256()},
+		{"RSA public key as pointer", &rsaKey.PublicKey, jwa.PS256()},
+		{"RSA public key", rsaKey.PublicKey, jwa.PS256()},
+		{"ED25519 private key", pEDKey, jwa.EdDSA()},
+		{"ED25519 public key", sEDKey, jwa.EdDSA()},
 	}
 
 	for _, test := range tests {
@@ -681,33 +690,33 @@ func Test_signingAlg(t *testing.T) {
 		key, _ := rsa.GenerateKey(rand.Reader, 1024)
 		alg, err := signingAlg(key.Public())
 		require.NoError(t, err)
-		assert.Equal(t, jwa.PS256, alg)
+		assert.Equal(t, jwa.PS256(), alg)
 	})
 	t.Run("EC", func(t *testing.T) {
 		t.Run("P256", func(t *testing.T) {
 			key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 			alg, err := signingAlg(key.Public())
 			require.NoError(t, err)
-			assert.Equal(t, jwa.ES256, alg)
+			assert.Equal(t, jwa.ES256(), alg)
 		})
 		t.Run("P384", func(t *testing.T) {
 			key, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 			alg, err := signingAlg(key.Public())
 			require.NoError(t, err)
-			assert.Equal(t, jwa.ES384, alg)
+			assert.Equal(t, jwa.ES384(), alg)
 		})
 		t.Run("P521", func(t *testing.T) {
 			key, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 			alg, err := signingAlg(key.Public())
 			require.NoError(t, err)
-			assert.Equal(t, jwa.ES512, alg)
+			assert.Equal(t, jwa.ES512(), alg)
 		})
 	})
 	t.Run("ED25519", func(t *testing.T) {
 		key, _, _ := ed25519.GenerateKey(rand.Reader)
 		alg, err := signingAlg(key)
 		require.NoError(t, err)
-		assert.Equal(t, jwa.EdDSA, alg)
+		assert.Equal(t, jwa.EdDSA(), alg)
 	})
 	t.Run("unsupported key", func(t *testing.T) {
 		_, err := signingAlg(nil)
@@ -726,7 +735,7 @@ func TestExtractProtectedHeaders(t *testing.T) {
 		if err != nil {
 			return "", err
 		}
-		sign, err := jws.Sign(marshal, jws.WithKey(jwa.ES256, jwk))
+		sign, err := jws.Sign(marshal, jws.WithKey(jwa.ES256(), jwk))
 		if err != nil {
 			return "", err
 		}
@@ -741,7 +750,7 @@ func TestExtractProtectedHeaders(t *testing.T) {
 		if err != nil {
 			return "", err
 		}
-		sign, err := jws.Sign(marshal, jws.WithKey(jwa.ES256, jwk), jws.WithKey(jwa.ES256, jwk), jws.WithJSON())
+		sign, err := jws.Sign(marshal, jws.WithKey(jwa.ES256(), jwk), jws.WithKey(jwa.ES256(), jwk), jws.WithJSON())
 		if err != nil {
 			return "", err
 		}

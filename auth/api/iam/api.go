@@ -38,8 +38,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
@@ -410,7 +410,11 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// SHA256 hashing won't fail.
 	var cnf *Cnf
 	if token.DPoP != nil {
-		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto.SHA256)
+		key, ok := token.DPoP.Headers.JWK()
+		if !ok {
+			return nil, errors.New("DPoP header is missing the jwk")
+		}
+		hash, _ := key.Thumbprint(crypto.SHA256)
 		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
 		cnf = &Cnf{Jkt: base64Hash}
 	}
@@ -661,7 +665,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 			}
 		}
 		// create JWK and add to set
-		jwkKey, err := jwk.FromRaw(key)
+		jwkKey, err := jwk.Import(key)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,

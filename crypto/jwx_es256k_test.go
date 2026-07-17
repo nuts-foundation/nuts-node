@@ -18,28 +18,35 @@
  *
  */
 
-package jwx
+package crypto
 
 import (
 	"crypto"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto/test"
+	"crypto/ecdsa"
+	"crypto/rand"
+	"testing"
+
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
+// TestES256k verifies that, when built with the jwx_es256k tag, an ES256K-signed JWT
+// round-trips through ParseJWT (i.e. ES256K is registered as a supported algorithm).
 func TestES256k(t *testing.T) {
-	t.Run("test ES256K", func(t *testing.T) {
-		ecKey := test.GenerateECKey()
-		token := jwt.New()
-		signature, _ := jwt.Sign(token, jwt.WithKey(jwa.ES256K, ecKey))
-		parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
-			return ecKey.Public(), nil
-		})
-		require.NoError(t, err)
+	// ES256K signs over the secp256k1 curve, so a P-256 key won't do.
+	ecKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
+	require.NoError(t, err)
 
-		assert.NotNil(t, parsedToken)
+	token := jwt.New()
+	signature, err := jwt.Sign(token, jwt.WithKey(jwa.ES256K(), ecKey))
+	require.NoError(t, err)
+
+	parsedToken, err := ParseJWT(string(signature), func(_ string) (crypto.PublicKey, error) {
+		return ecKey.Public(), nil
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, parsedToken)
 }
