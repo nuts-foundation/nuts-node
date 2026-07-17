@@ -5,21 +5,42 @@ updates:
     # checks workflow files in /.github/workflows
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Go
   - package-ecosystem: "gomod"
     # checks /go.mod
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Docker
   - package-ecosystem: "docker"
     # checks /Dockerfile
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Python (PRs disabled)
   - package-ecosystem: "pip"
