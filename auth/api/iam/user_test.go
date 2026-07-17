@@ -28,8 +28,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -128,7 +128,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
 		require.NoError(t, err)
 		assert.NotEmpty(t, sessionKey.KeyID)
-		assert.Equal(t, jwa.EC, sessionKey.KeyType())
+		assert.Equal(t, jwa.EC(), sessionKey.KeyType())
 		// check for details of issued NutsEmployeeCredential
 		assert.Equal(t, "NutsEmployeeCredential", employeeCredentialTemplate.Type[0].String())
 		employeeCredentialSubject := employeeCredentialTemplate.CredentialSubject[0]

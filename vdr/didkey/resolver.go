@@ -21,6 +21,7 @@ package didkey
 import (
 	"bytes"
 	"crypto"
+	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
@@ -28,7 +29,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/x25519"
 	"github.com/mr-tron/base58"
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
@@ -81,7 +81,9 @@ func (r Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 		if keyLength != 32 {
 			return nil, nil, errInvalidPublicKeyLength
 		}
-		key = x25519.PublicKey(mcBytes)
+		if key, err = ecdh.X25519().NewPublicKey(mcBytes); err != nil {
+			return nil, nil, fmt.Errorf("did:key: invalid X25519 public key: %w", err)
+		}
 	case multicodec.Ed25519Pub:
 		if keyLength != 32 {
 			return nil, nil, errInvalidPublicKeyLength

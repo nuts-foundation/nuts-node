@@ -20,7 +20,7 @@ package resolver
 
 import (
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/lestrrat-go/jwx/v3/cert"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"sync"

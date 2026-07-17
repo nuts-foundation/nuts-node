@@ -236,10 +236,11 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 		return errors.Join(ErrInvalidPresentation, errPresentationWithoutID)
 	}
 	// Make sure the presentation is intended for this service
-	if err := validateAudience(definition, presentation.JWT().Audience()); err != nil {
+	audience, _ := presentation.JWT().Audience()
+	if err := validateAudience(definition, audience); err != nil {
 		return err
 	}
-	expiration := presentation.JWT().Expiration()
+	expiration, _ := presentation.JWT().Expiration()
 	if expiration.IsZero() {
 		return errors.Join(ErrInvalidPresentation, errPresentationWithoutExpiration)
 	}
@@ -275,7 +276,7 @@ func (m *Module) verifyRegistration(definition ServiceDefinition, presentation v
 
 func (m *Module) validateRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
 	// VP can't be valid longer than the credentialRecord it contains
-	expiration := presentation.JWT().Expiration()
+	expiration, _ := presentation.JWT().Expiration()
 	for _, cred := range presentation.VerifiableCredential {
 		if cred.ExpirationDate != nil && expiration.After(*cred.ExpirationDate) {
 			return errPresentationValidityExceedsCredentials
@@ -306,9 +307,8 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 	// RFC022 §3.4: it MUST contain a retract_jti JWT claim, containing the jti of the presentation to retract.
 	// Check that the retraction refers to an existing presentation.
 	// If not, it might've already been removed due to expiry or superseded by a newer presentation.
-	retractJTIRaw, _ := presentation.JWT().Get("retract_jti")
-	retractJTI, ok := retractJTIRaw.(string)
-	if !ok || retractJTI == "" {
+	var retractJTI string
+	if err := presentation.JWT().Get("retract_jti", &retractJTI); err != nil || retractJTI == "" {
 		return errInvalidRetractionJTIClaim
 	}
 	signerDID, _ := credential.PresentationSigner(presentation) // checked before
@@ -317,7 +317,7 @@ func (m *Module) validateRetraction(serviceID string, presentation vc.Verifiable
 		return err
 	}
 	if !exists {
-		if _, ok = m.serverDefinitions[serviceID]; ok { // only throw an error if acting as server for this service, see https://github.com/nuts-foundation/nuts-node/issues/3691
+		if _, ok := m.serverDefinitions[serviceID]; ok { // only throw an error if acting as server for this service, see https://github.com/nuts-foundation/nuts-node/issues/3691
 			return errRetractionReferencesUnknownPresentation
 		}
 		log.Logger().Warnf("Ignored retraction (ID=%s) signed by (did=%s) for (service=%s) that references a VP (retractedJTI=%s) that does not exist (anymore).", presentation.ID, signerDID.String(), serviceID, retractJTI)

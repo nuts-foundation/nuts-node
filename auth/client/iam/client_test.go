@@ -24,7 +24,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
@@ -50,44 +51,63 @@ import (
 func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("ok using root web:did", func(t *testing.T) {
-		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
-		tlsServer, client := testServerAndClient(t, &handler)
+	// metadataServer serves AuthorizationServerMetadata at the listed paths and returns
+	// missStatus for any other path. The served issuer equals the server URL plus issuerPath,
+	// so it matches an identifier of tlsServer.URL+issuerPath. It records every requested path.
+	metadataServer := func(t *testing.T, missStatus int, issuerPath string, servedPaths ...string) (*httptest.Server, *HTTPClient, *[]string) {
+		var requested []string
+		served := make(map[string]struct{}, len(servedPaths))
+		var issuer string
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requested = append(requested, r.URL.Path)
+			if _, ok := served[r.URL.Path]; ok {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(oauth.AuthorizationServerMetadata{Issuer: issuer, TokenEndpoint: "/token"})
+				return
+			}
+			w.WriteHeader(missStatus)
+		})
+		tlsServer, client := testServerAndClient(t, handler)
+		issuer = tlsServer.URL + issuerPath
+		for _, p := range servedPaths {
+			served[p] = struct{}{}
+		}
+		return tlsServer, client, &requested
+	}
 
-		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
-
-		require.NoError(t, err)
-		require.NotNil(t, metadata)
-		assert.Equal(t, "/token", metadata.TokenEndpoint)
-		require.NotNil(t, handler.Request)
-		assert.Equal(t, "GET", handler.Request.Method)
-		assert.Equal(t, "/.well-known/oauth-authorization-server", handler.Request.URL.Path)
-	})
-	t.Run("ok using user web:did", func(t *testing.T) {
-		result := oauth.AuthorizationServerMetadata{TokenEndpoint: "/token"}
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: result}
-		tlsServer, client := testServerAndClient(t, &handler)
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic, so these
+	// tests only need to confirm the wiring (well-known constant, httpClient, strictMode) and
+	// that this specific bug (rewriting an upstream status code) doesn't reappear.
+	t.Run("ok - append form when insert 404s", func(t *testing.T) {
+		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/oauth-authorization-server")
 
 		metadata, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
-		assert.Equal(t, "/token", metadata.TokenEndpoint)
-		require.NotNil(t, handler.Request)
-		assert.Equal(t, "GET", handler.Request.Method)
-		assert.Equal(t, "/.well-known/oauth-authorization-server/iam/123", handler.Request.URL.Path)
+		assert.Equal(t, []string{
+			"/.well-known/oauth-authorization-server/iam/123",
+			"/iam/123/.well-known/oauth-authorization-server",
+		}, *requested)
 	})
-	t.Run("error - server error changes status code to 502", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusInternalServerError}
-		tlsServer, client := testServerAndClient(t, &handler)
+	t.Run("error - errors are returned as-is", func(t *testing.T) {
+		tlsServer, client, _ := metadataServer(t, http.StatusInternalServerError, "")
 
 		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL)
 
 		require.Error(t, err)
-		httpErr, ok := err.(core.HttpError)
-		require.True(t, ok)
-		assert.Equal(t, http.StatusBadGateway, httpErr.StatusCode)
+		var httpErr core.HttpError
+		require.ErrorAs(t, err, &httpErr)
+		assert.Equal(t, http.StatusInternalServerError, httpErr.StatusCode)
+	})
+	t.Run("error - all candidates 4xx classifies as ErrInvalidClientCall", func(t *testing.T) {
+		tlsServer, client, _ := metadataServer(t, http.StatusNotFound, "/iam/123")
+
+		_, err := client.OAuthAuthorizationServerMetadata(ctx, tlsServer.URL+"/iam/123")
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrInvalidClientCall)
 	})
 }
 
@@ -261,6 +281,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 	ctx := context.Background()
 	configuration := oauth.OpenIDConfiguration{
 		Issuer: "issuer",
+		JWKs:   jwk.NewSet(),
 	}
 
 	// create jwt
@@ -269,6 +290,9 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 		claims := make(map[string]interface{})
 		asJson, _ := json.Marshal(configuration)
 		_ = json.Unmarshal(asJson, &claims)
+		// jwx v3 rejects a token whose "exp" is set to the zero value (epoch) as expired;
+		// the marshaled zero-value OpenIDConfiguration includes "exp":0, so drop it to keep the token valid.
+		delete(claims, "exp")
 		alg, _ := nutsCrypto.SignatureAlgorithm(testKey.Public())
 		headers := map[string]interface{}{jws.AlgorithmKey: alg, jws.KeyIDKey: "test"}
 		token, err := nutsCrypto.SignJWT(audit.TestContext(), testKey, alg, claims, headers)
@@ -316,7 +340,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, response)
-		assert.EqualError(t, err, "unable to parse response: failed to parse jws: invalid byte sequence")
+		assert.EqualError(t, err, "unable to parse response: jwt.Parse: failed to parse token: jws.Verify: failed to parse jws: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
 	})
 	t.Run("error - unknown key", func(t *testing.T) {
 		otherClient := &HTTPClient{
@@ -330,7 +354,7 @@ func TestHTTPClient_OpenIDConfiguration(t *testing.T) {
 
 		require.Error(t, err)
 		require.Nil(t, response)
-		assert.EqualError(t, err, "unable to parse response: could not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "unable to parse response: jwt.Parse: failed to parse token: jws.Verify: could not verify message using any of the signatures or keys: jws.Verify: failed to verify signature #1 with key *ecdsa.PublicKey: invalid ECDSA signature\njws.Verify: signature #1: tried 1 key(s) but none verified successfully")
 	})
 }
 

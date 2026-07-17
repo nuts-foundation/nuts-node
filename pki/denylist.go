@@ -29,9 +29,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 )
 
 // denylistImpl implements arbitrary certificate rejection using issuer and serial number tuples
@@ -182,7 +182,7 @@ func (b *denylistImpl) Update() error {
 	}
 
 	// Check the signature of the denylist
-	payload, err := jws.Verify(bytes, jws.WithKey(jwa.EdDSA, b.trustedKey))
+	payload, err := jws.Verify(bytes, jws.WithKey(jwa.EdDSA(), b.trustedKey))
 	if err != nil {
 		return fmt.Errorf("failed to verify denylist signature: %w", err)
 	}
@@ -251,11 +251,11 @@ func certKeyJWKThumbprint(cert *x509.Certificate) string {
 		// Compute the fingerprint of the key
 		_ = jwk.AssignKeyID(key)
 
-		// Retrieve the fingerprint, which annoyingly is an "any" return type
-		fingerprint, _ := key.Get(jwk.KeyIDKey)
+		// Retrieve the fingerprint
+		var fingerprint string
+		_ = key.Get(jwk.KeyIDKey, &fingerprint)
 
-		// Use fmt to "convert" the fingerprint to a string
-		return fmt.Sprintf("%s", fingerprint)
+		return fingerprint
 	}
 
 	// If something above failed, default to an empty string. This would happen if the JWK library could not
