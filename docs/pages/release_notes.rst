@@ -13,6 +13,9 @@ Unreleased
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
+## Security
+* #4420: Harden the strict-mode HTTP client against SSRF: outbound requests now refuse to connect to non-public addresses (loopback, private, link-local, unspecified) at dial time, checked against the resolved IP so DNS-rebinding cannot bypass it. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+
 *****************
 Peanut (v6.2.10)
 *****************
