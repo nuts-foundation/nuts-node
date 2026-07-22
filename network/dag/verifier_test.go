@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-stoabs"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -111,14 +111,14 @@ func TestTransactionSignatureVerifier(t *testing.T) {
 		transaction, _, _ := CreateTestTransaction(1)
 		expected, _ := ParseTransaction(transaction.Data())
 		err := NewTransactionSignatureVerifier(&staticKeyResolver{Key: attackerKey.Public()})(nil, expected)
-		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "jws.Verify: could not verify message using any of the signatures or keys: jws.Verify: failed to verify signature #1 with key *ecdsa.PublicKey: invalid ECDSA signature\njws.Verify: signature #1: tried 1 key(s) but none verified successfully")
 	})
 	t.Run("key type is incorrect", func(t *testing.T) {
 		d, _, _ := CreateTestTransaction(1)
 		tx := d.(*transaction)
-		tx.signingKey, _ = jwk.FromRaw([]byte("01234567890123456789012345678901234567890123456789ABCDEF"))
+		tx.signingKey, _ = jwk.Import([]byte("01234567890123456789012345678901234567890123456789ABCDEF"))
 		err := NewTransactionSignatureVerifier(nil)(nil, tx)
-		assert.EqualError(t, err, "could not verify message using any of the signatures or keys")
+		assert.EqualError(t, err, "jwk.Export: no suitable exporter found for key type '*jwk.symmetricKey'")
 	})
 	t.Run("unable to resolve key by hash", func(t *testing.T) {
 		d := CreateSignedTestTransaction(1, time.Now(), nil, "foo/bar", false)

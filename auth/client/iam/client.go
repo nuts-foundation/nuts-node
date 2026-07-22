@@ -29,9 +29,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
@@ -64,22 +65,18 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  - did:web:example.com becomes https://example.com/.well-known/oauth-authorization-server
 	//  - did:web:example.com:iam:123 becomes https://example.com/.well-known/oauth-authorization-server/did:web:example.com:iam:123
 
-	metadataURL, err := oauth.IssuerIdToWellKnown(oauthIssuer, oauth.AuthzServerWellKnown, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-	var metadata oauth.AuthorizationServerMetadata
-	if err = hb.doGet(ctx, metadataURL.String(), &metadata); err != nil {
-		// if this is a core.HttpError and the status code >= 500 then we want the caller to receive a 502 Bad Gateway
-		// we do this by changing the status code of the error
-		// any other error should result in a 400 Bad Request
-		if httpErr, ok := err.(core.HttpError); ok && httpErr.StatusCode >= 500 {
-			httpErr.StatusCode = http.StatusBadGateway
-			return nil, httpErr
-		}
+	// Try the well-known locations in priority order and take the first that
+	// returns a matching document:
+	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
+	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
+	// Many authorization servers publish metadata only under the append convention.
+	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
+	if err != nil && errors.Is(err, oauth.ErrAllCandidates4xx) {
+		// Every candidate rejected the request outright (no 5xx, no network/decode failure, no
+		// identifier mismatch): the identifier itself is most likely wrong.
 		return nil, errors.Join(ErrInvalidClientCall, err)
 	}
-	return &metadata, err
+	return metadata, err
 }
 
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
@@ -264,12 +261,13 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
-	claims, err := token.AsMap(ctx)
+	claims, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
 	// hack, broken iat
-	claims["iat"] = token.IssuedAt().Unix()
+	iat, _ := token.IssuedAt()
+	claims["iat"] = iat.Unix()
 	asJSON, _ := json.Marshal(claims)
 	if err = json.Unmarshal(asJSON, &configuration); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
@@ -279,7 +277,7 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 
 func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	return func(context context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
-		keyID := signature.ProtectedHeaders().KeyID()
+		keyID, _ := signature.ProtectedHeaders().KeyID()
 		publicKey, err := hb.keyResolver.ResolveKeyByID(keyID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)

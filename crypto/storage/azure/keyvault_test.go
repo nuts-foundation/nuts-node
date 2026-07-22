@@ -21,6 +21,7 @@ package azure
 import (
 	"context"
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -37,7 +38,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,8 +113,8 @@ func Test_Keyvault_GetPrivateKey(t *testing.T) {
 	})
 	t.Run("unsupported key type", func(t *testing.T) {
 		// Generate an RSA key to return
-		privateKey, _ := rsa.GenerateKey(rand.Reader, 1024)
-		privateKeyAsJWK, err := jwk.FromRaw(privateKey.PublicKey)
+		privateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+		privateKeyAsJWK, err := jwk.Import(privateKey.PublicKey)
 		require.NoError(t, err)
 		privateKeyJWKAsBytes_, _ := json.Marshal(privateKeyAsJWK)
 		var jsonWebKey azkeys.JSONWebKey
@@ -241,12 +242,20 @@ func Test_azureSigningKey_Sign(t *testing.T) {
 
 func keyBundle() azkeys.KeyBundle {
 	id := azkeys.ID("https://myvaultname.vault.azure.net/keys/did-web-example-com-0/b86c2e6ad9054f4abf69cc185b99aa60")
+	// jwx v3 validates that the X/Y coordinates have the correct length for the curve,
+	// so use a real P-256 key's coordinates instead of arbitrary bytes.
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	ecdhPub, _ := key.PublicKey.ECDH()
+	// Uncompressed point encoding: 0x04 || X (32 bytes) || Y (32 bytes).
+	point := ecdhPub.Bytes()
+	x := point[1:33]
+	y := point[33:65]
 	return azkeys.KeyBundle{
 		Key: &azkeys.JSONWebKey{
 			Kty: to.Ptr(azkeys.KeyTypeEC),
 			Crv: to.Ptr(azkeys.CurveNameP256),
-			X:   []byte{1, 2, 3},
-			Y:   []byte{4, 5, 6},
+			X:   x,
+			Y:   y,
 			KID: &id,
 		},
 	}

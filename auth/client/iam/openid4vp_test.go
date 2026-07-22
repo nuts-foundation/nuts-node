@@ -233,8 +233,7 @@ func TestIAMClient_AuthorizationServerMetadata(t *testing.T) {
 		_, err := ctx.client.AuthorizationServerMetadata(context.Background(), ctx.tlsServer.URL)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 }
 
@@ -381,8 +380,7 @@ func TestRelyingParty_RequestServiceAccessToken(t *testing.T) {
 		_, err := ctx.client.RequestServiceAccessToken(context.Background(), subjectClientID, subjectID, ctx.verifierURL.String(), scopes, false, nil, nil, nil)
 
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidClientCall)
-		assert.ErrorContains(t, err, "server returned HTTP 404 (expected: 200)")
+		assert.ErrorContains(t, err, "failed to retrieve metadata")
 	})
 	t.Run("error - faulty presentation definition", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -1067,6 +1065,7 @@ func createClientServerTestContext(t *testing.T) *clientServerTestContext {
 	ctx.verifierURL = test2.MustParseURL(ctx.tlsServer.URL)
 	ctx.issuerDID = didweb.ServerURLToDIDWeb(t, ctx.tlsServer.URL+"/issuer")
 	ctx.authzServerMetadata = metadata
+	ctx.authzServerMetadata.Issuer = ctx.tlsServer.URL
 	ctx.authzServerMetadata.TokenEndpoint = ctx.tlsServer.URL + "/token"
 	ctx.authzServerMetadata.PresentationDefinitionEndpoint = ctx.tlsServer.URL + "/presentation_definition"
 	ctx.authzServerMetadata.AuthorizationEndpoint = ctx.tlsServer.URL + "/authorize"

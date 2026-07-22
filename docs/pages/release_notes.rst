@@ -13,6 +13,26 @@ Unreleased
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
+*****************
+Peanut (v6.2.10)
+*****************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.9...v6.2.10
+
+****************
+Peanut (v6.2.9)
+****************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.8...v6.2.9
+
 ****************
 Peanut (v6.2.8)
 ****************
@@ -499,6 +519,26 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.37)
+*************************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.36...v5.4.37
+
+*************************
+Hazelnut update (v5.4.36)
+*************************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.35...v5.4.36
 
 *************************
 Hazelnut update (v5.4.35)

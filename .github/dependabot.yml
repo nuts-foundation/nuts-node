@@ -9,6 +9,13 @@ updates:
       day: "sunday"
       time: "23:00"
       timezone: "Europe/Amsterdam"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Go
   - package-ecosystem: "gomod"
@@ -19,6 +26,13 @@ updates:
       day: "sunday"
       time: "23:00"
       timezone: "Europe/Amsterdam"
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Docker
   - package-ecosystem: "docker"
@@ -29,6 +43,13 @@ updates:
       day: "sunday"
       time: "23:00"
       timezone: "Europe/Amsterdam"
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Python (PRs disabled)
   - package-ecosystem: "pip"

@@ -32,9 +32,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
@@ -366,7 +366,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.FromRaw(priv)
+	jwkKey, err := jwk.Import(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -374,7 +374,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA, jwkKey))
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA(), jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 

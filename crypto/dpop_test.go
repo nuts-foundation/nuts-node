@@ -23,8 +23,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
@@ -36,8 +36,8 @@ func TestDPOP(t *testing.T) {
 	client := createCrypto(t)
 	kid := "kid"
 	_, pubKey := newKeyReference(t, client, kid)
-	keyAsJWK, _ := jwk.FromRaw(pubKey)
-	_ = keyAsJWK.Set(jwk.AlgorithmKey, jwa.ES256)
+	keyAsJWK, _ := jwk.Import(pubKey)
+	_ = keyAsJWK.Set(jwk.AlgorithmKey, jwa.ES256())
 	request, _ := http.NewRequest("POST", "https://server.example.com/token", nil)
 
 	t.Run("creates valid DPoP token", func(t *testing.T) {
@@ -48,7 +48,8 @@ func TestDPOP(t *testing.T) {
 		token, err = dpop.Parse(tokenString)
 		require.NoError(t, err)
 
-		assert.Equal(t, keyAsJWK, token.Headers.JWK())
+		headerJWK, _ := token.Headers.JWK()
+		assert.Equal(t, keyAsJWK, headerJWK)
 		assert.Equal(t, "POST", token.HTM())
 		assert.Equal(t, "https://server.example.com/token", token.HTU())
 	})
@@ -65,8 +66,8 @@ func TestDPOP(t *testing.T) {
 		proof, err := dpop.Parse(proofString)
 		require.NoError(t, err)
 
-		ath, ok := proof.Token.Get(dpop.ATHKey)
-		require.True(t, ok)
+		var ath string
+		require.NoError(t, proof.Token.Get(dpop.ATHKey, &ath))
 		assert.Equal(t, hashString, ath)
 	})
 }

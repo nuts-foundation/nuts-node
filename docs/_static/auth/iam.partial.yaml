@@ -160,7 +160,7 @@ paths:
                 "$ref": "#/components/schemas/RequestObjectResponse"
         default:
           $ref: '../common/error_response.yaml'
-  /oauth2/{subjectID}/callback:
+  /oauth2/callback:
     get:
       summary: The OAuth2 callback endpoint of the client.
       description: |
@@ -168,18 +168,11 @@ paths:
         This can be the result of a successful authorization request or an error.
         The result of this callback is a redirect back to the calling application.
         
-        This callback is used as the redirect_uri in multiple authorization request flows.
+        This callback is used as the redirect_uri in authorized code, OpenID4VP, and OpenID4VCI flows.
       operationId: callback
       tags:
         - oauth2
       parameters:
-        - name: subjectID
-          in: path
-          required: true
-          description: the subject of the callback
-          schema:
-            type: string
-            example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
         - name: code
           in: query
           description: The authorization code received from the authorization server.

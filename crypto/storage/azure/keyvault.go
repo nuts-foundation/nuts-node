@@ -33,7 +33,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto/log"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
@@ -209,12 +209,12 @@ func parseKey(key *azkeys.JSONWebKey) (publicKey crypto.PublicKey, keyType azkey
 		err = fmt.Errorf("unable to parse key from Azure Key Vault as JWK: %w", err)
 		return
 	}
-	if err = keyAsJWK.Raw(&publicKey); err != nil {
-		err = fmt.Errorf("unable to convert key from Azure Key Vault Key to crypto.PublicKey: %w", err)
-		return
-	}
 	if !(*key.Kty == azkeys.KeyTypeEC || *key.Kty == azkeys.KeyTypeECHSM) || *key.Crv != azkeys.CurveNameP256 {
 		err = errors.New("only ES256 keys are supported")
+		return
+	}
+	if err = jwk.Export(keyAsJWK, &publicKey); err != nil {
+		err = fmt.Errorf("unable to convert key from Azure Key Vault Key to crypto.PublicKey: %w", err)
 		return
 	}
 	keyType = azkeys.SignatureAlgorithmES256

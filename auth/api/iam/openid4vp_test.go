@@ -31,7 +31,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/http/user"
 	"github.com/nuts-foundation/nuts-node/vcr/verifier"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -750,7 +750,7 @@ func Test_handleCallback(t *testing.T) {
 	}
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		callbackURI := "https://example.com/oauth2/holder/callback"
+		callbackURI := "https://example.com/oauth2/callback"
 		codeVerifier := session.PKCEParams.Verifier
 
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderSubjectID, holderClientID, codeVerifier, false).Return(nil, assert.AnError)
@@ -852,7 +852,7 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		return holderURL.JoinPath("callback").String(), nil
+		return "https://example.com/oauth2/callback", nil
 	})
 }
 
