@@ -21,6 +21,7 @@ package client
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -107,19 +108,15 @@ func TestDenyNonPublicAddr(t *testing.T) {
 		StrictMode = v
 		t.Cleanup(func() { StrictMode = old })
 	}
-	t.Run("strict mode blocks non-public addresses", func(t *testing.T) {
+	t.Run("strict mode blocks addresses that are never a valid federation target", func(t *testing.T) {
 		setStrictMode(t, true)
 		blocked := map[string]string{
-			"loopback IPv4":              "127.0.0.1:443",
-			"loopback IPv6":              "[::1]:443",
-			"private RFC1918 10/8":       "10.0.0.5:443",
-			"private RFC1918 172.16/12":  "172.16.0.1:443",
-			"private RFC1918 192.168/16": "192.168.1.1:443",
-			"unique local IPv6":          "[fd00::1]:443",
-			"link-local IPv4":            "169.254.169.254:443",
-			"link-local IPv6":            "[fe80::1]:443",
-			"unspecified IPv4":           "0.0.0.0:443",
-			"unspecified IPv6":           "[::]:443",
+			"loopback IPv4":    "127.0.0.1:443",
+			"loopback IPv6":    "[::1]:443",
+			"link-local IPv4":  "169.254.169.254:443",
+			"link-local IPv6":  "[fe80::1]:443",
+			"unspecified IPv4": "0.0.0.0:443",
+			"unspecified IPv6": "[::]:443",
 		}
 		for name, address := range blocked {
 			t.Run(name, func(t *testing.T) {
@@ -128,10 +125,22 @@ func TestDenyNonPublicAddr(t *testing.T) {
 			})
 		}
 	})
-	t.Run("strict mode allows public addresses", func(t *testing.T) {
+	t.Run("strict mode allows public and private-network addresses", func(t *testing.T) {
 		setStrictMode(t, true)
-		for _, address := range []string{"8.8.8.8:443", "93.184.216.34:443", "[2606:2800:220:1:248:1893:25c8:1946]:443"} {
-			t.Run(address, func(t *testing.T) {
+		// Private (RFC1918) and unique local (ULA) are allowed: nodes legitimately
+		// federate over private networks. The redirect and truststore guards, not the
+		// dial guard, protect these ranges.
+		allowed := map[string]string{
+			"public IPv4":                "8.8.8.8:443",
+			"public IPv4 example":        "93.184.216.34:443",
+			"public IPv6":                "[2606:2800:220:1:248:1893:25c8:1946]:443",
+			"private RFC1918 10/8":       "10.0.0.5:443",
+			"private RFC1918 172.16/12":  "172.16.0.1:443",
+			"private RFC1918 192.168/16": "192.168.1.1:443",
+			"unique local IPv6":          "[fd00::1]:443",
+		}
+		for name, address := range allowed {
+			t.Run(name, func(t *testing.T) {
 				assert.NoError(t, denyNonPublicAddr("tcp", address, nil))
 			})
 		}
@@ -140,6 +149,65 @@ func TestDenyNonPublicAddr(t *testing.T) {
 		setStrictMode(t, false)
 		assert.NoError(t, denyNonPublicAddr("tcp", "127.0.0.1:443", nil))
 		assert.NoError(t, denyNonPublicAddr("tcp", "10.0.0.5:443", nil))
+	})
+}
+
+func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
+	original := tracing.Enabled()
+	tracing.SetEnabled(false) // ensure the constructed client uses the raw transport
+	t.Cleanup(func() { tracing.SetEnabled(original) })
+
+	// httptest servers bind to loopback, which the strict-mode dial guard blocks.
+	// Relax the dialer for this test so the initial TLS hop is reachable; the dial
+	// guard itself is covered by TestDenyNonPublicAddr / TestSafeHttpTransport_SSRFDialGuard.
+	origDial := SafeHttpTransport.DialContext
+	SafeHttpTransport.DialContext = (&net.Dialer{}).DialContext
+	t.Cleanup(func() { SafeHttpTransport.DialContext = origDial })
+
+	// Plaintext HTTP endpoint the redirect points to.
+	var reached atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached.Store(true)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	// Valid HTTPS remote that redirects the client onto the plaintext endpoint.
+	redirector := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer redirector.Close()
+
+	// Trust the test TLS server via NewWithTLSConfig, a real production constructor.
+	tlsConfig := redirector.Client().Transport.(*http.Transport).TLSClientConfig
+
+	setStrictMode := func(t *testing.T, v bool) {
+		old := StrictMode
+		StrictMode = v
+		t.Cleanup(func() { StrictMode = old })
+	}
+
+	t.Run("strict mode refuses redirect from HTTPS to HTTP", func(t *testing.T) {
+		setStrictMode(t, true)
+		reached.Store(false)
+
+		client := NewWithTLSConfig(time.Second, tlsConfig)
+		req, _ := http.NewRequest("GET", redirector.URL, nil)
+		_, err := client.Do(req)
+
+		assert.Error(t, err, "strict mode must not follow a redirect from HTTPS to HTTP")
+		assert.False(t, reached.Load(), "the plaintext endpoint must not be contacted")
+	})
+	t.Run("non-strict mode follows redirect to HTTP", func(t *testing.T) {
+		setStrictMode(t, false)
+		reached.Store(false)
+
+		client := NewWithTLSConfig(time.Second, tlsConfig)
+		req, _ := http.NewRequest("GET", redirector.URL, nil)
+		_, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.True(t, reached.Load(), "non-strict mode should follow the redirect")
 	})
 }
 
