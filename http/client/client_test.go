@@ -35,6 +35,8 @@ import (
 )
 
 func TestStrictHTTPClient(t *testing.T) {
+	oldStrictMode := StrictMode
+	t.Cleanup(func() { StrictMode = oldStrictMode })
 	t.Run("caching transport", func(t *testing.T) {
 		t.Run("strict mode enabled", func(t *testing.T) {
 			rt := &stubRoundTripper{}
@@ -96,6 +98,73 @@ func TestStrictHTTPClient(t *testing.T) {
 
 		assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
 		assert.Equal(t, 0, rt.invocations)
+	})
+}
+
+func TestDenyNonPublicAddr(t *testing.T) {
+	setStrictMode := func(t *testing.T, v bool) {
+		old := StrictMode
+		StrictMode = v
+		t.Cleanup(func() { StrictMode = old })
+	}
+	t.Run("strict mode blocks non-public addresses", func(t *testing.T) {
+		setStrictMode(t, true)
+		blocked := map[string]string{
+			"loopback IPv4":              "127.0.0.1:443",
+			"loopback IPv6":              "[::1]:443",
+			"private RFC1918 10/8":       "10.0.0.5:443",
+			"private RFC1918 172.16/12":  "172.16.0.1:443",
+			"private RFC1918 192.168/16": "192.168.1.1:443",
+			"unique local IPv6":          "[fd00::1]:443",
+			"link-local IPv4":            "169.254.169.254:443",
+			"link-local IPv6":            "[fe80::1]:443",
+			"unspecified IPv4":           "0.0.0.0:443",
+			"unspecified IPv6":           "[::]:443",
+		}
+		for name, address := range blocked {
+			t.Run(name, func(t *testing.T) {
+				err := denyNonPublicAddr("tcp", address, nil)
+				assert.ErrorContains(t, err, "blocked connection to non-public address")
+			})
+		}
+	})
+	t.Run("strict mode allows public addresses", func(t *testing.T) {
+		setStrictMode(t, true)
+		for _, address := range []string{"8.8.8.8:443", "93.184.216.34:443", "[2606:2800:220:1:248:1893:25c8:1946]:443"} {
+			t.Run(address, func(t *testing.T) {
+				assert.NoError(t, denyNonPublicAddr("tcp", address, nil))
+			})
+		}
+	})
+	t.Run("non-strict mode allows non-public addresses", func(t *testing.T) {
+		setStrictMode(t, false)
+		assert.NoError(t, denyNonPublicAddr("tcp", "127.0.0.1:443", nil))
+		assert.NoError(t, denyNonPublicAddr("tcp", "10.0.0.5:443", nil))
+	})
+}
+
+func TestSafeHttpTransport_SSRFDialGuard(t *testing.T) {
+	original := tracing.Enabled()
+	tracing.SetEnabled(false) // ensure New() returns SafeHttpTransport directly
+	t.Cleanup(func() { tracing.SetEnabled(original) })
+
+	// httptest TLS server listens on a loopback address.
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	t.Run("strict mode blocks connection to loopback server before TLS handshake", func(t *testing.T) {
+		old := StrictMode
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = old })
+
+		client := New(time.Second)
+		req, _ := http.NewRequest("GET", server.URL, nil)
+		_, err := client.Do(req)
+
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "blocked connection to non-public address")
 	})
 }
 

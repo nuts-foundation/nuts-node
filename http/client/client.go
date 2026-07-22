@@ -24,7 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"syscall"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -43,6 +45,14 @@ func init() {
 	SafeHttpTransport.TLSClientConfig.MinVersion = tls.VersionTLS12
 	// to prevent slow responses from public clients to have significant impact (default was unlimited)
 	SafeHttpTransport.MaxConnsPerHost = 5
+	// guard against SSRF: in strict mode, refuse to connect to non-public addresses,
+	// checked against the resolved IP so DNS-rebinding cannot bypass it. Keeps the
+	// default dialer timeouts used by http.DefaultTransport.
+	SafeHttpTransport.DialContext = (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Control:   denyNonPublicAddr,
+	}).DialContext
 	// set DefaultCachingTransport to SafeHttpTransport so it is set even when caching is disabled
 	DefaultCachingTransport = SafeHttpTransport
 }
@@ -54,6 +64,32 @@ func httpSpanName(_ string, r *http.Request) string {
 
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
+
+// denyNonPublicAddr is a net.Dialer.Control hook. In strict mode it refuses
+// connections whose resolved address is on a non-public network (loopback,
+// private/RFC1918, unique local, link-local or unspecified). Because it inspects
+// the actual IP the socket is about to connect to (after DNS resolution), it
+// closes SSRF and DNS-rebinding vectors that URL-string validation such as
+// core.ParsePublicURL cannot: a public hostname resolving to an internal address
+// still fails here.
+func denyNonPublicAddr(_ string, address string, _ syscall.RawConn) error {
+	if !StrictMode {
+		return nil
+	}
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	// The Control hook runs after DNS resolution, so host is a literal IP.
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return fmt.Errorf("strictmode: cannot parse connection address %q", address)
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		return fmt.Errorf("strictmode: blocked connection to non-public address %s", ip)
+	}
+	return nil
+}
 
 // DefaultMaxHttpResponseSize is a default maximum size of an HTTP response body that will be read.
 // Very large or unbounded HTTP responses can cause denial-of-service, so it's good to limit how much data is read.
