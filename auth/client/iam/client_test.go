@@ -31,9 +31,12 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -247,13 +250,29 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		require.NotErrorAs(t, err, new(oauth.RemoteOAuthError))
 	})
 	t.Run("error - invalid response", func(t *testing.T) {
-		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "}"}
+		hook := logrustest.NewGlobal()
+		oldLevel := logrus.GetLevel()
+		logrus.SetLevel(logrus.DebugLevel)
+		t.Cleanup(func() { logrus.SetLevel(oldLevel) })
+
+		handler := http2.Handler{StatusCode: http.StatusOK, ResponseData: "SECRET-RESPONSE-BODY"}
 		tlsServer, client := testServerAndClient(t, &handler)
 
 		_, err := client.AccessToken(ctx, tlsServer.URL, data, dpopHeader)
 
 		require.Error(t, err)
-		assert.EqualError(t, err, "unable to unmarshal response: invalid character '}' looking for beginning of value, }")
+		assert.ErrorContains(t, err, "unable to unmarshal response")
+		// The raw response body must not be reflected in the returned error, since it can
+		// carry content fetched from an attacker-influenced endpoint.
+		assert.NotContains(t, err.Error(), "SECRET-RESPONSE-BODY")
+		// It is debug-logged (clipped) for diagnostics instead.
+		var logged bool
+		for _, entry := range hook.AllEntries() {
+			if strings.Contains(entry.Message, "SECRET-RESPONSE-BODY") {
+				logged = true
+			}
+		}
+		assert.True(t, logged, "response body should be debug-logged")
 	})
 
 }

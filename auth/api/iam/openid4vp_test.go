@@ -757,7 +757,8 @@ func Test_handleCallback(t *testing.T) {
 
 		_, err := ctx.client.handleCallback(nil, code, &session)
 
-		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token: assert.AnError general error for testing")
+		// The remote error must not be reflected into the description; only static context (the endpoint) is kept.
+		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token from https://example.com/token")
 	})
 }
 

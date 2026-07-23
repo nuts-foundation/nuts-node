@@ -37,6 +37,18 @@ var TracingHTTPTransport func(http.RoundTripper) http.RoundTripper
 // If the response body is longer than this, it will be truncated.
 const HttpResponseBodyLogClipAt = 200
 
+// ClipHTTPBody returns the response body clipped to HttpResponseBodyLogClipAt characters,
+// safe to write to a (debug) log. It exists so an unexpected response can be logged for
+// diagnostics without ever placing the full, possibly attacker-influenced, body into an
+// error message that could be reflected back to a caller.
+func ClipHTTPBody(body []byte) string {
+	s := string(body)
+	if len(s) > HttpResponseBodyLogClipAt {
+		return s[:HttpResponseBodyLogClipAt] + "...(clipped)"
+	}
+	return s
+}
+
 // HttpResponseBodyMaxSize is the maximum number of bytes read from an unexpected HTTP response body.
 // It prevents DoS attacks where a malicious server returns a very large response body.
 // Only applied to error responses, so 1 MB is more than enough.
