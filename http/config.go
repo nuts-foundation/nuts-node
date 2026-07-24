@@ -53,6 +53,11 @@ type ClientConfig struct {
 	// credential offering or an internal OAuth user flow. Leave empty to block all non-public
 	// addresses.
 	AllowedInternalCIDRs []string `koanf:"allowedinternalcidrs"`
+	// DeniedCIDRs lists IP ranges in CIDR notation that outbound HTTP requests must never target
+	// in strict mode, in addition to the built-in blocked ranges (non-public addresses and cloud
+	// metadata endpoints). Use for publicly routable ranges that are internal-only in your
+	// infrastructure. Denied ranges take precedence over AllowedInternalCIDRs.
+	DeniedCIDRs []string `koanf:"deniedcidrs"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.

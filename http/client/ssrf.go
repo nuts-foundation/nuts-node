@@ -21,6 +21,7 @@ package client
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"syscall"
 )
 
@@ -39,22 +40,74 @@ var allowedNonPublicNets []netip.Prefix
 // networks that strict mode permits. It returns an error on the first invalid CIDR, leaving the
 // previous value unchanged.
 func SetAllowedNonPublicCIDRs(cidrs []string) error {
+	nets, err := parseCIDRs(cidrs)
+	if err != nil {
+		return err
+	}
+	allowedNonPublicNets = nets
+	return nil
+}
+
+// deniedNets holds IP networks that outbound requests must never connect to in strict mode,
+// regardless of the allowlist. It always contains deniedCloudMetadataPrefixes; operator-configured
+// ranges from http.client.deniedcidrs (SetDeniedCIDRs) are appended, for deployments whose
+// infrastructure uses publicly routable ranges that are internal-only.
+var deniedNets = slices.Clone(deniedCloudMetadataPrefixes)
+
+// SetDeniedCIDRs parses the given CIDR strings and replaces the operator-configured part of the
+// denied networks; the built-in cloud metadata prefixes are always retained. It returns an error
+// on the first invalid CIDR, leaving the previous value unchanged.
+func SetDeniedCIDRs(cidrs []string) error {
+	nets, err := parseCIDRs(cidrs)
+	if err != nil {
+		return err
+	}
+	deniedNets = append(slices.Clone(deniedCloudMetadataPrefixes), nets...)
+	return nil
+}
+
+// parseCIDRs parses CIDR strings into masked prefixes, failing on the first invalid entry.
+func parseCIDRs(cidrs []string) ([]netip.Prefix, error) {
 	nets := make([]netip.Prefix, 0, len(cidrs))
 	for _, cidr := range cidrs {
 		prefix, err := netip.ParsePrefix(cidr)
 		if err != nil {
-			return fmt.Errorf("invalid CIDR %q: %w", cidr, err)
+			return nil, fmt.Errorf("invalid CIDR %q: %w", cidr, err)
 		}
 		nets = append(nets, prefix.Masked())
 	}
-	allowedNonPublicNets = nets
-	return nil
+	return nets, nil
 }
 
 // isAllowedNonPublic reports whether ip falls within one of the configured allowlisted networks.
 func isAllowedNonPublic(ip netip.Addr) bool {
 	for _, n := range allowedNonPublicNets {
 		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// deniedCloudMetadataPrefixes are cloud provider metadata endpoints that sit on public address
+// space, which the non-public check cannot cover. Blocking cloud metadata endpoints follows the
+// OWASP SSRF prevention cheat sheet
+// (https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html):
+// metadata services hand out credentials and instance configuration, making them the primary SSRF
+// target in cloud deployments. Of the endpoints OWASP lists, only Azure's needs an entry here; the
+// others (169.254.169.254 used by AWS/GCP/Azure/OpenStack, Alibaba's 100.100.100.200, AWS's
+// fd00:ec2::254) already fall in blocked non-public ranges (link-local, CGNAT, ULA). Kept separate
+// from the IANA lists so the upstream drift test stays exact.
+var deniedCloudMetadataPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("168.63.129.16/32"), // Azure wire server / metadata
+}
+
+// isDenied reports whether ip falls in an explicitly denied range: a built-in cloud metadata
+// endpoint or an operator-configured denied network. Denied ranges are refused even when the
+// allowlist covers them.
+func isDenied(ip netip.Addr) bool {
+	for _, prefix := range deniedNets {
+		if prefix.Contains(ip) {
 			return true
 		}
 	}
@@ -144,6 +197,9 @@ func denyNonPublicAddr(_ string, address string, _ syscall.RawConn) error {
 		return fmt.Errorf("strictmode: cannot parse connection address %q: %w", address, err)
 	}
 	ip := addrPort.Addr().Unmap()
+	if isDenied(ip) {
+		return fmt.Errorf("strictmode: blocked connection to denied address %s", ip)
+	}
 	if isNonPublicAddr(ip) && !isAllowedNonPublic(ip) {
 		return fmt.Errorf("strictmode: blocked connection to non-public address %s", ip)
 	}

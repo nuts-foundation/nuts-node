@@ -105,6 +105,9 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
 	if err := client.SetAllowedNonPublicCIDRs(h.config.Client.AllowedInternalCIDRs); err != nil {
 		return err
 	}
+	if err := client.SetDeniedCIDRs(h.config.Client.DeniedCIDRs); err != nil {
+		return err
+	}
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)

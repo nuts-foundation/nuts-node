@@ -139,6 +139,84 @@ func TestDenyNonPublicAddr(t *testing.T) {
 	})
 }
 
+func TestDeniedCIDRs(t *testing.T) {
+	setStrictMode := func(t *testing.T, v bool) {
+		old := StrictMode
+		StrictMode = v
+		t.Cleanup(func() { StrictMode = old })
+	}
+	setDenylist := func(t *testing.T, cidrs ...string) {
+		old := deniedNets
+		require.NoError(t, SetDeniedCIDRs(cidrs))
+		t.Cleanup(func() { deniedNets = old })
+	}
+	setAllowlist := func(t *testing.T, cidrs ...string) {
+		old := allowedNonPublicNets
+		require.NoError(t, SetAllowedNonPublicCIDRs(cidrs))
+		t.Cleanup(func() { allowedNonPublicNets = old })
+	}
+	t.Run("strict mode blocks denied public addresses", func(t *testing.T) {
+		setStrictMode(t, true)
+		setDenylist(t, "8.8.8.0/24", "2001:4860:4860::/48")
+
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "8.8.8.8:443", nil), "blocked connection to denied address")
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "[2001:4860:4860::8888]:443", nil), "blocked connection to denied address")
+		// Public addresses outside the denied ranges are still allowed.
+		assert.NoError(t, denyNonPublicAddr("tcp", "9.9.9.9:443", nil))
+	})
+	t.Run("denied wins over allowed", func(t *testing.T) {
+		setStrictMode(t, true)
+		setAllowlist(t, "10.0.0.0/8")
+		setDenylist(t, "10.5.0.0/16")
+
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "10.5.1.1:443", nil), "blocked connection to denied address")
+		// The rest of the allowlisted range is still allowed.
+		assert.NoError(t, denyNonPublicAddr("tcp", "10.6.1.1:443", nil))
+	})
+	t.Run("cloud metadata endpoints are denied by default", func(t *testing.T) {
+		setStrictMode(t, true)
+		// Azure wire server / metadata endpoint: a public Microsoft-owned IP, so the
+		// non-public check does not cover it.
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "168.63.129.16:443", nil), "blocked connection to denied address")
+		// The other cloud metadata endpoints fall in already-blocked non-public ranges.
+		assert.Error(t, denyNonPublicAddr("tcp", "169.254.169.254:80", nil)) // AWS/GCP/OpenStack/Azure IMDS (link-local)
+		assert.Error(t, denyNonPublicAddr("tcp", "100.100.100.200:80", nil)) // Alibaba (CGNAT)
+		assert.Error(t, denyNonPublicAddr("tcp", "[fd00:ec2::254]:80", nil)) // AWS IMDS IPv6 (ULA)
+	})
+	t.Run("the allowlist cannot re-admit cloud metadata endpoints", func(t *testing.T) {
+		setStrictMode(t, true)
+		setAllowlist(t, "168.63.129.16/32")
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "168.63.129.16:443", nil), "blocked connection to denied address")
+	})
+	t.Run("non-strict mode ignores the denylist", func(t *testing.T) {
+		setStrictMode(t, false)
+		setDenylist(t, "8.8.8.0/24")
+		assert.NoError(t, denyNonPublicAddr("tcp", "8.8.8.8:443", nil))
+		assert.NoError(t, denyNonPublicAddr("tcp", "168.63.129.16:443", nil))
+	})
+}
+
+func TestSetDeniedCIDRs(t *testing.T) {
+	old := deniedNets
+	t.Cleanup(func() { deniedNets = old })
+	builtins := len(deniedCloudMetadataPrefixes)
+	t.Run("valid appends to the built-in denylist", func(t *testing.T) {
+		require.NoError(t, SetDeniedCIDRs([]string{"192.0.32.0/24", "2001:500::/32"}))
+		assert.Len(t, deniedNets, builtins+2)
+	})
+	t.Run("invalid leaves previous value unchanged", func(t *testing.T) {
+		require.NoError(t, SetDeniedCIDRs([]string{"192.0.32.0/24"}))
+		err := SetDeniedCIDRs([]string{"not-a-cidr"})
+		assert.ErrorContains(t, err, "not-a-cidr")
+		assert.Len(t, deniedNets, builtins+1)
+	})
+	t.Run("empty resets to the built-in denylist", func(t *testing.T) {
+		require.NoError(t, SetDeniedCIDRs([]string{"192.0.32.0/24"}))
+		require.NoError(t, SetDeniedCIDRs(nil))
+		assert.Equal(t, deniedCloudMetadataPrefixes, deniedNets)
+	})
+}
+
 func TestSetAllowedNonPublicCIDRs(t *testing.T) {
 	old := allowedNonPublicNets
 	t.Cleanup(func() { allowedNonPublicNets = old })
