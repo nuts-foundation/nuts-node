@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/vdr/didweb"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -45,14 +46,34 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		// why did oapi-codegen generate a pointer for the body??
 		return nil, core.InvalidInputError("missing request body")
 	}
-	walletDID, err := did.ParseDID(request.Body.WalletDid)
-	if err != nil {
-		return nil, core.InvalidInputError("invalid wallet DID")
-	}
-	if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
-		return nil, err
-	} else if !owned {
-		return nil, core.InvalidInputError("wallet DID does not belong to the subject")
+	var walletDID *did.DID
+	var err error
+	if request.Body.WalletDid != nil {
+		walletDID, err = did.ParseDID(*request.Body.WalletDid)
+		if err != nil {
+			return nil, core.InvalidInputError("invalid wallet DID")
+		}
+		if owned, err := r.subjectOwns(ctx, request.SubjectID, *walletDID); err != nil {
+			return nil, err
+		} else if !owned {
+			return nil, core.InvalidInputError("wallet DID does not belong to the subject")
+		}
+	} else {
+		// wallet_did omitted: default to the subject's sole did:web DID.
+		dids, err := r.subjectManager.ListDIDs(ctx, request.SubjectID)
+		if err != nil {
+			return nil, err
+		}
+		var webDIDs []did.DID
+		for _, curr := range dids {
+			if curr.Method == didweb.MethodName {
+				webDIDs = append(webDIDs, curr)
+			}
+		}
+		if len(webDIDs) != 1 {
+			return nil, core.InvalidInputError("wallet_did is required: subject does not have exactly one did:web DID (found %d)", len(webDIDs))
+		}
+		walletDID = &webDIDs[0]
 	}
 	// Parse the issuer
 	issuer := request.Body.Issuer
