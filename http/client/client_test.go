@@ -21,7 +21,6 @@ package client
 import (
 	"crypto/tls"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -184,12 +183,12 @@ func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
 	tracing.SetEnabled(false) // ensure the constructed client uses the raw transport
 	t.Cleanup(func() { tracing.SetEnabled(original) })
 
-	// httptest servers bind to loopback, which the strict-mode dial guard blocks.
-	// Relax the dialer for this test so the initial TLS hop is reachable; the dial
-	// guard itself is covered by TestDenyNonPublicAddr / TestSafeHttpTransport_SSRFDialGuard.
-	origDial := SafeHttpTransport.DialContext
-	SafeHttpTransport.DialContext = (&net.Dialer{}).DialContext
-	t.Cleanup(func() { SafeHttpTransport.DialContext = origDial })
+	// httptest servers bind to loopback, which the strict-mode dial guard blocks. Permit loopback
+	// through the allowlist rather than bypassing the guard, so the guard stays active and the
+	// redirect scheme check is what must block the plaintext hop.
+	oldAllow := allowedNonPublicNets
+	require.NoError(t, SetAllowedNonPublicCIDRs([]string{"127.0.0.0/8", "::1/128"}))
+	t.Cleanup(func() { allowedNonPublicNets = oldAllow })
 
 	// Plaintext HTTP endpoint the redirect points to.
 	var reached atomic.Bool

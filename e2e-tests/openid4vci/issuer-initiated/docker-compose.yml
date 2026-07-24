@@ -46,10 +46,10 @@ services:
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/key.pem:ro"
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
 
-# Federate over an RFC5737 documentation/test range instead of the default private range,
-# so the resolved container IPs are not blocked by the strict-mode SSRF dial guard.
+# Pin the container network to a known private range that the nodes allowlist via
+# http.client.allowedinternalcidrs, so the strict-mode SSRF guard permits federation over it.
 networks:
   default:
     ipam:
       config:
-        - subnet: 192.0.2.0/24
+        - subnet: 172.31.0.0/16

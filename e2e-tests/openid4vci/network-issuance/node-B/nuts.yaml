@@ -6,6 +6,9 @@ datadir: /opt/nuts/data
 http:
   internal:
     address: :8081
+  client:
+    allowedinternalcidrs:
+      - 172.30.0.0/16
 auth:
   contractvalidators:
     - dummy
