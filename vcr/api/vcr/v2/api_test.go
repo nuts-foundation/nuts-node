@@ -840,7 +840,7 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 	t.Run("ok - no results", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
-		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any()).Return([]vc.VerifiableCredential{}, nil)
 
 		response, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{
 			SubjectID: subjectID,
@@ -853,7 +853,7 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 	t.Run("ok - not revoked", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
-		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{testVC}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any()).Return([]vc.VerifiableCredential{testVC}, nil)
 		testContext.mockVerifier.EXPECT().GetRevocation(testVC).Return(nil, nil)
 
 		response, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{
@@ -868,7 +868,7 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 	t.Run("ok - revoked", func(t *testing.T) {
 		testContext := newMockContext(t)
 		testContext.mockSubjectManager.EXPECT().ListDIDs(gomock.Any(), subjectID).Return([]did.DID{holderDID}, nil)
-		testContext.mockWallet.EXPECT().SearchCredential(testContext.requestCtx, holderDID).Return([]vc.VerifiableCredential{vcWithRevocation}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any()).Return([]vc.VerifiableCredential{vcWithRevocation}, nil)
 		// GetRevocation is then called to get the details
 		testContext.mockVerifier.EXPECT().GetRevocation(vcWithRevocation).Return(revocationInfo, nil)
 
@@ -888,6 +888,192 @@ func TestWrapper_SearchCredentialsInWallet(t *testing.T) {
 		_, err := testContext.client.SearchCredentialsInWallet(testContext.requestCtx, SearchCredentialsInWalletRequestObject{SubjectID: subjectID})
 
 		assert.ErrorIs(t, err, didsubject.ErrSubjectNotFound)
+	})
+}
+
+func TestWrapper_GetExpiringCredentialsInWallet(t *testing.T) {
+	now := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	originalClock := clockFn
+	clockFn = func() time.Time { return now }
+	t.Cleanup(func() { clockFn = originalClock })
+
+	issuerURI := ssi.MustParseURI("did:web:issuer.example.com")
+	otherHolderDID := did.MustParseDID("did:web:example.com:iam:other")
+	makeVC := func(idSuffix string, holder did.DID, exp *time.Time) vc.VerifiableCredential {
+		id := ssi.MustParseURI("did:web:issuer.example.com#" + idSuffix)
+		return vc.VerifiableCredential{
+			Type:              []ssi.URI{vc.VerifiableCredentialTypeV1URI(), ssi.MustParseURI("NutsOrganizationCredential")},
+			ID:                &id,
+			Issuer:            issuerURI,
+			CredentialSubject: []map[string]any{{"id": holder.String()}},
+			ExpirationDate:    exp,
+		}
+	}
+	expired := now.Add(-24 * time.Hour)
+	soon := now.Add(10 * 24 * time.Hour)
+	farFuture := now.Add(365 * 24 * time.Hour)
+	expiredVC := makeVC("expired", holderDID, &expired)
+	soonVC := makeVC("soon", holderDID, &soon)
+	farVC := makeVC("far", holderDID, &farFuture)
+	otherSubjectExpiredVC := makeVC("other-expired", otherHolderDID, &expired)
+
+	expectedExpiredEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#expired",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: expired,
+	}
+	expectedSoonEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#soon",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: soon,
+	}
+	expectedFarEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#far",
+		Holder:         holderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: farFuture,
+	}
+	expectedOtherEntry := ExpiringCredential{
+		Id:             "did:web:issuer.example.com#other-expired",
+		Holder:         otherHolderDID.String(),
+		Issuer:         issuerURI.String(),
+		Type:           []string{"NutsOrganizationCredential"},
+		ExpirationDate: expired,
+	}
+
+	// SQL filter semantics (within/excludeTypes) are covered in Test_sqlWallet_Search. Tests here
+	// verify that the handler passes options through and groups Search results by subject.
+
+	t.Run("ok - groups expiring credentials by subject; subjects with none are omitted", func(t *testing.T) {
+		testContext := newMockContext(t)
+		emptySubjectDID := did.MustParseDID("did:web:example.com:iam:empty")
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+			"holder-b": {otherHolderDID},
+			"holder-c": {emptySubjectDID},
+		}, nil)
+		// Mock returns what SQL would have returned: only credentials within the default 30d window.
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any(), gomock.Any()).
+			Return([]vc.VerifiableCredential{expiredVC, soonVC, otherSubjectExpiredVC}, nil)
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry, expectedSoonEntry},
+			"holder-b": {expectedOtherEntry},
+		}, response)
+	})
+
+	t.Run("ok - returns whatever Search returns; threshold computed from clockFn+within", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any(), gomock.Any()).
+			Return([]vc.VerifiableCredential{expiredVC, soonVC, farVC}, nil)
+		within := "8760h"
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry, expectedSoonEntry, expectedFarEntry},
+		}, response)
+	})
+
+	t.Run("ok - excludeTypes parameter is passed through to Search", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+			"holder-b": {otherHolderDID},
+		}, nil)
+		// Mock returns what SQL would return after applying NOT IN (NutsAuthorizationCredential):
+		// only the org-cred for holder-a; holder-b's auth cred is filtered out and that subject is
+		// omitted from the response.
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any(), gomock.Any()).
+			Return([]vc.VerifiableCredential{expiredVC}, nil)
+		excludeTypes := []string{"NutsAuthorizationCredential"}
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{ExcludeTypes: &excludeTypes},
+		})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry},
+		}, response)
+	})
+
+	t.Run("ok - credential whose holder isn't a current subject is silently skipped", func(t *testing.T) {
+		// Subject deactivation doesn't cascade to the wallet, so the wallet can return rows whose
+		// holder DID no longer maps to any subject. The handler skips them rather than failing or
+		// surfacing them under an empty key.
+		testContext := newMockContext(t)
+		orphanDID := did.MustParseDID("did:web:example.com:iam:orphan")
+		orphanedVC := makeVC("orphaned", orphanDID, &expired)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{
+			"holder-a": {holderDID},
+		}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any(), gomock.Any()).
+			Return([]vc.VerifiableCredential{expiredVC, orphanedVC}, nil)
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{
+			"holder-a": {expectedExpiredEntry},
+		}, response)
+	})
+
+	t.Run("ok - no subjects returns empty map", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(map[string][]did.DID{}, nil)
+		testContext.mockWallet.EXPECT().Search(testContext.requestCtx, gomock.Any(), gomock.Any()).
+			Return([]vc.VerifiableCredential{}, nil)
+
+		response, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, GetExpiringCredentialsInWallet200JSONResponse{}, response)
+	})
+
+	t.Run("error - invalid within", func(t *testing.T) {
+		testContext := newMockContext(t)
+		within := "not-a-duration"
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.ErrorContains(t, err, "invalid value for within")
+	})
+
+	t.Run("error - negative within", func(t *testing.T) {
+		testContext := newMockContext(t)
+		within := "-1h"
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{
+			Params: GetExpiringCredentialsInWalletParams{Within: &within},
+		})
+
+		assert.ErrorContains(t, err, "within must not be negative")
+	})
+
+	t.Run("error - subject manager fails", func(t *testing.T) {
+		testContext := newMockContext(t)
+		testContext.mockSubjectManager.EXPECT().List(gomock.Any()).Return(nil, assert.AnError)
+
+		_, err := testContext.client.GetExpiringCredentialsInWallet(testContext.requestCtx, GetExpiringCredentialsInWalletRequestObject{})
+
+		assert.ErrorIs(t, err, assert.AnError)
 	})
 }
 

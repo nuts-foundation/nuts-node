@@ -19,7 +19,15 @@
 package store
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/storage"
@@ -28,7 +36,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-	"testing"
 )
 
 var vcAlice vc.VerifiableCredential
@@ -135,6 +142,151 @@ func TestCredentialStore_Store(t *testing.T) {
 		assert.NoError(t, db.Find(&actual).Error)
 		assert.Empty(t, actual)
 	})
+}
+
+func TestCredentialStore_Store_ExpirationDate(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() { _ = storageEngine.Shutdown() })
+	db := storageEngine.GetSQLDatabase()
+
+	t.Run("populates expiration_date when credential has expirationDate", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+		cred := createPersonCredential("exp-1", "did:example:alice", nil)
+		cred.ExpirationDate = &exp
+
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "exp-1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+
+	t.Run("writes the never-expires sentinel when credential has no expirationDate", func(t *testing.T) {
+		setupStore(t, db)
+		cred := createPersonCredential("noexp-1", "did:example:bob", nil)
+
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "noexp-1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, neverExpires, *got.ExpirationDate)
+	})
+}
+
+func TestBackfillExpirationDates(t *testing.T) {
+	storageEngine := storage.NewTestStorageEngine(t)
+	require.NoError(t, storageEngine.Start())
+	t.Cleanup(func() { _ = storageEngine.Shutdown() })
+	db := storageEngine.GetSQLDatabase()
+
+	storeWithExpiration := func(t *testing.T, id string, exp *time.Time) vc.VerifiableCredential {
+		t.Helper()
+		cred := createPersonCredential(id, "did:example:"+id, nil)
+		if exp != nil {
+			cred.ExpirationDate = exp
+			// Re-marshal so Raw includes expirationDate (simulates how Store() ingests it normally).
+			data, err := cred.MarshalJSON()
+			require.NoError(t, err)
+			parsed, err := vc.ParseVerifiableCredential(string(data))
+			require.NoError(t, err)
+			cred = *parsed
+		}
+		_, err := CredentialStore{}.Store(db, cred)
+		require.NoError(t, err)
+		return cred
+	}
+
+	t.Run("backfills rows whose expiration_date is NULL but raw has expirationDate", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		storeWithExpiration(t, "bf-1", &exp)
+		// Simulate the pre-migration state: column unset on an existing row that does have raw expirationDate.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "bf-1").Error)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "bf-1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+
+	t.Run("backfills rows without expirationDate to the never-expires sentinel", func(t *testing.T) {
+		setupStore(t, db)
+		storeWithExpiration(t, "bf-2", nil)
+		// Simulate the pre-migration state: an existing row with no raw expirationDate and a NULL column.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "bf-2").Error)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var after CredentialRecord
+		require.NoError(t, db.First(&after, "id = ?", "bf-2").Error)
+		require.NotNil(t, after.ExpirationDate)
+		assert.Equal(t, neverExpires, *after.ExpirationDate)
+	})
+
+	t.Run("idempotent: re-running is a no-op when nothing needs backfilling", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		storeWithExpiration(t, "bf-3", &exp)
+
+		require.NoError(t, BackfillExpirationDates(db))
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "bf-3").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+
+	t.Run("backfills JWT-encoded credentials, whose raw has no 'expirationDate' literal", func(t *testing.T) {
+		setupStore(t, db)
+		exp := time.Date(2030, 6, 15, 12, 0, 0, 0, time.UTC)
+		jwtVC := jwtCredentialWithExpiration(t, "did:example:jwt-bf#1", "did:example:jwt-holder", exp)
+		// The JWT stores its expiry in a base64 `exp` claim, so the raw text must not contain the
+		// literal "expirationDate" — a substring pre-filter would skip it.
+		require.NotContains(t, jwtVC.Raw(), "expirationDate")
+		_, err := CredentialStore{}.Store(db, jwtVC)
+		require.NoError(t, err)
+		// Simulate the pre-migration state: column unset.
+		require.NoError(t, db.Exec("UPDATE credential SET expiration_date = NULL WHERE id = ?", "did:example:jwt-bf#1").Error)
+
+		require.NoError(t, BackfillExpirationDates(db))
+
+		var got CredentialRecord
+		require.NoError(t, db.First(&got, "id = ?", "did:example:jwt-bf#1").Error)
+		require.NotNil(t, got.ExpirationDate)
+		assert.Equal(t, exp.Unix(), *got.ExpirationDate)
+	})
+}
+
+// jwtCredentialWithExpiration builds a JWT-encoded Verifiable Credential with an `exp` claim. Its
+// Raw() is the compact JWT, so the expiry only exists as a base64-encoded claim and never as a
+// literal "expirationDate" in the stored text.
+func jwtCredentialWithExpiration(t *testing.T, id, subjectID string, exp time.Time) vc.VerifiableCredential {
+	t.Helper()
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	token := jwt.New()
+	require.NoError(t, token.Set(jwt.JwtIDKey, id))
+	require.NoError(t, token.Set(jwt.IssuerKey, "did:example:jwt-issuer"))
+	require.NoError(t, token.Set(jwt.SubjectKey, subjectID))
+	require.NoError(t, token.Set(jwt.ExpirationKey, exp))
+	require.NoError(t, token.Set("vc", map[string]interface{}{
+		"type":              "PersonCredential",
+		"credentialSubject": map[string]interface{}{"id": subjectID},
+	}))
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES256, privateKey))
+	require.NoError(t, err)
+	parsed, err := vc.ParseVerifiableCredential(string(signedToken))
+	require.NoError(t, err)
+	return *parsed
 }
 
 func sliceToMap(slice []CredentialPropertyRecord) map[string]string {

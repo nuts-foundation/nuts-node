@@ -49,6 +49,10 @@ var clockFn = func() time.Time {
 	return time.Now()
 }
 
+// defaultExpiringWithin is the default time window used by GetExpiringCredentialsInWallet
+// when the `within` query parameter is not supplied.
+const defaultExpiringWithin = 30 * 24 * time.Hour
+
 var _ StrictServerInterface = (*Wrapper)(nil)
 
 // Wrapper implements the generated interface from oapi-codegen
@@ -475,7 +479,7 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 
 	var allCreds []vc.VerifiableCredential
 	for _, did := range dids {
-		creds, err := w.VCR.Wallet().SearchCredential(ctx, did)
+		creds, err := w.VCR.Wallet().Search(ctx, holder.HolderDID(did))
 		if err != nil {
 			return nil, err
 		}
@@ -487,6 +491,90 @@ func (w *Wrapper) SearchCredentialsInWallet(ctx context.Context, request SearchC
 		return nil, err
 	}
 	return SearchCredentialsInWallet200JSONResponse(SearchVCResults{VerifiableCredentials: searchResults}), nil
+}
+
+// GetExpiringCredentialsInWallet returns credentials across all wallets on this node that have an
+// expirationDate at or before now + within, grouped by subject ID. Already-expired credentials are
+// included. Credentials without an expirationDate are never returned because they don't expire.
+// Credentials whose type matches any of the excludeTypes values are omitted. Subjects without any
+// expiring credentials are omitted from the result.
+func (w *Wrapper) GetExpiringCredentialsInWallet(ctx context.Context, request GetExpiringCredentialsInWalletRequestObject) (GetExpiringCredentialsInWalletResponseObject, error) {
+	within := defaultExpiringWithin
+	if request.Params.Within != nil {
+		parsed, err := time.ParseDuration(*request.Params.Within)
+		if err != nil {
+			return nil, core.InvalidInputError("invalid value for within: %w", err)
+		}
+		if parsed < 0 {
+			return nil, core.InvalidInputError("within must not be negative")
+		}
+		within = parsed
+	}
+	var excludeTypes []string
+	if request.Params.ExcludeTypes != nil {
+		excludeTypes = *request.Params.ExcludeTypes
+	}
+
+	subjects, err := w.SubjectManager.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Invert the subject → DIDs map for grouping results back into subjects.
+	holderToSubject := make(map[string]string)
+	for subjectID, dids := range subjects {
+		for _, d := range dids {
+			holderToSubject[d.String()] = subjectID
+		}
+	}
+
+	// Single cross-wallet query: SQL filters on expiration_date and type, no per-subject loop.
+	creds, err := w.VCR.Wallet().Search(ctx,
+		holder.ExpiresAt(clockFn().Add(within)),
+		holder.ExcludeCredentialTypes(excludeTypes...),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string][]ExpiringCredential)
+	for _, cred := range creds {
+		holderDID, err := cred.SubjectDID()
+		if err != nil {
+			// Wallet storage requires a subject DID; this shouldn't happen for stored credentials.
+			continue
+		}
+		subjectID, ok := holderToSubject[holderDID.String()]
+		if !ok {
+			// Holder belongs to a deactivated/removed subject — normal post-deactivation state
+			// since SubjectManager.Deactivate doesn't cascade to the wallet.
+			continue
+		}
+		result[subjectID] = append(result[subjectID], toExpiringCredential(cred, *holderDID))
+	}
+
+	return GetExpiringCredentialsInWallet200JSONResponse(result), nil
+}
+
+// toExpiringCredential builds a monitoring-friendly summary of a credential. The Wallet stores
+// credentials per holder DID, so the holder is supplied by the caller rather than re-derived.
+func toExpiringCredential(cred vc.VerifiableCredential, holder did.DID) ExpiringCredential {
+	types := make([]string, 0, len(cred.Type))
+	for _, t := range cred.Type {
+		if s := t.String(); s != "VerifiableCredential" {
+			types = append(types, s)
+		}
+	}
+	var id string
+	if cred.ID != nil {
+		id = cred.ID.String()
+	}
+	return ExpiringCredential{
+		Id:             id,
+		Holder:         holder.String(),
+		Issuer:         cred.Issuer.String(),
+		Type:           types,
+		ExpirationDate: *cred.ExpirationDate,
+	}
 }
 
 func (w *Wrapper) RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error) {

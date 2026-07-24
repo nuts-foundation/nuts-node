@@ -21,6 +21,7 @@ package holder
 import (
 	"context"
 	"errors"
+	"slices"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -79,8 +80,38 @@ func (m memoryWallet) List(_ context.Context, holderDID did.DID) ([]vc.Verifiabl
 	return m.credentials[holderDID], nil
 }
 
-func (m memoryWallet) SearchCredential(_ context.Context, holderDID did.DID) ([]vc.VerifiableCredential, error) {
-	return m.credentials[holderDID], nil
+func (m memoryWallet) Search(_ context.Context, opts ...SearchOption) ([]vc.VerifiableCredential, error) {
+	q := buildSearchQuery(opts)
+	var results []vc.VerifiableCredential
+	for holderDID, creds := range m.credentials {
+		if q.holderDID != nil && holderDID != *q.holderDID {
+			continue
+		}
+		for _, cred := range creds {
+			if len(q.excludeCredentialTypes) > 0 {
+				excluded := false
+				for _, t := range cred.Type {
+					if slices.Contains(q.excludeCredentialTypes, t.String()) {
+						excluded = true
+						break
+					}
+				}
+				if excluded {
+					continue
+				}
+			}
+			if q.expiresAt != nil {
+				if cred.ExpirationDate == nil || cred.ExpirationDate.IsZero() {
+					continue
+				}
+				if cred.ExpirationDate.After(*q.expiresAt) {
+					continue
+				}
+			}
+			results = append(results, cred)
+		}
+	}
+	return results, nil
 }
 
 func (m memoryWallet) Remove(_ context.Context, _ did.DID, _ ssi.URI) error {
