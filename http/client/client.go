@@ -81,15 +81,19 @@ func New(timeout time.Duration) *StrictHTTPClient {
 	}
 }
 
-// getTransport wraps the given transport with OpenTelemetry instrumentation if tracing is enabled.
+// getTransport wraps the given transport with request/response logging and OpenTelemetry
+// instrumentation (if tracing is enabled).
 func getTransport(base http.RoundTripper) http.RoundTripper {
+	// Always install the logging transport so logging can be enabled after the client is created:
+	// whether to log is decided per request (see loggingTransport), not when the client is created.
+	transport := http.RoundTripper(&loggingTransport{base: base})
 	if tracing.Enabled() {
-		return otelhttp.NewTransport(base,
+		return otelhttp.NewTransport(transport,
 			otelhttp.WithSpanNameFormatter(httpSpanName),
 			otelhttp.WithTracerProvider(tracing.GetTracerProvider()),
 		)
 	}
-	return base
+	return transport
 }
 
 // NewWithCache creates a new HTTP client with the given timeout.
