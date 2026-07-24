@@ -35,6 +35,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -118,7 +119,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		IssuerCredentialConfigurationID: credentialConfigID,
 		IssuerCredentialIssuer:          credentialIssuerMetadata.CredentialIssuer,
 		CredentialRequestParams:         credentialRequestParams,
-	})
+	}, storage.WithTTL(oauthFrontendFlowTimeout))
 	if err != nil {
 		return nil, fmt.Errorf("failed to store session: %w", err)
 	}
