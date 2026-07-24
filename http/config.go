@@ -39,9 +39,20 @@ type Config struct {
 	Log      LogLevel       `koanf:"log"`
 	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
+	Client   ClientConfig   `koanf:"client"`
 	// ResponseCacheSize is the maximum number of bytes cached by HTTP clients.
 	ResponseCacheSize  int    `koanf:"cache.maxbytes"`
 	ClientIPHeaderName string `koanf:"clientipheader"`
+}
+
+// ClientConfig contains the configuration for outbound HTTP clients.
+type ClientConfig struct {
+	// AllowedInternalCIDRs lists IP ranges in CIDR notation (e.g. "10.0.0.0/8") exempted from the
+	// strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use
+	// to permit internal flows that legitimately target a private address, such as an internal
+	// credential offering or an internal OAuth user flow. Leave empty to block all non-public
+	// addresses.
+	AllowedInternalCIDRs []string `koanf:"allowedinternalcidrs"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.

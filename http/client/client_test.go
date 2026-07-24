@@ -108,15 +108,24 @@ func TestDenyNonPublicAddr(t *testing.T) {
 		StrictMode = v
 		t.Cleanup(func() { StrictMode = old })
 	}
-	t.Run("strict mode blocks addresses that are never a valid federation target", func(t *testing.T) {
+	setAllowlist := func(t *testing.T, cidrs ...string) {
+		old := allowedNonPublicNets
+		require.NoError(t, SetAllowedNonPublicCIDRs(cidrs))
+		t.Cleanup(func() { allowedNonPublicNets = old })
+	}
+	t.Run("strict mode blocks non-public addresses", func(t *testing.T) {
 		setStrictMode(t, true)
 		blocked := map[string]string{
-			"loopback IPv4":    "127.0.0.1:443",
-			"loopback IPv6":    "[::1]:443",
-			"link-local IPv4":  "169.254.169.254:443",
-			"link-local IPv6":  "[fe80::1]:443",
-			"unspecified IPv4": "0.0.0.0:443",
-			"unspecified IPv6": "[::]:443",
+			"loopback IPv4":              "127.0.0.1:443",
+			"loopback IPv6":              "[::1]:443",
+			"private RFC1918 10/8":       "10.0.0.5:443",
+			"private RFC1918 172.16/12":  "172.16.0.1:443",
+			"private RFC1918 192.168/16": "192.168.1.1:443",
+			"unique local IPv6":          "[fd00::1]:443",
+			"link-local IPv4":            "169.254.169.254:443",
+			"link-local IPv6":            "[fe80::1]:443",
+			"unspecified IPv4":           "0.0.0.0:443",
+			"unspecified IPv6":           "[::]:443",
 		}
 		for name, address := range blocked {
 			t.Run(name, func(t *testing.T) {
@@ -125,30 +134,48 @@ func TestDenyNonPublicAddr(t *testing.T) {
 			})
 		}
 	})
-	t.Run("strict mode allows public and private-network addresses", func(t *testing.T) {
+	t.Run("strict mode allows public addresses", func(t *testing.T) {
 		setStrictMode(t, true)
-		// Private (RFC1918) and unique local (ULA) are allowed: nodes legitimately
-		// federate over private networks. The redirect and truststore guards, not the
-		// dial guard, protect these ranges.
-		allowed := map[string]string{
-			"public IPv4":                "8.8.8.8:443",
-			"public IPv4 example":        "93.184.216.34:443",
-			"public IPv6":                "[2606:2800:220:1:248:1893:25c8:1946]:443",
-			"private RFC1918 10/8":       "10.0.0.5:443",
-			"private RFC1918 172.16/12":  "172.16.0.1:443",
-			"private RFC1918 192.168/16": "192.168.1.1:443",
-			"unique local IPv6":          "[fd00::1]:443",
-		}
-		for name, address := range allowed {
-			t.Run(name, func(t *testing.T) {
+		for _, address := range []string{"8.8.8.8:443", "93.184.216.34:443", "[2606:2800:220:1:248:1893:25c8:1946]:443"} {
+			t.Run(address, func(t *testing.T) {
 				assert.NoError(t, denyNonPublicAddr("tcp", address, nil))
 			})
 		}
+	})
+	t.Run("strict mode allows non-public addresses that are in the allowlist", func(t *testing.T) {
+		setStrictMode(t, true)
+		setAllowlist(t, "10.0.0.0/8", "fd00::/8")
+
+		assert.NoError(t, denyNonPublicAddr("tcp", "10.1.2.3:443", nil))
+		assert.NoError(t, denyNonPublicAddr("tcp", "[fd00::1]:443", nil))
+		// Non-public addresses outside the allowlisted ranges are still blocked.
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "192.168.1.1:443", nil), "blocked connection to non-public address")
+		assert.ErrorContains(t, denyNonPublicAddr("tcp", "127.0.0.1:443", nil), "blocked connection to non-public address")
 	})
 	t.Run("non-strict mode allows non-public addresses", func(t *testing.T) {
 		setStrictMode(t, false)
 		assert.NoError(t, denyNonPublicAddr("tcp", "127.0.0.1:443", nil))
 		assert.NoError(t, denyNonPublicAddr("tcp", "10.0.0.5:443", nil))
+	})
+}
+
+func TestSetAllowedNonPublicCIDRs(t *testing.T) {
+	old := allowedNonPublicNets
+	t.Cleanup(func() { allowedNonPublicNets = old })
+	t.Run("valid", func(t *testing.T) {
+		require.NoError(t, SetAllowedNonPublicCIDRs([]string{"10.0.0.0/8", "fd00::/8"}))
+		assert.Len(t, allowedNonPublicNets, 2)
+	})
+	t.Run("invalid leaves previous value unchanged", func(t *testing.T) {
+		require.NoError(t, SetAllowedNonPublicCIDRs([]string{"10.0.0.0/8"}))
+		err := SetAllowedNonPublicCIDRs([]string{"not-a-cidr"})
+		assert.ErrorContains(t, err, "not-a-cidr")
+		assert.Len(t, allowedNonPublicNets, 1)
+	})
+	t.Run("empty clears the allowlist", func(t *testing.T) {
+		require.NoError(t, SetAllowedNonPublicCIDRs([]string{"10.0.0.0/8"}))
+		require.NoError(t, SetAllowedNonPublicCIDRs(nil))
+		assert.Empty(t, allowedNonPublicNets)
 	})
 }
 

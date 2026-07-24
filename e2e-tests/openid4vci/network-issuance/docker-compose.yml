@@ -54,3 +54,11 @@ services:
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
     depends_on:
       - nodeB-backend
+
+# Federate over an RFC5737 documentation/test range instead of the default private range,
+# so the resolved container IPs are not blocked by the strict-mode SSRF dial guard.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 198.51.100.0/24

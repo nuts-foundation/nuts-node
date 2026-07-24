@@ -65,19 +65,46 @@ func httpSpanName(_ string, r *http.Request) string {
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
 
-// denyNonPublicAddr is a net.Dialer.Control hook. In strict mode it refuses
-// connections whose resolved address is on a network that is never a valid
-// outbound federation target: loopback, link-local (which includes the cloud
-// metadata address 169.254.169.254) or unspecified. Because it inspects the
-// actual IP the socket is about to connect to (after DNS resolution), it closes
-// DNS-rebinding into those ranges, which URL-string validation such as
-// core.ParsePublicURL cannot.
+// allowedNonPublicNets holds IP networks that outbound requests may connect to even in strict
+// mode, despite being on a non-public network. It is configured through SetAllowedNonPublicCIDRs
+// from http.client.allowedinternalcidrs, for closed deployments that legitimately federate over a
+// private network (e.g. an internal OAuth or credential flow).
+var allowedNonPublicNets []*net.IPNet
+
+// SetAllowedNonPublicCIDRs parses the given CIDR strings and replaces the set of non-public
+// networks that strict mode permits. It returns an error on the first invalid CIDR, leaving the
+// previous value unchanged.
+func SetAllowedNonPublicCIDRs(cidrs []string) error {
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, cidr := range cidrs {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return fmt.Errorf("invalid CIDR %q: %w", cidr, err)
+		}
+		nets = append(nets, ipNet)
+	}
+	allowedNonPublicNets = nets
+	return nil
+}
+
+// isAllowedNonPublic reports whether ip falls within one of the configured allowlisted networks.
+func isAllowedNonPublic(ip net.IP) bool {
+	for _, n := range allowedNonPublicNets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// denyNonPublicAddr is a net.Dialer.Control hook. In strict mode it refuses connections whose
+// resolved address is on a non-public network: loopback, private (RFC1918), unique local (ULA),
+// link-local (which includes the cloud metadata address 169.254.169.254) or unspecified. Because
+// it inspects the actual IP the socket is about to connect to (after DNS resolution), it closes
+// DNS-rebinding into those ranges, which URL-string validation such as core.ParsePublicURL cannot.
 //
-// Private (RFC1918) and unique local (ULA) addresses are deliberately allowed:
-// nodes legitimately federate over private networks. Those ranges are guarded by
-// the HTTPS-per-hop check (checkRedirect) and the truststore, which require any
-// internal target to serve HTTPS with a trusted certificate before a request can
-// complete.
+// Closed deployments that legitimately federate over a private network can permit specific ranges
+// through SetAllowedNonPublicCIDRs (config http.client.allowedinternalcidrs).
 func denyNonPublicAddr(_ string, address string, _ syscall.RawConn) error {
 	if !StrictMode {
 		return nil
@@ -91,7 +118,10 @@ func denyNonPublicAddr(_ string, address string, _ syscall.RawConn) error {
 	if ip == nil {
 		return fmt.Errorf("strictmode: cannot parse connection address %q", address)
 	}
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+		if isAllowedNonPublic(ip) {
+			return nil
+		}
 		return fmt.Errorf("strictmode: blocked connection to non-public address %s", ip)
 	}
 	return nil

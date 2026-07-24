@@ -37,6 +37,7 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("http.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata). When debug vebosity is set the authorization headers are also logged when the request is fully logged.", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
 	flags.String("http.clientipheader", defs.ClientIPHeaderName, "Case-sensitive HTTP Header that contains the client IP used for audit logs. For the X-Forwarded-For header only link-local, loopback, and private IPs are excluded. Switch to X-Real-IP or a custom header if you see your own proxy/infra in the logs.")
 	flags.Int("http.cache.maxbytes", defs.ResponseCacheSize, "HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.")
+	flags.StringSlice("http.client.allowedinternalcidrs", defs.Client.AllowedInternalCIDRs, "IP ranges (CIDR notation, e.g. 10.0.0.0/8) exempted from the strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use to permit internal flows that legitimately target a private address, such as an internal credential offering or an internal OAuth user flow. Leave empty to block all non-public addresses.")
 
 	return flags
 }

@@ -14,7 +14,7 @@ Unreleased
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
 ## Security
-* #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at dial time to connect to loopback, link-local or unspecified addresses, checked against the resolved IP so DNS-rebinding into those ranges cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Private-network (RFC1918/ULA) addresses remain allowed so nodes can federate over private networks; those are guarded by the HTTPS requirement and the truststore. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+* #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 *****************
 Peanut (v6.2.10)
