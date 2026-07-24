@@ -105,6 +105,7 @@ func TestDenyNonPublicAddr(t *testing.T) {
 			"Teredo":                     "[2001::1]:443",
 			"documentation IPv6":         "[2001:db8::1]:443",
 			"documentation IPv6 3fff":    "[3fff::1]:443",
+			"link-local IPv6 with zone":  "[fe80::1%eth0]:443",
 		}
 		for name, address := range blocked {
 			t.Run(name, func(t *testing.T) {
