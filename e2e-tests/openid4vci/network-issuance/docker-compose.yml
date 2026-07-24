@@ -54,11 +54,3 @@ services:
       - "../../tls-certs/truststore.pem:/etc/nginx/ssl/truststore.pem:ro"
     depends_on:
       - nodeB-backend
-
-# Pin the container network to a known private range that the nodes allowlist via
-# http.client.allowedinternalcidrs, so the strict-mode SSRF guard permits federation over it.
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: 172.30.0.0/16
