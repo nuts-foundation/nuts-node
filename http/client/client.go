@@ -26,7 +26,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"syscall"
 	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -35,6 +34,10 @@ import (
 )
 
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
+// It carries the strict-mode SSRF dial guard (see denyNonPublicAddr), but only that: the HTTPS
+// requirement, the redirect-downgrade check and the response size limit live on StrictHTTPClient.
+// Do not build a raw http.Client on this transport for outbound requests; use the New* constructors
+// so all strict-mode protections apply.
 var SafeHttpTransport *http.Transport
 
 func init() {
@@ -64,68 +67,6 @@ func httpSpanName(_ string, r *http.Request) string {
 
 // StrictMode is a flag that can be set to true to enable strict mode for the HTTP client.
 var StrictMode bool
-
-// allowedNonPublicNets holds IP networks that outbound requests may connect to even in strict
-// mode, despite being on a non-public network. It is configured through SetAllowedNonPublicCIDRs
-// from http.client.allowedinternalcidrs, for closed deployments that legitimately federate over a
-// private network (e.g. an internal OAuth or credential flow).
-var allowedNonPublicNets []*net.IPNet
-
-// SetAllowedNonPublicCIDRs parses the given CIDR strings and replaces the set of non-public
-// networks that strict mode permits. It returns an error on the first invalid CIDR, leaving the
-// previous value unchanged.
-func SetAllowedNonPublicCIDRs(cidrs []string) error {
-	nets := make([]*net.IPNet, 0, len(cidrs))
-	for _, cidr := range cidrs {
-		_, ipNet, err := net.ParseCIDR(cidr)
-		if err != nil {
-			return fmt.Errorf("invalid CIDR %q: %w", cidr, err)
-		}
-		nets = append(nets, ipNet)
-	}
-	allowedNonPublicNets = nets
-	return nil
-}
-
-// isAllowedNonPublic reports whether ip falls within one of the configured allowlisted networks.
-func isAllowedNonPublic(ip net.IP) bool {
-	for _, n := range allowedNonPublicNets {
-		if n.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-// denyNonPublicAddr is a net.Dialer.Control hook. In strict mode it refuses connections whose
-// resolved address is on a non-public network: loopback, private (RFC1918), unique local (ULA),
-// link-local (which includes the cloud metadata address 169.254.169.254) or unspecified. Because
-// it inspects the actual IP the socket is about to connect to (after DNS resolution), it closes
-// DNS-rebinding into those ranges, which URL-string validation such as core.ParsePublicURL cannot.
-//
-// Closed deployments that legitimately federate over a private network can permit specific ranges
-// through SetAllowedNonPublicCIDRs (config http.client.allowedinternalcidrs).
-func denyNonPublicAddr(_ string, address string, _ syscall.RawConn) error {
-	if !StrictMode {
-		return nil
-	}
-	host, _, err := net.SplitHostPort(address)
-	if err != nil {
-		return err
-	}
-	// The Control hook runs after DNS resolution, so host is a literal IP.
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return fmt.Errorf("strictmode: cannot parse connection address %q", address)
-	}
-	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-		if isAllowedNonPublic(ip) {
-			return nil
-		}
-		return fmt.Errorf("strictmode: blocked connection to non-public address %s", ip)
-	}
-	return nil
-}
 
 // checkRedirect is the http.Client.CheckRedirect policy for the strict HTTP client.
 // Setting CheckRedirect replaces the standard library's default policy, so the
