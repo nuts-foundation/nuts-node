@@ -13,6 +13,9 @@ Unreleased
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
+## Security
+* #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+
 *****************
 Peanut (v6.2.10)
 *****************

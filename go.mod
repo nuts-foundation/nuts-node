@@ -195,6 +195,7 @@ require (
 )
 
 require (
+	code.dny.dev/ssrf v0.3.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.30
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.30
