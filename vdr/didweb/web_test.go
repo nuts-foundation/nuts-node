@@ -168,7 +168,8 @@ func TestResolver_Resolve(t *testing.T) {
 		id := did.MustParseDID(baseDID.String() + ":invalid-json")
 		doc, md, err := resolver.Resolve(id, nil)
 
-		assert.EqualError(t, err, "did:web JSON unmarshal error: invalid character '\\x01' looking for beginning of value")
+		// The fetched (unparseable) body must not be reflected into the returned error.
+		assert.EqualError(t, err, "did:web document could not be parsed as JSON")
 		assert.Nil(t, md)
 		assert.Nil(t, doc)
 	})

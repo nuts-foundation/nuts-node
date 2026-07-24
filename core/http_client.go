@@ -37,6 +37,19 @@ var TracingHTTPTransport func(http.RoundTripper) http.RoundTripper
 // If the response body is longer than this, it will be truncated.
 const HttpResponseBodyLogClipAt = 200
 
+// ClipHTTPBody returns the response body clipped to at most HttpResponseBodyLogClipAt bytes,
+// safe to write to a (debug) log. It exists so an unexpected response can be logged for
+// diagnostics without ever placing the full, possibly attacker-influenced, body into an
+// error message that could be reflected back to a caller.
+func ClipHTTPBody(body []byte) string {
+	if len(body) <= HttpResponseBodyLogClipAt {
+		return string(body)
+	}
+	// The cut may split a multi-byte UTF-8 character; that is fine for logging,
+	// callers log the result with %q which escapes any invalid bytes.
+	return string(body[:HttpResponseBodyLogClipAt]) + "...(clipped)"
+}
+
 // HttpResponseBodyMaxSize is the maximum number of bytes read from an unexpected HTTP response body.
 // It prevents DoS attacks where a malicious server returns a very large response body.
 // Only applied to error responses, so 1 MB is more than enough.
@@ -68,13 +81,8 @@ func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, lo
 				Warnf("HTTP response body exceeds %d bytes, truncating", HttpResponseBodyMaxSize)
 		}
 		if log != nil {
-			// Cut off the response body to 100 characters max to prevent logging of large responses
-			responseBodyString := string(responseData)
-			if len(responseBodyString) > HttpResponseBodyLogClipAt {
-				responseBodyString = responseBodyString[:HttpResponseBodyLogClipAt] + "...(clipped)"
-			}
 			log.WithField("http_request_path", response.Request.URL.Path).
-				Infof("Unexpected HTTP response (len=%d): %s", len(responseData), responseBodyString)
+				Infof("Unexpected HTTP response (len=%d): %q", len(responseData), ClipHTTPBody(responseData))
 		}
 		return HttpError{
 			error:        fmt.Errorf("server returned HTTP %d (expected: %d)", response.StatusCode, expectedStatusCode),

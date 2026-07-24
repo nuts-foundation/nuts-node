@@ -205,12 +205,11 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(responseData, &token); err != nil {
-		// Cut off the response body to 100 characters max to prevent logging of large responses
-		responseBodyString := string(responseData)
-		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
-			responseBodyString = responseBodyString[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
-		}
-		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, responseBodyString)
+		// Debug-log the (clipped) body for diagnostics, but never return it: the token
+		// endpoint may have been redirected to an attacker-influenced target, and the body
+		// must not be reflected back to the caller.
+		log.Logger().Debugf("token endpoint returned an unparseable response (body: %q)", core.ClipHTTPBody(responseData))
+		return token, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 	return token, nil
 }
