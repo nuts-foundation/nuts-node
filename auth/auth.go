@@ -150,6 +150,16 @@ func (auth *Auth) OpenID4VCIClient() openid4vci.Client {
 	return auth.openID4VCIClient
 }
 
+// AuthorizationRequestProfile returns the authorization request parameters of the named profile, or false when no
+// profile (built-in default or operator-configured) exists for the name.
+func (auth *Auth) AuthorizationRequestProfile(name string) (map[string][]string, bool) {
+	profile, ok := auth.config.Experimental.Profiles[name]
+	if !ok {
+		return nil, false
+	}
+	return profile.AuthorizationRequest, true
+}
+
 // Configure the Auth struct by creating a validator and create an Irma server
 func (auth *Auth) Configure(config core.ServerConfig) error {
 	if auth.config.Irma.SchemeManager == "" {

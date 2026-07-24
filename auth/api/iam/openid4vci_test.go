@@ -77,12 +77,15 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
 		assert.Equal(t, `[{"credential_configuration_id":"UniversityDegreeCredential","format":"vc+sd-jwt","type":"openid_credential"}]`, redirectUri.Query().Get("authorization_details"))
 	})
-	t.Run("ok - authorization_request_params merged into authorization request", func(t *testing.T) {
+	t.Run("ok - profile applies its authorization request parameters", func(t *testing.T) {
 		ctx := newTestClient(t)
+		ctx.authorizationRequestProfiles = map[string]map[string][]string{
+			"aet": {"auth_method": {"SmartCard"}, "scope": {"openid profile api"}},
+		}
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
 		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationRequestParams = &map[string]string{"auth_method": "SmartCard"}
+		req.Body.Profile = to.Ptr("aet")
 
 		response, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
@@ -90,17 +93,19 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		redirectUri, err := url.Parse(response.(RequestOpenid4VCICredentialIssuance200JSONResponse).RedirectURI)
 		require.NoError(t, err)
 		assert.Equal(t, "SmartCard", redirectUri.Query().Get("auth_method"))
+		assert.Equal(t, "openid profile api", redirectUri.Query().Get("scope"))
+		assert.Equal(t, "code", redirectUri.Query().Get("response_type")) // node parameters remain intact
 	})
-	t.Run("error - authorization_request_params may not override a node parameter", func(t *testing.T) {
+	t.Run("error - unknown profile", func(t *testing.T) {
 		ctx := newTestClient(t)
 		ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 		ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, authServer).Return(&authzMetadata, nil)
 		req := requestCredentials(holderSubjectID, issuerClientID, redirectURI)
-		req.Body.AuthorizationRequestParams = &map[string]string{oauth.ClientIDParam: "attacker"}
+		req.Body.Profile = to.Ptr("does-not-exist")
 
 		_, err := ctx.client.RequestOpenid4VCICredentialIssuance(nil, req)
 
-		assert.ErrorContains(t, err, "authorization_request_params may not override the 'client_id' parameter")
+		assert.ErrorContains(t, err, "unknown profile: does-not-exist")
 	})
 	t.Run("ok - credential_request_params persisted into session", func(t *testing.T) {
 		ctx := newTestClient(t)

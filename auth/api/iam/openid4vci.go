@@ -34,7 +34,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 )
 
@@ -137,21 +136,25 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	}
-	// Optional caller-supplied authorization request parameters, for issuers that need extras
-	// (e.g. auth_method=SmartCard). These may only add parameters; they must not override the
-	// OpenID4VCI parameters set by the node above, which are essential to the flow.
-	if request.Body.AuthorizationRequestParams != nil {
-		for key, value := range *request.Body.AuthorizationRequestParams {
-			if _, isNodeParam := authzParams[key]; isNodeParam {
-				return nil, core.InvalidInputError("authorization_request_params may not override the '%s' parameter set by the node", key)
-			}
-			authzParams[key] = value
+	authzQuery := authorizationEndpoint.Query()
+	for key, value := range authzParams {
+		authzQuery.Set(key, value)
+	}
+	// Apply the selected request profile (built-in default merged with operator config). A profile is trusted
+	// config and may override the parameters set above; its authorization request parameters may be multi-valued.
+	if request.Body.Profile != nil && *request.Body.Profile != "" {
+		profileParams, ok := r.auth.AuthorizationRequestProfile(*request.Body.Profile)
+		if !ok {
+			return nil, core.InvalidInputError("unknown profile: %s", *request.Body.Profile)
+		}
+		for key, values := range profileParams {
+			authzQuery[key] = append([]string(nil), values...)
 		}
 	}
-	redirectUrl := nutsHttp.AddQueryParams(*authorizationEndpoint, authzParams)
+	authorizationEndpoint.RawQuery = authzQuery.Encode()
 
 	return RequestOpenid4VCICredentialIssuance200JSONResponse{
-		RedirectURI: redirectUrl.String(),
+		RedirectURI: authorizationEndpoint.String(),
 	}, nil
 }
 

@@ -41,6 +41,17 @@ type ExperimentalConfig struct {
 	// JwtBearerClient enables the RFC 7523 jwt-bearer two-VP token request flow.
 	// While disabled (the default), requests carrying a service-provider subject identifier are rejected.
 	JwtBearerClient bool `koanf:"jwtbearerclient"`
+	// Profiles are named bundles of request parameters for outbound flows against external issuers/authorization
+	// servers. A request selects a profile by name. Built-in profiles (e.g. "aet") are provided via DefaultConfig;
+	// operator config under the same name is layered over the default.
+	Profiles map[string]ProfileConfig `koanf:"profile"`
+}
+
+// ProfileConfig is a named bundle of request parameters for outbound OpenID4VCI flows.
+type ProfileConfig struct {
+	// AuthorizationRequest sets parameters on the OpenID4VCI authorization request. Each key may have multiple
+	// values (rendered as repeated query parameters; a single value is rendered as one parameter).
+	AuthorizationRequest map[string][]string `koanf:"authrequest"`
 }
 
 type AuthorizationEndpointConfig struct {
@@ -78,5 +89,17 @@ func DefaultConfig() Config {
 			selfsigned.ContractFormat,
 		},
 		AccessTokenLifeSpan: 60, // seconds, as specced in RFC003
+		Experimental: ExperimentalConfig{
+			// Built-in profiles. Operator config under auth.experimental.profile.<name> is layered over these.
+			Profiles: map[string]ProfileConfig{
+				// aet targets the AET ZORG-ID issuer, which requires smartcard auth and a specific scope on the authorization request.
+				"aet": {
+					AuthorizationRequest: map[string][]string{
+						"auth_method": {"SmartCard"},
+						"scope":       {"openid profile api"},
+					},
+				},
+			},
+		},
 	}
 }
