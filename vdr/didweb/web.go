@@ -109,7 +109,7 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	if err != nil {
 		// Debug-log the (clipped) body for diagnostics, but do not return it: the document
 		// is fetched from an externally-controlled URL and must not be reflected to the caller.
-		log.Logger().Debugf("did:web document at %s could not be parsed (body: %s)", targetURL, core.ClipHTTPBody(data))
+		log.Logger().Debugf("did:web document at %s could not be parsed (error: %s, body: %q)", targetURL, err, core.ClipHTTPBody(data))
 		return nil, nil, errors.New("did:web document could not be parsed as JSON")
 	}
 

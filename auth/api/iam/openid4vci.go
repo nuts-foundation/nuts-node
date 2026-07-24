@@ -228,7 +228,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	if err != nil {
 		// Debug-log the (clipped) credential for diagnostics, but never reflect it: it is
 		// fetched from the issuer's (attacker-influenceable) credential endpoint.
-		log.Logger().Debugf("credential returned by %s could not be parsed (credential: %s)", oauthSession.IssuerCredentialEndpoint, core.ClipHTTPBody([]byte(credentialJSON)))
+		log.Logger().Debugf("credential returned by %s could not be parsed (credential: %q)", oauthSession.IssuerCredentialEndpoint, core.ClipHTTPBody([]byte(credentialJSON)))
 		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to parse the credential returned by %s", oauthSession.IssuerCredentialEndpoint), err), appCallbackURI)
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)

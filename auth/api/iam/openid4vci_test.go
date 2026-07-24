@@ -525,7 +525,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		assert.Equal(t, oauth.ServerError, oauthErr.Code)
 		assert.Contains(t, oauthErr.Description, "failed to parse the credential")
 		// The parse failure detail is still available for diagnostics ...
-		assert.ErrorContains(t, err, "credential")
+		require.NotNil(t, oauthErr.InternalError)
+		assert.ErrorContains(t, err, "failed to parse token")
 		// ... but the raw credential body is never reflected into the response.
 		assert.NotContains(t, oauthErr.Description, "SENTINEL-CREDENTIAL-BODY")
 	})

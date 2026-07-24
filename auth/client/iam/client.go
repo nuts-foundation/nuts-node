@@ -208,7 +208,7 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		// Debug-log the (clipped) body for diagnostics, but never return it: the token
 		// endpoint may have been redirected to an attacker-influenced target, and the body
 		// must not be reflected back to the caller.
-		log.Logger().Debugf("token endpoint returned an unparseable response (body: %s)", core.ClipHTTPBody(responseData))
+		log.Logger().Debugf("token endpoint returned an unparseable response (body: %q)", core.ClipHTTPBody(responseData))
 		return token, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 	return token, nil

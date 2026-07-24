@@ -14,7 +14,7 @@ Unreleased
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
 ## Security
-* Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, and the did:web resolver no longer returns the fetched document body in its parse error. Such content is now debug-logged (clipped) for diagnostics instead. Static context such as the endpoint that failed is retained.
+* #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, and the did:web resolver no longer returns the fetched document body in its parse error. Such content is now debug-logged (clipped) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
 
 *****************
 Peanut (v6.2.10)
