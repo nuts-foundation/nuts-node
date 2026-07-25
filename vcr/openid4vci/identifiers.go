@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
+	httpclient "github.com/nuts-foundation/nuts-node/http/client"
+
 	"github.com/nuts-foundation/nuts-node/vcr/log"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/types"
@@ -144,7 +146,7 @@ func (t tlsIdentifierResolver) resolveFromCertificate(id did.DID) (string, error
 	}
 
 	// Resolve URLs
-	httpTransport := http.DefaultTransport.(*http.Transport).Clone()
+	httpTransport := httpclient.SafeHttpTransport.Clone()
 	httpTransport.TLSClientConfig = t.config
 	httpClient := &http.Client{
 		Timeout:   5 * time.Second,

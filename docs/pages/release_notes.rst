@@ -3,6 +3,12 @@
 Release notes
 #############
 
+****************
+Unreleased
+****************
+
+## Security
+* #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 *************************
 Hazelnut update (v5.4.37)
 *************************
