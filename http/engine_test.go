@@ -44,6 +44,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/sirupsen/logrus"
@@ -56,6 +57,58 @@ import (
 
 func TestEngine_Configure(t *testing.T) {
 	noop := func() {}
+
+	t.Run("client CIDR options", func(t *testing.T) {
+		resetGuardState := func(t *testing.T) {
+			oldStrictMode := client.StrictMode
+			t.Cleanup(func() {
+				client.StrictMode = oldStrictMode
+				require.NoError(t, client.SetAllowedNonPublicCIDRs(nil))
+				require.NoError(t, client.SetDeniedCIDRs(nil))
+			})
+		}
+		newEngine := func() *Engine {
+			engine := New(noop, nil)
+			engine.config.InterfaceConfig.Address = fmt.Sprintf("localhost:%d", test.FreeTCPPort())
+			return engine
+		}
+		t.Run("ok - propagated to the dial guard", func(t *testing.T) {
+			resetGuardState(t)
+			engine := newEngine()
+			engine.config.Client.AllowedInternalCIDRs = []string{"127.0.0.0/8"}
+			engine.config.Client.DeniedCIDRs = []string{"127.0.5.0/24"}
+			serverConfig := core.NewServerConfig()
+			serverConfig.Strictmode = true
+			require.NoError(t, engine.Configure(*serverConfig))
+
+			httpClient := &http.Client{Transport: client.SafeHttpTransport, Timeout: time.Second}
+			// Denied range wins over the allowlist.
+			deniedReq, _ := http.NewRequest("GET", "https://127.0.5.1:1", nil)
+			_, err := httpClient.Do(deniedReq)
+			require.Error(t, err)
+			assert.ErrorContains(t, err, "blocked connection to denied address")
+			// Allowlisted loopback address passes the guard (fails with an ordinary connection
+			// error instead, since nothing listens on the port).
+			allowedReq, _ := http.NewRequest("GET", "https://127.0.6.1:1", nil)
+			_, err = httpClient.Do(allowedReq)
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), "blocked connection to")
+		})
+		t.Run("error - invalid allowedinternalcidrs fails startup", func(t *testing.T) {
+			resetGuardState(t)
+			engine := newEngine()
+			engine.config.Client.AllowedInternalCIDRs = []string{"not-a-cidr"}
+			err := engine.Configure(*core.NewServerConfig())
+			assert.ErrorContains(t, err, `invalid CIDR "not-a-cidr"`)
+		})
+		t.Run("error - invalid deniedcidrs fails startup", func(t *testing.T) {
+			resetGuardState(t)
+			engine := newEngine()
+			engine.config.Client.DeniedCIDRs = []string{"also-not-a-cidr"}
+			err := engine.Configure(*core.NewServerConfig())
+			assert.ErrorContains(t, err, `invalid CIDR "also-not-a-cidr"`)
+		})
+	})
 
 	t.Run("ok, no TLS (default)", func(t *testing.T) {
 		engine := New(noop, nil)

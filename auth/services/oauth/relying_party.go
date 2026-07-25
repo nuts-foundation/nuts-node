@@ -34,6 +34,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/didman"
+	httpclient "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
 	"github.com/nuts-foundation/nuts-node/vdr/didservice"
 	"github.com/nuts-foundation/nuts-node/vdr/didstore"
@@ -74,12 +75,14 @@ func (s *relyingParty) RequestAccessToken(ctx context.Context, jwtGrantToken str
 	if s.secureMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
 		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
 	}
-	httpClient := &http.Client{}
+	// The endpoint is resolved from another party's DID document, so use the transport
+	// with the strict-mode SSRF dial guard.
+	transport := httpclient.SafeHttpTransport
 	if s.httpClientTLS != nil {
-		httpClient.Transport = &http.Transport{
-			TLSClientConfig: s.httpClientTLS,
-		}
+		transport = transport.Clone()
+		transport.TLSClientConfig = s.httpClientTLS
 	}
+	httpClient := &http.Client{Transport: transport}
 	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create HTTP client: %w", err)
