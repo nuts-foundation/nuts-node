@@ -64,8 +64,9 @@ func (h DefaultHTTPClient) Register(ctx context.Context, serviceEndpointURL stri
 	}
 	defer httpResponse.Body.Close()
 	if err := core.TestResponseCodeWithLog(201, httpResponse, log.Logger()); err != nil {
-		httpErr := err.(core.HttpError) // TestResponseCodeWithLog always returns an HttpError
-		return fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
+		// The response body is not part of the returned error: it comes from a remote server
+		// and must not be reflected in our own API responses. TestResponseCodeWithLog logs it (truncated).
+		return fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	return nil
 }
@@ -82,9 +83,10 @@ func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, t
 		return nil, "", 0, fmt.Errorf("failed to invoke remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	defer httpResponse.Body.Close()
-	if err := core.TestResponseCode(200, httpResponse); err != nil {
-		httpErr := err.(core.HttpError) // TestResponseCodeWithLog always returns an HttpError
-		return nil, "", 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %s", serviceEndpointURL, problemResponseToError(httpErr))
+	if err := core.TestResponseCodeWithLog(200, httpResponse, log.Logger()); err != nil {
+		// The response body is not part of the returned error: it comes from a remote server
+		// and must not be reflected in our own API responses. TestResponseCodeWithLog logs it (truncated).
+		return nil, "", 0, fmt.Errorf("non-OK response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	responseData, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
@@ -95,18 +97,4 @@ func (h DefaultHTTPClient) Get(ctx context.Context, serviceEndpointURL string, t
 		return nil, "", 0, fmt.Errorf("failed to unmarshal response from remote Discovery Service (url=%s): %w", serviceEndpointURL, err)
 	}
 	return result.Entries, result.Seed, result.Timestamp, nil
-}
-
-// problemResponseToError converts a Problem Details response to an error.
-// It creates an error with the given string concatenated with the title and detail fields of the problem details.
-func problemResponseToError(httpErr core.HttpError) string {
-	var problemDetails struct {
-		Title       string `json:"title"`
-		Description string `json:"detail"`
-		Status      int    `json:"status"`
-	}
-	if err := json.Unmarshal(httpErr.ResponseBody, &problemDetails); err != nil {
-		return fmt.Sprintf("%s: %s", httpErr.Error(), httpErr.ResponseBody)
-	}
-	return fmt.Sprintf("server returned HTTP status code %d: %s: %s", problemDetails.Status, problemDetails.Title, problemDetails.Description)
 }

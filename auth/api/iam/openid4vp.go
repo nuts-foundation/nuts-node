@@ -735,12 +735,12 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token from %s", oauthSession.TokenEndpoint), err), appCallbackURI)
 	}
 	// update TokenResponse using session.SessionID
 	tokenResponse = tokenResponse.With("status", oauth.AccessTokenRequestStatusActive)
 	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to store access token", err), appCallbackURI)
 	}
 	return Callback302Response{
 		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},
