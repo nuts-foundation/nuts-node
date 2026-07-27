@@ -2,6 +2,14 @@
 Release notes
 #############
 
+****************
+Unreleased
+****************
+
+## Security
+* Upgrade go.opentelemetry.io/otel to v1.44.0 to address `GO-2026-5158 <https://pkg.go.dev/vuln/GO-2026-5158>`_ (baggage header parsing did not cap raw header length, allowing denial-of-service through excessively large headers).
+* Upgrade golang.org/x/text to v0.39.0 to address `GO-2026-5970 <https://pkg.go.dev/vuln/GO-2026-5970>`_ (norm.Iter could enter an infinite loop on input containing invalid UTF-8 bytes).
+
 *****************
 Peanut (v6.2.10)
 *****************
