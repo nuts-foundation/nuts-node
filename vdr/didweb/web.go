@@ -107,9 +107,9 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	var document did.Document
 	err = document.UnmarshalJSON(data)
 	if err != nil {
-		// Debug-log the (clipped) body for diagnostics, but do not return it: the document
+		// Debug-log the (truncated) body for diagnostics, but do not return it: the document
 		// is fetched from an externally-controlled URL and must not be reflected to the caller.
-		log.Logger().Debugf("did:web document at %s could not be parsed (error: %s, body: %q)", targetURL, err, core.ClipHTTPBody(data))
+		log.Logger().Debugf("did:web document at %s could not be parsed (error: %s, body: %q)", targetURL, err, core.TruncateHTTPBody(data))
 		return nil, nil, errors.New("did:web document could not be parsed as JSON")
 	}
 

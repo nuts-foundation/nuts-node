@@ -265,7 +265,7 @@ func TestHTTPClient_AccessToken(t *testing.T) {
 		// The raw response body must not be reflected in the returned error, since it can
 		// carry content fetched from an attacker-influenced endpoint.
 		assert.NotContains(t, err.Error(), "SECRET-RESPONSE-BODY")
-		// It is debug-logged (clipped) for diagnostics instead.
+		// It is debug-logged (truncated) for diagnostics instead.
 		var logged bool
 		for _, entry := range hook.AllEntries() {
 			if strings.Contains(entry.Message, "SECRET-RESPONSE-BODY") {

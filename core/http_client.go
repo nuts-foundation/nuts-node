@@ -33,21 +33,21 @@ import (
 // This callback pattern avoids circular imports between core and tracing packages.
 var TracingHTTPTransport func(http.RoundTripper) http.RoundTripper
 
-// HttpResponseBodyLogClipAt is the maximum length of a response body to log.
+// HttpResponseBodyLogTruncateAt is the maximum length of a response body to log.
 // If the response body is longer than this, it will be truncated.
-const HttpResponseBodyLogClipAt = 200
+const HttpResponseBodyLogTruncateAt = 200
 
-// ClipHTTPBody returns the response body clipped to at most HttpResponseBodyLogClipAt bytes,
+// TruncateHTTPBody returns the response body truncated to at most HttpResponseBodyLogTruncateAt bytes,
 // safe to write to a (debug) log. It exists so an unexpected response can be logged for
 // diagnostics without ever placing the full, possibly attacker-influenced, body into an
 // error message that could be reflected back to a caller.
-func ClipHTTPBody(body []byte) string {
-	if len(body) <= HttpResponseBodyLogClipAt {
+func TruncateHTTPBody(body []byte) string {
+	if len(body) <= HttpResponseBodyLogTruncateAt {
 		return string(body)
 	}
 	// The cut may split a multi-byte UTF-8 character; that is fine for logging,
 	// callers log the result with %q which escapes any invalid bytes.
-	return string(body[:HttpResponseBodyLogClipAt]) + "...(clipped)"
+	return string(body[:HttpResponseBodyLogTruncateAt]) + "...(truncated)"
 }
 
 // HttpResponseBodyMaxSize is the maximum number of bytes read from an unexpected HTTP response body.
@@ -82,7 +82,7 @@ func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, lo
 		}
 		if log != nil {
 			log.WithField("http_request_path", response.Request.URL.Path).
-				Infof("Unexpected HTTP response (len=%d): %q", len(responseData), ClipHTTPBody(responseData))
+				Infof("Unexpected HTTP response (len=%d): %q", len(responseData), TruncateHTTPBody(responseData))
 		}
 		return HttpError{
 			error:        fmt.Errorf("server returned HTTP %d (expected: %d)", response.StatusCode, expectedStatusCode),

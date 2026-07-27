@@ -107,17 +107,17 @@ func TestTestResponseCode(t *testing.T) {
 	})
 }
 
-func TestClipHTTPBody(t *testing.T) {
+func TestTruncateHTTPBody(t *testing.T) {
 	t.Run("short body is returned as-is", func(t *testing.T) {
-		assert.Equal(t, "hello", ClipHTTPBody([]byte("hello")))
+		assert.Equal(t, "hello", TruncateHTTPBody([]byte("hello")))
 	})
 	t.Run("body at the limit is returned as-is", func(t *testing.T) {
-		body := strings.Repeat("a", HttpResponseBodyLogClipAt)
-		assert.Equal(t, body, ClipHTTPBody([]byte(body)))
+		body := strings.Repeat("a", HttpResponseBodyLogTruncateAt)
+		assert.Equal(t, body, TruncateHTTPBody([]byte(body)))
 	})
-	t.Run("longer body is clipped", func(t *testing.T) {
-		body := strings.Repeat("a", HttpResponseBodyLogClipAt+1)
-		assert.Equal(t, strings.Repeat("a", HttpResponseBodyLogClipAt)+"...(clipped)", ClipHTTPBody([]byte(body)))
+	t.Run("longer body is truncated", func(t *testing.T) {
+		body := strings.Repeat("a", HttpResponseBodyLogTruncateAt+1)
+		assert.Equal(t, strings.Repeat("a", HttpResponseBodyLogTruncateAt)+"...(truncated)", TruncateHTTPBody([]byte(body)))
 	})
 }
 
@@ -147,7 +147,7 @@ func TestTestResponseCodeWithLog(t *testing.T) {
 		assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
 		assert.Equal(t, `Unexpected HTTP response (len=13): "hello, world!"`, hook.LastEntry().Message)
 	})
-	t.Run("large response body (>200), clipped", func(t *testing.T) {
+	t.Run("large response body (>200), truncated", func(t *testing.T) {
 		data := strings.Repeat("a", 201)
 		status := stdHttp.StatusUnauthorized
 		logger := logrus.New()
@@ -157,7 +157,7 @@ func TestTestResponseCodeWithLog(t *testing.T) {
 
 		_ = TestResponseCodeWithLog(stdHttp.StatusOK, &stdHttp.Response{StatusCode: status, Body: readCloser(data), Request: request}, logger.WithFields(nil))
 
-		assert.Equal(t, `Unexpected HTTP response (len=201): "`+strings.Repeat("a", HttpResponseBodyLogClipAt)+`...(clipped)"`, hook.LastEntry().Message)
+		assert.Equal(t, `Unexpected HTTP response (len=201): "`+strings.Repeat("a", HttpResponseBodyLogTruncateAt)+`...(truncated)"`, hook.LastEntry().Message)
 	})
 	t.Run("response body exceeding max size is truncated", func(t *testing.T) {
 		data := bytes.Repeat([]byte("a"), HttpResponseBodyMaxSize+1024)
