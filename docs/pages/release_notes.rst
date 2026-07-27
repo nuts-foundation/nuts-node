@@ -3,6 +3,13 @@
 Release notes
 #############
 
+****************
+Unreleased
+****************
+
+## Security
+* Upgrade golang.org/x/text to v0.39.0 to address `GO-2026-5970 <https://pkg.go.dev/vuln/GO-2026-5970>`_ (norm.Iter could enter an infinite loop on input containing invalid UTF-8 bytes).
+
 *************************
 Hazelnut update (v5.4.37)
 *************************
