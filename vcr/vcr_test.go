@@ -86,7 +86,9 @@ func TestVCR_Configure(t *testing.T) {
 	})
 	t.Run("strictmode passed to client APIs", func(t *testing.T) {
 		ctx := newMockContext(t)
+		oldStrictMode := client.StrictMode
 		client.StrictMode = true
+		t.Cleanup(func() { client.StrictMode = oldStrictMode })
 		testVC := test.ValidNutsOrganizationCredential(t)
 		issuerDID := did.MustParseDID(testVC.Issuer.String())
 		testDirectory := io.TestDirectory(t)
