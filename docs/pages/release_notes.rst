@@ -2,6 +2,13 @@
 Release notes
 #############
 
+****************
+Unreleased
+****************
+
+## Security
+* #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
+
 *****************
 Peanut (v6.2.10)
 *****************
