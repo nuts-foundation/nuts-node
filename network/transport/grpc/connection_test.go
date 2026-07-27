@@ -20,8 +20,11 @@ package grpc
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -98,6 +101,33 @@ func Test_conn_registerStream(t *testing.T) {
 
 		assert.True(t, accepted)
 		assert.False(t, accepted2)
+	})
+}
+
+func Test_conn_startSending(t *testing.T) {
+	t.Run("disconnect does not panic", func(t *testing.T) {
+		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		stream := newServerStream("foo", "", nil)
+
+		defer stream.cancelFunc()
+
+		p := &TestProtocol{}
+		_ = connection.registerStream(p, stream)
+
+		assert.Equal(t, int32(2), connection.activeGoroutines) // startSending and startReceiving
+
+		// Disconnect before cancelling the stream: this guarantees the connection context is
+		// cancelled before RecvMsg returns, so the receive loop drops the message instead of
+		// racing to store the stream error as close status.
+		connection.disconnect()
+		stream.cancelFunc()
+
+		test.WaitFor(t, func() (bool, error) {
+			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
+		}, 5*time.Second, "waiting for all goroutines to exit")
+
+		// A deliberate local disconnect must not record a close error. Default value is OK.
+		assert.Equal(t, codes.OK, connection.status.Load().Code())
 	})
 }
 
