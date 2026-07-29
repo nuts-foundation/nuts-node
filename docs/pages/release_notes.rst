@@ -8,6 +8,8 @@ Unreleased
 
 ## Security
 * #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
+* Upgrade go.opentelemetry.io/otel to v1.44.0 to address `GO-2026-5158 <https://pkg.go.dev/vuln/GO-2026-5158>`_ (baggage header parsing did not cap raw header length, allowing denial-of-service through excessively large headers).
+* Upgrade golang.org/x/text to v0.39.0 to address `GO-2026-5970 <https://pkg.go.dev/vuln/GO-2026-5970>`_ (norm.Iter could enter an infinite loop on input containing invalid UTF-8 bytes).
 
 *****************
 Peanut (v6.2.10)
