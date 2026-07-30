@@ -387,6 +387,46 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 	})
 }
 
+func TestEngine_RequestBodyLimit(t *testing.T) {
+	// Configure sets the package-global client strict mode flag; restore it afterwards.
+	oldStrictMode := client.StrictMode
+	t.Cleanup(func() { client.StrictMode = oldStrictMode })
+	noop := func() {}
+	engine := New(noop, nil)
+	engine.config = createTestConfig()
+	err := engine.Configure(*core.NewServerConfig())
+	require.NoError(t, err)
+	echoBody := func(c echo.Context) error {
+		body, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return err
+		}
+		return c.String(http.StatusOK, fmt.Sprintf("%d", len(body)))
+	}
+	engine.Router().POST("/", echoBody)
+	engine.Router().POST("/internal/test", echoBody)
+	require.NoError(t, engine.Start())
+	defer engine.Shutdown()
+	assertServerStarted(t, engine.config.Public.Address)
+	assertServerStarted(t, engine.config.Internal.Address)
+
+	t.Run("accepts a body under the limit", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader(make([]byte, 512*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
+	t.Run("rejects a body over the limit with 413", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader(make([]byte, 2*1024*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode)
+	})
+	t.Run("applies to the internal interface as well", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Internal.Address+"/internal/test", "application/json", bytes.NewReader(make([]byte, 2*1024*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode)
+	})
+}
+
 func assertServerStarted(t *testing.T, address string) {
 	t.Helper()
 	var err error
