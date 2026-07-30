@@ -42,6 +42,20 @@ import (
 
 const moduleName = "HTTP"
 
+// diagnosticsPath is the status endpoint that reports software version, git commit, peer list
+// and store counts. It is only meant to be available on the internal interface, but it shares
+// its first path segment with /status, which deliberately stays public as a liveness signal
+// for load balancers and uptime monitors.
+//
+// Interface binding (MultiEcho) resolves on the first path segment only and rejects subpath
+// binds, so /status and /status/diagnostics cannot be bound to different interfaces through
+// the bind table: the route is registered on every interface that serves /status. Therefore
+// internalOnlyMiddleware refuses requests that reach this path through any interface other
+// than the internal one. If the bind table ever learns longest-prefix matching so subpaths
+// can be bound to their own interface, this path should become a regular internal-only bind
+// and the middleware can be removed.
+const diagnosticsPath = StatusPath + "/diagnostics"
+
 // New returns a new HTTP engine. The callback is called when an HTTP interface shuts down unexpectedly.
 func New(serverShutdownCb func(), signingKeyResolver cryptoEngine.KeyResolver) *Engine {
 	return &Engine{
@@ -97,7 +111,50 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	h.applyTracingMiddleware(h.server)
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)
+	diagnosticsGuard, err := internalOnlyMiddleware(h.config.Internal.Address, diagnosticsPath)
+	if err != nil {
+		return err
+	}
+	h.server.Use(diagnosticsGuard)
 	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
+}
+
+// internalOnlyMiddleware returns middleware that refuses requests to the given path (and its
+// subpaths) unless the connection was accepted on the interface the internal API is bound to.
+//
+// How the interface is determined: Go's net/http server stores the connection's local address
+// (the address the listener accepted on) in the request context under http.LocalAddrContextKey.
+// Every HTTP interface listens on its own port, since binding the same port twice fails at
+// startup, so comparing the local address port against the internal interface's configured
+// port identifies the interface the request arrived on. When the operator configures the
+// public and internal interface to the same address there is only one server and the ports
+// always match, which honors that (explicitly configured) setup. The comparison uses only the
+// port, not the host: the configured bind host (e.g. ":8081" or "0.0.0.0:8081") does not have
+// to equal the connection's concrete local IP.
+//
+// Requests are refused with 403 rather than 404: the endpoint's existence is public knowledge
+// (the node is open source), so a 404 would hide nothing from an attacker, while the explicit
+// message tells an operator whose external monitor probes this path exactly why it broke.
+// When the local address is missing from the request context or unparseable, the request is
+// refused (fail closed); this cannot happen with Go's net/http server, which always sets it.
+func internalOnlyMiddleware(internalAddress string, path string) (echo.MiddlewareFunc, error) {
+	_, internalPort, err := net.SplitHostPort(internalAddress)
+	if err != nil {
+		return nil, fmt.Errorf("invalid internal address %s: %w", internalAddress, err)
+	}
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if !matchesPath(c.Request().URL.Path, path) {
+				return next(c)
+			}
+			if localAddr, ok := c.Request().Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+				if _, port, err := net.SplitHostPort(localAddr.String()); err == nil && port == internalPort {
+					return next(c)
+				}
+			}
+			return echo.NewHTTPError(http.StatusForbidden, "only available on the internal interface")
+		}
+	}, nil
 }
 
 func (h *Engine) configureClient(serverConfig core.ServerConfig) error {

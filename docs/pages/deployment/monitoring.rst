@@ -87,6 +87,10 @@ Basic diagnostics
     this page is intended to be read by humans, not machines.
     all but the ``status`` entry are related to V5 functionality (gRPC network, VDRv1 and VCRv1 APIs).
 
+.. note::
+
+    this endpoint is only served on the internal interface. It discloses the exact software version, the node's network peers and data store counts, so requests arriving through the public interface are refused with HTTP 403. The ``/status`` endpoint (without ``/diagnostics``) remains available on both interfaces as a liveness signal.
+
 Returns the status of the various services in ``yaml`` format:
 
 .. code-block:: text
