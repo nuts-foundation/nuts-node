@@ -387,6 +387,49 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 	})
 }
 
+func TestEngine_DiagnosticsInternalOnly(t *testing.T) {
+	// Configure sets the package-global client strict mode flag; restore it afterwards.
+	oldStrictMode := client.StrictMode
+	t.Cleanup(func() { client.StrictMode = oldStrictMode })
+	noop := func() {}
+	engine := New(noop, nil)
+	engine.config = createTestConfig()
+	require.NoError(t, engine.Configure(*core.NewServerConfig()))
+	// Simulate the routes the status engine registers under /status.
+	engine.Router().GET("/status", func(c echo.Context) error {
+		return c.String(http.StatusOK, "OK")
+	})
+	engine.Router().GET("/status/diagnostics", func(c echo.Context) error {
+		return c.String(http.StatusOK, "diagnostics")
+	})
+	require.NoError(t, engine.Start())
+	defer engine.Shutdown()
+	assertServerStarted(t, engine.config.Public.Address)
+	assertServerStarted(t, engine.config.Internal.Address)
+
+	t.Run("/status is available on the public interface", func(t *testing.T) {
+		response, err := http.Get("http://" + engine.config.Public.Address + "/status")
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
+	t.Run("/status/diagnostics is available on the internal interface", func(t *testing.T) {
+		response, err := http.Get("http://" + engine.config.Internal.Address + "/status/diagnostics")
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, response.StatusCode)
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		assert.Equal(t, "diagnostics", string(body))
+	})
+	t.Run("/status/diagnostics is forbidden on the public interface", func(t *testing.T) {
+		response, err := http.Get("http://" + engine.config.Public.Address + "/status/diagnostics")
+		require.NoError(t, err)
+		body, err := io.ReadAll(response.Body)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, response.StatusCode)
+		assert.NotContains(t, string(body), "diagnostics")
+	})
+}
+
 func assertServerStarted(t *testing.T, address string) {
 	t.Helper()
 	var err error
