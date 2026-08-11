@@ -108,11 +108,40 @@ func TestDecryptPal(t *testing.T) {
 		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
 		keyStore.SavePrivateKey(ctx, "kid-1", pk)
 
-		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
+		// Exactly 2 entries so the count check passes and parsing reaches the invalid one.
+		plaintext := append(append([]byte{1, 2, 3}, '\n'), []byte("did:nuts:test")...)
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
 
 		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID: input length is less than 7")
+	})
+	t.Run("error - too many entries in decrypted PAL", func(t *testing.T) {
+		// The encrypted-entry check doesn't bound what's inside a single entry once it decrypts -
+		// this is a single, legitimately-decryptable entry whose plaintext claims more participants
+		// than allowed.
+		keyStore := crypto.NewMemoryStorage()
+		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+
+		plaintext := []byte("did:nuts:A\ndid:nuts:B\ndid:nuts:C")
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
+
+		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		assert.Nil(t, actual)
+		assert.EqualError(t, err, "decrypted pal must contain exactly 2 entries, got 3")
+	})
+	t.Run("error - too few entries in decrypted PAL", func(t *testing.T) {
+		keyStore := crypto.NewMemoryStorage()
+		cryptoInstance := crypto.NewTestCryptoInstance(keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+
+		plaintext := []byte("did:nuts:A")
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
+
+		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		assert.Nil(t, actual)
+		assert.EqualError(t, err, "decrypted pal must contain exactly 2 entries, got 1")
 	})
 }
 
