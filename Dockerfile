@@ -20,18 +20,14 @@ RUN go mod download && go mod verify
 COPY . .
 RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
-# alpine
-FROM alpine:3.24.1
-RUN apk update \
-  && apk add --no-cache \
-             tzdata \
-             curl
+# distroless static: contains CA certificates and tzdata, but no shell or package manager
+FROM gcr.io/distroless/static-debian13:latest
 COPY --from=builder /opt/nuts/nuts /usr/bin/nuts
 
+# exec form (no shell in this image); 'nuts status' GETs the internal API on localhost:8081
 HEALTHCHECK --start-period=30s --timeout=5s --interval=10s \
-    CMD curl -f http://localhost:8081/status || exit 1
+    CMD ["/usr/bin/nuts", "status"]
 
-RUN adduser -D -H -u 18081 nuts-usr
 USER 18081:18081
 WORKDIR /nuts
 
