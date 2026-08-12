@@ -13,8 +13,9 @@ This page shows how to check a signature by hand, how to deploy a verified diges
 .. note::
 
     Images published before signing was added to the release pipeline are not signed.
-    Security fixes may be released before their source code is public.
-    Such an image can fail strict verification until the source is published; the release notes state this when it applies.
+    Security fixes are prepared in the private repository ``nuts-foundation/nuts-node-private`` and may be released before their source code is public.
+    Images of such a release are signed with the identity of that repository's workflow; the verification commands below accept both identities.
+    The source code of an embargoed release becomes available in the public repository at disclosure.
 
 Checking a signature with cosign
 ********************************
@@ -26,13 +27,13 @@ Install `cosign <https://docs.sigstore.dev/cosign/system_config/installation/>`_
   cosign verify nutsfoundation/nuts-node:latest \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
     --certificate-identity-regexp \
-      '^https://github.com/nuts-foundation/nuts-node/\.github/workflows/build-images\.yaml@'
+      '^https://github.com/nuts-foundation/nuts-node(-private)?/\.github/workflows/build-images\.yaml@'
 
 cosign exits with code 0 and prints the verified claims when the signature is valid.
 The two flags pin the identity you trust:
 
 * ``--certificate-oidc-issuer``: the identity provider. For images built on GitHub Actions this is always ``https://token.actions.githubusercontent.com``.
-* ``--certificate-identity-regexp``: the workflow that requested the signing certificate. Only the ``build-images.yaml`` workflow in the ``nuts-foundation/nuts-node`` repository matches this expression.
+* ``--certificate-identity-regexp``: the workflow that requested the signing certificate. Only the ``build-images.yaml`` workflow in the ``nuts-foundation/nuts-node`` repository, or in ``nuts-foundation/nuts-node-private`` for embargoed security releases, matches this expression.
 
 Each signature is also recorded in the public `Rekor <https://docs.sigstore.dev/rekor/overview>`_ transparency log, so anyone can audit when and by which workflow signatures were produced.
 
@@ -47,7 +48,7 @@ cosign prints the digest of the image it verified (this command requires ``jq``)
 
   DIGEST=$(cosign verify nutsfoundation/nuts-node:latest \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-    --certificate-identity-regexp '^https://github.com/nuts-foundation/nuts-node/\.github/workflows/build-images\.yaml@' \
+    --certificate-identity-regexp '^https://github.com/nuts-foundation/nuts-node(-private)?/\.github/workflows/build-images\.yaml@' \
     --output json | jq -r '.[0].critical.image."docker-manifest-digest"')
   echo "nutsfoundation/nuts-node@${DIGEST}"
 
@@ -89,7 +90,7 @@ The Sigstore `policy-controller <https://docs.sigstore.dev/policy-controller/ove
               - entries:
                   - keyless:
                       issuer: "https://token.actions.githubusercontent.com"
-                      subjectRegExp: "^https://github.com/nuts-foundation/nuts-node/\\.github/workflows/build-images\\.yaml@"
+                      subjectRegExp: "^https://github.com/nuts-foundation/nuts-node(-private)?/\\.github/workflows/build-images\\.yaml@"
                       rekor:
                         url: "https://rekor.sigstore.dev"
 
@@ -117,7 +118,7 @@ Azure
           chmod +x cosign
           DIGEST=$(./cosign verify "nutsfoundation/nuts-node:$(NUTS_VERSION)" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-identity-regexp '^https://github.com/nuts-foundation/nuts-node/\.github/workflows/build-images\.yaml@' \
+            --certificate-identity-regexp '^https://github.com/nuts-foundation/nuts-node(-private)?/\.github/workflows/build-images\.yaml@' \
             --output json | jq -r '.[0].critical.image."docker-manifest-digest"')
           echo "##vso[task.setvariable variable=NUTS_IMAGE]nutsfoundation/nuts-node@${DIGEST}"
 
@@ -142,6 +143,7 @@ The attestations are part of the image index, so the cosign signature on the ima
 Scope of the guarantee
 **********************
 
-A valid signature proves that the image was built and pushed by the ``build-images.yaml`` workflow of the ``nuts-foundation/nuts-node`` repository, at the commit recorded in the certificate, and that the image was not modified afterwards.
+A valid signature proves that the image was built and pushed by the ``build-images.yaml`` workflow of the ``nuts-foundation/nuts-node`` repository (or ``nuts-node-private`` for embargoed security releases), at the commit recorded in the certificate, and that the image was not modified afterwards.
+For an embargoed release the commit is not publicly readable until disclosure; until then the signature proves the origin of the image but the source cannot be audited.
 It does not prove that the source code at that commit is free of defects or malicious changes.
 Review of the source code, and of who may change it, remains the basis of trust.
