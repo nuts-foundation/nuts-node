@@ -39,9 +39,10 @@ echo "Restarting with NodeDID set..."
 echo "------------------------------------"
 # Start without bootstrap node, to enforce authenticated, discovered connections (required for private transactions)
 export BOOTSTRAP_NODES=
-# Delete nodes' address books to avoid persisting initial "new node" delay, allowing to connect to each other immediately
-docker compose exec nodeA-backend rm -f /opt/nuts/data/network/connections.db
-docker compose exec nodeB-backend rm -f /opt/nuts/data/network/connections.db
+# Delete nodes' address books to avoid persisting initial "new node" delay, allowing to connect to each other immediately.
+# Deleted from the host (data dirs are bind mounts): the distroless image contains no 'rm'.
+rm -f ./node-A/data/network/connections.db
+rm -f ./node-B/data/network/connections.db
 docker compose stop
 docker compose up --wait
 
