@@ -19,7 +19,7 @@
 package dag
 
 import (
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/stretchr/testify/require"
 	"testing"

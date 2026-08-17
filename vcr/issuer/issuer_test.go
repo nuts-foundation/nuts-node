@@ -143,10 +143,14 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Empty(t, result.Proof)
 			// Assert JWT
 			require.NotNil(t, result.JWT())
-			assert.Equal(t, subjectDID, result.JWT().Subject())
-			assert.Equal(t, result.IssuanceDate, result.JWT().NotBefore())
-			assert.Equal(t, *result.ExpirationDate, result.JWT().Expiration())
-			assert.Equal(t, result.ID.String(), result.JWT().JwtID())
+			subject, _ := result.JWT().Subject()
+			assert.Equal(t, subjectDID, subject)
+			notBefore, _ := result.JWT().NotBefore()
+			assert.Equal(t, result.IssuanceDate, notBefore)
+			expiration, _ := result.JWT().Expiration()
+			assert.Equal(t, *result.ExpirationDate, expiration)
+			jwtID, _ := result.JWT().JwtID()
+			assert.Equal(t, result.ID.String(), jwtID)
 		})
 	})
 	t.Run("credentialStatus", func(t *testing.T) {

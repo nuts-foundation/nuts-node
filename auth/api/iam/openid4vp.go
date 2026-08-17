@@ -34,8 +34,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
@@ -598,8 +598,7 @@ func extractChallenge(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
+		_ = presentation.JWT().Get("nonce", &nonce)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {
@@ -731,20 +730,18 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 
 	// send callback URL for verification (this method is the handler for that URL) to authorization server to check against earlier redirect_uri
 	// we call it checkURL here because it is used by the authorization server to check if the code is valid
-	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := baseURL.String()
-	checkURL := baseURL.JoinPath(oauth.CallbackPath)
+	clientID := r.subjectToBaseURL(*oauthSession.OwnSubject)
 
 	// use code to request access token from remote token endpoint
 	// Configured client authentication (client_secret) applies only to the OpenID4VCI flow; the OpenID4VP wallet authenticates via did:web.
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, "", oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), "", oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token from %s", oauthSession.TokenEndpoint), err), appCallbackURI)
 	}
 	// update TokenResponse using session.SessionID
 	tokenResponse = tokenResponse.With("status", oauth.AccessTokenRequestStatusActive)
 	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to store access token", err), appCallbackURI)
 	}
 	return Callback302Response{
 		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},

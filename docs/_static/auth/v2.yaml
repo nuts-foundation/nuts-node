@@ -187,6 +187,20 @@ paths:
                     {
                       "some-requested-credential-attribute": "900184590"
                     }
+                authorization_request_params:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: |
+                    Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+                    Authorization Server's authorization_endpoint). These may only add parameters; they must not
+                    override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+                    Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+                    that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+                  example: |
+                    {
+                      "auth_method": "SmartCard"
+                    }
                 redirect_uri:
                   type: string
                   description: |

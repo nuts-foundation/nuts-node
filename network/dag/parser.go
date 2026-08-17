@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
@@ -77,8 +77,9 @@ type transactionParseStep func(transaction *transaction, headers jws.Headers, me
 
 // parseSigningAlgorithm validates whether the signing algorithm is allowed
 func parseSigningAlgorithm(_ *transaction, headers jws.Headers, _ *jws.Message) error {
-	if !isAlgoAllowed(headers.Algorithm()) {
-		return transactionValidationError("signing algorithm not allowed: %s", headers.Algorithm())
+	alg, _ := headers.Algorithm()
+	if !isAlgoAllowed(alg) {
+		return transactionValidationError("signing algorithm not allowed: %s", alg)
 	}
 	return nil
 }
@@ -95,7 +96,7 @@ func parsePayload(transaction *transaction, _ jws.Headers, message *jws.Message)
 
 // parseContentType parses, validates and sets the transaction payload content type.
 func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	contentType := headers.ContentType()
+	contentType, _ := headers.ContentType()
 	if !ValidatePayloadType(contentType) {
 		return transactionValidationError("%w", errInvalidPayloadType)
 	}
@@ -105,25 +106,27 @@ func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Mess
 
 // parseSignatureParams parses, validates and sets the transaction signing key (`jwk`) or key ID (`kid`).
 func parseSignatureParams(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if key, ok := headers.Get(jws.JWKKey); ok {
-		jwkKey := key.(jwk.Key)
+	var jwkKey jwk.Key
+	if err := headers.Get(jws.JWKKey, &jwkKey); err == nil {
 		transaction.signingKey = jwkKey
 	}
 	// Get the keyID from the header (not to be confused with the keyID from the embedded key)
-	if kid, ok := headers.Get(jws.KeyIDKey); ok {
-		transaction.signingKeyID = kid.(string)
+	var kid string
+	if err := headers.Get(jws.KeyIDKey, &kid); err == nil {
+		transaction.signingKeyID = kid
 	}
 	// Check RFC004 3.1 kid and jwk constraints
 	if (transaction.signingKey != nil && transaction.signingKeyID != "") || (transaction.signingKey == nil && transaction.signingKeyID == "") {
 		return transactionValidationError("either `kid` or `jwk` header must be present (but not both)")
 	}
-	transaction.signingAlgorithm = headers.Algorithm()
+	transaction.signingAlgorithm, _ = headers.Algorithm()
 	return nil
 }
 
 // parseSigningTime parses, validates and sets the transaction signing time.
 func parseSigningTime(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if timeAsInterf, ok := headers.Get(signingTimeHeader); !ok {
+	var timeAsInterf interface{}
+	if err := headers.Get(signingTimeHeader, &timeAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, signingTimeHeader)
 	} else if timeAsFloat64, ok := timeAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, signingTimeHeader)
@@ -136,7 +139,8 @@ func parseSigningTime(transaction *transaction, headers jws.Headers, _ *jws.Mess
 // parseVersion parses, validates and sets the transaction format version.
 func parseVersion(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	var version Version
-	if versionAsInterf, ok := headers.Get(versionHeader); !ok {
+	var versionAsInterf interface{}
+	if err := headers.Get(versionHeader, &versionAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, versionHeader)
 	} else if versionAsFloat64, ok := versionAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, versionHeader)
@@ -159,7 +163,8 @@ func versionAllowed(version Version) bool {
 
 // parsePrevious parses, validates and sets the transaction prevs fields.
 func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if prevsAsInterf, ok := headers.Get(previousHeader); !ok {
+	var prevsAsInterf interface{}
+	if err := headers.Get(previousHeader, &prevsAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, previousHeader)
 	} else if prevsAsSlice, ok := prevsAsInterf.([]interface{}); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, previousHeader)
@@ -178,8 +183,8 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 }
 
 func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	rawPal, ok := headers.Get(palHeader)
-	if !ok {
+	var rawPal interface{}
+	if err := headers.Get(palHeader, &rawPal); err != nil {
 		return nil
 	}
 	palEncoded, ok := rawPal.([]interface{})
@@ -199,7 +204,8 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 }
 
 func parseLamportClock(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if lcAsInterf, ok := headers.Get(lamportClockHeader); !ok {
+	var lcAsInterf interface{}
+	if err := headers.Get(lamportClockHeader, &lcAsInterf); err != nil {
 		// won't happen since it's a critical header, but we need to check the cast anyway
 		return transactionValidationError(missingHeaderErrFmt, lamportClockHeader)
 	} else if lcAsFloat64, ok := lcAsInterf.(float64); !ok {

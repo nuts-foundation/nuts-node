@@ -40,9 +40,9 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 
 	"github.com/google/uuid"
 
@@ -70,7 +70,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.FromRaw(priv)
+	jwkKey, err := jwk.Import(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -78,7 +78,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA, jwkKey))
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA(), jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 
@@ -98,7 +98,7 @@ func generateECDSATestKey(t *testing.T, curve elliptic.Curve, signingAlgorithm j
 	sshAuthKey := fmt.Sprintf("%v %v %v", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.FromRaw(priv)
+	jwkKey, err := jwk.Import(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -126,7 +126,7 @@ func generateRSATestKey(t *testing.T, bits int, signingAlgorithm jwa.SignatureAl
 	sshAuthKey := fmt.Sprintf("%v %v %s", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()), validUser)
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.FromRaw(priv)
+	jwkKey, err := jwk.Import(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -272,9 +272,9 @@ func TestAuditLogAccessGranted(t *testing.T) {
 	assert.Equal(t, ok, recorder.Body.String())
 
 	// Ensure the audit logging is working
-	jwtID, _ := token.Get(jwt.JwtIDKey)
-	subject, _ := token.Get(jwt.SubjectKey)
-	issuer, _ := token.Get(jwt.IssuerKey)
+	jwtID, _ := token.JwtID()
+	subject, _ := token.Subject()
+	issuer, _ := token.Issuer()
 	capturedAuditLog.AssertContains(t, "http", audit.AccessGrantedEvent, validUser, fmt.Sprintf("Access granted to user '%v' with JWT %s issued to %s by %s", validUser, jwtID, subject, issuer))
 }
 
@@ -445,7 +445,7 @@ func TestInvalidSingleAudience(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"aud\" not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "validation failed: \"aud\" not satisfied")
 }
 
 // TestValidIssProxiedSub ensures a valid JWT containing a subject mentioning a proxied username results in a 200 OK
@@ -610,7 +610,7 @@ func TestValidJWTCaseInsensitiveBearer(t *testing.T) {
 // TestValidJWTECDSAES256 ensures a valid JWT signed by an ECDSA 256-bit key authorizes a request
 func TestValidJWTECDSAES256(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P256(), jwa.ES256)
+	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P256(), jwa.ES256())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -647,7 +647,7 @@ func TestValidJWTECDSAES256(t *testing.T) {
 // TestValidJWTECDSAES384 ensures a valid JWT signed by an ECDSA 384-bit key authorizes a request
 func TestValidJWTECDSAES384(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P384(), jwa.ES384)
+	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P384(), jwa.ES384())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -684,7 +684,7 @@ func TestValidJWTECDSAES384(t *testing.T) {
 // TestValidJWTECDSAES384 ensures a valid JWT signed by an ECDSA 384-bit key authorizes a request
 func TestValidJWTECDSAES512(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P521(), jwa.ES512)
+	_, serializer, authorizedKey := generateECDSATestKey(t, elliptic.P521(), jwa.ES512())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -754,7 +754,7 @@ func TestWrongAudienceJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"aud\" not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "validation failed: \"aud\" not satisfied")
 }
 
 // TestWrongKeyID ensures a JWT with the wrong kid from an authorized key causes 401 Unauthorized
@@ -811,7 +811,7 @@ func TestCorrectKeyIDWithIncorrectSignature(t *testing.T) {
 	token := validJWT(t)
 
 	// Sign and serialize the JWT with the untrusted key, setting the key id to a trusted key
-	trustedKeyID, found := trustedKey.Get(jwk.KeyIDKey)
+	trustedKeyID, found := trustedKey.KeyID()
 	require.True(t, found)
 	require.NoError(t, untrustedKey.Set(jwk.KeyIDKey, trustedKeyID))
 	serialized, err := untrustedSerializer.Serialize(token)
@@ -881,7 +881,7 @@ func TestExpiredJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	assert.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"exp\" not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "validation failed: \"exp\" not satisfied")
 }
 
 // TestFutureIATJWT ensures a not yet valid (iat = future) JWT from an authorized key causes 401 Unauthorized
@@ -924,7 +924,7 @@ func TestFutureIATJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"iat\" not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "validation failed: \"iat\" not satisfied")
 }
 
 // TestFutureNBFJWT ensures a not yet valid (nbf = future) JWT from an authorized key causes 401 Unauthorized
@@ -967,7 +967,7 @@ func TestFutureNBFJWT(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: \"nbf\" not satisfied")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "validation failed: \"nbf\" not satisfied")
 }
 
 // TestUnauthorizedKey ensures a valid JWT signed by an unauthorized key is rejected with 401 Unauthorized
@@ -1163,7 +1163,7 @@ func TestNonBearerToken(t *testing.T) {
 // The RS512 signing algorithm is a suitable alternative, or better yet do not use RSA keys at all.
 func TestInsecureRS256JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS256)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS256())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1202,7 +1202,7 @@ func TestInsecureRS256JWT(t *testing.T) {
 // The RS512 signing algorithm is a suitable alternative, or better yet do not use RSA keys at all.
 func TestInsecureRS384JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS384)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS384())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1237,55 +1237,26 @@ func TestInsecureRS384JWT(t *testing.T) {
 	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "insecure credential: signing algorithm RS384 is not permitted")
 }
 
-// TestInsecure1024BitRS512JWT ensures a JWT signed securely with an RS512 signing algorithm but using an insecure 1024-bit RSA key is rejected with a 401 Unauthorized response
+// TestInsecure1024BitRS512JWT ensures an insecure 1024-bit RSA key is rejected outright.
+// jwx v3 refuses to import RSA keys smaller than 2048 bits, so such a key can never be used to
+// sign a JWT nor be loaded into the authorized keys list. This is a stronger guarantee than the
+// previous behaviour, where the key was rejected only because it never made it into the in-memory
+// authorized keys list (see also authorized_keys_test.go, which rejects the key at that level).
 func TestInsecure1024BitRS512JWT(t *testing.T) {
-	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 1024, jwa.RS512)
-
-	// Create a new JWT
-	token := validJWT(t)
-
-	// Sign and serialize the JWT
-	serialized, err := serializer.Serialize(token)
-	require.NoError(t, err)
-	t.Logf("jwt=%v", string(serialized))
-
-	// Create the middleware
-	middleware, err := New(nil, validHostname, []byte(authorizedKey))
+	// Generate a new insecure 1024-bit RSA key
+	priv, err := rsa.GenerateKey(rand.Reader, 1024)
 	require.NoError(t, err)
 
-	// Setup the handler such that if the middleware authorizes the request a 200 OK response is set
-	handler := middleware.Handler(statusOKHandler)
-
-	// Create a test GET request
-	request, err := http.NewRequest("GET", "/", nil)
-	require.NoError(t, err)
-
-	// Set the authorization header in the test request
-	header := fmt.Sprintf("Bearer %v", string(serialized))
-	request.Header.Set("Authorization", header)
-
-	// Setup a test context which wraps the test request and records the response
-	recorder := httptest.NewRecorder()
-	testCtx := echo.New().NewContext(request, recorder)
-
-	// Call the handler, ensuring no error is returned
-	err = handler(testCtx)
+	// Ensure the insecure key cannot be imported into a jwk, which prevents it from ever being used
+	_, err = jwk.Import(priv)
 	require.Error(t, err)
-
-	// Note that this error may seem a bit strange, but the key is not authorized as 1024-bit RSA keys should never make their way
-	// into the authorized keys list in memory. This technically doesn't provide the best guarantee as to the reason for failure
-	// in this unit test but it is the best that can be done at the time and it is likely not desirable for the 1024-bit RSA key
-	// to be loaded into the list in memory anyways. We take a small chance here but it's an extreme corner case and as long as
-	// we are careful when modifying this test, this should be sufficient along with the tests in authorized_keys_test.go which
-	// ensure the keys are rejected at that level.
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "credential not signed by an authorized key")
+	assert.Contains(t, err.Error(), "rsa modulus too small")
 }
 
 // TestSecureRS512JWT ensures a JWT signed securely with an RS512 signing algorithm and a 4096-bit RSA key is accepted with a 200 OK response
 func TestSecureRS512JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS512)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.RS512())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1329,7 +1300,7 @@ func TestSecureRS512JWT(t *testing.T) {
 // at all.
 func TestPS256JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS256)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS256())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1369,7 +1340,7 @@ func TestPS256JWT(t *testing.T) {
 // at all.
 func TestPS384JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS384)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS384())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1407,7 +1378,7 @@ func TestPS384JWT(t *testing.T) {
 // TestSecurePS512JWT ensures a JWT signed securely with an RS512 signing algorithm and a 4096-bit RSA key is accepted with a 200 OK response
 func TestSecurePS512JWT(t *testing.T) {
 	// Generate a new test key and jwt serializer
-	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS512)
+	_, serializer, authorizedKey := generateRSATestKey(t, 4096, jwa.PS512())
 
 	// Create a new JWT
 	token := validJWT(t)
@@ -1598,7 +1569,7 @@ func TestMissingAud(t *testing.T) {
 	// Call the handler, ensuring the appropriate error is returned
 	err = handler(testCtx)
 	require.Error(t, err)
-	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "jwt.Validate: claim \"aud\" not found")
+	assert.Contains(t, err.(*echo.HTTPError).Internal.Error(), "claim \"aud\" does not exist")
 }
 
 // TestMissingIss ensures a JWT with a missing issuer is rejected with 401 Unauthorized

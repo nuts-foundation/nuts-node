@@ -22,7 +22,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"testing"
@@ -38,13 +38,13 @@ func TestPublicKeyEntry_UnmarshalJSON(t *testing.T) {
 
 	t.Run("error - invalid publicKeyJwk format", func(t *testing.T) {
 		err := (&PublicKeyEntry{}).UnmarshalJSON([]byte("{\"publicKeyJwk\":{}}"))
-		assert.EqualError(t, err, "could not parse publicKeyEntry: invalid publickeyJwk: invalid key type from JSON ()")
+		assert.EqualError(t, err, "could not parse publicKeyEntry: invalid publickeyJwk: jwk.ParseKey: invalid key type from JSON ()")
 	})
 }
 
 func TestPublicKeyEntry_FromJWK(t *testing.T) {
 	privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	pk, _ := jwk.FromRaw(privateKey)
+	pk, _ := jwk.Import(privateKey)
 
 	entry := PublicKeyEntry{}
 	err := entry.FromJWK(pk)

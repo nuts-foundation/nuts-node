@@ -210,6 +210,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		return nil, err
 	}
 
+	presentationExpiration, _ := presentation.JWT().Expiration()
 	newPresentation := presentationRecord{
 		ID:                     uuid.NewString(),
 		ServiceID:              serviceID,
@@ -217,7 +218,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		LamportTimestamp:       timestamp,
 		PresentationID:         presentation.ID.String(),
 		PresentationRaw:        presentation.Raw(),
-		PresentationExpiration: presentation.JWT().Expiration().Unix(),
+		PresentationExpiration: presentationExpiration.Unix(),
 	}
 
 	credentialStore := store.CredentialStore{}

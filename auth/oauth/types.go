@@ -21,9 +21,9 @@ package oauth
 
 import (
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
+
+	"github.com/lestrrat-go/jwx/v3/jwk"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -249,8 +249,11 @@ const (
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
 // It returns no url and an error when issuer is not a valid URL.
-func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {
-	issuerURL, err := core.ParsePublicURL(issuer, strictmode)
+//
+// issuer is not SSRF-checked here: the returned URL is only fetched through httpclient.StrictHTTPClient,
+// which runs that check before connecting.
+func IssuerIdToWellKnown(issuer string, wellKnown string) (*url.URL, error) {
+	issuerURL, err := url.Parse(issuer)
 	if err != nil {
 		return nil, err
 	}
@@ -339,6 +342,18 @@ type AuthorizationServerMetadata struct {
 	// RequestObjectSigningAlgValuesSupported is a JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of OpenID Connect Core 1.0 [OpenID.Core].
 	// These algorithms are used both when the Request Object is passed by value (using the request parameter) and when it is passed by reference (using the request_uri parameter).
 	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
+}
+
+// GetIssuer returns the authorization server's issuer identifier, for metadata
+// discovery validation (see FetchMetadata).
+func (m AuthorizationServerMetadata) GetIssuer() string {
+	return m.Issuer
+}
+
+// WellKnownPath returns the well-known path under which this document is published
+// (RFC 8414), used by FetchMetadata to derive the metadata URL.
+func (m AuthorizationServerMetadata) WellKnownPath() string {
+	return AuthzServerWellKnown
 }
 
 // SupportsClientIDScheme checks if the Authorization Server supports the given client ID scheme.

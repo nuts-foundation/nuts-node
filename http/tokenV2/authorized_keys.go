@@ -31,7 +31,7 @@ import (
 
 	"github.com/nuts-foundation/nuts-node/http/log"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 )
 
 // minimumRSAKeySize defines the minimum length in bits of RSA keys
@@ -80,7 +80,7 @@ func jwkFromSSHKey(key ssh.PublicKey) (jwk.Key, error) {
 	}
 
 	// Use the crypto/* key type to create the jwk key type
-	converted, err := jwk.FromRaw(cryptoPublicKey)
+	converted, err := jwk.Import(cryptoPublicKey)
 	if err != nil {
 		return nil, err
 	}
