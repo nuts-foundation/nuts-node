@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/nuts-foundation/nuts-node/core"
@@ -44,8 +45,8 @@ var ErrAllCandidates4xx = errors.New("metadata not found: every candidate return
 //  2. append (OIDC Disc): https://host/<path>/.well-known/<wellKnown>
 //
 // When identifier has no path, insert and append collapse to a single URL. Every candidate
-// shares identifier's scheme and host, so the single core.ParsePublicURL SSRF check on
-// identifier covers them all.
+// shares identifier's scheme and host, so the SSRF check that httpClient.Do runs on the first
+// candidate it fetches covers them all.
 //
 // When every candidate fails, the returned error joins each candidate's failure. A per-candidate
 // core.HttpError stays recoverable through the join (see errors.AsType), so callers can still
@@ -55,9 +56,9 @@ var ErrAllCandidates4xx = errors.New("metadata not found: every candidate return
 func FetchMetadata[T interface {
 	WellKnownPath() string
 	GetIssuer() string
-}](ctx context.Context, httpClient core.HTTPRequestDoer, identifier string, strictMode bool) (*T, error) {
+}](ctx context.Context, httpClient core.HTTPRequestDoer, identifier string) (*T, error) {
 	var zero T
-	candidates, err := wellKnownCandidates(identifier, strictMode, zero.WellKnownPath())
+	candidates, err := wellKnownCandidates(identifier, zero.WellKnownPath())
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +114,11 @@ func fetchMetadataCandidate[T interface{ GetIssuer() string }](ctx context.Conte
 // wellKnownCandidates returns the metadata URLs to try for identifier, in priority order:
 // the insert (RFC 8414) placement, then the append (OIDC Discovery) placement. When
 // identifier has no path, both collapse to a single URL.
-func wellKnownCandidates(identifier string, strictMode bool, wellKnown string) ([]string, error) {
-	identifierURL, err := core.ParsePublicURL(identifier, strictMode)
+//
+// identifier is not SSRF-checked here: httpClient.Do runs that check on every candidate
+// before it connects, so validating it again here would just duplicate that check.
+func wellKnownCandidates(identifier string, wellKnown string) ([]string, error) {
+	identifierURL, err := url.Parse(identifier)
 	if err != nil {
 		return nil, err
 	}

@@ -822,7 +822,7 @@ func TestIAMClient_RequestObjectByGet(t *testing.T) {
 
 		response, err := ctx.client.RequestObjectByGet(context.Background(), ":")
 
-		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
@@ -853,7 +853,7 @@ func TestIAMClient_RequestObjectByPost(t *testing.T) {
 
 		response, err := ctx.client.RequestObjectByPost(context.Background(), ":", metadata)
 
-		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
@@ -884,7 +884,6 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		wallet:         wallet,
 		subjectManager: subjectManager,
 		httpClient: HTTPClient{
-			strictMode: false,
 			httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 		},
 		jwtSigner:     jwtSigner,

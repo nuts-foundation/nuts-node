@@ -21,6 +21,7 @@ package client
 import (
 	"bytes"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,21 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
-
-// maxRedirects matches net/http's default redirect cap.
-const maxRedirects = 10
-
-// checkRedirect re-runs core.ParsePublicURL on every redirect target so a
-// validated initial URL cannot be turned into an SSRF via a 3xx response.
-func checkRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= maxRedirects {
-		return fmt.Errorf("stopped after %d redirects", maxRedirects)
-	}
-	if _, err := core.ParsePublicURL(req.URL.String(), StrictMode); err != nil {
-		return fmt.Errorf("httpclient: invalid redirect target: %w", err)
-	}
-	return nil
-}
 
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
 // It carries the strict-mode SSRF dial guard (see denyNonPublicAddr), but only that: the HTTPS
@@ -84,17 +70,18 @@ var StrictMode bool
 
 // checkRedirect is the http.Client.CheckRedirect policy for the strict HTTP client.
 // Setting CheckRedirect replaces the standard library's default policy, so the
-// 10-redirect cap is reimplemented here. In strict mode it also refuses to follow
-// a redirect to a non-HTTPS target: the HTTPS check in Do only guards the first
-// hop, and the dialer guard sees only the resolved IP and not the scheme, so
-// without this a valid remote host could redirect the client onto a plaintext
-// internal endpoint.
+// 10-redirect cap is reimplemented here. It also re-runs core.ParsePublicURLAllowIP on
+// every redirect target: the check in Do only guards the first hop, so without this a
+// valid remote host could redirect the client onto a plaintext or otherwise disallowed
+// endpoint. IP-literal hosts are left to the dial guard (see denyNonPublicAddr), which
+// runs on every hop already and is aware of http.client.allowedinternalcidrs/deniedcidrs;
+// rejecting them here too would make that allowlist unreachable.
 func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
-	if StrictMode && req.URL.Scheme != "https" {
-		return errors.New("strictmode is enabled, but redirect target is not over HTTPS")
+	if _, err := core.ParsePublicURLAllowIP(req.URL.String(), StrictMode); err != nil {
+		return fmt.Errorf("invalid redirect target: %w", err)
 	}
 	return nil
 }
@@ -170,8 +157,10 @@ type StrictHTTPClient struct {
 }
 
 func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	if _, err := core.ParsePublicURL(req.URL.String(), StrictMode); err != nil {
-		return nil, fmt.Errorf("httpclient: invalid target URL: %w", err)
+	// IP-literal hosts are left to the dial guard (see denyNonPublicAddr): it is aware of
+	// http.client.allowedinternalcidrs/deniedcidrs, this check is not.
+	if _, err := core.ParsePublicURLAllowIP(req.URL.String(), StrictMode); err != nil {
+		return nil, fmt.Errorf("invalid target URL: %w", err)
 	}
 	req.Header.Set("User-Agent", core.UserAgent())
 	result, err := s.client.Do(req)

@@ -52,8 +52,7 @@ type relyingParty struct {
 	pkiValidator      pki.Validator
 }
 
-// NewRelyingParty returns an implementation of RelyingParty.
-// Strict-mode URL validation is centralised in http/client.StrictHTTPClient; this constructor no longer takes a strictMode flag.
+// NewRelyingParty returns an implementation of RelyingParty
 func NewRelyingParty(
 	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
 	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, pkiValidator pki.Validator) RelyingParty {
@@ -108,6 +107,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 }
 
 func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {
+	// strictHttp.StrictHTTPClient.Do enforces HTTPS (and the rest of the SSRF checks) in strict mode.
 	httpClient := strictHttp.NewWithTLSConfig(s.httpClientTimeout, s.httpClientTLS)
 	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
 	if err != nil {

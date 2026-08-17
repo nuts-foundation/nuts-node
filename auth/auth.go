@@ -67,7 +67,6 @@ type Auth struct {
 	shutdownFunc      func()
 	vdrInstance       vdr.VDR
 	publicURL         *url.URL
-	strictMode        bool
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
 	subjectManager    didsubject.Manager
@@ -139,7 +138,6 @@ func (auth *Auth) IAMClient() iam.Client {
 		JWTSigner:                   auth.keyStore,
 		LDDocumentLoader:            auth.jsonldManager.DocumentLoader(),
 		PolicyBackend:               auth.policyBackend,
-		StrictMode:                  auth.strictMode,
 		HTTPClientTimeout:           auth.httpClientTimeout,
 		ExperimentalJwtBearerClient: auth.config.Experimental.JwtBearerClient,
 	})

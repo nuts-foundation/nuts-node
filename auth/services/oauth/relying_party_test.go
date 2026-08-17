@@ -75,6 +75,8 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
 	})
 
+	// Strict-mode endpoint validation (HTTPS-only, no IP/reserved hosts) is enforced by
+	// httpclient.StrictHTTPClient, not relyingParty; see http/client.TestStrictHTTPClient.
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {
