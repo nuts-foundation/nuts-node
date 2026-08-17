@@ -23,12 +23,13 @@ import (
 	"context"
 	"crypto"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/auth"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"net/url"
 	"time"
@@ -183,7 +184,7 @@ func (j jar) validate(ctx context.Context, rawToken string, clientId string) (oa
 	if err != nil {
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "request signature validation failed", InternalError: err}
 	}
-	claimsAsMap, err := token.AsMap(ctx)
+	claimsAsMap, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		// very unlikely
 		return nil, oauth.OAuth2Error{Code: oauth.InvalidRequestObject, Description: "invalid request parameter", InternalError: err}
@@ -213,7 +214,7 @@ func compareThumbprint(configurationKey jwk.Key, publicKey crypto.PublicKey) err
 	if err != nil {
 		return err
 	}
-	signerKey, err := jwk.FromRaw(publicKey)
+	signerKey, err := jwk.Import(publicKey)
 	if err != nil {
 		return err
 	}

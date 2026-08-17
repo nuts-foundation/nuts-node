@@ -32,9 +32,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
@@ -69,6 +69,62 @@ func TestEngine_Configure(t *testing.T) {
 
 		err = engine.Shutdown()
 		assert.NoError(t, err)
+	})
+	t.Run("client CIDR options", func(t *testing.T) {
+		// Configure writes the options into package-global guard state in http/client;
+		// reset it afterwards so other tests see the defaults.
+		resetGuardState := func(t *testing.T) {
+			oldStrictMode := client.StrictMode
+			t.Cleanup(func() {
+				client.StrictMode = oldStrictMode
+				require.NoError(t, client.SetAllowedNonPublicCIDRs(nil))
+				require.NoError(t, client.SetDeniedCIDRs(nil))
+			})
+		}
+		t.Run("ok - propagated to the dial guard", func(t *testing.T) {
+			resetGuardState(t)
+			engine := New(noop, nil)
+			engine.config = createTestConfig()
+			engine.config.Client.AllowedInternalCIDRs = []string{"127.0.0.0/8"}
+			engine.config.Client.DeniedCIDRs = []string{"127.0.5.0/24"}
+			serverConfig := core.NewServerConfig()
+			serverConfig.Strictmode = true
+
+			require.NoError(t, engine.Configure(*serverConfig))
+
+			// The guard runs at dial time, before any connection is made, so no server is
+			// needed: a denied address fails with the guard's error, while an address
+			// admitted by the allowlist proceeds to the actual (failing) connection attempt.
+			httpClient := client.New(time.Second)
+			deniedReq, _ := http.NewRequest("GET", "https://127.0.5.1:1", nil)
+			_, err := httpClient.Do(deniedReq)
+			assert.ErrorContains(t, err, "blocked connection to denied address")
+
+			allowedReq, _ := http.NewRequest("GET", "https://127.0.6.1:1", nil)
+			_, err = httpClient.Do(allowedReq)
+			require.Error(t, err) // nothing listens there; it must be a connection error, not the guard
+			assert.NotContains(t, err.Error(), "blocked connection to")
+		})
+		t.Run("error - invalid allowedinternalcidrs fails startup", func(t *testing.T) {
+			resetGuardState(t)
+			engine := New(noop, nil)
+			engine.config = createTestConfig()
+			engine.config.Client.AllowedInternalCIDRs = []string{"not-a-cidr"}
+
+			err := engine.Configure(*core.NewServerConfig())
+
+			assert.ErrorContains(t, err, `invalid CIDR "not-a-cidr"`)
+		})
+		t.Run("error - invalid deniedcidrs fails startup", func(t *testing.T) {
+			resetGuardState(t)
+			engine := New(noop, nil)
+			engine.config = createTestConfig()
+			engine.config.Client.DeniedCIDRs = []string{"also-not-a-cidr"}
+
+			err := engine.Configure(*core.NewServerConfig())
+
+			assert.ErrorContains(t, err, `invalid CIDR "also-not-a-cidr"`)
+		})
 	})
 	t.Run("middleware", func(t *testing.T) {
 		t.Run("auth-tokenV2", func(t *testing.T) {
@@ -273,10 +329,24 @@ func TestEngine_configureClient(t *testing.T) {
 		engine := New(func() {}, nil)
 		engine.config.Client.Log = LogMetadataAndBodyLevel
 
-		engine.configureClient(*core.NewServerConfig())
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = false
+		engine.configureClient(*serverConfig)
 
 		assert.True(t, client.LogRequests)
 		assert.True(t, client.LogRequestBodies)
+	})
+	t.Run("metadata-and-body falls back to metadata in strictmode", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataAndBodyLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.True(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
+		assert.Equal(t, LogLevel(LogMetadataLevel), engine.config.Client.Log)
 	})
 }
 
@@ -403,7 +473,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	sshAuthKey := fmt.Sprintf("%v %v random@test.local", sshPub.Type(), b64.StdEncoding.EncodeToString(sshPub.Marshal()))
 
 	// Convert the base key type to a jwk type
-	jwkKey, err := jwk.FromRaw(priv)
+	jwkKey, err := jwk.Import(priv)
 	require.NoError(t, err)
 
 	// Set the key ID for the jwk to be the public key fingerprint
@@ -411,7 +481,7 @@ func generateEd25519TestKey(t *testing.T) (jwk.Key, *jwt.Serializer, []byte) {
 	require.NoError(t, err)
 
 	// Create a serializer configured to use the generated key
-	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA, jwkKey))
+	serializer := jwt.NewSerializer().Sign(jwt.WithKey(jwa.EdDSA(), jwkKey))
 
 	t.Logf("authorized_key = %v", sshAuthKey)
 

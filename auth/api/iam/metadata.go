@@ -19,12 +19,12 @@
 package iam
 
 import (
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"net/url"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/core/to"
@@ -67,10 +67,10 @@ func staticAuthorizationServerMetadata() oauth.AuthorizationServerMetadata {
 		ClientIdSchemesSupported: clientIdSchemesSupported,
 		ResponseTypesSupported:   []string{oauth.VPTokenResponseType},
 		VPFormatsSupported: map[string]map[string][]string{
-			"jwt_vp_json": {"alg_values_supported": []string{string(jwa.ES256)}},
-			"jwt_vc_json": {"alg_values_supported": []string{string(jwa.ES256)}},
+			"jwt_vp_json": {"alg_values_supported": []string{jwa.ES256().String()}},
+			"jwt_vc_json": {"alg_values_supported": []string{jwa.ES256().String()}},
 		},
-		RequestObjectSigningAlgValuesSupported: []string{string(jwa.ES256)},
+		RequestObjectSigningAlgValuesSupported: []string{jwa.ES256().String()},
 	}
 }
 

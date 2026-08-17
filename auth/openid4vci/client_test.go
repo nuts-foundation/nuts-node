@@ -42,7 +42,7 @@ func TestClient_RequestNonce(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		nonce, err := client.RequestNonce(context.Background(), srv.URL)
 		require.NoError(t, err)
 		assert.Equal(t, "test-nonce-123", nonce)
@@ -54,7 +54,7 @@ func TestClient_RequestNonce(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestNonce(context.Background(), srv.URL)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "500")
@@ -67,7 +67,7 @@ func TestClient_RequestNonce(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestNonce(context.Background(), srv.URL)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty c_nonce")
@@ -91,7 +91,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		metadata, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -110,7 +110,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.NoError(t, err)
 		assert.Equal(t, "/.well-known/openid-credential-issuer/oauth2/alice", capturedPath)
@@ -126,7 +126,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/foo%2Fbar")
 		require.NoError(t, err)
 		assert.Equal(t, "/.well-known/openid-credential-issuer/foo%2Fbar", capturedRawPath)
@@ -141,34 +141,33 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "credential_issuer")
+		assert.Contains(t, err.Error(), "https://attacker.example")
 		assert.Contains(t, err.Error(), "does not match")
 	})
 
-	t.Run("error on non-2xx", func(t *testing.T) {
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic beyond the
+	// "openid4vci: " error prefix, so it's enough to confirm the wiring (well-known constant,
+	// httpClient) and that prefix. SSRF checks (HTTPS-only, no IP/reserved hosts) are enforced by
+	// httpclient.StrictHTTPClient, not this client; see http/client.TestStrictHTTPClient.
+	t.Run("all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
-		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
+		client := NewClient(srv.Client())
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "404")
-	})
-
-	t.Run("rejects non-https issuer URL in strict mode", func(t *testing.T) {
-		client := NewClient(http.DefaultClient, true)
-		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), "http://issuer.example/")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid issuer URL")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
+		assert.Contains(t, err.Error(), srv.URL+"/oauth2/alice")
 	})
 
 	t.Run("rejects issuer URL with query or fragment per §12.2.1", func(t *testing.T) {
-		client := NewClient(http.DefaultClient, false)
+		client := NewClient(http.DefaultClient)
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), "https://issuer.example/?foo=bar")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "query and fragment")
@@ -185,10 +184,10 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "decoding issuer metadata")
+		assert.Contains(t, err.Error(), "decoding metadata")
 	})
 }
 
@@ -216,7 +215,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		resp, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint:        srv.URL,
 			AccessToken:               "test-token",
@@ -240,7 +239,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint:        srv.URL,
 			AccessToken:               "t",
@@ -261,7 +260,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint: srv.URL,
 			AccessToken:        "test-token",
@@ -284,7 +283,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint:        srv.URL,
 			AccessToken:               "t",
@@ -310,7 +309,7 @@ func TestClient_RequestCredential(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		client := NewClient(srv.Client(), false)
+		client := NewClient(srv.Client())
 		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
 			CredentialEndpoint: srv.URL,
 			AccessToken:        "test-token",

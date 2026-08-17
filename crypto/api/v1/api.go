@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/nuts-foundation/go-did/did"
 
 	"github.com/nuts-foundation/nuts-node/audit"

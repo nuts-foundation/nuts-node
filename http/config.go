@@ -48,10 +48,21 @@ type Config struct {
 	ClientIPHeaderName string `koanf:"clientipheader"`
 }
 
-// ClientConfig contains the configuration for outgoing HTTP requests made by the node.
+// ClientConfig contains the configuration for outbound HTTP clients.
 type ClientConfig struct {
 	// Log specifies what should be logged of outgoing HTTP requests.
 	Log LogLevel `koanf:"log"`
+	// AllowedInternalCIDRs lists IP ranges in CIDR notation (e.g. "10.0.0.0/8") exempted from the
+	// strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use
+	// to permit internal flows that legitimately target a private address, such as an internal
+	// credential offering or an internal OAuth user flow. Leave empty to block all non-public
+	// addresses.
+	AllowedInternalCIDRs []string `koanf:"allowedinternalcidrs"`
+	// DeniedCIDRs lists IP ranges in CIDR notation that outbound HTTP requests must never target
+	// in strict mode, in addition to the built-in blocked ranges (non-public addresses and cloud
+	// metadata endpoints). Use for publicly routable ranges that are internal-only in your
+	// infrastructure. Denied ranges take precedence over AllowedInternalCIDRs.
+	DeniedCIDRs []string `koanf:"deniedcidrs"`
 }
 
 // PublicConfig contains the configuration for outside-facing HTTP endpoints.

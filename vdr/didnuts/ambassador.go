@@ -26,7 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
@@ -210,7 +210,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	var rawKey crypto.PublicKey
-	err = transaction.SigningKey().Raw(&rawKey)
+	err = jwk.Export(transaction.SigningKey(), &rawKey)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
 
-	signingKey, err := jwk.FromRaw(pKey)
+	signingKey, err := jwk.Import(pKey)
 	if err != nil {
 		return fmt.Errorf("could not parse public key into jwk: %w", err)
 	}

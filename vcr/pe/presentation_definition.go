@@ -22,8 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
 	"strings"
 
@@ -350,7 +349,7 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 	case vc.JWTCredentialProofFormat:
 		// Get signing algorithm used to sign the JWT
 		message, _ := jws.ParseString(credential.Raw()) // can't really fail, JWT has been parsed before.
-		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Get(jws.AlgorithmKey)
+		signingAlgorithm, _ := message.Signatures()[0].ProtectedHeaders().Algorithm()
 		// Check that the signing algorithm is specified by the presentation definition
 		if entry := asMap[vc.JWTCredentialProofFormat]; entry != nil {
 			if len(message.Signatures()[0].Signature()) == 0 {
@@ -359,7 +358,7 @@ func matchFormat(format *PresentationDefinitionClaimFormatDesignations, credenti
 			}
 			if supportedAlgorithms := entry[jws.AlgorithmKey]; supportedAlgorithms != nil {
 				for _, supportedAlgorithm := range supportedAlgorithms {
-					if signingAlgorithm == jwa.SignatureAlgorithm(supportedAlgorithm) {
+					if signingAlgorithm.String() == supportedAlgorithm {
 						return true
 					}
 				}

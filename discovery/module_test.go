@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -708,7 +708,10 @@ func TestModule_GetServiceActivation(t *testing.T) {
 		assert.Nil(t, presentation)
 	})
 	t.Run("activated, no VP", func(t *testing.T) {
-		m, ctx := setupModule(t, storageEngine)
+		// disable the background refresh loop, otherwise it races with this test's ListDIDs expectation
+		m, ctx := setupModule(t, storageEngine, func(module *Module) {
+			module.config.Client.RefreshInterval = 0
+		})
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), aliceSubject).Return([]did.DID{aliceDID}, nil)
 		next := time.Now()
 		_ = m.store.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, &next)
