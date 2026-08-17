@@ -24,7 +24,6 @@ import (
 	"net/url"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -248,8 +247,11 @@ const (
 
 // IssuerIdToWellKnown converts the OAuth2 Issuer identity to the specified well-known endpoint by inserting the well-known at the root of the path.
 // It returns no url and an error when issuer is not a valid URL.
-func IssuerIdToWellKnown(issuer string, wellKnown string, strictmode bool) (*url.URL, error) {
-	issuerURL, err := core.ParsePublicURL(issuer, strictmode)
+//
+// issuer is not SSRF-checked here: the returned URL is only fetched through httpclient.StrictHTTPClient,
+// which runs that check before connecting.
+func IssuerIdToWellKnown(issuer string, wellKnown string) (*url.URL, error) {
+	issuerURL, err := url.Parse(issuer)
 	if err != nil {
 		return nil, err
 	}
