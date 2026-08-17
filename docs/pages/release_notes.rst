@@ -4,6 +4,36 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.37)
+*************************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.36...v5.4.37
+
+*************************
+Hazelnut update (v5.4.36)
+*************************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.35...v5.4.36
+
+*************************
+Hazelnut update (v5.4.35)
+*************************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.34...v5.4.35
+
+*************************
 Hazelnut update (v5.4.34)
 *************************
 
