@@ -180,6 +180,19 @@ type ServiceAccessTokenRequest struct {
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
+	// ServiceProviderSubjectId **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+	// When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+	// VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+	// provider) using the `organization` PD; VP2 is built from the wallet identified here
+	// using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
+	// an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+	// and a `service_provider` PD configured for the requested credential profile.
+	//
+	// When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+	//
+	// Subject to change without notice.
+	ServiceProviderSubjectId *string `json:"service_provider_subject_id,omitempty"`
+
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
 }
@@ -241,6 +254,20 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// The current implementation processes a single credential
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
+
+	// AuthorizationRequestParams Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+	// Authorization Server's authorization_endpoint). These may only add parameters; they must not
+	// override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+	// Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+	// that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+	AuthorizationRequestParams *map[string]string `json:"authorization_request_params,omitempty"`
+
+	// CredentialRequestParams Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+	// the issuer's credential endpoint. Any field supplied here overrides the node's default —
+	// including credential_configuration_id, credential_identifier and proofs. Use this for
+	// issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
+	CredentialRequestParams *map[string]interface{} `json:"credential_request_params,omitempty"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.

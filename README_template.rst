@@ -7,8 +7,8 @@ It contains all the necessary components for secure discovery and authorization.
 
 See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how to set up, integrate and use the Nuts node.
 
-.. image:: https://circleci.com/gh/nuts-foundation/nuts-node.svg?style=svg
-    :target: https://circleci.com/gh/nuts-foundation/nuts-node
+.. image:: https://github.com/nuts-foundation/nuts-node/actions/workflows/go-test.yaml/badge.svg
+    :target: https://github.com/nuts-foundation/nuts-node/actions/workflows/go-test.yaml
     :alt: Build Status
 
 .. image:: https://readthedocs.org/projects/nuts-node/badge/?version=latest
@@ -30,6 +30,11 @@ See the `documentation <https://nuts-node.readthedocs.io/en/stable/>`_ for how t
 .. image:: https://img.shields.io/badge/-Nuts_Community-informational?labelColor=grey&logo=slack
     :target: https://join.slack.com/t/nuts-foundation/shared_invite/zt-19av5q5ur-5fNbZVIFGUw5vDKSy5mqCw
     :alt: Nuts Community on Slack
+
+Contributing
+^^^^^^^^^^^^
+
+See `COLLABORATORS.md <COLLABORATORS.md>`_ for how to contribute.
 
 For AI-agentic Maintainers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

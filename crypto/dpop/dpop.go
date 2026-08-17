@@ -33,10 +33,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 	"github.com/nuts-foundation/nuts-node/crypto/jwx"
 )
@@ -99,7 +99,7 @@ func (t *DPoP) Sign(kid string, key crypto.Signer, alg jwa.SignatureAlgorithm) (
 	if t.raw != "" {
 		return "", errors.New("already signed")
 	}
-	publicKeyJWK, err := jwk.FromRaw(key.Public())
+	publicKeyJWK, err := jwk.Import(key.Public())
 	if err != nil {
 		return "", err
 	}
@@ -137,53 +137,58 @@ func Parse(s string) (*DPoP, error) {
 		return nil, fmt.Errorf("%w: invalid number of signatures", ErrInvalidDPoP)
 	}
 	headers := message.Signatures()[0].ProtectedHeaders()
-	if !slices.Contains(jwx.SupportedAlgorithms, headers.Algorithm()) {
-		return nil, fmt.Errorf("%w: invalid alg: %s", ErrInvalidDPoP, headers.Algorithm())
+	alg, _ := headers.Algorithm()
+	if !slices.Contains(jwx.SupportedAlgorithms, alg) {
+		return nil, fmt.Errorf("%w: invalid alg: %s", ErrInvalidDPoP, alg)
 	}
-	if headers.Type() != "dpop+jwt" {
-		return nil, fmt.Errorf("%w: invalid type: %s", ErrInvalidDPoP, headers.Type())
+	if typ, _ := headers.Type(); typ != "dpop+jwt" {
+		return nil, fmt.Errorf("%w: invalid type: %s", ErrInvalidDPoP, typ)
 	}
-	if headers.JWK() == nil {
+	headerJWK, ok := headers.JWK()
+	if !ok || headerJWK == nil {
 		return nil, fmt.Errorf("%w: missing jwk header", ErrInvalidDPoP)
 	}
-	if jwkIsPrivateKey(headers.JWK()) {
+	if jwkIsPrivateKey(headerJWK) {
 		return nil, fmt.Errorf("%w: invalid jwk header", ErrInvalidDPoP)
 	}
-	token, err := jwt.ParseString(s, jwt.WithKey(headers.Algorithm(), headers.JWK()))
+	token, err := jwt.ParseString(s, jwt.WithKey(alg, headerJWK))
 	if err != nil {
 		return nil, errors.Join(ErrInvalidDPoP, err)
 	}
-	if token.IssuedAt().IsZero() {
+	if iat, ok := token.IssuedAt(); !ok || iat.IsZero() {
 		return nil, fmt.Errorf("%w: missing iat claim", ErrInvalidDPoP)
 	}
-	if v, ok := token.Get(HTUKey); !ok || v == "" {
+	var htu string
+	if err := token.Get(HTUKey, &htu); err != nil || htu == "" {
 		return nil, fmt.Errorf("%w: missing htu claim", ErrInvalidDPoP)
 	}
-	if v, ok := token.Get(HTMKey); !ok || v == "" {
+	var htm string
+	if err := token.Get(HTMKey, &htm); err != nil || htm == "" {
 		return nil, fmt.Errorf("%w: missing htm claim", ErrInvalidDPoP)
 	}
-	if token.JwtID() == "" {
+	jti, _ := token.JwtID()
+	if jti == "" {
 		return nil, fmt.Errorf("%w: missing jti claim", ErrInvalidDPoP)
 	}
-	if len(token.JwtID()) > maxJtiLength {
+	if len(jti) > maxJtiLength {
 		return nil, fmt.Errorf("%w: jti claim too long", ErrInvalidDPoP)
 	}
 
 	return &DPoP{raw: s, Token: token, Headers: headers}, nil
 }
 
-func jwkIsPrivateKey(jwk jwk.Key) bool {
+func jwkIsPrivateKey(key jwk.Key) bool {
 	// we try to parse it as different private keys, if there's no error, it's a private key
 	var rsaPrivateKey rsa.PrivateKey
-	if err := jwk.Raw(&rsaPrivateKey); err == nil {
+	if err := jwk.Export(key, &rsaPrivateKey); err == nil {
 		return true
 	}
 	var ecPrivateKey ecdsa.PrivateKey
-	if err := jwk.Raw(&ecPrivateKey); err == nil {
+	if err := jwk.Export(key, &ecPrivateKey); err == nil {
 		return true
 	}
 	var edPrivateKey ed25519.PrivateKey
-	if err := jwk.Raw(&edPrivateKey); err == nil {
+	if err := jwk.Export(key, &edPrivateKey); err == nil {
 		return true
 	}
 	return false
@@ -191,16 +196,18 @@ func jwkIsPrivateKey(jwk jwk.Key) bool {
 
 // HTU returns the htu claim of the DPoP token
 func (t DPoP) HTU() string {
-	if v, ok := t.Token.Get(HTUKey); ok {
-		return v.(string)
+	var htu string
+	if err := t.Token.Get(HTUKey, &htu); err == nil {
+		return htu
 	}
 	return ""
 }
 
 // HTM returns the htm claim of the DPoP token
 func (t DPoP) HTM() string {
-	if v, ok := t.Token.Get(HTMKey); ok {
-		return v.(string)
+	var htm string
+	if err := t.Token.Get(HTMKey, &htm); err == nil {
+		return htm
 	}
 	return ""
 }
@@ -209,7 +216,11 @@ func (t DPoP) HTM() string {
 // for the url, the port is stripped.
 // If there is a mismatch, the reason is returned in an error.
 func (t DPoP) Match(jkt string, method string, url string) (bool, error) {
-	tp, _ := t.Headers.JWK().Thumbprint(crypto.SHA256)
+	key, ok := t.Headers.JWK()
+	if !ok {
+		return false, errors.New("missing jwk header")
+	}
+	tp, _ := key.Thumbprint(crypto.SHA256)
 	base64tp := base64.RawURLEncoding.EncodeToString(tp)
 
 	if base64tp != jkt {

@@ -174,6 +174,33 @@ paths:
                   maxItems: 1
                   items:
                     $ref: '#/components/schemas/AuthorizationDetail'
+                credential_request_params:
+                  type: object
+                  additionalProperties: true
+                  description: |
+                    Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+                    the issuer's credential endpoint. Any field supplied here overrides the node's default —
+                    including credential_configuration_id, credential_identifier and proofs. Use this for
+                    issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+                    responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
+                  example: |
+                    {
+                      "some-requested-credential-attribute": "900184590"
+                    }
+                authorization_request_params:
+                  type: object
+                  additionalProperties:
+                    type: string
+                  description: |
+                    Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+                    Authorization Server's authorization_endpoint). These may only add parameters; they must not
+                    override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+                    Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+                    that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+                  example: |
+                    {
+                      "auth_method": "SmartCard"
+                    }
                 redirect_uri:
                   type: string
                   description: |
@@ -511,6 +538,21 @@ components:
           description: "The type of access token that is preferred, default: DPoP"
           default: DPoP
           enum: [ Bearer, DPoP ]
+        service_provider_subject_id:
+          type: string
+          description: |
+            **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+            When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+            VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+            provider) using the `organization` PD; VP2 is built from the wallet identified here
+            using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
+            an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+            and a `service_provider` PD configured for the requested credential profile.
+
+            When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+
+            Subject to change without notice.
+          example: acme-service-provider
     UserAccessTokenRequest:
       type: object
       description: Request for an access token for a user.

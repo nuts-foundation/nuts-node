@@ -8,6 +8,79 @@ Unreleased
 
 ## New features
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
+* #4078: Allow policy profiles to define a ``service_provider`` PresentationDefinition for the OAuth client (RFC 7523 ``jwt-bearer`` flow) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4226
+* #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
+* #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
+* #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
+
+## Security
+* Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes), `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (net/textproto included user input in error messages, allowing injection of misleading content into error logs) and `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic time complexity in crypto/x509 certificate hostname verification).
+* #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
+* #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+
+*****************
+Peanut (v6.2.10)
+*****************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.9...v6.2.10
+
+****************
+Peanut (v6.2.9)
+****************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.8...v6.2.9
+
+****************
+Peanut (v6.2.8)
+****************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.7...v6.2.8
+
+****************
+Peanut (v6.2.7)
+****************
+
+Release date: 2026-05-27
+
+- Upgrade ``golang.org/x/crypto`` to v0.52.0 and ``golang.org/x/net`` to v0.55.0 to address `GO-2026-5018 <https://pkg.go.dev/vuln/GO-2026-5018>`_ (DoS via unbounded RSA/DSA key sizes in ``golang.org/x/crypto/ssh`` public key parsers) and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (privilege escalation in ``golang.org/x/net/idna`` where ``ToASCII``/``ToUnicode`` accept Punycode-encoded labels that decode to ASCII-only labels).
+- Upgrade ``github.com/go-jose/go-jose/v4`` to v4.1.4 to address `GO-2026-4945 <https://pkg.go.dev/vuln/GO-2026-4945>`_ (panic during JWE decryption of crafted tokens).
+- Upgrade OpenTelemetry OTLP HTTP exporters (``otlplog/otlploghttp`` to v0.19.0, ``otlptrace/otlptracehttp`` to v1.43.0) to address `GO-2026-4985 <https://pkg.go.dev/vuln/GO-2026-4985>`_ (memory exhaustion from oversized OTLP HTTP response bodies).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.6...v6.2.7
+
+****************
+Peanut (v6.2.6)
+****************
+
+Release date: 2026-05-18
+
+- Exclude retraction presentations from Discovery Service search results (backport of `#4193 <https://github.com/nuts-foundation/nuts-node/pull/4193>`_).
+- Make HTTP error handler idempotent on already-committed responses to prevent double-write attempts (backport of `#4243 <https://github.com/nuts-foundation/nuts-node/pull/4243>`_).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.5...v6.2.6
+
+****************
+Peanut (v6.2.5)
+****************
+
+Release date: 2026-05-11
+
+- Update Alpine base image to 3.23.4 to pick up musl, OpenSSL and zlib security fixes.
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.4...v6.2.5
 
 ****************
 Peanut (v6.2.4)
@@ -451,6 +524,67 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.37)
+*************************
+
+Release date: 2026-07-09
+
+- Upgrade Go to 1.26.5 to address `GO-2026-5856 <https://pkg.go.dev/vuln/GO-2026-5856>`_ (de-anonymization of Encrypted Client Hello (ECH) handshakes: PSK identities were disclosed in the unencrypted client hello, allowing passive network observers to de-anonymize sessions).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.36...v5.4.37
+
+*************************
+Hazelnut update (v5.4.36)
+*************************
+
+Release date: 2026-06-30
+
+- Upgrade ``github.com/jackc/pgx/v5`` to v5.9.2 to address `GO-2026-5004 <https://pkg.go.dev/vuln/GO-2026-5004>`_ (SQL injection in the non-default simple protocol when a dollar-quoted string literal contains an attacker-controlled value that looks like a placeholder).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.35...v5.4.36
+
+*************************
+Hazelnut update (v5.4.35)
+*************************
+
+Release date: 2026-06-04
+
+- Upgrade Go to 1.26.4 to address `GO-2026-5037 <https://pkg.go.dev/vuln/GO-2026-5037>`_ (quadratic-time denial of service in ``crypto/x509`` ``VerifyHostname`` when verifying certificates with large DNS SAN lists) and `GO-2026-5039 <https://pkg.go.dev/vuln/GO-2026-5039>`_ (error message injection in ``net/textproto`` where user input is included unescaped in error messages).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.34...v5.4.35
+
+*************************
+Hazelnut update (v5.4.34)
+*************************
+
+Release date: 2026-05-27
+
+- Upgrade ``golang.org/x/crypto`` to v0.52.0 and ``golang.org/x/net`` to v0.55.0 to address `GO-2026-5018 <https://pkg.go.dev/vuln/GO-2026-5018>`_ (DoS via unbounded RSA/DSA key sizes in ``golang.org/x/crypto/ssh`` public key parsers) and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (privilege escalation in ``golang.org/x/net/idna`` where ``ToASCII``/``ToUnicode`` accept Punycode-encoded labels that decode to ASCII-only labels).
+- Upgrade ``github.com/go-jose/go-jose/v4`` to v4.1.4 to address `GO-2026-4945 <https://pkg.go.dev/vuln/GO-2026-4945>`_ (panic during JWE decryption of crafted tokens).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.33...v5.4.34
+
+*************************
+Hazelnut update (v5.4.33)
+*************************
+
+Release date: 2026-05-08
+
+- Upgrade Go to 1.26.3 and ``golang.org/x/net`` to v0.53.0 to address `GO-2026-4986 <https://pkg.go.dev/vuln/GO-2026-4986>`_, `GO-2026-4982 <https://pkg.go.dev/vuln/GO-2026-4982>`_, `GO-2026-4980 <https://pkg.go.dev/vuln/GO-2026-4980>`_, `GO-2026-4977 <https://pkg.go.dev/vuln/GO-2026-4977>`_, `GO-2026-4971 <https://pkg.go.dev/vuln/GO-2026-4971>`_ and `GO-2026-4918 <https://pkg.go.dev/vuln/GO-2026-4918>`_ (XSS in ``html/template``, quadratic concatenation in ``net/mail``, panic in ``net`` on Windows NUL byte, infinite loop in HTTP/2 transport).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.32...v5.4.33
+
+*************************
+Hazelnut update (v5.4.32)
+*************************
+
+Release date: 2026-04-17
+
+- Backport compound leia index ``index_auth_subject_purpose_resources`` on ``credentialSubject.id`` + ``purposeOfUse`` + ``resources.path`` (see `#3562 <https://github.com/nuts-foundation/nuts-node/pull/3562>`_). Fixes slow ``POST /internal/vcr/v2/search`` queries against ``NutsAuthorizationCredential`` where large issuers previously forced go-leia to fall back to ``index_issuer`` and scan every VC issued by the requesting care organization.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.31...v5.4.32
 
 *************************
 Hazelnut update (v5.4.31)

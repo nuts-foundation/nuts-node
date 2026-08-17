@@ -50,24 +50,27 @@ func TestHTTPInvoker_Register(t *testing.T) {
 		assert.Equal(t, vpData, handler.RequestData)
 	})
 	t.Run("non-ok with problem details", func(t *testing.T) {
-		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusBadRequest, ResponseData: `{"title":"missing credentials", "status":400, "detail":"could not resolve DID"}`})
+		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusBadRequest, ResponseData: `{"title":"SENTINEL-TITLE", "status":400, "detail":"SENTINEL-DETAIL"}`})
 		client := New(time.Minute)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
-		assert.ErrorContains(t, err, "server returned HTTP status code 400")
-		assert.ErrorContains(t, err, "missing credentials: could not resolve DID")
+		assert.ErrorContains(t, err, "server returned HTTP 400")
+		// The remote response body (including parsed problem details) must not be reflected in the error,
+		// since the error ends up in our own API responses. It's only logged.
+		assert.NotContains(t, err.Error(), "SENTINEL-TITLE")
+		assert.NotContains(t, err.Error(), "SENTINEL-DETAIL")
 	})
 	t.Run("non-ok other", func(t *testing.T) {
-		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusNotFound, ResponseData: `not found`})
+		server := httptest.NewServer(&testHTTP.Handler{StatusCode: http.StatusNotFound, ResponseData: `SENTINEL-RAW-BODY`})
 		client := New(time.Minute)
 
 		err := client.Register(context.Background(), server.URL, vp)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
 		assert.ErrorContains(t, err, "server returned HTTP 404")
-		assert.ErrorContains(t, err, "not found")
+		assert.NotContains(t, err.Error(), "SENTINEL-RAW-BODY")
 	})
 }
 
@@ -128,15 +131,17 @@ func TestHTTPInvoker_Get(t *testing.T) {
 		assert.True(t, strings.HasPrefix(capturedRequest.Header.Get("X-Forwarded-Host"), "127.0.0.1"))
 	})
 	t.Run("server returns invalid status code", func(t *testing.T) {
-		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError, ResponseData: `{"title":"internal server error", "status":500, "detail":"db not found"}`}
+		handler := &testHTTP.Handler{StatusCode: http.StatusInternalServerError, ResponseData: `{"title":"SENTINEL-TITLE", "status":500, "detail":"SENTINEL-DETAIL"}`}
 		server := httptest.NewServer(handler)
 		client := New(time.Minute)
 
 		_, _, _, err := client.Get(context.Background(), server.URL, 0)
 
 		assert.ErrorContains(t, err, "non-OK response from remote Discovery Service")
-		assert.ErrorContains(t, err, "server returned HTTP status code 500")
-		assert.ErrorContains(t, err, "internal server error: db not found")
+		assert.ErrorContains(t, err, "server returned HTTP 500")
+		// The remote response body must not be reflected in the error (it ends up in our own API responses).
+		assert.NotContains(t, err.Error(), "SENTINEL-TITLE")
+		assert.NotContains(t, err.Error(), "SENTINEL-DETAIL")
 	})
 	t.Run("server does not return JSON", func(t *testing.T) {
 		handler := &testHTTP.Handler{StatusCode: http.StatusOK}

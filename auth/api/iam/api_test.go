@@ -33,9 +33,9 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -191,7 +191,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope"}})
 
@@ -216,7 +216,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 		walletOwnerMapping := pe.WalletOwnerMapping{pe.WalletOwnerUser: pe.PresentationDefinition{Id: "test"}}
 
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -228,7 +228,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("err - unknown wallet type", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "example-scope").Return(walletOwnerMapping, nil)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "example-scope").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "example-scope", WalletOwnerMapping: walletOwnerMapping, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "example-scope", WalletOwnerType: &userWalletType}})
 
@@ -239,7 +239,7 @@ func TestWrapper_PresentationDefinition(t *testing.T) {
 
 	t.Run("error - unknown scope", func(t *testing.T) {
 		test := newTestClient(t)
-		test.policy.EXPECT().PresentationDefinitions(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
+		test.policy.EXPECT().FindCredentialProfile(gomock.Any(), "unknown").Return(nil, policy.ErrNotFound)
 
 		response, err := test.client.PresentationDefinition(ctx, PresentationDefinitionRequestObject{SubjectID: verifierSubject, Params: PresentationDefinitionParams{Scope: "unknown"}})
 
@@ -290,7 +290,7 @@ func TestWrapper_HandleAuthorizeRequest(t *testing.T) {
 				OpenIDProvider: serverMetadata,
 			},
 		}
-		ctx.policy.EXPECT().PresentationDefinitions(gomock.Any(), "test").Return(pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, nil)
+		ctx.policy.EXPECT().FindCredentialProfile(gomock.Any(), "test").Return(&policy.CredentialProfileMatch{CredentialProfileScope: "test", WalletOwnerMapping: pe.WalletOwnerMapping{pe.WalletOwnerOrganization: pe.PresentationDefinition{Id: "test"}}, ScopePolicy: policy.ScopePolicyProfileOnly}, nil)
 		ctx.iamClient.EXPECT().OpenIDConfiguration(gomock.Any(), holderURL.String()).Return(&configuration, nil)
 		ctx.jar.EXPECT().Create(verifierDID, verifierURL.String(), holderClientID, gomock.Any()).DoAndReturn(func(client did.DID, clientID string, audience string, modifier requestObjectModifier) jarRequest {
 			req := createJarRequest(client, clientID, audience, modifier)
@@ -444,7 +444,7 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		ctx := newCustomTestClient(t, verifierURL, false)
 
-		response, err := ctx.client.Callback(nil, CallbackRequestObject{SubjectID: holderSubjectID})
+		response, err := ctx.client.Callback(nil, CallbackRequestObject{})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "callback endpoint is disabled")
 		assert.Nil(t, response)
@@ -454,7 +454,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State:            &state,
 				Error:            &errorCode,
@@ -478,10 +477,9 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -512,10 +510,9 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -525,27 +522,10 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
-	t.Run("err - did mismatch", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-
-		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
-
-		assert.Nil(t, res)
-		requireOAuthError(t, err, oauth.InvalidRequest, "session subject does not match request")
-
-	})
 	t.Run("err - missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code: &code,
 			},
@@ -557,7 +537,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Error:            &errorCode,
 				ErrorDescription: &errorDescription,
@@ -571,7 +550,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -585,7 +563,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State: &state,
 			},
@@ -601,7 +578,6 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -887,7 +863,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
 		request.Params.CacheControl = to.Ptr("no-cache")
 		// Initial call to populate cache
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(response, nil).Times(2)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(response, nil).Times(2)
 		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
 		// Test call to check cache is bypassed
@@ -908,7 +884,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			TokenType:   "Bearer",
 			ExpiresIn:   to.Ptr(900),
 		}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(response, nil)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(response, nil)
 
 		token, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -947,7 +923,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		t.Run("cache expired", func(t *testing.T) {
 			cacheKey := accessTokenRequestCacheKey(request)
 			_ = ctx.client.accessTokenCache().Delete(cacheKey)
-			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
+			ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(&oauth.TokenResponse{AccessToken: "other"}, nil)
 
 			otherToken, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -964,7 +940,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 			Scope:               "first second",
 			TokenType:           &tokenTypeBearer,
 		}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", false, nil, nil).Return(&oauth.TokenResponse{}, nil)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", false, nil, nil, nil).Return(&oauth.TokenResponse{}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
@@ -973,7 +949,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	t.Run("ok with expired cache by ttl", func(t *testing.T) {
 		ctx := newTestClient(t)
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(&oauth.TokenResponse{ExpiresIn: to.Ptr(5)}, nil)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -982,7 +958,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 	})
 	t.Run("error - no matching credentials", func(t *testing.T) {
 		ctx := newTestClient(t)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(nil, pe.ErrNoCredentials)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(nil, pe.ErrNoCredentials)
 
 		_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body})
 
@@ -998,8 +974,8 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		ctx.client.storageEngine = mockStorage
 
 		request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "first"}, nil)
-		ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil).Return(&oauth.TokenResponse{AccessToken: "second"}, nil)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(&oauth.TokenResponse{AccessToken: "first"}, nil)
+		ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, nil).Return(&oauth.TokenResponse{AccessToken: "second"}, nil)
 
 		token1, err := ctx.client.RequestServiceAccessToken(nil, request)
 		require.NoError(t, err)
@@ -1007,6 +983,64 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NotEqual(t, token1, token2)
+	})
+	t.Run("service_provider_subject_id", func(t *testing.T) {
+		t.Run("ok - threads through to IAM client", func(t *testing.T) {
+			// Verifies the wire-up of the new OpenAPI field. The dispatch and feature gating live in
+			// the IAM client (under #4227); the handler's job is to validate and forward the value.
+			ctx := newTestClient(t)
+			spSubject := verifierSubject // re-use the global fixture's existing Exists(true) mock
+			bodyWithSP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &spSubject,
+			}
+			response := &oauth.TokenResponse{AccessToken: "sp-token", TokenType: "Bearer", ExpiresIn: to.Ptr(900)}
+			ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, nil, nil, &spSubject).Return(response, nil)
+
+			tokenResponse, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithSP})
+
+			require.NoError(t, err)
+			// Assert the response actually round-trips, not just that the call didn't error.
+			assert.Equal(t, "sp-token", tokenResponse.(RequestServiceAccessToken200JSONResponse).AccessToken)
+		})
+		t.Run("empty string is rejected up front", func(t *testing.T) {
+			// service_provider_subject_id is optional; an explicit "" must not silently dispatch into
+			// the two-VP flow with a meaningless subject.
+			ctx := newTestClient(t)
+			emptySP := ""
+			bodyWithEmptySP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &emptySP,
+			}
+
+			_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithEmptySP})
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, "service_provider_subject_id")
+			assert.ErrorContains(t, err, "cannot be empty")
+		})
+		t.Run("unknown subject returns 400", func(t *testing.T) {
+			// Mirrors the existing path-param check: a non-existent service-provider subject yields a
+			// clear OAuth invalid_request, not the misleading 412 "did method mismatch" that would come
+			// from a downstream ListDIDs("") result.
+			ctx := newTestClient(t)
+			unknownSP := unknownSubjectID
+			bodyWithUnknownSP := &RequestServiceAccessTokenJSONRequestBody{
+				AuthorizationServer:      verifierURL.String(),
+				Scope:                    "first second",
+				ServiceProviderSubjectId: &unknownSP,
+			}
+
+			_, err := ctx.client.RequestServiceAccessToken(nil, RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: bodyWithUnknownSP})
+
+			require.Error(t, err)
+			var oauthErr oauth.OAuth2Error
+			require.ErrorAs(t, err, &oauthErr)
+			assert.Equal(t, oauth.InvalidRequest, oauthErr.Code)
+			assert.Contains(t, oauthErr.Description, "subject not found")
+		})
 	})
 	t.Run("self-asserted credentials", func(t *testing.T) {
 		response := &oauth.TokenResponse{
@@ -1024,7 +1058,7 @@ func TestWrapper_RequestServiceAccessToken(t *testing.T) {
 				{ID: to.Ptr(ssi.MustParseURI("not empty"))},
 			}
 			request := RequestServiceAccessTokenRequestObject{SubjectID: holderSubjectID, Body: body}
-			ctx.iamClient.EXPECT().RequestRFC021AccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, *body.Credentials, nil).Return(response, nil)
+			ctx.iamClient.EXPECT().RequestServiceAccessToken(nil, holderClientID, holderSubjectID, verifierURL.String(), "first second", true, *body.Credentials, nil, nil).Return(response, nil)
 
 			_, err := ctx.client.RequestServiceAccessToken(nil, request)
 
@@ -1504,7 +1538,7 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 		for key, val := range claims {
 			request.Set(key, val)
 		}
-		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(hdrs)))
+		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256(), privateKey, jws.WithProtectedHeaders(hdrs)))
 		return string(sign), err
 	}
 
@@ -1572,23 +1606,24 @@ func statusCodeFrom(err error) int {
 }
 
 type testCtx struct {
-	authnServices  *auth.MockAuthenticationServices
-	ctrl           *gomock.Controller
-	client         *Wrapper
-	documentOwner  *didsubject.MockDocumentOwner
-	iamClient      *iam.MockClient
-	jwtSigner      *cryptoNuts.MockJWTSigner
-	keyResolver    *resolver.MockKeyResolver
-	policy         *policy.MockPDPBackend
-	resolver       *resolver.MockDIDResolver
-	relyingParty   *oauthServices.MockRelyingParty
-	vcr            *vcr.MockVCR
-	vdr            *vdr.MockVDR
-	vcIssuer       *issuer.MockIssuer
-	vcVerifier     *verifier.MockVerifier
-	wallet         *holder.MockWallet
-	subjectManager *didsubject.MockManager
-	jar            *MockJAR
+	authnServices    *auth.MockAuthenticationServices
+	ctrl             *gomock.Controller
+	client           *Wrapper
+	documentOwner    *didsubject.MockDocumentOwner
+	iamClient        *iam.MockClient
+	jwtSigner        *cryptoNuts.MockJWTSigner
+	keyResolver      *resolver.MockKeyResolver
+	policy           *policy.MockPDPBackend
+	scopeEvaluator   *policy.MockScopeEvaluator
+	resolver         *resolver.MockDIDResolver
+	relyingParty     *oauthServices.MockRelyingParty
+	vcr              *vcr.MockVCR
+	vdr              *vdr.MockVDR
+	vcIssuer         *issuer.MockIssuer
+	vcVerifier       *verifier.MockVerifier
+	wallet           *holder.MockWallet
+	subjectManager   *didsubject.MockManager
+	jar              *MockJAR
 	openid4vciClient *openid4vci.MockClient
 }
 
@@ -1602,6 +1637,7 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 	storageEngine := storage.NewTestStorageEngine(t)
 	authnServices := auth.NewMockAuthenticationServices(ctrl)
 	policyInstance := policy.NewMockPDPBackend(ctrl)
+	scopeEvaluator := policy.NewMockScopeEvaluator(ctrl)
 	mockResolver := resolver.NewMockDIDResolver(ctrl)
 	relyingPary := oauthServices.NewMockRelyingParty(ctrl)
 	vcIssuer := issuer.NewMockIssuer(ctrl)
@@ -1645,22 +1681,23 @@ func newCustomTestClient(t testing.TB, publicURL *url.URL, authEndpointEnabled b
 		jar:            mockJAR,
 	}
 	return &testCtx{
-		ctrl:           ctrl,
-		authnServices:  authnServices,
-		policy:         policyInstance,
-		relyingParty:   relyingPary,
-		vcIssuer:       vcIssuer,
-		vcVerifier:     vcVerifier,
-		resolver:       mockResolver,
-		documentOwner:  mockDocumentOwner,
-		subjectManager: subjectManager,
-		iamClient:      iamClient,
-		vcr:            mockVCR,
-		wallet:         mockWallet,
-		keyResolver:    keyResolver,
-		jwtSigner:      jwtSigner,
-		jar:            mockJAR,
-		client:         client,
+		ctrl:             ctrl,
+		authnServices:    authnServices,
+		policy:           policyInstance,
+		scopeEvaluator:   scopeEvaluator,
+		relyingParty:     relyingPary,
+		vcIssuer:         vcIssuer,
+		vcVerifier:       vcVerifier,
+		resolver:         mockResolver,
+		documentOwner:    mockDocumentOwner,
+		subjectManager:   subjectManager,
+		iamClient:        iamClient,
+		vcr:              mockVCR,
+		wallet:           mockWallet,
+		keyResolver:      keyResolver,
+		jwtSigner:        jwtSigner,
+		jar:              mockJAR,
+		client:           client,
 		openid4vciClient: openid4vciClient,
 	}
 }

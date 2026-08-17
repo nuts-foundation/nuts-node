@@ -21,9 +21,10 @@ package oauth
 
 import (
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
 	"net/url"
+
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/nuts-foundation/nuts-node/core"
 )
 
 // this file contains constants, variables and helper functions for OAuth related code
@@ -200,6 +201,10 @@ const (
 	ScopeParam = "scope"
 	// StateParam is the parameter name for the state parameter. (RFC6749)
 	StateParam = "state"
+	// ClientAssertionTypeParam is the parameter name for the client_assertion_type parameter. (RFC7521)
+	ClientAssertionTypeParam = "client_assertion_type"
+	// ClientAssertionParam is the parameter name for the client_assertion parameter. (RFC7521)
+	ClientAssertionParam = "client_assertion"
 	// VpTokenParam is the parameter name for the vp_token parameter. (OpenID4VP)
 	VpTokenParam = "vp_token"
 	// WalletMetadataParam is used by the wallet to provide its metadata in an authorization request when RequestURIMethodParam is 'post'
@@ -216,6 +221,14 @@ const (
 	PreAuthorizedCodeGrantType = "urn:ietf:params:oauth:grant-type:pre-authorized_code"
 	// VpTokenGrantType is the grant_type for the vp_token-bearer grant type. (RFC021)
 	VpTokenGrantType = "vp_token-bearer"
+	// JwtBearerGrantType is the grant_type for the RFC 7523 JWT bearer grant type.
+	JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+)
+
+// client assertion types
+const (
+	// JwtBearerClientAssertionType is the canonical value of ClientAssertionTypeParam for the RFC 7523 JWT bearer client assertion.
+	JwtBearerClientAssertionType = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 )
 
 // response types
@@ -325,6 +338,18 @@ type AuthorizationServerMetadata struct {
 	// RequestObjectSigningAlgValuesSupported is a JSON array containing a list of the JWS signing algorithms (alg values) supported by the OP for Request Objects, which are described in Section 6.1 of OpenID Connect Core 1.0 [OpenID.Core].
 	// These algorithms are used both when the Request Object is passed by value (using the request parameter) and when it is passed by reference (using the request_uri parameter).
 	RequestObjectSigningAlgValuesSupported []string `json:"request_object_signing_alg_values_supported,omitempty"`
+}
+
+// GetIssuer returns the authorization server's issuer identifier, for metadata
+// discovery validation (see FetchMetadata).
+func (m AuthorizationServerMetadata) GetIssuer() string {
+	return m.Issuer
+}
+
+// WellKnownPath returns the well-known path under which this document is published
+// (RFC 8414), used by FetchMetadata to derive the metadata URL.
+func (m AuthorizationServerMetadata) WellKnownPath() string {
+	return AuthzServerWellKnown
 }
 
 // SupportsClientIDScheme checks if the Authorization Server supports the given client ID scheme.

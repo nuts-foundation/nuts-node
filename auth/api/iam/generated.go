@@ -186,6 +186,19 @@ type ServiceAccessTokenRequest struct {
 	// Scope The scope that will be the service for which this access token can be used.
 	Scope string `json:"scope"`
 
+	// ServiceProviderSubjectId **Experimental.** Nuts subject identifier of the OAuth client (service provider).
+	// When present, the node uses the RFC 7523 jwt-bearer two-VP token request flow:
+	// VP1 is built from the wallet identified by the path-param `subjectID` (the healthcare
+	// provider) using the `organization` PD; VP2 is built from the wallet identified here
+	// using the `service_provider` PD. Requires `auth.experimental.jwtbearerclient = true`,
+	// an authorization server that advertises `urn:ietf:params:oauth:grant-type:jwt-bearer`,
+	// and a `service_provider` PD configured for the requested credential profile.
+	//
+	// When omitted, the existing single-VP `vp_token-bearer` flow runs unchanged.
+	//
+	// Subject to change without notice.
+	ServiceProviderSubjectId *string `json:"service_provider_subject_id,omitempty"`
+
 	// TokenType The type of access token that is preferred, default: DPoP
 	TokenType *ServiceAccessTokenRequestTokenType `json:"token_type,omitempty"`
 }
@@ -248,6 +261,20 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// issuance per call and only consumes the first entry.
 	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
 
+	// AuthorizationRequestParams Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
+	// Authorization Server's authorization_endpoint). These may only add parameters; they must not
+	// override the OpenID4VCI parameters set by the node (the request is rejected if they do).
+	// Prefer authorization_details (RFC 9396) where the issuer supports it; use this only for issuers
+	// that require non-standard authorization parameters (e.g. auth_method for AET smartcards).
+	AuthorizationRequestParams *map[string]string `json:"authorization_request_params,omitempty"`
+
+	// CredentialRequestParams Optional JSON object overlaid on top of the OpenID4VCI Credential Request body sent to
+	// the issuer's credential endpoint. Any field supplied here overrides the node's default —
+	// including credential_configuration_id, credential_identifier and proofs. Use this for
+	// issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
+	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
+	CredentialRequestParams *map[string]interface{} `json:"credential_request_params,omitempty"`
+
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.
 	Issuer string `json:"issuer"`
@@ -273,11 +300,6 @@ type RequestServiceAccessTokenParams struct {
 	CacheControl *string `json:"Cache-Control,omitempty"`
 }
 
-// HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
-type HandleAuthorizeRequestParams struct {
-	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
-}
-
 // CallbackParams defines parameters for Callback.
 type CallbackParams struct {
 	// Code The authorization code received from the authorization server.
@@ -291,6 +313,11 @@ type CallbackParams struct {
 
 	// ErrorDescription The error description.
 	ErrorDescription *string `form:"error_description,omitempty" json:"error_description,omitempty"`
+}
+
+// HandleAuthorizeRequestParams defines parameters for HandleAuthorizeRequest.
+type HandleAuthorizeRequestParams struct {
+	Params *map[string]string `form:"params,omitempty" json:"params,omitempty"`
 }
 
 // PresentationDefinitionParams defines parameters for PresentationDefinition.
@@ -618,12 +645,12 @@ type ServerInterface interface {
 	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
+	// The OAuth2 callback endpoint of the client.
+	// (GET /oauth2/callback)
+	Callback(ctx echo.Context, params CallbackParams) error
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{subjectID}/authorize)
 	HandleAuthorizeRequest(ctx echo.Context, subjectID string, params HandleAuthorizeRequestParams) error
-	// The OAuth2 callback endpoint of the client.
-	// (GET /oauth2/{subjectID}/callback)
-	Callback(ctx echo.Context, subjectID string, params CallbackParams) error
 	// Get the OAuth2 Client metadata
 	// (GET /oauth2/{subjectID}/oauth-client)
 	OAuthClientMetadata(ctx echo.Context, subjectID string) error
@@ -828,43 +855,9 @@ func (w *ServerInterfaceWrapper) RequestUserAccessToken(ctx echo.Context) error 
 	return err
 }
 
-// HandleAuthorizeRequest converts echo context to params.
-func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error {
-	var err error
-	// ------------- Path parameter "subjectID" -------------
-	var subjectID string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
-	}
-
-	ctx.Set(JwtBearerAuthScopes, []string{})
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params HandleAuthorizeRequestParams
-	// ------------- Optional query parameter "params" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "params", ctx.QueryParams(), &params.Params)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter params: %s", err))
-	}
-
-	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.HandleAuthorizeRequest(ctx, subjectID, params)
-	return err
-}
-
 // Callback converts echo context to params.
 func (w *ServerInterfaceWrapper) Callback(ctx echo.Context) error {
 	var err error
-	// ------------- Path parameter "subjectID" -------------
-	var subjectID string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
-	}
 
 	ctx.Set(JwtBearerAuthScopes, []string{})
 
@@ -899,7 +892,34 @@ func (w *ServerInterfaceWrapper) Callback(ctx echo.Context) error {
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.Callback(ctx, subjectID, params)
+	err = w.Handler.Callback(ctx, params)
+	return err
+}
+
+// HandleAuthorizeRequest converts echo context to params.
+func (w *ServerInterfaceWrapper) HandleAuthorizeRequest(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "subjectID" -------------
+	var subjectID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subjectID", ctx.Param("subjectID"), &subjectID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter subjectID: %s", err))
+	}
+
+	ctx.Set(JwtBearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params HandleAuthorizeRequestParams
+	// ------------- Optional query parameter "params" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "params", ctx.QueryParams(), &params.Params)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter params: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.HandleAuthorizeRequest(ctx, subjectID, params)
 	return err
 }
 
@@ -1101,8 +1121,8 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-credential", wrapper.RequestOpenid4VCICredentialIssuance)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-service-access-token", wrapper.RequestServiceAccessToken)
 	router.POST(baseURL+"/internal/auth/v2/:subjectID/request-user-access-token", wrapper.RequestUserAccessToken)
+	router.GET(baseURL+"/oauth2/callback", wrapper.Callback)
 	router.GET(baseURL+"/oauth2/:subjectID/authorize", wrapper.HandleAuthorizeRequest)
-	router.GET(baseURL+"/oauth2/:subjectID/callback", wrapper.Callback)
 	router.GET(baseURL+"/oauth2/:subjectID/oauth-client", wrapper.OAuthClientMetadata)
 	router.GET(baseURL+"/oauth2/:subjectID/presentation_definition", wrapper.PresentationDefinition)
 	router.GET(baseURL+"/oauth2/:subjectID/request.jwt/:id", wrapper.RequestJWTByGet)
@@ -1460,6 +1480,49 @@ func (response RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse) 
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type CallbackRequestObject struct {
+	Params CallbackParams
+}
+
+type CallbackResponseObject interface {
+	VisitCallbackResponse(w http.ResponseWriter) error
+}
+
+type Callback302ResponseHeaders struct {
+	Location string
+}
+
+type Callback302Response struct {
+	Headers Callback302ResponseHeaders
+}
+
+func (response Callback302Response) VisitCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackdefaultApplicationProblemPlusJSONResponse struct {
+	Body struct {
+		// Detail A human-readable explanation specific to this occurrence of the problem.
+		Detail string `json:"detail"`
+
+		// Status HTTP statuscode
+		Status float32 `json:"status"`
+
+		// Title A short, human-readable summary of the problem type.
+		Title string `json:"title"`
+	}
+	StatusCode int
+}
+
+func (response CallbackdefaultApplicationProblemPlusJSONResponse) VisitCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type HandleAuthorizeRequestRequestObject struct {
 	SubjectID string `json:"subjectID"`
 	Params    HandleAuthorizeRequestParams
@@ -1500,50 +1563,6 @@ func (response HandleAuthorizeRequest302Response) VisitHandleAuthorizeRequestRes
 	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
 	w.WriteHeader(302)
 	return nil
-}
-
-type CallbackRequestObject struct {
-	SubjectID string `json:"subjectID"`
-	Params    CallbackParams
-}
-
-type CallbackResponseObject interface {
-	VisitCallbackResponse(w http.ResponseWriter) error
-}
-
-type Callback302ResponseHeaders struct {
-	Location string
-}
-
-type Callback302Response struct {
-	Headers Callback302ResponseHeaders
-}
-
-func (response Callback302Response) VisitCallbackResponse(w http.ResponseWriter) error {
-	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
-	w.WriteHeader(302)
-	return nil
-}
-
-type CallbackdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	StatusCode int
-}
-
-func (response CallbackdefaultApplicationProblemPlusJSONResponse) VisitCallbackResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/problem+json")
-	w.WriteHeader(response.StatusCode)
-
-	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type OAuthClientMetadataRequestObject struct {
@@ -1835,12 +1854,12 @@ type StrictServerInterface interface {
 	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
+	// The OAuth2 callback endpoint of the client.
+	// (GET /oauth2/callback)
+	Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error)
 	// Used by resource owners (the browser) to initiate the authorization code flow.
 	// (GET /oauth2/{subjectID}/authorize)
 	HandleAuthorizeRequest(ctx context.Context, request HandleAuthorizeRequestRequestObject) (HandleAuthorizeRequestResponseObject, error)
-	// The OAuth2 callback endpoint of the client.
-	// (GET /oauth2/{subjectID}/callback)
-	Callback(ctx context.Context, request CallbackRequestObject) (CallbackResponseObject, error)
 	// Get the OAuth2 Client metadata
 	// (GET /oauth2/{subjectID}/oauth-client)
 	OAuthClientMetadata(ctx context.Context, request OAuthClientMetadataRequestObject) (OAuthClientMetadataResponseObject, error)
@@ -2171,6 +2190,31 @@ func (sh *strictHandler) RequestUserAccessToken(ctx echo.Context, subjectID stri
 	return nil
 }
 
+// Callback operation middleware
+func (sh *strictHandler) Callback(ctx echo.Context, params CallbackParams) error {
+	var request CallbackRequestObject
+
+	request.Params = params
+
+	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.Callback(ctx.Request().Context(), request.(CallbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Callback")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		return err
+	} else if validResponse, ok := response.(CallbackResponseObject); ok {
+		return validResponse.VisitCallbackResponse(ctx.Response())
+	} else if response != nil {
+		return fmt.Errorf("unexpected response type: %T", response)
+	}
+	return nil
+}
+
 // HandleAuthorizeRequest operation middleware
 func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, subjectID string, params HandleAuthorizeRequestParams) error {
 	var request HandleAuthorizeRequestRequestObject
@@ -2191,32 +2235,6 @@ func (sh *strictHandler) HandleAuthorizeRequest(ctx echo.Context, subjectID stri
 		return err
 	} else if validResponse, ok := response.(HandleAuthorizeRequestResponseObject); ok {
 		return validResponse.VisitHandleAuthorizeRequestResponse(ctx.Response())
-	} else if response != nil {
-		return fmt.Errorf("unexpected response type: %T", response)
-	}
-	return nil
-}
-
-// Callback operation middleware
-func (sh *strictHandler) Callback(ctx echo.Context, subjectID string, params CallbackParams) error {
-	var request CallbackRequestObject
-
-	request.SubjectID = subjectID
-	request.Params = params
-
-	handler := func(ctx echo.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.Callback(ctx.Request().Context(), request.(CallbackRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "Callback")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		return err
-	} else if validResponse, ok := response.(CallbackResponseObject); ok {
-		return validResponse.VisitCallbackResponse(ctx.Response())
 	} else if response != nil {
 		return fmt.Errorf("unexpected response type: %T", response)
 	}

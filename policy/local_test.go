@@ -20,6 +20,8 @@ package policy
 
 import (
 	"context"
+	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/vcr/pe"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,14 +29,41 @@ import (
 )
 
 func TestStore_LoadFromFile(t *testing.T) {
-	t.Run("loads the mapping from the file", func(t *testing.T) {
+	t.Run("loads an organization-only profile and exposes it via WalletOwnerMapping", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/definition_mapping.json")
 
 		require.NoError(t, err)
-		assert.Len(t, store.mapping, 1)
-		assert.NotNil(t, store.mapping["example-scope"])
+		require.Len(t, store.mapping, 1)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Contains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerServiceProvider)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
+	})
+
+	t.Run("loads organization, service_provider, and user PDs from a single profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/service_provider/with_org_sp_user.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["example-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_organization", mapping[pe.WalletOwnerOrganization].Id)
+		assert.Equal(t, "pd_service_provider", mapping[pe.WalletOwnerServiceProvider].Id)
+		assert.Equal(t, "pd_user", mapping[pe.WalletOwnerUser].Id)
+	})
+
+	t.Run("loads a profile that defines only a service_provider PD", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/service_provider/service_provider_only.json")
+
+		require.NoError(t, err)
+		mapping := store.mapping["service-provider-only-scope"].toWalletOwnerMapping()
+		assert.Equal(t, "pd_service_provider_only", mapping[pe.WalletOwnerServiceProvider].Id)
+		assert.NotContains(t, mapping, pe.WalletOwnerOrganization)
+		assert.NotContains(t, mapping, pe.WalletOwnerUser)
 	})
 
 	t.Run("returns an error if the file doesn't exist", func(t *testing.T) {
@@ -45,33 +74,165 @@ func TestStore_LoadFromFile(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("returns an error if a presentation definition is invalid", func(t *testing.T) {
+	t.Run("returns an error if the organization PD is invalid", func(t *testing.T) {
 		store := LocalPDP{}
 
 		err := store.loadFromFile("test/invalid/invalid_definition_mapping.json")
 
 		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
 	})
+
+	t.Run("returns an error if the service_provider PD is invalid", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/invalid_service_provider_pd.json")
+
+		assert.ErrorContains(t, err, "missing properties: \"input_descriptors\"")
+	})
+
+	t.Run("returns an error if no PD is defined for a profile", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/invalid/no_pds.json")
+
+		assert.ErrorContains(t, err, "must define at least one of 'organization', 'service_provider', or 'user'")
+	})
 }
 
-func TestStore_PresentationDefinitions(t *testing.T) {
+func TestLocalPDP_FindCredentialProfile(t *testing.T) {
 	t.Run("err - not found", func(t *testing.T) {
 		store := LocalPDP{}
 
-		_, err := store.PresentationDefinitions(context.Background(), "example-scope2")
+		_, err := store.FindCredentialProfile(context.Background(), "unknown-scope")
 
-		assert.Equal(t, ErrNotFound, err)
+		assert.ErrorIs(t, err, ErrNotFound)
 	})
 
-	t.Run("returns the presentation definition if the scope exists", func(t *testing.T) {
+	t.Run("returns match for existing scope", func(t *testing.T) {
 		store := LocalPDP{}
 		err := store.loadFromFile("test/definition_mapping.json")
 		require.NoError(t, err)
 
-		result, err := store.PresentationDefinitions(context.Background(), "example-scope")
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
 
 		require.NoError(t, err)
-		assert.NotNil(t, result)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.NotNil(t, match.WalletOwnerMapping)
+		assert.Equal(t, ScopePolicyProfileOnly, match.ScopePolicy)
+		assert.Empty(t, match.OtherScopes)
+	})
+	t.Run("multi-scope with one profile scope returns match and other scopes", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope patient/Observation.read launch/patient")
+
+		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.NotNil(t, match.WalletOwnerMapping)
+		assert.Equal(t, ScopePolicyProfileOnly, match.ScopePolicy)
+		assert.Equal(t, []string{"patient/Observation.read", "launch/patient"}, match.OtherScopes)
+	})
+	t.Run("handles consecutive spaces and whitespace in scope string", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "  example-scope  extra  ")
+
+		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
+		assert.Equal(t, []string{"extra"}, match.OtherScopes)
+	})
+	t.Run("err - multiple credential profile scopes", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromDirectory("test/2_files")
+		require.NoError(t, err)
+
+		_, err = store.FindCredentialProfile(context.Background(), "1 2")
+
+		assert.ErrorIs(t, err, ErrAmbiguousScope)
+	})
+	t.Run("err - no credential profile scope", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/definition_mapping.json")
+		require.NoError(t, err)
+
+		_, err = store.FindCredentialProfile(context.Background(), "unknown-a unknown-b")
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
+	t.Run("err - empty scope string", func(t *testing.T) {
+		store := LocalPDP{}
+
+		_, err := store.FindCredentialProfile(context.Background(), "")
+
+		assert.ErrorIs(t, err, ErrNotFound)
+	})
+}
+
+func TestLocalPDP_ScopePolicyConfig(t *testing.T) {
+	t.Run("scope_policy parsed from config", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "dynamic-scope")
+
+		require.NoError(t, err)
+		assert.Equal(t, ScopePolicyDynamic, match.ScopePolicy)
+	})
+	t.Run("passthrough scope_policy parsed from config", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/passthrough.json")
+		require.NoError(t, err)
+
+		match, err := store.FindCredentialProfile(context.Background(), "passthrough-scope")
+
+		require.NoError(t, err)
+		assert.Equal(t, ScopePolicyPassthrough, match.ScopePolicy)
+	})
+	t.Run("invalid scope_policy rejected at load time", func(t *testing.T) {
+		store := LocalPDP{}
+
+		err := store.loadFromFile("test/scope_policy_invalid/invalid.json")
+
+		assert.ErrorContains(t, err, `invalid scope_policy "bogus"`)
+	})
+}
+
+func TestLocalPDP_Configure(t *testing.T) {
+	t.Run("dynamic scope_policy without AuthZen endpoint fails", func(t *testing.T) {
+		store := LocalPDP{}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
+
+		err = store.Configure(core.ServerConfig{})
+
+		assert.ErrorContains(t, err, "no AuthZen endpoint is configured")
+	})
+	t.Run("dynamic scope_policy with AuthZen endpoint succeeds", func(t *testing.T) {
+		store := LocalPDP{config: Config{
+			AuthZen: AuthZenConfig{Endpoint: "http://localhost:8080"},
+		}}
+		err := store.loadFromFile("test/scope_policy/dynamic.json")
+		require.NoError(t, err)
+
+		err = store.Configure(core.ServerConfig{})
+
+		assert.NoError(t, err)
+	})
+	t.Run("passthrough scope_policy without AuthZen endpoint succeeds", func(t *testing.T) {
+		store := LocalPDP{config: Config{Directory: "test/scope_policy"}}
+		// Load only the passthrough config, not the dynamic one
+		store.config.Directory = ""
+		err := store.loadFromFile("test/scope_policy/passthrough.json")
+		require.NoError(t, err)
+
+		err = store.Configure(core.ServerConfig{})
+
+		assert.NoError(t, err)
 	})
 }
 
@@ -88,8 +249,9 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), "example-scope")
+		match, err := store.FindCredentialProfile(context.Background(), "example-scope")
 		require.NoError(t, err)
+		assert.Equal(t, "example-scope", match.CredentialProfileScope)
 	})
 	t.Run("2 files, 3 scopes", func(t *testing.T) {
 		store := LocalPDP{}
@@ -97,11 +259,11 @@ func Test_LocalPDP_loadFromDirectory(t *testing.T) {
 		err := store.loadFromDirectory("test/2_files")
 		require.NoError(t, err)
 
-		_, err = store.PresentationDefinitions(context.Background(), "1")
+		_, err = store.FindCredentialProfile(context.Background(), "1")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), "2")
+		_, err = store.FindCredentialProfile(context.Background(), "2")
 		require.NoError(t, err)
-		_, err = store.PresentationDefinitions(context.Background(), "3")
+		_, err = store.FindCredentialProfile(context.Background(), "3")
 		require.NoError(t, err)
 	})
 	t.Run("2 files, duplicate scope", func(t *testing.T) {

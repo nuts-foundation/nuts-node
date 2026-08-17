@@ -27,10 +27,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/cert"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
@@ -99,7 +99,7 @@ func JWTNutsOrganizationCredential(t *testing.T, subjectID did.DID) vc.Verifiabl
 		},
 		"type": "NutsOrganizationCredential",
 	}))
-	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES384, privateKey))
+	signedToken, err := jwt.Sign(token, jwt.WithKey(jwa.ES384(), privateKey))
 	require.NoError(t, err)
 	jwtVC, err := vc.ParseVerifiableCredential(string(signedToken))
 	require.NoError(t, err)
@@ -180,7 +180,7 @@ func ValidX509Credential(t *testing.T, options ...credentialOption) vc.Verifiabl
 	}
 	token, err := builder.Build()
 	require.NoError(t, err)
-	s, err := jwt.Sign(token, jwt.WithKey(jwa.RS256, rootKey, jws.WithProtectedHeaders(headers)))
+	s, err := jwt.Sign(token, jwt.WithKey(jwa.RS256(), rootKey, jws.WithProtectedHeaders(headers)))
 	require.NoError(t, err)
 	credential, err := vc.ParseVerifiableCredential(string(s))
 	require.NoError(t, err)

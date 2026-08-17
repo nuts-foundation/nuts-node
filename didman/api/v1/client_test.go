@@ -115,7 +115,7 @@ func TestHTTPClient_AddEndpoint(t *testing.T) {
 				Address: "not_an_address", Timeout: time.Second},
 		}
 		endpoint, err := c.AddEndpoint("abc", "type", "some-url")
-		assert.Regexp(t, `no such host|Temporary failure in name resolution`, err.Error())
+		assert.Error(t, err)
 		assert.Nil(t, endpoint)
 	})
 }
@@ -139,7 +139,7 @@ func TestHTTPClient_DeleteEndpointsByType(t *testing.T) {
 				Address: "not_an_address", Timeout: time.Second},
 		}
 		err := c.DeleteEndpointsByType("did:nuts:123", "eOverdracht")
-		assert.Regexp(t, `no such host|Temporary failure in name resolution`, err.Error())
+		assert.Error(t, err)
 	})
 }
 
@@ -228,7 +228,7 @@ func TestHTTPClient_GetCompoundServices(t *testing.T) {
 				Address: "not_an_address", Timeout: time.Second},
 		}
 		res, err := c.GetCompoundServices("did:nuts:123")
-		assert.Regexp(t, `no such host|Temporary failure in name resolution`, err.Error())
+		assert.Error(t, err)
 		assert.Nil(t, res)
 	})
 

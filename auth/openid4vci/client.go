@@ -31,10 +31,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 )
 
-// wellKnownPath is the path segment defined in OpenID4VCI 1.0 §12.2.2 for
-// retrieving the Credential Issuer Metadata document.
-const wellKnownPath = "/.well-known/openid-credential-issuer"
-
 // RequestCredentialOpts carries all parameters for a Credential Request.
 //
 // CredentialIdentifier and CredentialConfigurationID are mutually exclusive
@@ -43,12 +39,20 @@ const wellKnownPath = "/.well-known/openid-credential-issuer"
 // CredentialConfigurationID MUST NOT be present); otherwise the wallet sets
 // CredentialConfigurationID. If both are non-empty, CredentialIdentifier
 // takes precedence to enforce the spec rule.
+//
+// CredentialRequestParams is overlaid on top of the node-built request body, so
+// any field set here overrides the node's default — including
+// credential_configuration_id / credential_identifier / proofs. This is
+// the escape hatch for issuers with non-spec request shapes; the caller
+// takes full responsibility for the wire-level result (§8.2 mutual
+// exclusivity, proof binding, etc.).
 type RequestCredentialOpts struct {
 	CredentialEndpoint        string
 	AccessToken               string
 	CredentialConfigurationID string
 	CredentialIdentifier      string
 	ProofJWT                  string
+	CredentialRequestParams   map[string]any
 }
 
 // Client is the OpenID4VCI 1.0 HTTP client interface.
@@ -73,9 +77,9 @@ type Client interface {
 }
 
 // NewClient returns a Client backed by the provided HTTP request doer.
-// Production callers should pass *httpclient.StrictHTTPClient so the shared
-// transport policies apply: HTTPS-only in strict mode, no IP/reserved hosts
-// in strict mode (via core.ParsePublicURL), body size limit, User-Agent.
+// In production callers should pass *httpclient.StrictHTTPClient so the
+// shared transport policies apply (HTTPS-in-strict, SSRF checks, body size
+// limit, User-Agent header).
 func NewClient(httpClient core.HTTPRequestDoer) Client {
 	return &client{httpClient: httpClient}
 }
@@ -90,32 +94,13 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	if parsed, _ := url.Parse(issuerURL); parsed != nil && (parsed.RawQuery != "" || parsed.Fragment != "") {
 		return nil, fmt.Errorf("openid4vci: invalid issuer URL: query and fragment components are not allowed")
 	}
-	wellKnownURL, err := credentialIssuerWellKnown(issuerURL)
+	// Per §12.2.4 the credential_issuer in the document MUST match the requested issuer;
+	// FetchMetadata enforces that and tries the insert/append well-known placements.
+	metadata, err := oauth.FetchMetadata[OpenIDCredentialIssuerMetadata](ctx, c.httpClient, issuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("openid4vci: invalid issuer URL: %w", err)
+		return nil, fmt.Errorf("openid4vci: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, wellKnownURL, http.NoBody)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return nil, fmt.Errorf("openid4vci: fetching issuer metadata returned status %d", resp.StatusCode)
-	}
-	var metadata OpenIDCredentialIssuerMetadata
-	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
-		return nil, fmt.Errorf("openid4vci: decoding issuer metadata: %w", err)
-	}
-	// Per §12.2.4: the credential_issuer value MUST match the issuer identifier
-	// the metadata document was retrieved for. Mismatched metadata MUST NOT be used.
-	if metadata.CredentialIssuer != issuerURL {
-		return nil, fmt.Errorf("openid4vci: credential_issuer %q does not match requested issuer %q", metadata.CredentialIssuer, issuerURL)
-	}
-	return &metadata, nil
+	return metadata, nil
 }
 
 func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
@@ -142,17 +127,21 @@ func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string
 }
 
 func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error) {
-	body := CredentialRequest{
-		Proofs: &CredentialRequestProofs{
-			JWT: []string{opts.ProofJWT},
-		},
+	body := make(map[string]any, len(opts.CredentialRequestParams)+2)
+	// Node defaults. Per §8.2, credential_identifier and
+	// credential_configuration_id are mutually exclusive; credential_identifier
+	// wins when set.
+	switch {
+	case opts.CredentialIdentifier != "":
+		body["credential_identifier"] = opts.CredentialIdentifier
+	case opts.CredentialConfigurationID != "":
+		body["credential_configuration_id"] = opts.CredentialConfigurationID
 	}
-	// Per §8.2: CredentialIdentifier and CredentialConfigurationID are mutually
-	// exclusive. CredentialIdentifier wins when set.
-	if opts.CredentialIdentifier != "" {
-		body.CredentialIdentifier = opts.CredentialIdentifier
-	} else {
-		body.CredentialConfigurationID = opts.CredentialConfigurationID
+	body["proofs"] = CredentialRequestProofs{JWT: []string{opts.ProofJWT}}
+	// CredentialRequestParams overlays the node defaults — caller-supplied values
+	// win. The caller takes responsibility for the resulting wire shape.
+	for k, v := range opts.CredentialRequestParams {
+		body[k] = v
 	}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -189,25 +178,4 @@ func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOp
 		return nil, fmt.Errorf("openid4vci: decoding credential response: %w", err)
 	}
 	return &credResp, nil
-}
-
-// credentialIssuerWellKnown returns the Credential Issuer Metadata URL for
-// the given issuer identifier per RFC 8615: the well-known segment is
-// inserted at the authority root, and the issuer's path is appended after.
-//
-// Example: https://example.com/oauth2/alice
-//   ->     https://example.com/.well-known/openid-credential-issuer/oauth2/alice
-func credentialIssuerWellKnown(issuerURL string) (string, error) {
-	u, err := url.Parse(issuerURL)
-	if err != nil {
-		return "", err
-	}
-	// Prepend the well-known segment to both Path (decoded) and RawPath
-	// (encoded) when the latter is set, so u.String() does not double-escape
-	// pre-encoded characters like %2F via EscapedPath's reescaping pass.
-	u.Path = wellKnownPath + u.Path
-	if u.RawPath != "" {
-		u.RawPath = wellKnownPath + u.RawPath
-	}
-	return u.String(), nil
 }

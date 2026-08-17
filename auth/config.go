@@ -32,6 +32,15 @@ type Config struct {
 	ContractValidators    []string                    `koanf:"contractvalidators"`
 	AccessTokenLifeSpan   int                         `koanf:"accesstokenlifespan"`
 	AuthorizationEndpoint AuthorizationEndpointConfig `koanf:"authorizationendpoint"`
+	Experimental          ExperimentalConfig          `koanf:"experimental"`
+}
+
+// ExperimentalConfig groups feature flags for unstable functionality.
+// Anything inside is subject to change without notice and may be removed in a future release.
+type ExperimentalConfig struct {
+	// JwtBearerClient enables the RFC 7523 jwt-bearer two-VP token request flow.
+	// While disabled (the default), requests carrying a service-provider subject identifier are rejected.
+	JwtBearerClient bool `koanf:"jwtbearerclient"`
 }
 
 type AuthorizationEndpointConfig struct {

@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha1"
 	"encoding/json"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
@@ -48,7 +49,7 @@ func TestVcr_StoreCredential(t *testing.T) {
 	pkeJSON, _ := os.ReadFile("test/public.json")
 	json.Unmarshal(pkeJSON, &pke)
 	var pk = new(ecdsa.PublicKey)
-	pke.JWK().Raw(pk)
+	jwk.Export(pke.JWK(), pk)
 
 	t.Run("ok - not owned, do not store in wallet", func(t *testing.T) {
 		ctx := newMockContext(t)

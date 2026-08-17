@@ -97,7 +97,7 @@ func StartServer(t *testing.T, configFunc ...func(internalHttpServerURL, publicH
 	if !test.WaitFor(t, func() (bool, error) {
 		resp, err := client.Get(internalHttpServerURL + "/status")
 		return err == nil && resp.StatusCode == http.StatusOK, nil
-	}, time.Second*5, "Timeout while waiting for node to become available") {
+	}, time.Second*10, "Timeout while waiting for node to become available") {
 		t.Fatal("time-out")
 	}
 

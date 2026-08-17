@@ -25,7 +25,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -265,7 +265,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:jwk", func(t *testing.T) {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		expectedJWK, err := jwk.FromRaw(privateKey.Public())
+		expectedJWK, err := jwk.Import(privateKey.Public())
 		require.NoError(t, err)
 
 		jwkBytes, _ := json.Marshal(expectedJWK)

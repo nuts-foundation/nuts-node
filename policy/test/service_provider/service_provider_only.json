@@ -1,0 +1,23 @@
+{
+  "service-provider-only-scope": {
+    "service_provider": {
+      "id": "pd_service_provider_only",
+      "input_descriptors": [
+        {
+          "id": "id_sp_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": ["$.type"],
+                "filter": {
+                  "type": "string",
+                  "const": "ServiceProviderCredential"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

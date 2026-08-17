@@ -23,7 +23,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/lestrrat-go/jwx/v3/cert"
 	"github.com/minio/sha256-simd"
 	"github.com/nuts-foundation/go-did/did"
 	testpki "github.com/nuts-foundation/nuts-node/test/pki"
@@ -232,6 +232,26 @@ func TestManager_Resolve(t *testing.T) {
 		_, _, err = didResolver.Resolve(rootDID, &metadata)
 
 		require.EqualError(t, err, "did:x509 certificate must have either digitalSignature or keyAgreement set as key usage bits")
+	})
+	t.Run("leaf certificate without serverAuth EKU resolves (e.g. UZI signing cert)", func(t *testing.T) {
+		// Regression test for #3956: UZI Zorgverlener smartcard signing certificates carry
+		// EKU = {clientAuth, MS DocSigning} and no serverAuth. Chain validation must not
+		// require serverAuth on the leaf.
+		keyUsage := x509.KeyUsageDigitalSignature
+		certs, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", &keyUsage, x509.ExtKeyUsageClientAuth)
+		require.NoError(t, err)
+
+		metadata := resolver.ResolveMetadata{
+			JwtProtectedHeaders: map[string]interface{}{
+				X509CertChainHeader: testpki.CertsToChain(certs),
+			},
+		}
+		rootDID := did.MustParseDID(fmt.Sprintf("did:x509:0:%s:%s", "sha256", sha256Sum(rootCertFromCerts(certs).Raw)))
+		didDocument, _, err := didResolver.Resolve(rootDID, &metadata)
+
+		require.NoError(t, err)
+		assert.Len(t, didDocument.AssertionMethod, 1)
+		assert.Empty(t, didDocument.KeyAgreement)
 	})
 	t.Run("invalid issuer signature of leaf certificate", func(t *testing.T) {
 		craftedCerts, _, err := testpki.BuildCertChain([]string{otherNameValue, otherNameValueSecondary}, "", nil)

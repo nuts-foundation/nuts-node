@@ -20,10 +20,11 @@ package oauth
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIssuerIdToWellKnown(t *testing.T) {
@@ -120,7 +121,7 @@ func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
 			"key_ops": ["verify"],
 			"kid": "key1",
 			"kty": "RSA",
-			"n": "pnXBOusEANuug6ewezb9J_",
+			"n": "wCSGKw5VuZSGYmSL8G6AVHZBNfxrdZArTSdQsDCo33vdneJhaccynjUMrh6BHpDlJIatbQlMkvDNu3bWllBmXtLx4in6z-bGzaE9XIv0Wq2jYwKyx0Jbf4XD9Qn5LMtt9G5Pbcjilemr2I_J1CwS7pfiUMqsiBMmfc0Gdih2sFkjVNrS_4ZPII2JjFGH1Sn-X0kYm8c7XBYZdXRdoTN6ABXgRXfvdbvxfmlddAVyuUoCiaMDv28hSAjznr93QShnxHO4XVefuPIiRhHCPtsppnVWY_hDyLVPLeqA-Xd3CuQCxHRnU6hPmuWHwq_bOcAs7NKrG1ubFSM60RB5jSSepQ",
 			"use": "sig"
 		  }
 		]

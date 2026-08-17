@@ -144,20 +144,26 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "credential_issuer")
+		assert.Contains(t, err.Error(), "https://attacker.example")
 		assert.Contains(t, err.Error(), "does not match")
 	})
 
-	t.Run("error on non-2xx", func(t *testing.T) {
+	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
+	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic beyond the
+	// "openid4vci: " error prefix, so it's enough to confirm the wiring (well-known constant,
+	// httpClient) and that prefix. SSRF checks (HTTPS-only, no IP/reserved hosts) are enforced by
+	// httpclient.StrictHTTPClient, not this client; see http/client.TestStrictHTTPClient.
+	t.Run("all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
 		defer srv.Close()
 
 		client := NewClient(srv.Client())
-		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
+		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL+"/oauth2/alice")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "404")
+		assert.Contains(t, err.Error(), "failed to retrieve metadata")
+		assert.Contains(t, err.Error(), srv.URL+"/oauth2/alice")
 	})
 
 	t.Run("rejects issuer URL with query or fragment per §12.2.1", func(t *testing.T) {
@@ -181,7 +187,7 @@ func TestClient_OpenIDCredentialIssuerMetadata(t *testing.T) {
 		client := NewClient(srv.Client())
 		_, err := client.OpenIDCredentialIssuerMetadata(context.Background(), srv.URL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "decoding issuer metadata")
+		assert.Contains(t, err.Error(), "decoding metadata")
 	})
 }
 
@@ -264,6 +270,37 @@ func TestClient_RequestCredential(t *testing.T) {
 		var oauthErr oauth.OAuth2Error
 		require.True(t, errors.As(err, &oauthErr))
 		assert.Equal(t, oauth.InvalidNonce, oauthErr.Code)
+	})
+
+	t.Run("CredentialRequestParams overrides node-built defaults", func(t *testing.T) {
+		var rawBody map[string]any
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&rawBody))
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(CredentialResponse{
+				Credentials: []CredentialResponseEntry{{Credential: json.RawMessage(`"vc"`)}},
+			})
+		}))
+		defer srv.Close()
+
+		client := NewClient(srv.Client())
+		_, err := client.RequestCredential(context.Background(), RequestCredentialOpts{
+			CredentialEndpoint:        srv.URL,
+			AccessToken:               "t",
+			CredentialConfigurationID: "NodeDefaultConfig",
+			ProofJWT:                  "node-proof",
+			CredentialRequestParams: map[string]any{
+				"bsn":                         "900184590",
+				"ura":                         "900030757",
+				"credential_configuration_id": "caller-supplied-config",
+				"proofs":                      map[string]any{"jwt": []string{"caller-supplied-proof"}},
+			},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "900184590", rawBody["bsn"])
+		assert.Equal(t, "900030757", rawBody["ura"])
+		assert.Equal(t, "caller-supplied-config", rawBody["credential_configuration_id"], "caller value must override node default")
+		assert.Equal(t, map[string]any{"jwt": []any{"caller-supplied-proof"}}, rawBody["proofs"], "caller proofs must override node proof")
 	})
 
 	t.Run("returns generic error on non-2xx with no structured body", func(t *testing.T) {

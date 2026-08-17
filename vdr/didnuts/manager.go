@@ -27,7 +27,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/storage"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -106,7 +106,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	// --------------------
 
 	// generate idString
-	jwKey, err := jwk.FromRaw(pKey)
+	jwKey, err := jwk.Import(pKey)
 	if err != nil {
 		return "", fmt.Errorf("could not generate kid: %w", err)
 	}
@@ -126,7 +126,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	kid := &did.DIDURL{}
 	kid.Method = MethodName
 	kid.ID = idString
-	kid.Fragment = jwKey.KeyID()
+	kid.Fragment, _ = jwKey.KeyID()
 
 	return kid.String(), nil
 }
