@@ -93,6 +93,7 @@ As a general safety precaution ``auth.contractvalidators`` ignores the ``dummy``
 requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` does not return any error details,
 ``auth.accesstokenlifespan`` is always 60 seconds,
 json-ld context can only be downloaded from trusted domains configured in ``jsonld.contexts.remoteallowlist``,
+``http.log=metadata-and-body`` is not allowed and is changed to ``metadata`` at startup (request and response bodies on the OAuth endpoints contain credentials, which must not be written to logs),
 ``http.client.log=metadata-and-body`` is not allowed and is changed to ``metadata`` at startup (request and response bodies on outgoing HTTP calls can contain credentials, which must not be written to logs),
 and the ``internalratelimiter`` is always on.
 

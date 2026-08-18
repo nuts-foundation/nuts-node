@@ -415,8 +415,10 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		engine := New(noop, nil)
 		engine.config = createTestConfig()
 		engine.config.Log = LogMetadataAndBodyLevel
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = false
 
-		err := engine.Configure(*core.NewServerConfig())
+		err := engine.Configure(*serverConfig)
 		require.NoError(t, err)
 		engine.Router().POST("/", func(c echo.Context) error {
 			return c.JSON(200, "hello, world")
@@ -434,6 +436,48 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 			assert.Contains(t, output.String(), "HTTP request body: {}")
 			assert.Contains(t, output.String(), `HTTP response body: \"hello, world\"`)
 		})
+	})
+	t.Run("bodyLogger is disabled in strict mode", func(t *testing.T) {
+		// Configure sets the package-global client strict mode flag; restore it afterwards.
+		oldStrictMode := client.StrictMode
+		t.Cleanup(func() { client.StrictMode = oldStrictMode })
+		warnOutput := new(bytes.Buffer)
+		logrus.StandardLogger().AddHook(&writer.Hook{
+			Writer:    warnOutput,
+			LogLevels: []logrus.Level{logrus.WarnLevel},
+		})
+		engine := New(noop, nil)
+		engine.config = createTestConfig()
+		engine.config.Log = LogMetadataAndBodyLevel
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = true
+
+		err := engine.Configure(*serverConfig)
+		require.NoError(t, err)
+		engine.Router().POST("/", func(c echo.Context) error {
+			return c.JSON(200, "very-secret-response")
+		})
+
+		err = engine.Start()
+		require.NoError(t, err)
+		defer engine.Shutdown()
+
+		assertServerStarted(t, engine.config.Internal.Address)
+
+		output.Reset()
+		response, err := http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader([]byte(`{"assertion": "very-secret-request"}`)))
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, response.StatusCode)
+
+		logs := output.String()
+		// Metadata logging must still work: a request log entry with the response status.
+		assert.Contains(t, logs, `msg="HTTP request"`)
+		assert.Contains(t, logs, "status=200")
+		// Neither the request nor the response body content may reach the log.
+		assert.NotContains(t, logs, "very-secret-request")
+		assert.NotContains(t, logs, "very-secret-response")
+		assert.Equal(t, LogLevel(LogMetadataLevel), engine.config.Log)
+		assert.Contains(t, warnOutput.String(), "Body logging (http.log=metadata-and-body) is not allowed in strictmode, falling back to metadata")
 	})
 }
 
