@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -575,12 +575,17 @@ func TestX509CredentialValidator_Validate(t *testing.T) {
 			x509credential := test.ValidX509Credential(t, func(builder *jwt.Builder) *jwt.Builder {
 				// Build new jwt.Builder without expiration
 				token, _ := builder.Build()
-				vc, _ := token.Get("vc")
+				var vc interface{}
+				_ = token.Get("vc", &vc)
+				nbf, _ := token.NotBefore()
+				sub, _ := token.Subject()
+				iss, _ := token.Issuer()
+				jti, _ := token.JwtID()
 				return jwt.NewBuilder().
-					NotBefore(token.NotBefore()).
-					Subject(token.Subject()).
-					Issuer(token.Issuer()).
-					JwtID(token.JwtID()).
+					NotBefore(nbf).
+					Subject(sub).
+					Issuer(iss).
+					JwtID(jti).
 					Claim("vc", vc)
 			})
 

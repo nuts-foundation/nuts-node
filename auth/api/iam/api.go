@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core/to"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -37,9 +36,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/core/to"
+
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/auth"
@@ -164,7 +165,6 @@ func (r Wrapper) Routes(router core.EchoRouter) {
 			paths := []string{
 				"/oauth2/:subjectID/user",
 				"/oauth2/:subjectID/authorize",
-				"/oauth2/:subjectID/callback",
 			}
 			for _, path := range paths {
 				if c.Path() == path {
@@ -261,11 +261,6 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 		}
 	}
 	// validate request
-	// check did in path
-	err := r.subjectExists(ctx, request.SubjectID)
-	if err != nil {
-		return nil, err
-	}
 	// check if state is present and resolves to a client state
 	if request.Params.State == nil || *request.Params.State == "" {
 		// without state it is an invalid request, but try to provide as much useful information as possible
@@ -277,12 +272,8 @@ func (r Wrapper) Callback(ctx context.Context, request CallbackRequestObject) (C
 		return nil, oauthError(oauth.InvalidRequest, "missing state parameter")
 	}
 	oauthSession := new(OAuthSession)
-	if err = r.oauthClientStateStore().Get(*request.Params.State, oauthSession); err != nil {
+	if err := r.oauthClientStateStore().Get(*request.Params.State, oauthSession); err != nil {
 		return nil, oauthError(oauth.InvalidRequest, "invalid or expired state", err)
-	}
-	if request.SubjectID != *oauthSession.OwnSubject {
-		// TODO: this is a manipulated request, add error logging?
-		return nil, withCallbackURI(oauthError(oauth.InvalidRequest, "session subject does not match request"), oauthSession.redirectURI())
 	}
 
 	// if error is present, redirect error back to application initiating the flow
@@ -411,7 +402,11 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// SHA256 hashing won't fail.
 	var cnf *Cnf
 	if token.DPoP != nil {
-		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto.SHA256)
+		key, ok := token.DPoP.Headers.JWK()
+		if !ok {
+			return nil, errors.New("DPoP header is missing the jwk")
+		}
+		hash, _ := key.Thumbprint(crypto.SHA256)
 		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
 		cnf = &Cnf{Jkt: base64Hash}
 	}
@@ -662,7 +657,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 			}
 		}
 		// create JWK and add to set
-		jwkKey, err := jwk.FromRaw(key)
+		jwkKey, err := jwk.Import(key)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,
@@ -983,6 +978,10 @@ func (r Wrapper) authzRequestObjectStore() storage.SessionStore {
 
 func (r Wrapper) subjectToBaseURL(subject string) url.URL {
 	return *r.auth.PublicURL().JoinPath("oauth2", subject)
+}
+
+func (r Wrapper) callbackURL() *url.URL {
+	return r.auth.PublicURL().JoinPath("oauth2", oauth.CallbackPath)
 }
 
 // subjectExists checks whether the given subject is known on the local node.

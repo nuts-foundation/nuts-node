@@ -23,7 +23,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/lestrrat-go/jwx/v3/cert"
 	"github.com/minio/sha256-simd"
 	"github.com/nuts-foundation/go-did/did"
 	testpki "github.com/nuts-foundation/nuts-node/test/pki"
