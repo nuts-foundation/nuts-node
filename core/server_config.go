@@ -86,6 +86,15 @@ type HTTPConfig struct {
 type HTTPClientConfig struct {
 	// Timeout specifies the timeout for HTTP requests.
 	Timeout time.Duration `koanf:"timeout"`
+	// TLS contains TLS settings for HTTP clients.
+	TLS HTTPClientTLSConfig `koanf:"tls"`
+}
+
+// HTTPClientTLSConfig contains TLS settings for HTTP clients.
+type HTTPClientTLSConfig struct {
+	// ExtraCertsDir specifies a directory with additional CA certificates (*.pem, *.crt) that HTTP clients trust,
+	// on top of the OS CA bundle.
+	ExtraCertsDir string `koanf:"extracertsdir"`
 }
 
 // TLSConfig specifies how TLS should be configured for connections.
@@ -269,6 +278,7 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.StringSlice("didmethods", defaultCfg.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). "+
 		"It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.")
 	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")
+	flagSet.String("httpclient.tls.extracertsdir", defaultCfg.HTTPClient.TLS.ExtraCertsDir, "Directory containing additional CA certificates (*.pem, *.crt) that HTTP clients trust, on top of the OS CA bundle. When set, the directory must exist.")
 	flagSet.String("tls.certfile", defaultCfg.TLS.CertFile, "PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.")
 	flagSet.String("tls.certkeyfile", defaultCfg.TLS.CertKeyFile, "PEM file containing the private key of the gRPC server certificate. Required in strict mode.")
 	flagSet.String("tls.truststorefile", defaultCfg.TLS.TrustStoreFile, "PEM file containing the trusted CA certificates for authenticating remote gRPC servers. Required in strict mode.")

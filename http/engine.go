@@ -109,6 +109,10 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 
 func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
 	client.StrictMode = serverConfig.Strictmode
+	// Extend the HTTP client trust bundle with additional CA certificates, if configured.
+	if err := client.ConfigureTrustBundle(serverConfig.HTTPClient.TLS.ExtraCertsDir); err != nil {
+		return err
+	}
 	if err := client.SetAllowedNonPublicCIDRs(h.config.Client.AllowedInternalCIDRs); err != nil {
 		return err
 	}
