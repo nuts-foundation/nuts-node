@@ -178,7 +178,6 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineNam
 	}
 
 	flagSet.VisitAll(func(current *pflag.Flag) {
-		println(current.Name, engineName)
 		if current.Name == engineName ||
 			strings.HasPrefix(current.Name, engineName+".") {
 			// This flag belongs to this engine, so copy it and hide it in the input flag set
@@ -248,9 +247,10 @@ func generateRstTable(tableName, fileName string, values [][]rstValue) {
 		panic(err)
 	}
 	defer optionsFile.Close()
-	optionsFile.WriteString(fmt.Sprintf(".. table:: %s\n", tableName))
+	optionsFile.WriteString(fmt.Sprintf(".. list-table:: %s\n", tableName))
 	optionsFile.WriteString("    :widths: 20 30 50\n")
-	optionsFile.WriteString("    :class: options-table\n\n")
+	optionsFile.WriteString("    :class: options-table\n")
+	optionsFile.WriteString("    :header-rows: 1\n\n")
 	printRstTable(vals("Key", "Default", "Description"), values, optionsFile)
 	if err := optionsFile.Sync(); err != nil {
 		panic(err)
