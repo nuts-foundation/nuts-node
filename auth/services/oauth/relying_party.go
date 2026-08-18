@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
@@ -47,7 +46,6 @@ type relyingParty struct {
 	keyResolver       resolver.KeyResolver
 	privateKeyStore   nutsCrypto.KeyStore
 	serviceResolver   didman.CompoundServiceResolver
-	strictMode        bool
 	httpClientTimeout time.Duration
 	httpClientTLS     *tls.Config
 	wallet            holder.Wallet
@@ -57,14 +55,13 @@ type relyingParty struct {
 // NewRelyingParty returns an implementation of RelyingParty
 func NewRelyingParty(
 	didResolver resolver.DIDResolver, serviceResolver didman.CompoundServiceResolver, privateKeyStore nutsCrypto.KeyStore,
-	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, strictMode bool, pkiValidator pki.Validator) RelyingParty {
+	wallet holder.Wallet, httpClientTimeout time.Duration, httpClientTLS *tls.Config, pkiValidator pki.Validator) RelyingParty {
 	return &relyingParty{
 		keyResolver:       resolver.DIDKeyResolver{Resolver: didResolver},
 		serviceResolver:   serviceResolver,
 		privateKeyStore:   privateKeyStore,
 		httpClientTimeout: httpClientTimeout,
 		httpClientTLS:     httpClientTLS,
-		strictMode:        strictMode,
 		wallet:            wallet,
 		pkiValidator:      pkiValidator,
 	}
@@ -110,9 +107,7 @@ func (s *relyingParty) CreateJwtGrant(ctx context.Context, request services.Crea
 }
 
 func (s *relyingParty) RequestRFC003AccessToken(ctx context.Context, jwtGrantToken string, authorizationServerEndpoint url.URL) (*oauth.TokenResponse, error) {
-	if s.strictMode && strings.ToLower(authorizationServerEndpoint.Scheme) != "https" {
-		return nil, fmt.Errorf("authorization server endpoint must be HTTPS when in strict mode: %s", authorizationServerEndpoint.String())
-	}
+	// strictHttp.StrictHTTPClient.Do enforces HTTPS (and the rest of the SSRF checks) in strict mode.
 	httpClient := strictHttp.NewWithTLSConfig(s.httpClientTimeout, s.httpClientTLS)
 	authClient, err := client.NewHTTPClient("", s.httpClientTimeout, client.WithHTTPClient(httpClient), client.WithRequestEditorFn(core.UserAgentRequestEditor))
 	if err != nil {
