@@ -108,7 +108,8 @@ func TestVCR_Configure(t *testing.T) {
 		require.NoError(t, err)
 		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
-		assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
+		assert.ErrorContains(t, err, "http request error: invalid target URL")
+		assert.ErrorContains(t, err, "scheme must be https")
 	})
 }
 

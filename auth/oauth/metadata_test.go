@@ -31,8 +31,11 @@ import (
 )
 
 func TestWellKnownCandidates(t *testing.T) {
+	// SSRF checks (HTTPS-only, no IP hosts, no reserved hosts) are not wellKnownCandidates'
+	// concern: httpclient.StrictHTTPClient runs them on every candidate before connecting.
+	// See http/client.TestStrictHTTPClient for that coverage.
 	t.Run("identifier with path returns insert then append", func(t *testing.T) {
-		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id", true, AuthzServerWellKnown)
+		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id", AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"https://nuts.nl/.well-known/oauth-authorization-server/iam/id",
@@ -40,19 +43,19 @@ func TestWellKnownCandidates(t *testing.T) {
 		}, candidates)
 	})
 	t.Run("no path collapses to a single candidate", func(t *testing.T) {
-		candidates, err := wellKnownCandidates("https://nuts.nl", true, AuthzServerWellKnown)
+		candidates, err := wellKnownCandidates("https://nuts.nl", AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
 	})
 	t.Run("trailing-slash-only path collapses to a single candidate", func(t *testing.T) {
-		candidates, err := wellKnownCandidates("https://nuts.nl/", true, AuthzServerWellKnown)
+		candidates, err := wellKnownCandidates("https://nuts.nl/", AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"https://nuts.nl/.well-known/oauth-authorization-server"}, candidates)
 	})
 	t.Run("terminating slash on the path is removed in both candidates", func(t *testing.T) {
 		// RFC 8414 §3.1 / OIDC Discovery §4.1: any terminating "/" MUST be removed
 		// before inserting/appending the well-known segment.
-		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id/", true, AuthzServerWellKnown)
+		candidates, err := wellKnownCandidates("https://nuts.nl/iam/id/", AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"https://nuts.nl/.well-known/oauth-authorization-server/iam/id",
@@ -60,16 +63,16 @@ func TestWellKnownCandidates(t *testing.T) {
 		}, candidates)
 	})
 	t.Run("percent-encoded path is not double-escaped", func(t *testing.T) {
-		candidates, err := wellKnownCandidates("https://nuts.nl/foo%2Fbar", true, OpenIdCredIssuerWellKnown)
+		candidates, err := wellKnownCandidates("https://nuts.nl/foo%2Fbar", OpenIdCredIssuerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"https://nuts.nl/.well-known/openid-credential-issuer/foo%2Fbar",
 			"https://nuts.nl/foo%2Fbar/.well-known/openid-credential-issuer",
 		}, candidates)
 	})
-	t.Run("invalid identifier returns the SSRF/parse error", func(t *testing.T) {
-		candidates, err := wellKnownCandidates("http://nuts.nl/iam/id", true, AuthzServerWellKnown)
-		assert.ErrorContains(t, err, "scheme must be https")
+	t.Run("invalid identifier returns the parse error", func(t *testing.T) {
+		candidates, err := wellKnownCandidates("http:// /iam/id", AuthzServerWellKnown)
+		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 		assert.Nil(t, candidates)
 	})
 }
@@ -104,7 +107,7 @@ func TestFetchMetadata(t *testing.T) {
 	t.Run("ok - insert form, root identifier, single request", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusNotFound, "", "/.well-known/oauth-authorization-server")
 
-		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL, false)
+		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL)
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -114,7 +117,7 @@ func TestFetchMetadata(t *testing.T) {
 	t.Run("ok - append form when insert 404s", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/oauth-authorization-server")
 
-		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123")
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -140,7 +143,7 @@ func TestFetchMetadata(t *testing.T) {
 		t.Cleanup(srv.Close)
 		issuer = srv.URL + "/iam/123"
 
-		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer, false)
+		metadata, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer)
 
 		require.NoError(t, err)
 		require.NotNil(t, metadata)
@@ -160,7 +163,7 @@ func TestFetchMetadata(t *testing.T) {
 		t.Cleanup(srv.Close)
 		issuer = srv.URL + "/oauth"
 
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer, false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), issuer)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "does not match requested identifier")
@@ -168,7 +171,7 @@ func TestFetchMetadata(t *testing.T) {
 	t.Run("error - all candidates 404 names the identifier and the tried locations", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusNotFound, "/iam/123")
 
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123")
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to retrieve metadata")
@@ -183,7 +186,7 @@ func TestFetchMetadata(t *testing.T) {
 	t.Run("error - a candidate's core.HttpError stays recoverable through the join", func(t *testing.T) {
 		srv, requested := metadataServer(t, http.StatusInternalServerError, "/iam/123")
 
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123")
 
 		require.Error(t, err)
 		var httpErr core.HttpError
@@ -208,7 +211,7 @@ func TestFetchMetadata(t *testing.T) {
 		}))
 		t.Cleanup(srv.Close)
 
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123", false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL+"/iam/123")
 
 		require.Error(t, err)
 		assert.NotErrorIs(t, err, ErrAllCandidates4xx)
@@ -220,15 +223,15 @@ func TestFetchMetadata(t *testing.T) {
 		}))
 		t.Cleanup(srv.Close)
 
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL, false)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, srv.Client(), srv.URL)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "decoding metadata")
 	})
 	t.Run("error - invalid identifier is rejected before any request", func(t *testing.T) {
-		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, http.DefaultClient, "http://nuts.nl/iam/id", true)
+		_, err := FetchMetadata[AuthorizationServerMetadata](ctx, http.DefaultClient, "http:// /iam/id")
 
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "scheme must be https")
+		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 	})
 }

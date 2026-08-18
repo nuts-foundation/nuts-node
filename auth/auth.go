@@ -67,7 +67,6 @@ type Auth struct {
 	shutdownFunc      func()
 	vdrInstance       vdr.VDR
 	publicURL         *url.URL
-	strictMode        bool
 	httpClientTimeout time.Duration
 	tlsConfig         *tls.Config
 	subjectManager    didsubject.Manager
@@ -139,7 +138,6 @@ func (auth *Auth) IAMClient() iam.Client {
 		JWTSigner:                   auth.keyStore,
 		LDDocumentLoader:            auth.jsonldManager.DocumentLoader(),
 		PolicyBackend:               auth.policyBackend,
-		StrictMode:                  auth.strictMode,
 		HTTPClientTimeout:           auth.httpClientTimeout,
 		ExperimentalJwtBearerClient: auth.config.Experimental.JwtBearerClient,
 	})
@@ -194,13 +192,13 @@ func (auth *Auth) Configure(config core.ServerConfig) error {
 		// auth.http.config got deprecated in favor of httpclient.timeout
 		auth.httpClientTimeout = config.HTTPClient.Timeout
 	}
-	auth.openID4VCIClient = openid4vci.NewClient(httpclient.NewWithCache(auth.httpClientTimeout), auth.strictMode)
+	auth.openID4VCIClient = openid4vci.NewClient(httpclient.NewWithCache(auth.httpClientTimeout))
 	// V1 API related stuff
 	accessTokenLifeSpan := time.Duration(auth.config.AccessTokenLifeSpan) * time.Second
 	auth.authzServer = oauth.NewAuthorizationServer(auth.vdrInstance.Resolver(), auth.vcr, auth.vcr.Verifier(), auth.serviceResolver,
 		auth.keyStore, auth.contractNotary, auth.jsonldManager, accessTokenLifeSpan)
 	auth.relyingParty = oauth.NewRelyingParty(auth.vdrInstance.Resolver(), auth.serviceResolver,
-		auth.keyStore, auth.vcr.Wallet(), auth.httpClientTimeout, auth.tlsConfig, config.Strictmode, auth.pkiProvider)
+		auth.keyStore, auth.vcr.Wallet(), auth.httpClientTimeout, auth.tlsConfig, auth.pkiProvider)
 
 	if err := auth.authzServer.Configure(auth.config.ClockSkew, config.Strictmode); err != nil {
 		return err
