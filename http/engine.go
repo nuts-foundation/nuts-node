@@ -102,6 +102,13 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
+	if serverConfig.Strictmode && h.config.Log == LogMetadataAndBodyLevel {
+		// Request/response bodies contain credentials: the OAuth token endpoint's client_assertion,
+		// VP tokens, authorization codes and issued access tokens.
+		log.Logger().Warn("Body logging (http.log=metadata-and-body) is not allowed in strictmode, falling back to metadata")
+		h.config.Log = LogMetadataLevel
+	}
+
 	h.applyTracingMiddleware(h.server)
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)

@@ -62,6 +62,29 @@ func Test_ParsePublicURL(t *testing.T) {
 	})
 }
 
+func Test_ParsePublicURLAllowIP(t *testing.T) {
+	t.Run("ok - strict - IP address allowed", func(t *testing.T) {
+		u, err := ParsePublicURLAllowIP("https://127.0.0.1", true)
+		require.NoError(t, err)
+		assert.Equal(t, "https://127.0.0.1", u.String())
+	})
+	t.Run("error - strict - scheme must be https", func(t *testing.T) {
+		u, err := ParsePublicURLAllowIP("http://127.0.0.1", true)
+		assert.Nil(t, u)
+		assert.EqualError(t, err, "scheme must be https")
+	})
+	t.Run("error - strict - reserved address still rejected", func(t *testing.T) {
+		u, err := ParsePublicURLAllowIP("https://localhost", true)
+		assert.Nil(t, u)
+		assert.EqualError(t, err, "hostname is RFC2606 reserved")
+	})
+	t.Run("ok - non-strict", func(t *testing.T) {
+		u, err := ParsePublicURLAllowIP("http://localhost", false)
+		require.NoError(t, err)
+		assert.Equal(t, "http://localhost", u.String())
+	})
+}
+
 func Test_ParsePublicURLWithScheme(t *testing.T) {
 	errIncompleteURL := errors.New("url must contain scheme and host")
 	errIsIpAddress := errors.New("hostname is IP")
