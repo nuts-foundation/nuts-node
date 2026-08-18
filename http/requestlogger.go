@@ -22,8 +22,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/sirupsen/logrus"
-	"mime"
 )
 
 // requestLoggerMiddleware returns middleware that logs metadata of HTTP requests.
@@ -65,30 +65,15 @@ func bodyLoggerMiddleware(skipper middleware.Skipper, logger *logrus.Entry) echo
 	return middleware.BodyDumpWithConfig(middleware.BodyDumpConfig{
 		Handler: func(e echo.Context, request []byte, response []byte) {
 			requestContentType := e.Request().Header.Get("Content-Type")
-			if isLoggableContentType(requestContentType) {
+			if log.IsLoggableContentType(requestContentType) {
 				logger.Infof("HTTP request body: %s", string(request))
 			}
 
 			responseContentType := e.Response().Header().Get("Content-Type")
-			if isLoggableContentType(responseContentType) {
+			if log.IsLoggableContentType(responseContentType) {
 				logger.Infof("HTTP response body: %s", string(response))
 			}
 		},
 		Skipper: skipper,
 	})
-}
-
-func isLoggableContentType(contentType string) bool {
-	mediaType, _, _ := mime.ParseMediaType(contentType)
-	switch mediaType {
-	case "application/json":
-		fallthrough
-	case "application/did+json":
-		fallthrough
-	case "application/vc+json":
-		fallthrough
-	case "application/x-www-form-urlencoded":
-		return true
-	}
-	return false
 }

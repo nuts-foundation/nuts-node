@@ -94,12 +94,7 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
-	if serverConfig.Strictmode && h.config.Log == LogMetadataAndBodyLevel {
-		// Request/response bodies contain credentials: the OAuth token endpoint's client_assertion,
-		// VP tokens, authorization codes and issued access tokens.
-		log.Logger().Warn("Body logging (http.log=metadata-and-body) is not allowed in strictmode, falling back to metadata")
-		h.config.Log = LogMetadataLevel
-	}
+	h.config.Log = enforceNoBodyLoggingInStrictmode(serverConfig.Strictmode, "http.log", h.config.Log)
 
 	h.applyTracingMiddleware(h.server)
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
@@ -115,11 +110,33 @@ func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
 	if err := client.SetDeniedCIDRs(h.config.Client.DeniedCIDRs); err != nil {
 		return err
 	}
+	h.config.Client.Log = enforceNoBodyLoggingInStrictmode(serverConfig.Strictmode, "http.client.log", h.config.Client.Log)
+	// Configure logging of outgoing HTTP requests/responses.
+	switch h.config.Client.Log {
+	case LogMetadataLevel:
+		client.LogRequests = true
+	case LogMetadataAndBodyLevel:
+		client.LogRequests = true
+		client.LogRequestBodies = true
+	}
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)
 	}
 	return nil
+}
+
+// enforceNoBodyLoggingInStrictmode downgrades level from metadata-and-body to metadata in strict
+// mode, with a warning. Request/response bodies on the OAuth endpoints (both incoming, e.g.
+// http.log, and outgoing, e.g. http.client.log) carry credentials: client_assertion, VP tokens,
+// authorization codes and issued access tokens. Those are exactly the loggable content types, so
+// full body logging must not be possible on a strictmode node.
+func enforceNoBodyLoggingInStrictmode(strictmode bool, flagName string, level LogLevel) LogLevel {
+	if strictmode && level == LogMetadataAndBodyLevel {
+		log.Logger().Warnf("Body logging (%s=metadata-and-body) is not allowed in strictmode, falling back to metadata", flagName)
+		return LogMetadataLevel
+	}
+	return level
 }
 
 func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
