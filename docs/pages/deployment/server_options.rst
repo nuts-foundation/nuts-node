@@ -95,7 +95,7 @@
       - Case-sensitive HTTP Header that contains the client IP used for audit logs. For the X-Forwarded-For header only link-local, loopback, and private IPs are excluded. Switch to X-Real-IP or a custom header if you see your own proxy/infra in the logs.
     * - http.log
       - metadata
-      - What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). In strictmode, 'metadata-and-body' is not allowed and is changed to 'metadata' at startup. When debug vebosity is set the authorization headers are also logged when the request is fully logged.
+      - What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). In strictmode, 'metadata-and-body' is not allowed and is changed to 'metadata' at startup.
     * - http.cache.maxbytes
       - 10485760
       - HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.
