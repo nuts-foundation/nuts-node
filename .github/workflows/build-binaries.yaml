@@ -10,34 +10,48 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# deny-all default; each job below grants only the scopes it needs
+permissions: {}
+
 jobs:
   binaries:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       matrix:
         arch: [ 'amd64', 'arm64' ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Set version params
         id: version
         shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           echo "git_commit=$(echo ${GITHUB_SHA})" >> $GITHUB_OUTPUT
           echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
-          echo "git_version=${{github.event.release.tag_name}}" >> $GITHUB_OUTPUT
+          echo "git_version=${RELEASE_TAG}" >> $GITHUB_OUTPUT
 
       - name: Print version params
+        env:
+          GIT_COMMIT: ${{ steps.version.outputs.git_commit }}
+          GIT_BRANCH: ${{ steps.version.outputs.git_branch }}
+          GIT_VERSION: ${{ steps.version.outputs.git_version }}
         run: |
-          echo "Commit: ${{ steps.version.outputs.git_commit }}"
-          echo "Branch: ${{ steps.version.outputs.git_branch }}"
-          echo "Version: ${{ steps.version.outputs.git_version }}"
+          echo "Commit: ${GIT_COMMIT}"
+          echo "Branch: ${GIT_BRANCH}"
+          echo "Version: ${GIT_VERSION}"
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: 'go.mod'
+          cache: false
 
       - name: Build
         run: |
@@ -45,6 +59,8 @@ jobs:
       - name:  Upload binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          gh release upload ${{ github.event.release.tag_name }} nuts-linux-${{ matrix.arch }}
-          
+          gh release upload "${RELEASE_TAG}" "nuts-linux-${ARCH}"
+
