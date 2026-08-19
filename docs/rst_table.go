@@ -24,58 +24,35 @@ import (
 	"strings"
 )
 
+// printRstTable renders the rows as the content of a list-table directive.
+// Each row is a self-contained block, so adding or changing a row never reformats
+// the other rows (unlike a simple table, where every cell is padded to the widest
+// value in its column and a single long value rewrites the entire table).
 func printRstTable(header []rstValue, values [][]rstValue, writer io.StringWriter) {
-	columnLengths := make([]int, len(header))
-	rows := make([][]rstValue, len(values)+1)
-	rows[0] = header
-	for i, row := range values {
-		rows[i+1] = row
+	printRow(header, len(header), writer)
+	for _, row := range values {
+		printRow(row, len(header), writer)
 	}
-	for _, row := range rows {
-		for i := 0; i < len(row); i++ {
-			columnLengths[i] = intMax(columnLengths[i], len(row[i].value))
-		}
-	}
-	dividers := []rstValue{
-		{value: strings.Repeat("=", columnLengths[0])},
-		{value: strings.Repeat("=", columnLengths[1])},
-		{value: strings.Repeat("=", columnLengths[2])},
-	}
-	printRow(dividers, columnLengths, writer)
-	printRow(rows[0], columnLengths, writer)
-	printRow(dividers, columnLengths, writer)
-	for i, row := range rows {
-		if i == 0 {
-			// Skip headers
-			continue
-		}
-		printRow(row, columnLengths, writer)
-	}
-	printRow(dividers, columnLengths, writer)
 }
 
-func printRow(values []rstValue, columnLengths []int, writer io.StringWriter) {
-	first := true
-	for i := 0; i < len(columnLengths); i++ {
-		if !first {
-			writer.WriteString("  ")
+func printRow(values []rstValue, columns int, writer io.StringWriter) {
+	for i := 0; i < columns; i++ {
+		prefix := "    * - "
+		if i > 0 {
+			prefix = "      - "
 		}
 		cell := rstValue{}
 		// Account for a row with less values than columns in the table
 		if i < len(values) {
 			cell = values[i]
 		}
-		writer.WriteString("    " + cell.render() + strings.Repeat(" ", columnLengths[i]-len(cell.value)))
-		first = false
+		rendered := cell.render()
+		if rendered == "" {
+			// Avoid trailing whitespace on empty cells
+			prefix = strings.TrimRight(prefix, " ")
+		}
+		writer.WriteString(prefix + rendered + "\n")
 	}
-	writer.WriteString("\n")
-}
-
-func intMax(a int, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 type rstValue struct {

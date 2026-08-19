@@ -103,6 +103,12 @@ cli-docs:
 	go run ./docs docs
 	rst_include include README_template.rst README.rst
 
+# Builds the Sphinx documentation in a container, so no Python/Sphinx tooling
+# is needed on the host. Output lands in docs/_build/html.
+docs-docker:
+	docker build -t nuts-node-docs docs/
+	docker run --rm -v ${DIR}/docs:/docs nuts-node-docs
+
 all-docs: cli-docs gen-diagrams
 
 fix-copyright:

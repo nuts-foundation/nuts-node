@@ -190,7 +190,8 @@ urlencode() {
 }
 
 # assertJaegerTrace verifies a trace exists with expected services and span patterns
-# Fetches trace once and validates all expectations
+# Retries while expectations are not met: each node exports spans in batches on its
+# own schedule, so a trace may be visible in Jaeger before all services reported.
 # Args: Jaeger URL, trace ID, expected services (space-separated), span patterns (space-separated)
 function assertJaegerTrace() {
   local jaeger_url=$1
@@ -198,12 +199,17 @@ function assertJaegerTrace() {
   local expected_services=$3
   local expected_patterns=$4
 
-  for attempt in {1..5}; do
+  local failure=""
+  for attempt in {1..10}; do
+    if [ "$attempt" -gt 1 ]; then
+      sleep 1
+    fi
+
     local response=$(curl -s -m 10 "$jaeger_url/api/traces/$trace_id")
     local trace_count=$(echo "$response" | jq '.data | length')
 
     if [ "$trace_count" -eq 0 ]; then
-      sleep 1
+      failure="FAILED: Trace '$trace_id' not found"
       continue
     fi
 
@@ -211,12 +217,16 @@ function assertJaegerTrace() {
     local span_names=$(echo "$response" | jq -r '.data[0].spans[].operationName')
 
     # Check each expected service is present
+    local missing_services=""
     for svc in $expected_services; do
       if ! echo "$actual_services" | grep -q "$svc"; then
-        echo "FAILED: Trace '$trace_id' missing service '$svc' (found: $actual_services)" 1>&2
-        return 1
+        missing_services="$missing_services $svc"
       fi
     done
+    if [ -n "$missing_services" ]; then
+      failure="FAILED: Trace '$trace_id' missing service(s):$missing_services (found: $actual_services)"
+      continue
+    fi
 
     # Check each expected span pattern is present
     local missing=""
@@ -226,9 +236,8 @@ function assertJaegerTrace() {
       fi
     done
     if [ -n "$missing" ]; then
-      echo "FAILED: Trace '$trace_id' missing spans:$missing" 1>&2
-      echo "Available: $(echo "$span_names" | sort -u | tr '\n' ', ')" 1>&2
-      return 1
+      failure="FAILED: Trace '$trace_id' missing spans:$missing (available: $(echo "$span_names" | sort -u | tr '\n' ','))"
+      continue
     fi
 
     local span_count=$(echo "$response" | jq '.data[0].spans | length')
@@ -236,6 +245,6 @@ function assertJaegerTrace() {
     return 0
   done
 
-  echo "FAILED: Trace '$trace_id' not found after 5 attempts" 1>&2
+  echo "$failure after 10 attempts" 1>&2
   return 1
 }

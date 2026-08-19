@@ -20,8 +20,35 @@ package main
 
 import (
 	"sort"
+	"strings"
 	"testing"
 )
+
+func TestPrintRstTable(t *testing.T) {
+	var buf strings.Builder
+	printRstTable(vals("Key", "Default", "Description"), [][]rstValue{
+		{{value: "HTTP", bold: true}},
+		vals("http.public.address", ":8080", "Public address"),
+		vals("cpuprofile", "", "CPU profile path"),
+	}, &buf)
+
+	expected := `    * - Key
+      - Default
+      - Description
+    * - **HTTP**
+      -
+      -
+    * - http.public.address
+      - \:8080
+      - Public address
+    * - cpuprofile
+      -
+      - CPU profile path
+`
+	if buf.String() != expected {
+		t.Errorf("unexpected list-table output:\ngot:\n%s\nwant:\n%s", buf.String(), expected)
+	}
+}
 
 func TestKeyList(t *testing.T) {
 	got := KeyList{
