@@ -34,6 +34,7 @@ Nuts documentation
     pages/deployment/clustering.rst
     pages/deployment/certificates.rst
     pages/deployment/docker.rst
+    pages/deployment/verifying-images.rst
     pages/deployment/storage.rst
     pages/deployment/verifiable-credentials.rst
     pages/deployment/logging.rst

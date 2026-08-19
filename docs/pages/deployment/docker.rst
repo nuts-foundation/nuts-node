@@ -6,6 +6,8 @@ Running on Docker
 This guide helps you to configure the Nuts node in Docker.
 To use the most recent release use ``nutsfoundation/nuts-node:latest``. For production environments it's advised to use a specific version.
 
+Published images are signed. See :ref:`verifying-images` to check that an image was built from the published source code.
+
 Examples
 ********
 
