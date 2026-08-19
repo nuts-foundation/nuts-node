@@ -37,6 +37,9 @@ type AuthenticationServices interface {
 	IAMClient() iam.Client
 	// OpenID4VCIClient returns the OpenID4VCI 1.0 HTTP client.
 	OpenID4VCIClient() openid4vci.Client
+	// OAuthClientCredentials returns the configured OAuth client credentials for the given Authorization Server
+	// issuer, if an entry was configured under auth.experimental.clients. EXPERIMENTAL.
+	OAuthClientCredentials(authServerIssuer string) (*OAuthClientConfig, bool)
 	// RelyingParty returns the oauth.RelyingParty
 	RelyingParty() oauth.RelyingParty
 	// ContractNotary returns an instance of ContractNotary
