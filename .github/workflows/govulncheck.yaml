@@ -16,7 +16,33 @@ on:
       - 'V*'
 
 jobs:
+  # Docs-only changes (docs/, markdown, rst) can't affect Go code, so govulncheck has nothing new
+  # to find. Detected once here so the job below can skip entirely on them.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check for non-doc changes
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!**/*.rst'
+
   govulncheck_job:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     name: Run govulncheck
     steps:
