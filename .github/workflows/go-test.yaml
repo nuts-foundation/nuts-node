@@ -8,11 +8,15 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # Docs-only changes (docs/, markdown, rst) can't affect Go tests. Detected once here so the
+  # (required) test job below can skip entirely on them: that keeps the check fast and avoids
+  # spending CI minutes (and hitting flaky tests) on changes that can't have broken anything it
+  # tests. A job skipped via `if:` reports as a passing check, so this still satisfies the
+  # required status check, unlike skipping the workflow itself via a trigger-level path filter.
+  changes:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -20,9 +24,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # Docs-only changes (docs/, markdown, rst) can't affect Go tests. Skipping them keeps this
-      # required check fast and avoids spending CI minutes (and hitting flaky tests) on changes
-      # that can't have broken anything it tests.
       - name: Check for non-doc changes
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -35,24 +36,34 @@ jobs:
               - '!**/*.md'
               - '!**/*.rst'
 
+  test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - name: Set up Go
-        if: steps.filter.outputs.code == 'true'
         uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
 
       - name: Test
-        if: steps.filter.outputs.code == 'true'
         run: go test ./... -race -coverprofile=c_raw.out
 
       - name: Filter coverage
-        if: steps.filter.outputs.code == 'true'
         run: grep -v generated c_raw.out | grep -v mock | grep -v test > c.out
 
       - name: Upload coverage to Qlty
         # Skip on PRs from forks: GitHub does not grant id-token: write to
         # cross-repository workflow runs, so the OIDC upload cannot authenticate.
-        if: steps.filter.outputs.code == 'true' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         uses: qltysh/qlty-action/coverage@08a0a862c159eae9b9003081da6663d96efef637 # v2.3.0
         with:
           oidc: true

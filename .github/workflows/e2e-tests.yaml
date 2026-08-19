@@ -14,21 +14,22 @@ on:
 
 
 jobs:
-  e2e-test:
-    if: ${{ github.event.pull_request.merged || github.event.pull_request.head.repo.full_name == github.repository }}
-    permissions:
-      packages: write
-
+  # Docs-only changes (docs/, markdown, rst) can't affect the e2e tests. Detected once here so the
+  # (required) e2e-test job below can skip entirely on them: that keeps the check fast and avoids
+  # the cost of building/pushing images and running the full e2e suite for changes that can't have
+  # broken anything it tests. A job skipped via `if:` reports as a passing check, so this still
+  # satisfies the required status check, unlike skipping the workflow itself via a trigger-level
+  # path filter.
+  changes:
     runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      # Docs-only changes (docs/, markdown, rst) can't affect the e2e tests. Skipping them keeps
-      # this required check fast and avoids the cost of building/pushing images and running the
-      # full e2e suite for changes that can't have broken anything it tests.
       - name: Check for non-doc changes
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
@@ -41,23 +42,30 @@ jobs:
               - '!**/*.md'
               - '!**/*.rst'
 
+  e2e-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' && (github.event.pull_request.merged || github.event.pull_request.head.repo.full_name == github.repository) }}
+    permissions:
+      packages: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
       - name: Set up Go
-        if: steps.filter.outputs.code == 'true'
         uses: actions/setup-go@v6
         with:
           # use go version from go.mod.
           go-version-file: 'go.mod'
 
       - name: Set up QEMU
-        if: steps.filter.outputs.code == 'true'
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        if: steps.filter.outputs.code == 'true'
         uses: docker/setup-buildx-action@v4
 
       - name: Login to ghcr.io
-        if: steps.filter.outputs.code == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -65,16 +73,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setting git SHA to PR head
-        if: ${{ steps.filter.outputs.code == 'true' && github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }}
         run: echo "SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
 
       - name: Setting git SHA to branch head
-        if: ${{ steps.filter.outputs.code == 'true' && github.event_name != 'pull_request' }}
+        if: ${{ github.event_name != 'pull_request' }}
         run: echo "SHA=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v7
-        if: ${{ steps.filter.outputs.code == 'true' && github.actor != 'dependabot' }}
+        if: ${{ github.actor != 'dependabot' }}
         with:
           context: .
           file: Dockerfile
@@ -88,7 +96,7 @@ jobs:
 
       - name: Build and push dependabot
         uses: docker/build-push-action@v7
-        if: ${{ steps.filter.outputs.code == 'true' && github.actor == 'dependabot' }}
+        if: ${{ github.actor == 'dependabot' }}
         with:
           context: .
           file: Dockerfile
@@ -99,7 +107,6 @@ jobs:
           cache-to: type=gha,scope=e2e,mode=max
 
       - name: Run E2E tests
-        if: steps.filter.outputs.code == 'true'
         run: |
             cd e2e-tests && \
             find . -type f -name "docker-compose*.yml" | xargs -I{} sed -i 's~nutsfoundation/nuts-node:master~ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}~g' {} && \
@@ -109,7 +116,7 @@ jobs:
       - name: package cleanup
         uses: dataaxiom/ghcr-cleanup-action@v1
         continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ steps.filter.outputs.code == 'true' && github.actor != 'dependabot' }}
+        if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
           package: nuts-node-ci
@@ -120,7 +127,7 @@ jobs:
       - name: package cleanup dependabot
         uses: dataaxiom/ghcr-cleanup-action@v1
         continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ steps.filter.outputs.code == 'true' && github.actor == 'dependabot' }}
+        if: ${{ github.actor == 'dependabot' }}
         with:
           owner: nuts-foundation
           package: nuts-node-ci
