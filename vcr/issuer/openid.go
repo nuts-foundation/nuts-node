@@ -193,7 +193,7 @@ func (i *openidHandler) OfferCredential(ctx context.Context, credential vc.Verif
 	preAuthorizedCode := crypto.GenerateNonce()
 	walletMetadataURL := core.JoinURLPaths(walletIdentifier, openid4vci.WalletMetadataWellKnownPath)
 	log.Logger().
-		WithField(core.LogFieldCredentialID, credential.ID).
+		WithField(core.LogFieldCredentialID, core.SafeStringer(credential.ID)).
 		Infof("Offering credential using OpenID4VCI (client-metadata-url=%s)", walletMetadataURL)
 
 	client, err := i.walletClientCreator(ctx, i.httpClient, walletMetadataURL)
@@ -269,7 +269,7 @@ func (i *openidHandler) HandleCredentialRequest(ctx context.Context, request ope
 	//            This is a temporary shortcut, since changing that requires a lot of refactoring.
 	//            To make actually retrieved VC traceable, we log it to the audit log.
 	audit.Log(ctx, log.Logger(), audit.VerifiableCredentialRetrievedEvent).
-		WithField(core.LogFieldCredentialID, credential.ID).
+		WithField(core.LogFieldCredentialID, core.SafeStringer(credential.ID)).
 		WithField(core.LogFieldCredentialIssuer, credential.Issuer.String()).
 		WithField(core.LogFieldCredentialSubject, subjectDID).
 		Info("VC retrieved by wallet over OpenID4VCI")

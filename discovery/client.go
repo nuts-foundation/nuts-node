@@ -29,6 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/discovery/log"
@@ -461,7 +462,7 @@ func (u *clientUpdater) updateService(ctx context.Context, service ServiceDefini
 
 		log.Logger().
 			WithField("discoveryService", service.ID).
-			WithField("presentationID", presentation.ID).
+			WithField("presentationID", core.SafeStringer(presentation.ID)).
 			Trace("Loaded new Verifiable Presentation from Discovery Service")
 	}
 	return nil

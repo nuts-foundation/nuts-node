@@ -94,7 +94,7 @@ func (c *vcr) Search(ctx context.Context, searchTerms []SearchTerm, allowUntrust
 		} else {
 			log.Logger().
 				WithError(err).
-				WithField(core.LogFieldCredentialID, foundCredential.ID).
+				WithField(core.LogFieldCredentialID, core.SafeStringer(foundCredential.ID)).
 				Trace("Encountered invalid VC, omitting from search results.")
 			verifyErrors[err.Error()]++
 		}

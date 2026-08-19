@@ -18,6 +18,10 @@
 
 package core
 
+import (
+	"fmt"
+)
+
 const (
 	// LogFieldModule is the log field for the module name.
 	LogFieldModule = "module"
@@ -94,3 +98,20 @@ const (
 	// LogFieldWalletDID is the log field of the DID of a wallet.
 	LogFieldWalletDID = "walletDID"
 )
+
+// SafeStringer guards against calling String() on a nil pointer when logging an optional field via
+// WithField: logrus (as of v1.10.0) calls Stringer.String() directly with no panic recovery, and
+// pointer types such as *ssi.URI implement String() with a value receiver, so passing a nil one
+// panics on dereference. SafeStringer returns nil for a nil v (which logs as "<nil>") instead of
+// crashing, and v unchanged otherwise. T must be comparable (true for any pointer type) so a nil
+// check needs no reflection.
+func SafeStringer[T interface {
+	comparable
+	fmt.Stringer
+}](v T) any {
+	var zero T
+	if v == zero {
+		return nil
+	}
+	return v
+}

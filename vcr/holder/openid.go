@@ -170,7 +170,7 @@ func (h *openidHandler) HandleCredentialOffer(ctx context.Context, offer openid4
 		}
 	}
 	log.Logger().
-		WithField("credentialID", credential.ID).
+		WithField(core.LogFieldCredentialID, core.SafeStringer(credential.ID)).
 		Infof("Received VC over OpenID4VCI")
 	err = h.credentialStore.StoreCredential(*credential, nil)
 	if err != nil {

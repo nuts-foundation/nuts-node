@@ -473,7 +473,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 			// Log it on debug, because it might be useful for finding VCs that need to be revoked (since they're invalid).
 			log.Logger().
 				WithError(err).
-				WithField(core.LogFieldCredentialID, organization.ID).
+				WithField(core.LogFieldCredentialID, core.SafeStringer(organization.ID)).
 				WithField(core.LogFieldDID, organizationDID.String()).
 				Debug("Unable to resolve organization DID document (invalid VC?)")
 			continue
@@ -482,7 +482,7 @@ func (d *didman) resolveOrganizationDIDDocuments(organizations []vc.VerifiableCr
 			// Some other error occurred, log a warning and omit this entry from the search.
 			log.Logger().
 				WithError(err).
-				WithField(core.LogFieldCredentialID, organization.ID).
+				WithField(core.LogFieldCredentialID, core.SafeStringer(organization.ID)).
 				WithField(core.LogFieldDID, organizationDID.String()).
 				Warn("Unable to parse organization VC and/or subject DID document")
 			continue
