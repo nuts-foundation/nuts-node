@@ -7,6 +7,9 @@ on:
       - 'V*'
   pull_request:
 
+# deny-all default; each job below grants only the scopes it needs
+permissions: {}
+
 jobs:
   # Docs-only changes (docs/, markdown, rst) can't affect Go tests. Detected once here so the
   # (required) test job below can skip entirely on them: that keeps the check fast and avoids
@@ -15,11 +18,13 @@ jobs:
   # required status check, unlike skipping the workflow itself via a trigger-level path filter.
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -45,12 +50,12 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: 'go.mod'
 
