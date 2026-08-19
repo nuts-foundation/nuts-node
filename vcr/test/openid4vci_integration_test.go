@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"github.com/nuts-foundation/nuts-node/core"
 	httpModule "github.com/nuts-foundation/nuts-node/http"
+	httpclient "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/stretchr/testify/assert"
@@ -88,6 +89,10 @@ func TestOpenID4VCIConnectionReuse(t *testing.T) {
 	// so we expect max maxConnsPerHost*2*2 connections in total.
 	const maxExpectedConnCount = maxConnsPerHost * 2 * 2
 	http.DefaultTransport.(*http.Transport).MaxConnsPerHost = maxConnsPerHost
+	// The OpenID4VCI issuer/wallet clients clone their transport from client.SafeHttpTransport
+	// (which carries the strict-mode SSRF dial guard). It was cloned from http.DefaultTransport
+	// at package init, so the line above does not reach it; set the limit there as well.
+	httpclient.SafeHttpTransport.MaxConnsPerHost = maxConnsPerHost
 
 	ctx := audit.TestContext()
 	baseURL, system := node.StartServer(t)

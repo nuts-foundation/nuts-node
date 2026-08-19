@@ -141,6 +141,21 @@ func newEmptyTokenGenerator() AuthorizationTokenGenerator {
 
 // NewStrictHTTPClient creates a HTTPRequestDoer that only allows HTTPS calls when strictmode is enabled.
 func NewStrictHTTPClient(strictmode bool, client *http.Client) HTTPRequestDoer {
+	if strictmode && client.CheckRedirect == nil {
+		// The HTTPS check in Do only guards the first hop, so without this a valid remote
+		// host could redirect the client onto a plaintext internal endpoint. Setting
+		// CheckRedirect replaces the standard library's default policy, so the 10-redirect
+		// cap is reimplemented here.
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			if req.URL.Scheme != "https" {
+				return errors.New("strictmode is enabled, but redirect target is not over HTTPS")
+			}
+			return nil
+		}
+	}
 	return &strictHTTPClient{
 		client:     client,
 		strictmode: strictmode,

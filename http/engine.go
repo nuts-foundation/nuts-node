@@ -37,6 +37,7 @@ import (
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/http/log"
 	"github.com/nuts-foundation/nuts-node/http/tokenV2"
 )
@@ -63,6 +64,18 @@ type Engine struct {
 	config             Config
 }
 
+// configureClient configures the outbound HTTP client settings (SSRF dial guard).
+func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
+	client.StrictMode = serverConfig.Strictmode
+	if err := client.SetAllowedNonPublicCIDRs(h.config.Client.AllowedInternalCIDRs); err != nil {
+		return err
+	}
+	if err := client.SetDeniedCIDRs(h.config.Client.DeniedCIDRs); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Router returns the router of the HTTP engine, which can be used by other engines to register HTTP handlers.
 func (h Engine) Router() core.EchoRouter {
 	return h.server
@@ -70,6 +83,10 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
+	if err := h.configureClient(serverConfig); err != nil {
+		return err
+	}
+
 	// Override default Echo HTTP error when bearer token is expected but not provided.
 	// Echo returns "Bad Request (400)" by default, but we use this for incorrect use of API parameters.
 	// "Unauthorized (401)" is a better fit.

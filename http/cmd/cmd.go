@@ -44,6 +44,8 @@ func FlagSet() *pflag.FlagSet {
 	flags.String("http.default.auth.audience", string(defs.Auth.Audience), "Expected audience for JWT tokens (default: hostname)")
 	flags.String("http.default.auth.authorizedkeyspath", string(defs.Auth.AuthorizedKeysPath), "Path to an authorized_keys file for trusted JWT signers")
 	flags.String("http.default.log", string(defs.Log), fmt.Sprintf("What to log about HTTP requests. Options are '%s', '%s' (log request method, URI, IP and response code), and '%s' (log the request and response body, in addition to the metadata).", http.LogNothingLevel, http.LogMetadataLevel, http.LogMetadataAndBodyLevel))
+	flags.StringSlice("http.client.allowedinternalcidrs", defs.Client.AllowedInternalCIDRs, "IP ranges (CIDR notation, e.g. 10.0.0.0/8) exempted from the strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use to permit internal flows that legitimately target a private address, such as an internal credential offering or an internal OAuth user flow. Leave empty to block all non-public addresses.")
+	flags.StringSlice("http.client.deniedcidrs", defs.Client.DeniedCIDRs, "IP ranges (CIDR notation) that outbound HTTP requests must never target in strict mode, in addition to the built-in blocked ranges (non-public addresses and cloud metadata endpoints). Use for publicly routable ranges that are internal-only in your infrastructure. Takes precedence over http.client.allowedinternalcidrs.")
 
 	return flags
 }
