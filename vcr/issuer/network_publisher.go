@@ -92,7 +92,7 @@ func (p networkPublisher) PublishCredential(ctx context.Context, verifiableCrede
 		return fmt.Errorf("failed to publish credential, error while creating transaction: %w", err)
 	}
 	log.Logger().
-		WithField(core.LogFieldCredentialID, verifiableCredential.ID).
+		WithField(core.LogFieldCredentialID, core.SafeStringer(verifiableCredential.ID)).
 		WithField(core.LogFieldCredentialType, verifiableCredential.Type).
 		Info("Verifiable Credential published")
 

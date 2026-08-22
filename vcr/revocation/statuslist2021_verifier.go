@@ -57,7 +57,7 @@ func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) err
 			// ignore other credentialStatus.type
 			log.Logger().
 				WithField("credentialStatus.type", status.Type).
-				WithField(core.LogFieldCredentialID, credentialToVerify.ID).
+				WithField(core.LogFieldCredentialID, core.SafeStringer(credentialToVerify.ID)).
 				WithField(core.LogFieldCredentialType, credentialToVerify.Type).
 				Info("Ignoring credentialStatus with unknown type")
 			continue
@@ -71,7 +71,7 @@ func (cs *StatusList2021) Verify(credentialToVerify vc.VerifiableCredential) err
 			// ignore non-revocation purposes
 			log.Logger().
 				WithField("credentialStatus.statusPurpose", slEntry.StatusPurpose).
-				WithField(core.LogFieldCredentialID, credentialToVerify.ID).
+				WithField(core.LogFieldCredentialID, core.SafeStringer(credentialToVerify.ID)).
 				WithField(core.LogFieldCredentialType, credentialToVerify.Type).
 				Info("Ignoring credentialStatus with purpose other than 'revocation'")
 			continue

@@ -134,7 +134,7 @@ func (h sqlWallet) List(_ context.Context, holderDID did.DID) ([]vc.VerifiableCr
 			validCredentials = append(validCredentials, credential)
 		} else if !errors.Is(err, types.ErrCredentialNotValidAtTime) && !errors.Is(err, types.ErrRevoked) {
 			// a possible technical error has occurred that should be logged.
-			log.Logger().WithError(err).WithField(core.LogFieldCredentialID, credential.ID).Warn("unable to verify credential")
+			log.Logger().WithError(err).WithField(core.LogFieldCredentialID, core.SafeStringer(credential.ID)).Warn("unable to verify credential")
 		}
 	}
 

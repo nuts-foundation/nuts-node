@@ -84,7 +84,7 @@ func (c *vcr) writeCredential(subject vc.VerifiableCredential) error {
 	}
 
 	log.Logger().
-		WithField(core.LogFieldCredentialID, subject.ID).
+		WithField(core.LogFieldCredentialID, core.SafeStringer(subject.ID)).
 		WithField(core.LogFieldCredentialType, vcType).
 		Debug("Writing credential to store and wallet")
 	log.Logger().Tracef("%+v", subject)
