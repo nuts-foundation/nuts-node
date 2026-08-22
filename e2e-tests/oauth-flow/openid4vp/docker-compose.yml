@@ -56,3 +56,8 @@ services:
       - "../../scripts/oauth2.js:/etc/nginx/oauth2.js:ro"
     depends_on:
       - nodeA-backend
+  # helper for do-test.sh, invoked via 'docker compose run --rm curl' (the nuts-node image contains no curl);
+  # the 'tools' profile keeps it from being started by 'docker compose up'
+  curl:
+    image: curlimages/curl:8.18.0
+    profiles: [ tools ]

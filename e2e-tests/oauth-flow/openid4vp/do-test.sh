@@ -154,7 +154,8 @@ DPOP=$(cat ./node-B/dpop.txt)
 echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
-RESPONSE=$(docker compose exec nodeB-backend curl http://resource:80/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP" -v)
+# curl runs in a dedicated helper container on the compose network (the nuts-node image contains no curl)
+RESPONSE=$(docker compose run --rm curl http://resource:80/resource -H "Authorization: DPoP $ACCESS_TOKEN" -H "DPoP: $DPOP" -v)
 if echo $RESPONSE | grep -q "OK"; then
   echo "success!"
 else
