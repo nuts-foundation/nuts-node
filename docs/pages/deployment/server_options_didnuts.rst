@@ -85,7 +85,7 @@
       - 2m0s
       - Period without any received message after which a connection to a peer is closed and re-established (in Golang duration format, e.g. '2m'). Specify 0 to disable.
     * - network.maxbackoff
-      - 24h0m0s
+      - 1h0m0s
       - Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
     * - network.nodedid
       -

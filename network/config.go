@@ -67,7 +67,7 @@ func DefaultConfig() Config {
 	return Config{
 		GrpcAddr:          ":5555",
 		ConnectionTimeout: 5000,
-		MaxBackoff:        24 * time.Hour,
+		MaxBackoff:        time.Hour,
 		IdleTimeout:       2 * time.Minute,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,

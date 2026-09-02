@@ -20,6 +20,7 @@ package network
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -27,6 +28,8 @@ import (
 func TestDefaultConfig(t *testing.T) {
 	defs := DefaultConfig()
 	assert.Equal(t, ":5555", defs.GrpcAddr)
+	assert.Equal(t, time.Hour, defs.MaxBackoff, "a peer that comes back after a long outage should be retried within the hour")
+	assert.Equal(t, 2*time.Minute, defs.IdleTimeout)
 }
 
 func TestConfig_IsProtocolEnabled(t *testing.T) {
