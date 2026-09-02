@@ -31,6 +31,9 @@ type Config struct {
 	ConnectionTimeout int `koanf:"connectiontimeout"`
 	// MaxBackoff specifies the maximum backoff for outbound connections
 	MaxBackoff time.Duration `koanf:"maxbackoff"`
+	// IdleTimeout specifies the period without any received message after which a connection to a peer is closed.
+	// Peers send gossip and diagnostics messages at a fixed interval, so a silent connection is a dead one. Zero disables the check.
+	IdleTimeout time.Duration `koanf:"idletimeout"`
 	// Public address of this nodes other nodes can use to connect to this node.
 	BootstrapNodes []string `koanf:"bootstrapnodes"`
 	// Protocols is the list of network protocols to enable on the server. They are specified by version (v1, v2).
@@ -65,6 +68,7 @@ func DefaultConfig() Config {
 		GrpcAddr:          ":5555",
 		ConnectionTimeout: 5000,
 		MaxBackoff:        24 * time.Hour,
+		IdleTimeout:       2 * time.Minute,
 		ProtocolV2:        v2.DefaultConfig(),
 		EnableDiscovery:   true,
 	}
