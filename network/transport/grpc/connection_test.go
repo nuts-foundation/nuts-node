@@ -23,6 +23,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -40,7 +41,7 @@ func Test_conn_disconnect(t *testing.T) {
 		assert.False(t, conn.IsConnected())
 	})
 	t.Run("connected", func(t *testing.T) {
-		conn := createConnection(context.Background(), transport.Peer{}).(*conn)
+		conn := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		conn.streams["stream name"] = &MockStream{}
 		assert.True(t, conn.IsConnected())
 		conn.disconnect()
@@ -57,7 +58,7 @@ func Test_conn_disconnect(t *testing.T) {
 
 func Test_conn_waitUntilDisconnected(t *testing.T) {
 	t.Run("never open, should return immediately", func(t *testing.T) {
-		conn := createConnection(context.Background(), transport.Peer{})
+		conn := createConnection(context.Background(), transport.Peer{}, 0)
 		conn.waitUntilDisconnected()
 	})
 	t.Run("disconnected while waiting, should return almost immediately", func(t *testing.T) {
@@ -82,7 +83,7 @@ func Test_conn_waitUntilDisconnected(t *testing.T) {
 
 func Test_conn_registerStream(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		stream := newServerStream("foo", "", nil)
 		defer stream.cancelFunc()
 
@@ -92,7 +93,7 @@ func Test_conn_registerStream(t *testing.T) {
 		assert.True(t, connection.IsConnected())
 	})
 	t.Run("already connected (same protocol)", func(t *testing.T) {
-		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		stream := newServerStream("foo", "", nil)
 		defer stream.cancelFunc()
 
@@ -106,7 +107,7 @@ func Test_conn_registerStream(t *testing.T) {
 
 func Test_conn_startSending(t *testing.T) {
 	t.Run("disconnect does not panic", func(t *testing.T) {
-		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		stream := newServerStream("foo", "", nil)
 
 		defer stream.cancelFunc()
@@ -133,7 +134,7 @@ func Test_conn_startSending(t *testing.T) {
 
 func TestConn_Send(t *testing.T) {
 	t.Run("buffer overflow softlimit", func(t *testing.T) {
-		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		stream := newServerStream("foo", "", nil)
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)
@@ -159,7 +160,7 @@ func TestConn_Send(t *testing.T) {
 	})
 
 	t.Run("buffer overflow hardLimit", func(t *testing.T) {
-		connection := createConnection(context.Background(), transport.Peer{}).(*conn)
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		stream := newServerStream("foo", "", nil)
 		protocol := &TestProtocol{}
 		_ = connection.registerStream(protocol, stream)
@@ -176,5 +177,122 @@ func TestConn_Send(t *testing.T) {
 
 			assert.EqualError(t, err, "peer's outbound message backlog has reached hard limit, message is dropped (peer=@,backlog-size=5000)")
 		})
+	})
+}
+
+// noopHandleProtocol is a TestProtocol that accepts received messages instead of panicking.
+type noopHandleProtocol struct {
+	*TestProtocol
+}
+
+func (noopHandleProtocol) Handle(Connection, interface{}) error {
+	return nil
+}
+
+// tickingStream delivers an (empty) message at every interval until its context is cancelled.
+type tickingStream struct {
+	*stubServerStream
+	interval time.Duration
+}
+
+func (s tickingStream) RecvMsg(_ interface{}) error {
+	select {
+	case <-time.After(s.interval):
+		return nil
+	case <-s.ctx.Done():
+		return io.EOF
+	}
+}
+
+// slowHandleProtocol is a TestProtocol whose Handle blocks for the given duration.
+type slowHandleProtocol struct {
+	*TestProtocol
+	started  chan struct{}
+	duration time.Duration
+}
+
+func (p slowHandleProtocol) Handle(Connection, interface{}) error {
+	close(p.started)
+	time.Sleep(p.duration)
+	return nil
+}
+
+// oneMessageStream delivers a single (empty) message immediately, then blocks until its context is cancelled.
+type oneMessageStream struct {
+	*stubServerStream
+	delivered atomic.Bool
+}
+
+func (s *oneMessageStream) RecvMsg(_ interface{}) error {
+	if s.delivered.CompareAndSwap(false, true) {
+		return nil
+	}
+	<-s.ctx.Done()
+	return io.EOF
+}
+
+func Test_conn_idleTimeout(t *testing.T) {
+	t.Run("disconnects when no message is received within the idle timeout", func(t *testing.T) {
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
+		connection.idleTimeout = 50 * time.Millisecond
+		stream := newServerStream("foo", "", nil) // RecvMsg blocks until the stream is cancelled
+		defer stream.cancelFunc()
+
+		require.True(t, connection.registerStream(&TestProtocol{}, stream))
+
+		select {
+		case <-connection.ctx.Done():
+		case <-time.After(2 * time.Second):
+			t.Fatal("connection was not closed after idle timeout")
+		}
+		assert.False(t, connection.IsConnected())
+	})
+	t.Run("stays connected while messages are received", func(t *testing.T) {
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
+		connection.idleTimeout = 100 * time.Millisecond
+		stream := tickingStream{stubServerStream: newServerStream("foo", "", nil), interval: 20 * time.Millisecond}
+		defer stream.cancelFunc()
+
+		require.True(t, connection.registerStream(noopHandleProtocol{&TestProtocol{}}, stream))
+
+		select {
+		case <-connection.ctx.Done():
+			t.Fatal("connection was closed although messages were being received")
+		case <-time.After(400 * time.Millisecond):
+		}
+		assert.True(t, connection.IsConnected())
+	})
+	t.Run("stays connected while a message is being handled", func(t *testing.T) {
+		// e.g. during initial sync, handling a large transaction list may take longer than the idle timeout
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
+		connection.idleTimeout = 50 * time.Millisecond
+		stream := &oneMessageStream{stubServerStream: newServerStream("foo", "", nil)}
+		defer stream.cancelFunc()
+		handling := make(chan struct{})
+		protocol := slowHandleProtocol{TestProtocol: &TestProtocol{}, started: handling, duration: 400 * time.Millisecond}
+
+		require.True(t, connection.registerStream(protocol, stream))
+
+		<-handling
+		select {
+		case <-connection.ctx.Done():
+			t.Fatal("connection was closed while a message was being handled")
+		case <-time.After(300 * time.Millisecond):
+		}
+		assert.True(t, connection.IsConnected())
+	})
+	t.Run("zero idle timeout disables the check", func(t *testing.T) {
+		connection := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
+		stream := newServerStream("foo", "", nil)
+		defer stream.cancelFunc()
+
+		require.True(t, connection.registerStream(&TestProtocol{}, stream))
+
+		select {
+		case <-connection.ctx.Done():
+			t.Fatal("connection was closed without an idle timeout configured")
+		case <-time.After(200 * time.Millisecond):
+		}
+		assert.True(t, connection.IsConnected())
 	})
 }

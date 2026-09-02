@@ -37,6 +37,10 @@ func tcpListenerCreator(addr string) (net.Listener, error) {
 }
 
 // ConfigOption is used to build Config.
+// defaultIdleTimeout is the default period without received messages after which a connection is considered dead.
+// Peers send gossip and diagnostics every 5 seconds by default, so this leaves ample room for a slow peer.
+const defaultIdleTimeout = 2 * time.Minute
+
 type ConfigOption func(config *Config) error
 
 // NewConfig creates a new Config, used for configuring a gRPC ConnectionManager.
@@ -47,6 +51,7 @@ func NewConfig(grpcAddress string, peerID networkTypes.PeerID, options ...Config
 		dialer:            grpc.DialContext,
 		listener:          tcpListenerCreator,
 		connectionTimeout: 5 * time.Second,
+		idleTimeout:       defaultIdleTimeout,
 		backoffCreator: func() Backoff {
 			return BoundedBackoff(time.Second, time.Hour)
 		},
@@ -102,6 +107,15 @@ func WithConnectionTimeout(value time.Duration) ConfigOption {
 	}
 }
 
+// WithIdleTimeout specifies the period without any received message after which a connection is closed.
+// Zero disables the check.
+func WithIdleTimeout(value time.Duration) ConfigOption {
+	return func(config *Config) error {
+		config.idleTimeout = value
+		return nil
+	}
+}
+
 func WithBackoff(value func() Backoff) ConfigOption {
 	return func(config *Config) error {
 		config.backoffCreator = value
@@ -130,6 +144,8 @@ type Config struct {
 	clientIPHeaderName string
 	// connectionTimeout specifies the time before an outbound connection attempt times out.
 	connectionTimeout time.Duration
+	// idleTimeout specifies the period without any received message after which a connection is closed.
+	idleTimeout time.Duration
 	// listener holds a function to create the net.Listener that is used for inbound connections.
 	listener func(string) (net.Listener, error)
 	// dialer holds a function to open connections to remote gRPC services.

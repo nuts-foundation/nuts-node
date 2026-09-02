@@ -27,6 +27,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/network/log"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -86,12 +87,16 @@ type Connection interface {
 
 	// closeError returns the status when the connection closed with an error or nil otherwise
 	closeError() *status.Status
+	// waitForReceivers blocks until all receive loops have exited, which makes closeError() final.
+	// The underlying streams must be closed first, otherwise the receive loops block forever.
+	waitForReceivers()
 }
 
-func createConnection(parentCtx context.Context, peer transport.Peer) Connection {
+func createConnection(parentCtx context.Context, peer transport.Peer, idleTimeout time.Duration) Connection {
 	result := &conn{
-		streams:  make(map[string]Stream),
-		outboxes: make(map[string]chan interface{}),
+		streams:     make(map[string]Stream),
+		outboxes:    make(map[string]chan interface{}),
+		idleTimeout: idleTimeout,
 	}
 	result.ctx, result.cancelCtx = context.WithCancel(parentCtx)
 	result.setPeer(peer)
@@ -99,7 +104,15 @@ func createConnection(parentCtx context.Context, peer transport.Peer) Connection
 }
 
 type conn struct {
-	peer             atomic.Value
+	peer atomic.Value
+	// idleTimeout is the period without any received message after which the connection is closed. Zero disables the check.
+	idleTimeout time.Duration
+	// lastReceived holds the time (unix nanoseconds) a message was last received on any of the connection's streams.
+	lastReceived atomic.Int64
+	// receivers tracks the receive loops, so callers can wait for the close status to be final.
+	receivers sync.WaitGroup
+	// handling counts the receive loops that are currently handling a message; the idle timeout does not apply while handling.
+	handling         atomic.Int32
 	ctx              context.Context
 	cancelCtx        func()
 	status           atomic.Pointer[status.Status]
@@ -199,6 +212,11 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 		return false
 	}
 
+	if len(mc.streams) == 0 && mc.idleTimeout > 0 {
+		// first stream on this connection: start watching for idleness
+		mc.lastReceived.Store(time.Now().UnixNano())
+		mc.watchIdle()
+	}
 	mc.streams[methodName] = stream
 	mc.outboxes[methodName] = make(chan interface{}, OutboxHardLimit)
 
@@ -217,35 +235,49 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
 	atomic.AddInt32(&mc.activeGoroutines, 1)
+	mc.receivers.Add(1)
 	go func(activeGoroutines *int32) {
 		defer atomic.AddInt32(activeGoroutines, -1)
+		defer mc.receivers.Done()
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message) // blocking
+			if err != nil {
+				errStatus, isStatusError := status.FromError(err)
+				closedByPeer := !errors.Is(err, io.EOF) && !(isStatusError && errStatus.Code() == codes.Canceled)
+				if mc.ctx.Err() == nil {
+					// only log when the connection wasn't closed locally
+					if closedByPeer {
+						log.Logger().
+							WithError(err).
+							WithField(core.LogFieldProtocolVersion, protocol.Version()).
+							WithFields(peer.ToFields()).
+							Warn("Peer connection error")
+					} else {
+						log.Logger().
+							WithField(core.LogFieldProtocolVersion, protocol.Version()).
+							WithFields(peer.ToFields()).
+							Info("Peer closed connection")
+					}
+				}
+				if closedByPeer {
+					// Record the peer's close status even if the connection was already cancelled (e.g. because the stream's context is done),
+					// so the caller can decide whether the peer rejected the connection.
+					mc.status.Store(errStatus)
+				}
+				mc.cancelCtx()
+				break
+			}
 			if mc.ctx.Err() != nil {
 				// connection has been closed: drop message and stop receiving
 				return
 			}
-			if err != nil {
-				errStatus, isStatusError := status.FromError(err)
-				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
-					log.Logger().
-						WithField(core.LogFieldProtocolVersion, protocol.Version()).
-						WithFields(peer.ToFields()).
-						Info("Peer closed connection")
-				} else {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldProtocolVersion, protocol.Version()).
-						WithFields(peer.ToFields()).
-						Warn("Peer connection error")
-				}
-				mc.status.Store(errStatus)
-				mc.cancelCtx()
-				break
-			}
+			mc.lastReceived.Store(time.Now().UnixNano())
 
+			mc.handling.Add(1)
 			err = protocol.Handle(mc, message)
+			mc.handling.Add(-1)
+			mc.lastReceived.Store(time.Now().UnixNano()) // handling a message counts as activity as well
 			if err != nil {
 				log.Logger().
 					WithError(err).
@@ -253,6 +285,42 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 					WithFields(peer.ToFields()).
 					WithField(core.LogFieldMessageType, fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
 					Warn("Error handling message")
+			}
+		}
+	}(&mc.activeGoroutines)
+}
+
+// watchIdle disconnects the connection when no message has been received within idleTimeout.
+// Peers send gossip and diagnostics messages at a fixed interval, so a silent stream is a dead one
+// (e.g. a half-open TCP connection or a proxy that kept the stream open after the other side went away).
+func (mc *conn) watchIdle() {
+	peer := mc.Peer() // copy Peer, because it will be reset by disconnect()
+	atomic.AddInt32(&mc.activeGoroutines, 1)
+	go func(activeGoroutines *int32) {
+		defer atomic.AddInt32(activeGoroutines, -1)
+		timer := time.NewTimer(mc.idleTimeout)
+		defer timer.Stop()
+		for {
+			select {
+			case <-mc.ctx.Done():
+				return
+			case <-timer.C:
+				if mc.handling.Load() > 0 {
+					// still busy handling a message (e.g. a large transaction list during sync), which is not idle
+					timer.Reset(mc.idleTimeout)
+					continue
+				}
+				idle := time.Since(time.Unix(0, mc.lastReceived.Load()))
+				if idle < mc.idleTimeout {
+					timer.Reset(mc.idleTimeout - idle)
+					continue
+				}
+				log.Logger().
+					WithFields(peer.ToFields()).
+					WithField("idle", idle.Round(time.Second)).
+					Warn("No messages received from peer within idle timeout, disconnecting")
+				mc.disconnect()
+				return
 			}
 		}
 	}(&mc.activeGoroutines)
@@ -320,4 +388,8 @@ func (mc *conn) IsAuthenticated() bool {
 
 func (mc *conn) closeError() *status.Status {
 	return mc.status.Load()
+}
+
+func (mc *conn) waitForReceivers() {
+	mc.receivers.Wait()
 }

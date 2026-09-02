@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -44,6 +45,8 @@ type ConnectionList interface {
 type connectionList struct {
 	mux  sync.Mutex
 	list []Connection
+	// idleTimeout is passed to new connections, see conn.idleTimeout.
+	idleTimeout time.Duration
 }
 
 func (c *connectionList) Get(query ...Predicate) Connection {
@@ -108,7 +111,7 @@ func (c *connectionList) getOrRegister(ctx context.Context, peer transport.Peer,
 		return existing, false
 	}
 
-	result := createConnection(ctx, peer)
+	result := createConnection(ctx, peer, c.idleTimeout)
 	c.list = append(c.list, result)
 	return result, true
 }

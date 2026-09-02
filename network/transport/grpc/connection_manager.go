@@ -108,7 +108,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		authenticator:     authenticator,
 		config:            config,
 		connectionTimeout: config.connectionTimeout,
-		connections:       &connectionList{},
+		connections:       &connectionList{idleTimeout: config.idleTimeout},
 		dialer:            config.dialer,
 		dialOptions: []grpc.DialOption{
 			grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
@@ -462,9 +462,17 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 
-	if st := connection.closeError(); st != nil && st.Code() == codes.Unauthenticated {
-		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored
-		return st.Err()
+	// Close the gRPC connection so blocked receive loops return, then wait for them:
+	// only then is the close status (as sent by the peer) final.
+	_ = grpcConn.Close()
+	connection.waitForReceivers()
+
+	if st := connection.closeError(); st != nil {
+		// Peer rejected the connection: return the error so the backoff is honored instead of reconnecting within seconds.
+		// ErrAlreadyConnected arrives as codes.Unknown (plain error returned by the peer's stream handler), so match on the message.
+		if st.Code() == codes.Unauthenticated || st.Message() == ErrAlreadyConnected.Error() {
+			return st.Err()
+		}
 	}
 
 	return nil
