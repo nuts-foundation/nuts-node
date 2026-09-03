@@ -147,7 +147,8 @@ echo "------------------------------------"
 echo "Retrieving data..."
 echo "------------------------------------"
 
-RESPONSE=$(docker compose exec nodeB curl --insecure --cert /opt/nuts/certificate-and-key.pem --key /opt/nuts/certificate-and-key.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
+# curl runs in a dedicated helper container on the compose network, using nodeB's client cert to act as nodeB
+RESPONSE=$(docker compose run --rm curl --insecure --cert /certs/nodeB-client.pem --key /certs/nodeB-client.pem https://nodeA:443/ping -H "Authorization: bearer $(cat ./node-B/data/accesstoken.txt)" -v)
 if echo $RESPONSE | grep -q "pong"; then
   echo "success!"
 else

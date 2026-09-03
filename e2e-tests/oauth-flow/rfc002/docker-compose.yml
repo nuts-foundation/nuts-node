@@ -35,3 +35,10 @@ services:
       - "../../tls-certs/truststore.pem:/opt/nuts/truststore.pem:ro"
     healthcheck:
       interval: 1s # Make test run quicker by checking health status more often
+  # helper for run-test.sh, invoked via 'docker compose run --rm curl' (the nuts-node image contains no curl);
+  # the 'tools' profile keeps it from being started by 'docker compose up'
+  curl:
+    image: curlimages/curl:8.18.0
+    profiles: [ tools ]
+    volumes:
+      - "../../tls-certs/nodeB-certificate.pem:/certs/nodeB-client.pem:ro"
