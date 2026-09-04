@@ -219,6 +219,10 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 	}
 	issuerDID, _ := did.ParseDID(credential.Issuer.String()) // can't fail, already created
 	openidIssuer, err := i.openidHandlerFn(ctx, *issuerDID)
+	if errors.Is(err, openid4vci.ErrIdentifierNotConfigured) {
+		// Issuer not (yet) configured for OpenID4VCI (e.g. missing node-http-services-baseurl service)
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("unable to discover issuer identifier: %w", err)
 	}

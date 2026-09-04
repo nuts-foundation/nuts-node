@@ -20,6 +20,7 @@ package openid4vci
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -41,6 +42,11 @@ func CreateIdentifier(baseURL string, id did.DID) string {
 type IdentifierResolver interface {
 	Resolve(id did.DID) (string, error)
 }
+
+// ErrIdentifierNotConfigured is returned by callers wrapping an IdentifierResolver when resolution
+// completed without error but yielded an empty identifier, meaning the DID isn't (yet) usable over
+// OpenID4VCI (e.g. it's missing its node-http-services-baseurl service).
+var ErrIdentifierNotConfigured = errors.New("no OpenID4VCI identifier configured for DID")
 
 var _ IdentifierResolver = DIDIdentifierResolver{}
 var _ IdentifierResolver = NoopIdentifierResolver{}
@@ -84,7 +90,12 @@ func NewTLSIdentifierResolver(underlying IdentifierResolver, config *tls.Config)
 	return result
 }
 
-const tlsAttemptInterval = time.Minute
+// tlsAttemptInterval bounds how often the (expensive) TLS-certificate-derived resolution is attempted,
+// and, since Resolve() can be called on every OpenID4VCI request, doubles as how long an empty result is
+// cached for: long enough to protect against repeated resolution attempts under load, short enough that a
+// later fix (e.g. a missing base URL service being added) is picked up automatically, without requiring a
+// node restart.
+var tlsAttemptInterval = time.Minute
 
 var tlsIdentifierResolverPort = 443
 
@@ -95,17 +106,21 @@ type tlsIdentifierResolver struct {
 	config           *tls.Config
 	cachedIdentifier *atomic.Pointer[string]
 	// lastAttempt is the time at which the last attempt to resolve the identifier from the TLS certificate was made.
-	// It is used to prevent spamming the local node, since it could be called on each OpenID4VCI request.
 	lastAttempt *atomic.Pointer[time.Time]
 }
 
 func (t tlsIdentifierResolver) Resolve(id did.DID) (string, error) {
-	// Only a successfully resolved (non-empty) identifier is a valid cache hit; an empty result means
-	// resolution hasn't succeeded yet (e.g. the DID document is still missing its base URL service), and
-	// must be retried on every call rather than being cached forever.
 	cached := t.cachedIdentifier.Load()
-	if cached != nil && *cached != "" {
-		return *cached, nil
+	if cached != nil {
+		if *cached != "" {
+			return *cached, nil
+		}
+		// An empty result stays cached only until the next TLS-certificate resolution attempt is due
+		// (the same throttle guarding that attempt below), so it doesn't take a node restart to pick up
+		// a later fix.
+		if time.Since(*t.lastAttempt.Load()) < tlsAttemptInterval {
+			return "", nil
+		}
 	}
 
 	identifier, err := t.underlying.Resolve(id)
@@ -117,16 +132,13 @@ func (t tlsIdentifierResolver) Resolve(id did.DID) (string, error) {
 	}
 
 	// Could not load from DID document, try to derive from TLS certificate
-	if time.Since(*t.lastAttempt.Load()) > tlsAttemptInterval {
-		lastAttempt := time.Now()
-		t.lastAttempt.Store(&lastAttempt)
-		identifier, err = t.resolveFromCertificate(id)
-		if err == nil && identifier != "" {
-			t.cachedIdentifier.Store(&identifier)
-		}
-		return identifier, err
+	lastAttempt := time.Now()
+	t.lastAttempt.Store(&lastAttempt)
+	identifier, err = t.resolveFromCertificate(id)
+	if err == nil {
+		t.cachedIdentifier.Store(&identifier)
 	}
-	return "", nil
+	return identifier, err
 }
 
 func (t tlsIdentifierResolver) resolveFromCertificate(id did.DID) (string, error) {

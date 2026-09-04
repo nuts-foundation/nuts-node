@@ -19,7 +19,12 @@
 package openid4vci
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -28,13 +33,34 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
+
+// selfSignedCertWithSAN generates a minimal self-signed certificate with a single DNS SAN, so tests
+// relying on it don't also trigger resolution attempts against unrelated real hostnames.
+func selfSignedCertWithSAN(t *testing.T, dnsName string) tls.Certificate {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: dnsName},
+		DNSNames:     []string{dnsName},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	leaf, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key, Leaf: leaf}
+}
 
 var issuerDID = did.MustParseDID("did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY")
 var issuerIdentifier = "http://example.com/n2n/identity/" + issuerDID.String()
@@ -163,18 +189,44 @@ func TestTLSIdentifierResolver(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "", actual)
 	})
-	t.Run("empty result is not cached forever", func(t *testing.T) {
+	t.Run("empty result is cached briefly, not forever", func(t *testing.T) {
+		// A local server that always says "not found", using a single-SAN certificate so resolution
+		// only ever tries this local server (no real network dial timeouts against unrelated hosts) -
+		// this test is about caching behavior, not network latency.
+		localCert := selfSignedCertWithSAN(t, "localhost")
+		localTLSConfig := &tls.Config{Certificates: []tls.Certificate{localCert}, InsecureSkipVerify: true}
+		httpServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		httpServer.TLS = localTLSConfig.Clone()
+		httpServer.StartTLS()
+		t.Cleanup(httpServer.Close)
+		serverURL, _ := url.Parse(httpServer.URL)
+		tlsIdentifierResolverPort, _ = strconv.Atoi(serverURL.Port())
+
+		originalInterval := tlsAttemptInterval
+		tlsAttemptInterval = 50 * time.Millisecond
+		t.Cleanup(func() { tlsAttemptInterval = originalInterval })
+
 		ctrl := gomock.NewController(t)
 		underlying := NewMockIdentifierResolver(ctrl)
-		// Called twice: an empty result must not short-circuit future calls, so the DID document
-		// (the underlying resolver) is checked again every time, until it actually resolves.
+		// Called twice: once for the initial (empty) resolution, and once more after the next
+		// TLS-attempt is due, proving a later fix (e.g. a missing service being added) is picked up
+		// without requiring a restart.
 		underlying.EXPECT().Resolve(gomock.Any()).Times(2).Return("", nil)
 
-		resolver := NewTLSIdentifierResolver(underlying, tlsConfig)
+		resolver := NewTLSIdentifierResolver(underlying, httpServer.TLS)
 
 		actual, err := resolver.Resolve(id)
 		require.NoError(t, err)
 		require.Equal(t, "", actual)
+
+		// Immediately calling again must be a cache hit (no additional underlying.Resolve call yet).
+		actual, err = resolver.Resolve(id)
+		require.NoError(t, err)
+		require.Equal(t, "", actual)
+
+		time.Sleep(100 * time.Millisecond)
 
 		actual, err = resolver.Resolve(id)
 		require.NoError(t, err)
