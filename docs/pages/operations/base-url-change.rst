@@ -3,7 +3,7 @@
 Changing the node's base URL
 #############################
 
-Changing the node's ``url`` (see :ref:`Options <nuts-node-config>`) is basically the same as setting up a new node on a new URL.
+Changing the node's ``url`` (see :ref:`The node's URL <nuts-node-url>`) is basically the same as setting up a new node on a new URL.
 All DIDs, VerifiableCredentials, Revocations, and other data is no longer usable.
 You will not be able to revoke credentials. This means that all credentials issued under the old URL can no longer be trusted.
 Actions should be taken to remove any trust that might have been established in your old identity.

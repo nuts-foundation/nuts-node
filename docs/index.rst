@@ -15,6 +15,7 @@ Nuts documentation
     :caption: Configuration:
 
     pages/configuration/options.rst
+    pages/configuration/url.rst
     pages/configuration/usecase/index.rst
     pages/configuration/legacy-did-nuts.rst
 
