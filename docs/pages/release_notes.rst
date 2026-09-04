@@ -446,7 +446,7 @@ Breaking changes
 - Removed legacy API authentication tokens.
 - Removed ``auth.publicURL`` config param. The requirement for Yivi is now also covered by the ``url`` config param value.
 - Default port bindings and http config options have changed. See below.
-- See caveats in :ref:`version-incompatibilities`.
+- See caveats in :ref:`nuts-node-migrations`.
 
 ============
 New Features

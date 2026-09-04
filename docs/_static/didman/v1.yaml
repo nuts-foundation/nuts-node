@@ -489,7 +489,7 @@ components:
           type: object
           description: >
             An object describing the found entity, modelled as a concept as specified by VCR's OpenAPI specification.
-            See https://nuts-node.readthedocs.io/en/latest/pages/development/3-vc.html for examples on which concepts are supported and how they're structured.
+            See https://nuts-node.readthedocs.io/en/latest/pages/api/verifiable-credentials.html for examples on which concepts are supported and how they're structured.
         didDocument:
           $ref: '../common/ssi_types.yaml#/components/schemas/DIDDocument'
     EndpointResponse:

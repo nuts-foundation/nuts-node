@@ -12,60 +12,55 @@ Nuts documentation
 
 .. toctree::
     :maxdepth: 1
-    :caption: Integrating:
-    :glob:
+    :caption: Configuration:
 
-    pages/integrating/api.rst
-    pages/integrating/api-authentication.rst
-    pages/integrating/vc.rst
-    pages/integrating/supported-protocols-formats.rst
-    pages/integrating/version-incompatibilities.rst
-    pages/release_notes.rst
+    pages/configuration/options.rst
+    pages/configuration/usecase/index.rst
+    pages/configuration/legacy-did-nuts.rst
 
 .. toctree::
     :maxdepth: 1
-    :caption: Deployment & Configuration:
-    :glob:
+    :caption: Deployment:
 
-    pages/deployment/domain.rst
-    pages/deployment/configuration.rst
-    pages/deployment/migration.rst
     pages/deployment/recommended-deployment.rst
     pages/deployment/clustering.rst
-    pages/deployment/certificates.rst
     pages/deployment/docker.rst
     pages/deployment/storage.rst
-    pages/deployment/verifiable-credentials.rst
-    pages/deployment/logging.rst
     pages/deployment/monitoring.rst
-    pages/deployment/cli-reference.rst
-    pages/deployment/discovery.rst
-    pages/deployment/policy.rst
-    pages/deployment/key-rotation.rst
-    pages/deployment/audit-logging.rst
-    pages/deployment/oauth.rst
+    pages/deployment/logging.rst
     pages/deployment/security-considerations.rst
+    pages/deployment/saas.rst
 
 .. toctree::
     :maxdepth: 1
-    :caption: Technology:
-    :glob:
+    :caption: API:
 
-    pages/technology/**
-
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Development:
-    :glob:
-
-    pages/development/**
-    pages/contribute.rst
-
+    pages/api/reference.rst
+    pages/api/authentication.rst
+    pages/api/verifiable-credentials.rst
 
 .. toctree::
     :maxdepth: 1
-    :caption: Other:
-    :glob:
+    :caption: Operations:
 
-    pages/contact.rst
+    pages/operations/migration.rst
+    pages/operations/key-rotation.rst
+    pages/operations/certificate-revocation.rst
+    pages/operations/base-url-change.rst
+    pages/operations/cli-reference.rst
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Background:
+
+    pages/background/did.rst
+    pages/background/jsonld.rst
+    pages/background/security_model.rst
+    pages/background/oauth.rst
+    pages/background/supported-protocols-formats.rst
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Release Notes:
+
+    pages/release_notes.rst

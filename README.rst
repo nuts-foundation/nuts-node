@@ -46,82 +46,7 @@ Claude Code skill files for common maintenance tasks can be found in the `.claud
 Development
 ^^^^^^^^^^^
 
-.. |gover| image:: https://img.shields.io/github/go-mod/go-version/nuts-foundation/nuts-node
-    :alt: GitHub go.mod Go version
-
-|gover| or higher is required.
-
-Building
-********
-
-Just use ``go build``.
-
-ES256 Koblitz support
-=====================
-
-To enable ES256K (Koblitz) support, you need to build with the ``jwx_es256k`` tag:
-
-.. code-block:: shell
-
-    go build -tags jwx_es256k
-
-Running tests
-*************
-
-Tests can be run by executing
-
-.. code-block:: shell
-
-    go test ./...
-
-Code Generation
-***************
-
-Code generation is used for generating mocks, OpenAPI client- and servers, and gRPC services.
-Make sure that ``GOPATH/bin`` is available on ``PATH`` and that the dependencies are installed
-
-Install ``protoc``:
-
-  | MacOS: ``brew install protobuf``
-  | Linux: ``apt install -y protobuf-compiler``
-
-Install Go tools:
-
-.. code-block:: shell
-
-  make install-tools
-
-Generating code:
-
-To regenerate all code run the ``run-generators`` target from the makefile or use one of the following for a specific group
-
-================ =======================
-Group            Command
-================ =======================
-Mocks            ``make gen-mocks``
-OpenApi          ``make gen-api``
-Protobuf + gRCP  ``make gen-protobuf``
-All              ``make run-generators``
-================ =======================
-
-Documentation
-=============
-
-The documentation is automatically build on readthedocs based on the config in ``.readthedocs.yaml``.
-All files to be included can be generated using:
-
-.. code-block:: shell
-
-    make cli-docs
-
-This regenerates files from code, and the ``README.rst`` file which requires python package ``rst-include`` (``pip install rst-include``).
-
-If needed, you can also build the documentation locally in ``/docs/_build`` using docker:
-
-.. code-block:: shell
-
-    docker build -t local/nuts-node-docs ./docs
-    docker run --rm -v ./docs:/docs local/nuts-node-docs
+See `DEVELOPMENT.md <DEVELOPMENT.md>`_ for build, test and code generation instructions.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -169,140 +94,218 @@ The following options can be configured on the server:
 
 .. marker-for-config-options
 
-.. table:: Server Options
+.. list-table:: Server Options
     :widths: 20 30 50
     :class: options-table
+    :header-rows: 1
 
-    ========================================      ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================      ============================================================================================================================================================================================================================================================================================================================================
-    Key                                           Default                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Description
-    ========================================      ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================      ============================================================================================================================================================================================================================================================================================================================================
-    configfile                                    ./config/nuts.yaml                                                                                                                                                                                                                                                                                                                                                                                                                                                       Nuts config file
-    cpuprofile                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             When set, a CPU profile is written to the given path. Ignored when strictmode is set.
-    datadir                                       ./data                                                                                                                                                                                                                                                                                                                                                                                                                                                                   Directory where the node stores its files.
-    didmethods                                    [web,nuts]                                                                                                                                                                                                                                                                                                                                                                                                                                                               Comma-separated list of enabled DID methods (without did: prefix). It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.
-    internalratelimiter                           true                                                                                                                                                                                                                                                                                                                                                                                                                                                                     When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.
-    loggerformat                                  text                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Log format (text, json)
-    strictmode                                    true                                                                                                                                                                                                                                                                                                                                                                                                                                                                     When set, insecure settings are forbidden.
-    url                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Public facing URL of the server (required). Must be HTTPS when strictmode is set.
-    verbosity                                     info                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Log level (trace, debug, info, warn, error)
-    httpclient.timeout                            30s                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
-    **Auth**
-    auth.authorizationendpoint.enabled            false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.
-    **Crypto**
-    crypto.storage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store, 'azure-keyvault' for Azure Key Vault, 'external' for an external backend (deprecated).
-    crypto.azurekv.hsm                            false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Whether to store the key in a hardware security module (HSM). If true, the Azure Key Vault must be configured for HSM usage. Default: false
-    crypto.azurekv.timeout                        10s                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s).
-    crypto.azurekv.url                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     The URL of the Azure Key Vault.
-    crypto.azurekv.auth.type                      default                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Credential type to use when authenticating to the Azure Key Vault. Options: default, managed_identity (see https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/README.md for an explanation of the options).
-    crypto.vault.address                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   The Vault address. If set it overwrites the VAULT_ADDR env var.
-    crypto.vault.pathprefix                       kv                                                                                                                                                                                                                                                                                                                                                                                                                                                                       The Vault path prefix.
-    crypto.vault.timeout                          5s                                                                                                                                                                                                                                                                                                                                                                                                                                                                       Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).
-    crypto.vault.token                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     The Vault token. If set it overwrites the VAULT_TOKEN env var.
-    **Discovery**
-    discovery.client.refreshinterval              10m0s                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Interval at which the client synchronizes with the Discovery Server; refreshing Verifiable Presentations of local DIDs and loading changes, updating the local copy. It only will actually refresh registrations of local DIDs that about to expire (less than 1/4th of their lifetime left). Specified as Golang duration (e.g. 1m, 1h30m).
-    discovery.definitions.directory               ./config/discovery                                                                                                                                                                                                                                                                                                                                                                                                                                                       Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. If the directory contains JSON files that can't be parsed as service definition, the node will fail to start.
-    discovery.server.ids                          []                                                                                                                                                                                                                                                                                                                                                                                                                                                                       IDs of the Discovery Service for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.
-    **HTTP**
-    http.clientipheader                           X-Forwarded-For                                                                                                                                                                                                                                                                                                                                                                                                                                                          Case-sensitive HTTP Header that contains the client IP used for audit logs. For the X-Forwarded-For header only link-local, loopback, and private IPs are excluded. Switch to X-Real-IP or a custom header if you see your own proxy/infra in the logs.
-    http.log                                      metadata                                                                                                                                                                                                                                                                                                                                                                                                                                                                 What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). When debug vebosity is set the authorization headers are also logged when the request is fully logged.
-    http.cache.maxbytes                           10485760                                                                                                                                                                                                                                                                                                                                                                                                                                                                 HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.
-    http.internal.address                         127.0.0.1:8081                                                                                                                                                                                                                                                                                                                                                                                                                                                           Address and port the server will be listening to for internal-facing endpoints.
-    http.internal.auth.audience                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            Expected audience for JWT tokens (default: hostname)
-    http.internal.auth.authorizedkeyspath                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Path to an authorized_keys file for trusted JWT signers
-    http.internal.auth.type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Whether to enable authentication for /internal endpoints, specify 'token_v2' for bearer token mode or 'token' for legacy bearer token mode.
-    http.public.address                           \:8080                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Address and port the server will be listening to for public-facing endpoints.
-    **JSONLD**
-    jsonld.contexts.localmapping                  [https://nuts.nl/credentials/2024=assets/contexts/nuts-2024.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson]      This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist.
-    jsonld.contexts.remoteallowlist               [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json,https://w3id.org/vc/status-list/2021/v1]                                                                                                                                                                                                                                                                                                   In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here.
-    **PKI**
-    pki.maxupdatefailhours                        4                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Maximum number of hours that a denylist update can fail
-    pki.softfail                                  true                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Do not reject certificates if their revocation status cannot be established when softfail is true
-    **Storage**
-    storage.debug                                 false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    When true, enables extra logging of storage-layer problems (e.g. performance issues).
-    storage.session.memcached.address             []                                                                                                                                                                                                                                                                                                                                                                                                                                                                       List of Memcached server addresses. These can be a simple 'host:port' or a Memcached connection URL with scheme, auth and other options.
-    storage.session.redis.address                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options. If not set it, defaults to an in-memory database.
-    storage.session.redis.database                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         Redis session database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
-    storage.session.redis.password                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         Redis session database password. If set, it overrides the username in the connection URL.
-    storage.session.redis.username                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         Redis session database username. If set, it overrides the username in the connection URL.
-    storage.session.redis.sentinel.master                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
-    storage.session.redis.sentinel.nodes          []                                                                                                                                                                                                                                                                                                                                                                                                                                                                       Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
-    storage.session.redis.sentinel.password                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Password for authenticating to Redis Sentinels.
-    storage.session.redis.sentinel.username                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Username for authenticating to Redis Sentinels.
-    storage.session.redis.tls.truststorefile                                                                                                                                                                                                                                                                                                                                                                                                                                                                               PEM file containing the trusted CA certificate(s) for authenticating remote Redis session servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
-    storage.sql.connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 Connection string for the SQL database. If not set it, defaults to a SQLite database stored inside the configured data directory. Note: using SQLite is not recommended in production environments. If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').
-    storage.sql.rdsiam.dbuser                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              Database username for IAM authentication. If not specified, the username from the connection string will be used. The database user must be created with IAM authentication enabled.
-    storage.sql.rdsiam.enabled                    false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Enable AWS RDS IAM authentication for the SQL database connection. When enabled, the node will use temporary IAM tokens instead of passwords. Requires the connection string to be a PostgreSQL or MySQL RDS endpoint without a password.
-    storage.sql.rdsiam.region                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              AWS region where the RDS instance is located (e.g., 'us-east-1). Required when RDS IAM authentication is enabled.
-    storage.sql.rdsiam.tokenrefreshinterval       14m0s                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Interval at which to refresh the IAM authentication token. RDS tokens are valid for 15 minutes, so set this to ensure tokens are refreshed before expiry. Specified as Golang duration (e.g. 10m, 1h).
-    **Tracing**
-    tracing.endpoint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       OTLP collector endpoint for OpenTelemetry tracing (e.g., 'localhost:4318'). When empty, tracing is disabled.
-    tracing.insecure                              false                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Disable TLS for the OTLP connection.
-    tracing.servicename                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Service name reported to the tracing backend. Defaults to 'nuts-node'.
-    **policy**
-    policy.directory                              ./config/policy                                                                                                                                                                                                                                                                                                                                                                                                                                                          Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping.
-    ========================================      ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================      ============================================================================================================================================================================================================================================================================================================================================
-
-Options specific for ``did:nuts``/gRPC
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
-If your use case does not use these features, you can ignore this table.
-
-.. table:: did:nuts/gRPC Server Options
-    :widths: 20 30 50
-    :class: options-table
-
-    ================================      ===========================      ======================================================================================================================================================================================
-    Key                                   Default                          Description
-    ================================      ===========================      ======================================================================================================================================================================================
-    tls.certfile                                                           PEM file containing the certificate for the gRPC server (also used as client certificate). Required in strict mode.
-    tls.certheader                                                         Name of the HTTP header that will contain the client certificate when TLS is offloaded for gRPC.
-    tls.certkeyfile                                                        PEM file containing the private key of the gRPC server certificate. Required in strict mode.
-    tls.offload                                                            Whether to enable TLS offloading for incoming gRPC connections. Enable by setting it to 'incoming'. If enabled 'tls.certheader' must be configured as well.
-    tls.truststorefile                    ./config/ssl/truststore.pem      PEM file containing the trusted CA certificates for authenticating remote gRPC servers. Required in strict mode.
-    **Auth**
-    auth.accesstokenlifespan              60                               defines how long (in seconds) an access token is valid. Uses default in strict mode.
-    auth.clockskew                        5000                             allowed JWT Clock skew in milliseconds
-    auth.contractvalidators               [irma,dummy,employeeid]          sets the different contract validators to use
-    auth.irma.autoupdateschemas           true                             set if you want automatically update the IRMA schemas every 60 minutes.
-    auth.irma.schememanager               pbdf                             IRMA schemeManager to use for attributes. Can be either 'pbdf' or 'irma-demo'.
-    auth.irma.cors.origin                 []                               sets the allowed CORS origins for the IRMA server
-    **Events**
-    events.nats.hostname                  0.0.0.0                          Hostname for the NATS server
-    events.nats.port                      4222                             Port where the NATS server listens on
-    events.nats.storagedir                                                 Directory where file-backed streams are stored in the NATS server
-    events.nats.timeout                   30                               Timeout for NATS server operations
-    **GoldenHammer**
-    goldenhammer.enabled                  true                             Whether to enable automatically fixing DID documents with the required endpoints.
-    goldenhammer.interval                 10m0s                            The interval in which to check for DID documents to fix.
-    **Network**
-    network.bootstrapnodes                []                               List of bootstrap nodes ('<host>:<port>') which the node initially connect to.
-    network.connectiontimeout             5000                             Timeout before an outbound connection attempt times out (in milliseconds).
-    network.enablediscovery               true                             Whether to enable automatic connecting to other nodes.
-    network.grpcaddr                      \:5555                            Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
-    network.maxbackoff                    24h0m0s                          Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
-    network.nodedid                                                        Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.
-    network.protocols                     []                               Specifies the list of network protocols to enable on the server. They are specified by version (1, 2). If not set, all protocols are enabled.
-    network.v2.diagnosticsinterval        5000                             Interval (in milliseconds) that specifies how often the node should broadcast its diagnostic information to other nodes (specify 0 to disable).
-    network.v2.gossipinterval             5000                             Interval (in milliseconds) that specifies how often the node should gossip its new hashes to other nodes.
-    **Storage**
-    storage.bbolt.locktimeout             1s                               Maximum time to wait for acquiring a lock on the BBolt database before giving up and returning an error. Formatted as Golang duration (e.g. 1s, 1m).
-    storage.bbolt.backup.directory                                         Target directory for BBolt database backups.
-    storage.bbolt.backup.interval         0s                               Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.
-    storage.redis.address                                                  Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.
-    storage.redis.database                                                 Redis database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
-    storage.redis.password                                                 Redis database password. If set, it overrides the username in the connection URL.
-    storage.redis.username                                                 Redis database username. If set, it overrides the username in the connection URL.
-    storage.redis.sentinel.master                                          Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
-    storage.redis.sentinel.nodes          []                               Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
-    storage.redis.sentinel.password                                        Password for authenticating to Redis Sentinels.
-    storage.redis.sentinel.username                                        Username for authenticating to Redis Sentinels.
-    storage.redis.tls.truststorefile                                       PEM file containing the trusted CA certificate(s) for authenticating remote Redis servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
-    **VCR**
-    vcr.openid4vci.definitionsdir                                          Directory with the additional credential definitions the node could issue (experimental, may change without notice).
-    vcr.openid4vci.enabled                true                             Enable issuing and receiving credentials over OpenID4VCI.
-    vcr.openid4vci.timeout                30s                              Time-out for OpenID4VCI HTTP client operations.
-    ================================      ===========================      ======================================================================================================================================================================================
+    * - Key
+      - Default
+      - Description
+    * - configfile
+      - ./config/nuts.yaml
+      - Nuts config file
+    * - cpuprofile
+      -
+      - When set, a CPU profile is written to the given path. Ignored when strictmode is set.
+    * - datadir
+      - ./data
+      - Directory where the node stores its files.
+    * - didmethods
+      - [web,nuts]
+      - Comma-separated list of enabled DID methods (without did: prefix). It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.
+    * - internalratelimiter
+      - true
+      - When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.
+    * - loggerformat
+      - text
+      - Log format (text, json)
+    * - strictmode
+      - true
+      - When set, insecure settings are forbidden.
+    * - url
+      -
+      - Public facing URL of the server (required). Must be HTTPS when strictmode is set. It's baked into every DID and OAuth identity the node issues, so choose a domain you own, that is stable (avoid TLDs that block re-registration after expiry, and cloud-provider subdomains that don't identify the owner), and that serves security.txt and robots.txt at its root.
+    * - verbosity
+      - info
+      - Log level (trace, debug, info, warn, error)
+    * - httpclient.timeout
+      - 30s
+      - Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
+    * - **Auth**
+      -
+      -
+    * - auth.authorizationendpoint.enabled
+      - false
+      - enables the v2 API's OAuth2 Authorization Endpoint, used by OpenID4VP and OpenID4VCI. This flag might be removed in a future version (or its default become 'true') as the use cases and implementation of OpenID4VP and OpenID4VCI mature.
+    * - auth.experimental.jwtbearerclient
+      - false
+      - enables the experimental RFC 7523 jwt-bearer two-VP token request flow. While disabled (the default), requests carrying a service-provider subject identifier are rejected. Subject to change without notice.
+    * - **Crypto**
+      -
+      -
+    * - crypto.storage
+      -
+      - Storage to use, 'fs' for file system (for development purposes), 'vaultkv' for HashiCorp Vault KV store, 'azure-keyvault' for Azure Key Vault, 'external' for an external backend (deprecated).
+    * - crypto.azurekv.hsm
+      - false
+      - Whether to store the key in a hardware security module (HSM). If true, the Azure Key Vault must be configured for HSM usage. Default: false
+    * - crypto.azurekv.timeout
+      - 10s
+      - Timeout of client calls to Azure Key Vault, in Golang time.Duration string format (e.g. 10s).
+    * - crypto.azurekv.url
+      -
+      - The URL of the Azure Key Vault.
+    * - crypto.azurekv.auth.type
+      - default
+      - Credential type to use when authenticating to the Azure Key Vault. Options: default, managed_identity (see https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/README.md for an explanation of the options).
+    * - crypto.vault.address
+      -
+      - The Vault address. If set it overwrites the VAULT_ADDR env var.
+    * - crypto.vault.pathprefix
+      - kv
+      - The Vault path prefix.
+    * - crypto.vault.timeout
+      - 5s
+      - Timeout of client calls to Vault, in Golang time.Duration string format (e.g. 1s).
+    * - crypto.vault.token
+      -
+      - The Vault token. If set it overwrites the VAULT_TOKEN env var.
+    * - **Discovery**
+      -
+      -
+    * - discovery.client.refreshinterval
+      - 10m0s
+      - Interval at which the client synchronizes with the Discovery Server; refreshing Verifiable Presentations of local DIDs and loading changes, updating the local copy. It only will actually refresh registrations of local DIDs that about to expire (less than 1/4th of their lifetime left). Specified as Golang duration (e.g. 1m, 1h30m).
+    * - discovery.definitions.directory
+      - ./config/discovery
+      - Directory to load Discovery Service Definitions from. If not set, the discovery service will be disabled. If the directory contains JSON files that can't be parsed as service definition, the node will fail to start.
+    * - discovery.server.ids
+      - []
+      - IDs of the Discovery Service for which to act as server. If an ID does not map to a loaded service definition, the node will fail to start.
+    * - **HTTP**
+      -
+      -
+    * - http.clientipheader
+      - X-Forwarded-For
+      - Case-sensitive HTTP Header that contains the client IP used for audit logs. For the X-Forwarded-For header only link-local, loopback, and private IPs are excluded. Switch to X-Real-IP or a custom header if you see your own proxy/infra in the logs.
+    * - http.log
+      - metadata
+      - What to log about HTTP requests. Options are 'nothing', 'metadata' (log request method, URI, IP and response code), and 'metadata-and-body' (log the request and response body, in addition to the metadata). In strictmode, 'metadata-and-body' is not allowed and is changed to 'metadata' at startup.
+    * - http.cache.maxbytes
+      - 10485760
+      - HTTP client maximum size of the response cache in bytes. If 0, the HTTP client does not cache responses.
+    * - http.client.allowedinternalcidrs
+      - []
+      - IP ranges (CIDR notation, e.g. 10.0.0.0/8) exempted from the strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use to permit internal flows that legitimately target a private address, such as an internal credential offering or an internal OAuth user flow. Leave empty to block all non-public addresses.
+    * - http.client.deniedcidrs
+      - []
+      - IP ranges (CIDR notation) that outbound HTTP requests must never target in strict mode, in addition to the built-in blocked ranges (non-public addresses and cloud metadata endpoints). Use for publicly routable ranges that are internal-only in your infrastructure. Takes precedence over http.client.allowedinternalcidrs.
+    * - http.internal.address
+      - 127.0.0.1:8081
+      - Address and port the server will be listening to for internal-facing endpoints.
+    * - http.internal.auth.audience
+      -
+      - Expected audience for JWT tokens (default: hostname)
+    * - http.internal.auth.authorizedkeyspath
+      -
+      - Path to an authorized_keys file for trusted JWT signers
+    * - http.internal.auth.type
+      -
+      - Whether to enable authentication for /internal endpoints, specify 'token_v2' for bearer token mode or 'token' for legacy bearer token mode.
+    * - http.public.address
+      - \:8080
+      - Address and port the server will be listening to for public-facing endpoints.
+    * - **JSONLD**
+      -
+      -
+    * - jsonld.contexts.localmapping
+      - [https://nuts.nl/credentials/2024=assets/contexts/nuts-2024.ldjson,https://nuts.nl/credentials/v1=assets/contexts/nuts.ldjson,https://schema.org=assets/contexts/schema-org-v13.ldjson,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json=assets/contexts/lds-jws2020-v1.ldjson,https://w3id.org/vc/status-list/2021/v1=assets/contexts/w3c-statuslist2021.ldjson,https://www.w3.org/2018/credentials/v1=assets/contexts/w3c-credentials-v1.ldjson]
+      - This setting allows mapping external URLs to local files for e.g. preventing external dependencies. These mappings have precedence over those in remoteallowlist.
+    * - jsonld.contexts.remoteallowlist
+      - [https://schema.org,https://www.w3.org/2018/credentials/v1,https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json,https://w3id.org/vc/status-list/2021/v1]
+      - In strict mode, fetching external JSON-LD contexts is not allowed except for context-URLs listed here.
+    * - **PKI**
+      -
+      -
+    * - pki.maxupdatefailhours
+      - 4
+      - Maximum number of hours that a denylist update can fail
+    * - pki.softfail
+      - true
+      - Do not reject certificates if their revocation status cannot be established when softfail is true
+    * - **Storage**
+      -
+      -
+    * - storage.debug
+      - false
+      - When true, enables extra logging of storage-layer problems (e.g. performance issues).
+    * - storage.session.memcached.address
+      - []
+      - List of Memcached server addresses. These can be a simple 'host:port' or a Memcached connection URL with scheme, auth and other options.
+    * - storage.session.redis.address
+      -
+      - Redis session database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options. If not set it, defaults to an in-memory database.
+    * - storage.session.redis.database
+      -
+      - Redis session database name, which is used as prefix every key. Can be used to have multiple instances use the same Redis instance.
+    * - storage.session.redis.password
+      -
+      - Redis session database password. If set, it overrides the username in the connection URL.
+    * - storage.session.redis.username
+      -
+      - Redis session database username. If set, it overrides the username in the connection URL.
+    * - storage.session.redis.sentinel.master
+      -
+      - Name of the Redis Sentinel master. Setting this property enables Redis Sentinel.
+    * - storage.session.redis.sentinel.nodes
+      - []
+      - Addresses of the Redis Sentinels to connect to initially. Setting this property enables Redis Sentinel.
+    * - storage.session.redis.sentinel.password
+      -
+      - Password for authenticating to Redis Sentinels.
+    * - storage.session.redis.sentinel.username
+      -
+      - Username for authenticating to Redis Sentinels.
+    * - storage.session.redis.tls.truststorefile
+      -
+      - PEM file containing the trusted CA certificate(s) for authenticating remote Redis session servers. Can only be used when connecting over TLS (use 'rediss://' as scheme in address).
+    * - storage.sql.connection
+      -
+      - Connection string for the SQL database. If not set it, defaults to a SQLite database stored inside the configured data directory. Note: using SQLite is not recommended in production environments. If using SQLite anyways, remember to enable foreign keys ('_foreign_keys=on') and the write-ahead-log ('_journal_mode=WAL').
+    * - storage.sql.rdsiam.dbuser
+      -
+      - Database username for IAM authentication. If not specified, the username from the connection string will be used. The database user must be created with IAM authentication enabled.
+    * - storage.sql.rdsiam.enabled
+      - false
+      - Enable AWS RDS IAM authentication for the SQL database connection. When enabled, the node will use temporary IAM tokens instead of passwords. Requires the connection string to be a PostgreSQL or MySQL RDS endpoint without a password.
+    * - storage.sql.rdsiam.region
+      -
+      - AWS region where the RDS instance is located (e.g., 'us-east-1). Required when RDS IAM authentication is enabled.
+    * - storage.sql.rdsiam.tokenrefreshinterval
+      - 14m0s
+      - Interval at which to refresh the IAM authentication token. RDS tokens are valid for 15 minutes, so set this to ensure tokens are refreshed before expiry. Specified as Golang duration (e.g. 10m, 1h).
+    * - **Tracing**
+      -
+      -
+    * - tracing.endpoint
+      -
+      - OTLP collector endpoint for OpenTelemetry tracing (e.g., 'localhost:4318'). When empty, tracing is disabled.
+    * - tracing.insecure
+      - false
+      - Disable TLS for the OTLP connection.
+    * - tracing.servicename
+      -
+      - Service name reported to the tracing backend. Defaults to 'nuts-node'.
+    * - **policy**
+      -
+      -
+    * - policy.directory
+      - ./config/policy
+      - Directory to read policy files from. Policy files are JSON files that contain a scope to PresentationDefinition mapping.
+    * - policy.authzen.endpoint
+      -
+      - Base URL of the AuthZen PDP endpoint. Required when any credential profile uses scope_policy 'dynamic'; the node refuses to start if such a profile is configured but this flag is empty.
 
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
 the options table must be regenerated using the Makefile:
@@ -310,6 +313,43 @@ the options table must be regenerated using the Makefile:
 .. code-block:: shell
 
     $ make docs
+
+If your use case still uses ``did:nuts`` DIDs and/or the gRPC network, there's an additional (deprecated) options
+table in :ref:`Legacy did:nuts configuration <legacy-did-nuts-configuration>`.
+
+Choosing the node's URL
+***********************
+
+The ``url`` option is the node's public facing URL:
+
+.. code-block:: yaml
+
+    url: https://example.com
+
+It's used in the following ways:
+
+- It provides some information about the owner of DIDs and is part of the client_id in OAuth flows.
+  Other parties can use it to identify your node.
+- It's part of the DIDs the node creates for you when you create a new subject.
+  For example: DID web URLs are constructed as ``did:web:<domain>:iam:<uuid>``.
+- It's listed in OAuth metadata.
+  For example: the default identity URL is ``https://<domain>/oauth2/<subject>``.
+  This URL is then used to lookup .well-known endpoints.
+- It's part of the URL for the StatusList2021 revocation mechanism.
+
+There are no strict requirements for it, but please consider the following:
+
+- You must own the domain.
+- The domain should be stable. It should not change.
+- It should use a TLD that allows for retention of the domain name.
+  For example, a .com domain name can be blocked for a period of time after it's no longer registered.
+  This will prevent the next owner from using it.
+- The domain should be human readable.
+  Sub-domains from cloud providers are not recommended since they don't provide information about the owner.
+- There should be a security.txt and robots.txt file at the root of the domain.
+  This is a best practice for security and privacy.
+
+Once chosen, changing it is a disruptive operation; see :ref:`changing-base-url` for the procedure.
 
 Secrets
 *******
@@ -339,7 +379,10 @@ As a general safety precaution ``auth.contractvalidators`` ignores the ``dummy``
 requesting an access token from another node on ``/n2n/auth/v1/accesstoken`` does not return any error details,
 ``auth.accesstokenlifespan`` is always 60 seconds,
 json-ld context can only be downloaded from trusted domains configured in ``jsonld.contexts.remoteallowlist``,
+``http.log=metadata-and-body`` is not allowed and is changed to ``metadata`` at startup (request and response bodies on the OAuth endpoints contain credentials, which must not be written to logs),
 and the ``internalratelimiter`` is always on.
 
 Interacting with remote Nuts nodes requires HTTPS: it will refuse to connect to plain HTTP endpoints when in strict mode.
+Strict mode additionally rejects outbound URLs whose host is an RFC 2606 reserved hostname/TLD (e.g. ``*.localhost``, ``*.test``, ``example.com/net/org``); non-public IP addresses are refused too, unless explicitly permitted via ``http.client.allowedinternalcidrs``.
+This applies to every outbound HTTP call made via the shared HTTP client (OpenID4VCI, OAuth relying-party, IAM, Discovery, did:web resolution, etc.) and to every redirect target along the way.
 

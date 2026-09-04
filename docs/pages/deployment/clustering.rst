@@ -3,7 +3,7 @@
 Clustering
 ##########
 
-Clustering is currently limited to nodes that have the ``did:nuts`` method disabled.
+Clustering is currently limited to nodes that have the ``did:nuts`` method disabled (see :ref:`Legacy did:nuts configuration <legacy-did-nuts-configuration>`).
 To enable clustering, you must support the following:
 
 - A clustered SQL database (SQLite is not supported)

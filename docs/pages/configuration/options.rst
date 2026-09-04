@@ -1,7 +1,7 @@
 .. _nuts-node-config:
 
-Configuration
-#############
+Options
+#######
 
 .. marker-for-readme
 
@@ -50,20 +50,49 @@ The following options can be configured on the server:
 
 .. include:: server_options.rst
 
-Options specific for ``did:nuts``/gRPC
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
-If your use case does not use these features, you can ignore this table.
-
-.. include:: server_options_didnuts.rst
-
 This table is automatically generated using the configuration flags in the core and engines. When they're changed
 the options table must be regenerated using the Makefile:
 
 .. code-block:: shell
 
     $ make docs
+
+If your use case still uses ``did:nuts`` DIDs and/or the gRPC network, there's an additional (deprecated) options
+table in :ref:`Legacy did:nuts configuration <legacy-did-nuts-configuration>`.
+
+Choosing the node's URL
+***********************
+
+The ``url`` option is the node's public facing URL:
+
+.. code-block:: yaml
+
+    url: https://example.com
+
+It's used in the following ways:
+
+- It provides some information about the owner of DIDs and is part of the client_id in OAuth flows.
+  Other parties can use it to identify your node.
+- It's part of the DIDs the node creates for you when you create a new subject.
+  For example: DID web URLs are constructed as ``did:web:<domain>:iam:<uuid>``.
+- It's listed in OAuth metadata.
+  For example: the default identity URL is ``https://<domain>/oauth2/<subject>``.
+  This URL is then used to lookup .well-known endpoints.
+- It's part of the URL for the StatusList2021 revocation mechanism.
+
+There are no strict requirements for it, but please consider the following:
+
+- You must own the domain.
+- The domain should be stable. It should not change.
+- It should use a TLD that allows for retention of the domain name.
+  For example, a .com domain name can be blocked for a period of time after it's no longer registered.
+  This will prevent the next owner from using it.
+- The domain should be human readable.
+  Sub-domains from cloud providers are not recommended since they don't provide information about the owner.
+- There should be a security.txt and robots.txt file at the root of the domain.
+  This is a best practice for security and privacy.
+
+Once chosen, changing it is a disruptive operation; see :ref:`changing-base-url` for the procedure.
 
 Secrets
 *******

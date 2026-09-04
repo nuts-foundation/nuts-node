@@ -29,3 +29,16 @@ Services
 ========
 
 The **services** section is used to list service endpoints. Although still available, the preferred way is to register services via :ref:`discovery`.
+
+.. _did-x509-background:
+
+did:x509
+********
+
+In ``did:x509`` a certificate is converted to a DID Document (that includes its entire certificate chain) so it can be used in the Verifiable Credentials ecosystem.
+This DID Method provides a temporary bridge between the 'old' world of CAs/Certificates and the 'new' Verifiable Credential world.
+With other DID Methods, certificates are only used to create a secure channel for communication and optionally for client authentication.
+In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
+This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
+
+For how to configure trust in specific CAs for ``did:x509``, see :ref:`Certificates (did:x509) <usecase-certificates>`.

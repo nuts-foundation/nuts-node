@@ -1,7 +1,12 @@
 openapi: "3.0.0"
 info:
   title: Nuts Verifiable Data Registry API spec
-  description: API specification for the Verifiable Data Registry
+  description: |
+    API specification for the Verifiable Data Registry.
+
+    Deprecated: this is the v1 API, which only supports `did:nuts`. Use the v2 API for new integrations.
+    Do not mix v1 and v2 API usage on the same subject: they read from different stores, and switching from v2 back to v1 is not supported.
+    See the migration guide (Operations > Migration) for details.
   version: 1.0.0
   license:
     name: GPLv3

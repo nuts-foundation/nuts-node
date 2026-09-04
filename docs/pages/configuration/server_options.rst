@@ -29,7 +29,7 @@
       - When set, insecure settings are forbidden.
     * - url
       -
-      - Public facing URL of the server (required). Must be HTTPS when strictmode is set.
+      - Public facing URL of the server (required). Must be HTTPS when strictmode is set. It's baked into every DID and OAuth identity the node issues, so choose a domain you own, that is stable (avoid TLDs that block re-registration after expiry, and cloud-provider subdomains that don't identify the owner), and that serves security.txt and robots.txt at its root.
     * - verbosity
       - info
       - Log level (trace, debug, info, warn, error)
