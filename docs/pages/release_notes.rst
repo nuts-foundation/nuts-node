@@ -6,14 +6,20 @@ Release notes
 Unreleased
 ****************
 
-## New features
+============
+New Features
+============
+
 * #4063: Enable ``storage.debug`` flag to log go-leia performance issues (full table scans, suboptimal index usage) by @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4064
 * #4078: Allow policy profiles to define a ``service_provider`` PresentationDefinition for the OAuth client (RFC 7523 ``jwt-bearer`` flow) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4226
 * #4078: Add the experimental RFC 7523 ``jwt-bearer`` two-VP token request flow, gated behind ``auth.experimental.jwtbearerclient`` (default ``false``, subject to change) by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4227
 * #4078: Expose the experimental two-VP flow on ``POST /internal/auth/v2/{subjectID}/request-service-access-token`` via the optional ``service_provider_subject_id`` body field by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4228
 * #4233: ``request-credential`` API gains an optional ``credential_request_params`` JSON object overlaid on top of the OpenID4VCI Credential Request body sent to the issuer. Lets the wallet talk to issuers that accept additional fields, or to override the credential request entirely.
 
-## Security
+========
+Security
+========
+
 * #4441: Inbound HTTP request bodies are now limited to 1MB on both the public and internal interfaces; larger requests are rejected with HTTP 413 (Request Entity Too Large). Previously no limit was enforced, contrary to what the deployment documentation stated. The heaviest legitimate requests (OAuth POSTs carrying Verifiable Presentations) stay well below this limit, and it matches the ``client_max_body_size 1M`` reverse proxy configuration the documentation recommends. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4441
 * #4439: Helm chart (version 0.0.9): default ``verbosity`` changed from ``debug`` to ``info``, matching the node's own default. Debug verbosity produces far more log output than production needs and increases the impact of any log-hygiene issue. Set ``nuts.config.verbosity: debug`` in your own values to restore the old behavior. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4439
 * #4440: In strictmode, ``http.log: metadata-and-body`` is no longer honored: the node resets it to ``metadata`` at startup and logs a warning. Full body logging wrote OAuth token endpoint request and response bodies (client assertions, VP tokens, authorization codes and issued access tokens) to the log at Info severity. Non-strictmode deployments are unaffected. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4440
@@ -446,7 +452,7 @@ Breaking changes
 - Removed legacy API authentication tokens.
 - Removed ``auth.publicURL`` config param. The requirement for Yivi is now also covered by the ``url`` config param value.
 - Default port bindings and http config options have changed. See below.
-- See caveats in :ref:`version-incompatibilities`.
+- See caveats in :ref:`nuts-node-migrations`.
 
 ============
 New Features

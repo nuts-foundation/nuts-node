@@ -1,7 +1,7 @@
 .. _nuts-node-config:
 
-Configuration
-#############
+Options
+#######
 
 .. marker-for-readme
 
@@ -50,20 +50,10 @@ The following options can be configured on the server:
 
 .. include:: server_options.rst
 
-Options specific for ``did:nuts``/gRPC
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+If your use case still uses ``did:nuts`` DIDs and/or the gRPC network, there's an additional (deprecated) options
+table in :ref:`Legacy did:nuts configuration <legacy-did-nuts-configuration>`.
 
-The following table contains additional (deprecated) options that are relevant for use cases that use ``did:nuts`` DIDs and/or the gRPC network.
-If your use case does not use these features, you can ignore this table.
-
-.. include:: server_options_didnuts.rst
-
-This table is automatically generated using the configuration flags in the core and engines. When they're changed
-the options table must be regenerated using the Makefile:
-
-.. code-block:: shell
-
-    $ make docs
+See :ref:`The node's URL <nuts-node-url>` for guidance on choosing the ``url`` option.
 
 Secrets
 *******

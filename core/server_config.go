@@ -265,7 +265,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.Bool("strictmode", defaultCfg.Strictmode, "When set, insecure settings are forbidden.")
 	flagSet.Bool("internalratelimiter", defaultCfg.InternalRateLimiter, "When set, expensive internal calls are rate-limited to protect the network. Always enabled in strict mode.")
 	flagSet.String("datadir", defaultCfg.Datadir, "Directory where the node stores its files.")
-	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set.")
+	flagSet.String("url", defaultCfg.URL, "Public facing URL of the server (required). Must be HTTPS when strictmode is set. "+
+		"It's baked into every DID and OAuth identity the node issues, so choose a domain you own, that is stable (avoid TLDs that block re-registration after expiry, "+
+		"and cloud-provider subdomains that don't identify the owner), and that serves security.txt and robots.txt at its root.")
 	flagSet.StringSlice("didmethods", defaultCfg.DIDMethods, "Comma-separated list of enabled DID methods (without did: prefix). "+
 		"It also controls the order in which DIDs are returned by APIs, and which DID is used for signing if the verifying party does not impose restrictions on the DID method used.")
 	flagSet.Duration("httpclient.timeout", defaultCfg.HTTPClient.Timeout, "Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.")

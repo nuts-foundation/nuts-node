@@ -104,7 +104,12 @@ Creating DIDs with ``selfControl=false``
 Mixing VDR v1 and v2 APIs
 -------------------------
 
-The v1 and v2 APIs read from different stores. Do not mix usage, or you risk data drift and stale reads. VDR v1 / DIDMan v1 are deprecated and slated for removal in a future major release.
+V6 introduced support for multiple DID methods, backed by a new version of the VDR API. Not all combinations of API usage and ``didmethods`` are supported — there are basically two options:
+
+1. Keep using the VDR v1 API (for now) and set ``didmethods = ["nuts"]``.
+2. Use the VDR v2 API and set ``didmethods`` to include other methods, or leave it at its default.
+
+The v1 and v2 APIs read from different stores. Do not mix usage, or you risk data drift and stale reads. Once you use the VDR v2 API on a subject, you cannot go back to the VDR v1 API for it. VDR v1 / DIDMan v1 are deprecated and slated for removal in a future major release.
 
 .. _also-enabling-did-web:
 

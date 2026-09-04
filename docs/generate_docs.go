@@ -47,7 +47,7 @@ func (sl stringSlice) contains(s string) bool {
 }
 
 // serverCommands lists the commands that use the server config. The options server commands are only printed once, because the list is quite long.
-var serverCommands stringSlice = []string{"nuts config", "nuts server", "nuts crypto fs2vault", "nuts crypto fs2external", "nuts http gen-token"}
+var serverCommands stringSlice = []string{"nuts config", "nuts server", "nuts crypto fs2external", "nuts http gen-token"}
 
 func generateDocs() {
 	system := cmd.CreateSystem(func() {})
@@ -56,7 +56,7 @@ func generateDocs() {
 }
 
 func generateCLICommands(system *core.System) {
-	const targetFile = "docs/pages/deployment/cli-reference.rst"
+	const targetFile = "docs/pages/operations/cli-reference.rst"
 	writer, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	defer writer.Close()
 
@@ -137,8 +137,8 @@ func generateServerOptions(system *core.System) {
 		},
 	}
 
-	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", filterFlags(flags, v5FlagsPredicates, true))
-	generatePartitionedConfigOptionsDocs("did:nuts/gRPC Server Options", "docs/pages/deployment/server_options_didnuts.rst", filterFlags(flags, v5FlagsPredicates, false))
+	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/configuration/server_options.rst", filterFlags(flags, v5FlagsPredicates, true))
+	generatePartitionedConfigOptionsDocs("did:nuts/gRPC Server Options", "docs/pages/configuration/server_options_didnuts.rst", filterFlags(flags, v5FlagsPredicates, false))
 }
 
 func filterFlags(flags map[string]*pflag.FlagSet, predicates []func(f *pflag.Flag) bool, exclude bool) map[string]*pflag.FlagSet {

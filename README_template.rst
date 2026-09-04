@@ -46,11 +46,10 @@ Claude Code skill files for common maintenance tasks can be found in the `.claud
 Development
 ^^^^^^^^^^^
 
-.. include:: docs/pages/development/1-development.rst
-    :start-after: .. marker-for-readme
+See `DEVELOPMENT.md <DEVELOPMENT.md>`_ for build, test and code generation instructions.
 
 Configuration
 ^^^^^^^^^^^^^
 
-.. include:: docs/pages/deployment/configuration.rst
+.. include:: docs/pages/configuration/options.rst
     :start-after: .. marker-for-readme

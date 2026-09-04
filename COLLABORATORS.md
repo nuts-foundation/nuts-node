@@ -21,8 +21,8 @@ new major version, which the maintainers plan.
 What counts as breaking and how it maps to version numbers is already
 documented:
 
-- [API development](docs/pages/development/3-api.rst) — API versioning rules.
-- [Releasing — Semantic versioning](docs/pages/development/2-releasing.rst) —
+- [API development](docs/README.md#api-development-guidelines) — API versioning rules.
+- [Releasing — Semantic versioning](RELEASING.md#semantic-versioning) —
   how "API" is scoped (it also covers config and network protocols) and
   which version part a change bumps.
 

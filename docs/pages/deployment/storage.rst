@@ -189,14 +189,7 @@ Migrating to Hashicorp Vault
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Migrating your private keys from the filesystem to Vault is relatively easy: just upload the keys to Vault under ``kv/nuts-private-keys``.
-
-Alternatively you can use the ``fs2vault`` crypto command, which takes the directory containing the private keys as argument (the example assumes the container is called *nuts-node* and *NUTS_DATADIR=/opt/nuts/data*):
-
-.. code-block:: shell
-
-    docker exec nuts-node nuts crypto fs2vault /opt/nuts/data/crypto
-
-In any case, make sure the key-value secret engine exists before trying to migrate (default engine name is ``kv``).
+Make sure the key-value secret engine exists before trying to migrate (default engine name is ``kv``).
 
 External Store API
 ==================
