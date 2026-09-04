@@ -62,13 +62,25 @@ type offerGiveUpFn func(ctx context.Context, credential vc.VerifiableCredential)
 // issuer stopped supporting it between retries) and that retrying further won't help.
 var errOfferNoLongerSupported = errors.New("wallet or issuer no longer supports OpenID4VCI")
 
-// offerJob is the persisted state of a single retrying credential offer.
+// offerJob is the persisted state of a single retrying credential offer. It's stored keyed by
+// Credential.ID.String() (see save/finish below), not a separate generated ID: that gives natural
+// idempotency (the same VC can never end up with two persisted jobs) and is the lookup key the planned
+// admin requeue endpoint (#4469 item 3, "requeue a stuck credential offer by credential ID") needs anyway.
 type offerJob struct {
-	Credential   vc.VerifiableCredential `json:"credential"`
-	FirstAttempt time.Time               `json:"firstAttempt"`
-	Retries      int                     `json:"retries"`
-	Latest       *time.Time              `json:"latest,omitempty"`
-	Error        string                  `json:"error,omitempty"`
+	// Credential is the offer being delivered.
+	Credential vc.VerifiableCredential `json:"credential"`
+	// FirstAttempt is when the offer was first scheduled. It's read from persisted state (not reset across
+	// restarts), since it anchors offerRetryWindow: the job is dead-lettered offerRetryWindow after this
+	// timestamp regardless of how many times the node has restarted in between.
+	FirstAttempt time.Time `json:"firstAttempt"`
+	// Retries counts failed attempts so far, incremented on every OnRetry callback.
+	Retries int `json:"retries"`
+	// Latest is when the job's state (Retries/Error, or GivenUp) was last updated. Nil until the first
+	// failed attempt.
+	Latest *time.Time `json:"latest,omitempty"`
+	// Error is the message from the most recent failed attempt, for diagnostics. Empty until the first
+	// failed attempt.
+	Error string `json:"error,omitempty"`
 	// GivenUp indicates the retry window was exhausted; the offer is dead-lettered.
 	GivenUp bool `json:"givenUp,omitempty"`
 }
@@ -219,10 +231,15 @@ func (q *offerQueue) retry(job offerJob) {
 			if saveErr := q.save(job); saveErr != nil {
 				log.Logger().WithError(saveErr).Warn("Failed to persist OpenID4VCI offer retry state")
 			}
+			// Warn, not Debug: every attempt reaching here is a genuine delivery failure (an unsupported or
+			// misconfigured wallet/issuer never reaches the queue at all - see issueUsingOpenID4VCI), so it's
+			// worth an operator's attention, not just Trace/Debug-level noise. Matches the give-up log level
+			// below and network/dag/notifier.go's equivalent OnRetry logging (the precedent this queue is
+			// modeled on), which logs every retry at Error/Warn rather than Debug.
 			log.Logger().
 				WithError(retryErr).
 				WithField(core.LogFieldCredentialID, job.Credential.ID.String()).
-				Debugf("Retrying OpenID4VCI credential offer (attempt %d)", n)
+				Warnf("Retrying OpenID4VCI credential offer (attempt %d)", n)
 		}),
 	)
 	q.settle(job, err)
@@ -253,9 +270,15 @@ func (q *offerQueue) settle(job offerJob, err error) {
 	q.giveUp(q.ctx, job.Credential)
 }
 
-// Persistence operations deliberately use context.Background() rather than q.ctx: q.ctx is cancelled by
-// Close() to stop in-flight retries, but reading/writing the persisted queue (e.g. from GetFailedOffers(),
-// callable independently of whether the queue is still running) must keep working regardless.
+// Persistence operations deliberately use context.Background() rather than q.ctx, for two reasons:
+//  1. Reads must keep working regardless of whether the retry loop is running. GetFailedOffers() (and the
+//     admin requeue endpoint it'll back, #4469 item 3) is a diagnostics API with no reason to depend on the
+//     queue's own lifecycle - an operator should be able to inspect the DLQ even after Close(), or on an
+//     offerQueue that was never Run() at all.
+//  2. Writes must not be lost to a shutdown race. save() is called from inside retry()'s OnRetry callback,
+//     which can fire in the narrow window where Close() has just cancelled q.ctx but the goroutine hasn't
+//     noticed yet. If save() used q.ctx, that write - the last real Retries/Error state before shutdown -
+//     would fail with "context canceled" and be silently dropped instead of persisted.
 
 func (q *offerQueue) save(job offerJob) error {
 	data, err := json.Marshal(job)
