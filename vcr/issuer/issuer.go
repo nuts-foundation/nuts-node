@@ -58,9 +58,10 @@ var TimeFunc = time.Now
 // since that normally happens through receiving the just-issued credential over the network,
 // but that doesn't happen when issuing over OpenID4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OpenID4VCI.
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
-// offerQueueStore, if non-nil, backs a persistent retry queue for OpenID4VCI credential offers that fail
-// on the initial synchronous attempt (see offer_queue.go). If nil, a failed offer falls back to publishing
-// over the Nuts network immediately, as if the retry window were already exhausted.
+// offerQueueStore backs the persistent OpenID4VCI offer retry queue (see offer_queue.go). It's nil exactly
+// when openidHandlerFn is nil in the current (only) caller, vcr.go, since both are gated by the same
+// OpenID4VCI.Enabled check; NewIssuer accepts it as a separate, independently-nilable parameter so tests can
+// construct an issuer without a queue.
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
@@ -102,7 +103,7 @@ type issuer struct {
 	offerQueue       *offerQueue
 }
 
-// Start resumes retrying any not-yet-delivered OpenID4VCI credential offers persisted from a previous run.
+// Start resumes the OpenID4VCI offer retry queue, if configured; see offerQueue.Run().
 func (i issuer) Start() error {
 	if i.offerQueue == nil {
 		return nil
@@ -110,8 +111,7 @@ func (i issuer) Start() error {
 	return i.offerQueue.Run()
 }
 
-// Shutdown stops any in-flight OpenID4VCI offer retries. Persisted, not-yet-finished offers are resumed by
-// the next Start().
+// Shutdown stops the OpenID4VCI offer retry queue, if configured; see offerQueue.Close().
 func (i issuer) Shutdown() error {
 	if i.offerQueue == nil {
 		return nil
