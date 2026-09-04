@@ -41,4 +41,5 @@ With other DID Methods, certificates are only used to create a secure channel fo
 In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
 This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
 
-For how to configure trust in specific CAs for ``did:x509``, see :ref:`Certificates (did:x509) <usecase-certificates>`.
+Trust in specific certificate CAs is configured per use-case in a :ref:`Discovery <discovery>` and :ref:`Access policies <policy>` definition file.
+CRLs from the trusted chains (per those definition files) are consulted when evaluating ``did:x509`` Verifiable Credentials; see :ref:`Certificate revocation (CRL) handling <certificate-revocation-handling>` for how a failure to download a CRL is handled — for ``did:x509`` this always hard-fails.

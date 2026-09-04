@@ -4,7 +4,7 @@ Certificate revocation (CRL) handling
 #######################################
 
 The Nuts-node periodically downloads the Certificate Revocation List (CRL) of configured trusted certificate chains to confirm a certificate has not been revoked.
-This applies to the ``tls.truststorefile`` used for :ref:`legacy did:nuts/gRPC client authentication <legacy-did-nuts-configuration>`, and to the certificate chains trusted per use case for :ref:`did:x509 <usecase-certificates>`.
+This applies to the ``tls.truststorefile`` used for :ref:`legacy did:nuts/gRPC client authentication <legacy-did-nuts-configuration>`, and to the certificate chains trusted per use case for :ref:`did:x509 <did-x509-background>`.
 
 Soft-fail vs. hard-fail
 ************************
