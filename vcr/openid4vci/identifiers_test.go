@@ -163,6 +163,23 @@ func TestTLSIdentifierResolver(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "", actual)
 	})
+	t.Run("empty result is not cached forever", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		underlying := NewMockIdentifierResolver(ctrl)
+		// Called twice: an empty result must not short-circuit future calls, so the DID document
+		// (the underlying resolver) is checked again every time, until it actually resolves.
+		underlying.EXPECT().Resolve(gomock.Any()).Times(2).Return("", nil)
+
+		resolver := NewTLSIdentifierResolver(underlying, tlsConfig)
+
+		actual, err := resolver.Resolve(id)
+		require.NoError(t, err)
+		require.Equal(t, "", actual)
+
+		actual, err = resolver.Resolve(id)
+		require.NoError(t, err)
+		require.Equal(t, "", actual)
+	})
 	t.Run("ok - resolved from underlying resolver", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		underlying := NewMockIdentifierResolver(ctrl)

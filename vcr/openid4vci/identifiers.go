@@ -100,8 +100,11 @@ type tlsIdentifierResolver struct {
 }
 
 func (t tlsIdentifierResolver) Resolve(id did.DID) (string, error) {
+	// Only a successfully resolved (non-empty) identifier is a valid cache hit; an empty result means
+	// resolution hasn't succeeded yet (e.g. the DID document is still missing its base URL service), and
+	// must be retried on every call rather than being cached forever.
 	cached := t.cachedIdentifier.Load()
-	if cached != nil {
+	if cached != nil && *cached != "" {
 		return *cached, nil
 	}
 
@@ -118,7 +121,7 @@ func (t tlsIdentifierResolver) Resolve(id did.DID) (string, error) {
 		lastAttempt := time.Now()
 		t.lastAttempt.Store(&lastAttempt)
 		identifier, err = t.resolveFromCertificate(id)
-		if err == nil {
+		if err == nil && identifier != "" {
 			t.cachedIdentifier.Store(&identifier)
 		}
 		return identifier, err
