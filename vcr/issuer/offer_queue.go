@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -72,6 +73,12 @@ type offerJob struct {
 	GivenUp bool `json:"givenUp,omitempty"`
 }
 
+// offerQueueShutdownGrace bounds how long Close() waits for in-flight retry goroutines to actually stop
+// after being cancelled, before giving up on the wait and returning anyway. A well-behaved attempt (HTTP
+// call using the per-job context) should stop almost immediately; this is a safety net against one that
+// doesn't, so node shutdown can't hang forever on it.
+var offerQueueShutdownGrace = 5 * time.Second
+
 // offerQueue is a persistent, retrying queue for OpenID4VCI credential offers that failed on the initial
 // synchronous attempt. Modeled on network/dag's private-payload-fetch notifier: durable per-job state,
 // exponential backoff via retry-go, but bounded by a fixed total retry window rather than an attempt count.
@@ -81,6 +88,7 @@ type offerQueue struct {
 	giveUp  offerGiveUpFn
 	ctx     context.Context
 	cancel  context.CancelFunc
+	wg      sync.WaitGroup
 }
 
 // newOfferQueue creates an offerQueue backed by db. attempt is called for every (re)try; giveUp is called
@@ -105,7 +113,7 @@ func (q *offerQueue) Schedule(credential vc.VerifiableCredential) error {
 	if err := q.save(job); err != nil {
 		return err
 	}
-	go q.retry(job)
+	q.spawn(job)
 	return nil
 }
 
@@ -119,7 +127,7 @@ func (q *offerQueue) Run() error {
 		if job.GivenUp {
 			continue
 		}
-		go q.retry(job)
+		q.spawn(job)
 	}
 	return nil
 }
@@ -139,11 +147,31 @@ func (q *offerQueue) GetFailedOffers() ([]offerJob, error) {
 	return failed, nil
 }
 
-// Close stops all in-flight retries. Persisted jobs are left untouched; Run() picks them back up on the
-// next startup.
+// Close stops all in-flight retries and waits (up to offerQueueShutdownGrace) for them to actually return,
+// so a caller closing the underlying store right after Close() returns doesn't race an in-flight save().
+// Persisted jobs are left untouched; Run() picks them back up on the next startup.
 func (q *offerQueue) Close() error {
 	q.cancel()
+	stopped := make(chan struct{})
+	go func() {
+		q.wg.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(offerQueueShutdownGrace):
+		log.Logger().Warn("Timed out waiting for OpenID4VCI offer retries to stop; some may still be running")
+	}
 	return nil
+}
+
+// spawn starts (or resumes) retrying job in the background, tracked by q.wg so Close() can wait for it.
+func (q *offerQueue) spawn(job offerJob) {
+	q.wg.Add(1)
+	go func() {
+		defer q.wg.Done()
+		q.retry(job)
+	}()
 }
 
 func (q *offerQueue) retry(job offerJob) {

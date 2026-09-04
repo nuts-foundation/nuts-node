@@ -268,12 +268,79 @@ func TestOfferQueue_Close(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			t.Fatal("timed out waiting for first attempt")
 		}
-		require.NoError(t, q.Close())
-		time.Sleep(50 * time.Millisecond) // let the retry goroutine observe cancellation
+		require.NoError(t, q.Close()) // blocks until the retry goroutine has actually stopped
 
 		jobs, err := q.all()
 		require.NoError(t, err)
 		require.Len(t, jobs, 1)
 		require.False(t, jobs[0].GivenUp)
+	})
+
+	t.Run("blocks until an in-flight attempt returns", func(t *testing.T) {
+		withFastRetryTiming(t, time.Second)
+		db := testOfferQueueStore(t)
+		inAttempt := make(chan struct{})
+		releaseAttempt := make(chan struct{})
+		var attemptReturned atomic.Bool
+		q := newOfferQueue(db,
+			func(_ context.Context, _ vc.VerifiableCredential) error {
+				close(inAttempt)
+				<-releaseAttempt
+				attemptReturned.Store(true)
+				return errors.New("still failing")
+			},
+			func(_ context.Context, _ vc.VerifiableCredential) { t.Fatal("giveUp should not be called on shutdown") },
+		)
+
+		require.NoError(t, q.Schedule(testOfferQueueCredential(t, "did:nuts:issuer#8")))
+		select {
+		case <-inAttempt:
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for the attempt to start")
+		}
+
+		closeDone := make(chan struct{})
+		go func() {
+			require.NoError(t, q.Close())
+			close(closeDone)
+		}()
+
+		select {
+		case <-closeDone:
+			t.Fatal("Close() returned before the in-flight attempt returned")
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		close(releaseAttempt)
+		select {
+		case <-closeDone:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Close() did not return after the in-flight attempt returned")
+		}
+		require.True(t, attemptReturned.Load())
+	})
+
+	t.Run("gives up waiting after the shutdown grace period", func(t *testing.T) {
+		withFastRetryTiming(t, time.Second)
+		original := offerQueueShutdownGrace
+		offerQueueShutdownGrace = 50 * time.Millisecond
+		t.Cleanup(func() { offerQueueShutdownGrace = original })
+
+		db := testOfferQueueStore(t)
+		stuck := make(chan struct{})
+		q := newOfferQueue(db,
+			func(_ context.Context, _ vc.VerifiableCredential) error {
+				<-stuck // never returns on its own; ignores cancellation, like a misbehaving attempt would
+				return nil
+			},
+			func(_ context.Context, _ vc.VerifiableCredential) {},
+		)
+		t.Cleanup(func() { close(stuck) })
+
+		require.NoError(t, q.Schedule(testOfferQueueCredential(t, "did:nuts:issuer#9")))
+
+		start := time.Now()
+		require.NoError(t, q.Close())
+		require.Less(t, time.Since(start), time.Second, "Close() should have given up waiting after the grace period")
 	})
 }
