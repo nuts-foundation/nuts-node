@@ -219,6 +219,14 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 	}
 	issuerDID, _ := did.ParseDID(credential.Issuer.String()) // can't fail, already created
 	openidIssuer, err := i.openidHandlerFn(ctx, *issuerDID)
+	if errors.Is(err, openid4vci.ErrIdentifierNotConfigured) {
+		// Unlike an unsupported wallet (the other party's problem), this is something the operator of
+		// *this* node needs to act on: fix the DID document so the local node can be discovered.
+		log.Logger().
+			WithField(core.LogFieldDID, issuerDID.String()).
+			Warn("Local DID document is not properly configured for OpenID4VCI issuance; search the node documentation for 'node-http-services-baseurl' to fix it. Falling back to publishing over the Nuts network for now.")
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("unable to discover issuer identifier: %w", err)
 	}
