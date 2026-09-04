@@ -30,6 +30,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
@@ -370,6 +371,50 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
+		t.Run("ok - publish over OpenID4VCI fails - queued for retry instead of immediate fallback", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			// No PublishCredential call expected: a genuine delivery failure is queued, not fallen back
+			// to immediately, when a retry queue is configured.
+			publisher := NewMockPublisher(ctrl)
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
+			openidHandler := NewMockOpenIDHandler(ctrl)
+			openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("failed"))
+			keyResolverMock := resolver.NewMockKeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveKey(issuerDID, nil, resolver.AssertionMethod).Return(issuerKeyID, issuerKey, nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:   keyResolverMock,
+				store:         store,
+				jsonldManager: jsonldManager,
+				trustConfig:   trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:      nutsCryptoInstance,
+				openidHandlerFn: func(_ context.Context, id did.DID) (OpenIDHandler, error) {
+					if id.Equals(issuerDID) {
+						return openidHandler, nil
+					}
+					return nil, nil
+				},
+				walletResolver:   walletResolver,
+				networkPublisher: publisher,
+			}
+			sut.offerQueue = newOfferQueue(testOfferQueueStore(t), sut.retryOfferAttempt, sut.giveUpOffer)
+			t.Cleanup(func() { _ = sut.offerQueue.Close() })
+
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+
+			jobs, err := sut.offerQueue.all()
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+			require.Equal(t, result.ID.String(), jobs[0].Credential.ID.String())
+		})
 		t.Run("ok - OpenID4VCI not enabled - fallback to network", func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			publisher := NewMockPublisher(ctrl)
@@ -539,8 +584,87 @@ func Test_issuer_Issue(t *testing.T) {
 }
 
 func TestNewIssuer(t *testing.T) {
-	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, &revocation.StatusList2021{})
+	createdIssuer := NewIssuer(nil, nil, nil, nil, nil, nil, nil, nil, &revocation.StatusList2021{}, nil)
 	assert.IsType(t, &issuer{}, createdIssuer)
+}
+
+func Test_issuer_retryOfferAttempt(t *testing.T) {
+	const walletIdentifier = "http://example.com/wallet"
+	credential := testOfferQueueCredential(t, "did:nuts:issuer#retry-1")
+
+	t.Run("ok - delivered", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+		walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
+		openidHandler := NewMockOpenIDHandler(ctrl)
+		openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(nil)
+		vcrStore := vcr.NewMockWriter(ctrl)
+		vcrStore.EXPECT().StoreCredential(gomock.Any(), gomock.Any())
+		sut := issuer{
+			walletResolver: walletResolver,
+			openidHandlerFn: func(_ context.Context, _ did.DID) (OpenIDHandler, error) {
+				return openidHandler, nil
+			},
+			vcrStore: vcrStore,
+		}
+
+		err := sut.retryOfferAttempt(context.Background(), credential)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("error - genuine delivery failure is returned as-is (retryable)", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+		walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
+		openidHandler := NewMockOpenIDHandler(ctrl)
+		openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("still failing"))
+		sut := issuer{
+			walletResolver: walletResolver,
+			openidHandlerFn: func(_ context.Context, _ did.DID) (OpenIDHandler, error) {
+				return openidHandler, nil
+			},
+		}
+
+		err := sut.retryOfferAttempt(context.Background(), credential)
+
+		require.Error(t, err)
+		assert.True(t, retry.IsRecoverable(err), "a plain delivery error must remain retryable")
+	})
+
+	t.Run("ok - became unsupported between retries is unrecoverable", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+		walletResolver.EXPECT().Resolve(gomock.Any()).Return("", nil) // wallet no longer configured
+		sut := issuer{
+			walletResolver: walletResolver,
+		}
+
+		err := sut.retryOfferAttempt(context.Background(), credential)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errOfferNoLongerSupported)
+		assert.False(t, retry.IsRecoverable(err), "should be unrecoverable, so the queue gives up instead of retrying further")
+	})
+}
+
+func Test_issuer_giveUpOffer(t *testing.T) {
+	credential := testOfferQueueCredential(t, "did:nuts:issuer#retry-2")
+
+	t.Run("falls back to the Nuts network", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		publisher := NewMockPublisher(ctrl)
+		publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), false).Return(nil)
+		sut := issuer{networkPublisher: publisher}
+
+		sut.giveUpOffer(context.Background(), credential)
+	})
+
+	t.Run("no network publisher configured - logs and does not panic", func(t *testing.T) {
+		sut := issuer{networkPublisher: nil}
+
+		sut.giveUpOffer(context.Background(), credential)
+	})
 }
 
 func Test_issuer_buildRevocation(t *testing.T) {

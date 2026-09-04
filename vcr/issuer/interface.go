@@ -53,6 +53,12 @@ type Issuer interface {
 	// GetRevocation returns a revocation for a credential ID.
 	// Returns nil when no revocation is found.
 	GetRevocation(id ssi.URI) (*credential.Revocation, error)
+	// Start resumes retrying any not-yet-delivered OpenID4VCI credential offers persisted from a
+	// previous run. Safe to call even if no retry queue is configured.
+	Start() error
+	// Shutdown stops any in-flight OpenID4VCI offer retries. Persisted, not-yet-finished offers are
+	// resumed by the next Start().
+	Shutdown() error
 	CredentialSearcher
 }
 

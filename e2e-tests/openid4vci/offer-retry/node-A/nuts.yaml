@@ -1,0 +1,41 @@
+url: https://nodeA
+verbosity: debug
+strictmode: true
+internalratelimiter: false
+datadir: /opt/nuts/data
+http:
+  internal:
+    address: :8081
+  client:
+    # Docker auto-assigns the compose network an arbitrary private subnet, so permit all RFC1918
+    # ranges for the strict-mode SSRF guard. Narrow-allowlist precision is covered by unit tests.
+    allowedinternalcidrs:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
+auth:
+  contractvalidators:
+    - dummy
+  irma:
+    autoupdateschemas: false
+crypto:
+  storage: fs
+goldenhammer:
+  interval: 1s
+  enabled: true
+vcr:
+  openid4vci:
+    enabled: true
+tls:
+  truststorefile: /opt/nuts/truststore.pem
+  certfile: /opt/nuts/certificate-and-key.pem
+  certkeyfile: /opt/nuts/certificate-and-key.pem
+  offload: incoming
+  certheader: X-SSL-CERT
+network:
+  grpcaddr:	:5555
+  v2:
+    gossipinterval: 500
+storage:
+  sql:
+    connection: "sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"

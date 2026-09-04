@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
+	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/pki"
 	"github.com/nuts-foundation/nuts-node/vcr/credential"
@@ -229,8 +230,16 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		networkPublisher = issuer.NewNetworkPublisher(c.network, didResolver, c.keyStore)
 	}
 
+	var offerQueueStore stoabs.KVStore
+	if c.config.OpenID4VCI.Enabled {
+		offerQueueStore, err = c.storageClient.GetProvider(ModuleName).GetKVStore("openid4vci-offer-queue", storage.PersistentStorageClass)
+		if err != nil {
+			return err
+		}
+	}
+
 	status := revocation.NewStatusList2021(c.storageClient.GetSQLDatabase(), client.NewWithCache(config.HTTPClient.Timeout), config.URL)
-	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status)
+	c.issuer = issuer.NewIssuer(c.issuerStore, c, networkPublisher, openidHandlerFn, didResolver, c.keyStore, c.jsonldManager, c.trustConfig, status, offerQueueStore)
 	c.verifier = verifier.NewVerifier(c.verifierStore, didResolver, c.keyResolver, c.jsonldManager, c.trustConfig, status, c.pkiProvider)
 
 	if !c.network.Disabled() {
@@ -275,6 +284,9 @@ func (c *vcr) createCredentialsStore() error {
 }
 
 func (c *vcr) Start() error {
+	if err := c.issuer.Start(); err != nil {
+		return err
+	}
 	if c.ambassador == nil { // did:nuts / network layer is disabled
 		return nil
 	}
@@ -285,6 +297,11 @@ func (c *vcr) Start() error {
 }
 
 func (c *vcr) Shutdown() error {
+	if err := c.issuer.Shutdown(); err != nil {
+		log.Logger().
+			WithError(err).
+			Error("Unable to shut down issuer")
+	}
 	err := c.issuerStore.Close()
 	if err != nil {
 		log.Logger().
