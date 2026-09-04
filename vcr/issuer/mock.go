@@ -157,6 +157,34 @@ func (mr *MockIssuerMockRecorder) SearchCredential(credentialType, issuer, subje
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchCredential", reflect.TypeOf((*MockIssuer)(nil).SearchCredential), credentialType, issuer, subject)
 }
 
+// Shutdown mocks base method.
+func (m *MockIssuer) Shutdown() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Shutdown")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Shutdown indicates an expected call of Shutdown.
+func (mr *MockIssuerMockRecorder) Shutdown() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockIssuer)(nil).Shutdown))
+}
+
+// Start mocks base method.
+func (m *MockIssuer) Start() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Start indicates an expected call of Start.
+func (mr *MockIssuerMockRecorder) Start() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockIssuer)(nil).Start))
+}
+
 // StatusList mocks base method.
 func (m *MockIssuer) StatusList(ctx context.Context, issuer did.DID, page int) (*vc.VerifiableCredential, error) {
 	m.ctrl.T.Helper()

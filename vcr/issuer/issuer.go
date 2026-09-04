@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/vcr/revocation"
@@ -57,10 +58,13 @@ var TimeFunc = time.Now
 // since that normally happens through receiving the just-issued credential over the network,
 // but that doesn't happen when issuing over OpenID4VCI. Thus, it needs to explicitly save it to the VCR store when issuing over OpenID4VCI.
 // See https://github.com/nuts-foundation/nuts-node/issues/2063
+// offerQueueStore, if non-nil, backs a persistent retry queue for OpenID4VCI credential offers that fail
+// on the initial synchronous attempt (see offer_queue.go). If nil, a failed offer falls back to publishing
+// over the Nuts network immediately, as if the retry window were already exhausted.
 func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	openidHandlerFn func(ctx context.Context, id did.DID) (OpenIDHandler, error),
 	didResolver resolver.DIDResolver, keyStore crypto.KeyStore, jsonldManager jsonld.JSONLD, trustConfig *trust.Config,
-	statusList *revocation.StatusList2021) Issuer {
+	statusList *revocation.StatusList2021, offerQueueStore stoabs.KVStore) Issuer {
 	keyResolver := resolver.DIDKeyResolver{Resolver: didResolver}
 	i := &issuer{
 		store:            store,
@@ -78,6 +82,9 @@ func NewIssuer(store Store, vcrStore types.Writer, networkPublisher Publisher,
 	}
 	statusList.Sign = i.buildJSONLDCredential
 	statusList.ResolveKey = i.keyResolver.ResolveKey
+	if offerQueueStore != nil {
+		i.offerQueue = newOfferQueue(offerQueueStore, i.retryOfferAttempt, i.giveUpOffer)
+	}
 	return i
 }
 
@@ -92,6 +99,24 @@ type issuer struct {
 	vcrStore         types.Writer
 	walletResolver   openid4vci.IdentifierResolver
 	statusList       revocation.StatusList2021Issuer
+	offerQueue       *offerQueue
+}
+
+// Start resumes retrying any not-yet-delivered OpenID4VCI credential offers persisted from a previous run.
+func (i issuer) Start() error {
+	if i.offerQueue == nil {
+		return nil
+	}
+	return i.offerQueue.Run()
+}
+
+// Shutdown stops any in-flight OpenID4VCI offer retries. Persisted, not-yet-finished offers are resumed by
+// the next Start().
+func (i issuer) Shutdown() error {
+	if i.offerQueue == nil {
+		return nil
+	}
+	return i.offerQueue.Close()
 }
 
 func (i issuer) GetRevocation(credentialID ssi.URI) (*credential.Revocation, error) {
@@ -179,11 +204,21 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 		if i.openidHandlerFn != nil && !options.Public {
 			success, err := i.issueUsingOpenID4VCI(ctx, *createdVC)
 			if err != nil {
-				// An error occurred, but it's not because the wallet/issuer doesn't support OpenID4VCI.
+				// A genuine delivery failure (not "unsupported") - retry in the background instead of
+				// falling back immediately: publishing to the Nuts network is irreversible and
+				// network-wide replicated, so it shouldn't pay that cost for a failure that a retry
+				// might resolve. If no retry queue is configured (offerQueueStore was nil), fall back
+				// immediately instead, same as before.
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
 					WithError(err).
-					Warnf("Couldn't publish credential over OpenID4VCI, fallback to publish over Nuts network")
+					Warnf("Couldn't publish credential over OpenID4VCI, will retry in the background")
+				if i.offerQueue != nil {
+					if err := i.offerQueue.Schedule(*createdVC); err != nil {
+						return nil, fmt.Errorf("unable to queue credential for OpenID4VCI retry: %w", err)
+					}
+					return createdVC, nil
+				}
 			} else if success {
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
@@ -227,6 +262,40 @@ func (i issuer) issueUsingOpenID4VCI(ctx context.Context, credential vc.Verifiab
 		return false, fmt.Errorf("unable to offer the credential over OpenID4VCI to (wallet: %s): %w", walletIdentifier, err)
 	}
 	return true, i.vcrStore.StoreCredential(credential, nil)
+}
+
+// retryOfferAttempt adapts issueUsingOpenID4VCI to offerAttemptFn for use by the offer queue: a single
+// error return (nil = delivered), and a credential that has since become unsupported (e.g. OpenID4VCI got
+// disabled between retries) is treated as unrecoverable rather than retried further.
+func (i issuer) retryOfferAttempt(ctx context.Context, credential vc.VerifiableCredential) error {
+	success, err := i.issueUsingOpenID4VCI(ctx, credential)
+	if err != nil {
+		return err
+	}
+	if !success {
+		return retry.Unrecoverable(errOfferNoLongerSupported)
+	}
+	return nil
+}
+
+// giveUpOffer is called once an offer's retry window has been exhausted: it's the deferred equivalent of
+// the immediate fallback Issue() performs when no retry queue is configured.
+func (i issuer) giveUpOffer(ctx context.Context, credential vc.VerifiableCredential) {
+	log.Logger().
+		WithField(core.LogFieldCredentialID, credential.ID.String()).
+		Warn("Giving up on delivering credential over OpenID4VCI, falling back to publish over the Nuts network")
+	if i.networkPublisher == nil {
+		log.Logger().
+			WithField(core.LogFieldCredentialID, credential.ID.String()).
+			Error("No Nuts network publisher configured either; credential delivery has permanently failed")
+		return
+	}
+	if err := i.networkPublisher.PublishCredential(ctx, credential, false); err != nil {
+		log.Logger().
+			WithField(core.LogFieldCredentialID, credential.ID.String()).
+			WithError(err).
+			Error("Fallback publish over Nuts network failed after giving up on OpenID4VCI")
+	}
 }
 
 func (i issuer) buildAndSignVC(ctx context.Context, template vc.VerifiableCredential, options CredentialOptions) (*vc.VerifiableCredential, error) {
