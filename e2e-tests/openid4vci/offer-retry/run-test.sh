@@ -45,6 +45,12 @@ docker compose stop
 docker compose up --wait
 
 echo "------------------------------------"
+echo "Recording node A's transaction count baseline..."
+echo "------------------------------------"
+txCountBefore=$(readDiagnostic "http://localhost:18081" "transaction_count")
+printf "Node A transaction_count before issuance: %s\n" "$txCountBefore"
+
+echo "------------------------------------"
 echo "Stopping node B, to simulate it being (temporarily) unreachable..."
 echo "------------------------------------"
 docker compose stop nodeB-backend nodeB
@@ -91,6 +97,18 @@ if [ $delivered == false ]; then
 fi
 
 waitForDiagnostic "nodeA-backend" issued_credentials_count 1
+
+echo "------------------------------------"
+echo "Verifying delivery went over OpenID4VCI, not the Nuts network (DAG) fallback..."
+echo "------------------------------------"
+# The offer was only ever retried over OpenID4VCI (never published to the DAG, see offer_queue.go), so node
+# A's transaction count must be unchanged: a gRPC/DAG-delivered credential would have added a transaction.
+txCountAfter=$(readDiagnostic "http://localhost:18081" "transaction_count")
+printf "Node A transaction_count after delivery: %s\n" "$txCountAfter"
+if [ "$txCountAfter" != "$txCountBefore" ]; then
+  echo "FAILED: node A's transaction count changed ($txCountBefore -> $txCountAfter); credential appears to have been published to the DAG instead of delivered via OpenID4VCI retry"
+  exitWithDockerLogs 1
+fi
 
 # Now the credential should be present on both nodeA and nodeB
 echo $(readCredential "http://localhost:18081" $vcNodeA)
