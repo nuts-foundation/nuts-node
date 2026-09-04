@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -157,7 +158,14 @@ func (q *offerQueue) retry(job offerJob) {
 	select {
 	case <-time.After(offerRetryInitialDelay):
 	case <-ctx.Done():
-		q.settle(job, ctx.Err())
+		// No attempt has been made in this run yet, so ctx.Err() alone (e.g. "context deadline exceeded")
+		// carries no delivery-failure detail. Keep whatever real error a previous run already recorded
+		// (job.Error, persisted by OnRetry below) rather than overwriting it with a bare context error.
+		deadlineErr := ctx.Err()
+		if job.Error != "" {
+			deadlineErr = fmt.Errorf("%w (last recorded error: %s)", deadlineErr, job.Error)
+		}
+		q.settle(job, deadlineErr)
 		return
 	}
 
@@ -171,6 +179,10 @@ func (q *offerQueue) retry(job offerJob) {
 		retry.MaxJitter(offerRetryInitialDelay),
 		retry.DelayType(retry.CombineDelay(retry.BackOffDelay, retry.RandomDelay)),
 		retry.LastErrorOnly(true),
+		// Without this, retry.Do() returns a bare context error (e.g. "context deadline exceeded") when the
+		// offerRetryWindow deadline is hit between attempts, discarding the actual last delivery failure -
+		// exactly the detail a dead-lettered job's persisted Error should show an operator.
+		retry.WrapContextErrorWithLastError(true),
 		retry.OnRetry(func(n uint, retryErr error) {
 			job.Retries++
 			now := time.Now()

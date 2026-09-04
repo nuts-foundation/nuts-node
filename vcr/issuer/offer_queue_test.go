@@ -133,7 +133,7 @@ func TestOfferQueue_Schedule(t *testing.T) {
 		q := newOfferQueue(db,
 			func(_ context.Context, _ vc.VerifiableCredential) error {
 				attempts.Add(1)
-				return errors.New("permanent failure")
+				return errors.New("permanent failure: wallet unreachable")
 			},
 			func(_ context.Context, credential vc.VerifiableCredential) {
 				givenUp <- credential
@@ -158,6 +158,10 @@ func TestOfferQueue_Schedule(t *testing.T) {
 		require.Len(t, failed, 1)
 		require.True(t, failed[0].GivenUp)
 		require.Equal(t, credential.ID.String(), failed[0].Credential.ID.String())
+		// The persisted Error must show why delivery kept failing, not just that the window ran out:
+		// retry.Do() would otherwise discard the last real error in favor of a bare context error once
+		// the deadline is hit between attempts (see retry.WrapContextErrorWithLastError in offer_queue.go).
+		require.Contains(t, failed[0].Error, "wallet unreachable")
 	})
 
 	t.Run("an unrecoverable error stops retrying immediately", func(t *testing.T) {
