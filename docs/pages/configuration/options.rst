@@ -50,13 +50,6 @@ The following options can be configured on the server:
 
 .. include:: server_options.rst
 
-This table is automatically generated using the configuration flags in the core and engines. When they're changed
-the options table must be regenerated using the Makefile:
-
-.. code-block:: shell
-
-    $ make docs
-
 If your use case still uses ``did:nuts`` DIDs and/or the gRPC network, there's an additional (deprecated) options
 table in :ref:`Legacy did:nuts configuration <legacy-did-nuts-configuration>`.
 

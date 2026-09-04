@@ -63,7 +63,9 @@ All files to be included can be generated using:
 make cli-docs
 ```
 
-This regenerates the config-option and CLI reference tables from code.
+This regenerates the config-option and CLI reference tables from code, and the root `README.rst` from `README_template.rst`.
+Whenever you add, remove, or change a config flag or CLI command, run this and commit the regenerated files —
+don't hand-edit `docs/pages/configuration/server_options*.rst` or `docs/pages/operations/cli-reference.rst`.
 
 If needed, you can also build the documentation locally in `/docs/_build` using Docker; see [docs/README.md](docs/README.md).
 

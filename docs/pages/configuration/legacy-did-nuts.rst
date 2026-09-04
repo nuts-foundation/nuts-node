@@ -13,18 +13,11 @@ The following table contains additional (deprecated) options that are relevant f
 
 .. include:: server_options_didnuts.rst
 
-This table is automatically generated using the configuration flags in the core and engines. When they're changed
-the options table must be regenerated using the Makefile:
-
-.. code-block:: shell
-
-    $ make docs
-
 Client authentication
 **********************
 
-Nuts-node versions before v6 only use TLS certificates for client authentication on the ``/n2n`` endpoints and in the ``gRPC Nuts network``.
-The Nuts-node also validates the client certificates used by its peers on the ``gRPC network`` when a new connection is established, and periodically after that as long as the connection exists.
+The ``/n2n`` endpoints and the ``gRPC Nuts network`` use TLS certificates for client authentication.
+The Nuts-node validates the client certificates used by its peers on the ``gRPC network`` when a new connection is established, and periodically after that as long as the connection exists.
 To do this, all trusted certificate chains must be configured in ``tls.truststorefile``.
 See :ref:`Certificate revocation handling <certificate-revocation-handling>` for how CRL checks and soft-fail behavior work for these certificates.
 The ``gRPC Nuts network`` and ``/n2n`` endpoints are deprecated and will be removed in the future.
