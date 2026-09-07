@@ -171,11 +171,24 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			assert.NoError(t, err)
 			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
 		})
+		t.Run("local node did not author the TX", func(t *testing.T) {
+			p, mocks := newTestProtocol(t, nodeDID)
+			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(false, nil)
+			conns := grpc.NewStubConnectionList(authenticatedPeer)
+			p.connectionList = conns
+
+			err := p.handleTransactionPayloadQuery(ctx, conns.Conn, &Envelope{Message: &Envelope_TransactionPayloadQuery{&TransactionPayloadQuery{TransactionRef: tx.Ref().Slice()}}})
+
+			assert.NoError(t, err)
+			assertEmptyPayloadResponse(t, tx, conns.Conn.SentMsgs[0])
+		})
 		t.Run("local node is not a participant in the TX", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(true, nil)
 			mocks.DIDResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
+			mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return(nil, errors.New("will return nil for PAL decryption")).Times(2)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
@@ -187,6 +200,7 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		t.Run("decoding of the PAL header failed (nodeDID not set)", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, &did.DID{})
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(true, nil)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
@@ -198,8 +212,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		t.Run("peer is not in PAL", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(true, nil)
 			mocks.DIDResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
+			mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(nodeDID.String()), nil)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns
 
@@ -211,8 +226,9 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			p, mocks := newTestProtocol(t, nodeDID)
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
+			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(true, nil)
 			mocks.DIDResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
+			mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
 			mocks.State.EXPECT().ReadPayload(ctx, tx.PayloadHash()).Return([]byte{}, nil)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns

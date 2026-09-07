@@ -51,7 +51,7 @@ type protocolMocks struct {
 	State            *dag.MockState
 	PayloadScheduler *dag.MockNotifier
 	DIDResolver      *resolver.MockDIDResolver
-	Decrypter        *crypto.MockDecrypter
+	KeyStore         *crypto.MockKeyStore
 	Gossip           *gossip.MockManager
 	ConnectionList   *grpc.MockConnectionList
 	Sender           *MockmessageSender
@@ -80,7 +80,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 	dirname := io.TestDirectory(t)
 
 	didResolver := resolver.NewMockDIDResolver(ctrl)
-	decrypter := crypto.NewMockDecrypter(ctrl)
+	keyStore := crypto.NewMockKeyStore(ctrl)
 	state := dag.NewMockState(ctrl)
 	gMan := gossip.NewMockManager(ctrl)
 	payloadScheduler := dag.NewMockNotifier(ctrl)
@@ -90,7 +90,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 
 	cfg := DefaultConfig()
 	cfg.Datadir = dirname
-	proto := New(cfg, *nodeDID, state, didResolver, decrypter, nil, storage).(*protocol)
+	proto := New(cfg, *nodeDID, state, didResolver, keyStore, nil, storage).(*protocol)
 	proto.privatePayloadReceiver = payloadScheduler
 	proto.gManager = gMan
 	proto.cMan = newConversationManager(time.Second)
@@ -106,7 +106,7 @@ func newTestProtocol(t *testing.T, nodeDID *did.DID) (*protocol, protocolMocks) 
 		State:            state,
 		PayloadScheduler: payloadScheduler,
 		DIDResolver:      didResolver,
-		Decrypter:        decrypter,
+		KeyStore:         keyStore,
 		Gossip:           gMan,
 		ConnectionList:   connectionList,
 		Sender:           sender,
@@ -351,7 +351,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		finished, err := proto.handlePrivateTxRetry(ctx, event)
 
@@ -368,7 +368,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		connectionList := grpc.NewMockConnectionList(mocks.Controller)
 		connectionList.EXPECT().Get(grpc.ByConnected(), grpc.ByNodeDID(*peerDID), grpc.ByAuthenticated()).Return(nil)
 		proto.connectionList = connectionList
@@ -388,7 +388,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		conn := grpc.NewMockConnection(mocks.Controller)
 		conn.EXPECT().Peer()
 		conn.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
@@ -415,7 +415,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(peerDID.String()), nil)
 		conn := grpc.NewMockConnection(mocks.Controller)
 		conn.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
 			TransactionPayloadQuery: &TransactionPayloadQuery{
@@ -450,7 +450,7 @@ func TestProtocol_HandlePrivateTxRetry(t *testing.T) {
 			},
 		}, nil, nil)
 		encodedPAL := strings.Join([]string{nodeDID.String(), peerDID.String(), otherPeerDID.String()}, "\n")
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(encodedPAL), nil)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return([]byte(encodedPAL), nil)
 		// Connection to peer
 		conn1 := grpc.NewMockConnection(mocks.Controller)
 		conn1.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionPayloadQuery{
@@ -527,7 +527,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(nil, crypto.ErrPrivateKeyNotFound)
 
 		_, err := proto.decryptPAL(ctx, tx.PAL())
 		assert.EqualError(t, err, fmt.Sprintf("private key of DID keyAgreement not found (kid=%s)", keyDID.String()))
@@ -542,7 +542,7 @@ func TestProtocol_decryptPAL(t *testing.T) {
 				{VerificationMethod: &did.VerificationMethod{ID: *keyDID}},
 			},
 		}, nil, nil)
-		mocks.Decrypter.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
+		mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), []byte{1}).Return(append(append([]byte(testDID.String()), '\n'), []byte(testDID2.String())...), nil)
 
 		pal, err := proto.decryptPAL(ctx, tx.PAL())
 

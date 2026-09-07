@@ -75,7 +75,7 @@ func New(
 	nodeDID did.DID,
 	state dag.State,
 	didResolver resolver.DIDResolver,
-	decrypter crypto.Decrypter,
+	keyStore crypto.KeyStore,
 	diagnosticsProvider func() transport.Diagnostics,
 	dagStore stoabs.KVStore,
 ) transport.Protocol {
@@ -86,7 +86,7 @@ func New(
 		ctx:         ctx,
 		state:       state,
 		nodeDID:     nodeDID,
-		decrypter:   decrypter,
+		keyStore:    keyStore,
 		didResolver: didResolver,
 		dagStore:    dagStore,
 	}
@@ -103,7 +103,7 @@ type protocol struct {
 	routines               *sync.WaitGroup
 	didResolver            resolver.DIDResolver
 	privatePayloadReceiver dag.Notifier
-	decrypter              crypto.Decrypter
+	keyStore               crypto.KeyStore
 	connectionList         grpc.ConnectionList
 	nodeDID                did.DID
 	connectionManager      transport.ConnectionManager
@@ -370,7 +370,7 @@ func (p *protocol) decryptPAL(ctx context.Context, encrypted [][]byte) (dag.PAL,
 
 	epal := dag.EncryptedPAL(encrypted)
 
-	return epal.Decrypt(ctx, keyAgreementIDs, p.decrypter)
+	return epal.Decrypt(ctx, keyAgreementIDs, p.keyStore)
 }
 
 type protocolServer struct {
