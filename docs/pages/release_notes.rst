@@ -4,6 +4,19 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.38)
+*************************
+
+Release date: 2026-08-11
+
+- Reject non-canonical JWS transaction encoding.
+- Reject undersized ECIES ciphertext before it reaches decryption.
+- Restrict private transaction payload serving to the authoring node.
+- Cap PAL entries at 2, closing the decrypt-amplification DoS.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.37...v5.4.38
+
+*************************
 Hazelnut update (v5.4.37)
 *************************
 
