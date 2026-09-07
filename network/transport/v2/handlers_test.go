@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/nuts-foundation/nuts-node/network/dag/tree"
@@ -228,7 +229,8 @@ func TestProtocol_handleTransactionPayloadQuery(t *testing.T) {
 			mocks.State.EXPECT().GetTransaction(gomock.Any(), tx.Ref()).Return(tx, nil)
 			mocks.KeyStore.EXPECT().Exists(ctx, tx.SigningKeyID()).Return(true, nil)
 			mocks.DIDResolver.EXPECT().Resolve(*nodeDID, nil).Return(&didDocument, nil, nil)
-			mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(peerDID.String()), nil)
+			encodedPAL := strings.Join([]string{nodeDID.String(), peerDID.String()}, "\n")
+			mocks.KeyStore.EXPECT().Decrypt(ctx, keyDID.String(), gomock.Any()).Return([]byte(encodedPAL), nil)
 			mocks.State.EXPECT().ReadPayload(ctx, tx.PayloadHash()).Return([]byte{}, nil)
 			conns := grpc.NewStubConnectionList(authenticatedPeer)
 			p.connectionList = conns

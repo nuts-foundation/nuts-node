@@ -42,7 +42,7 @@ func TestParseTransaction(t *testing.T) {
 	payloadAsBytes := []byte(payload.String())
 	t.Run("v1", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7}), base64.StdEncoding.EncodeToString([]byte{8, 9, 10})})
 		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
 
 		transaction, err := ParseTransaction(signature)
@@ -63,13 +63,13 @@ func TestParseTransaction(t *testing.T) {
 		var previousHeaderValue []string
 		_ = headers.Get(previousHeader, &previousHeaderValue)
 		assert.Equal(t, previousHeaderValue[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}, {8, 9, 10}})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
 	t.Run("ok v2", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7}), base64.StdEncoding.EncodeToString([]byte{8, 9, 10})})
 		_ = headers.Set(versionHeader, 2)
 		_ = headers.Set(jws.CriticalKey, []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader})
 		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
@@ -92,7 +92,7 @@ func TestParseTransaction(t *testing.T) {
 		var previousHeaderValue []string
 		_ = headers.Get(previousHeader, &previousHeaderValue)
 		assert.Equal(t, previousHeaderValue[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}, {8, 9, 10}})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
@@ -145,6 +145,34 @@ func TestParseTransaction(t *testing.T) {
 
 		assert.Nil(t, transaction)
 		assert.EqualError(t, err, "transaction validation failed: invalid pal header")
+	})
+	t.Run("error - pal header has too many entries", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		_ = headers.Set("pal", []string{
+			base64.StdEncoding.EncodeToString([]byte{1}),
+			base64.StdEncoding.EncodeToString([]byte{2}),
+			base64.StdEncoding.EncodeToString([]byte{3}),
+		})
+
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: pal header must contain exactly 2 entries, got 3")
+	})
+	t.Run("error - pal header has too few entries", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		_ = headers.Set("pal", []string{
+			base64.StdEncoding.EncodeToString([]byte{1}),
+		})
+
+		signature, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: pal header must contain exactly 2 entries, got 1")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)

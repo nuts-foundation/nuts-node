@@ -291,6 +291,18 @@ func (p *protocol) handlePrivateTxRetry(ctx context.Context, event dag.Event) (b
 		return true, nil
 	}
 
+	// Decrypting an entry only proves we hold a key that unlocks it, not that the plaintext actually
+	// names us: anyone can encrypt arbitrary participant claims to our public keyAgreement key, since
+	// it's public. Without this, that would let anyone redirect this node into broadcasting
+	// TransactionPayloadQuery at DIDs of their choosing.
+	if !pal.Contains(p.nodeDID) {
+		log.Logger().
+			WithField(core.LogFieldTransactionRef, event.Hash.String()).
+			Warn("Decrypted PAL does not contain the local node's DID, ignoring")
+		// stop retrying
+		return true, nil
+	}
+
 	// Broadcast query to all TX participants we've got a connection to
 	sent := false
 	for _, curr := range pal {

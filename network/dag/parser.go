@@ -233,6 +233,9 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 	if !ok {
 		return transactionValidationError(invalidHeaderErrFmt, palHeader)
 	}
+	if len(palEncoded) != palEntryCount {
+		return transactionValidationError("pal header must contain exactly %d entries, got %d", palEntryCount, len(palEncoded))
+	}
 	var pal [][]byte
 	for _, curr := range palEncoded {
 		decoded, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%s", curr))

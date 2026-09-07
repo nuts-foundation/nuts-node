@@ -28,7 +28,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 	"hash/crc32"
-	"math/rand"
 	"net/url"
 	"path"
 	"strings"
@@ -622,50 +621,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		// check node 3 does not have the payload
 		assert.False(t, arrived)
-	})
-
-	t.Run("three participants", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest(t)
-
-		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
-		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node1"
-		})
-		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node2"
-		})
-		node3 := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node3"
-		})
-		// Make a full mesh
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
-		node2.network.connectionManager.Connect(nameToAddress(t, "node3"), did.MustParseDID("did:nuts:node3"), nil)
-
-		test.WaitFor(t, func() (bool, error) {
-			return len(node1.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-		test.WaitFor(t, func() (bool, error) {
-			return len(node2.network.connectionManager.Peers()) == 2, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-		test.WaitFor(t, func() (bool, error) {
-			return len(node3.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-
-		node1DID := node1.network.nodeDID
-		node2DID := node2.network.nodeDID
-		node3DID := node3.network.nodeDID
-		// Random order for PAL header
-		pal := []did.DID{node1DID, node2DID, node3DID}
-		rand.Shuffle(len(pal), func(i, j int) {
-			pal[i], pal[j] = pal[j], pal[i]
-		})
-		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
-			WithPrivate(pal)
-		tx, err := node1.network.CreateTransaction(ctx, tpl)
-		require.NoError(t, err)
-		waitForTransaction(t, tx, "node1", "node2", "node3")
 	})
 
 	t.Run("large amount of private transactions", func(t *testing.T) {
