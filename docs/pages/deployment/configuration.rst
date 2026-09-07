@@ -65,6 +65,38 @@ the options table must be regenerated using the Makefile:
 
     $ make docs
 
+.. _node-http-services-baseurl:
+
+Registering ``node-http-services-baseurl``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``did:nuts`` DIDs receive private Verifiable Credentials over OpenID4VCI: a synchronous HTTP push, from the issuer's node directly to the holder's node, at issuance time.
+For a node to be reachable this way (as issuer or holder), its ``did:nuts`` DID document needs a ``node-http-services-baseurl`` service, pointing other nodes at the public base URL where its OpenID4VCI (and other ``/n2n``) HTTP endpoints can be reached.
+Without it, the node can't be discovered over OpenID4VCI: offers to it fail, and offers from it fall back to the deprecated gRPC/Nuts network, or fail outright if that's disabled too.
+
+This service is **not** registered automatically.
+GoldenHammer (a background module that periodically fixes a handful of common DID document issues) will add it if it detects it's missing, but GoldenHammer is scheduled for removal once OpenID4VCI becomes the only way to exchange credentials
+(see `issue #2318 <https://github.com/nuts-foundation/nuts-node/issues/2318>`_) and, being a periodic best-effort fix, can't guarantee the service is present the moment it's actually needed.
+Register it explicitly as part of node setup, the same way the required ``NutsComm`` service is registered, using the DIDMan API's endpoint:
+
+.. code-block:: shell
+
+    $ curl -X POST https://internal.example.com/internal/didman/v1/did/<did>/endpoint \
+        -H "Content-Type: application/json" \
+        -d '{"type": "node-http-services-baseurl", "endpoint": "https://your-node.example.com"}'
+
+For a vendor DID document (the one whose ``NutsComm`` service is a concrete URL, e.g. ``grpc://host:5555``), register the node's actual public base URL as the ``endpoint`` value, as above.
+
+Any care-organization/subject DID document whose ``NutsComm`` service is instead a *reference* to that vendor DID should get a matching reference for ``node-http-services-baseurl``, rather than a duplicate concrete URL, so all subject DIDs of the same vendor stay in sync with a single registration:
+
+.. code-block:: shell
+
+    $ curl -X POST https://internal.example.com/internal/didman/v1/did/<subject-did>/endpoint \
+        -H "Content-Type: application/json" \
+        -d '{"type": "node-http-services-baseurl", "endpoint": "<vendor-did>/serviceEndpoint?type=node-http-services-baseurl"}'
+
+If a node's own DID document is missing this service, its log will show a warning like ``Local DID document is not properly configured for OpenID4VCI issuance``, naming the affected DID.
+
 Secrets
 *******
 
