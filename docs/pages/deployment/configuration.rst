@@ -70,14 +70,23 @@ the options table must be regenerated using the Makefile:
 Registering ``node-http-services-baseurl``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``did:nuts`` DIDs receive private Verifiable Credentials over OpenID4VCI: a synchronous HTTP push, from the issuer's node directly to the holder's node, at issuance time.
-For a node to be reachable this way (as issuer or holder), its ``did:nuts`` DID document needs a ``node-http-services-baseurl`` service, pointing other nodes at the public base URL where its OpenID4VCI (and other ``/n2n``) HTTP endpoints can be reached.
-Without it, the node can't be discovered over OpenID4VCI: offers to it fail, and offers from it fall back to the deprecated gRPC/Nuts network, or fail outright if that's disabled too.
+``did:nuts`` DIDs receive private Verifiable Credentials via server-to-server issuance: the issuer's node pushes the credential directly to the holder's node over HTTP, at issuance time.
+If a node can't be reached for server-to-server issuance, delivery falls back to the older gRPC/Nuts network instead, which publishes credentials (encrypted) for the holder to fetch rather than pushing them directly - a mechanism we're moving away from in favor of server-to-server issuance.
+For a node to be reachable for server-to-server issuance (as issuer or holder), its ``did:nuts`` DID document needs a ``node-http-services-baseurl`` service, pointing other nodes at the public base URL where its HTTP services (including server-to-server issuance, and other ``/n2n`` endpoints) can be reached.
+Without it, its server-to-server issuance endpoints can't be discovered, triggering the gRPC fallback described above (or an outright failure if that's disabled too).
+Given ``<base-url>`` and a DID, the endpoints it needs to be reachable at are:
 
-This service is **not** registered automatically.
-GoldenHammer (a background module that periodically fixes a handful of common DID document issues) will add it if it detects it's missing, but GoldenHammer is scheduled for removal once OpenID4VCI becomes the only way to exchange credentials
-(see `issue #2318 <https://github.com/nuts-foundation/nuts-node/issues/2318>`_) and, being a periodic best-effort fix, can't guarantee the service is present the moment it's actually needed.
-Register it explicitly as part of node setup, the same way the required ``NutsComm`` service is registered, using the DIDMan API's endpoint:
+- ``<base-url>/n2n/identity/<did>/.well-known/openid-credential-issuer`` - credential issuer metadata
+- ``<base-url>/n2n/identity/<did>/.well-known/oauth-authorization-server`` - OAuth/provider metadata
+- ``<base-url>/n2n/identity/<did>/openid4vci/credential`` - credential endpoint (issuer side)
+- ``<base-url>/n2n/identity/<did>/openid4vci/credential_offer`` - credential offer endpoint (wallet/holder side)
+
+This isn't an exhaustive list to configure individually: any reverse proxy or firewall in front of the node must forward the entire ``/n2n`` path prefix to it, not just these specific paths.
+
+This service is normally registered automatically (by a background module, GoldenHammer), as long as the node can reach itself: for each hostname in its own TLS certificate, it does a ``HEAD`` request to ``https://<hostname>/n2n/identity/<did>/.well-known/openid-credential-issuer`` and registers the first hostname that responds with ``200 OK`` and ``Content-Type: application/json``.
+If it's missing, that's usually why: check that the node can actually reach itself that way - DNS, firewall, and reverse-proxy routing are the usual suspects.
+
+You can also register the service manually via the DIDMan API, e.g. to have it in place immediately after setup rather than waiting for the next automatic check, or as a fallback if a subject DID's vendor reference can't be resolved automatically for any reason:
 
 .. code-block:: shell
 
@@ -94,8 +103,6 @@ Any care-organization/subject DID document whose ``NutsComm`` service is instead
     $ curl -X POST https://internal.example.com/internal/didman/v1/did/<subject-did>/endpoint \
         -H "Content-Type: application/json" \
         -d '{"type": "node-http-services-baseurl", "endpoint": "<vendor-did>/serviceEndpoint?type=node-http-services-baseurl"}'
-
-If a node's own DID document is missing this service, its log will show a warning like ``Local DID document is not properly configured for OpenID4VCI issuance``, naming the affected DID.
 
 Secrets
 *******
