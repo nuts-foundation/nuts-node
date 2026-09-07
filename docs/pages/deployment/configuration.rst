@@ -106,9 +106,9 @@ Registering ``node-http-services-baseurl``
 ********************************************
 
 ``did:nuts`` DIDs receive private Verifiable Credentials via server-to-server issuance: the issuer's node pushes the credential directly to the holder's node over HTTP, at issuance time.
-If a node can't be reached for server-to-server issuance, delivery falls back to the older gRPC/Nuts network instead, which publishes credentials (encrypted) for the holder to fetch rather than pushing them directly - a mechanism we're moving away from in favor of server-to-server issuance.
-For a node to be reachable for server-to-server issuance (as issuer or holder), its ``did:nuts`` DID document needs a ``node-http-services-baseurl`` service, pointing other nodes at the public base URL where its HTTP services (including server-to-server issuance, and other ``/n2n`` endpoints) can be reached.
-Without it, its server-to-server issuance endpoints can't be discovered, triggering the gRPC fallback described above (or an outright failure if that's disabled too).
+If a node can't be reached for server-to-server issuance, delivery falls back to the older gRPC/Nuts network instead: it publishes a transaction (with the recipient list encrypted) referencing the credential to the whole network, and the holder fetches the actual credential separately over an authenticated connection - a mechanism we're moving away from in favor of server-to-server issuance.
+For a node to be reachable for server-to-server issuance (as issuer or holder), its ``did:nuts`` DID document needs a ``node-http-services-baseurl`` service endpoint, pointing other nodes at the public base URL where its HTTP services (including server-to-server issuance, and other ``/n2n`` endpoints) can be reached.
+Without this DID Document service endpoint, its server-to-server issuance endpoints can't be discovered, triggering the gRPC fallback described above (or an outright failure if that's disabled too).
 Given ``<base-url>`` and a DID, the endpoints it needs to be reachable at are:
 
 - ``<base-url>/n2n/identity/<did>/.well-known/openid-credential-issuer`` - credential issuer metadata
@@ -118,10 +118,10 @@ Given ``<base-url>`` and a DID, the endpoints it needs to be reachable at are:
 
 This isn't an exhaustive list to configure individually: any reverse proxy or firewall in front of the node must forward the entire ``/n2n`` path prefix to it, not just these specific paths.
 
-This service is normally registered automatically (by a background module, GoldenHammer), as long as the node can reach itself: for each hostname in its own TLS certificate, it does a ``HEAD`` request to ``https://<hostname>/n2n/identity/<did>/.well-known/openid-credential-issuer`` and registers the first hostname that responds with ``200 OK`` and ``Content-Type: application/json``.
-If it's missing, that's usually why: check that the node can actually reach itself that way - DNS, firewall, and reverse-proxy routing are the usual suspects.
+The DID Document service endpoint is added automatically when possible, to ease configuration: a background module, GoldenHammer, tests each hostname in the node's own TLS certificate with a ``HEAD`` request to ``https://<hostname>/n2n/identity/<did>/.well-known/openid-credential-issuer``, and registers the first hostname that responds with ``200 OK`` and ``Content-Type: application/json``.
+This can fail if the node can't reach itself that way - DNS, firewall, and reverse-proxy routing are the usual suspects - in which case the endpoint stays missing.
 
-You can also register the service manually via the DIDMan API, e.g. to have it in place immediately after setup rather than waiting for the next automatic check, or as a fallback if a subject DID's vendor reference can't be resolved automatically for any reason:
+You can also register the service endpoint manually via the DIDMan API, e.g. to have it in place immediately after setup rather than waiting for the next automatic check, or as a fallback if a subject DID's vendor reference can't be resolved automatically for any reason:
 
 .. code-block:: shell
 
