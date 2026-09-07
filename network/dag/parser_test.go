@@ -22,7 +22,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"encoding/base64"
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,7 +104,36 @@ func TestParseTransaction(t *testing.T) {
 	t.Run("error - input not a JWS (JSON serialization format)", func(t *testing.T) {
 		tx, err := ParseTransaction([]byte("{}"))
 		assert.Nil(t, tx)
-		assert.EqualError(t, err, "unable to parse transaction: jws.Parse: failed to parse JSON format: failed to unmarshal jws message: required field \"signatures\" not present")
+		assert.EqualError(t, err, "unable to parse transaction: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
+	})
+	t.Run("error - input not a JWS (flattened JSON serialization, same signing input as a valid compact JWS)", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
+		parts := strings.SplitN(string(compact), ".", 3)
+		flattened := fmt.Sprintf(`{"protected":%q,"payload":%q,"signature":%q}`, parts[0], parts[1], parts[2])
+
+		tx, err := ParseTransaction([]byte(flattened))
+
+		assert.Nil(t, tx)
+		assert.ErrorContains(t, err, "unable to parse transaction")
+	})
+	t.Run("error - non-canonical compact serialization (trailing newline)", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
+
+		tx, err := ParseTransaction(append(compact, '\n'))
+
+		assert.Nil(t, tx)
+		assert.EqualError(t, err, "unable to parse transaction: JWS is not canonically encoded compact serialization")
+	})
+	t.Run("ok - canonical compact serialization is accepted", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, jws.WithKey(algOf(headers), key, jws.WithProtectedHeaders(headers)))
+
+		tx, err := ParseTransaction(compact)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, tx)
 	})
 	t.Run("error - pal header has invalid type", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
@@ -269,6 +300,35 @@ func TestParseTransaction(t *testing.T) {
 func algOf(headers jws.Headers) jwa.SignatureAlgorithm {
 	alg, _ := headers.Algorithm()
 	return alg
+}
+
+func TestValidateCanonicalCompactSerialization(t *testing.T) {
+	t.Run("ok - canonical compact JWS", func(t *testing.T) {
+		assert.NoError(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA")))
+	})
+	t.Run("error - not compact serialization (JSON)", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte(`{"protected":"AA"}`)), errNonCanonicalJWS)
+	})
+	t.Run("error - wrong number of segments", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA")), errNonCanonicalJWS)
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - segment not valid base64url", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.A+.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - trailing whitespace", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA\n")), errNonCanonicalJWS)
+	})
+	t.Run("error - leading whitespace", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte(" AA.AA.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - non-canonical base64 (unused trailing bits set)", func(t *testing.T) {
+		// "AP" and "AA" both decode to the single byte 0x00 - the last 4 bits of "AP" are unused by
+		// a 1-byte payload and a canonical encoder always zeroes them, but a lenient decoder ignores
+		// whatever they're set to. "AP" is therefore a valid but non-canonical encoding of the same
+		// byte "AA" represents.
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AP.AA")), errNonCanonicalJWS)
+	})
 }
 
 func makeJWSHeaders(key crypto.Signer, kid string, embedKey bool) jws.Headers {
