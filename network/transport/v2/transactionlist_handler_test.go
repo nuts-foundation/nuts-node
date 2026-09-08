@@ -197,7 +197,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			},
 		}})
 
-		assert.EqualError(t, err, "received transaction is invalid: unable to parse transaction: invalid compact serialization format: invalid number of segments")
+		assert.EqualError(t, err, "received transaction is invalid: unable to parse transaction: JWS is not canonically encoded compact serialization")
 	})
 
 	t.Run("error - unknown conversationID", func(t *testing.T) {

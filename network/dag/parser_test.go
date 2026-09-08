@@ -22,7 +22,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"encoding/base64"
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,7 +42,7 @@ func TestParseTransaction(t *testing.T) {
 	payloadAsBytes := []byte(payload.String())
 	t.Run("v1", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7}), base64.StdEncoding.EncodeToString([]byte{8, 9, 10})})
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
 
 		transaction, err := ParseTransaction(signature)
@@ -59,13 +61,13 @@ func TestParseTransaction(t *testing.T) {
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}, {8, 9, 10}})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
 	t.Run("ok v2", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", true)
-		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7})})
+		_ = headers.Set("pal", []string{base64.StdEncoding.EncodeToString([]byte{5, 6, 7}), base64.StdEncoding.EncodeToString([]byte{8, 9, 10})})
 		_ = headers.Set(versionHeader, 2)
 		_ = headers.Set(jws.CriticalKey, []string{signingTimeHeader, versionHeader, previousHeader, lamportClockHeader})
 		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
@@ -86,19 +88,48 @@ func TestParseTransaction(t *testing.T) {
 		assert.Equal(t, "foo/bar", transaction.PayloadType())
 		assert.Equal(t, time.UTC, transaction.SigningTime().Location())
 		assert.Equal(t, headers.PrivateParams()[previousHeader].([]string)[0], transaction.Previous()[0].String())
-		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}})
+		assert.Equal(t, transaction.PAL(), [][]byte{{5, 6, 7}, {8, 9, 10}})
 		assert.NotNil(t, transaction.Data())
 		assert.False(t, transaction.Ref().Empty())
 	})
 	t.Run("error - input not a JWS (compact serialization format)", func(t *testing.T) {
 		tx, err := ParseTransaction([]byte("not a JWS"))
 		assert.Nil(t, tx)
-		assert.EqualError(t, err, "unable to parse transaction: invalid compact serialization format: invalid number of segments")
+		assert.EqualError(t, err, "unable to parse transaction: JWS is not canonically encoded compact serialization")
 	})
 	t.Run("error - input not a JWS (JSON serialization format)", func(t *testing.T) {
 		tx, err := ParseTransaction([]byte("{}"))
 		assert.Nil(t, tx)
-		assert.EqualError(t, err, "unable to parse transaction: failed to unmarshal jws message: required field \"signatures\" not present")
+		assert.EqualError(t, err, "unable to parse transaction: JWS is not canonically encoded compact serialization")
+	})
+	t.Run("error - input not a JWS (flattened JSON serialization, same signing input as a valid compact JWS)", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+		parts := strings.SplitN(string(compact), ".", 3)
+		flattened := fmt.Sprintf(`{"protected":%q,"payload":%q,"signature":%q}`, parts[0], parts[1], parts[2])
+
+		tx, err := ParseTransaction([]byte(flattened))
+
+		assert.Nil(t, tx)
+		assert.ErrorContains(t, err, "unable to parse transaction")
+	})
+	t.Run("error - non-canonical compact serialization (trailing newline)", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		tx, err := ParseTransaction(append(compact, '\n'))
+
+		assert.Nil(t, tx)
+		assert.EqualError(t, err, "unable to parse transaction: JWS is not canonically encoded compact serialization")
+	})
+	t.Run("ok - canonical compact serialization is accepted", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		compact, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		tx, err := ParseTransaction(compact)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, tx)
 	})
 	t.Run("error - pal header has invalid type", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
@@ -110,6 +141,34 @@ func TestParseTransaction(t *testing.T) {
 
 		assert.Nil(t, transaction)
 		assert.EqualError(t, err, "transaction validation failed: invalid pal header")
+	})
+	t.Run("error - pal header has too many entries", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		_ = headers.Set("pal", []string{
+			base64.StdEncoding.EncodeToString([]byte{1}),
+			base64.StdEncoding.EncodeToString([]byte{2}),
+			base64.StdEncoding.EncodeToString([]byte{3}),
+		})
+
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: pal header must contain exactly 2 entries, got 3")
+	})
+	t.Run("error - pal header has too few entries", func(t *testing.T) {
+		headers := makeJWSHeaders(key, "123", false)
+		_ = headers.Set("pal", []string{
+			base64.StdEncoding.EncodeToString([]byte{1}),
+		})
+
+		signature, _ := jws.Sign(payloadAsBytes, headers.Algorithm(), key, jws.WithHeaders(headers))
+
+		transaction, err := ParseTransaction(signature)
+
+		assert.Nil(t, transaction)
+		assert.EqualError(t, err, "transaction validation failed: pal header must contain exactly 2 entries, got 1")
 	})
 	t.Run("error - sigt header is missing", func(t *testing.T) {
 		headers := makeJWSHeaders(key, "123", false)
@@ -259,6 +318,35 @@ func TestParseTransaction(t *testing.T) {
 
 		assert.Nil(t, transaction)
 		assert.Contains(t, err.Error(), "transaction validation failed: invalid payload")
+	})
+}
+
+func TestValidateCanonicalCompactSerialization(t *testing.T) {
+	t.Run("ok - canonical compact JWS", func(t *testing.T) {
+		assert.NoError(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA")))
+	})
+	t.Run("error - not compact serialization (JSON)", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte(`{"protected":"AA"}`)), errNonCanonicalJWS)
+	})
+	t.Run("error - wrong number of segments", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA")), errNonCanonicalJWS)
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - segment not valid base64url", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.A+.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - trailing whitespace", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AA.AA\n")), errNonCanonicalJWS)
+	})
+	t.Run("error - leading whitespace", func(t *testing.T) {
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte(" AA.AA.AA")), errNonCanonicalJWS)
+	})
+	t.Run("error - non-canonical base64 (unused trailing bits set)", func(t *testing.T) {
+		// "AP" and "AA" both decode to the single byte 0x00 - the last 4 bits of "AP" are unused by
+		// a 1-byte payload and a canonical encoder always zeroes them, but a lenient decoder ignores
+		// whatever they're set to. "AP" is therefore a valid but non-canonical encoding of the same
+		// byte "AA" represents.
+		assert.ErrorIs(t, validateCanonicalCompactSerialization([]byte("AA.AP.AA")), errNonCanonicalJWS)
 	})
 }
 
