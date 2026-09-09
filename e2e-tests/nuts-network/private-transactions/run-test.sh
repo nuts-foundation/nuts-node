@@ -19,6 +19,33 @@ function searchAuthCredentials() {
   }' | curl -s -X POST "$1/internal/vcr/v2/search" -H "Content-Type: application/json" --data-binary @-
 }
 
+# waitForAuthCredentialCount polls the credential search on a node until it returns the expected number of
+# NutsAuthorizationCredentials. The transaction count reaching its expected value only means the transaction is
+# stored: the VCR applies the credential or revocation afterwards through an asynchronous subscriber.
+# Args: service name, node URL, expected number of credentials, timeout in seconds
+function waitForAuthCredentialCount() {
+  local service_name=$1
+  local url=$2
+  local expected=$3
+  local timeout=$4
+  local count=""
+  printf "Waiting for service '%s' to return %s NutsAuthorizationCredentials" "$service_name" "$expected"
+  local retry=0
+  while [ $retry -lt $timeout ]; do
+    count=$(searchAuthCredentials "$url" | jq ".verifiableCredentials | length")
+    if [ "$count" == "$expected" ]; then
+      echo ""
+      return 0
+    fi
+    printf "."
+    sleep 1
+    retry=$((retry+1))
+  done
+  echo ""
+  echo "FAILED: Service '$service_name' returned ${count:-no} NutsAuthorizationCredentials after ${timeout} seconds, expected $expected"
+  exitWithDockerLogs 1
+}
+
 echo "------------------------------------"
 echo "Cleaning up running Docker containers and volumes, and key material..."
 echo "------------------------------------"
@@ -72,15 +99,8 @@ printf "VC issued by node B: %s\n" "$vcNodeB"
 waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 6 10
 waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 6 10
 
-if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
-  echo "failed to find NutsAuthorizationCredentials on Node-A"
-  exitWithDockerLogs 1
-fi
-
-if [ $(searchAuthCredentials "http://localhost:21323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "2" ]; then
-  echo "failed to find NutsAuthorizationCredentials on Node-B"
-  exitWithDockerLogs 1
-fi
+waitForAuthCredentialCount "NodeA" "http://localhost:11323" 2 10
+waitForAuthCredentialCount "NodeB" "http://localhost:21323" 2 10
 
 echo "------------------------------------"
 echo "Revoking NutsAuthorizationCredential..."
@@ -92,15 +112,9 @@ revokeCredential "http://localhost:21323" "${vcNodeB}"
 waitForTXCount "NodeA" "http://localhost:11323/status/diagnostics" 8 10
 waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 8 10
 
-if [ $(searchAuthCredentials "http://localhost:11323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
-  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-A"
-  exitWithDockerLogs 1
-fi
-
-if [ $(searchAuthCredentials "http://localhost:21323" | jq ".verifiableCredentials[].verifiableCredential.id" | wc -l) -ne "0" ]; then
-  echo "NutsAuthorizationCredentials should have been revoked so they can't be resolved on Node-B"
-  exitWithDockerLogs 1
-fi
+# The revocations must no longer resolve once the VCR has processed them
+waitForAuthCredentialCount "NodeA" "http://localhost:11323" 0 10
+waitForAuthCredentialCount "NodeB" "http://localhost:21323" 0 10
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."
