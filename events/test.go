@@ -20,11 +20,11 @@
 package events
 
 import (
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 )
 
 func NewTestManager(t *testing.T) Event {

@@ -21,17 +21,17 @@ package jwx
 import (
 	"errors"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwa"
 )
 
 // ErrUnsupportedSigningKey is returned when an unsupported private key is used to sign. Currently only ecdsa and rsa keys are supported
 var ErrUnsupportedSigningKey = errors.New("signing key algorithm not supported")
 
-var SupportedAlgorithms = []jwa.SignatureAlgorithm{jwa.ES256, jwa.EdDSA, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512, jwa.RS256}
+var SupportedAlgorithms = []jwa.SignatureAlgorithm{jwa.ES256(), jwa.EdDSA(), jwa.ES384(), jwa.ES512(), jwa.PS256(), jwa.PS384(), jwa.PS512(), jwa.RS256()}
 
-const DefaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256
-const DefaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW
-const DefaultContentEncryptionAlgorithm = jwa.A256GCM
+var DefaultRsaEncryptionAlgorithm = jwa.RSA_OAEP_256()
+var DefaultEcEncryptionAlgorithm = jwa.ECDH_ES_A256KW()
+var DefaultContentEncryptionAlgorithm = jwa.A256GCM()
 
 func IsAlgorithmSupported(alg jwa.SignatureAlgorithm) bool {
 	for _, curr := range SupportedAlgorithms {
@@ -51,7 +51,7 @@ func AddSupportedAlgorithm(alg jwa.SignatureAlgorithm) bool {
 func SupportedAlgorithmsAsStrings() []string {
 	var result []string
 	for _, alg := range SupportedAlgorithms {
-		result = append(result, string(alg))
+		result = append(result, alg.String())
 	}
 	return result
 }

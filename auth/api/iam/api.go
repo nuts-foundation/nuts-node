@@ -36,31 +36,31 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/api/iam/assets"
-	iamclient "github.com/nuts-foundation/nuts-node/auth/client/iam"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/http/cache"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/auth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/api/iam/assets"
+	iamclient "github.com/nuts-foundation/nuts-node/v6/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	nutsHttp "github.com/nuts-foundation/nuts-node/v6/http"
+	"github.com/nuts-foundation/nuts-node/v6/http/cache"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 var _ core.Routable = &Wrapper{}
@@ -402,7 +402,11 @@ func (r Wrapper) introspectAccessToken(input string) (*ExtendedTokenIntrospectio
 	// SHA256 hashing won't fail.
 	var cnf *Cnf
 	if token.DPoP != nil {
-		hash, _ := token.DPoP.Headers.JWK().Thumbprint(crypto.SHA256)
+		key, ok := token.DPoP.Headers.JWK()
+		if !ok {
+			return nil, errors.New("DPoP header is missing the jwk")
+		}
+		hash, _ := key.Thumbprint(crypto.SHA256)
 		base64Hash := base64.RawURLEncoding.EncodeToString(hash)
 		cnf = &Cnf{Jkt: base64Hash}
 	}
@@ -653,7 +657,7 @@ func (r Wrapper) OpenIDConfiguration(ctx context.Context, request OpenIDConfigur
 			}
 		}
 		// create JWK and add to set
-		jwkKey, err := jwk.FromRaw(key)
+		jwkKey, err := jwk.Import(key)
 		if err != nil {
 			return nil, oauth.OAuth2Error{
 				Code:          oauth.ServerError,

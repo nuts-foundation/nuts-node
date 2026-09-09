@@ -18,7 +18,7 @@
 package didstore
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/util"
 	"sort"
 	"strings"
 

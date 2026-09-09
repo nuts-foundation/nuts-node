@@ -30,8 +30,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	leia "github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -175,6 +175,8 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			}
 		}
 		require.NoError(t, err)
+		// plus the Go migration registered in engine.go (see alterCredentialPropValueType)
+		const goMigrations = 1
 
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)
@@ -189,7 +191,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 			totalMigrations++
 		}
 		require.NoError(t, err)
-		assert.Equal(t, len(sqlFiles), totalMigrations) // up and down migration files
+		assert.Equal(t, len(sqlFiles)+goMigrations, totalMigrations)
 	})
 	t.Run("unsupported protocol doesn't log secrets", func(t *testing.T) {
 		dataDir := io.TestDirectory(t)

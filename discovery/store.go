@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/credential/store"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential/store"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,8 +32,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery/log"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/discovery/log"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/schema"
@@ -210,6 +210,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		return nil, err
 	}
 
+	presentationExpiration, _ := presentation.JWT().Expiration()
 	newPresentation := presentationRecord{
 		ID:                     uuid.NewString(),
 		ServiceID:              serviceID,
@@ -217,7 +218,7 @@ func storePresentation(tx *gorm.DB, serviceID string, timestamp int, presentatio
 		LamportTimestamp:       timestamp,
 		PresentationID:         presentation.ID.String(),
 		PresentationRaw:        presentation.Raw(),
-		PresentationExpiration: presentation.JWT().Expiration().Unix(),
+		PresentationExpiration: presentationExpiration.Unix(),
 	}
 
 	credentialStore := store.CredentialStore{}

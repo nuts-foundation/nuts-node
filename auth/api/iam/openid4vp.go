@@ -24,9 +24,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
 
 	"net/http"
 	"net/url"
@@ -34,20 +34,20 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	httpNuts "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didjwk"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	httpNuts "github.com/nuts-foundation/nuts-node/v6/http"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didjwk"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 var oauthNonceKey = []string{"oauth", "nonce"}
@@ -598,8 +598,7 @@ func extractChallenge(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
+		_ = presentation.JWT().Get("nonce", &nonce)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {
@@ -736,12 +735,12 @@ func (r Wrapper) handleCallback(ctx context.Context, authorizationCode string, o
 	// use code to request access token from remote token endpoint
 	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), oauthSession.PKCEParams.Verifier, oauthSession.UseDPoP)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve access token from %s", oauthSession.TokenEndpoint), err), appCallbackURI)
 	}
 	// update TokenResponse using session.SessionID
 	tokenResponse = tokenResponse.With("status", oauth.AccessTokenRequestStatusActive)
 	if err = r.accessTokenClientStore().Put(oauthSession.SessionID, tokenResponse); err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to store access token: %s", err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, "failed to store access token", err), appCallbackURI)
 	}
 	return Callback302Response{
 		Headers: Callback302ResponseHeaders{Location: appCallbackURI.String()},

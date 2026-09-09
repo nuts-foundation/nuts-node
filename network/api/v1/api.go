@@ -23,15 +23,15 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
 	"net/http"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	hash2 "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)

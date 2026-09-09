@@ -23,21 +23,21 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/auth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	cryptoNuts "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -126,7 +126,7 @@ func TestJar_Parse(t *testing.T) {
 	// setup did document and keys
 	privateKey, _ := spi.GenerateKeyPair()
 	kid := fmt.Sprintf("%s#%s", holderDID.String(), "key")
-	jwkKey, _ := jwk.FromRaw(privateKey.Public())
+	jwkKey, _ := jwk.Import(privateKey.Public())
 	jwkKey.Set(jwk.KeyIDKey, kid)
 	jwkSet := jwk.NewSet()
 	_ = jwkSet.AddKey(jwkKey)
@@ -329,7 +329,7 @@ func TestJar_Parse(t *testing.T) {
 	t.Run("error - openID configuration key mismatch", func(t *testing.T) {
 		ctx := newJarTestCtx(t)
 		alternateKey, _ := spi.GenerateKeyPair()
-		jwkKey, _ := jwk.FromRaw(alternateKey.Public())
+		jwkKey, _ := jwk.Import(alternateKey.Public())
 		jwkKey.Set(jwk.KeyIDKey, kid)
 		jwkSet := jwk.NewSet()
 		_ = jwkSet.AddKey(jwkKey)
@@ -358,7 +358,7 @@ func createSignedRequestObject(t testing.TB, kid string, privateKey crypto.Priva
 	}
 	headers := jws.NewHeaders()
 	require.NoError(t, headers.Set(jws.KeyIDKey, kid))
-	return jwt.Sign(request, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
+	return jwt.Sign(request, jwt.WithKey(jwa.ES256(), privateKey, jws.WithProtectedHeaders(headers)))
 }
 
 type testJarCtx struct {

@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-leia/v4"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

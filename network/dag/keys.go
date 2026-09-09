@@ -21,8 +21,8 @@ import (
 	"crypto"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 // SourceTXKeyResolver implements the SourceTXKeyResolver interface.

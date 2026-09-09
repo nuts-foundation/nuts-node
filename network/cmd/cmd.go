@@ -25,16 +25,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
-	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	hash2 "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	v1 "github.com/nuts-foundation/nuts-node/v6/network/api/v1"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
 )
 
 // FlagSet contains flags relevant for the VDR instance

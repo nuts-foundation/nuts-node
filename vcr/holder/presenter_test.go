@@ -26,19 +26,19 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -161,7 +161,8 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			assert.NotEmpty(t, result.ID.Fragment, "id must have a fragment")
 			assert.Equal(t, JWTPresentationFormat, result.Format())
 			assert.NotNil(t, result.JWT())
-			nonce, _ := result.JWT().Get("nonce")
+			var nonce interface{}
+			_ = result.JWT().Get("nonce", &nonce)
 			assert.Empty(t, nonce)
 
 			t.Run("#3957: Verifiable Presentation type is marshalled incorrectly in JWT format", func(t *testing.T) {
@@ -175,7 +176,9 @@ func TestPresenter_buildPresentation(t *testing.T) {
 						assert.Contains(t, string(data), `"type":"VerifiablePresentation"`)
 					})
 				})
-				vpAsMap := result.JWT().PrivateClaims()["vp"].(map[string]any)
+				var vpClaim interface{}
+				_ = result.JWT().Get("vp", &vpClaim)
+				vpAsMap := vpClaim.(map[string]any)
 				t.Run("make sure type now marshals as array", func(t *testing.T) {
 					typeProp := vpAsMap["type"].([]any)
 					assert.Equal(t, []any{"VerifiablePresentation"}, typeProp)
@@ -204,8 +207,11 @@ func TestPresenter_buildPresentation(t *testing.T) {
 
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			assert.Equal(t, testDID.String(), result.JWT().Issuer(), "holder must be carried in the iss claim")
-			vpAsMap := result.JWT().PrivateClaims()["vp"].(map[string]any)
+			iss, _ := result.JWT().Issuer()
+			assert.Equal(t, testDID.String(), iss, "holder must be carried in the iss claim")
+			var vpClaim interface{}
+			_ = result.JWT().Get("vp", &vpClaim)
+			vpAsMap := vpClaim.(map[string]any)
 			assert.NotContains(t, vpAsMap, "holder", "non-standard vp.holder must not be set")
 		})
 
@@ -255,12 +261,17 @@ func TestPresenter_buildPresentation(t *testing.T) {
 			require.NotNil(t, result)
 			assert.Equal(t, JWTPresentationFormat, result.Format())
 			assert.NotNil(t, result.JWT())
-			assert.Equal(t, *options.ProofOptions.Expires, result.JWT().Expiration().Local())
-			assert.Equal(t, options.ProofOptions.Created, result.JWT().NotBefore().Local())
-			assert.Equal(t, []string{domain}, result.JWT().Audience())
-			actualNonce, _ := result.JWT().Get("nonce")
+			expiration, _ := result.JWT().Expiration()
+			assert.Equal(t, *options.ProofOptions.Expires, expiration.Local())
+			notBefore, _ := result.JWT().NotBefore()
+			assert.Equal(t, options.ProofOptions.Created, notBefore.Local())
+			audience, _ := result.JWT().Audience()
+			assert.Equal(t, []string{domain}, audience)
+			var actualNonce interface{}
+			_ = result.JWT().Get("nonce", &actualNonce)
 			assert.Equal(t, nonce, actualNonce)
-			actualCustomClaim, _ := result.JWT().Get("custom")
+			var actualCustomClaim interface{}
+			_ = result.JWT().Get("custom", &actualCustomClaim)
 			assert.Equal(t, "claim", actualCustomClaim)
 		})
 	})

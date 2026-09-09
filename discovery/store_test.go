@@ -19,11 +19,11 @@
 package discovery
 
 import (
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -372,6 +372,10 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 	t.Run("store", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())
 
+		// LastOccurrence is stored in whole seconds, so compare against a timestamp
+		// taken before the call instead of "now minus a second": the latter fails
+		// when the call and the assertion straddle a second boundary.
+		before := int(time.Now().Unix())
 		require.NoError(t, c.updatePresentationRefreshTime(testServiceID, aliceSubject, nil, to.Ptr(time.Now().Add(time.Second))))
 		require.NoError(t, c.setPresentationRefreshError(testServiceID, aliceSubject, assert.AnError))
 
@@ -379,7 +383,7 @@ func Test_sqlStore_setPresentationRefreshError(t *testing.T) {
 		refreshError := getPresentationRefreshError(t, c.db, testServiceID, aliceSubject)
 
 		assert.Equal(t, refreshError.Error, assert.AnError.Error())
-		assert.True(t, refreshError.LastOccurrence > int(time.Now().Add(-1*time.Second).Unix()))
+		assert.GreaterOrEqual(t, refreshError.LastOccurrence, before)
 	})
 	t.Run("deletePresentationRecord", func(t *testing.T) {
 		c := setupStore(t, storageEngine.GetSQLDatabase())

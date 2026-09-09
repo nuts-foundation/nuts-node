@@ -23,18 +23,18 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 
 	"github.com/nuts-foundation/go-stoabs/bbolt"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.
@@ -70,7 +70,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 func jwkToCryptoPublicKey(jwkKey jwk.Key) crypto.PublicKey {
 	jwkPublicKey, _ := jwkKey.PublicKey()
 	var rawKey interface{}
-	if err := jwkPublicKey.Raw(&rawKey); err != nil {
+	if err := jwk.Export(jwkPublicKey, &rawKey); err != nil {
 		panic(err)
 	}
 

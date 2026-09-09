@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash2 "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,6 +72,21 @@ func TestNewTransaction(t *testing.T) {
 		transaction, err := NewTransaction(payloadHash, "foo/bar", []hash2.SHA256Hash{hash2.EmptyHash()}, nil, 0)
 		assert.EqualError(t, err, errInvalidPrevs.Error())
 		assert.Nil(t, transaction)
+	})
+	t.Run("error - too many pal entries", func(t *testing.T) {
+		transaction, err := NewTransaction(payloadHash, "some/type", nil, [][]byte{{1}, {2}, {3}}, 0)
+		assert.EqualError(t, err, "pal must contain exactly 2 entries, got 3")
+		assert.Nil(t, transaction)
+	})
+	t.Run("error - too few pal entries", func(t *testing.T) {
+		transaction, err := NewTransaction(payloadHash, "some/type", nil, [][]byte{{1}}, 0)
+		assert.EqualError(t, err, "pal must contain exactly 2 entries, got 1")
+		assert.Nil(t, transaction)
+	})
+	t.Run("ok - no pal is a public transaction", func(t *testing.T) {
+		transaction, err := NewTransaction(payloadHash, "some/type", nil, nil, 0)
+		assert.NoError(t, err)
+		assert.NotNil(t, transaction)
 	})
 }
 
