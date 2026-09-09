@@ -32,15 +32,15 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/v6/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/assets"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
 )
 
 func ValidNutsAuthorizationCredential(t testing.TB) vc.VerifiableCredential {

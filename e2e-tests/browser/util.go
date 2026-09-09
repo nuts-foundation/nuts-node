@@ -22,8 +22,8 @@ package browser
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	vcrAPI "github.com/nuts-foundation/nuts-node/v6/vcr/api/vcr/v2"
 )
 
 func IssueOrganizationCredential(subject string, organization *did.Document, name, city string, clientConfig core.ClientConfig) error {

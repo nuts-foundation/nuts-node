@@ -21,7 +21,7 @@ package didjwk
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"reflect"
 
 	godid "github.com/nuts-foundation/go-did"

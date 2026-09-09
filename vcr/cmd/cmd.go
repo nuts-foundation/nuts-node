@@ -21,14 +21,14 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
 	"github.com/spf13/pflag"
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	api "github.com/nuts-foundation/nuts-node/v6/vcr/api/vcr/v2"
 
 	"github.com/spf13/cobra"
 )

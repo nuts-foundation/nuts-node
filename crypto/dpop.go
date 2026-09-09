@@ -20,7 +20,7 @@ package crypto
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
 )
 
 func (client *Crypto) SignDPoP(ctx context.Context, token dpop.DPoP, kid string) (string, error) {

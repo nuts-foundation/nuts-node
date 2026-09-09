@@ -28,6 +28,19 @@ Unreleased
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 *****************
+Peanut (v6.2.11)
+*****************
+
+Release date: 2026-08-11
+
+- Reject non-canonical JWS transaction encoding.
+- Reject undersized ECIES ciphertext before it reaches decryption.
+- Restrict private transaction payload serving to the authoring node.
+- Cap PAL entries at 2, closing the decrypt-amplification DoS.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.10...v6.2.11
+
+*****************
 Peanut (v6.2.10)
 *****************
 
@@ -533,6 +546,19 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.38)
+*************************
+
+Release date: 2026-08-11
+
+- Reject non-canonical JWS transaction encoding.
+- Reject undersized ECIES ciphertext before it reaches decryption.
+- Restrict private transaction payload serving to the authoring node.
+- Cap PAL entries at 2, closing the decrypt-amplification DoS.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.37...v5.4.38
 
 *************************
 Hazelnut update (v5.4.37)

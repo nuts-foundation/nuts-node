@@ -33,19 +33,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	"github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"go.etcd.io/bbolt"
 )
 
@@ -688,6 +688,20 @@ func (n *Network) CreateTransaction(ctx context.Context, template Template) (dag
 	if len(template.Participants) > 0 {
 		if n.nodeDID.Empty() {
 			return nil, errors.New("node DID must be configured to create private transactions")
+		}
+		if template.PublicKey != nil {
+			// A private transaction always needs to be servable by its author later on (see
+			// TransactionPayloadQuery handling), which is only possible if the signing key can be
+			// looked up by KID. WithAttachKey transactions are signed with an embedded key instead,
+			// so they can never be recognized as self-authored afterwards.
+			return nil, errors.New("private transactions can't use an embedded key, keys must be identified by the RFC7515 `kid` header")
+		}
+		if kidURL, err := did.ParseDIDURL(template.KID); err != nil || kidURL.Fragment == "" {
+			// The authorship check (see TransactionPayloadQuery handling) trusts kid-string equality
+			// against the local key store. That's only collision-safe when the kid is a DID URL, whose
+			// DID part is self-certifying (derived from the key's own material), rather than a free-form
+			// caller-chosen string two different keys could coincidentally share.
+			return nil, errors.New("private transactions must be signed with a DID URL kid (did:<method>:<id>#<fragment>)")
 		}
 	}
 

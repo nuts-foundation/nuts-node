@@ -16,8 +16,8 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	core "github.com/nuts-foundation/nuts-node/core"
-	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
+	core "github.com/nuts-foundation/nuts-node/v6/core"
+	pe "github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 
