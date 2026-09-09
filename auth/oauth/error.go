@@ -28,8 +28,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // ErrorCode specifies error codes as defined by the OAuth2 specifications.

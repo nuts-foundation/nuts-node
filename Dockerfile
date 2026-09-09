@@ -22,7 +22,7 @@ COPY . .
 # version from the v6.x tags and would stamp a misleading pseudo-version that
 # scanners match against old advisories. Scanners take the version from the
 # core.Version ldflag below instead; the key must end in ".Version" for Trivy.
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildvcs=false -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.Version=${GIT_VERSION}'" -o /opt/nuts/nuts
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -buildvcs=false -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.Version=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
 FROM alpine:3.24.1

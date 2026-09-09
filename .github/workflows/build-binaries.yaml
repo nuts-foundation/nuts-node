@@ -55,7 +55,7 @@ jobs:
 
       - name: Build
         run: |
-          GOOS=linux GOARCH=${{ matrix.arch }} go build -buildvcs=false -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.Version=${GIT_VERSION}'" -o nuts-linux-${{ matrix.arch }}
+          GOOS=linux GOARCH=${{ matrix.arch }} go build -buildvcs=false -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.Version=${GIT_VERSION}'" -o nuts-linux-${{ matrix.arch }}
       - name:  Upload binary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

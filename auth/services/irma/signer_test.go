@@ -27,11 +27,11 @@ import (
 
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
 
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
 	irma "github.com/privacybydesign/irmago"
 	irmaservercore "github.com/privacybydesign/irmago/server"
 	"github.com/stretchr/testify/assert"
