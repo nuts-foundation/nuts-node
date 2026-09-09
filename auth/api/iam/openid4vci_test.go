@@ -44,7 +44,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		CredentialIssuer:     "issuer",
 		CredentialEndpoint:   "endpoint",
 		AuthorizationServers: []string{authServer},
-		Display:              nil,
 	}
 	authzMetadata := oauth.AuthorizationServerMetadata{
 		AuthorizationEndpoint:    "https://auth.server/authorize",
@@ -72,7 +71,7 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 		assert.Equal(t, "/authorize", redirectUri.Path)
 		assert.True(t, redirectUri.Query().Has("state"))
 		assert.True(t, redirectUri.Query().Has("code_challenge"))
-		assert.Equal(t, "https://example.com/oauth2/holder/callback", redirectUri.Query().Get("redirect_uri"))
+		assert.Equal(t, "https://example.com/oauth2/callback", redirectUri.Query().Get("redirect_uri"))
 		assert.Equal(t, holderClientID, redirectUri.Query().Get("client_id"))
 		assert.Equal(t, "S256", redirectUri.Query().Get("code_challenge_method"))
 		assert.Equal(t, "code", redirectUri.Query().Get("response_type"))
@@ -126,7 +125,6 @@ func TestWrapper_RequestOpenid4VCICredentialIssuance(t *testing.T) {
 				CredentialIssuer:     "issuer",
 				CredentialEndpoint:   "endpoint",
 				AuthorizationServers: []string{}, // empty
-				Display:              nil,
 			}
 			ctx.openid4vciClient.EXPECT().OpenIDCredentialIssuerMetadata(nil, issuerClientID).Return(&metadata, nil)
 			ctx.iamClient.EXPECT().AuthorizationServerMetadata(nil, issuerClientID).Return(nil, assert.AnError)
@@ -242,7 +240,7 @@ func requestCredentials(subjectID string, issuer string, redirectURI string) Req
 }
 
 func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
-	redirectURI := "https://example.com/oauth2/holder/callback"
+	redirectURI := "https://example.com/oauth2/callback"
 	authServer := "https://auth.server"
 	tokenEndpoint := authServer + "/token"
 	nonceEndpoint := authServer + "/nonce"
@@ -304,10 +302,9 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.wallet.EXPECT().Put(nil, *verifiableCredential)
 
 		callback, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
-				Code:  to.Ptr(code),
-				State: to.Ptr(state),
+				Code:  new(code),
+				State: new(state),
 			},
 		})
 
@@ -401,7 +398,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.ErrorContains(t, err, "error while fetching the credential from endpoint")
+		assert.ErrorContains(t, err, "failed to retrieve the credential")
+		assert.ErrorContains(t, err, "still failing")
 	})
 	t.Run("error - nonce endpoint fails during retry", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -418,7 +416,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.ErrorContains(t, err, "error fetching nonce for retry")
+		assert.ErrorContains(t, err, "failed to fetch nonce")
+		assert.ErrorContains(t, err, "nonce endpoint down")
 	})
 	t.Run("ok - uses credential_identifier from token response authorization_details", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -476,7 +475,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.ErrorContains(t, err, "error fetching nonce from")
+		assert.ErrorContains(t, err, "failed to fetch nonce")
+		assert.ErrorContains(t, err, "nonce endpoint unavailable")
 	})
 	t.Run("fail_access_token", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -486,7 +486,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, callback)
-		assert.Equal(t, "access_denied - error while fetching the access_token from endpoint: https://auth.server/token, error: FAIL", err.Error())
+		assert.ErrorContains(t, err, "failed to retrieve access token from https://auth.server/token")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -499,7 +500,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while fetching the credential from endpoint https://auth.server/credz, error: FAIL")
+		assert.ErrorContains(t, err, "failed to retrieve the credential from https://auth.server/credz")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("err - invalid credential", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -508,13 +510,25 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.openid4vciClient.EXPECT().RequestCredential(nil, openid4vci.RequestCredentialOpts{CredentialEndpoint: credEndpoint, AccessToken: accessToken, CredentialConfigurationID: credentialConfigID, ProofJWT: "signed-proof"}).Return(&openid4vci.CredentialResponse{
-			Credentials: []openid4vci.CredentialResponseEntry{{Credential: json.RawMessage(`"super invalid"`)}},
+			Credentials: []openid4vci.CredentialResponseEntry{{Credential: json.RawMessage(`"SENTINEL-CREDENTIAL-BODY"`)}},
 		}, nil)
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.ErrorContains(t, err, "error while parsing the credential")
+		require.Error(t, err)
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		// It failed specifically because the returned credential could not be parsed:
+		// the static description identifies that branch, so the test can't pass on an
+		// unrelated earlier error.
+		assert.Equal(t, oauth.ServerError, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, "failed to parse the credential")
+		// The parse failure detail is still available for diagnostics ...
+		require.NotNil(t, oauthErr.InternalError)
+		assert.ErrorContains(t, err, "failed to parse token")
+		// ... but the raw credential body is never reflected into the response.
+		assert.NotContains(t, oauthErr.Description, "SENTINEL-CREDENTIAL-BODY")
 	})
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -528,7 +542,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while verifying the credential from issuer: did:web:example.com:iam:issuer, error: FAIL")
+		assert.ErrorContains(t, err, "the credential returned by issuer did:web:example.com:iam:issuer failed verification")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)

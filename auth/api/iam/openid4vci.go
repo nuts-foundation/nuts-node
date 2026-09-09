@@ -27,9 +27,10 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
 	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
 	"github.com/nuts-foundation/nuts-node/core"
@@ -101,7 +102,6 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 	pkceParams := generatePKCEParams()
 
 	// Figure out our own redirect URL by parsing the did:web and extracting the host.
-	redirectUri := clientID.JoinPath(oauth.CallbackPath)
 	// Store the session
 	err = r.oauthClientStateStore().Put(state, &OAuthSession{
 		AuthorizationServerMetadata: authzServerMetadata,
@@ -134,7 +134,7 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 		oauth.ClientIDParam:             clientID.String(),
 		oauth.ClientIDSchemeParam:       entityClientIDScheme,
 		oauth.AuthorizationDetailsParam: string(authorizationDetails),
-		oauth.RedirectURIParam:          redirectUri.String(),
+		oauth.RedirectURIParam:          r.callbackURL().String(),
 		oauth.CodeChallengeParam:        pkceParams.Challenge,
 		oauth.CodeChallengeMethodParam:  pkceParams.ChallengeMethod,
 	}
@@ -159,18 +159,16 @@ func (r Wrapper) RequestOpenid4VCICredentialIssuance(ctx context.Context, reques
 func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode string, oauthSession *OAuthSession) (CallbackResponseObject, error) {
 	appCallbackURI := oauthSession.redirectURI()
 
-	baseURL := r.subjectToBaseURL(*oauthSession.OwnSubject)
-	clientID := baseURL.String()
-	checkURL := baseURL.JoinPath(oauth.CallbackPath)
+	clientID := r.subjectToBaseURL(*oauthSession.OwnSubject)
 
 	if oauthSession.OwnDID == nil {
 		return nil, withCallbackURI(oauthError(oauth.ServerError, "missing wallet DID in session"), appCallbackURI)
 	}
 
 	// use code to request access token from remote token endpoint
-	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, checkURL.String(), *oauthSession.OwnSubject, clientID, oauthSession.PKCEParams.Verifier, false)
+	tokenResponse, err := r.auth.IAMClient().AccessToken(ctx, authorizationCode, oauthSession.TokenEndpoint, r.callbackURL().String(), *oauthSession.OwnSubject, clientID.String(), oauthSession.PKCEParams.Verifier, false)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("error while fetching the access_token from endpoint: %s, error: %s", oauthSession.TokenEndpoint, err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.AccessDenied, fmt.Sprintf("failed to retrieve access token from %s", oauthSession.TokenEndpoint), err), appCallbackURI)
 	}
 
 	// Per §3.3.4 / §8.2: when the Token Response carries authorization_details
@@ -188,7 +186,7 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	if oauthSession.IssuerNonceEndpoint != "" {
 		nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
 		if err != nil {
-			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch nonce from %s", oauthSession.IssuerNonceEndpoint), err), appCallbackURI)
 		}
 	}
 
@@ -202,12 +200,12 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 		if errors.As(err, &oauthErr) && oauthErr.Code == oauth.InvalidNonce && oauthSession.IssuerNonceEndpoint != "" {
 			nonce, err = r.auth.OpenID4VCIClient().RequestNonce(ctx, oauthSession.IssuerNonceEndpoint)
 			if err != nil {
-				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error fetching nonce for retry from %s: %s", oauthSession.IssuerNonceEndpoint, err.Error())), appCallbackURI)
+				return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to fetch nonce from %s on retry", oauthSession.IssuerNonceEndpoint), err), appCallbackURI)
 			}
 			credentialResponse, err = r.requestCredentialWithProof(ctx, oauthSession, tokenResponse.AccessToken, credentialIdentifier, nonce)
 		}
 		if err != nil {
-			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while fetching the credential from endpoint %s, error: %s", oauthSession.IssuerCredentialEndpoint, err.Error())), appCallbackURI)
+			return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to retrieve the credential from %s", oauthSession.IssuerCredentialEndpoint), err), appCallbackURI)
 		}
 	}
 	if len(credentialResponse.Credentials) == 0 {
@@ -228,11 +226,14 @@ func (r Wrapper) handleOpenID4VCICallback(ctx context.Context, authorizationCode
 	}
 	credential, err := vc.ParseVerifiableCredential(credentialJSON)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while parsing the credential: %s, error: %s", credentialJSON, err.Error())), appCallbackURI)
+		// Debug-log the (truncated) credential for diagnostics, but never reflect it: it is
+		// fetched from the issuer's (attacker-influenceable) credential endpoint.
+		log.Logger().Debugf("credential returned by %s could not be parsed (credential: %q)", oauthSession.IssuerCredentialEndpoint, core.TruncateHTTPBody([]byte(credentialJSON)))
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("failed to parse the credential returned by %s", oauthSession.IssuerCredentialEndpoint), err), appCallbackURI)
 	}
 	err = r.vcr.Verifier().Verify(*credential, true, true, nil)
 	if err != nil {
-		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("error while verifying the credential from issuer: %s, error: %s", credential.Issuer.String(), err.Error())), appCallbackURI)
+		return nil, withCallbackURI(oauthError(oauth.ServerError, fmt.Sprintf("the credential returned by issuer %s failed verification", credential.Issuer.String()), err), appCallbackURI)
 	}
 	err = r.vcr.Wallet().Put(ctx, *credential)
 	if err != nil {

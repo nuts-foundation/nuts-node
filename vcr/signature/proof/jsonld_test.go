@@ -153,7 +153,7 @@ func TestLDProof_Verify(t *testing.T) {
 		// signature with some changed characters
 		ldProof.JWS = "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..MJ5GwWRMsadCyLNXU_flgJtsS32584MydBxBuyups_cM0sbU3abTEOMyUvmLNcKOwOBE1MfDoB1_YY425W3sAg"
 		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
-		assert.EqualError(t, err, "invalid proof signature: failed to match EdDSA signature")
+		assert.EqualError(t, err, "invalid proof signature: invalid EdDSA signature")
 
 	})
 }

@@ -31,7 +31,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/audit"
@@ -189,8 +189,9 @@ func TestManager_GenerateDocument(t *testing.T) {
 		nutsThumbprint, err := nutsCrypto.Thumbprint(asJWK)
 		require.NoError(t, err)
 		_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
+		asJWKKeyID, _ := asJWK.KeyID()
 		assert.Equal(t, fmt.Sprintf("did:nuts:%s", nutsThumbprint), doc.DID.ID)
-		assert.Equal(t, fmt.Sprintf("did:nuts:%s#%s", nutsThumbprint, asJWK.KeyID()), verificationMethod.ID.String())
+		assert.Equal(t, fmt.Sprintf("did:nuts:%s#%s", nutsThumbprint, asJWKKeyID), verificationMethod.ID.String())
 
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
@@ -202,7 +203,8 @@ func TestManager_GenerateDocument(t *testing.T) {
 			asJWK, err := verificationMethod.JWK()
 			require.NoError(t, err)
 			_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
-			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWK.KeyID()), verificationMethod.ID.String())
+			asJWKKeyID, _ := asJWK.KeyID()
+			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWKKeyID), verificationMethod.ID.String())
 		})
 	})
 }
@@ -250,7 +252,7 @@ func Test_DIDKidNamingFunc(t *testing.T) {
 
 	t.Run("nok - wrong key type", func(t *testing.T) {
 		keyID, err := DIDKIDNamingFunc(unknownPublicKey{})
-		assert.EqualError(t, err, "could not generate kid: invalid key type 'didnuts.unknownPublicKey' for jwk.New")
+		assert.EqualError(t, err, "could not generate kid: jwk.Import: failed to convert didnuts.unknownPublicKey to jwk.Key: no converters were able to convert")
 		assert.Empty(t, keyID)
 	})
 }
@@ -278,7 +280,7 @@ func jwkToPublicKey(t *testing.T, jwkStr string) (crypto.PublicKey, error) {
 	require.NoError(t, err)
 	key, _ := keySet.Key(0)
 	var rawKey crypto.PublicKey
-	if err = key.Raw(&rawKey); err != nil {
+	if err = jwk.Export(key, &rawKey); err != nil {
 		return nil, err
 	}
 	return rawKey, nil
@@ -308,8 +310,9 @@ func TestManager_NewDocument(t *testing.T) {
 		nutsThumbprint, err := nutsCrypto.Thumbprint(asJWK)
 		require.NoError(t, err)
 		_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
+		asJWKKeyID, _ := asJWK.KeyID()
 		assert.Equal(t, fmt.Sprintf("did:nuts:%s", nutsThumbprint), doc.DID.ID)
-		assert.Equal(t, fmt.Sprintf("did:nuts:%s#%s", nutsThumbprint, asJWK.KeyID()), verificationMethod.ID.String())
+		assert.Equal(t, fmt.Sprintf("did:nuts:%s#%s", nutsThumbprint, asJWKKeyID), verificationMethod.ID.String())
 
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
@@ -321,7 +324,8 @@ func TestManager_NewDocument(t *testing.T) {
 			asJWK, err := verificationMethod.JWK()
 			require.NoError(t, err)
 			_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
-			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWK.KeyID()), verificationMethod.ID.String())
+			asJWKKeyID, _ := asJWK.KeyID()
+			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWKKeyID), verificationMethod.ID.String())
 		})
 	})
 }

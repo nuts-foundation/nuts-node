@@ -20,48 +20,38 @@ package oauth
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/nuts-foundation/nuts-node/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestIssuerIdToWellKnown(t *testing.T) {
+	// SSRF checks (HTTPS-only, no IP hosts, no reserved hosts) are not IssuerIdToWellKnown's
+	// concern: httpclient.StrictHTTPClient runs them on the returned URL before connecting.
+	// See http/client.TestStrictHTTPClient for that coverage.
 	t.Run("ok", func(t *testing.T) {
 		issuer := "https://nuts.nl/iam/id"
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
+		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server/iam/id", u.String())
 	})
 	t.Run("no path in issuer", func(t *testing.T) {
 		issuer := "https://nuts.nl"
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
+		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server", u.String())
 	})
 	t.Run("don't unescape path", func(t *testing.T) {
 		issuer := "https://nuts.nl/iam/%2E%2E/still-has-iam"
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
+		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown)
 		require.NoError(t, err)
 		assert.Equal(t, "https://nuts.nl/.well-known/oauth-authorization-server/iam/%2E%2E/still-has-iam", u.String())
 	})
-	t.Run("https in strictmode", func(t *testing.T) {
-		issuer := "http://nuts.nl/iam/id"
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
-		assert.ErrorContains(t, err, "scheme must be https")
-		assert.Nil(t, u)
-	})
-	t.Run("no IP allowed", func(t *testing.T) {
-		issuer := "https://127.0.0.1/iam/id"
-
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
-
-		assert.ErrorContains(t, err, "hostname is IP")
-		assert.Nil(t, u)
-	})
 	t.Run("invalid URL", func(t *testing.T) {
 		issuer := "http:// /iam/id"
-		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown, true)
+		u, err := IssuerIdToWellKnown(issuer, AuthzServerWellKnown)
 		assert.ErrorContains(t, err, "invalid character \" \" in host name")
 		assert.Nil(t, u)
 	})
@@ -120,7 +110,7 @@ func TestOpenIDConfiguration_UnmarshalJSON(t *testing.T) {
 			"key_ops": ["verify"],
 			"kid": "key1",
 			"kty": "RSA",
-			"n": "pnXBOusEANuug6ewezb9J_",
+			"n": "wCSGKw5VuZSGYmSL8G6AVHZBNfxrdZArTSdQsDCo33vdneJhaccynjUMrh6BHpDlJIatbQlMkvDNu3bWllBmXtLx4in6z-bGzaE9XIv0Wq2jYwKyx0Jbf4XD9Qn5LMtt9G5Pbcjilemr2I_J1CwS7pfiUMqsiBMmfc0Gdih2sFkjVNrS_4ZPII2JjFGH1Sn-X0kYm8c7XBYZdXRdoTN6ABXgRXfvdbvxfmlddAVyuUoCiaMDv28hSAjznr93QShnxHO4XVefuPIiRhHCPtsppnVWY_hDyLVPLeqA-Xd3CuQCxHRnU6hPmuWHwq_bOcAs7NKrG1ubFSM60RB5jSSepQ",
 			"use": "sig"
 		  }
 		]

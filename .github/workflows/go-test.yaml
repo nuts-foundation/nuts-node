@@ -7,20 +7,55 @@ on:
       - 'V*'
   pull_request:
 
+# deny-all default; each job below grants only the scopes it needs
+permissions: {}
+
 jobs:
+  # Docs-only changes (docs/, markdown, rst) can't affect Go tests. Detected once here so the
+  # (required) test job below can skip entirely on them: that keeps the check fast and avoids
+  # spending CI minutes (and hitting flaky tests) on changes that can't have broken anything it
+  # tests. A job skipped via `if:` reports as a passing check, so this still satisfies the
+  # required status check, unlike skipping the workflow itself via a trigger-level path filter.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check for non-doc changes
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!**/*.rst'
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: 'go.mod'
 
@@ -34,7 +69,7 @@ jobs:
         # Skip on PRs from forks: GitHub does not grant id-token: write to
         # cross-repository workflow runs, so the OIDC upload cannot authenticate.
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: qltysh/qlty-action/coverage@fd52dc852530a708d68c3b7342f8d33d1df4cd55 # v2.2.1
+        uses: qltysh/qlty-action/coverage@08a0a862c159eae9b9003081da6663d96efef637 # v2.3.0
         with:
           oidc: true
           files: c.out

@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 )
 
@@ -77,8 +77,9 @@ func IssuerKidValidator(token jwt.Token, headers map[string]interface{}) error {
 	if err != nil {
 		return fmt.Errorf("invalid kid header: %w", err)
 	}
-	if parsed.DID.String() != token.Issuer() {
-		return fmt.Errorf("token issuer (%s) does not match signing key DID (%s)", token.Issuer(), parsed.DID.String())
+	iss, _ := token.Issuer()
+	if parsed.DID.String() != iss {
+		return fmt.Errorf("token issuer (%s) does not match signing key DID (%s)", iss, parsed.DID.String())
 	}
 	return nil
 }

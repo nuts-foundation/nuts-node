@@ -25,8 +25,9 @@ import (
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/vdr/resolver"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)
@@ -45,7 +46,7 @@ func NewTransactionSignatureVerifier(resolver resolver.NutsKeyResolver) Verifier
 	return func(_ stoabs.ReadTx, transaction Transaction) error {
 		var signingKey crypto2.PublicKey
 		if transaction.SigningKey() != nil {
-			if err := transaction.SigningKey().Raw(&signingKey); err != nil {
+			if err := jwk.Export(transaction.SigningKey(), &signingKey); err != nil {
 				return err
 			}
 		} else {
@@ -57,7 +58,11 @@ func NewTransactionSignatureVerifier(resolver resolver.NutsKeyResolver) Verifier
 		}
 		// TODO: jws.Verify parses the JWS again, which we already did when parsing the transaction. If we want to optimize
 		// this we need to implement a custom verifier.
-		_, err := jws.Verify(transaction.Data(), jws.WithKey(jwa.SignatureAlgorithm(transaction.SigningAlgorithm()), signingKey))
+		alg, ok := jwa.LookupSignatureAlgorithm(transaction.SigningAlgorithm())
+		if !ok {
+			return fmt.Errorf("unsupported signing algorithm: %s", transaction.SigningAlgorithm())
+		}
+		_, err := jws.Verify(transaction.Data(), jws.WithKey(alg, signingKey))
 		return err
 	}
 }

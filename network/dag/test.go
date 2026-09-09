@@ -23,7 +23,7 @@ import (
 	"crypto"
 	"encoding/binary"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"path"
@@ -70,7 +70,7 @@ func CreateSignedTestTransaction(payloadNum uint32, signingTime time.Time, pal [
 func jwkToCryptoPublicKey(jwkKey jwk.Key) crypto.PublicKey {
 	jwkPublicKey, _ := jwkKey.PublicKey()
 	var rawKey interface{}
-	if err := jwkPublicKey.Raw(&rawKey); err != nil {
+	if err := jwk.Export(jwkPublicKey, &rawKey); err != nil {
 		panic(err)
 	}
 

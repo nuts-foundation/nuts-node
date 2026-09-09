@@ -26,7 +26,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/cert"
+	"github.com/lestrrat-go/jwx/v3/cert"
 	"github.com/nuts-foundation/nuts-node/test/pki"
 	"github.com/stretchr/testify/require"
 	"slices"
@@ -176,16 +176,6 @@ func TestFindCertificateByHash(t *testing.T) {
 
 // TestParseChain tests the parseChain function with cases that contain valid and invalid PEM encoded certificates.
 func TestParseChain(t *testing.T) {
-	newChain := func(pems [][]byte) *cert.Chain {
-		chain := cert.Chain{}
-		for _, pemCert := range pems {
-			err := chain.Add(pemCert)
-			if err != nil {
-				panic(err)
-			}
-		}
-		return &chain
-	}
 	certs, _, _ := pki.BuildCertChain([]string{"123"}, "", nil)
 
 	invalidCert := `Y29ycnVwdCBjZXJ0aWZpY2F0ZQo=`
@@ -206,16 +196,6 @@ func TestParseChain(t *testing.T) {
 			chain:     pki.CertsToChain(certs),
 			want:      certs[:], // not critical for testing
 			wantError: nil,
-		}, {
-			name:      "invalid cert",
-			chain:     newChain([][]byte{[]byte(invalidCert)}),
-			want:      nil,
-			wantError: errors.New("x509: malformed certificate"),
-		}, {
-			name:      "invalid base64",
-			chain:     newChain([][]byte{[]byte(invalidBase64)}),
-			want:      nil,
-			wantError: errors.New("illegal base64 data at input byte 5"),
 		},
 	}
 
@@ -233,6 +213,20 @@ func TestParseChain(t *testing.T) {
 			}
 		})
 	}
+
+	// In jwx v3, cert.Chain.Add parses and validates each certificate eagerly, so
+	// malformed certificates are rejected at insertion time and can never reach
+	// parseChain. Assert that the malformed-cert handling still happens, now at Add.
+	t.Run("invalid cert", func(t *testing.T) {
+		chain := cert.Chain{}
+		err := chain.Add([]byte(invalidCert))
+		require.ErrorContains(t, err, "x509: malformed certificate")
+	})
+	t.Run("invalid base64", func(t *testing.T) {
+		chain := cert.Chain{}
+		err := chain.Add([]byte(invalidBase64))
+		require.ErrorContains(t, err, "illegal base64 data at input byte 5")
+	})
 }
 
 func leafCertFromCerts(certs []*x509.Certificate) *x509.Certificate {

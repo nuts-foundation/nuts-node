@@ -123,13 +123,10 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return err
 	}
 
-	// construct callback URL to be used in (Signed)AuthorizationRequest
-	baseURL := r.subjectToBaseURL(redirectSession.SubjectID)
-	callbackURL := baseURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
-		values[oauth.RedirectURIParam] = callbackURL.String()
+		values[oauth.RedirectURIParam] = r.callbackURL().String()
 		values[oauth.ResponseTypeParam] = oauth.CodeResponseType
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope

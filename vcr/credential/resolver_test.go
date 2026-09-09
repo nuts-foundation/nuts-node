@@ -23,9 +23,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
 	"github.com/nuts-foundation/nuts-node/vcr/test"
@@ -73,7 +73,7 @@ func TestPresentationSigner(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			headers := jws.NewHeaders()
 			headers.Set(jws.KeyIDKey, keyID.String())
-			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256(), privateKey, jws.WithProtectedHeaders(headers)))
 			require.NoError(t, err)
 			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestPresentationSigner(t *testing.T) {
 			assert.Equal(t, keyID.DID, *actual)
 		})
 		t.Run("no kid header", func(t *testing.T) {
-			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey))
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256(), privateKey))
 			require.NoError(t, err)
 			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestPresentationSigner(t *testing.T) {
 		t.Run("kid is not a did", func(t *testing.T) {
 			headers := jws.NewHeaders()
 			require.NoError(t, headers.Set(jws.KeyIDKey, "not a did"))
-			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(headers)))
+			signedToken, err := jwt.Sign(jwt.New(), jwt.WithKey(jwa.ES256(), privateKey, jws.WithProtectedHeaders(headers)))
 			require.NoError(t, err)
 			presentation, err := vc.ParseVerifiablePresentation(string(signedToken))
 			require.NoError(t, err)

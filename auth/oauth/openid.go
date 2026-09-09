@@ -42,5 +42,5 @@ func DefaultOpenIDSupportedFormats() map[string]map[string][]string {
 }
 
 // CallbackPath is the node specific callback for an OAuth flow. The full callback URL is constructed as
-// <node_url>/iam/{id}/callback
+// <node_url>/oauth2/callback
 const CallbackPath = "callback"

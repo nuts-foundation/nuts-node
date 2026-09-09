@@ -20,20 +20,32 @@ package dag
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 
 	"github.com/nuts-foundation/nuts-node/crypto/hash"
 )
 
+// errNonCanonicalJWS is returned when the input is not the unique canonical compact JWS encoding of
+// its own header, payload and signature; see validateCanonicalCompactSerialization.
+var errNonCanonicalJWS = errors.New("JWS is not canonically encoded compact serialization")
+
 // ParseTransaction parses the input as Nuts Network Transaction according to RFC004.
 func ParseTransaction(input []byte) (Transaction, error) {
-	message, err := jws.Parse(input)
+	// RFC004 only defines compact serialization. Restricting to it here, rather than accepting
+	// whatever jws.Parse auto-detects, also rules out JSON serialization's own encoding degrees of
+	// freedom (unprotected headers, member order, whitespace) up front.
+	message, err := jws.Parse(input, jws.WithCompact())
 	if err != nil {
+		return nil, fmt.Errorf(unableToParseTransactionErrFmt, err)
+	}
+	if err := validateCanonicalCompactSerialization(input); err != nil {
 		return nil, fmt.Errorf(unableToParseTransactionErrFmt, err)
 	}
 	if len(message.Signatures()) == 0 {
@@ -71,14 +83,45 @@ func transactionValidationError(format string, args ...interface{}) error {
 	return fmt.Errorf(transactionNotValidErrFmt, fmt.Errorf(format, args...))
 }
 
+// validateCanonicalCompactSerialization rejects a compact JWS whose bytes aren't the unique
+// canonical encoding of its own header, payload and signature. jws.Parse, even restricted to
+// compact serialization, still accepts and verifies encodings that decode to the same content as
+// the canonical one - e.g. surrounding whitespace, or base64 with non-zero unused trailing bits -
+// because verification checks the decoded content, not the received bytes. Transaction identity
+// (Ref(), see transaction.go) is the hash of the received bytes, so a non-canonical variant hashes
+// to a different ref than the original while carrying an equally valid signature: anyone who has
+// seen one signed transaction could mint unlimited "new" ones from it without the signing key.
+// Re-deriving the canonical form and requiring an exact match closes that regardless of which
+// specific leniency jws.Parse has today or gains later, and never rejects anything jws.Sign
+// produces, since that output is already canonical.
+func validateCanonicalCompactSerialization(input []byte) error {
+	parts := strings.Split(string(input), ".")
+	if len(parts) != 3 {
+		return errNonCanonicalJWS
+	}
+	canonical := make([]string, len(parts))
+	for i, part := range parts {
+		decoded, err := base64.RawURLEncoding.DecodeString(part)
+		if err != nil {
+			return errNonCanonicalJWS
+		}
+		canonical[i] = base64.RawURLEncoding.EncodeToString(decoded)
+	}
+	if strings.Join(canonical, ".") != string(input) {
+		return errNonCanonicalJWS
+	}
+	return nil
+}
+
 // transactionParseStep defines a function that parses a part of a JWS, building the internal representation of a transaction.
 // If an error occurs during parsing or validation it should be returned.
 type transactionParseStep func(transaction *transaction, headers jws.Headers, message *jws.Message) error
 
 // parseSigningAlgorithm validates whether the signing algorithm is allowed
 func parseSigningAlgorithm(_ *transaction, headers jws.Headers, _ *jws.Message) error {
-	if !isAlgoAllowed(headers.Algorithm()) {
-		return transactionValidationError("signing algorithm not allowed: %s", headers.Algorithm())
+	alg, _ := headers.Algorithm()
+	if !isAlgoAllowed(alg) {
+		return transactionValidationError("signing algorithm not allowed: %s", alg)
 	}
 	return nil
 }
@@ -95,7 +138,7 @@ func parsePayload(transaction *transaction, _ jws.Headers, message *jws.Message)
 
 // parseContentType parses, validates and sets the transaction payload content type.
 func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	contentType := headers.ContentType()
+	contentType, _ := headers.ContentType()
 	if !ValidatePayloadType(contentType) {
 		return transactionValidationError("%w", errInvalidPayloadType)
 	}
@@ -105,25 +148,27 @@ func parseContentType(transaction *transaction, headers jws.Headers, _ *jws.Mess
 
 // parseSignatureParams parses, validates and sets the transaction signing key (`jwk`) or key ID (`kid`).
 func parseSignatureParams(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if key, ok := headers.Get(jws.JWKKey); ok {
-		jwkKey := key.(jwk.Key)
+	var jwkKey jwk.Key
+	if err := headers.Get(jws.JWKKey, &jwkKey); err == nil {
 		transaction.signingKey = jwkKey
 	}
 	// Get the keyID from the header (not to be confused with the keyID from the embedded key)
-	if kid, ok := headers.Get(jws.KeyIDKey); ok {
-		transaction.signingKeyID = kid.(string)
+	var kid string
+	if err := headers.Get(jws.KeyIDKey, &kid); err == nil {
+		transaction.signingKeyID = kid
 	}
 	// Check RFC004 3.1 kid and jwk constraints
 	if (transaction.signingKey != nil && transaction.signingKeyID != "") || (transaction.signingKey == nil && transaction.signingKeyID == "") {
 		return transactionValidationError("either `kid` or `jwk` header must be present (but not both)")
 	}
-	transaction.signingAlgorithm = headers.Algorithm()
+	transaction.signingAlgorithm, _ = headers.Algorithm()
 	return nil
 }
 
 // parseSigningTime parses, validates and sets the transaction signing time.
 func parseSigningTime(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if timeAsInterf, ok := headers.Get(signingTimeHeader); !ok {
+	var timeAsInterf interface{}
+	if err := headers.Get(signingTimeHeader, &timeAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, signingTimeHeader)
 	} else if timeAsFloat64, ok := timeAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, signingTimeHeader)
@@ -136,7 +181,8 @@ func parseSigningTime(transaction *transaction, headers jws.Headers, _ *jws.Mess
 // parseVersion parses, validates and sets the transaction format version.
 func parseVersion(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
 	var version Version
-	if versionAsInterf, ok := headers.Get(versionHeader); !ok {
+	var versionAsInterf interface{}
+	if err := headers.Get(versionHeader, &versionAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, versionHeader)
 	} else if versionAsFloat64, ok := versionAsInterf.(float64); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, versionHeader)
@@ -159,7 +205,8 @@ func versionAllowed(version Version) bool {
 
 // parsePrevious parses, validates and sets the transaction prevs fields.
 func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if prevsAsInterf, ok := headers.Get(previousHeader); !ok {
+	var prevsAsInterf interface{}
+	if err := headers.Get(previousHeader, &prevsAsInterf); err != nil {
 		return transactionValidationError(missingHeaderErrFmt, previousHeader)
 	} else if prevsAsSlice, ok := prevsAsInterf.([]interface{}); !ok {
 		return transactionValidationError(invalidHeaderErrFmt, previousHeader)
@@ -178,13 +225,16 @@ func parsePrevious(transaction *transaction, headers jws.Headers, _ *jws.Message
 }
 
 func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	rawPal, ok := headers.Get(palHeader)
-	if !ok {
+	var rawPal interface{}
+	if err := headers.Get(palHeader, &rawPal); err != nil {
 		return nil
 	}
 	palEncoded, ok := rawPal.([]interface{})
 	if !ok {
 		return transactionValidationError(invalidHeaderErrFmt, palHeader)
+	}
+	if len(palEncoded) != palEntryCount {
+		return transactionValidationError("pal header must contain exactly %d entries, got %d", palEntryCount, len(palEncoded))
 	}
 	var pal [][]byte
 	for _, curr := range palEncoded {
@@ -199,7 +249,8 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 }
 
 func parseLamportClock(transaction *transaction, headers jws.Headers, _ *jws.Message) error {
-	if lcAsInterf, ok := headers.Get(lamportClockHeader); !ok {
+	var lcAsInterf interface{}
+	if err := headers.Get(lamportClockHeader, &lcAsInterf); err != nil {
 		// won't happen since it's a critical header, but we need to check the cast anyway
 		return transactionValidationError(missingHeaderErrFmt, lamportClockHeader)
 	} else if lcAsFloat64, ok := lcAsInterf.(float64); !ok {

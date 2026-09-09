@@ -26,10 +26,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -264,13 +264,13 @@ func signJWT(subjectDID did.DID, claims map[string]interface{}, headers map[stri
 	if signingKey == nil {
 		return "", fmt.Errorf("key not found for DID: %s", subjectDID)
 	}
-	subjectKeyJWK, err := jwk.FromRaw(signingKey)
+	subjectKeyJWK, err := jwk.Import(signingKey)
 	if err != nil {
 		return "", nil
 	}
 	keyID := did.DIDURL{DID: subjectDID}
 	keyID.Fragment = "0"
-	if err := subjectKeyJWK.Set(jwk.AlgorithmKey, jwa.ES256); err != nil {
+	if err := subjectKeyJWK.Set(jwk.AlgorithmKey, jwa.ES256()); err != nil {
 		return "", err
 	}
 	if err := subjectKeyJWK.Set(jwk.KeyIDKey, keyID.String()); err != nil {
@@ -290,7 +290,8 @@ func signJWT(subjectDID did.DID, claims map[string]interface{}, headers map[stri
 			return "", err
 		}
 	}
-	bytes, err := jwt.Sign(token, jwt.WithKey(subjectKeyJWK.Algorithm(), subjectKeyJWK, jws.WithProtectedHeaders(hdr)))
+	alg, _ := subjectKeyJWK.Algorithm()
+	bytes, err := jwt.Sign(token, jwt.WithKey(alg, subjectKeyJWK, jws.WithProtectedHeaders(hdr)))
 	return string(bytes), err
 }
 

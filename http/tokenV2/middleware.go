@@ -29,9 +29,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/http/log"
@@ -162,7 +162,7 @@ func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next 
 		}
 
 		// Ensure the issuer, the person issuing the JWT, matches the registered username for this key
-		if authorizedKey.comment != token.Issuer() {
+		if iss, _ := token.Issuer(); authorizedKey.comment != iss {
 			return unauthorizedError(context, fmt.Errorf("expected issuer (%s) does not match iss", authorizedKey.comment))
 		}
 
@@ -177,11 +177,14 @@ func (m middlewareImpl) checkConnectionAuthorization(context echo.Context, next 
 // accessGranted allows a connection to be handled
 func accessGranted(authKey authorizedKey, context echo.Context, token jwt.Token, next echo.HandlerFunc) error {
 	// Create an audit log entry about this access granted event
-	auditLog := auditLogger(context, token.Subject(), audit.AccessGrantedEvent)
-	auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authKey.comment, token.JwtID(), token.Subject(), token.Issuer())
+	sub, _ := token.Subject()
+	jti, _ := token.JwtID()
+	iss, _ := token.Issuer()
+	auditLog := auditLogger(context, sub, audit.AccessGrantedEvent)
+	auditLog.Infof("Access granted to user '%v' with JWT %s issued to %s by %s", authKey.comment, jti, sub, iss)
 
 	// Set the username from authorized_keys as the username in the context
-	context.Set(core.UserContextKey, token.Issuer())
+	context.Set(core.UserContextKey, iss)
 
 	// Call the next handler/middleware, probably serving some content/processing the API request
 	return next(context)
@@ -210,28 +213,28 @@ func credentialIsSecure(credential string) error {
 	secureSignatureCount := 0
 	for _, signature := range message.Signatures() {
 		// Reject credentials signed with insecure algorithms
-		algorithm := signature.ProtectedHeaders().Algorithm()
+		algorithm, _ := signature.ProtectedHeaders().Algorithm()
 		if !acceptableSignatureAlgorithm(algorithm) {
 			return fmt.Errorf("signing algorithm %v is not permitted", algorithm)
 		}
 
 		// Reject credentials trying to provide the public key directly in the header
-		if signature.ProtectedHeaders().JWK() != nil {
+		if _, ok := signature.ProtectedHeaders().JWK(); ok {
 			return errors.New("embedding JWK in signature is forbidden")
 		}
 
 		// Reject credentials trying to provide the public key URL in the header
-		if signature.ProtectedHeaders().JWKSetURL() != "" {
+		if jku, ok := signature.ProtectedHeaders().JWKSetURL(); ok && jku != "" {
 			return errors.New("embedding JWKSetURL in signature is forbidden")
 		}
 
 		// Reject credentials trying to provide an x509 certificate chain in the header
-		if signature.ProtectedHeaders().X509CertChain() != nil {
+		if _, ok := signature.ProtectedHeaders().X509CertChain(); ok {
 			return errors.New("embedding X509CertChain in signature is forbidden")
 		}
 
 		// Reject credentials trying to provide an x509 chain URL in the header
-		if signature.ProtectedHeaders().X509URL() != "" {
+		if x5u, ok := signature.ProtectedHeaders().X509URL(); ok && x5u != "" {
 			return errors.New("embedding X509URL in signature is forbidden")
 		}
 
@@ -255,12 +258,10 @@ func mandatoryJWTFields() []string {
 
 // tokenJTI returns the JWT's JTI as a string
 func tokenJTI(token jwt.Token) string {
-	// Retrieve the JwtID from the token, but it comes out as an interface{}
-	if jtiIface, ok := token.Get(jwt.JwtIDKey); ok {
-		// Convert the interface{} to a string so the typed value can be returned
-		if jtiStr, ok := jtiIface.(string); ok {
-			return jtiStr
-		}
+	// Retrieve the JwtID from the token as a string
+	var jti string
+	if err := token.Get(jwt.JwtIDKey, &jti); err == nil {
+		return jti
 	}
 
 	// Simply return an empty string if either the jti field wasn't present or it wasn't a string
@@ -274,7 +275,8 @@ func tokenJTI(token jwt.Token) string {
 func bestPracticesCheck(token jwt.Token) error {
 	// Ensure the mandatory fields are present
 	for _, field := range mandatoryJWTFields() {
-		if _, ok := token.Get(field); !ok {
+		var v interface{}
+		if err := token.Get(field, &v); err != nil {
 			return fmt.Errorf("missing field: %v", field)
 		}
 	}
@@ -285,25 +287,29 @@ func bestPracticesCheck(token jwt.Token) error {
 		return fmt.Errorf("token jti is not a valid uuid: %w", err)
 	}
 
+	nbf, _ := token.NotBefore()
+	exp, _ := token.Expiration()
+	iat, _ := token.IssuedAt()
+
 	// Ensure the expiration is no more than 24.5 hours after NotBefore
-	maxExpirationAfterNotBefore := token.NotBefore().Add(time.Minute * time.Duration(1470))
-	if token.Expiration().After(maxExpirationAfterNotBefore) {
+	maxExpirationAfterNotBefore := nbf.Add(time.Minute * time.Duration(1470))
+	if exp.After(maxExpirationAfterNotBefore) {
 		return errors.New("token expires too long after nbf")
 	}
 
 	// Ensure the expiration is no more than 24.5 hours after IssuedAt
-	maxExpirationAfterIssuedAt := token.IssuedAt().Add(time.Minute * time.Duration(1470))
-	if token.Expiration().After(maxExpirationAfterIssuedAt) {
+	maxExpirationAfterIssuedAt := iat.Add(time.Minute * time.Duration(1470))
+	if exp.After(maxExpirationAfterIssuedAt) {
 		return errors.New("token expires too long after iat")
 	}
 
 	// Ensure the IssuedAt is <= the NotBefore date
-	if token.IssuedAt().After(token.NotBefore()) {
+	if iat.After(nbf) {
 		return errors.New("token nbf occurs before iat")
 	}
 
 	// Ensure the subject field is non-empty
-	if token.Subject() == "" {
+	if sub, _ := token.Subject(); sub == "" {
 		return errors.New("sub must not be empty")
 	}
 
@@ -319,7 +325,7 @@ func bestPracticesCheck(token jwt.Token) error {
 func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	switch algorithm {
 	// The following algorithms are supported for elliptic curve keys
-	case jwa.ES256, jwa.ES384, jwa.ES512:
+	case jwa.ES256(), jwa.ES384(), jwa.ES512():
 		return true
 
 	// The RS512/PS512 algorithms are supported for RSA keys, but less secure
@@ -342,11 +348,11 @@ func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	// the ssh-agent protocol. It seems the ssh ecosystem has generally moved
 	// beyond RSA support in favor of trying to maximize security within the
 	// scope of RSA use. Perhaps we could consider doing the same.
-	case jwa.RS512, jwa.PS512:
+	case jwa.RS512(), jwa.PS512():
 		return true
 
 	// Edwards curve signatures are considered secure and are therefore supported
-	case jwa.EdDSA:
+	case jwa.EdDSA():
 		return true
 
 	// Explicitly reject messages signed by the "none" algorithm. This
@@ -355,7 +361,7 @@ func acceptableSignatureAlgorithm(algorithm jwa.SignatureAlgorithm) bool {
 	// approach into a blacklist approach in the future. Not to mention this
 	// going wrong would result in a catastrophic security hole, so it's worth
 	// having a special case for it.
-	case jwa.NoSignature:
+	case jwa.NoSignature():
 		return false
 
 	// Only explicitly allowed signing algorithms are acceptable

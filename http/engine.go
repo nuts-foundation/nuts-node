@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/nuts-foundation/nuts-node/core"
 	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/http/client"
@@ -41,6 +42,13 @@ import (
 )
 
 const moduleName = "HTTP"
+
+// requestBodySizeLimit caps the size of inbound HTTP request bodies on all interfaces, returning
+// 413 Request Entity Too Large when exceeded. The largest legitimate requests are OAuth POSTs
+// carrying Verifiable Presentations; a deliberately heavy presentation (5 JWT credentials, each
+// with an RSA-4096 x5c chain of 4 certificates) is around 133 kB, so 1 MB leaves ample headroom.
+// Matches the client_max_body_size the deployment documentation recommends for reverse proxies.
+const requestBodySizeLimit = "1M"
 
 // New returns a new HTTP engine. The callback is called when an HTTP interface shuts down unexpectedly.
 func New(serverShutdownCb func(), signingKeyResolver cryptoEngine.KeyResolver) *Engine {
@@ -66,7 +74,9 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
-	h.configureClient(serverConfig)
+	if err := h.configureClient(serverConfig); err != nil {
+		return err
+	}
 
 	// We have 2 HTTP interfaces: internal and public
 	// The following paths (and their subpaths) are bound to the internal interface:
@@ -92,18 +102,33 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
+	if serverConfig.Strictmode && h.config.Log == LogMetadataAndBodyLevel {
+		// Request/response bodies contain credentials: the OAuth token endpoint's client_assertion,
+		// VP tokens, authorization codes and issued access tokens.
+		log.Logger().Warn("Body logging (http.log=metadata-and-body) is not allowed in strictmode, falling back to metadata")
+		h.config.Log = LogMetadataLevel
+	}
+
 	h.applyTracingMiddleware(h.server)
 	h.applyRateLimiterMiddleware(h.server, serverConfig)
 	h.applyLoggerMiddleware(h.server, []string{MetricsPath, StatusPath, HealthPath}, h.config.Log)
+	h.server.Use(middleware.BodyLimit(requestBodySizeLimit))
 	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
 }
 
-func (h *Engine) configureClient(serverConfig core.ServerConfig) {
+func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
 	client.StrictMode = serverConfig.Strictmode
+	if err := client.SetAllowedNonPublicCIDRs(h.config.Client.AllowedInternalCIDRs); err != nil {
+		return err
+	}
+	if err := client.SetDeniedCIDRs(h.config.Client.DeniedCIDRs); err != nil {
+		return err
+	}
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)
 	}
+	return nil
 }
 
 func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {

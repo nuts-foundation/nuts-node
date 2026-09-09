@@ -21,7 +21,7 @@ package pe
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/vc"
 )
 
@@ -165,11 +165,13 @@ func vpAsInterface(presentation vc.VerifiablePresentation) (interface{}, error) 
 		}
 		asMap := make(map[string]interface{})
 		// use the 'vp' claim as base Verifiable Presentation properties
-		innerVPAsMap, _ := token.PrivateClaims()["vp"].(map[string]interface{})
+		var innerVP interface{}
+		_ = token.Get("vp", &innerVP)
+		innerVPAsMap, _ := innerVP.(map[string]interface{})
 		for key, value := range innerVPAsMap {
 			asMap[key] = value
 		}
-		if jti, ok := token.Get(jwt.JwtIDKey); ok {
+		if jti, ok := token.JwtID(); ok {
 			asMap["id"] = jti
 		}
 		return asMap, nil

@@ -27,7 +27,7 @@ import (
 	godid "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 )
 
 // MethodName is the name of this DID method.
@@ -117,7 +117,7 @@ func rawPrivateKeyOf(key jwk.Key) (any, error) {
 	// value is available. If the jwx/jwk library offers a way in the future to specifically get a private key from
 	// a JWK this will be much simpler.
 	var rawUnspecifiedKey any
-	if err := key.Raw(&rawUnspecifiedKey); err != nil {
+	if err := jwk.Export(key, &rawUnspecifiedKey); err != nil {
 		return nil, fmt.Errorf("failed to get raw key: %w", err)
 	}
 
@@ -132,7 +132,7 @@ func rawPrivateKeyOf(key jwk.Key) (any, error) {
 	// Get the raw public key, which is a golang crypto primitive, or nil. This will be compared next to the
 	// rawUnspecifiedKey (unspecified as public or private) key to determine whether a private key can be returned.
 	var rawPublicKey any
-	if err := publicKey.Raw(&rawPublicKey); err != nil {
+	if err := jwk.Export(publicKey, &rawPublicKey); err != nil {
 		return nil, fmt.Errorf("failed to get raw public key: %w", err)
 	}
 

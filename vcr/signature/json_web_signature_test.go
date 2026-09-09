@@ -19,10 +19,9 @@
 package signature
 
 import (
-	"context"
 	"encoding/hex"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/audit"
 	"github.com/nuts-foundation/nuts-node/crypto"
@@ -133,12 +132,18 @@ func TestJsonWebSignature2020_Sign(t *testing.T) {
 		assert.Empty(t, msg.Payload(), "payload should be empty (detached)")
 		require.Len(t, msg.Signatures(), 1)
 		expectedHeaders := map[string]interface{}{
-			"alg":  jwa.ES256,
+			"alg":  jwa.ES256(),
 			"b64":  false,
 			"crit": []string{"b64"},
 			"kid":  keyID,
 		}
-		actualHeaders, _ := msg.Signatures()[0].ProtectedHeaders().AsMap(context.Background())
+		protected := msg.Signatures()[0].ProtectedHeaders()
+		actualHeaders := make(map[string]interface{})
+		for _, k := range protected.Keys() {
+			var v interface{}
+			_ = protected.Get(k, &v)
+			actualHeaders[k] = v
+		}
 		assert.Equal(t, expectedHeaders, actualHeaders)
 	})
 }

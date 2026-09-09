@@ -35,6 +35,8 @@ import (
 )
 
 func TestStrictHTTPClient(t *testing.T) {
+	oldStrictMode := StrictMode
+	t.Cleanup(func() { StrictMode = oldStrictMode })
 	t.Run("caching transport", func(t *testing.T) {
 		t.Run("strict mode enabled", func(t *testing.T) {
 			rt := &stubRoundTripper{}
@@ -45,7 +47,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 			_, err := client.Do(httpRequest)
 
-			assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+			assert.ErrorContains(t, err, "invalid target URL")
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("strict mode disabled", func(t *testing.T) {
@@ -71,7 +73,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 			_, err := client.Do(httpRequest)
 
-			assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+			assert.ErrorContains(t, err, "invalid target URL")
 			assert.Equal(t, 0, rt.invocations)
 		})
 		t.Run("sets TLS config", func(t *testing.T) {
@@ -94,8 +96,140 @@ func TestStrictHTTPClient(t *testing.T) {
 		httpRequest, _ := http.NewRequest("GET", "http://example.com", nil)
 		_, err := client.Do(httpRequest)
 
-		assert.EqualError(t, err, "strictmode is enabled, but request is not over HTTPS")
+		assert.ErrorContains(t, err, "invalid target URL")
 		assert.Equal(t, 0, rt.invocations)
+	})
+	t.Run("strict mode allows IP host, deferring to the dial guard", func(t *testing.T) {
+		// The dial guard (see denyNonPublicAddr / TestSafeHttpTransport_SSRFDialGuard) is what
+		// polices IP addresses: it honors http.client.allowedinternalcidrs/deniedcidrs, which
+		// this string-level check has no visibility into. Rejecting IP literals here too would
+		// make that allowlist unreachable.
+		oldStrictMode := StrictMode
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = oldStrictMode })
+		rt := &stubRoundTripper{}
+		DefaultCachingTransport = rt
+
+		client := NewWithCache(time.Second)
+		httpRequest, _ := http.NewRequest("GET", "https://127.0.0.1/foo", nil)
+		_, err := client.Do(httpRequest)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 1, rt.invocations)
+	})
+	t.Run("strict mode rejects RFC2606 reserved host", func(t *testing.T) {
+		oldStrictMode := StrictMode
+		StrictMode = true
+		t.Cleanup(func() { StrictMode = oldStrictMode })
+		rt := &stubRoundTripper{}
+		DefaultCachingTransport = rt
+
+		client := NewWithCache(time.Second)
+		httpRequest, _ := http.NewRequest("GET", "https://service.localhost/foo", nil)
+		_, err := client.Do(httpRequest)
+
+		assert.ErrorContains(t, err, "invalid target URL")
+		assert.ErrorContains(t, err, "hostname is RFC2606 reserved")
+		assert.Equal(t, 0, rt.invocations)
+	})
+}
+
+func TestCheckRedirect(t *testing.T) {
+	makeReq := func(target string) *http.Request {
+		req, _ := http.NewRequest("GET", target, nil)
+		return req
+	}
+	setStrictMode := func(t *testing.T, v bool) {
+		old := StrictMode
+		StrictMode = v
+		t.Cleanup(func() { StrictMode = old })
+	}
+	t.Run("strict mode allows redirect to IP host, deferring to the dial guard", func(t *testing.T) {
+		setStrictMode(t, true)
+		err := checkRedirect(makeReq("https://127.0.0.1/x"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("strict mode rejects redirect to reserved host", func(t *testing.T) {
+		setStrictMode(t, true)
+		err := checkRedirect(makeReq("https://internal.localhost/x"), nil)
+		assert.ErrorContains(t, err, "invalid redirect target")
+		assert.ErrorContains(t, err, "hostname is RFC2606 reserved")
+	})
+	t.Run("non-strict mode allows redirect to IP host", func(t *testing.T) {
+		setStrictMode(t, false)
+		err := checkRedirect(makeReq("http://127.0.0.1/x"), nil)
+		assert.NoError(t, err)
+	})
+	t.Run("redirect cap stops after 10 hops", func(t *testing.T) {
+		setStrictMode(t, false)
+		via := make([]*http.Request, 10)
+		err := checkRedirect(makeReq("http://example.org"), via)
+		assert.ErrorContains(t, err, "stopped after 10 redirects")
+	})
+	t.Run("cap checked before URL validation", func(t *testing.T) {
+		setStrictMode(t, true)
+		via := make([]*http.Request, 10)
+		err := checkRedirect(makeReq("http://example.org"), via)
+		assert.ErrorContains(t, err, "stopped after 10 redirects")
+	})
+}
+
+func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
+	original := tracing.Enabled()
+	tracing.SetEnabled(false) // ensure the constructed client uses the raw transport
+	t.Cleanup(func() { tracing.SetEnabled(original) })
+
+	// httptest servers bind to loopback, which the strict-mode dial guard blocks. Permit loopback
+	// through the allowlist rather than bypassing the guard, so the guard stays active and the
+	// redirect scheme check is what must block the plaintext hop.
+	oldAllow := allowedNonPublicNets
+	require.NoError(t, SetAllowedNonPublicCIDRs([]string{"127.0.0.0/8", "::1/128"}))
+	t.Cleanup(func() { allowedNonPublicNets = oldAllow })
+
+	// Plaintext HTTP endpoint the redirect points to.
+	var reached atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached.Store(true)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+
+	// Valid HTTPS remote that redirects the client onto the plaintext endpoint.
+	redirector := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer redirector.Close()
+
+	// Trust the test TLS server via NewWithTLSConfig, a real production constructor.
+	tlsConfig := redirector.Client().Transport.(*http.Transport).TLSClientConfig
+
+	setStrictMode := func(t *testing.T, v bool) {
+		old := StrictMode
+		StrictMode = v
+		t.Cleanup(func() { StrictMode = old })
+	}
+
+	t.Run("strict mode refuses redirect from HTTPS to HTTP", func(t *testing.T) {
+		setStrictMode(t, true)
+		reached.Store(false)
+
+		client := NewWithTLSConfig(time.Second, tlsConfig)
+		req, _ := http.NewRequest("GET", redirector.URL, nil)
+		_, err := client.Do(req)
+
+		assert.Error(t, err, "strict mode must not follow a redirect from HTTPS to HTTP")
+		assert.False(t, reached.Load(), "the plaintext endpoint must not be contacted")
+	})
+	t.Run("non-strict mode follows redirect to HTTP", func(t *testing.T) {
+		setStrictMode(t, false)
+		reached.Store(false)
+
+		client := NewWithTLSConfig(time.Second, tlsConfig)
+		req, _ := http.NewRequest("GET", redirector.URL, nil)
+		_, err := client.Do(req)
+
+		assert.NoError(t, err)
+		assert.True(t, reached.Load(), "non-strict mode should follow the redirect")
 	})
 }
 

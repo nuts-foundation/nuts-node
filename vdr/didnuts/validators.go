@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/network/transport"
@@ -79,7 +79,7 @@ func (v verificationMethodValidator) verifyThumbprint(method *did.VerificationMe
 		return fmt.Errorf("unable to get JWK: %w", err)
 	}
 	_ = jwk.AssignKeyID(keyAsJWK)
-	if keyAsJWK.KeyID() != method.ID.Fragment {
+	if keyID, _ := keyAsJWK.KeyID(); keyID != method.ID.Fragment {
 		return errors.New("key thumbprint does not match ID")
 	}
 	return nil
