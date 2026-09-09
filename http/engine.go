@@ -66,7 +66,9 @@ func (h Engine) Router() core.EchoRouter {
 
 // Configure loads the configuration for the HTTP engine.
 func (h *Engine) Configure(serverConfig core.ServerConfig) error {
-	h.configureClient(serverConfig)
+	if err := h.configureClient(serverConfig); err != nil {
+		return err
+	}
 
 	// We have 2 HTTP interfaces: internal and public
 	// The following paths (and their subpaths) are bound to the internal interface:
@@ -98,12 +100,19 @@ func (h *Engine) Configure(serverConfig core.ServerConfig) error {
 	return h.applyAuthMiddleware(h.server, InternalPath, h.config.Internal.Auth)
 }
 
-func (h *Engine) configureClient(serverConfig core.ServerConfig) {
+func (h *Engine) configureClient(serverConfig core.ServerConfig) error {
 	client.StrictMode = serverConfig.Strictmode
+	if err := client.SetAllowedNonPublicCIDRs(h.config.Client.AllowedInternalCIDRs); err != nil {
+		return err
+	}
+	if err := client.SetDeniedCIDRs(h.config.Client.DeniedCIDRs); err != nil {
+		return err
+	}
 	// Configure the HTTP caching client, if enabled. Set it to http.DefaultTransport so it can be used by any subsystem.
 	if h.config.ResponseCacheSize > 0 {
 		client.DefaultCachingTransport = client.NewCachingTransport(client.SafeHttpTransport, h.config.ResponseCacheSize)
 	}
+	return nil
 }
 
 func (h *Engine) applyTracingMiddleware(echoServer core.EchoRouter) {
