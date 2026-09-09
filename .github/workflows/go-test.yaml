@@ -16,6 +16,9 @@ jobs:
   # spending CI minutes (and hitting flaky tests) on changes that can't have broken anything it
   # tests. A job skipped via `if:` reports as a passing check, so this still satisfies the
   # required status check, unlike skipping the workflow itself via a trigger-level path filter.
+  # '!docs/*/**' (not '!docs/**') so the doc generator and its tests, which live directly under
+  # docs/, still count as code: paths-filter's some-with-excludes mode makes an exclusion final,
+  # so a blanket '!docs/**' can't be selectively re-included by a later positive pattern.
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -37,7 +40,7 @@ jobs:
           filters: |
             code:
               - '**'
-              - '!docs/**'
+              - '!docs/*/**'
               - '!**/*.md'
               - '!**/*.rst'
 
