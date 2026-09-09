@@ -118,13 +118,11 @@ e2e-test:
 	cd e2e-tests && IMAGE_NODE_A=nutsfoundation/nuts-node:e2e IMAGE_NODE_B=nutsfoundation/nuts-node:e2e ./run-tests.sh
 
 OUTPUT ?= "$(shell pwd)/nuts"
-GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
-GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD)
-GIT_VERSION ?= $(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))
-# Module path including the major version suffix (e.g. .../nuts-node/v6).
-MODULE := $(shell go list -m)
+GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
+GIT_BRANCH ?= "$(shell git symbolic-ref --short HEAD)"
+GIT_VERSION ?= "$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
 build:
-	go build -tags jwx_es256k -ldflags="-w -s -X '$(MODULE)/core.GitCommit=${GIT_COMMIT}' -X '$(MODULE)/core.GitBranch=${GIT_BRANCH}' -X '$(MODULE)/core.GitVersion=${GIT_VERSION}'" -o ${OUTPUT}
+	go build -tags jwx_es256k -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitVersion=${GIT_VERSION}'" -o ${OUTPUT}
 
 docker:
 	docker build --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_VERSION=${GIT_VERSION} -t nutsfoundation/nuts-node:master .
@@ -132,12 +130,3 @@ docker:
 docker-dev: docker
 	docker build -t nutsfoundation/nuts-node:dev development/dev-image
 
-
-# Bump the major version in the module path (e.g. /v6 -> /v7). Run once on the
-# commit that starts a new major and commit the result. gomajor rewrites go.mod
-# and every import; the .proto go_package options are rewritten here because
-# gomajor does not touch them. Build files read the path from "go list -m".
-bump-major:
-	go run github.com/icholy/gomajor@v0.15.0 path -next
-	perl -pi -e 's#"github.com/nuts-foundation/nuts-node(/v\d+)?/#"'"$$(go list -m)"'/#' $$(git ls-files '*.proto')
-	go mod tidy
