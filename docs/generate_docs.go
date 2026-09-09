@@ -19,6 +19,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
@@ -51,15 +52,23 @@ var serverCommands stringSlice = []string{"nuts config", "nuts server", "nuts cr
 
 func generateDocs() {
 	system := cmd.CreateSystem(func() {})
-	generateServerOptions(system)
-	generateCLICommands(system)
+	for fileName, content := range generatedDocFiles(system) {
+		if err := os.WriteFile(fileName, content, os.ModePerm); err != nil {
+			panic(err)
+		}
+	}
 }
 
-func generateCLICommands(system *core.System) {
-	const targetFile = "docs/pages/deployment/cli-reference.rst"
-	writer, _ := os.OpenFile(targetFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	defer writer.Close()
+// generatedDocFiles renders all documentation files that are generated from the code, keyed by their (repo-relative)
+// output path. generateDocs writes them to disk; the up-to-date test compares them against the committed files.
+func generatedDocFiles(system *core.System) map[string][]byte {
+	files := renderServerOptions(system)
+	files["docs/pages/deployment/cli-reference.rst"] = renderCLICommands(system)
+	return files
+}
 
+func renderCLICommands(system *core.System) []byte {
+	writer := new(bytes.Buffer)
 	_, _ = writer.WriteString(".. _nuts-cli-reference:" + newline + newline)
 	writeHeader(writer, "Server CLI Command Reference", 0)
 
@@ -73,6 +82,7 @@ func generateCLICommands(system *core.System) {
 		panic(err)
 	}
 	_, _ = io.WriteString(writer, newline)
+	return writer.Bytes()
 }
 
 func writeHeader(writer io.Writer, header string, level int) {
@@ -81,7 +91,7 @@ func writeHeader(writer io.Writer, header string, level int) {
 	_, _ = writer.Write([]byte(strings.Repeat(c, len(header)) + newline + newline))
 }
 
-func generateServerOptions(system *core.System) {
+func renderServerOptions(system *core.System) map[string][]byte {
 	flags := make(map[string]*pflag.FlagSet)
 	// Resolve root command flags
 	globalFlags := core.FlagSet()
@@ -137,8 +147,10 @@ func generateServerOptions(system *core.System) {
 		},
 	}
 
-	generatePartitionedConfigOptionsDocs("Server Options", "docs/pages/deployment/server_options.rst", filterFlags(flags, v5FlagsPredicates, true))
-	generatePartitionedConfigOptionsDocs("did:nuts/gRPC Server Options", "docs/pages/deployment/server_options_didnuts.rst", filterFlags(flags, v5FlagsPredicates, false))
+	return map[string][]byte{
+		"docs/pages/deployment/server_options.rst":         renderPartitionedConfigOptionsDocs("Server Options", filterFlags(flags, v5FlagsPredicates, true)),
+		"docs/pages/deployment/server_options_didnuts.rst": renderPartitionedConfigOptionsDocs("did:nuts/gRPC Server Options", filterFlags(flags, v5FlagsPredicates, false)),
+	}
 }
 
 func filterFlags(flags map[string]*pflag.FlagSet, predicates []func(f *pflag.Flag) bool, exclude bool) map[string]*pflag.FlagSet {
@@ -193,7 +205,7 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineNam
 	return &result, nil
 }
 
-func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[string]*pflag.FlagSet) {
+func renderPartitionedConfigOptionsDocs(tableName string, flags map[string]*pflag.FlagSet) []byte {
 	var keys []string
 	for key := range flags {
 		keys = append(keys, key)
@@ -210,7 +222,7 @@ func generatePartitionedConfigOptionsDocs(tableName, fileName string, flags map[
 		}
 		values = append(values, flagsToSortedValues(flags[key])...)
 	}
-	generateRstTable(tableName, fileName, values)
+	return renderRstTable(tableName, values)
 }
 
 func flagsToSortedValues(flags *pflag.FlagSet) [][]rstValue {
@@ -242,19 +254,13 @@ func normalizeDefaultValue(f *pflag.Flag) string {
 	return defValue
 }
 
-func generateRstTable(tableName, fileName string, values [][]rstValue) {
-	optionsFile, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		panic(err)
-	}
-	defer optionsFile.Close()
-	optionsFile.WriteString(fmt.Sprintf(".. table:: %s\n", tableName))
-	optionsFile.WriteString("    :widths: 20 30 50\n")
-	optionsFile.WriteString("    :class: options-table\n\n")
-	printRstTable(vals("Key", "Default", "Description"), values, optionsFile)
-	if err := optionsFile.Sync(); err != nil {
-		panic(err)
-	}
+func renderRstTable(tableName string, values [][]rstValue) []byte {
+	buffer := new(bytes.Buffer)
+	fmt.Fprintf(buffer, ".. table:: %s\n", tableName)
+	buffer.WriteString("    :widths: 20 30 50\n")
+	buffer.WriteString("    :class: options-table\n\n")
+	printRstTable(vals("Key", "Default", "Description"), values, buffer)
+	return buffer.Bytes()
 }
 
 // KeyList sorts keys alphabetically, with any nested content at the end.
