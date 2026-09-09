@@ -91,6 +91,10 @@ func (m *mockAuthClient) OpenID4VCIClient() openid4vci.Client {
 	return nil
 }
 
+func (m *mockAuthClient) OAuthClientCredentials(_ string) (*pkg2.OAuthClientConfig, bool) {
+	return nil, false
+}
+
 func (m *mockAuthClient) ContractNotary() services.ContractNotary {
 	return m.contractNotary
 }

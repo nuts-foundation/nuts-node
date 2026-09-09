@@ -64,12 +64,44 @@ func TestIAMClient_AccessToken(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
 		assert.Equal(t, "token", response.AccessToken)
 		assert.Equal(t, "bearer", response.TokenType)
+	})
+	t.Run("ok - client_secret_post when a client secret is configured", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		var gotClientID, gotClientSecret string
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			_ = request.ParseForm()
+			gotClientID = request.PostFormValue("client_id")
+			gotClientSecret = request.PostFormValue("client_secret")
+			writer.Header().Add("Content-Type", "application/json")
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		_, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "secret", codeVerifier, false)
+
+		require.NoError(t, err)
+		assert.Equal(t, clientID, gotClientID)
+		assert.Equal(t, "secret", gotClientSecret)
+	})
+	t.Run("ok - no client_secret sent for a public client", func(t *testing.T) {
+		ctx := createClientServerTestContext(t)
+		var hasSecret bool
+		ctx.token = func(writer http.ResponseWriter, request *http.Request) {
+			_ = request.ParseForm()
+			_, hasSecret = request.PostForm["client_secret"]
+			writer.Header().Add("Content-Type", "application/json")
+			_, _ = writer.Write([]byte(`{"access_token": "token", "token_type": "bearer"}`))
+		}
+
+		_, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
+
+		require.NoError(t, err)
+		assert.False(t, hasSecret, "public client must not send client_secret")
 	})
 	t.Run("ok - with DPoP", func(t *testing.T) {
 		ctx := createClientServerTestContext(t)
@@ -77,7 +109,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("dpop", nil)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, true)
 
 		require.NoError(t, err)
 		require.NotNil(t, response)
@@ -88,7 +120,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx := createClientServerTestContext(t)
 		ctx.token = nil
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, false)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, false)
 
 		assert.EqualError(t, err, "remote server: error creating access token: server returned HTTP 404 (expected: 200)")
 		assert.Nil(t, response)
@@ -99,7 +131,7 @@ func TestIAMClient_AccessToken(t *testing.T) {
 		ctx.jwtSigner.EXPECT().SignDPoP(context.Background(), gomock.Any(), kid).Return("", assert.AnError)
 		ctx.subjectManager.EXPECT().ListDIDs(gomock.Any(), subject).Return([]did.DID{clientDID}, nil)
 
-		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, codeVerifier, true)
+		response, err := ctx.client.AccessToken(context.Background(), code, ctx.authzServerMetadata.TokenEndpoint, callbackURI, subject, clientID, "", codeVerifier, true)
 
 		assert.Error(t, err)
 		assert.Nil(t, response)

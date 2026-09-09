@@ -31,7 +31,8 @@ type Client interface {
 	// AccessToken requests an access token at the oauth2 token endpoint.
 	// The token endpoint can be a regular OAuth2 token endpoint or OpenID4VCI-related endpoint.
 	// The response will be unmarshalled into the given tokenResponseOut parameter.
-	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, subject string, clientID string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
+	// clientSecret, when non-empty, authenticates the client at the token endpoint using client_secret_post; an empty value means public client.
+	AccessToken(ctx context.Context, code string, tokenURI, callbackURI string, subject string, clientID string, clientSecret string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error)
 	// AuthorizationServerMetadata returns the metadata of the remote wallet.
 	// oauthIssuer is the URL of the issuer as specified by RFC 8414 (OAuth 2.0 Authorization Server Metadata).
 	// For client_id's used by Nuts nodes, these are constructed as https://example.com/oauth2/<subject>
