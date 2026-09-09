@@ -27,7 +27,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 )
 
 const errSigningTransactionFmt = "error while signing transaction: %w"

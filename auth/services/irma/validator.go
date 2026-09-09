@@ -21,14 +21,14 @@ package irma
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
 	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v6/auth/contract"
 
 	irma "github.com/privacybydesign/irmago"
 )

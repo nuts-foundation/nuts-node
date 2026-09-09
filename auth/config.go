@@ -19,9 +19,9 @@
 package auth
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/dummy"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services/dummy"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services/selfsigned"
 )
 
 // Config holds all the configuration params

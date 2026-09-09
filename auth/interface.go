@@ -19,10 +19,10 @@
 package auth
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services/oauth"
 	"net/url"
 )
 

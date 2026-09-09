@@ -20,7 +20,7 @@ package issuer
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

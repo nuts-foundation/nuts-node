@@ -13,8 +13,8 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	orm "github.com/nuts-foundation/nuts-node/storage/orm"
-	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
+	orm "github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	resolver "github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
 
