@@ -28,8 +28,8 @@ import (
 
 	"go.uber.org/goleak"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 	"github.com/stretchr/testify/assert"
 )
 

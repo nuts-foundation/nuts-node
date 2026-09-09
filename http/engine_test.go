@@ -35,10 +35,10 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/http/log"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/http/log"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/writer"
 	"github.com/stretchr/testify/assert"
@@ -428,6 +428,46 @@ func TestEngine_LoggingMiddleware(t *testing.T) {
 		assert.NotContains(t, logs, "very-secret-response")
 		assert.Equal(t, LogLevel(LogMetadataLevel), engine.config.Log)
 		assert.Contains(t, warnOutput.String(), "Body logging (http.log=metadata-and-body) is not allowed in strictmode, falling back to metadata")
+	})
+}
+
+func TestEngine_RequestBodyLimit(t *testing.T) {
+	// Configure sets the package-global client strict mode flag; restore it afterwards.
+	oldStrictMode := client.StrictMode
+	t.Cleanup(func() { client.StrictMode = oldStrictMode })
+	noop := func() {}
+	engine := New(noop, nil)
+	engine.config = createTestConfig()
+	err := engine.Configure(*core.NewServerConfig())
+	require.NoError(t, err)
+	echoBody := func(c echo.Context) error {
+		body, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return err
+		}
+		return c.String(http.StatusOK, fmt.Sprintf("%d", len(body)))
+	}
+	engine.Router().POST("/", echoBody)
+	engine.Router().POST("/internal/test", echoBody)
+	require.NoError(t, engine.Start())
+	defer engine.Shutdown()
+	assertServerStarted(t, engine.config.Public.Address)
+	assertServerStarted(t, engine.config.Internal.Address)
+
+	t.Run("accepts a body under the limit", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader(make([]byte, 512*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
+	})
+	t.Run("rejects a body over the limit with 413", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Public.Address, "application/json", bytes.NewReader(make([]byte, 2*1024*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode)
+	})
+	t.Run("applies to the internal interface as well", func(t *testing.T) {
+		response, err := http.Post("http://"+engine.config.Internal.Address+"/internal/test", "application/json", bytes.NewReader(make([]byte, 2*1024*1024)))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusRequestEntityTooLarge, response.StatusCode)
 	})
 }
 

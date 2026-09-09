@@ -92,7 +92,7 @@ The following public APIs accept POST requests:
 - ``/oauth2/{subjectID}/response``
 
 To prevent malicious uploads, you MUST limit the size of the requests.
-As a safeguard, the Nuts node will also limit the size of request bodies.
+As a safeguard, the Nuts node also limits the size of request bodies to 1MB, on both the public and internal API endpoints, responding with HTTP 413 (Request Entity Too Large) when a request exceeds it.
 
 For example, Nginx has a configuration directive to limit the size of the request body:
 

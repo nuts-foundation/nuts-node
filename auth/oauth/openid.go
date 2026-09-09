@@ -19,7 +19,7 @@
 package oauth
 
 import (
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
 )
 
 // proofTypeValuesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats

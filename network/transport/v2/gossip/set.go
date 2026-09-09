@@ -22,7 +22,7 @@ package gossip
 import (
 	"container/list"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // uniqueList represents an ordered list where each element is unique

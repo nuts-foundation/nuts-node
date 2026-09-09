@@ -28,8 +28,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

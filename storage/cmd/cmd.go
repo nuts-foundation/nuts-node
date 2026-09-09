@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/spf13/pflag"
 )
 

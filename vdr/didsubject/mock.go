@@ -15,7 +15,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
-	orm "github.com/nuts-foundation/nuts-node/storage/orm"
+	orm "github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
 
