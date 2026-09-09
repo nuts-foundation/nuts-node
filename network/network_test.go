@@ -491,7 +491,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
-			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
 
 			cxt.network.nodeDID = *nodeDID
 
@@ -501,8 +501,32 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt.keyResolver.EXPECT().ResolveKey(*sender, nil, resolver.KeyAgreement).Return("sender", senderKey.Public(), nil)
 			cxt.keyResolver.EXPECT().ResolveKey(*receiver, nil, resolver.KeyAgreement).Return("receiver", receiverKey.Public(), nil)
 
-			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithPrivate([]did.DID{*sender, *receiver}))
+			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "did:nuts:sender#signing-key").WithPrivate([]did.DID{*sender, *receiver}))
 			assert.NoError(t, err)
+		})
+		t.Run("error - embedded key", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			payload := []byte("Hello, World!")
+			cxt := createNetwork(t, ctrl)
+			err := cxt.start()
+			require.NoError(t, err)
+			_, key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
+			cxt.network.nodeDID = *nodeDID
+
+			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "did:nuts:sender#signing-key").WithAttachKey(key).WithPrivate([]did.DID{*sender, *receiver}))
+			assert.EqualError(t, err, "private transactions can't use an embedded key, keys must be identified by the RFC7515 `kid` header")
+		})
+		t.Run("error - kid is not a DID URL", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			payload := []byte("Hello, World!")
+			cxt := createNetwork(t, ctrl)
+			err := cxt.start()
+			require.NoError(t, err)
+			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+			cxt.network.nodeDID = *nodeDID
+
+			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithPrivate([]did.DID{*sender, *receiver}))
+			assert.EqualError(t, err, "private transactions must be signed with a DID URL kid (did:<method>:<id>#<fragment>)")
 		})
 		t.Run("node DID not configured", func(t *testing.T) {
 			ctrl := gomock.NewController(t)

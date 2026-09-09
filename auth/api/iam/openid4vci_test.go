@@ -246,7 +246,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, callback)
-		assert.Equal(t, "access_denied - error while fetching the access_token from endpoint: https://auth.server/token, error: FAIL", err.Error())
+		assert.ErrorContains(t, err, "failed to retrieve access token from https://auth.server/token")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("fail_credential_response", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -258,7 +259,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while fetching the credential from endpoint https://auth.server/credz, error: FAIL")
+		assert.ErrorContains(t, err, "failed to retrieve the credential from https://auth.server/credz")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("err - invalid credential", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -266,13 +268,25 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		ctx.keyResolver.EXPECT().ResolveKey(holderDID, nil, resolver.NutsSigningKeyType).Return("kid", nil, nil)
 		ctx.jwtSigner.EXPECT().SignJWT(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return("signed-proof", nil)
 		ctx.iamClient.EXPECT().VerifiableCredentials(nil, credEndpoint, accessToken, "signed-proof").Return(&iam.CredentialResponse{
-			Credential: "super invalid",
+			Credential: "SENTINEL-CREDENTIAL-BODY",
 		}, nil)
 
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while parsing the credential: super invalid, error: jwt.Parse: failed to parse token: unknown payload type (payload is not JWT?)")
+		require.Error(t, err)
+		var oauthErr oauth.OAuth2Error
+		require.ErrorAs(t, err, &oauthErr)
+		// It failed specifically because the returned credential could not be parsed:
+		// the static description identifies that branch, so the test can't pass on an
+		// unrelated earlier error.
+		assert.Equal(t, oauth.ServerError, oauthErr.Code)
+		assert.Contains(t, oauthErr.Description, "failed to parse the credential")
+		// The parse failure detail is still available for diagnostics ...
+		require.NotNil(t, oauthErr.InternalError)
+		assert.ErrorContains(t, err, "failed to parse token")
+		// ... but the raw credential body is never reflected into the response.
+		assert.NotContains(t, oauthErr.Description, "SENTINEL-CREDENTIAL-BODY")
 	})
 	t.Run("fail_verify", func(t *testing.T) {
 		ctx := newTestClient(t)
@@ -285,7 +299,8 @@ func TestWrapper_handleOpenID4VCICallback(t *testing.T) {
 		callback, err := ctx.client.handleOpenID4VCICallback(nil, code, &session)
 
 		assert.Nil(t, callback)
-		assert.EqualError(t, err, "server_error - error while verifying the credential from issuer: did:web:example.com:iam:issuer, error: FAIL")
+		assert.ErrorContains(t, err, "the credential returned by issuer did:web:example.com:iam:issuer failed verification")
+		assert.ErrorContains(t, err, "FAIL")
 	})
 	t.Run("error - key not found", func(t *testing.T) {
 		ctx := newTestClient(t)
