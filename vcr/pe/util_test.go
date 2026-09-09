@@ -21,7 +21,7 @@ package pe
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -37,7 +37,7 @@ func TestParseEnvelope(t *testing.T) {
 	})
 	t.Run("invalid JWT", func(t *testing.T) {
 		envelope, err := ParseEnvelope([]byte(`eyINVALID`))
-		assert.EqualError(t, err, "unable to parse PEX envelope as verifiable presentation: invalid JWT")
+		assert.EqualError(t, err, "unable to parse PEX envelope as verifiable presentation: jwt.Parse: failed to parse token: unknown payload type (payload is not JWT?)")
 		assert.Nil(t, envelope)
 	})
 	t.Run("JSON object", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestParseEnvelope(t *testing.T) {
 	})
 	t.Run("invalid format", func(t *testing.T) {
 		envelope, err := ParseEnvelope([]byte(`true`))
-		assert.EqualError(t, err, "unable to parse PEX envelope as verifiable presentation: invalid JWT")
+		assert.EqualError(t, err, "unable to parse PEX envelope as verifiable presentation: jwt.Parse: failed to parse token: unknown payload type (payload is not JWT?)")
 		assert.Nil(t, envelope)
 	})
 }

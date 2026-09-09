@@ -22,7 +22,7 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature"
 )
 
 // Document represents the document to sign. It does not contain proofs or signatures

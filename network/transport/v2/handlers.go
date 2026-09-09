@@ -22,14 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
 	"sort"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
 )
 
 // errInternalError is returned to the node's peer when an internal error occurs.
@@ -153,6 +153,25 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, connection
 				Warn("Peer requested private transaction over unauthenticated connection")
 			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
+
+		// Only the node that authored this transaction may serve its payload. The payload store is
+		// keyed by content hash alone, with no binding to the transaction that's supposed to carry it,
+		// so PAL and payload hash on an inbound transaction are fully attacker-controlled. Requiring
+		// local authorship means the PAL being checked below is always the one this node itself
+		// encrypted, not one an attacker crafted to piggyback on someone else's stored payload.
+		authored, err := p.keyStore.Exists(ctx, tx.SigningKeyID())
+		if err != nil {
+			return err
+		}
+		if !authored {
+			log.Logger().
+				WithFields(peer.ToFields()).
+				WithField(core.LogFieldTransactionRef, tx.Ref()).
+				WithField(core.LogFieldKeyID, tx.SigningKeyID()).
+				Warn("Peer requested private payload via a transaction not authored by this node")
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
+		}
+
 		epal := dag.EncryptedPAL(tx.PAL())
 
 		pal, err := p.decryptPAL(ctx, epal)

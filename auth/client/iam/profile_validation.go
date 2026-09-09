@@ -22,9 +22,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // loadAndValidateProfile fetches the credential profile for the requested scope, applies the scope policy,

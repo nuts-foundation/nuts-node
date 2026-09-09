@@ -17,9 +17,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	holder "github.com/nuts-foundation/nuts-node/vcr/holder"
-	issuer "github.com/nuts-foundation/nuts-node/vcr/issuer"
-	verifier "github.com/nuts-foundation/nuts-node/vcr/verifier"
+	holder "github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	issuer "github.com/nuts-foundation/nuts-node/v6/vcr/issuer"
+	verifier "github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
 	gomock "go.uber.org/mock/gomock"
 )
 

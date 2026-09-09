@@ -19,8 +19,8 @@
 package v1
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/auth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // Wrapper bridges Echo routes to the server backend.

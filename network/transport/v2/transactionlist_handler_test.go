@@ -23,15 +23,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -195,7 +195,7 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 			},
 		}})
 
-		assert.EqualError(t, err, "received transaction is invalid: unable to parse transaction: invalid compact serialization format: invalid number of segments")
+		assert.EqualError(t, err, "received transaction is invalid: unable to parse transaction: jws.Parse: failed to parse compact format: jws.Parse: invalid compact serialization format: jwsbb: invalid number of segments")
 	})
 
 	t.Run("error - unknown conversationID", func(t *testing.T) {

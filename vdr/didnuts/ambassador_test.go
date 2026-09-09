@@ -30,19 +30,19 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -357,7 +357,7 @@ func TestAmbassador_handleCreateDIDDocument(t *testing.T) {
 	t.Run("create nok - fails when DID does not matches signing key", func(t *testing.T) {
 		ctx := newMockContext(t)
 		pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		signingKey, _ := jwk.FromRaw(pair.PublicKey)
+		signingKey, _ := jwk.Import(pair.PublicKey)
 		_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 		tx := newTX()
 		tx.signingKeyID = ""
@@ -417,7 +417,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 			}
 
 			var pKey crypto.PublicKey
-			_ = signingKey.Raw(&pKey)
+			_ = jwk.Export(signingKey, &pKey)
 
 			ctx.didStore.EXPECT().Resolve(didDocument.ID, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&storedDocument, currentMetadata, nil)
 			ctx.keyResolver.EXPECT().ResolvePublicKey(storedDocument.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
@@ -454,7 +454,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		}
 
 		var pKey crypto.PublicKey
-		_ = signingKey.Raw(&pKey)
+		_ = jwk.Export(signingKey, &pKey)
 
 		ctx.didStore.EXPECT().Resolve(currentDoc.ID, &resolver.ResolveMetadata{AllowDeactivated: true, SourceTransaction: &prev}).Return(&currentDoc, currentMetadata, nil)
 		ctx.keyResolver.EXPECT().ResolvePublicKey(currentDoc.CapabilityInvocation[0].ID.String(), gomock.Any()).Return(pKey, nil)
@@ -489,7 +489,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		}
 
 		var pKey crypto.PublicKey
-		_ = signingKey.Raw(&pKey)
+		_ = jwk.Export(signingKey, &pKey)
 
 		gomock.InOrder(
 			ctx.didStore.EXPECT().Resolve(currentDoc.ID, gomock.Any()).Return(nil, nil, resolver.ErrNotFound),
@@ -513,7 +513,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 		didDocumentController, controllerSigningKey := newDidDoc(t)
 
 		var pKey crypto.PublicKey
-		_ = controllerSigningKey.Raw(&pKey)
+		_ = jwk.Export(controllerSigningKey, &pKey)
 
 		// set the didDocument`s controller to the controller
 		didDocument.Controller = []did.DID{didDocumentController.ID}
@@ -570,7 +570,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		// We still use the document signing key, not the one from the controller
 		var pKey crypto.PublicKey
-		_ = documentSigningKey.Raw(&pKey)
+		_ = jwk.Export(documentSigningKey, &pKey)
 
 		// set the didDocument`s controller to the controller
 		didDocument.Controller = []did.DID{didDocumentController.ID}
@@ -644,7 +644,7 @@ func Test_handleUpdateDIDDocument(t *testing.T) {
 func Test_checkTransactionIntegrity(t *testing.T) {
 	signingTime := time.Now()
 	pair, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	signingKey, _ := jwk.FromRaw(pair.PublicKey)
+	signingKey, _ := jwk.Import(pair.PublicKey)
 	_ = signingKey.Set(jwk.KeyIDKey, "kid123")
 	payloadHash := hash.SHA256Sum([]byte("payload"))
 	ref := hash.SHA256Sum([]byte("ref"))
@@ -737,7 +737,7 @@ func newDidDoc(t *testing.T) (did.Document, jwk.Key) {
 	require.NoError(t, err)
 	publicKey, err := didDocument.VerificationMethod[0].PublicKey()
 	require.NoError(t, err)
-	signingKey, _ := jwk.FromRaw(publicKey)
+	signingKey, _ := jwk.Import(publicKey)
 	serviceID := did.MustParseDIDURL(didDocument.ID.String())
 	serviceID.Fragment = "1234"
 	didDocument.Service = []did.Service{

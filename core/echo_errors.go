@@ -193,7 +193,7 @@ func ResolveStatusCode(err error, mapping map[error]int) int {
 // - from handler
 // - if none of the above criteria match, HTTP 500 Internal Server Error is returned.
 func GetHTTPStatusCode(err error, ctx echo.Context) int {
-	if predefined, ok := err.(HTTPStatusCodeError); ok {
+	if predefined, ok := errors.AsType[HTTPStatusCodeError](err); ok {
 		return predefined.StatusCode()
 	}
 	if predefined, ok := err.(*echo.HTTPError); ok {

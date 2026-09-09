@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
 	"gorm.io/gorm/clause"
 )
 

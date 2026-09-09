@@ -20,7 +20,7 @@ package fs
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"io/fs"
 	"os"
 	"path"
@@ -28,8 +28,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

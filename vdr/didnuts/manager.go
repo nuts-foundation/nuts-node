@@ -24,23 +24,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	didnutsStore "github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/util"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	didnutsStore "github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/util"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"gorm.io/gorm"
 )
 
@@ -106,7 +106,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	// --------------------
 
 	// generate idString
-	jwKey, err := jwk.FromRaw(pKey)
+	jwKey, err := jwk.Import(pKey)
 	if err != nil {
 		return "", fmt.Errorf("could not generate kid: %w", err)
 	}
@@ -126,7 +126,7 @@ func getKIDName(pKey crypto.PublicKey, idFunc func(key jwk.Key) (string, error))
 	kid := &did.DIDURL{}
 	kid.Method = MethodName
 	kid.ID = idString
-	kid.Fragment = jwKey.KeyID()
+	kid.Fragment, _ = jwKey.KeyID()
 
 	return kid.String(), nil
 }

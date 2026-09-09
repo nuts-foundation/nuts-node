@@ -15,7 +15,7 @@ import (
 	time "time"
 
 	did "github.com/nuts-foundation/go-did/did"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 	gomock "go.uber.org/mock/gomock"
 )
 
