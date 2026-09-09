@@ -19,6 +19,7 @@ RUN go mod download && go mod verify
 
 COPY . .
 # git is needed so go build can stamp the module version from the checked-out tag
+# hadolint ignore=DL3018
 RUN apk add --no-cache git
 RUN MODULE=$(go list -m) && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X '${MODULE}/core.GitCommit=${GIT_COMMIT}' -X '${MODULE}/core.GitBranch=${GIT_BRANCH}' -X '${MODULE}/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
