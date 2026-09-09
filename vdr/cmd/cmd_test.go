@@ -24,7 +24,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
-	v2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
+	v2 "github.com/nuts-foundation/nuts-node/v6/vdr/api/v2"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -32,10 +32,10 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	v1 "github.com/nuts-foundation/nuts-node/v6/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )

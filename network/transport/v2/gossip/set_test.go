@@ -22,7 +22,7 @@ package gossip
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
 

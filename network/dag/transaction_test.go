@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash2 "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
 

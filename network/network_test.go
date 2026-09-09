@@ -39,20 +39,20 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
+	testPKI "github.com/nuts-foundation/nuts-node/v6/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -898,8 +898,11 @@ func TestNetwork_Reprocess(t *testing.T) {
 		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, t.Name(), "REPROCESS.*", func(m *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
+			// Signal completion only after the ack: once wg.Done() releases the test,
+			// its cleanup shuts down the NATS server and the ack would fail with
+			// "nats: connection closed".
+			defer wg.Done()
 			*counter++
-			wg.Done()
 			err := m.Ack()
 			assert.NoError(t, err)
 		})

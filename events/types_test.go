@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
 	"github.com/stretchr/testify/assert"
 )
 

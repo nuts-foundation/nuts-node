@@ -23,17 +23,17 @@ import (
 	"context"
 	"errors"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"net/http"
 	"net/url"
 	"strings"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/didman"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)

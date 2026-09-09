@@ -25,7 +25,7 @@ import (
 	"maps"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
 )
 
 var _ JWTSigner = &MemoryJWTSigner{}

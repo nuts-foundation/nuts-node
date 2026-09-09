@@ -24,7 +24,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/client/iam"
+	"github.com/nuts-foundation/nuts-node/v6/e2e-tests/browser/client/iam"
 )
 
 type OpenID4VP struct {

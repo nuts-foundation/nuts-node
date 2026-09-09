@@ -19,9 +19,9 @@
 package status
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/mock"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"net/http"
