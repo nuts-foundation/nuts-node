@@ -24,14 +24,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
 	"gorm.io/gorm"
 )
 

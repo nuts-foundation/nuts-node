@@ -20,11 +20,11 @@ package irma
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v6/auth/contract"
 	"os"
 	"path/filepath"
 
-	"github.com/nuts-foundation/nuts-node/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
 	"github.com/sirupsen/logrus"
 
 	irma "github.com/privacybydesign/irmago"

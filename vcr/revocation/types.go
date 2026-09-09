@@ -30,10 +30,10 @@ import (
 	"github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"gorm.io/gorm"
 )
 

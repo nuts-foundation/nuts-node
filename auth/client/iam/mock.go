@@ -14,8 +14,8 @@ import (
 	reflect "reflect"
 
 	vc "github.com/nuts-foundation/go-did/vc"
-	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
-	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
+	oauth "github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	pe "github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -21,16 +21,16 @@ package proof
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -153,7 +153,7 @@ func TestLDProof_Verify(t *testing.T) {
 		// signature with some changed characters
 		ldProof.JWS = "eyJhbGciOiJFZERTQSIsImI2NCI6ZmFsc2UsImNyaXQiOlsiYjY0Il19..MJ5GwWRMsadCyLNXU_flgJtsS32584MydBxBuyups_cM0sbU3abTEOMyUvmLNcKOwOBE1MfDoB1_YY425W3sAg"
 		err = ldProof.Verify(signedDocument.DocumentWithoutProof(), signature.JSONWebSignature2020{ContextLoader: contextLoader}, pk)
-		assert.EqualError(t, err, "invalid proof signature: failed to match EdDSA signature")
+		assert.EqualError(t, err, "invalid proof signature: invalid EdDSA signature")
 
 	})
 }

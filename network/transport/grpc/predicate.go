@@ -20,7 +20,7 @@ package grpc
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 )
 
 // Predicate matches the connection based on a condition

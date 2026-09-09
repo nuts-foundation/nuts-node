@@ -25,21 +25,21 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -265,7 +265,7 @@ func TestVDR_Configure(t *testing.T) {
 	})
 	t.Run("it can resolve using did:jwk", func(t *testing.T) {
 		privateKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		expectedJWK, err := jwk.FromRaw(privateKey.Public())
+		expectedJWK, err := jwk.Import(privateKey.Public())
 		require.NoError(t, err)
 
 		jwkBytes, _ := json.Marshal(expectedJWK)

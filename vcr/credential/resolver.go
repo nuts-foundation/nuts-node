@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature/proof"
 )
 
 // FindValidator finds the Validator the provided credential based on its Type

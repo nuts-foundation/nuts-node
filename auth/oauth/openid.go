@@ -19,7 +19,7 @@
 package oauth
 
 import (
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
 )
 
 // proofTypeValuesSupported contains a list of supported cipher suites for ldp_vc & ldp_vp presentation formats
@@ -42,5 +42,5 @@ func DefaultOpenIDSupportedFormats() map[string]map[string][]string {
 }
 
 // CallbackPath is the node specific callback for an OAuth flow. The full callback URL is constructed as
-// <node_url>/iam/{id}/callback
+// <node_url>/oauth2/callback
 const CallbackPath = "callback"

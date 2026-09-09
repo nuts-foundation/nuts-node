@@ -22,19 +22,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 	"net/http"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
+	vcrTypes "github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 // OpenIDHandler is the interface for handling issuer operations using OpenID4VCI.

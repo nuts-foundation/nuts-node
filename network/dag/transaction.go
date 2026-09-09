@@ -22,12 +22,13 @@ package dag
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // Version defines a type for distributed transaction format version.
@@ -45,7 +46,7 @@ const (
 	lamportClockHeader = "lc"
 )
 
-var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256, jwa.ES384, jwa.ES512, jwa.PS256, jwa.PS384, jwa.PS512}
+var allowedAlgos = []jwa.SignatureAlgorithm{jwa.ES256(), jwa.ES384(), jwa.ES512(), jwa.PS256(), jwa.PS384(), jwa.PS512()}
 
 var errInvalidPayloadType = errors.New("payload type must be formatted as MIME type")
 var errInvalidPrevs = errors.New("prevs contains an empty hash")
@@ -125,6 +126,9 @@ type Transaction interface {
 func NewTransaction(payload hash.SHA256Hash, payloadType string, prevs []hash.SHA256Hash, pal EncryptedPAL, lamportClock uint32) (UnsignedTransaction, error) {
 	if !ValidatePayloadType(payloadType) {
 		return nil, errInvalidPayloadType
+	}
+	if len(pal) > 0 && len(pal) != palEntryCount {
+		return nil, fmt.Errorf("pal must contain exactly %d entries, got %d", palEntryCount, len(pal))
 	}
 	for _, prev := range prevs {
 		if prev.Empty() {

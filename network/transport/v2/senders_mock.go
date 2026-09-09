@@ -12,10 +12,10 @@ package v2
 import (
 	reflect "reflect"
 
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
-	grpc "github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	hash "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	tree "github.com/nuts-foundation/nuts-node/v6/network/dag/tree"
+	transport "github.com/nuts-foundation/nuts-node/v6/network/transport"
+	grpc "github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
 	gomock "go.uber.org/mock/gomock"
 )
 

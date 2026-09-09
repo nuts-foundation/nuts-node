@@ -28,18 +28,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
 
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -750,14 +750,15 @@ func Test_handleCallback(t *testing.T) {
 	}
 	t.Run("err - failed to retrieve access token", func(t *testing.T) {
 		ctx := newTestClient(t)
-		callbackURI := "https://example.com/oauth2/holder/callback"
+		callbackURI := "https://example.com/oauth2/callback"
 		codeVerifier := session.PKCEParams.Verifier
 
 		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, callbackURI, holderSubjectID, holderClientID, codeVerifier, false).Return(nil, assert.AnError)
 
 		_, err := ctx.client.handleCallback(nil, code, &session)
 
-		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token: assert.AnError general error for testing")
+		// The remote error must not be reflected into the description; only static context (the endpoint) is kept.
+		requireOAuthError(t, err, oauth.ServerError, "failed to retrieve access token from https://example.com/token")
 	})
 }
 
@@ -852,7 +853,7 @@ func expectPostError(t *testing.T, ctx *testCtx, errorCode oauth.ErrorCode, desc
 		assert.Equal(t, description, err.Description)
 		assert.Equal(t, expectedResponseURI, responseURI)
 		assert.Equal(t, verifierClientState, state)
-		return holderURL.JoinPath("callback").String(), nil
+		return "https://example.com/oauth2/callback", nil
 	})
 }
 

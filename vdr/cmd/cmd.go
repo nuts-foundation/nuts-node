@@ -23,17 +23,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"io"
 	"os"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	apiv2 "github.com/nuts-foundation/nuts-node/vdr/api/v2"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	api "github.com/nuts-foundation/nuts-node/v6/vdr/api/v1"
+	apiv2 "github.com/nuts-foundation/nuts-node/v6/vdr/api/v2"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/spf13/cobra"
 )
 

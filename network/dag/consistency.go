@@ -21,8 +21,8 @@ package dag
 import (
 	"context"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
 	"sync"
 	"time"
 )

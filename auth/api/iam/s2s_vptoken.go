@@ -27,11 +27,11 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // s2sMaxPresentationValidity defines the maximum validity of a presentation.
@@ -226,8 +226,7 @@ func extractNonce(presentation vc.VerifiablePresentation) (string, error) {
 	var nonce string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		nonceRaw, _ := presentation.JWT().Get("nonce")
-		nonce, _ = nonceRaw.(string)
+		_ = presentation.JWT().Get("nonce", &nonce)
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {

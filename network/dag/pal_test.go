@@ -24,13 +24,13 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -112,11 +112,42 @@ func TestDecryptPal(t *testing.T) {
 		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
 		_ = cryptoInstance.Link(ctx, "kid-1", "kid-1", "1")
 
-		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), []byte{1, 2, 3})
+		// Exactly 2 entries so the count check passes and parsing reaches the invalid one.
+		plaintext := append(append([]byte{1, 2, 3}, '\n'), []byte("did:nuts:test")...)
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
 
 		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
 		assert.Nil(t, actual)
 		assert.EqualError(t, err, "invalid participant (did=\x01\x02\x03): invalid DID")
+	})
+	t.Run("error - too many entries in decrypted PAL", func(t *testing.T) {
+		// The encrypted-entry check doesn't bound what's inside a single entry once it decrypts -
+		// this is a single, legitimately-decryptable entry whose plaintext claims more participants
+		// than allowed.
+		keyStore := crypto.NewMemoryStorage()
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		_ = cryptoInstance.Link(ctx, "kid-1", "kid-1", "1")
+
+		plaintext := []byte("did:nuts:A\ndid:nuts:B\ndid:nuts:C")
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
+
+		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		assert.Nil(t, actual)
+		assert.EqualError(t, err, "decrypted pal must contain exactly 2 entries, got 3")
+	})
+	t.Run("error - too few entries in decrypted PAL", func(t *testing.T) {
+		keyStore := crypto.NewMemoryStorage()
+		cryptoInstance := crypto.NewTestCryptoInstance(orm.NewTestDatabase(t), keyStore)
+		_ = keyStore.SavePrivateKey(ctx, "kid-1", pk)
+		_ = cryptoInstance.Link(ctx, "kid-1", "kid-1", "1")
+
+		plaintext := []byte("did:nuts:A")
+		cipherText, _ := crypto.EciesEncrypt(pk.Public().(*ecdsa.PublicKey), plaintext)
+
+		actual, err := EncryptedPAL{cipherText}.Decrypt(ctx, []string{"kid-1"}, cryptoInstance)
+		assert.Nil(t, actual)
+		assert.EqualError(t, err, "decrypted pal must contain exactly 2 entries, got 1")
 	})
 }
 

@@ -33,38 +33,38 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/client/iam"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	oauthServices "github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	cryptoNuts "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/auth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/client/iam"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	oauthServices "github.com/nuts-foundation/nuts-node/v6/auth/services/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	cryptoNuts "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	test2 "github.com/nuts-foundation/nuts-node/v6/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -444,7 +444,7 @@ func TestWrapper_Callback(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
 		ctx := newCustomTestClient(t, verifierURL, false)
 
-		response, err := ctx.client.Callback(nil, CallbackRequestObject{SubjectID: holderSubjectID})
+		response, err := ctx.client.Callback(nil, CallbackRequestObject{})
 
 		requireOAuthError(t, err, oauth.InvalidRequest, "callback endpoint is disabled")
 		assert.Nil(t, response)
@@ -454,7 +454,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State:            &state,
 				Error:            &errorCode,
@@ -478,10 +477,9 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", withDPoP)
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, true).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -512,10 +510,9 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 		putToken(ctx, token)
 		codeVerifier := getState(ctx, state).PKCEParams.Verifier
-		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/holder/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
+		ctx.iamClient.EXPECT().AccessToken(gomock.Any(), code, session.TokenEndpoint, "https://example.com/oauth2/callback", holderSubjectID, holderClientID, codeVerifier, false).Return(&oauth.TokenResponse{AccessToken: "access"}, nil)
 
 		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -525,27 +522,10 @@ func TestWrapper_Callback(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
-	t.Run("err - did mismatch", func(t *testing.T) {
-		ctx := newTestClient(t)
-		putState(ctx, "state", session)
-
-		res, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
-			Params: CallbackParams{
-				Code:  &code,
-				State: &state,
-			},
-		})
-
-		assert.Nil(t, res)
-		requireOAuthError(t, err, oauth.InvalidRequest, "session subject does not match request")
-
-	})
 	t.Run("err - missing state", func(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code: &code,
 			},
@@ -557,7 +537,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Error:            &errorCode,
 				ErrorDescription: &errorDescription,
@@ -571,7 +550,6 @@ func TestWrapper_Callback(t *testing.T) {
 		ctx := newTestClient(t)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: verifierSubject,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -585,7 +563,6 @@ func TestWrapper_Callback(t *testing.T) {
 		putState(ctx, "state", session)
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				State: &state,
 			},
@@ -601,7 +578,6 @@ func TestWrapper_Callback(t *testing.T) {
 		})
 
 		_, err := ctx.client.Callback(nil, CallbackRequestObject{
-			SubjectID: holderSubjectID,
 			Params: CallbackParams{
 				Code:  &code,
 				State: &state,
@@ -1562,7 +1538,7 @@ func createIssuerCredential(issuerDID did.DID, holderDID did.DID) *vc.Verifiable
 		for key, val := range claims {
 			request.Set(key, val)
 		}
-		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256, privateKey, jws.WithProtectedHeaders(hdrs)))
+		sign, err := jwt.Sign(request, jwt.WithKey(jwa.ES256(), privateKey, jws.WithProtectedHeaders(hdrs)))
 		return string(sign), err
 	}
 

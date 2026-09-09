@@ -103,6 +103,12 @@ cli-docs:
 	go run ./docs docs
 	rst_include include README_template.rst README.rst
 
+# Builds the Sphinx documentation in a container, so no Python/Sphinx tooling
+# is needed on the host. Output lands in docs/_build/html.
+docs-docker:
+	docker build -t nuts-node-docs docs/
+	docker run --rm -v ${DIR}/docs:/docs nuts-node-docs
+
 all-docs: cli-docs gen-diagrams
 
 fix-copyright:
@@ -123,7 +129,7 @@ GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
 GIT_BRANCH ?= "$(shell git symbolic-ref --short HEAD)"
 GIT_VERSION ?= "$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
 build:
-	go build -tags jwx_es256k -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/core.GitVersion=${GIT_VERSION}'" -o ${OUTPUT}
+	go build -tags jwx_es256k -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitVersion=${GIT_VERSION}'" -o ${OUTPUT}
 
 docker:
 	docker build --build-arg GIT_COMMIT=${GIT_COMMIT} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_VERSION=${GIT_VERSION} -t nutsfoundation/nuts-node:master .

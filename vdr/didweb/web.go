@@ -22,9 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"io"
 	"mime"
 	"net/http"
@@ -106,7 +107,10 @@ func (w Resolver) Resolve(id did.DID, _ *resolver.ResolveMetadata) (*did.Documen
 	var document did.Document
 	err = document.UnmarshalJSON(data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("did:web JSON unmarshal error: %w", err)
+		// Debug-log the (truncated) body for diagnostics, but do not return it: the document
+		// is fetched from an externally-controlled URL and must not be reflected to the caller.
+		log.Logger().Debugf("did:web document at %s could not be parsed (error: %s, body: %q)", targetURL, err, core.TruncateHTTPBody(data))
+		return nil, nil, errors.New("did:web document could not be parsed as JSON")
 	}
 
 	if !document.ID.Equals(id) {

@@ -28,13 +28,13 @@ import (
 	"github.com/labstack/echo/v4"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http/user"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/issuer"
 )
 
 const (
@@ -130,13 +130,10 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		return err
 	}
 
-	// construct callback URL to be used in (Signed)AuthorizationRequest
-	baseURL := r.subjectToBaseURL(redirectSession.SubjectID)
-	callbackURL := baseURL.JoinPath(oauth.CallbackPath)
 	modifier := func(values map[string]string) {
 		values[oauth.CodeChallengeParam] = oauthSession.PKCEParams.Challenge
 		values[oauth.CodeChallengeMethodParam] = oauthSession.PKCEParams.ChallengeMethod
-		values[oauth.RedirectURIParam] = callbackURL.String()
+		values[oauth.RedirectURIParam] = r.callbackURL().String()
 		values[oauth.ResponseTypeParam] = oauth.CodeResponseType
 		values[oauth.StateParam] = oauthSession.ClientState
 		values[oauth.ScopeParam] = accessTokenRequest.Body.Scope
