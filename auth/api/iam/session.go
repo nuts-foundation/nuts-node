@@ -23,12 +23,12 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/http"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // OAuthSession is the session object that is used to store information about the OAuth request.

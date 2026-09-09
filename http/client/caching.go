@@ -21,7 +21,7 @@ package client
 import (
 	"bytes"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/log"
+	"github.com/nuts-foundation/nuts-node/v6/http/log"
 	"github.com/pquerna/cachecontrol"
 	"io"
 	"net/http"

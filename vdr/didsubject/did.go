@@ -20,7 +20,7 @@ package didsubject
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 
 	"github.com/nuts-foundation/go-did/did"
 	"gorm.io/gorm"

@@ -28,16 +28,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

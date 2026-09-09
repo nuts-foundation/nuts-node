@@ -21,7 +21,7 @@ package grpc
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	"sort"
 	"strings"

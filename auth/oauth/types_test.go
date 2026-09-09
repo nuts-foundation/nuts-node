@@ -20,7 +20,7 @@ package oauth
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
