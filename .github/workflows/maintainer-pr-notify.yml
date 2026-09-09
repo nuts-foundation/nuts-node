@@ -1,6 +1,10 @@
 name: Notify on maintainer PR
 
 on:
+  # zizmor: ignore[dangerous-triggers] no checkout, no PR-controlled shell commands: only
+  # same-repo (non-fork) PRs from an allowlisted set of maintainers reach the Slack step
+  # below, and all PR-derived values are passed through toJSON()/format() into a JSON
+  # payload rather than interpolated into a shell command.
   pull_request_target:
     types: [opened, ready_for_review]
     branches:

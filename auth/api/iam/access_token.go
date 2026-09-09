@@ -20,13 +20,13 @@ package iam
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 type AccessToken struct {

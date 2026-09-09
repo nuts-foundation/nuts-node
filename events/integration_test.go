@@ -29,9 +29,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,12 +45,13 @@ func Test_pub_sub(t *testing.T) {
 		require.NoError(t, err)
 		defer conn.Close()
 		var found []byte
+		var ackErr error
 		foundMutex := sync.Mutex{}
 		err = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
 			found = msg.Data
-			err = msg.Ack()
+			ackErr = msg.Ack()
 		})
 
 		require.NoError(t, err)
@@ -64,7 +65,9 @@ func Test_pub_sub(t *testing.T) {
 			defer foundMutex.Unlock()
 			return bytes.Equal(found, []byte{1}), nil
 		}, 100*time.Millisecond, "timeout waiting for message")
-		require.NoError(t, err)
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
+		require.NoError(t, ackErr)
 	})
 
 	t.Run("publish more than the subscriber can handle", func(t *testing.T) {

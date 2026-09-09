@@ -23,7 +23,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/nuts-foundation/nuts-node/http/log"
+	"github.com/nuts-foundation/nuts-node/v6/http/log"
 	"github.com/sirupsen/logrus"
 )
 

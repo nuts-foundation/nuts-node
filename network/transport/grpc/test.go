@@ -21,7 +21,7 @@ package grpc
 import (
 	"crypto/x509"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 	"google.golang.org/grpc/status"
 	"testing"
 )

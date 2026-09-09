@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	didmanAPI "github.com/nuts-foundation/nuts-node/didman/api/v1"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/browser"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/browser/rfc019_selfsigned/apps"
-	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	didmanAPI "github.com/nuts-foundation/nuts-node/v6/didman/api/v1"
+	"github.com/nuts-foundation/nuts-node/v6/e2e-tests/browser"
+	"github.com/nuts-foundation/nuts-node/v6/e2e-tests/browser/rfc019_selfsigned/apps"
+	didAPI "github.com/nuts-foundation/nuts-node/v6/vdr/api/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

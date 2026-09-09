@@ -27,8 +27,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // RequestCredentialOpts carries all parameters for a Credential Request.

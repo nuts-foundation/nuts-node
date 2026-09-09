@@ -29,7 +29,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"

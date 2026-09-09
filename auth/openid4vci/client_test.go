@@ -26,7 +26,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
