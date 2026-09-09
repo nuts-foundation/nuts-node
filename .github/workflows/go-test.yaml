@@ -16,6 +16,10 @@ jobs:
   # spending CI minutes (and hitting flaky tests) on changes that can't have broken anything it
   # tests. A job skipped via `if:` reports as a passing check, so this still satisfies the
   # required status check, unlike skipping the workflow itself via a trigger-level path filter.
+  # The docs/ excludes below are listed per-subpath rather than as a single '!docs/**', because
+  # paths-filter's some-with-excludes mode makes an exclusion final: it can't be reversed by a
+  # later positive pattern, so a blanket '!docs/**' would also hide the Go files that live
+  # directly under docs/ (the doc generator and its tests) from this filter.
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -37,7 +41,14 @@ jobs:
           filters: |
             code:
               - '**'
-              - '!docs/**'
+              - '!docs/_static/**'
+              - '!docs/diagrams/**'
+              - '!docs/pages/**'
+              - '!docs/Dockerfile'
+              - '!docs/.gitignore'
+              - '!docs/__init__.py'
+              - '!docs/conf.py'
+              - '!docs/requirements.txt'
               - '!**/*.md'
               - '!**/*.rst'
 
