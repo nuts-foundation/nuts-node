@@ -1,5 +1,7 @@
-# Ignore everything that starts with a dot
+# Ignore everything that starts with a dot, except .git: go build reads the
+# version from the checked-out tag (see Dockerfile).
 .*
+!.git
 # Readme files and docs
 README.rst
 README_template.rst
