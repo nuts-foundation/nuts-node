@@ -13,10 +13,10 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	iam "github.com/nuts-foundation/nuts-node/auth/client/iam"
-	openid4vci "github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	services "github.com/nuts-foundation/nuts-node/auth/services"
-	oauth "github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	iam "github.com/nuts-foundation/nuts-node/v6/auth/client/iam"
+	openid4vci "github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	services "github.com/nuts-foundation/nuts-node/v6/auth/services"
+	oauth "github.com/nuts-foundation/nuts-node/v6/auth/services/oauth"
 	gomock "go.uber.org/mock/gomock"
 )
 

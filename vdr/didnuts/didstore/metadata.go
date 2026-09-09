@@ -19,10 +19,10 @@
 package didstore
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // documentMetadata is like VDR documentMetadata but usable for storage

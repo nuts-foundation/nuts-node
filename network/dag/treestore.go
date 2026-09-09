@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag/tree"
 )
 
 type treeStore struct {

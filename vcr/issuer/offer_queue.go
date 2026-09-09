@@ -29,8 +29,8 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/log"
 )
 
 const offerQueueShelfName = "openid4vci_offer_queue"

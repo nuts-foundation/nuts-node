@@ -29,9 +29,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	vcr "github.com/nuts-foundation/nuts-node/v6/vcr/api/vcr/v2"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 const (

@@ -25,9 +25,9 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"

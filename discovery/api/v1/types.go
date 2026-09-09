@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
+	"github.com/nuts-foundation/nuts-node/v6/discovery"
 )
 
 // VerifiablePresentation is a type alias for the VerifiablePresentation from the go-did library.

@@ -20,7 +20,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http"
+	"github.com/nuts-foundation/nuts-node/v6/http"
 	"github.com/spf13/pflag"
 )
 

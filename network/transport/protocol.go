@@ -19,7 +19,7 @@
 package transport
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // Protocol is a self-contained process that can exchange network data (e.g. DAG transactions or private credentials) with other parties on the network.

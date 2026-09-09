@@ -15,7 +15,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	core "github.com/nuts-foundation/nuts-node/core"
+	core "github.com/nuts-foundation/nuts-node/v6/core"
 	gomock "go.uber.org/mock/gomock"
 )
 

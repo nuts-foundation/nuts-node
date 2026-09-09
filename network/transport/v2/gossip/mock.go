@@ -12,8 +12,8 @@ package gossip
 import (
 	reflect "reflect"
 
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	hash "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	transport "github.com/nuts-foundation/nuts-node/v6/network/transport"
 	gomock "go.uber.org/mock/gomock"
 )
 
