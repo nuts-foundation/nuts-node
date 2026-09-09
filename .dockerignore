@@ -1,19 +1,13 @@
-# Only untracked and local files are excluded. Tracked files must stay in the
-# build context: go build runs "git status" to stamp the module version from
-# the checked-out tag, and marks the version "+dirty" when tracked files are
-# missing (see Dockerfile).
-.claude
-.idea
-.run
-.DS_Store
-**/.DS_Store
-CLAUDE-*
-data
-**/data
-docs/_build
-*.pem
-*.key
-*.db
-nuts
+# Ignore everything that starts with a dot
+.*
+# Readme files and docs
+README.rst
+README_template.rst
+generate_readme.sh
+docs
+COPYING
+# Build file
+Dockerfile*
+makefile
 nuts-node
-nuts.yaml
+development
