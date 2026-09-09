@@ -20,8 +20,8 @@ package vdr
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/util"
 )
 
 // Two TestDIDs which can be used during testing:

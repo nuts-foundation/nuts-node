@@ -32,8 +32,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 const mockKID = "did:nuts:3gU9z3j7j4VCboc3qq3Vc5mVVGDNGjfg32xokeX8c8Zn#J9O6wvqtYOVwjc8JtZ4aodRdbPv_IKAjLkEq9uHlDdE"

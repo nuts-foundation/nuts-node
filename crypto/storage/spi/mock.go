@@ -9,7 +9,7 @@ import (
 	crypto "crypto"
 	reflect "reflect"
 
-	core "github.com/nuts-foundation/nuts-node/core"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
 	gomock "go.uber.org/mock/gomock"
 )
 

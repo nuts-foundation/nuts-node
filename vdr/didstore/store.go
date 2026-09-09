@@ -26,9 +26,9 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // shelfs have a V2 postfix due to overlapping names with previous implementation

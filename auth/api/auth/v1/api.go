@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -31,17 +31,17 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
-	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/auth/api/auth/v1/client"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
 
 	"github.com/labstack/echo/v4"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/auth"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/log"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)

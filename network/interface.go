@@ -21,9 +21,9 @@ package network
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 )
 
 // MaxReprocessBufferSize is the maximum number of events for Nats resulting from a Reprocess

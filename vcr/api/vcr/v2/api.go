@@ -22,15 +22,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/holder"
 	"net/http"
 
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	vdrTypes "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
+	vcrTypes "github.com/nuts-foundation/nuts-node/v5/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/verifier"
+	vdrTypes "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 
 	"time"
 
@@ -38,9 +38,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature/proof"
 )
 
 var clockFn = func() time.Time {

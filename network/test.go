@@ -21,13 +21,13 @@ package network
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/events"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/mock/gomock"
 )

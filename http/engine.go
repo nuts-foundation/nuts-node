@@ -35,11 +35,11 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lestrrat-go/jwx/jwa"
-	"github.com/nuts-foundation/nuts-node/core"
-	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/http/log"
-	"github.com/nuts-foundation/nuts-node/http/tokenV2"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	cryptoEngine "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/http/client"
+	"github.com/nuts-foundation/nuts-node/v5/http/log"
+	"github.com/nuts-foundation/nuts-node/v5/http/tokenV2"
 )
 
 // AdminTokenSigningKID returns the KID of the signing key used to sign the admin token.

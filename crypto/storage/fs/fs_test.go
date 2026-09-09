@@ -28,8 +28,8 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -22,18 +22,18 @@ package v1
 import (
 	"context"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/vdr"
 	"net/http"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	vdrDoc "github.com/nuts-foundation/nuts-node/vdr/didservice"
+	vdrDoc "github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 var _ StrictServerInterface = (*Wrapper)(nil)

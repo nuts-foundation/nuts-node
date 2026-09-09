@@ -9,7 +9,7 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	services "github.com/nuts-foundation/nuts-node/auth/services"
+	services "github.com/nuts-foundation/nuts-node/v5/auth/services"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -21,10 +21,10 @@ package auth
 import (
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 	"go.uber.org/mock/gomock"
 )
 

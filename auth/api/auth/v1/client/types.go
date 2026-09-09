@@ -20,7 +20,7 @@ package client
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
 )
 
 // JwtBearerGrantType defines the grant-type to use in the access token request

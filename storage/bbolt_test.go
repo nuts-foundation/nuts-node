@@ -28,8 +28,8 @@ import (
 
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/go-stoabs/bbolt"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/test"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

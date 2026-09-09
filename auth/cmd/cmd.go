@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth"
+	"github.com/nuts-foundation/nuts-node/v5/auth"
 	"github.com/spf13/pflag"
 )
 

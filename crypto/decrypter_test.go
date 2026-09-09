@@ -21,7 +21,7 @@ package crypto
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

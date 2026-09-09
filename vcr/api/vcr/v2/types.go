@@ -22,7 +22,7 @@ package v2
 import (
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 )
 
 // VerifiableCredential is an alias to use from within the API

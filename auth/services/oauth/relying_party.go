@@ -29,16 +29,16 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/didman"
-	httpclient "github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/auth/api/auth/v1/client"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/didman"
+	httpclient "github.com/nuts-foundation/nuts-node/v5/http/client"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 var _ RelyingParty = (*relyingParty)(nil)

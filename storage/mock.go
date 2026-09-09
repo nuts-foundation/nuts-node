@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	stoabs "github.com/nuts-foundation/go-stoabs"
-	core "github.com/nuts-foundation/nuts-node/core"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
 	gomock "go.uber.org/mock/gomock"
 )
 

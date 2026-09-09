@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
 )
 
 // TransactionTemplate creates a new Template with the given required properties.

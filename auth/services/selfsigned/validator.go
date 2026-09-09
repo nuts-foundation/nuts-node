@@ -25,12 +25,12 @@ import (
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/verifier"
 	"time"
 )
 

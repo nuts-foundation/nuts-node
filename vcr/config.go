@@ -20,7 +20,7 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/openid4vci"
 	"time"
 )
 

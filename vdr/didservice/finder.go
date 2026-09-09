@@ -18,12 +18,12 @@
 package didservice
 
 import (
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // ByServiceType returns a predicate that matches on service type

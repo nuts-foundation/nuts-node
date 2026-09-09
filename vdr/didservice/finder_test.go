@@ -19,14 +19,14 @@ package didservice
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

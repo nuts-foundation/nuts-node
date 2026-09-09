@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	core "github.com/nuts-foundation/nuts-node/core"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
+	transport "github.com/nuts-foundation/nuts-node/v5/network/transport"
 	gomock "go.uber.org/mock/gomock"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"

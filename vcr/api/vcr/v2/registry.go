@@ -21,15 +21,15 @@ package v2
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/log"
 	"github.com/sirupsen/logrus"
 	"sort"
 	"strings"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
 )
 
 // ResolveVC handles the API request for resolving a VC

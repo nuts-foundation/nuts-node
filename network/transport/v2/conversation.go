@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 )
 
 var maxValidity = 30 * time.Second

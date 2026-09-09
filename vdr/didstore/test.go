@@ -24,12 +24,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/stretchr/testify/require"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"

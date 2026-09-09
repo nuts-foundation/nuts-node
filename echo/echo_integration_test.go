@@ -26,7 +26,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/test/node"
+	"github.com/nuts-foundation/nuts-node/v5/test/node"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 

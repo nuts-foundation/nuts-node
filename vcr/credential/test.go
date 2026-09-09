@@ -26,7 +26,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v5/vdr"
 )
 
 func ValidNutsAuthorizationCredential() *vc.VerifiableCredential {

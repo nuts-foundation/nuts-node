@@ -27,7 +27,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"go.uber.org/goleak"
 	"go.uber.org/mock/gomock"
 	"math/big"

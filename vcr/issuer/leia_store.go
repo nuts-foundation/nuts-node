@@ -25,15 +25,15 @@ import (
 
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/types"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 )
 
 const issuedBackupShelf = "credentials"

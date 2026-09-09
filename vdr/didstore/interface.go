@@ -20,7 +20,7 @@ package didstore
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // Store is the interface that groups all low level VDR DID storage operations.

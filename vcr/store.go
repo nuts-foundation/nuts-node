@@ -24,16 +24,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"reflect"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/types"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/log"
 
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 )
 
 // maxFindExecutionTime indicates how long a "find by id" type query may take

@@ -22,7 +22,7 @@ import (
 	"context"
 	"crypto"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"regexp"
 )
 

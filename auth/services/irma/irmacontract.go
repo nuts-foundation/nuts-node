@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/log"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
 	irma "github.com/privacybydesign/irmago"
 )
 

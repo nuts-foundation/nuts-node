@@ -27,8 +27,8 @@ import (
 
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/storage/log"
 	"github.com/piprate/json-gold/ld"
 	"github.com/redis/go-redis/v9"
 )

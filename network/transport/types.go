@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/sirupsen/logrus"
 )
 

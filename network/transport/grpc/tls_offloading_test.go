@@ -21,7 +21,7 @@ package grpc
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"google.golang.org/grpc"

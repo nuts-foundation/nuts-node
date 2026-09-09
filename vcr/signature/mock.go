@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	ssi "github.com/nuts-foundation/go-did"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
+	crypto "github.com/nuts-foundation/nuts-node/v5/crypto"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -19,7 +19,7 @@
 package core
 
 import (
-	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/v5/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"

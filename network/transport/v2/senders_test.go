@@ -31,11 +31,11 @@ import (
 	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport/grpc"
 )
 
 func TestProtocol_sendGossip(t *testing.T) {

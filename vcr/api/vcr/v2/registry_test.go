@@ -23,9 +23,9 @@ import (
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 	"github.com/stretchr/testify/require"
 	"testing"
 

@@ -21,8 +21,8 @@ package didstore
 import (
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // documentMetadata is like VDR documentMetadata but usable for storage

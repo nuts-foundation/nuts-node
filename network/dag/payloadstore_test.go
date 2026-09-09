@@ -29,8 +29,8 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 )
 
 func TestPayloadStore_ReadWrite(t *testing.T) {

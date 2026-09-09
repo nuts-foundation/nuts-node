@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/storage/log"
 )
 
 // KVBackedLeiaStore is a wrapper interface for a leia.Store that uses a stoabs.KVStore as backup for any documents added.

@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 )
 
 // ErrKeyNotFound is returned when a particular key or type of key is not found.
