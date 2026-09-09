@@ -99,7 +99,7 @@ func (s *status) diagnosticsSummaryAsMap(diagnostics map[string][]core.Diagnosti
 func (s *status) Diagnostics() []core.DiagnosticResult {
 	return []core.DiagnosticResult{
 		&core.GenericDiagnosticResult{Title: "uptime", Outcome: time.Since(s.startTime).Truncate(time.Second)},
-		&core.GenericDiagnosticResult{Title: "software_version", Outcome: core.Version()},
+		&core.GenericDiagnosticResult{Title: "software_version", Outcome: core.VersionOrBranch()},
 		&core.GenericDiagnosticResult{Title: "git_commit", Outcome: core.GitCommit},
 		&core.GenericDiagnosticResult{Title: "os_arch", Outcome: core.OSArch()},
 	}

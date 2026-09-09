@@ -36,7 +36,14 @@ jobs:
         run: |
           echo "git_commit=$(echo ${GITHUB_SHA})" >> $GITHUB_OUTPUT
           echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
-          echo "git_version=$(git name-rev --tags --name-only $(git rev-parse HEAD))" >> $GITHUB_OUTPUT
+          # Only tag builds get a version. It must be a clean semver tag
+          # (vX.Y.Z): Docker image scanners read it from the -ldflags recorded
+          # in the binary to match the main module against advisories.
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "git_version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "git_version=undefined" >> $GITHUB_OUTPUT
+          fi
 
       - uses: actions-ecosystem/action-get-latest-tag@b7c32daec3395a9616f88548363a42652b22d435 # v1
         id: get-latest-tag

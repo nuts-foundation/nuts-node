@@ -55,7 +55,7 @@ func Test_authorizationServerMetadata(t *testing.T) {
 }
 
 func Test_clientMetadata(t *testing.T) {
-	core.GitVersion = "testVersion"
+	core.Version = "testVersion"
 	expected := OAuthClientMetadata{
 		RedirectURIs:            nil,
 		TokenEndpointAuthMethod: "none",
