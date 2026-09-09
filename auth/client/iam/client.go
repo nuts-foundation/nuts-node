@@ -29,16 +29,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jws"
-	"github.com/lestrrat-go/jwx/v2/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/lestrrat-go/jwx/v3/jws"
+	"github.com/lestrrat-go/jwx/v3/jwt"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // ErrInvalidClientCall is returned when the node makes a http call as client based on wrong information passed by the client.
@@ -49,7 +50,6 @@ var ErrBadGateway = errors.New("upstream returned unexpected result")
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	strictMode  bool
 	keyResolver resolver.KeyResolver
 	httpClient  core.HTTPRequestDoer
 }
@@ -69,7 +69,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
 	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
 	// Many authorization servers publish metadata only under the append convention.
-	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
+	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer)
 	if err != nil && errors.Is(err, oauth.ErrAllCandidates4xx) {
 		// Every candidate rejected the request outright (no 5xx, no network/decode failure, no
 		// identifier mismatch): the identifier itself is most likely wrong.
@@ -81,11 +81,6 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
 // We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
 func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
-	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-
 	// create a GET request
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -204,12 +199,11 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, fmt.Errorf("unable to read response: %w", err)
 	}
 	if err = json.Unmarshal(responseData, &token); err != nil {
-		// Cut off the response body to 100 characters max to prevent logging of large responses
-		responseBodyString := string(responseData)
-		if len(responseBodyString) > core.HttpResponseBodyLogClipAt {
-			responseBodyString = responseBodyString[:core.HttpResponseBodyLogClipAt] + "...(clipped)"
-		}
-		return token, fmt.Errorf("unable to unmarshal response: %w, %s", err, responseBodyString)
+		// Debug-log the (truncated) body for diagnostics, but never return it: the token
+		// endpoint may have been redirected to an attacker-influenced target, and the body
+		// must not be reflected back to the caller.
+		log.Logger().Debugf("token endpoint returned an unparseable response (body: %q)", core.TruncateHTTPBody(responseData))
+		return token, fmt.Errorf("unable to unmarshal response: %w", err)
 	}
 	return token, nil
 }
@@ -237,7 +231,7 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 }
 
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown)
 	if err != nil {
 		return nil, err
 	}
@@ -260,12 +254,13 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
-	claims, err := token.AsMap(ctx)
+	claims, err := jwx.ClaimsAsMap(token)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse response: %w", err)
 	}
 	// hack, broken iat
-	claims["iat"] = token.IssuedAt().Unix()
+	iat, _ := token.IssuedAt()
+	claims["iat"] = iat.Unix()
 	asJSON, _ := json.Marshal(claims)
 	if err = json.Unmarshal(asJSON, &configuration); err != nil {
 		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
@@ -275,7 +270,7 @@ func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) 
 
 func (hb HTTPClient) KeyProvider() jws.KeyProviderFunc {
 	return func(context context.Context, keySink jws.KeySink, signature *jws.Signature, message *jws.Message) error {
-		keyID := signature.ProtectedHeaders().KeyID()
+		keyID, _ := signature.ProtectedHeaders().KeyID()
 		publicKey, err := hb.keyResolver.ResolveKeyByID(keyID, nil, resolver.AssertionMethod)
 		if err != nil {
 			return fmt.Errorf("failed to resolve key (kid=%s): %w", keyID, err)

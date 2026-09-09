@@ -24,9 +24,9 @@ import (
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
 )
 
 // validatePresentationSigner checks if the presenter of the VP is the same as the subject of the VCs being presented.
@@ -54,7 +54,7 @@ func (r Wrapper) validatePresentationAudience(presentation vc.VerifiablePresenta
 	var audience []string
 	switch presentation.Format() {
 	case vc.JWTPresentationProofFormat:
-		audience = presentation.JWT().Audience()
+		audience, _ = presentation.JWT().Audience()
 	case vc.JSONLDPresentationProofFormat:
 		proof, err := credential.ParseLDProof(presentation)
 		if err != nil {

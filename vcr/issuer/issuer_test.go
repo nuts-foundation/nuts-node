@@ -34,22 +34,22 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	vcr "github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/revocation"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/trust"
+	vcr "github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -143,10 +143,14 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 			assert.Empty(t, result.Proof)
 			// Assert JWT
 			require.NotNil(t, result.JWT())
-			assert.Equal(t, subjectDID, result.JWT().Subject())
-			assert.Equal(t, result.IssuanceDate, result.JWT().NotBefore())
-			assert.Equal(t, *result.ExpirationDate, result.JWT().Expiration())
-			assert.Equal(t, result.ID.String(), result.JWT().JwtID())
+			subject, _ := result.JWT().Subject()
+			assert.Equal(t, subjectDID, subject)
+			notBefore, _ := result.JWT().NotBefore()
+			assert.Equal(t, result.IssuanceDate, notBefore)
+			expiration, _ := result.JWT().Expiration()
+			assert.Equal(t, *result.ExpirationDate, expiration)
+			jwtID, _ := result.JWT().JwtID()
+			assert.Equal(t, result.ID.String(), jwtID)
 		})
 	})
 	t.Run("credentialStatus", func(t *testing.T) {

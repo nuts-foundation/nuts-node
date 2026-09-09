@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,16 +30,16 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/test"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/didman"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -76,42 +75,8 @@ func TestRelyingParty_RequestRFC003AccessToken(t *testing.T) {
 		assert.EqualError(t, err, "remote server/nuts node returned error creating access token: server returned HTTP 502 (expected: 200)")
 	})
 
-	t.Run("endpoint security validation (only HTTPS in strict mode)", func(t *testing.T) {
-		ctx := createRPContext(t, nil)
-		httpServer := httptest.NewServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		httpsServer := httptest.NewTLSServer(&http2.Handler{
-			StatusCode: http.StatusOK,
-		})
-		t.Cleanup(httpServer.Close)
-		t.Cleanup(httpsServer.Close)
-
-		t.Run("HTTPS in strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = true
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpsServer.URL))
-
-			assert.NoError(t, err)
-			assert.NotNil(t, response)
-		})
-		t.Run("HTTP allowed in non-strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = false
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
-
-			assert.NoError(t, err)
-			assert.NotNil(t, response)
-		})
-		t.Run("HTTP not allowed in strict mode", func(t *testing.T) {
-			ctx.relyingParty.strictMode = true
-
-			response, err := ctx.relyingParty.RequestRFC003AccessToken(context.Background(), bearerToken, *test.MustParseURL(httpServer.URL))
-
-			assert.EqualError(t, err, fmt.Sprintf("authorization server endpoint must be HTTPS when in strict mode: %s", httpServer.URL))
-			assert.Nil(t, response)
-		})
-	})
+	// Strict-mode endpoint validation (HTTPS-only, no IP/reserved hosts) is enforced by
+	// httpclient.StrictHTTPClient, not relyingParty; see http/client.TestStrictHTTPClient.
 }
 
 func TestService_CreateJwtBearerToken(t *testing.T) {

@@ -37,7 +37,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 )
 
 // JWTTypeOpenID4VCIProof is the JWT typ claim value used in OpenID4VCI key

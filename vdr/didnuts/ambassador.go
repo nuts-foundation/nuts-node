@@ -26,18 +26,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nats-io/nats.go"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/log"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 // DIDDocumentType contains network transaction mime-type to identify a DID Document in the network.
@@ -210,7 +210,7 @@ func (n *ambassador) handleCreateDIDDocument(transaction dag.Transaction, propos
 	}
 
 	var rawKey crypto.PublicKey
-	err = transaction.SigningKey().Raw(&rawKey)
+	err = jwk.Export(transaction.SigningKey(), &rawKey)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (n *ambassador) handleUpdateDIDDocument(transaction dag.Transaction, propos
 		return fmt.Errorf("unable to resolve signingkey: %w", err)
 	}
 
-	signingKey, err := jwk.FromRaw(pKey)
+	signingKey, err := jwk.Import(pKey)
 	if err != nil {
 		return fmt.Errorf("could not parse public key into jwk: %w", err)
 	}

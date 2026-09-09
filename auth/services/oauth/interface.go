@@ -22,8 +22,8 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
 )
 
 // RelyingParty implements the OAuth2 relying party role. (V1 API)

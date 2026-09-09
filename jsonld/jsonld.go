@@ -22,8 +22,8 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld/log"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld/log"
 	"github.com/piprate/json-gold/ld"
 )
 

@@ -23,12 +23,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	nutsHash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
+	nutsHash "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"net/http"
 	"net/url"
 )
@@ -76,8 +76,8 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	// check if ath claim matches hash of access_token
-	ath, ok := dpopToken.Token.Get(dpop.ATHKey)
-	if !ok {
+	var ath string
+	if err := dpopToken.Token.Get(dpop.ATHKey, &ath); err != nil {
 		reason := "missing ath claim"
 		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
@@ -87,13 +87,14 @@ func (r Wrapper) ValidateDPoPProof(_ context.Context, request ValidateDPoPProofR
 		return ValidateDPoPProof200JSONResponse{Reason: &reason}, nil
 	}
 	// check if the jti is already used, if not add it to the store for the duration of the access token lifetime
+	jti, _ := dpopToken.Token.JwtID()
 	var target struct{}
-	if err := r.useNonceOnceStore().Get(dpopToken.Token.JwtID(), &target); err != nil {
+	if err := r.useNonceOnceStore().Get(jti, &target); err != nil {
 		if !errors.Is(err, storage.ErrNotFound) {
 			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to retrieve jti usage state")
 			return nil, err
 		}
-		if err := r.useNonceOnceStore().Put(dpopToken.Token.JwtID(), target); err != nil {
+		if err := r.useNonceOnceStore().Put(jti, target); err != nil {
 			log.Logger().WithError(err).Error("ValidateDPoPProof: failed to store jti usage state")
 			return nil, err
 		}

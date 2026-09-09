@@ -20,23 +20,23 @@ package iam
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/http/user"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/http/user"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/lestrrat-go/jwx/v2/jwa"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/mock"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/mock"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/issuer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -128,7 +128,7 @@ func TestWrapper_handleUserLanding(t *testing.T) {
 		sessionKey, err := jwk.ParseKey(userSession.Wallet.JWK)
 		require.NoError(t, err)
 		assert.NotEmpty(t, sessionKey.KeyID)
-		assert.Equal(t, jwa.EC, sessionKey.KeyType())
+		assert.Equal(t, jwa.EC(), sessionKey.KeyType())
 		// check for details of issued NutsEmployeeCredential
 		assert.Equal(t, "NutsEmployeeCredential", employeeCredentialTemplate.Type[0].String())
 		employeeCredentialSubject := employeeCredentialTemplate.CredentialSubject[0]

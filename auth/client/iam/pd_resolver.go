@@ -23,10 +23,10 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/policy"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	nutsHttp "github.com/nuts-foundation/nuts-node/v6/http"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // ResolvedPresentationDefinition contains a resolved PD and the scope to use in the token request.

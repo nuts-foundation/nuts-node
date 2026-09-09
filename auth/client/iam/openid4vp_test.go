@@ -24,10 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	test2 "github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	test2 "github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -37,16 +37,16 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/policy"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	"github.com/nuts-foundation/nuts-node/vdr/didweb"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/policy"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didweb"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -822,7 +822,7 @@ func TestIAMClient_RequestObjectByGet(t *testing.T) {
 
 		response, err := ctx.client.RequestObjectByGet(context.Background(), ":")
 
-		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
@@ -853,7 +853,7 @@ func TestIAMClient_RequestObjectByPost(t *testing.T) {
 
 		response, err := ctx.client.RequestObjectByPost(context.Background(), ":", metadata)
 
-		assert.EqualError(t, err, "invalid request_uri: parse \":\": missing protocol scheme")
+		assert.EqualError(t, err, "failed to retrieve JAR Request Object: parse \":\": missing protocol scheme")
 		assert.Empty(t, response)
 	})
 	t.Run("error - failed to get access token", func(t *testing.T) {
@@ -884,7 +884,6 @@ func createClientTestContext(t *testing.T, tlsConfig *tls.Config) *clientTestCon
 		wallet:         wallet,
 		subjectManager: subjectManager,
 		httpClient: HTTPClient{
-			strictMode: false,
 			httpClient: client.NewWithTLSConfig(10*time.Second, tlsConfig),
 		},
 		jwtSigner:     jwtSigner,

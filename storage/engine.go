@@ -33,10 +33,10 @@ import (
 	_ "github.com/microsoft/go-mssqldb/azuread"
 	leia "github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/storage/log"
-	"github.com/nuts-foundation/nuts-node/storage/sql_migrations"
-	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/storage/log"
+	"github.com/nuts-foundation/nuts-node/v6/storage/sql_migrations"
+	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"github.com/nuts-foundation/sqlite"
 	"github.com/piprate/json-gold/ld"
 	"github.com/pressly/goose/v3"
@@ -430,7 +430,9 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	if err != nil {
 		return err
 	}
-	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS)
+	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS,
+		goose.WithGoMigrations(sql_migrations.Migration011CredentialPropValueType(dbType)),
+	)
 	if err != nil {
 		return err
 	}

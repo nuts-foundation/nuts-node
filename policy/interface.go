@@ -23,8 +23,8 @@ import (
 	"errors"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/policy/authzen"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/policy/authzen"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // ModuleName is the name of the policy module.
