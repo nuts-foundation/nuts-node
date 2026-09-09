@@ -27,7 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v3/cert"
-	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/test/pki"
 	"github.com/stretchr/testify/require"
 	"slices"
 	"strings"

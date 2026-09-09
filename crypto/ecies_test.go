@@ -25,7 +25,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"testing"
 
 	ecies "github.com/nuts-foundation/crypto-ecies"

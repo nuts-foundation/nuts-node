@@ -20,7 +20,7 @@ package v2
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 	"sync"
 	"time"
 )

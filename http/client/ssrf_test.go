@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"code.dny.dev/ssrf"
-	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

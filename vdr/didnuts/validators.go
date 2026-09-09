@@ -25,8 +25,8 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 // NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:

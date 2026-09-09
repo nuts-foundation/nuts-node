@@ -23,15 +23,15 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/log"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/util"
 )
 
 type entryType string
