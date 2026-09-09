@@ -7,7 +7,7 @@ package grpc
 import (
 	reflect "reflect"
 
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	transport "github.com/nuts-foundation/nuts-node/v5/network/transport"
 	gomock "go.uber.org/mock/gomock"
 	status "google.golang.org/grpc/status"
 )

@@ -24,8 +24,8 @@ import (
 
 	leia "github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"

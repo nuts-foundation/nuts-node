@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/test"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/atomic"
 )

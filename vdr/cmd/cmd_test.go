@@ -31,10 +31,10 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	v1 "github.com/nuts-foundation/nuts-node/vdr/api/v1"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	http2 "github.com/nuts-foundation/nuts-node/v5/test/http"
+	"github.com/nuts-foundation/nuts-node/v5/vdr"
+	v1 "github.com/nuts-foundation/nuts-node/v5/vdr/api/v1"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )

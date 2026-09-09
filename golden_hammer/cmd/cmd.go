@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/golden_hammer"
+	"github.com/nuts-foundation/nuts-node/v5/golden_hammer"
 	"github.com/spf13/pflag"
 )
 

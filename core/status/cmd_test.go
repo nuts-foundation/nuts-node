@@ -24,8 +24,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	http2 "github.com/nuts-foundation/nuts-node/v5/test/http"
 	"github.com/stretchr/testify/assert"
 )
 

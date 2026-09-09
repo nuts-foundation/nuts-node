@@ -21,7 +21,7 @@ package audit
 import (
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 )
 
 // StrictMiddleware is like SetOnEchoContext but then as handler for strict server interfaces.

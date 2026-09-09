@@ -21,9 +21,9 @@ package web
 import (
 	"bytes"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
-	"github.com/nuts-foundation/nuts-node/mock"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/v5/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

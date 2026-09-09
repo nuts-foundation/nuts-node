@@ -19,8 +19,8 @@
 package auth
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/oauth"
 )
 
 // AuthenticationServices is the interface which should be implemented for clients or mocks

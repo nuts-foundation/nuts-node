@@ -20,7 +20,7 @@ package grpc
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v5/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"sync"
@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 	"github.com/stretchr/testify/assert"
 )
 

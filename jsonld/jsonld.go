@@ -19,8 +19,8 @@
 package jsonld
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld/log"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld/log"
 	"github.com/piprate/json-gold/ld"
 )
 

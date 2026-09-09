@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/openid4vci"
 	"github.com/sirupsen/logrus"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"

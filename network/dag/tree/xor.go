@@ -21,7 +21,7 @@ package tree
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 )
 
 // Xor is an alias of hash.SHA256Hash that implements tree.Data to track transaction xors

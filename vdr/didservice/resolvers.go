@@ -23,13 +23,13 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // ErrNestedDocumentsTooDeep is returned when a DID Document contains a multiple services with the same type

@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 )
 
 // Cmd contains sub-commands for the remote client

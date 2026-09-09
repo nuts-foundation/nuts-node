@@ -28,10 +28,10 @@ import (
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	api "github.com/nuts-foundation/nuts-node/vdr/api/v1"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	api "github.com/nuts-foundation/nuts-node/v5/vdr/api/v1"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

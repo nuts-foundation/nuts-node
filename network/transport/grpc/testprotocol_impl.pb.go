@@ -21,8 +21,8 @@ package grpc
 import (
 	"context"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 	"google.golang.org/grpc"
 )
 

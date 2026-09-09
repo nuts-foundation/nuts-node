@@ -28,17 +28,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport/v2/gossip"
 	grpcLib "google.golang.org/grpc"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport/grpc"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 var _ grpc.Protocol = (*protocol)(nil)

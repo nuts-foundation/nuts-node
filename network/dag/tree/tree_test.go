@@ -24,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 )
 
 const testLeafSize = uint32(4)

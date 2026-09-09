@@ -27,9 +27,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/http/log"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/http/log"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lestrrat-go/jwx/jwa"

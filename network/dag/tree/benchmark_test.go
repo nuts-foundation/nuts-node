@@ -20,7 +20,7 @@ package tree
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 	"math"
 	"testing"
 )

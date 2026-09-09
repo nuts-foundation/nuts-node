@@ -28,8 +28,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/cmd"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/spf13/pflag"
 )
 

@@ -25,14 +25,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
 	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/jws"
 	ssi "github.com/nuts-foundation/go-did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature"
 )
 
 // RsaSignature2018 contains the string value for the RsaSignature2018 signature type

@@ -24,13 +24,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // palHeaderDIDSeparator holds the character(s) that separate DID entries in the PAL header, before being encrypted.

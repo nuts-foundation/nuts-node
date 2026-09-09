@@ -22,7 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v5/test"
 	"net/http"
 	"testing"
 	"time"

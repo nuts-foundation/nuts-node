@@ -32,9 +32,9 @@ import (
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/log"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
 	"github.com/shengdoushi/base58"
 )
 

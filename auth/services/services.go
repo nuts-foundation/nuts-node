@@ -21,11 +21,11 @@ package services
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
 )
 
 // SignedToken defines the uniform interface to crypto specific implementations such as Irma or x509 tokens.

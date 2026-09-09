@@ -21,7 +21,7 @@ package core
 
 import (
 	"github.com/knadh/koanf"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"os"

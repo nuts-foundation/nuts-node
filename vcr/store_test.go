@@ -23,7 +23,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha1"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
 	"github.com/stretchr/testify/require"
 	"os"
 	"testing"

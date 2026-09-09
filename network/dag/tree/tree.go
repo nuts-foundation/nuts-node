@@ -23,7 +23,7 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 )
 
 // Data is the interface for data held in each node of the Tree

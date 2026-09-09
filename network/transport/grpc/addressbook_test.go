@@ -20,8 +20,8 @@ package grpc
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"

@@ -26,11 +26,11 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 
-	"github.com/nuts-foundation/nuts-node/auth/assets"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/v5/auth/assets"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
 )
 
 // UziSignedToken implements a SignedToken interface for contracts signed by the UZI means in the JwtX509Token form.

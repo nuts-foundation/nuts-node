@@ -23,17 +23,17 @@ import (
 	"path"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/services"
-	"github.com/nuts-foundation/nuts-node/auth/services/notary"
-	"github.com/nuts-foundation/nuts-node/auth/services/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/didman"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/notary"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/oauth"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/didman"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
 )
 
 // ErrMissingPublicURL is returned when the publicUrl is missing from the config

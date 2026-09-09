@@ -21,8 +21,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/didman/api/v1"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/didman/api/v1"
 	"github.com/spf13/cobra"
 )
 

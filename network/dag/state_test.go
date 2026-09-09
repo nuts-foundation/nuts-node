@@ -25,7 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v5/test"
 	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
@@ -38,9 +38,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-stoabs/bbolt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/stretchr/testify/assert"
 )
 

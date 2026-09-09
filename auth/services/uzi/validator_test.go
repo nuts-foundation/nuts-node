@@ -25,12 +25,12 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
 )
 
 func TestUziValidator_VerifyVP(t *testing.T) {

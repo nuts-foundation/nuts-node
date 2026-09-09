@@ -22,16 +22,16 @@ import (
 	"encoding/json"
 	"errors"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
 )
 
 func Test_ErrorStatusCodes(t *testing.T) {

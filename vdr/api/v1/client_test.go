@@ -21,7 +21,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -30,9 +30,9 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	http2 "github.com/nuts-foundation/nuts-node/v5/test/http"
+	"github.com/nuts-foundation/nuts-node/v5/vdr"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	"github.com/stretchr/testify/assert"
 	"schneider.vip/problem"
 )

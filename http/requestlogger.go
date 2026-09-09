@@ -21,7 +21,7 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/sirupsen/logrus"
 	"mime"
 	"net/http"

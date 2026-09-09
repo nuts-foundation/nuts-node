@@ -19,8 +19,8 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/auth"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/auth"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/stretchr/testify/require"
 	"sort"
 	"testing"

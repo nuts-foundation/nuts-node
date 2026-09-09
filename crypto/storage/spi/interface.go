@@ -26,7 +26,7 @@ import (
 	"fmt"
 
 	"github.com/lestrrat-go/jwx/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.

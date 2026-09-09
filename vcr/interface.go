@@ -23,14 +23,14 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/types"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/verifier"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/issuer"
 )
 
 // Finder is the VCR interface for searching VCs

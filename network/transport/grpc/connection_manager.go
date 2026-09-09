@@ -30,9 +30,9 @@ import (
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

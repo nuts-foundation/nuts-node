@@ -20,7 +20,7 @@ package transport
 
 import (
 	"errors"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"testing"
 
 	"github.com/nuts-foundation/go-did/did"

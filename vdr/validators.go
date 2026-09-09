@@ -21,13 +21,13 @@ package vdr
 import (
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // NetworkDocumentValidator creates a DID Document validator that checks for inconsistencies in the DID Document:

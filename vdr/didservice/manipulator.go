@@ -21,8 +21,8 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // Manipulator contains helper methods to update a Nuts DID document.

@@ -23,7 +23,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
 )
 
 // TransactionWithPayload holds the transaction and byte payload

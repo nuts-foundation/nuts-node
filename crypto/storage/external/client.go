@@ -27,9 +27,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/util"
 )
 
 // StorageType is the name of this storage type, used in health check reports and configuration.

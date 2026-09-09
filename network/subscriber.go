@@ -20,8 +20,8 @@
 package network
 
 import (
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/storage"
 )
 
 // WithPersistency creates the SubscriberOption that creates the NotifierOption for persistency with the correct DAG KVStore

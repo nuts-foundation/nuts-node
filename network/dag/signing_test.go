@@ -21,14 +21,14 @@ package dag
 import (
 	"crypto/sha1"
 	"encoding/base32"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
 
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash2 "github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -9,9 +9,9 @@ import (
 	reflect "reflect"
 
 	stoabs "github.com/nuts-foundation/go-stoabs"
-	core "github.com/nuts-foundation/nuts-node/core"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	tree "github.com/nuts-foundation/nuts-node/network/dag/tree"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
+	hash "github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	tree "github.com/nuts-foundation/nuts-node/v5/network/dag/tree"
 	gomock "go.uber.org/mock/gomock"
 )
 
