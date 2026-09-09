@@ -22,7 +22,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/test/pki"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
@@ -31,10 +31,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/cmd"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/cmd"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 )
 
 const testServerConfig = `verbosity: debug

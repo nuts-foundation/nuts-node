@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	pe "github.com/nuts-foundation/nuts-node/vcr/pe"
+	pe "github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -14,8 +14,8 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	didsubject "github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	resolver "github.com/nuts-foundation/nuts-node/vdr/resolver"
+	didsubject "github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	resolver "github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	gomock "go.uber.org/mock/gomock"
 )
 

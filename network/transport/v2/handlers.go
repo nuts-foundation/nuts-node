@@ -22,14 +22,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
 	"sort"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
 )
 
 // errInternalError is returned to the node's peer when an internal error occurs.

@@ -29,7 +29,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // errNonCanonicalJWS is returned when the input is not the unique canonical compact JWS encoding of

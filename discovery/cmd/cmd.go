@@ -19,7 +19,7 @@
 package cmd
 
 import (
-	"github.com/nuts-foundation/nuts-node/discovery"
+	"github.com/nuts-foundation/nuts-node/v6/discovery"
 	"github.com/spf13/pflag"
 )
 

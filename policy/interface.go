@@ -21,7 +21,7 @@ package policy
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // ModuleName is the name of the policy module

@@ -24,9 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
 	"net/http"
 	"strings"
 )

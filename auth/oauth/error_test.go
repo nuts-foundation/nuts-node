@@ -21,7 +21,7 @@ package oauth
 import (
 	"errors"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/stretchr/testify/assert"
 	"html/template"
 	"io"

@@ -22,10 +22,10 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/stretchr/testify/assert"
 )
 
