@@ -29,10 +29,10 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/log"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 )
 
 //go:embed templates/*

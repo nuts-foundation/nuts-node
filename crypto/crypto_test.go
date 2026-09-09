@@ -22,9 +22,9 @@ import (
 	"context"
 	"crypto"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -34,9 +34,9 @@ import (
 
 	"go.uber.org/mock/gomock"
 
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/stretchr/testify/assert"
 )
 

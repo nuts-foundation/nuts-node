@@ -21,7 +21,7 @@ package issuer
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/log"
 	"sync"
 	"time"
 )

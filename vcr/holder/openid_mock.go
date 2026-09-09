@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	openid4vci "github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	openid4vci "github.com/nuts-foundation/nuts-node/v5/vcr/openid4vci"
 	gomock "go.uber.org/mock/gomock"
 )
 

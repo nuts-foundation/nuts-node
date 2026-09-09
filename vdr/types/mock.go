@@ -12,8 +12,8 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
-	crypto0 "github.com/nuts-foundation/nuts-node/crypto"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	crypto0 "github.com/nuts-foundation/nuts-node/v5/crypto"
+	hash "github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 	gomock "go.uber.org/mock/gomock"
 )
 

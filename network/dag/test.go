@@ -24,16 +24,16 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 
 	"github.com/nuts-foundation/go-stoabs/bbolt"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 )
 
 // CreateTestTransactionWithJWK creates a transaction with the given num as payload hash and signs it with a random EC key.

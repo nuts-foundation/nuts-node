@@ -20,12 +20,12 @@
 package v2
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport/grpc"
 )
 
 const transactionListMessageOverhead = 512

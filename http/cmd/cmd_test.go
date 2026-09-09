@@ -21,8 +21,8 @@ package cmd
 import (
 	"bytes"
 	"github.com/lestrrat-go/jwx/jwt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/stretchr/testify/require"
 	"regexp"
 	"strconv"

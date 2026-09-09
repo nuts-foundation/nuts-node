@@ -11,8 +11,8 @@ import (
 
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	contract "github.com/nuts-foundation/nuts-node/auth/contract"
-	core "github.com/nuts-foundation/nuts-node/core"
+	contract "github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -30,8 +30,8 @@ import (
 	"testing"
 
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 	"github.com/stretchr/testify/assert"
 )
 

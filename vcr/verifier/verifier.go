@@ -28,13 +28,13 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/trust"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/trust"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/types"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 var timeFunc = time.Now

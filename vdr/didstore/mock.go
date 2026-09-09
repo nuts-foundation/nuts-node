@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	types "github.com/nuts-foundation/nuts-node/vdr/types"
+	types "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -28,7 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 
 	"github.com/labstack/echo/v4"
 )

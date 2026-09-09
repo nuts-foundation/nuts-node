@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/didman"
+	"github.com/nuts-foundation/nuts-node/v5/didman"
 	"schneider.vip/problem"
 )
 

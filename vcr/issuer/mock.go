@@ -11,9 +11,9 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	did "github.com/nuts-foundation/go-did/did"
 	vc "github.com/nuts-foundation/go-did/vc"
-	core "github.com/nuts-foundation/nuts-node/core"
-	crypto "github.com/nuts-foundation/nuts-node/crypto"
-	credential "github.com/nuts-foundation/nuts-node/vcr/credential"
+	core "github.com/nuts-foundation/nuts-node/v5/core"
+	crypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	credential "github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 	gomock "go.uber.org/mock/gomock"
 )
 

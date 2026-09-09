@@ -22,9 +22,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // vdrKeyResolver resolves private keys based upon the VDR document resolver

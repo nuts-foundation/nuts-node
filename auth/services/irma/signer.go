@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
@@ -35,9 +35,9 @@ import (
 	"github.com/privacybydesign/irmago/server/irmaserver"
 
 	"github.com/mdp/qrterminal/v3"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v5/auth/log"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
 	irmago "github.com/privacybydesign/irmago"
 	"github.com/privacybydesign/irmago/server"
 )

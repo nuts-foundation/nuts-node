@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	stoabs "github.com/nuts-foundation/go-stoabs"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash "github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -27,7 +27,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 
-	"github.com/nuts-foundation/nuts-node/events/log"
+	"github.com/nuts-foundation/nuts-node/v5/events/log"
 )
 
 // Conn defines the methods required in the NATS connection structure

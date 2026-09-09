@@ -21,8 +21,8 @@ package crypto
 import (
 	"context"
 	"crypto"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
 	log "github.com/sirupsen/logrus"
 )
 

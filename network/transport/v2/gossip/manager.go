@@ -21,13 +21,13 @@ package gossip
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"sync"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 )
 
 const maxQueueSize = 100

@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/test"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"github.com/stretchr/testify/assert"
 )
 

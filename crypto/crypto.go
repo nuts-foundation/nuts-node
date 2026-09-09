@@ -30,13 +30,13 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/external"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/fs"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/vault"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/log"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/external"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/fs"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/storage/vault"
 )
 
 const (

@@ -20,7 +20,7 @@ package client
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +31,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	http2 "github.com/nuts-foundation/nuts-node/v5/test/http"
 )
 
 func TestHTTPClient_CreateAccessToken(t *testing.T) {

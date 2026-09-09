@@ -26,7 +26,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/jwa"
 	"github.com/lestrrat-go/jwx/jws"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 // ErrPreviousTransactionMissing indicates one or more of the previous transactions (which the transaction refers to)

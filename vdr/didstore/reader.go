@@ -22,8 +22,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-stoabs"

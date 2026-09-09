@@ -20,7 +20,7 @@ package selfsigned
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services/selfsigned/types"
 	"sync"
 	"time"
 )

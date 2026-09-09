@@ -28,18 +28,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
-	"github.com/nuts-foundation/nuts-node/vdr/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/log"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/events"
+	"github.com/nuts-foundation/nuts-node/v5/network"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didstore"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 var _ types.VDR = (*VDR)(nil)

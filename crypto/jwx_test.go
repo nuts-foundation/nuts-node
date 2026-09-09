@@ -30,7 +30,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/jwe"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -43,7 +43,7 @@ import (
 	"github.com/lestrrat-go/jwx/jws"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/test"
 )
 
 func TestSignJWT(t *testing.T) {

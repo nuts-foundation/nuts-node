@@ -20,17 +20,17 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
 	"github.com/stretchr/testify/assert"
 )
 

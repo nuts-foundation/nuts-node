@@ -24,9 +24,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/chromedp/chromedp"
-	authAPI "github.com/nuts-foundation/nuts-node/auth/api/auth/v1/client"
-	"github.com/nuts-foundation/nuts-node/core"
-	vcrAPI "github.com/nuts-foundation/nuts-node/vcr/api/vcr/v2"
+	authAPI "github.com/nuts-foundation/nuts-node/v5/auth/api/auth/v1/client"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	vcrAPI "github.com/nuts-foundation/nuts-node/v5/vcr/api/vcr/v2"
 )
 
 var NodeClientConfig = core.ClientConfig{Address: "http://localhost:1323"}

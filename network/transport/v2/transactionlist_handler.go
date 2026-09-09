@@ -23,10 +23,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/network/log"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport/grpc"
 )
 
 // connectionEnvelope is a structure to communicate both the message and the peer over a channel

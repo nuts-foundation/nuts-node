@@ -23,8 +23,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/vcr/issuer"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/issuer"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/openid4vci"
 	"net/http"
 	"strings"
 )

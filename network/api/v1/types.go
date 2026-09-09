@@ -20,7 +20,7 @@ package v1
 
 import (
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 	"time"
 )
 

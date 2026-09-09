@@ -22,7 +22,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	_ "embed"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 	"os"
 	"path"
 	"testing"

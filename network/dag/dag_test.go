@@ -29,8 +29,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 )
 
 // trackingVisitor just keeps track of which nodes were visited in what order.

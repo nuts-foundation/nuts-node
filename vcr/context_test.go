@@ -20,9 +20,9 @@
 package vcr
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/credential"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

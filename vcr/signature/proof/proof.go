@@ -21,8 +21,8 @@ package proof
 import (
 	"crypto"
 	"encoding/json"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature"
 )
 
 // Document represents the document to sign. It does not contain proofs or signatures

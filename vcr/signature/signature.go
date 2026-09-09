@@ -21,7 +21,7 @@ package signature
 import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
 )
 
 // W3idSecurityV1Context defines the v1 of the w3id json-ld context

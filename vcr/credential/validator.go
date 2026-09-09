@@ -24,7 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/didservice"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/didservice"
 	"github.com/piprate/json-gold/ld"
 	"strings"
 

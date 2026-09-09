@@ -23,12 +23,12 @@ import (
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/log"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/audit"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/vcr"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/log"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v5/vdr/types"
 	"net/http"
 )
 

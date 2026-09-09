@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 
 	"github.com/labstack/echo/v4"
 	"github.com/magiconair/properties/assert"

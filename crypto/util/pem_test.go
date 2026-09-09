@@ -26,7 +26,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v5/crypto/test"
 
 	"github.com/stretchr/testify/assert"
 )

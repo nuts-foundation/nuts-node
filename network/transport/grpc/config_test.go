@@ -20,10 +20,10 @@ package grpc
 
 import (
 	"crypto/x509"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/pki"
-	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/pki"
+	testPKI "github.com/nuts-foundation/nuts-node/v5/test/pki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

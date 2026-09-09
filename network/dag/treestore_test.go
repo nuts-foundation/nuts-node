@@ -26,8 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/network/dag/tree"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag/tree"
+	"github.com/nuts-foundation/nuts-node/v5/test/io"
 )
 
 const testLeafSize = 512

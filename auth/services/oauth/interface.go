@@ -20,7 +20,7 @@ package oauth
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v5/auth/services"
 	"net/url"
 )
 

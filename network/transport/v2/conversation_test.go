@@ -21,13 +21,13 @@ package v2
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v5/network/transport"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/test"
+	"github.com/nuts-foundation/nuts-node/v5/network/dag"
+	"github.com/nuts-foundation/nuts-node/v5/test"
 	"github.com/stretchr/testify/assert"
 )
 

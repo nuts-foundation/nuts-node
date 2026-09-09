@@ -27,13 +27,13 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	"github.com/nuts-foundation/nuts-node/v5/core"
+	"github.com/nuts-foundation/nuts-node/v5/crypto"
+	"github.com/nuts-foundation/nuts-node/v5/jsonld"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v5/vcr/verifier"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 )
 
 type vcHolder struct {

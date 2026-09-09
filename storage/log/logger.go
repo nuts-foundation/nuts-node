@@ -19,7 +19,7 @@
 package log
 
 import (
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v5/core"
 	"github.com/sirupsen/logrus"
 )
 

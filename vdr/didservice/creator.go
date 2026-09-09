@@ -25,12 +25,12 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 
-	vdr "github.com/nuts-foundation/nuts-node/vdr/types"
+	vdr "github.com/nuts-foundation/nuts-node/v5/vdr/types"
 
 	"github.com/lestrrat-go/jwx/jwk"
 	"github.com/nuts-foundation/go-did/did"
 
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v5/crypto"
 )
 
 // NutsDIDMethodName is the DID method name used by Nuts
