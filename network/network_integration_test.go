@@ -560,14 +560,24 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		conn, _, err := node2.network.eventPublisher.Pool().Acquire(context.Background())
 		require.NoError(t, err)
 		defer conn.Close()
-		var found []byte
+		// node2 emits an event for every transaction it receives: the bootstrap DID document and the private TX.
+		// Wait for the private TX specifically and record its ack result under the mutex, so the test does not
+		// return (closing conn) while a later message is still being acked on the callback goroutine.
+		// Do not assert inside the callback: it may run after the test has completed.
+		var found bool
+		var ackErr error
 		foundMutex := sync.Mutex{}
 		_ = stream.Subscribe(conn, "TEST", "TRANSACTIONS.tx", func(msg *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
-			found = msg.Data
-			err := msg.Ack()
-			require.NoError(t, err)
+			event := events.TransactionWithPayload{}
+			if err := json.Unmarshal(msg.Data, &event); err != nil || string(event.Payload) != "private TX" {
+				// not the transaction we are waiting for (e.g. the bootstrap DID document)
+				_ = msg.Ack()
+				return
+			}
+			ackErr = msg.Ack()
+			found = true
 		})
 
 		node1DID := node1.network.nodeDID
@@ -584,8 +594,11 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		test.WaitFor(t, func() (bool, error) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
-			return len(found) > 0, nil
-		}, 100*time.Millisecond, "timeout waiting for message")
+			return found, nil
+		}, defaultTimeout, "timeout waiting for private TX event")
+		foundMutex.Lock()
+		defer foundMutex.Unlock()
+		assert.NoError(t, ackErr)
 	})
 
 	t.Run("third node knows nothing", func(t *testing.T) {
