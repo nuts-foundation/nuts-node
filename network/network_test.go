@@ -898,8 +898,11 @@ func TestNetwork_Reprocess(t *testing.T) {
 		err = events.NewDisposableStream("REPROCESS_test", []string{"REPROCESS.*"}, 10).Subscribe(conn, t.Name(), "REPROCESS.*", func(m *nats.Msg) {
 			foundMutex.Lock()
 			defer foundMutex.Unlock()
+			// Signal completion only after the ack: once wg.Done() releases the test,
+			// its cleanup shuts down the NATS server and the ack would fail with
+			// "nats: connection closed".
+			defer wg.Done()
 			*counter++
-			wg.Done()
 			err := m.Ack()
 			assert.NoError(t, err)
 		})
