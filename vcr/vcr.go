@@ -41,7 +41,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/core"
 	"github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/events"
+	httpclient "github.com/nuts-foundation/nuts-node/http/client"
 	"github.com/nuts-foundation/nuts-node/jsonld"
+
 	"github.com/nuts-foundation/nuts-node/network"
 	"github.com/nuts-foundation/nuts-node/storage"
 	"github.com/nuts-foundation/nuts-node/vcr/assets"
@@ -221,13 +223,13 @@ func (c *vcr) Configure(config core.ServerConfig) error {
 		// meaning while the issuer allocated an HTTP connection the wallet will try to allocate one as well.
 		// This moved back to 1 http.Client when the credential is requested asynchronously.
 		// Should be fixed as part of https://github.com/nuts-foundation/nuts-node/issues/2039
-		issuerTransport := http.DefaultTransport.(*http.Transport).Clone()
+		issuerTransport := httpclient.SafeHttpTransport.Clone()
 		issuerTransport.TLSClientConfig = tlsConfig
 		c.issuerHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
 			Timeout:   c.config.OpenID4VCI.Timeout,
 			Transport: issuerTransport,
 		})
-		walletTransport := http.DefaultTransport.(*http.Transport).Clone()
+		walletTransport := httpclient.SafeHttpTransport.Clone()
 		walletTransport.TLSClientConfig = tlsConfig
 		c.walletHttpClient = core.NewStrictHTTPClient(config.Strictmode, &http.Client{
 			Timeout:   c.config.OpenID4VCI.Timeout,

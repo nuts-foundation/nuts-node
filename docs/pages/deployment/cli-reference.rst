@@ -36,6 +36,8 @@ The following options apply to the server commands below:
       --events.nats.timeout int                       Timeout for NATS server operations (default 30)
       --goldenhammer.enabled                          Whether to enable automatically fixing DID documents with the required endpoints. (default true)
       --goldenhammer.interval duration                The interval in which to check for DID documents to fix. (default 10m0s)
+      --http.client.allowedinternalcidrs strings      IP ranges (CIDR notation, e.g. 10.0.0.0/8) exempted from the strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use to permit internal flows that legitimately target a private address, such as an internal credential offering or an internal OAuth user flow. Leave empty to block all non-public addresses.
+      --http.client.deniedcidrs strings               IP ranges (CIDR notation) that outbound HTTP requests must never target in strict mode, in addition to the built-in blocked ranges (non-public addresses and cloud metadata endpoints). Use for publicly routable ranges that are internal-only in your infrastructure. Takes precedence over http.client.allowedinternalcidrs.
       --http.default.address string                   Address and port the server will be listening to (default ":1323")
       --http.default.auth.audience string             Expected audience for JWT tokens (default: hostname)
       --http.default.auth.authorizedkeyspath string   Path to an authorized_keys file for trusted JWT signers
