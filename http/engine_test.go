@@ -36,7 +36,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/nuts-node/v6/core"
-  "github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
 	"github.com/nuts-foundation/nuts-node/v6/http/log"
 	"github.com/nuts-foundation/nuts-node/v6/test"
 	"github.com/sirupsen/logrus"
