@@ -27,13 +27,13 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	"github.com/nuts-foundation/nuts-node/vcr/signature"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/types"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 type signatureVerifier struct {

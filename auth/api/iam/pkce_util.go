@@ -21,7 +21,7 @@ package iam
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 )
 
 // PKCEParams contains the PKCE parameters so they can be stored in both the client and server side session.

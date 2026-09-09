@@ -21,17 +21,17 @@ import (
 	"context"
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
-	httpTest "github.com/nuts-foundation/nuts-node/test/http"
+	httpTest "github.com/nuts-foundation/nuts-node/v6/test/http"
 	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )

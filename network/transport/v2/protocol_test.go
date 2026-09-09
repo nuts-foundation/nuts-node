@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/go-stoabs"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"strings"
@@ -32,18 +32,18 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/network/transport/v2/gossip"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/v2/gossip"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	grpcLib "google.golang.org/grpc"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
 )
 
 type protocolMocks struct {

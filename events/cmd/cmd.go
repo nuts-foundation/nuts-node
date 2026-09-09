@@ -21,7 +21,7 @@ package cmd
 import (
 	"github.com/spf13/pflag"
 
-	"github.com/nuts-foundation/nuts-node/events"
+	"github.com/nuts-foundation/nuts-node/v6/events"
 )
 
 // ConfEventsPort defines the port for the NATS server

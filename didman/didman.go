@@ -26,19 +26,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mr-tron/base58"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"net/url"
 	"sync"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/didman/log"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/didman/log"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
 )
 
 // ModuleName contains the name of this module: Didman

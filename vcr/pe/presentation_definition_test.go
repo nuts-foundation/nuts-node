@@ -26,8 +26,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	vcrTest "github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	vcrTest "github.com/nuts-foundation/nuts-node/v6/vcr/test"
 	"strings"
 	"testing"
 
@@ -35,7 +35,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/pe/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
