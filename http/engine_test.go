@@ -300,6 +300,56 @@ func TestEngine_Configure(t *testing.T) {
 	})
 }
 
+func TestEngine_configureClient(t *testing.T) {
+	reset := func() { client.LogRequests = false; client.LogRequestBodies = false }
+	t.Run("logging disabled by default", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.False(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
+	})
+	t.Run("metadata logs requests but not bodies", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.True(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
+	})
+	t.Run("metadata-and-body logs requests and bodies", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataAndBodyLevel
+
+		serverConfig := core.NewServerConfig()
+		serverConfig.Strictmode = false
+		engine.configureClient(*serverConfig)
+
+		assert.True(t, client.LogRequests)
+		assert.True(t, client.LogRequestBodies)
+	})
+	t.Run("metadata-and-body falls back to metadata in strictmode", func(t *testing.T) {
+		reset()
+		t.Cleanup(reset)
+		engine := New(func() {}, nil)
+		engine.config.Client.Log = LogMetadataAndBodyLevel
+
+		engine.configureClient(*core.NewServerConfig())
+
+		assert.True(t, client.LogRequests)
+		assert.False(t, client.LogRequestBodies)
+		assert.Equal(t, LogLevel(LogMetadataLevel), engine.config.Client.Log)
+	})
+}
+
 func TestEngine_LoggingMiddleware(t *testing.T) {
 	output := new(bytes.Buffer)
 	logrus.StandardLogger().AddHook(&writer.Hook{
