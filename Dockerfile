@@ -19,12 +19,17 @@ RUN go mod download && go mod verify
 
 COPY . .
 # git is needed so go build can stamp the module version from the checked-out tag
+# DL3018 (pin apk versions) is ignored: Alpine keeps only the current version
+# of a package in its repositories, so a pinned version breaks the build as soon
+# as the package is updated. The pinned base image tag anchors reproducibility.
 # hadolint ignore=DL3018
 RUN apk add --no-cache git
 RUN MODULE=$(go list -m) && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X '${MODULE}/core.GitCommit=${GIT_COMMIT}' -X '${MODULE}/core.GitBranch=${GIT_BRANCH}' -X '${MODULE}/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
 FROM alpine:3.23.4
+# DL3018 ignored for the same reason as in the builder stage above.
+# hadolint ignore=DL3018
 RUN apk update \
   && apk add --no-cache \
              tzdata \
