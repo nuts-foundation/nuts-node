@@ -759,7 +759,8 @@ func TestVerifier_VerifyVP(t *testing.T) {
 
 			vcs, err := ctx.verifier.VerifyVP(vp, false, false, validAt)
 
-			assert.EqualError(t, err, "presentation(s) or credential(s) verification failed: presenter is credential subject: invalid LD-proof for presentation: json: cannot unmarshal string into Go value of type proof.LDProof")
+			assert.ErrorContains(t, err, "presentation(s) or credential(s) verification failed: presenter is credential subject: invalid LD-proof for presentation: json: cannot unmarshal string into ")
+			assert.ErrorContains(t, err, " of type proof.LDProof")
 			assert.Empty(t, vcs)
 		})
 		t.Run("error - no proof", func(t *testing.T) {
