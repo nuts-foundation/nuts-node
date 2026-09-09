@@ -78,43 +78,17 @@ type Client interface {
 
 // NewClient returns a Client backed by the provided HTTP request doer.
 // In production callers should pass *httpclient.StrictHTTPClient so the
-// shared transport policies apply (HTTPS-in-strict, body size limit,
-// User-Agent header).
-//
-// When strictMode is true, target URLs are additionally validated via
-// core.ParsePublicURL: HTTPS scheme, no IP hosts, no reserved hostnames.
-func NewClient(httpClient core.HTTPRequestDoer, strictMode bool) Client {
-	return &client{httpClient: httpClient, strictMode: strictMode}
+// shared transport policies apply (HTTPS-in-strict, SSRF checks, body size
+// limit, User-Agent header).
+func NewClient(httpClient core.HTTPRequestDoer) Client {
+	return &client{httpClient: httpClient}
 }
 
 type client struct {
 	httpClient core.HTTPRequestDoer
-	strictMode bool
-}
-
-// validateURL guards against SSRF by rejecting target URLs that fail
-// core.ParsePublicURL (in strict mode: HTTPS only, no IP/reserved hosts).
-// Called at the entry of every method that makes outbound HTTP.
-//
-// TODO: this validation belongs on httpclient.StrictHTTPClient so every
-// outbound HTTP call (not just OpenID4VCI) gets the IP/reserved-host check,
-// not only the HTTPS scheme check that StrictHTTPClient.Do enforces today.
-// Placed here for now to preserve parity with master, where the equivalent
-// caller (auth/client/iam.HTTPClient) validated via oauth.IssuerIdToWellKnown
-// → core.ParsePublicURL before issuing the request, and to address a CodeQL
-// SSRF finding on this PR. Tracked as a follow-up to consolidate the check
-// in the shared HTTP client.
-func (c *client) validateURL(name, target string) error {
-	if _, err := core.ParsePublicURL(target, c.strictMode); err != nil {
-		return fmt.Errorf("openid4vci: invalid %s URL: %w", name, err)
-	}
-	return nil
 }
 
 func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL string) (*OpenIDCredentialIssuerMetadata, error) {
-	if err := c.validateURL("issuer", issuerURL); err != nil {
-		return nil, err
-	}
 	// Per §12.2.1, the Credential Issuer Identifier MUST NOT contain query
 	// or fragment components.
 	if parsed, _ := url.Parse(issuerURL); parsed != nil && (parsed.RawQuery != "" || parsed.Fragment != "") {
@@ -122,7 +96,7 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 	}
 	// Per §12.2.4 the credential_issuer in the document MUST match the requested issuer;
 	// FetchMetadata enforces that and tries the insert/append well-known placements.
-	metadata, err := oauth.FetchMetadata[OpenIDCredentialIssuerMetadata](ctx, c.httpClient, issuerURL, c.strictMode)
+	metadata, err := oauth.FetchMetadata[OpenIDCredentialIssuerMetadata](ctx, c.httpClient, issuerURL)
 	if err != nil {
 		return nil, fmt.Errorf("openid4vci: %w", err)
 	}
@@ -130,9 +104,6 @@ func (c *client) OpenIDCredentialIssuerMetadata(ctx context.Context, issuerURL s
 }
 
 func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string, error) {
-	if err := c.validateURL("nonce endpoint", nonceEndpoint); err != nil {
-		return "", err
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nonceEndpoint, http.NoBody)
 	if err != nil {
 		return "", err
@@ -156,9 +127,6 @@ func (c *client) RequestNonce(ctx context.Context, nonceEndpoint string) (string
 }
 
 func (c *client) RequestCredential(ctx context.Context, opts RequestCredentialOpts) (*CredentialResponse, error) {
-	if err := c.validateURL("credential endpoint", opts.CredentialEndpoint); err != nil {
-		return nil, err
-	}
 	body := make(map[string]any, len(opts.CredentialRequestParams)+2)
 	// Node defaults. Per §8.2, credential_identifier and
 	// credential_configuration_id are mutually exclusive; credential_identifier

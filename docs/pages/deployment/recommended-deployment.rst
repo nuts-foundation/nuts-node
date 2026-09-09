@@ -130,6 +130,7 @@ If your use case does not require ``did:nuts`` DIDs and/or the gRPC network, you
 
 * **/n2n** (public): for providing Nuts services to other nodes (e.g. creating access tokens).
    The local node also calls other nodes on their ``/n2n`` endpoint, these outgoing calls are subject to the same security requirements.
+   Server-to-server credential issuance for ``did:nuts`` DIDs also runs over this endpoint; see :ref:`Registering node-http-services-baseurl <node-http-services-baseurl>` for how nodes discover each other's ``/n2n`` base URL.
 
    *Users*: Other Nuts nodes.
 

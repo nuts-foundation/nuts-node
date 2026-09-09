@@ -40,7 +40,6 @@ import (
 	"github.com/nuts-foundation/go-did/vc"
 	"github.com/nuts-foundation/nuts-node/auth/log"
 	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
 	"github.com/nuts-foundation/nuts-node/crypto/dpop"
 	nutsHttp "github.com/nuts-foundation/nuts-node/http"
@@ -62,7 +61,6 @@ type OpenID4VPClient struct {
 	httpClient                  HTTPClient
 	jwtSigner                   nutsCrypto.JWTSigner
 	keyResolver                 resolver.KeyResolver
-	strictMode                  bool
 	wallet                      holder.Wallet
 	ldDocumentLoader            ld.DocumentLoader
 	subjectManager              didsubject.Manager
@@ -74,8 +72,8 @@ type OpenID4VPClient struct {
 // ClientConfig groups the dependencies and toggles needed to construct an OpenID4VPClient.
 // The interface fields (Wallet, KeyResolver, SubjectManager, JWTSigner, LDDocumentLoader,
 // PolicyBackend) are required; NewClient does not validate them and missing fields will surface as
-// nil-pointer panics on first use. Scalar fields default to their zero value (StrictMode=false,
-// HTTPClientTimeout=0, ExperimentalJwtBearerClient=false) and the zero values are valid.
+// nil-pointer panics on first use. Scalar fields default to their zero value (HTTPClientTimeout=0,
+// ExperimentalJwtBearerClient=false) and the zero values are valid.
 type ClientConfig struct {
 	Wallet            holder.Wallet
 	KeyResolver       resolver.KeyResolver
@@ -83,7 +81,6 @@ type ClientConfig struct {
 	JWTSigner         nutsCrypto.JWTSigner
 	LDDocumentLoader  ld.DocumentLoader
 	PolicyBackend     policy.PDPBackend
-	StrictMode        bool
 	HTTPClientTimeout time.Duration
 	// ExperimentalJwtBearerClient gates the RFC 7523 jwt-bearer two-VP token request flow.
 	// Tracked for replacement by a list-style grant-types config under issue #4231.
@@ -93,7 +90,6 @@ type ClientConfig struct {
 // NewClient returns an OpenID4VPClient configured with the given dependencies.
 func NewClient(cfg ClientConfig) *OpenID4VPClient {
 	httpClient := HTTPClient{
-		strictMode:  cfg.StrictMode,
 		httpClient:  client.NewWithCache(cfg.HTTPClientTimeout),
 		keyResolver: cfg.KeyResolver,
 	}
@@ -103,7 +99,6 @@ func NewClient(cfg ClientConfig) *OpenID4VPClient {
 		jwtSigner:                   cfg.JWTSigner,
 		ldDocumentLoader:            cfg.LDDocumentLoader,
 		subjectManager:              cfg.SubjectManager,
-		strictMode:                  cfg.StrictMode,
 		wallet:                      cfg.Wallet,
 		policyBackend:               cfg.PolicyBackend,
 		experimentalJwtBearerClient: cfg.ExperimentalJwtBearerClient,
@@ -128,7 +123,7 @@ func (c *OpenID4VPClient) ClientMetadata(ctx context.Context, endpoint string) (
 func (c *OpenID4VPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2Error, verifierResponseURI string, verifierClientState string) (string, error) {
 	iamClient := c.httpClient
 
-	responseURL, err := core.ParsePublicURL(verifierResponseURI, c.strictMode)
+	responseURL, err := url.Parse(verifierResponseURI)
 	if err != nil {
 		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}
@@ -149,7 +144,7 @@ func (c *OpenID4VPClient) PostError(ctx context.Context, auth2Error oauth.OAuth2
 func (c *OpenID4VPClient) PostAuthorizationResponse(ctx context.Context, vp vc.VerifiablePresentation, presentationSubmission pe.PresentationSubmission, verifierResponseURI string, state string) (string, error) {
 	iamClient := c.httpClient
 
-	responseURL, err := core.ParsePublicURL(verifierResponseURI, c.strictMode)
+	responseURL, err := url.Parse(verifierResponseURI)
 	if err != nil {
 		return "", fmt.Errorf("failed to post error to verifier: %w", err)
 	}
@@ -163,7 +158,7 @@ func (c *OpenID4VPClient) PostAuthorizationResponse(ctx context.Context, vp vc.V
 
 func (c *OpenID4VPClient) PresentationDefinition(ctx context.Context, endpoint string) (*pe.PresentationDefinition, error) {
 	iamClient := c.httpClient
-	parsedURL, err := core.ParsePublicURL(endpoint, c.strictMode)
+	parsedURL, err := url.Parse(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve presentation definition: %w", err)
 	}
@@ -196,12 +191,7 @@ func (c *OpenID4VPClient) OpenIDConfiguration(ctx context.Context, issuer string
 
 func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI string) (string, error) {
 	iamClient := c.httpClient
-	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
-	if err != nil {
-		return "", fmt.Errorf("invalid request_uri: %w", err)
-	}
-
-	requestObject, err := iamClient.RequestObjectByGet(ctx, parsedURL.String())
+	requestObject, err := iamClient.RequestObjectByGet(ctx, requestURI)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}
@@ -209,15 +199,11 @@ func (c *OpenID4VPClient) RequestObjectByGet(ctx context.Context, requestURI str
 }
 func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI string, walletMetadata oauth.AuthorizationServerMetadata) (string, error) {
 	iamClient := c.httpClient
-	parsedURL, err := core.ParsePublicURL(requestURI, c.strictMode)
-	if err != nil {
-		return "", fmt.Errorf("invalid request_uri: %w", err)
-	}
 
 	// TODO: consider adding a 'wallet_nonce'
 	metadataBytes, _ := json.Marshal(walletMetadata)
 	form := url.Values{oauth.WalletMetadataParam: {string(metadataBytes)}}
-	requestObject, err := iamClient.RequestObjectByPost(ctx, parsedURL.String(), form)
+	requestObject, err := iamClient.RequestObjectByPost(ctx, requestURI, form)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve JAR Request Object: %w", err)
 	}
@@ -226,8 +212,7 @@ func (c *OpenID4VPClient) RequestObjectByPost(ctx context.Context, requestURI st
 
 func (c *OpenID4VPClient) AccessToken(ctx context.Context, code string, tokenEndpoint string, callbackURI string, subject string, clientID string, codeVerifier string, useDPoP bool) (*oauth.TokenResponse, error) {
 	iamClient := c.httpClient
-	// validate tokenEndpoint
-	parsedURL, err := core.ParsePublicURL(tokenEndpoint, c.strictMode)
+	parsedURL, err := url.Parse(tokenEndpoint)
 	if err != nil {
 		return nil, err
 	}

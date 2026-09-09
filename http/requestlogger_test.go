@@ -60,6 +60,32 @@ func Test_requestLoggerMiddleware(t *testing.T) {
 		assert.Equal(t, "/test", hook.LastEntry().Data["uri"])
 	})
 
+	t.Run("it does not log headers, even on debug", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		response := &echo.Response{}
+		echoMock := mock.NewMockContext(ctrl)
+		echoMock.EXPECT().NoContent(http.StatusNoContent).Do(func(status int) { response.Status = status })
+		request := &http.Request{RequestURI: "/test", Header: http.Header{}}
+		request.Header.Set("Authorization", "Bearer secret")
+		request.Header.Set("DPoP", "some-proof")
+		echoMock.EXPECT().Request().Return(request)
+		echoMock.EXPECT().Response().Return(response)
+		echoMock.EXPECT().RealIP().Return("::1")
+
+		logger, hook := test.NewNullLogger()
+		logger.SetLevel(logrus.DebugLevel)
+		logFunc := requestLoggerMiddleware(func(c echo.Context) bool {
+			return false
+		}, logger.WithFields(logrus.Fields{}))
+		err := logFunc(func(context echo.Context) error {
+			return context.NoContent(http.StatusNoContent)
+		})(echoMock)
+
+		require.NoError(t, err)
+		require.Len(t, hook.Entries, 1)
+		assert.NotContains(t, hook.LastEntry().Data, "headers")
+	})
+
 	t.Run("it handles echo.HTTPErrors", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		echoMock := mock.NewMockContext(ctrl)

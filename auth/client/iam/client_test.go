@@ -80,8 +80,8 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
 	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic, so these
-	// tests only need to confirm the wiring (well-known constant, httpClient, strictMode) and
-	// that this specific bug (rewriting an upstream status code) doesn't reappear.
+	// tests only need to confirm the wiring (well-known constant, httpClient) and that this
+	// specific bug (rewriting an upstream status code) doesn't reappear.
 	t.Run("ok - append form when insert 404s", func(t *testing.T) {
 		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/oauth-authorization-server")
 

@@ -52,11 +52,27 @@ func ParsePublicURL(input string, strictmode bool) (*url.URL, error) {
 	return ParsePublicURLWithScheme(input, false, "https")
 }
 
+// ParsePublicURLAllowIP behaves like ParsePublicURL, except an IP-literal host is never rejected.
+// Use it where a separate, allowlist-aware check already polices the address being connected to
+// (for example http/client's dial-time SSRF guard, which honors http.client.allowedinternalcidrs):
+// rejecting IP literals here as well would make that allowlist unreachable, since a literal IP
+// never gets resolved — it already is the address the guard needs to see.
+func ParsePublicURLAllowIP(input string, strictmode bool) (*url.URL, error) {
+	if !strictmode {
+		return ParsePublicURLWithScheme(input, true, "http", "https")
+	}
+	return parsePublicURLWithScheme(input, true, false, "https")
+}
+
 // ParsePublicURLWithScheme parses the given input string as URL and asserts that
 // it has a scheme and that it is in the allowedSchemes if provided,
 // it is not an IP address, and
 // it is not (depending on allowReserved) a reserved address or TLD as described in RFC2606 or https://www.ietf.org/archive/id/draft-chapin-rfc2606bis-00.html.
 func ParsePublicURLWithScheme(input string, allowReserved bool, allowedSchemes ...string) (*url.URL, error) {
+	return parsePublicURLWithScheme(input, allowReserved, allowReserved, allowedSchemes...)
+}
+
+func parsePublicURLWithScheme(input string, allowIP, allowReserved bool, allowedSchemes ...string) (*url.URL, error) {
 	parsed, err := url.Parse(input)
 	if err != nil {
 		return nil, err
@@ -67,7 +83,7 @@ func ParsePublicURLWithScheme(input string, allowReserved bool, allowedSchemes .
 	if len(allowedSchemes) > 0 && !slices.Contains(allowedSchemes, parsed.Scheme) {
 		return nil, fmt.Errorf("scheme must be %s", strings.Join(allowedSchemes, " or "))
 	}
-	if net.ParseIP(parsed.Hostname()) != nil && !allowReserved {
+	if net.ParseIP(parsed.Hostname()) != nil && !allowIP {
 		return nil, errors.New("hostname is IP")
 	}
 	if !allowReserved && isReserved(parsed) {
