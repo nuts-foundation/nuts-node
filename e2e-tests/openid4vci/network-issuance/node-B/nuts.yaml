@@ -9,6 +9,13 @@ http:
     n2n:
       address: :443
       tls: server-client
+  client:
+    # Docker auto-assigns the compose network an arbitrary private subnet, so permit all RFC1918
+    # ranges for the strict-mode SSRF guard. Narrow-allowlist precision is covered by unit tests.
+    allowedinternalcidrs:
+      - 10.0.0.0/8
+      - 172.16.0.0/12
+      - 192.168.0.0/16
 auth:
   publicurl: http://nodeB:1323
   contractvalidators:

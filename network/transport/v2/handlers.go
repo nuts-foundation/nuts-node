@@ -153,6 +153,22 @@ func (p *protocol) handleTransactionPayloadQuery(ctx context.Context, connection
 				Warn("Peer requested private transaction over unauthenticated connection")
 			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
 		}
+
+		// Only the node that authored this transaction may serve its payload. The payload store is
+		// keyed by content hash alone, with no binding to the transaction that's supposed to carry it,
+		// so PAL and payload hash on an inbound transaction are fully attacker-controlled. Requiring
+		// local authorship means the PAL being checked below is always the one this node itself
+		// encrypted, not one an attacker crafted to piggyback on someone else's stored payload.
+		authored := p.keyStore.Exists(ctx, tx.SigningKeyID())
+		if !authored {
+			log.Logger().
+				WithFields(peer.ToFields()).
+				WithField(core.LogFieldTransactionRef, tx.Ref()).
+				WithField(core.LogFieldKeyID, tx.SigningKeyID()).
+				Warn("Peer requested private payload via a transaction not authored by this node")
+			return connection.Send(p, &Envelope{Message: emptyResponse}, false)
+		}
+
 		epal := dag.EncryptedPAL(tx.PAL())
 
 		pal, err := p.decryptPAL(ctx, epal)
