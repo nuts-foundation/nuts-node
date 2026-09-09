@@ -43,6 +43,7 @@ const (
 type xorTreeRepair struct {
 	ctx          context.Context
 	cancel       context.CancelFunc
+	loopDone     sync.WaitGroup
 	ticker       *time.Ticker
 	currentPage  uint32
 	state        *state
@@ -58,9 +59,15 @@ func newXorTreeRepair(state *state) *xorTreeRepair {
 }
 
 func (f *xorTreeRepair) start() {
+	if f.cancel != nil {
+		// already started; a second loop could not be stopped anymore, since its cancel func would replace this one
+		return
+	}
 	var ctx context.Context
 	ctx, f.cancel = context.WithCancel(context.Background())
+	f.loopDone.Add(1)
 	go func() {
+		defer f.loopDone.Done()
 		defer f.ticker.Stop()
 		for {
 			select {
@@ -73,9 +80,12 @@ func (f *xorTreeRepair) start() {
 	}()
 }
 
+// shutdown stops the repair loop and waits for a page check that is in progress to finish,
+// so the caller can safely close the underlying store afterwards.
 func (f *xorTreeRepair) shutdown() {
 	if f.cancel != nil {
 		f.cancel()
+		f.loopDone.Wait()
 	}
 }
 

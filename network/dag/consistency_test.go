@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -123,6 +124,86 @@ func TestXorTreeRepair(t *testing.T) {
 			return hashRoot.Equals(expectedHash), nil
 		}, 5*time.Second, "xorTree not updated within wait period")
 	})
+}
+
+func TestXorTreeRepair_shutdownWaitsForRunningPageCheck(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	tx, _, _ := CreateTestTransaction(1)
+	txState := createXorTreeRepairState(t, tx)
+	require.NoError(t, txState.Start())
+
+	// Hold the DB write lock so the next page check blocks inside its transaction.
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(releaseOnce)
+	lockHeld := make(chan struct{})
+	writeDone := make(chan struct{})
+	go func() {
+		defer close(writeDone)
+		_ = txState.graph.db.Write(context.Background(), func(_ stoabs.WriteTx) error {
+			close(lockHeld)
+			<-release
+			return nil
+		})
+	}()
+	<-lockHeld
+
+	// twice to set circuit to red, so the loop starts checking pages
+	txState.IncorrectStateDetected()
+	txState.IncorrectStateDetected()
+
+	// checkPage holds the repair mutex while it waits for the DB lock
+	test.WaitFor(t, func() (bool, error) {
+		if txState.xorTreeRepair.mutex.TryLock() {
+			txState.xorTreeRepair.mutex.Unlock()
+			return false, nil
+		}
+		return true, nil
+	}, time.Second, "page check did not start within wait period")
+
+	shutdownDone := make(chan struct{})
+	go func() {
+		txState.xorTreeRepair.shutdown()
+		close(shutdownDone)
+	}()
+
+	select {
+	case <-shutdownDone:
+		t.Fatal("shutdown returned while a page check was still running")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	releaseOnce()
+	<-writeDone
+	select {
+	case <-shutdownDone:
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not return after the page check finished")
+	}
+}
+
+func TestXorTreeRepair_startIsIdempotent(t *testing.T) {
+	defer goleak.VerifyNone(t, goleak.IgnoreCurrent())
+
+	tx, _, _ := CreateTestTransaction(1)
+	txState := createXorTreeRepairState(t, tx)
+
+	// State.Start() may be called more than once (e.g. by test helpers); only one repair loop must run,
+	// otherwise the first loop can no longer be stopped and shutdown would wait for it forever.
+	txState.xorTreeRepair.start()
+	txState.xorTreeRepair.start()
+
+	shutdownDone := make(chan struct{})
+	go func() {
+		txState.xorTreeRepair.shutdown()
+		close(shutdownDone)
+	}()
+	select {
+	case <-shutdownDone:
+	case <-time.After(time.Second):
+		t.Fatal("shutdown did not return, a repair loop is still running")
+	}
 }
 
 func xorRootDate(s *state) hash.SHA256Hash {
