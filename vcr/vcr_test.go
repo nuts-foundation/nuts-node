@@ -27,13 +27,13 @@ import (
 	"github.com/nuts-foundation/go-leia/v4"
 	"github.com/nuts-foundation/go-stoabs"
 	bbolt2 "github.com/nuts-foundation/go-stoabs/bbolt"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/nuts-foundation/nuts-node/vdr"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/require"
 	"os"
 	"path"
@@ -41,18 +41,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/verifier"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/verifier"
 	"go.etcd.io/bbolt"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/network"
-	"github.com/nuts-foundation/nuts-node/test/io"
-	vcrTypes "github.com/nuts-foundation/nuts-node/vcr/types"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/network"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
+	vcrTypes "github.com/nuts-foundation/nuts-node/v6/vcr/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -108,7 +108,8 @@ func TestVCR_Configure(t *testing.T) {
 		require.NoError(t, err)
 		err = issuer.OfferCredential(context.Background(), testVC, "http://example.com")
 
-		assert.ErrorContains(t, err, "http request error: strictmode is enabled, but request is not over HTTPS")
+		assert.ErrorContains(t, err, "http request error: invalid target URL")
+		assert.ErrorContains(t, err, "scheme must be https")
 	})
 }
 

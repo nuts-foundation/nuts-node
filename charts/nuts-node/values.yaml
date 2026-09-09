@@ -138,7 +138,7 @@ nuts:
         address: :8081
       external:
         address: :8080
-    verbosity: debug
+    verbosity: info
     tls:
       truststorefile: /opt/nuts/ssl/ca.pem
       certfile: /opt/nuts/ssl/node.nuts.local.pem

@@ -27,10 +27,10 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	test2 "github.com/nuts-foundation/nuts-node/crypto/test"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	test2 "github.com/nuts-foundation/nuts-node/v6/crypto/test"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"net/http"
@@ -42,11 +42,11 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/test"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,8 +80,8 @@ func TestHTTPClient_OAuthAuthorizationServerMetadata(t *testing.T) {
 
 	// The insert/append fallback, identifier-match, and error-joining behavior is exhaustively
 	// covered by oauth.FetchMetadata's own tests; this wraps it with no extra logic, so these
-	// tests only need to confirm the wiring (well-known constant, httpClient, strictMode) and
-	// that this specific bug (rewriting an upstream status code) doesn't reappear.
+	// tests only need to confirm the wiring (well-known constant, httpClient) and that this
+	// specific bug (rewriting an upstream status code) doesn't reappear.
 	t.Run("ok - append form when insert 404s", func(t *testing.T) {
 		tlsServer, client, requested := metadataServer(t, http.StatusNotFound, "/iam/123", "/iam/123/.well-known/oauth-authorization-server")
 

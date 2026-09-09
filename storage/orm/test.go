@@ -19,7 +19,7 @@
 package orm
 
 import (
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"testing"

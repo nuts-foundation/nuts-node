@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lestrrat-go/jwx/v3/jws"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
+	v2 "github.com/nuts-foundation/nuts-node/v6/vcr/pe/schema/v2"
 	"strings"
 
 	"github.com/PaesslerAG/jsonpath"

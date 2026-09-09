@@ -28,7 +28,7 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"github.com/lestrrat-go/jwx/v3/cert"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"math/big"
 	"net"
 	"os"

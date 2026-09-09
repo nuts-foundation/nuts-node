@@ -23,9 +23,9 @@ import (
 	"errors"
 	"github.com/labstack/echo/v4"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/discovery"
-	"github.com/nuts-foundation/nuts-node/discovery/api/server/client"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/discovery"
+	"github.com/nuts-foundation/nuts-node/v6/discovery/api/server/client"
 	"net/http"
 )
 

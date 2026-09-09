@@ -28,8 +28,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
+	v2 "github.com/nuts-foundation/nuts-node/v6/vcr/pe/schema/v2"
 )
 
 // ParsePresentationSubmission validates the given JSON and parses it into a PresentationSubmission.
