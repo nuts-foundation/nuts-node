@@ -24,7 +24,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 )
 
 // ErrInvalidService is returned when a service is invalid, e.g. invalid field values, duplicate ID, not found, etc.

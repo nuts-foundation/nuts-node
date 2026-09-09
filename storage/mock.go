@@ -14,7 +14,7 @@ import (
 	time "time"
 
 	stoabs "github.com/nuts-foundation/go-stoabs"
-	core "github.com/nuts-foundation/nuts-node/core"
+	core "github.com/nuts-foundation/nuts-node/v6/core"
 	gomock "go.uber.org/mock/gomock"
 	gorm "gorm.io/gorm"
 )

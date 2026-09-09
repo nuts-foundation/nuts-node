@@ -14,9 +14,9 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	hash "github.com/nuts-foundation/nuts-node/crypto/hash"
-	dag "github.com/nuts-foundation/nuts-node/network/dag"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	hash "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	dag "github.com/nuts-foundation/nuts-node/v6/network/dag"
+	transport "github.com/nuts-foundation/nuts-node/v6/network/transport"
 	gomock "go.uber.org/mock/gomock"
 )
 

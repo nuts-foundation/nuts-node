@@ -24,8 +24,8 @@ import (
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/policy/authzen"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/policy/authzen"
 )
 
 // ScopeGranter computes the scopes to grant for an access token request, based on a

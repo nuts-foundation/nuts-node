@@ -20,20 +20,32 @@ package dag
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/lestrrat-go/jwx/v3/jws"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
+
+// errNonCanonicalJWS is returned when the input is not the unique canonical compact JWS encoding of
+// its own header, payload and signature; see validateCanonicalCompactSerialization.
+var errNonCanonicalJWS = errors.New("JWS is not canonically encoded compact serialization")
 
 // ParseTransaction parses the input as Nuts Network Transaction according to RFC004.
 func ParseTransaction(input []byte) (Transaction, error) {
-	message, err := jws.Parse(input)
+	// RFC004 only defines compact serialization. Restricting to it here, rather than accepting
+	// whatever jws.Parse auto-detects, also rules out JSON serialization's own encoding degrees of
+	// freedom (unprotected headers, member order, whitespace) up front.
+	message, err := jws.Parse(input, jws.WithCompact())
 	if err != nil {
+		return nil, fmt.Errorf(unableToParseTransactionErrFmt, err)
+	}
+	if err := validateCanonicalCompactSerialization(input); err != nil {
 		return nil, fmt.Errorf(unableToParseTransactionErrFmt, err)
 	}
 	if len(message.Signatures()) == 0 {
@@ -69,6 +81,36 @@ func ParseTransaction(input []byte) (Transaction, error) {
 
 func transactionValidationError(format string, args ...interface{}) error {
 	return fmt.Errorf(transactionNotValidErrFmt, fmt.Errorf(format, args...))
+}
+
+// validateCanonicalCompactSerialization rejects a compact JWS whose bytes aren't the unique
+// canonical encoding of its own header, payload and signature. jws.Parse, even restricted to
+// compact serialization, still accepts and verifies encodings that decode to the same content as
+// the canonical one - e.g. surrounding whitespace, or base64 with non-zero unused trailing bits -
+// because verification checks the decoded content, not the received bytes. Transaction identity
+// (Ref(), see transaction.go) is the hash of the received bytes, so a non-canonical variant hashes
+// to a different ref than the original while carrying an equally valid signature: anyone who has
+// seen one signed transaction could mint unlimited "new" ones from it without the signing key.
+// Re-deriving the canonical form and requiring an exact match closes that regardless of which
+// specific leniency jws.Parse has today or gains later, and never rejects anything jws.Sign
+// produces, since that output is already canonical.
+func validateCanonicalCompactSerialization(input []byte) error {
+	parts := strings.Split(string(input), ".")
+	if len(parts) != 3 {
+		return errNonCanonicalJWS
+	}
+	canonical := make([]string, len(parts))
+	for i, part := range parts {
+		decoded, err := base64.RawURLEncoding.DecodeString(part)
+		if err != nil {
+			return errNonCanonicalJWS
+		}
+		canonical[i] = base64.RawURLEncoding.EncodeToString(decoded)
+	}
+	if strings.Join(canonical, ".") != string(input) {
+		return errNonCanonicalJWS
+	}
+	return nil
 }
 
 // transactionParseStep defines a function that parses a part of a JWS, building the internal representation of a transaction.
@@ -190,6 +232,9 @@ func parsePAL(transaction *transaction, headers jws.Headers, _ *jws.Message) err
 	palEncoded, ok := rawPal.([]interface{})
 	if !ok {
 		return transactionValidationError(invalidHeaderErrFmt, palHeader)
+	}
+	if len(palEncoded) != palEntryCount {
+		return transactionValidationError("pal header must contain exactly %d entries, got %d", palEntryCount, len(palEncoded))
 	}
 	var pal [][]byte
 	for _, curr := range palEncoded {

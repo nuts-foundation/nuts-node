@@ -22,8 +22,8 @@ import (
 	"context"
 	"crypto"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/crypto/dpop"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 )
 
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist

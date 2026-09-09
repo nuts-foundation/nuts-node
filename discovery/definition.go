@@ -22,8 +22,8 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
-	v2 "github.com/nuts-foundation/nuts-node/vcr/pe/schema/v2"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
+	v2 "github.com/nuts-foundation/nuts-node/v6/vcr/pe/schema/v2"
 	"github.com/santhosh-tekuri/jsonschema"
 )
 
