@@ -125,9 +125,9 @@ e2e-test:
 	cd e2e-tests && IMAGE_NODE_A=nutsfoundation/nuts-node:e2e IMAGE_NODE_B=nutsfoundation/nuts-node:e2e ./run-tests.sh
 
 OUTPUT ?= "$(shell pwd)/nuts"
-GIT_COMMIT ?= "$(shell git rev-list -1 HEAD)"
-GIT_BRANCH ?= "$(shell git symbolic-ref --short HEAD)"
-GIT_VERSION ?= "$(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))"
+GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
+GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD)
+GIT_VERSION ?= $(shell git name-rev --tags --name-only $(shell git rev-parse HEAD))
 # Module path including the major version suffix (e.g. .../nuts-node/v6).
 MODULE := $(shell go list -m)
 build:
