@@ -22,7 +22,7 @@ package oauth
 import (
 	"encoding/json"
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"net/url"
 )
 

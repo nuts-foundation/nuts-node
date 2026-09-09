@@ -13,7 +13,7 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	transport "github.com/nuts-foundation/nuts-node/network/transport"
+	transport "github.com/nuts-foundation/nuts-node/v6/network/transport"
 	gomock "go.uber.org/mock/gomock"
 )
 

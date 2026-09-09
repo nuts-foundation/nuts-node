@@ -1,4 +1,4 @@
-module github.com/nuts-foundation/nuts-node
+module github.com/nuts-foundation/nuts-node/v6
 
 // This is the minimal version, the actual go version is determined by the images in the Dockerfile
 // This version is used in automated tests such as the 'Scheduled govulncheck' action

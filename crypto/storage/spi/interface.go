@@ -30,7 +30,7 @@ import (
 	"regexp"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.

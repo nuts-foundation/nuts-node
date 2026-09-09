@@ -35,10 +35,10 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/mr-tron/base58"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 )
 
 // GenerateJWK a new in-memory key pair and returns it as JWK.

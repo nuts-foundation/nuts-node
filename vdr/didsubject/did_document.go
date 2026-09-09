@@ -21,7 +21,7 @@ package didsubject
 import (
 	"encoding/json"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage/orm"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"time"
 
 	"github.com/google/uuid"
