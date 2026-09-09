@@ -33,7 +33,7 @@ import (
 	"github.com/multiformats/go-multicodec"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"io"
 )
 

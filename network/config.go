@@ -19,7 +19,7 @@
 package network
 
 import (
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
+	v2 "github.com/nuts-foundation/nuts-node/v6/network/transport/v2"
 	"time"
 )
 

@@ -21,7 +21,7 @@ package v1
 import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"net/http"
 )
 

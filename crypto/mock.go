@@ -14,8 +14,8 @@ import (
 	crypto "crypto"
 	reflect "reflect"
 
-	dpop "github.com/nuts-foundation/nuts-node/crypto/dpop"
-	orm "github.com/nuts-foundation/nuts-node/storage/orm"
+	dpop "github.com/nuts-foundation/nuts-node/v6/crypto/dpop"
+	orm "github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
 

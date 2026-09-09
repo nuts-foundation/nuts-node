@@ -22,7 +22,7 @@ import (
 	"context"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	testHTTP "github.com/nuts-foundation/nuts-node/test/http"
+	testHTTP "github.com/nuts-foundation/nuts-node/v6/test/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"net/http"

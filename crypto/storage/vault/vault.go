@@ -28,11 +28,11 @@ import (
 	"time"
 
 	vault "github.com/hashicorp/vault/api"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/log"
-	"github.com/nuts-foundation/nuts-node/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/crypto/util"
-	"github.com/nuts-foundation/nuts-node/tracing"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 

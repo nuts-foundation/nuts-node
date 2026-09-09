@@ -20,7 +20,7 @@ package http
 
 import (
 	"crypto/tls"
-	"github.com/nuts-foundation/nuts-node/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/test/pki"
 	"net/http"
 	"net/http/httptest"
 	"testing"

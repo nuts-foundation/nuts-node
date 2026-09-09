@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
 
-	"github.com/nuts-foundation/nuts-node/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v6/auth/contract"
 
-	"github.com/nuts-foundation/nuts-node/auth/test"
+	"github.com/nuts-foundation/nuts-node/v6/auth/test"
 
 	irma "github.com/privacybydesign/irmago"
 	"github.com/stretchr/testify/assert"

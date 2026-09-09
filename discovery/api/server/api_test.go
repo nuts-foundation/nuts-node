@@ -22,7 +22,7 @@ import (
 	"context"
 	"errors"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/discovery"
+	"github.com/nuts-foundation/nuts-node/v6/discovery"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
