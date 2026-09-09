@@ -29,7 +29,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
-	"github.com/nuts-foundation/nuts-node/http/log"
+	"github.com/nuts-foundation/nuts-node/v6/http/log"
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 )

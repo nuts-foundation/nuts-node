@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 type oauthAPIError struct {

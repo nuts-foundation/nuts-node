@@ -30,13 +30,13 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
-	cryptoEngine "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/http/client"
-	"github.com/nuts-foundation/nuts-node/http/log"
-	"github.com/nuts-foundation/nuts-node/http/tokenV2"
-	"github.com/nuts-foundation/nuts-node/tracing"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	cryptoEngine "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"github.com/nuts-foundation/nuts-node/v6/http/log"
+	"github.com/nuts-foundation/nuts-node/v6/http/tokenV2"
+	"github.com/nuts-foundation/nuts-node/v6/tracing"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 

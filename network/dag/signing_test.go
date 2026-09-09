@@ -20,14 +20,14 @@ package dag
 
 import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
 
-	hash2 "github.com/nuts-foundation/nuts-node/crypto/hash"
+	hash2 "github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 	"github.com/stretchr/testify/assert"
 )
 

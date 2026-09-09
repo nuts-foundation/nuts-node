@@ -29,10 +29,10 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/e2e-tests/browser"
-	iamAPI "github.com/nuts-foundation/nuts-node/e2e-tests/browser/client/iam"
-	didAPI "github.com/nuts-foundation/nuts-node/vdr/api/v2"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/e2e-tests/browser"
+	iamAPI "github.com/nuts-foundation/nuts-node/v6/e2e-tests/browser/client/iam"
+	didAPI "github.com/nuts-foundation/nuts-node/v6/vdr/api/v2"
 	"github.com/stretchr/testify/require"
 )
 
