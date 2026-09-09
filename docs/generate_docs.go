@@ -190,7 +190,6 @@ func extractFlagsForEngine(flagSet *pflag.FlagSet, config interface{}, engineNam
 	}
 
 	flagSet.VisitAll(func(current *pflag.Flag) {
-		println(current.Name, engineName)
 		if current.Name == engineName ||
 			strings.HasPrefix(current.Name, engineName+".") {
 			// This flag belongs to this engine, so copy it and hide it in the input flag set
@@ -256,9 +255,10 @@ func normalizeDefaultValue(f *pflag.Flag) string {
 
 func renderRstTable(tableName string, values [][]rstValue) []byte {
 	buffer := new(bytes.Buffer)
-	fmt.Fprintf(buffer, ".. table:: %s\n", tableName)
+	fmt.Fprintf(buffer, ".. list-table:: %s\n", tableName)
 	buffer.WriteString("    :widths: 20 30 50\n")
-	buffer.WriteString("    :class: options-table\n\n")
+	buffer.WriteString("    :class: options-table\n")
+	buffer.WriteString("    :header-rows: 1\n\n")
 	printRstTable(vals("Key", "Default", "Description"), values, buffer)
 	return buffer.Bytes()
 }
