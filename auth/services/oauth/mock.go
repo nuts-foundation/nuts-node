@@ -14,8 +14,8 @@ import (
 	url "net/url"
 	reflect "reflect"
 
-	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
-	services "github.com/nuts-foundation/nuts-node/auth/services"
+	oauth "github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	services "github.com/nuts-foundation/nuts-node/v6/auth/services"
 	gomock "go.uber.org/mock/gomock"
 )
 

@@ -31,15 +31,15 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // ErrInvalidClientCall is returned when the node makes a http call as client based on wrong information passed by the client.
@@ -50,7 +50,6 @@ var ErrBadGateway = errors.New("upstream returned unexpected result")
 
 // HTTPClient holds the server address and other basic settings for the http client
 type HTTPClient struct {
-	strictMode  bool
 	keyResolver resolver.KeyResolver
 	httpClient  core.HTTPRequestDoer
 }
@@ -70,7 +69,7 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 	//  1. insert (RFC 8414):  https://host/.well-known/oauth-authorization-server/<path>
 	//  2. append (OIDC Disc): https://host/<path>/.well-known/oauth-authorization-server
 	// Many authorization servers publish metadata only under the append convention.
-	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer, hb.strictMode)
+	metadata, err := oauth.FetchMetadata[oauth.AuthorizationServerMetadata](ctx, hb.httpClient, oauthIssuer)
 	if err != nil && errors.Is(err, oauth.ErrAllCandidates4xx) {
 		// Every candidate rejected the request outright (no 5xx, no network/decode failure, no
 		// identifier mismatch): the identifier itself is most likely wrong.
@@ -82,11 +81,6 @@ func (hb HTTPClient) OAuthAuthorizationServerMetadata(ctx context.Context, oauth
 // ClientMetadata retrieves the client metadata from the client metadata endpoint given in the authorization request.
 // We use the AuthorizationServerMetadata struct since it overlaps greatly with the client metadata.
 func (hb HTTPClient) ClientMetadata(ctx context.Context, endpoint string) (*oauth.OAuthClientMetadata, error) {
-	_, err := core.ParsePublicURL(endpoint, hb.strictMode)
-	if err != nil {
-		return nil, err
-	}
-
 	// create a GET request
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -237,7 +231,7 @@ func (hb HTTPClient) PostAuthorizationResponse(ctx context.Context, vp vc.Verifi
 }
 
 func (hb HTTPClient) OpenIDConfiguration(ctx context.Context, issuerURL string) (*oauth.OpenIDConfiguration, error) {
-	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown, hb.strictMode)
+	metadataURL, err := oauth.IssuerIdToWellKnown(issuerURL, oauth.OpenIdConfigurationWellKnown)
 	if err != nil {
 		return nil, err
 	}

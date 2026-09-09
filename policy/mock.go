@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	authzen "github.com/nuts-foundation/nuts-node/policy/authzen"
+	authzen "github.com/nuts-foundation/nuts-node/v6/policy/authzen"
 	gomock "go.uber.org/mock/gomock"
 )
 

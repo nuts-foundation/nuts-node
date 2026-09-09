@@ -30,13 +30,13 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/auth/openid4vci"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	nutsHttp "github.com/nuts-foundation/nuts-node/http"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	nutsHttp "github.com/nuts-foundation/nuts-node/v6/http"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 )
 
 var timeFunc = time.Now

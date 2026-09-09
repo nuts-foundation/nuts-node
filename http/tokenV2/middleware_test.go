@@ -28,13 +28,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/audit"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
 
 	"golang.org/x/crypto/ssh"
 

@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
 	"gorm.io/gorm/schema"
 )
 

@@ -20,7 +20,7 @@ package v1
 
 import (
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 )
 
 // VerifiableCredential is an alias to use from within the API

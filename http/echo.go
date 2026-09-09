@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/labstack/echo/v4"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"strings"

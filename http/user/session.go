@@ -29,9 +29,9 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/log"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/auth/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"net/http"
 	"time"
 )

@@ -19,7 +19,7 @@
 
 package services
 
-import "github.com/nuts-foundation/nuts-node/auth/contract"
+import "github.com/nuts-foundation/nuts-node/v6/auth/contract"
 
 type TestVPVerificationResult struct {
 	Val           contract.State

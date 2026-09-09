@@ -28,12 +28,12 @@ import (
 	"testing"
 	"time"
 
-	v1 "github.com/nuts-foundation/nuts-node/network/api/v1"
+	v1 "github.com/nuts-foundation/nuts-node/v6/network/api/v1"
 
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
 	"github.com/stretchr/testify/assert"
 )
 

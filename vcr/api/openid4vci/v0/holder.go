@@ -21,9 +21,9 @@ package v0
 import (
 	"context"
 	"encoding/json"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/holder"
-	"github.com/nuts-foundation/nuts-node/vcr/openid4vci"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/holder"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
 )
 
 func (w Wrapper) getHolderHandler(ctx context.Context, holder string) (holder.OpenIDHandler, error) {

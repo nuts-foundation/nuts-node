@@ -23,11 +23,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/vcr/credential"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
 )
 
 // Verifier defines the interface for verifying verifiable credentials.

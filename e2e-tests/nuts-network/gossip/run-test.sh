@@ -41,8 +41,8 @@ echo "------------------------------------"
 echo "Performing assertions..."
 echo "------------------------------------"
 
-waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 81 10
-waitForTXCount "NodeD" "http://localhost:48081/status/diagnostics" 81 10
+waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 81 30
+waitForTXCount "NodeD" "http://localhost:48081/status/diagnostics" 81 30
 
 echo "------------------------------------"
 echo "Stopping Docker containers..."

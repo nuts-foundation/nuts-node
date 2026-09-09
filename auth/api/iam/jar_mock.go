@@ -15,7 +15,7 @@ import (
 	reflect "reflect"
 
 	did "github.com/nuts-foundation/go-did/did"
-	oauth "github.com/nuts-foundation/nuts-node/auth/oauth"
+	oauth "github.com/nuts-foundation/nuts-node/v6/auth/oauth"
 	gomock "go.uber.org/mock/gomock"
 )
 

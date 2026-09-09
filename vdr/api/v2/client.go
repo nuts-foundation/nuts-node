@@ -24,7 +24,7 @@ import (
 	"net/http"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // HTTPClient holds the server address and other basic settings for the http client
