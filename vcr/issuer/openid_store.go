@@ -21,7 +21,7 @@ package issuer
 import (
 	"context"
 	"errors"
-	"github.com/nuts-foundation/nuts-node/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
 )
 
 // OpenIDStore defines the storage API for OpenID Credential Issuance flows.

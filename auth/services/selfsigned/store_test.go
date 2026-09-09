@@ -20,7 +20,7 @@ package selfsigned
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/auth/services/selfsigned/types"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services/selfsigned/types"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"

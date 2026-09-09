@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/lestrrat-go/jwx/v3/jwa"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/core/to"
-	"github.com/nuts-foundation/nuts-node/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
 )
 
 func authorizationServerMetadata(issuerURL *url.URL, supportedDIDMethods []string) oauth.AuthorizationServerMetadata {

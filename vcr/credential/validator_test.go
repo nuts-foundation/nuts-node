@@ -20,7 +20,7 @@
 package credential
 
 import (
-	"github.com/nuts-foundation/nuts-node/pki"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
 	"go.uber.org/mock/gomock"
 	"testing"
 	"time"
@@ -29,10 +29,10 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/jsonld"
-	"github.com/nuts-foundation/nuts-node/vcr/revocation"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/revocation"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

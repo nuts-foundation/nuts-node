@@ -21,7 +21,7 @@ package didsubject
 import (
 	"errors"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"gorm.io/gorm"
 	"time"
 )

@@ -27,7 +27,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 )
 
 // ErrAllCandidates4xx indicates every well-known candidate for a FetchMetadata call responded

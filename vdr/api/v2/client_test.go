@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/core"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
-	"github.com/nuts-foundation/nuts-node/vdr"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
+	"github.com/nuts-foundation/nuts-node/v6/vdr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -20,7 +20,7 @@ package didweb
 
 import (
 	"github.com/nuts-foundation/go-did/did"
-	http2 "github.com/nuts-foundation/nuts-node/test/http"
+	http2 "github.com/nuts-foundation/nuts-node/v6/test/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"

@@ -33,8 +33,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/test/node"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/test/node"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
