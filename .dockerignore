@@ -2,7 +2,9 @@
 # build context: go build runs "git status" to stamp the module version from
 # the checked-out tag, and marks the version "+dirty" when tracked files are
 # missing (see Dockerfile).
-.claude
+# .claude/commands is tracked; only the local parts are excluded.
+.claude/worktrees
+.claude/settings.local.json
 .idea
 .run
 .DS_Store
