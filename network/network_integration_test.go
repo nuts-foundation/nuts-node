@@ -561,7 +561,7 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			defer foundMutex.Unlock()
 			found = msg.Data
 			err := msg.Ack()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
 
 		node1DID := node1.network.nodeDID
@@ -829,7 +829,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 		defer foundMutex.Unlock()
 		found = msg.Data
 		err := msg.Ack()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	// add a transaction
