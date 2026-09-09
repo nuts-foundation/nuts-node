@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/nuts-foundation/nuts-node/vcr/assets"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 
 	"github.com/nuts-foundation/go-did/vc"

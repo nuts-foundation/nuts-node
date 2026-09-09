@@ -22,8 +22,8 @@ import (
 	"context"
 
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/oauth"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/auth/oauth"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 )
 
 // Client defines OpenID4VP client methods using the IAM OpenAPI Spec.

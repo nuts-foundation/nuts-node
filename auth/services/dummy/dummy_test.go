@@ -25,8 +25,8 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/vc"
-	"github.com/nuts-foundation/nuts-node/auth/contract"
-	"github.com/nuts-foundation/nuts-node/auth/services"
+	"github.com/nuts-foundation/nuts-node/v6/auth/contract"
+	"github.com/nuts-foundation/nuts-node/v6/auth/services"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -31,7 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/rds/auth"
 	_ "github.com/jackc/pgx/v5/stdlib" // Import postgres driver for sql.Open
-	"github.com/nuts-foundation/nuts-node/storage/log"
+	"github.com/nuts-foundation/nuts-node/v6/storage/log"
 )
 
 var loadAWSConfigForRegion = func(ctx context.Context, region string) (aws.Config, error) {

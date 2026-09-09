@@ -23,7 +23,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
 )
 
 // peerQueue contains a log of received transaction references and a queue of references to send for a specific peer.

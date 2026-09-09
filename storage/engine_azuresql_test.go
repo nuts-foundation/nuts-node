@@ -20,7 +20,7 @@ package storage
 
 import (
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

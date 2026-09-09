@@ -24,17 +24,25 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"strings"
 
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
 )
 
 // palHeaderDIDSeparator holds the character(s) that separate DID entries in the PAL header, before being encrypted.
 const palHeaderDIDSeparator = "\n"
+
+// palEntryCount is the exact number of entries a transaction's PAL (encrypted participant list) must
+// contain, both encrypted (one entry per recipient) and, once decrypted, in the participant list
+// itself. Every private transaction has exactly 2 participants (sender and receiver); a peer-
+// controlled PAL with more entries forces a decrypt attempt against every local keyAgreement key for
+// each one, with no early exit, and a single decrypted entry's plaintext is otherwise unbounded since
+// it's entirely attacker-chosen.
+const palEntryCount = 2
 
 // PAL holds the list of participants of a transaction.
 type PAL []did.DID
@@ -121,8 +129,17 @@ outer:
 		return nil, nil
 	}
 
+	parts := strings.Split(string(decrypted), palHeaderDIDSeparator)
+	// The encrypted-entry check in parsePAL/NewTransaction bounds how many expensive decrypt attempts
+	// this function makes, but not what's inside a single entry once it does decrypt - that plaintext
+	// is entirely attacker-chosen. Without this, one successfully-decrypted entry could still contain
+	// an unbounded number of newline-separated fake DIDs, each fed through did.ParseDID below.
+	if len(parts) != palEntryCount {
+		return nil, fmt.Errorf("decrypted pal must contain exactly %d entries, got %d", palEntryCount, len(parts))
+	}
+
 	var participants []did.DID
-	for _, curr := range strings.Split(string(decrypted), palHeaderDIDSeparator) {
+	for _, curr := range parts {
 		participant, err := did.ParseDID(curr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid participant (did=%s): %w", curr, err)

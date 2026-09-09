@@ -21,9 +21,9 @@ package vdr
 import (
 	"context"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/vdr/didsubject"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"gorm.io/gorm"
 	"strings"
 	"sync"

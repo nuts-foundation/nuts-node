@@ -20,8 +20,8 @@ package policy
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/core"
-	"github.com/nuts-foundation/nuts-node/vcr/pe"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

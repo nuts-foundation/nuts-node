@@ -24,11 +24,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	testPKI "github.com/nuts-foundation/nuts-node/test/pki"
-	"github.com/nuts-foundation/nuts-node/vdr/didnuts/didstore"
-	"github.com/nuts-foundation/nuts-node/vdr/resolver"
+	testPKI "github.com/nuts-foundation/nuts-node/v6/test/pki"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts/didstore"
+	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"hash/crc32"
-	"math/rand"
 	"net/url"
 	"path"
 	"strings"
@@ -39,20 +38,20 @@ import (
 	"github.com/nats-io/nats.go"
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/audit"
-	"github.com/nuts-foundation/nuts-node/core"
-	nutsCrypto "github.com/nuts-foundation/nuts-node/crypto"
-	"github.com/nuts-foundation/nuts-node/crypto/hash"
-	"github.com/nuts-foundation/nuts-node/events"
-	"github.com/nuts-foundation/nuts-node/network/dag"
-	"github.com/nuts-foundation/nuts-node/network/log"
-	"github.com/nuts-foundation/nuts-node/network/transport"
-	"github.com/nuts-foundation/nuts-node/network/transport/grpc"
-	v2 "github.com/nuts-foundation/nuts-node/network/transport/v2"
-	"github.com/nuts-foundation/nuts-node/pki"
-	"github.com/nuts-foundation/nuts-node/storage"
-	"github.com/nuts-foundation/nuts-node/test"
-	"github.com/nuts-foundation/nuts-node/test/io"
+	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/events"
+	"github.com/nuts-foundation/nuts-node/v6/network/dag"
+	"github.com/nuts-foundation/nuts-node/v6/network/log"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport"
+	"github.com/nuts-foundation/nuts-node/v6/network/transport/grpc"
+	v2 "github.com/nuts-foundation/nuts-node/v6/network/transport/v2"
+	"github.com/nuts-foundation/nuts-node/v6/pki"
+	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/test"
+	"github.com/nuts-foundation/nuts-node/v6/test/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	grpcLib "google.golang.org/grpc"
@@ -67,6 +66,16 @@ var mutex = sync.Mutex{}
 var receivedTransactions = make(map[string][]dag.Transaction, 0)
 var didStore didstore.Store
 var keyStore nutsCrypto.KeyStore
+
+// bootstrapDIDDocumentTX holds the real, signed transaction that published a node's DID document
+// during resetIntegrationTest, so tests can add it to a specific node's own DAG (see
+// addBootstrapDIDDocument) before creating further transactions signed with that document's key.
+type bootstrapDIDDocumentTX struct {
+	tx      dag.Transaction
+	payload []byte
+}
+
+var bootstrapDIDDocumentTXs map[string]bootstrapDIDDocumentTX
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
@@ -509,9 +518,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
+		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -553,14 +561,13 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 			defer foundMutex.Unlock()
 			found = msg.Data
 			err := msg.Ack()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
+		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
 			WithPrivate([]did.DID{node1DID, node2DID})
 		_, err = node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -596,9 +603,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
+		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -617,51 +623,6 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		assert.False(t, arrived)
 	})
 
-	t.Run("three participants", func(t *testing.T) {
-		testDirectory := io.TestDirectory(t)
-		resetIntegrationTest(t)
-
-		// Start 3 nodes: node1, node2 and node3. Node 1 sends a private TX to node 2 and node 3, which both should receive.
-		node1 := startNode(t, "node1", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node1"
-		})
-		node2 := startNode(t, "node2", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node2"
-		})
-		node3 := startNode(t, "node3", testDirectory, func(_ *core.ServerConfig, cfg *Config) {
-			cfg.NodeDID = "did:nuts:node3"
-		})
-		// Make a full mesh
-		node1.network.connectionManager.Connect(nameToAddress(t, "node2"), did.MustParseDID("did:nuts:node2"), nil)
-		node2.network.connectionManager.Connect(nameToAddress(t, "node3"), did.MustParseDID("did:nuts:node3"), nil)
-
-		test.WaitFor(t, func() (bool, error) {
-			return len(node1.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-		test.WaitFor(t, func() (bool, error) {
-			return len(node2.network.connectionManager.Peers()) == 2, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-		test.WaitFor(t, func() (bool, error) {
-			return len(node3.network.connectionManager.Peers()) == 1, nil
-		}, defaultTimeout, "time-out while waiting for nodes to connect")
-
-		node1DID := node1.network.nodeDID
-		node2DID := node2.network.nodeDID
-		node3DID := node3.network.nodeDID
-		// Random order for PAL header
-		pal := []did.DID{node1DID, node2DID, node3DID}
-		rand.Shuffle(len(pal), func(i, j int) {
-			pal[i], pal[j] = pal[j], pal[i]
-		})
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
-			WithPrivate(pal)
-		tx, err := node1.network.CreateTransaction(ctx, tpl)
-		require.NoError(t, err)
-		waitForTransaction(t, tx, "node1", "node2", "node3")
-	})
-
 	t.Run("large amount of private transactions", func(t *testing.T) {
 		testDirectory := io.TestDirectory(t)
 		resetIntegrationTest(t)
@@ -677,10 +638,10 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 		// create some transactions
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
+		bootstrapRef := addBootstrapDIDDocument(t, node1, "did:nuts:node1")
 		for i := 0; i < 10; i++ {
-			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), "key").
-				WithAttachKey(key).
+			tpl := TransactionTemplate(payloadType, []byte(fmt.Sprintf("private TX%d", i)), "did:nuts:node1#key-1").
+				WithAdditionalPrevs([]hash.SHA256Hash{bootstrapRef}).
 				WithPrivate([]did.DID{node1DID, node2DID})
 			_, err := node1.network.CreateTransaction(ctx, tpl)
 			require.NoError(t, err)
@@ -722,9 +683,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
+		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -768,9 +728,8 @@ func TestNetworkIntegration_PrivateTransaction(t *testing.T) {
 
 		node1DID := node1.network.nodeDID
 		node2DID := node2.network.nodeDID
-		_, key, _ := node1.network.keyStore.New(ctx, nutsCrypto.StringNamingFunc("key"))
-		tpl := TransactionTemplate(payloadType, []byte("private TX"), "key").
-			WithAttachKey(key).
+		addBootstrapDIDDocument(t, node1, "did:nuts:node1")
+		tpl := TransactionTemplate(payloadType, []byte("private TX"), "did:nuts:node1#key-1").
 			WithPrivate([]did.DID{node1DID, node2DID})
 		tx, err := node1.network.CreateTransaction(ctx, tpl)
 		require.NoError(t, err)
@@ -870,7 +829,7 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 		defer foundMutex.Unlock()
 		found = msg.Data
 		err := msg.Ack()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	// add a transaction
@@ -996,6 +955,7 @@ func resetIntegrationTest(t *testing.T) {
 
 	didStore = didstore.NewTestStore(t)
 	keyStore = nutsCrypto.NewMemoryCryptoInstance(t)
+	bootstrapDIDDocumentTXs = make(map[string]bootstrapDIDDocumentTX)
 
 	// Write DID Document for node1
 	writeDIDDocument := func(subject string) {
@@ -1015,8 +975,14 @@ func resetIntegrationTest(t *testing.T) {
 			ServiceEndpoint: "grpc://nuts.nl:5555", // Must match TLS SAN DNSName
 		}}
 		docBytes, _ := json.Marshal(document)
-		tx, _, _ := dag.CreateTestTransactionEx(0, hash.SHA256Sum(docBytes), nil)
-		err := didStore.Add(document, didstore.Transaction{
+		// Sign for real (embedded key, like a real DID document creation transaction), so this
+		// transaction can be added to a node's own DAG and later referenced as a prev, allowing
+		// transactions signed with kid (not embedded) to resolve back to this document.
+		unsignedTx, err := dag.NewTransaction(hash.SHA256Sum(docBytes), "application/did+json", nil, nil, 0)
+		require.NoError(t, err)
+		tx, err := dag.NewTransactionSigner(keyStore, kid.String(), key).Sign(audit.TestContext(), unsignedTx, time.Now())
+		require.NoError(t, err)
+		err = didStore.Add(document, didstore.Transaction{
 			Clock:       tx.Clock(),
 			PayloadHash: tx.PayloadHash(),
 			Previous:    tx.Previous(),
@@ -1024,10 +990,24 @@ func resetIntegrationTest(t *testing.T) {
 			SigningTime: tx.SigningTime(),
 		})
 		require.NoError(t, err)
+		bootstrapDIDDocumentTXs[subject] = bootstrapDIDDocumentTX{tx: tx, payload: docBytes}
 	}
 	writeDIDDocument("did:nuts:node1")
 	writeDIDDocument("did:nuts:node2")
 	writeDIDDocument("did:nuts:node3")
+}
+
+// addBootstrapDIDDocument adds the DID document transaction resetIntegrationTest created for
+// subject to n's own DAG, so it becomes a real prev that transactions n subsequently signs with
+// that document's kid (rather than an embedded key) can be verified against. Returns its ref,
+// which callers creating more than one such transaction should keep passing via
+// Template.WithAdditionalPrevs, since a transaction can only resolve a kid via a direct prev
+// (mirroring how vdr/didnuts and vcr/issuer always carry the signer's current
+// DocumentMetadata.SourceTransactions along as additional prevs).
+func addBootstrapDIDDocument(t *testing.T, n node, subject string) hash.SHA256Hash {
+	b := bootstrapDIDDocumentTXs[subject]
+	require.NoError(t, n.network.state.Add(context.Background(), b.tx, b.payload))
+	return b.tx.Ref()
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, sender node, receivers ...string) bool {

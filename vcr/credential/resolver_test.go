@@ -27,8 +27,8 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jws"
 	"github.com/lestrrat-go/jwx/v3/jwt"
 	"github.com/nuts-foundation/go-did/did"
-	"github.com/nuts-foundation/nuts-node/vcr/signature/proof"
-	"github.com/nuts-foundation/nuts-node/vcr/test"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/signature/proof"
+	"github.com/nuts-foundation/nuts-node/v6/vcr/test"
 	"github.com/stretchr/testify/require"
 	"testing"
 

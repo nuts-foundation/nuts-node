@@ -21,7 +21,7 @@ package main
 
 import (
 	"context"
-	"github.com/nuts-foundation/nuts-node/cmd"
+	"github.com/nuts-foundation/nuts-node/v6/cmd"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
