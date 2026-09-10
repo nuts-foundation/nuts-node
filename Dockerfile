@@ -1,5 +1,5 @@
 # golang alpine
-FROM golang:1.26.6-alpine AS builder
+FROM golang:1.26.8-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -28,9 +28,11 @@ RUN MODULE=$(go list -m) && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags=
 
 # alpine
 FROM alpine:3.24.1
+# Upgrade all preinstalled packages so the image picks up security fixes
+# published after the base image was cut.
 # DL3018 ignored for the same reason as in the builder stage above.
 # hadolint ignore=DL3018
-RUN apk update \
+RUN apk -U upgrade --no-cache \
   && apk add --no-cache \
              tzdata \
              curl

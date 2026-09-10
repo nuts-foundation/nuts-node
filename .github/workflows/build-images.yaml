@@ -31,11 +31,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # all tags are needed to decide whether this build is the highest release
+          fetch-tags: true
           # go build stamps the module version from git. A tag build only needs
           # the tagged commit. An untagged branch push (the :master image) needs
           # the history back to the nearest tag, otherwise the stamp becomes
           # v6.0.0-<time>-<rev>, which sorts below every release and trips image
           # scanners. Pull request builds are not pushed, so they stay shallow.
+          # fetch-tags above does not cover this: at depth 1 the tag objects
+          # exist but the tagged commit is not an ancestor of HEAD, so go build
+          # still stamps v6.0.0-<time>-<rev>.
           fetch-depth: ${{ github.event_name == 'push' && github.ref_type == 'branch' && 0 || 1 }}
 
       - name: Set version params
@@ -46,10 +51,13 @@ jobs:
           echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
           echo "git_version=$(git name-rev --tags --name-only $(git rev-parse HEAD))" >> $GITHUB_OUTPUT
 
-      - uses: actions-ecosystem/action-get-latest-tag@b7c32daec3395a9616f88548363a42652b22d435 # v1
+      - name: Determine highest release tag
+        # Sort by version, not by creation date: a v5.4.x patch tagged after a
+        # v6.2.x patch must not become 'latest'.
         id: get-latest-tag
-        with:
-          semver_only: true
+        shell: bash
+        run: |
+          echo "tag=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Print version params
         env:
