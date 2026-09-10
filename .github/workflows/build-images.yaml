@@ -16,9 +16,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# deny-all default; each job below grants only the scopes it needs
+permissions: {}
+
 jobs:
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       image_digest: ${{ steps.build.outputs.digest }}
     steps:
