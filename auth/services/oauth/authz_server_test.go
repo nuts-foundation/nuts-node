@@ -570,7 +570,8 @@ func TestService_parseAndValidateJwtBearerToken(t *testing.T) {
 		}
 		err = ctx.oauthService.parseAndValidateJwtBearerToken(tokenCtx2)
 		assert.Nil(t, tokenCtx.jwtBearerToken)
-		assert.Equal(t, "jws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: failed to parse JOSE headers: invalid character '×' looking for beginning of value", err.Error())
+		// the rendering of the invalid character in the error message differs between Go versions
+		assert.ErrorContains(t, err, "jws.ParseString: failed to parse string: jws.Parse: failed to parse compact format: failed to parse JOSE headers: invalid character ")
 	})
 
 	t.Run("wrong signing algorithm", func(t *testing.T) {
