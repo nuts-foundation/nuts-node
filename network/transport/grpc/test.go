@@ -131,6 +131,10 @@ func (s *StubConnection) closeError() *status.Status {
 	panic("implement me")
 }
 
+func (s *StubConnection) waitForReceivers() {
+	// no receive loops
+}
+
 func (s *StubConnection) SetErrorStatus(_ *status.Status) {
 	panic("implement me")
 }

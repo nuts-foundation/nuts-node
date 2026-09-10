@@ -163,6 +163,18 @@ func (mr *MockConnectionMockRecorder) verifyOrSetPeerID(id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "verifyOrSetPeerID", reflect.TypeOf((*MockConnection)(nil).verifyOrSetPeerID), id)
 }
 
+// waitForReceivers mocks base method.
+func (m *MockConnection) waitForReceivers() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "waitForReceivers")
+}
+
+// waitForReceivers indicates an expected call of waitForReceivers.
+func (mr *MockConnectionMockRecorder) waitForReceivers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "waitForReceivers", reflect.TypeOf((*MockConnection)(nil).waitForReceivers))
+}
+
 // waitUntilDisconnected mocks base method.
 func (m *MockConnection) waitUntilDisconnected() {
 	m.ctrl.T.Helper()

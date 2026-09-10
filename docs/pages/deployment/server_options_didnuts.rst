@@ -81,8 +81,11 @@
     * - network.grpcaddr
       - \:5555
       - Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
+    * - network.idletimeout
+      - 2m0s
+      - Period without any received message after which a connection to a peer is closed and re-established (in Golang duration format, e.g. '2m'). Specify 0 to disable.
     * - network.maxbackoff
-      - 24h0m0s
+      - 1h0m0s
       - Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
     * - network.nodedid
       -

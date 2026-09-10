@@ -46,6 +46,7 @@ func FlagSet() *pflag.FlagSet {
 		"(outbound connections can still be made).")
 	flagSet.Int("network.connectiontimeout", defs.ConnectionTimeout, "Timeout before an outbound connection attempt times out (in milliseconds).")
 	flagSet.Duration("network.maxbackoff", defs.MaxBackoff, "Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').")
+	flagSet.Duration("network.idletimeout", defs.IdleTimeout, "Period without any received message after which a connection to a peer is closed and re-established (in Golang duration format, e.g. '2m'). Specify 0 to disable.")
 	flagSet.StringSlice("network.bootstrapnodes", defs.BootstrapNodes, "List of bootstrap nodes ('<host>:<port>') which the node initially connect to.")
 	flagSet.Bool("network.enablediscovery", defs.EnableDiscovery, "Whether to enable automatic connecting to other nodes.")
 	flagSet.String("network.nodedid", defs.NodeDID, "Specifies the DID of the party that operates this node. It is used to identify the node on the network. If the DID document does not exist of is deactivated, the node will not start.")
