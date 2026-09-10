@@ -23,7 +23,10 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nu
 # alpine
 FROM alpine:3.24.1
 # Upgrade all preinstalled packages so the image picks up security fixes
-# published after the base image was cut.
+# published after the base image was cut. Alpine repos only serve the newest
+# package version, so pinning (hadolint DL3018) would break the build on
+# every upstream fix.
+# hadolint ignore=DL3018
 RUN apk -U upgrade --no-cache \
   && apk add --no-cache \
              tzdata \
