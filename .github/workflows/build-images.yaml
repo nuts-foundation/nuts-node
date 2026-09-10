@@ -31,6 +31,12 @@ jobs:
           persist-credentials: false
           # all tags are needed to decide whether this build is the highest release
           fetch-tags: true
+          # go build stamps the module version from git. A tag build only needs
+          # the tagged commit. An untagged branch push (the :master image) needs
+          # the history back to the nearest tag, otherwise the stamp becomes
+          # v6.0.0-<time>-<rev>, which sorts below every release and trips image
+          # scanners. Pull request builds are not pushed, so they stay shallow.
+          fetch-depth: ${{ github.event_name == 'push' && github.ref_type == 'branch' && 0 || 1 }}
 
       - name: Set version params
         id: version

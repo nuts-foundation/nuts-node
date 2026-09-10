@@ -498,7 +498,7 @@ func Test_issuer_Issue(t *testing.T) {
 				Publish: true,
 				Public:  true,
 			})
-			assert.EqualError(t, err, "unable to publish the issued credential: b00m!")
+			assert.EqualError(t, err, "unable to publish the issued credential over gRPC network: b00m!")
 			assert.Nil(t, result)
 		})
 
