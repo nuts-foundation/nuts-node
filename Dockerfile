@@ -21,8 +21,13 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v5/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v5/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v5/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.22.2
-RUN apk update \
+FROM alpine:3.22.5
+# Upgrade all preinstalled packages so the image picks up security fixes
+# published after the base image was cut. Alpine repos only serve the newest
+# package version, so pinning (hadolint DL3018) would break the build on
+# every upstream fix.
+# hadolint ignore=DL3018
+RUN apk -U upgrade --no-cache \
   && apk add --no-cache \
              tzdata \
              curl

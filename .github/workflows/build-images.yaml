@@ -26,10 +26,14 @@ jobs:
           echo "git_branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
           echo "git_version=$(git name-rev --tags --name-only $(git rev-parse HEAD))" >> $GITHUB_OUTPUT
 
-      - uses: actions-ecosystem/action-get-latest-tag@v1
+      - name: Determine highest release tag
+        # Sort by version, not by creation date: a v5.4.x patch tagged after a
+        # v6.2.x patch must not become 'latest'.
         id: get-latest-tag
-        with:
-          semver_only: true
+        shell: bash
+        run: |
+          git fetch --tags --force --quiet
+          echo "tag=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Print version params
         run: |
