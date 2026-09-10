@@ -32,7 +32,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/crypto/log"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/util"
-	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -108,7 +107,7 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (crypto.PublicKey, string, spi.KeyCapability, error) {
 	return spi.GenerateAndStore(ctx, v, keyPath)
 }
 

@@ -412,7 +412,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
-		_, key, _, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+		_, key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
@@ -426,7 +426,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
-		_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+		_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 		cxt.state.EXPECT().Head(gomock.Any())
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 
@@ -452,7 +452,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().Add(gomock.Any(), gomock.Any(), payload)
 		err := cxt.start()
 		require.NoError(t, err)
-		_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+		_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		tx, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 
@@ -467,7 +467,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt := createNetwork(t, ctrl)
 		err := cxt.start()
 		require.NoError(t, err)
-		_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+		_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		// 'Register' prev on DAG
 		prev, _, _ := dag.CreateTestTransaction(1)
@@ -491,7 +491,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
-			_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
+			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
 
 			cxt.network.nodeDID = *nodeDID
 
@@ -510,7 +510,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
-			_, key, _, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
+			_, key, _ := cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("did:nuts:sender#signing-key"))
 			cxt.network.nodeDID = *nodeDID
 
 			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "did:nuts:sender#signing-key").WithAttachKey(key).WithPrivate([]did.DID{*sender, *receiver}))
@@ -522,7 +522,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
-			_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 			cxt.network.nodeDID = *nodeDID
 
 			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithPrivate([]did.DID{*sender, *receiver}))
@@ -534,7 +534,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 			cxt := createNetwork(t, ctrl)
 			err := cxt.start()
 			require.NoError(t, err)
-			_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+			_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 			_, err = cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithPrivate([]did.DID{*sender, *receiver}))
 			assert.EqualError(t, err, "node DID must be configured to create private transactions")
@@ -552,7 +552,7 @@ func TestNetwork_CreateTransaction(t *testing.T) {
 		cxt.state.EXPECT().GetTransaction(gomock.Any(), additionalPrev.Ref()).Return(additionalPrev, nil)
 		cxt.state.EXPECT().IsPayloadPresent(gomock.Any(), additionalPrev.PayloadHash()).Return(true, nil)
 		cxt.state.EXPECT().Head(gomock.Any()).Return(rootTX.Ref(), nil)
-		_, _, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
+		_, _, _ = cxt.keyStore.New(audit.TestContext(), crypto.StringNamingFunc("signing-key"))
 
 		_, err := cxt.network.CreateTransaction(ctx, TransactionTemplate(payloadType, payload, "signing-key").WithAdditionalPrevs([]hash.SHA256Hash{additionalPrev.Ref()}))
 

@@ -107,7 +107,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{}, nil)
@@ -136,7 +136,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("error - document is deactivated", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{Deactivated: true}, nil)
@@ -365,9 +365,9 @@ type signOnlyStorage struct {
 	spi.Storage
 }
 
-func (s signOnlyStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
+func (s signOnlyStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
 	publicKey, version, _, err := s.Storage.NewPrivateKey(ctx, keyName)
-	return publicKey, version, orm.AssertionKeyUsage(), err
+	return publicKey, version, spi.SigningOnly, err
 }
 
 func TestManager_Commit(t *testing.T) {

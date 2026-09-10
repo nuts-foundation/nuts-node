@@ -49,12 +49,6 @@ func EncryptionKeyUsage() DIDKeyFlags {
 	return KeyAgreementUsage
 }
 
-// AllKeyUsage returns every DIDKeyFlags bit. It's the usage reported by a key store backend whose
-// keys support every verification relationship, e.g. because it hands back plain, exportable EC keys.
-func AllKeyUsage() DIDKeyFlags {
-	return AssertionKeyUsage() | EncryptionKeyUsage()
-}
-
 // verificationMethodToKeyFlags creates DIDKeyFlags for a did.VerificationMethod based on its usage in the did.Document.
 func verificationMethodToKeyFlags(document did.Document, vm *did.VerificationMethod) DIDKeyFlags {
 	var flags DIDKeyFlags

@@ -40,9 +40,10 @@ type KeyCreator interface {
 	// New generates a keypair and returns a reference. The context is used to pass audit information.
 	// It generates a key at the backend and stores its reference in the SQL DB.
 	// A DB transaction may be passed through the context using `orm.TransactionKey`.
-	// It also returns the DIDKeyFlags the generated key can actually be used for, as reported by the
-	// storage backend, so callers don't add a verification method (e.g. KeyAgreement) the key can't back.
-	New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error)
+	// The returned KeyReference's KeyUsage reports the DIDKeyFlags the generated key can actually be
+	// used for, as reported by the storage backend, so callers don't add a verification method (e.g.
+	// KeyAgreement) the key can't back.
+	New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error)
 }
 
 // KeyResolver is the interface for resolving keys.

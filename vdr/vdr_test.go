@@ -140,7 +140,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			client := nutsCrypto.NewDatabaseCryptoInstance(db)
 			keyID := did.DIDURL{DID: TestDIDA}
 			keyID.Fragment = "1"
-			_, _, _, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
+			_, _, _ = client.New(audit.TestContext(), nutsCrypto.StringNamingFunc(keyID.String()))
 			ctrl := gomock.NewController(t)
 			pkiMock := pki.NewMockValidator(ctrl)
 			vdr := NewVDR(client, nil, didstore.NewTestStore(t), nil, storageEngine, pkiMock)
@@ -160,7 +160,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 		t.Run("ok - 1 owned conflict in controlled document", func(t *testing.T) {
 			// vendor
 			test := newVDRTestCtx(t)
-			_, keyVendor, _, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:vendor#keyVendor-1"))
+			_, keyVendor, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:vendor#keyVendor-1"))
 
 			didDocVendor := &did.Document{ID: did.MustParseDID("did:nuts:vendor")}
 			vendorVM, err := did.NewVerificationMethod(did.MustParseDIDURL("did:nuts:vendor#keyVendor-1"), ssi.JsonWebKey2020, didDocVendor.ID, keyVendor)
@@ -168,7 +168,7 @@ func TestVDR_ConflictingDocuments(t *testing.T) {
 			didDocVendor.AddCapabilityInvocation(vendorVM)
 
 			// organization
-			_, keyOrg, _, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:org#keyOrg-1"))
+			_, keyOrg, _ := test.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:org#keyOrg-1"))
 			didDocOrg := &did.Document{ID: did.MustParseDID("did:nuts:org")}
 			didDocOrg.Controller = []did.DID{didDocVendor.ID}
 			orgVM, err := did.NewVerificationMethod(did.MustParseDIDURL("did:nuts:org#keyOrg-1"), ssi.JsonWebKey2020, didDocOrg.ID, keyOrg)
@@ -343,7 +343,7 @@ func TestVDR_Migrate(t *testing.T) {
 		t.Run("makes documents self-controlled", func(t *testing.T) {
 			ctx := controllerMigrationSetup(t)
 			keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-			keyRef, publicKey, _, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
+			keyRef, publicKey, err := keyStore.New(ctx.ctx, didnuts.DIDKIDNamingFunc)
 			require.NoError(t, err)
 			methodID := did.MustParseDIDURL(keyRef.KID)
 			methodID.ID = TestDIDA.ID

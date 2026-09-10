@@ -37,7 +37,6 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/log"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
 )
@@ -103,10 +102,9 @@ func (a Keyvault) CheckHealth() map[string]core.Health {
 	return nil
 }
 
-// NewPrivateKey creates a new EC key in Azure Key Vault. It only reports AssertionKeyUsage (not
-// EncryptionKeyUsage/KeyAgreementUsage): Azure Key Vault EC keys can only be used for signing, they
-// can't be used for decryption/ECDH, so such a key can't back a KeyAgreement verification method.
-func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
+// NewPrivateKey creates a new EC key in Azure Key Vault. It reports SigningOnly: Azure Key Vault EC
+// keys can only be used for signing, they can't be used for decryption/ECDH.
+func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
 	var keyType azkeys.KeyType
 	if a.useHSM {
 		keyType = azkeys.KeyTypeECHSM
@@ -123,13 +121,13 @@ func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.Pub
 		},
 	}, nil)
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("unable to create key in Azure Key Vault (name=%s): %w", keyName, err)
+		return nil, "", spi.SigningOnly, fmt.Errorf("unable to create key in Azure Key Vault (name=%s): %w", keyName, err)
 	}
 	publicKey, _, version, err := parseKey(response.Key)
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", spi.SigningOnly, err
 	}
-	return publicKey, version, orm.AssertionKeyUsage(), nil
+	return publicKey, version, spi.SigningOnly, nil
 }
 
 func (a Keyvault) GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error) {

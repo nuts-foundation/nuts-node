@@ -40,7 +40,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
-	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -67,7 +66,7 @@ func Test_Keyvault_NewPrivateKey(t *testing.T) {
 			})
 
 		store := Keyvault{client: vaultClient}
-		privateKey, version, keyUsage, err := store.NewPrivateKey(context.Background(), "did-web-example-com-0")
+		privateKey, version, capability, err := store.NewPrivateKey(context.Background(), "did-web-example-com-0")
 		require.NoError(t, err)
 		assert.NotNil(t, privateKey)
 		assert.Equal(t, "b86c2e6ad9054f4abf69cc185b99aa60", version)
@@ -76,8 +75,7 @@ func Test_Keyvault_NewPrivateKey(t *testing.T) {
 		assert.True(t, *capturedParams.KeyAttributes.Enabled)
 		assert.False(t, *capturedParams.KeyAttributes.Exportable)
 		// Azure Key Vault EC keys can sign, but not decrypt, so they can't back KeyAgreement.
-		assert.Equal(t, orm.AssertionKeyUsage(), keyUsage)
-		assert.False(t, keyUsage.Is(orm.KeyAgreementUsage))
+		assert.Equal(t, spi.SigningOnly, capability)
 	})
 }
 

@@ -104,7 +104,7 @@ func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, 
 		//      return verificationMethodID.String(), nil
 		//})
 	} else {
-		_, publicKey, _, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+		_, publicKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
 			return verificationMethodID.String(), nil
 		})
 	}

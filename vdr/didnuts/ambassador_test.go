@@ -55,18 +55,19 @@ type mockKeyStore struct {
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
+func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
 	if m.privateKey == nil {
 		m.privateKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 		kid, _ := nf(m.privateKey.PublicKey)
 		m.keyReference = &orm.KeyReference{
-			KID:     kid,
-			KeyName: uuid.NewString(),
-			Version: uuid.NewString(),
+			KID:      kid,
+			KeyName:  uuid.NewString(),
+			Version:  uuid.NewString(),
+			KeyUsage: orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage()),
 		}
 	}
-	return m.keyReference, m.privateKey.Public(), orm.AssertionKeyUsage() | orm.EncryptionKeyUsage(), nil
+	return m.keyReference, m.privateKey.Public(), nil
 }
 
 func (m *mockKeyStore) Link(_ context.Context, _ string, _ string, _ string) error {

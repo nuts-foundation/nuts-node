@@ -70,11 +70,12 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(nil)
 		keyName := "123"
 
-		key, version, _, err := GenerateAndStore(ctx, store, keyName)
+		key, version, capability, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, "1", version)
+		assert.Equal(t, SigningAndDecryption, capability)
 	})
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {

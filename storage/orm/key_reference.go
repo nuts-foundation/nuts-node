@@ -24,6 +24,10 @@ type KeyReference struct {
 	KID     string `gorm:"column:kid;primaryKey"`
 	KeyName string
 	Version string
+	// KeyUsage is the bitmask of DIDKeyFlags the key can actually be used for, as reported by the key
+	// store backend. E.g. an Azure Key Vault EC key can only be used for signing, not KeyAgreement,
+	// since Azure Key Vault doesn't support decryption/ECDH with it.
+	KeyUsage VerificationMethodKeyType
 }
 
 func (d KeyReference) TableName() string {

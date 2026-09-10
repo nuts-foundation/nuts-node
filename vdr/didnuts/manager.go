@@ -160,7 +160,7 @@ func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID
 // with a freshly generated key for a given DID. It also returns the DIDKeyFlags the key can actually
 // be used for, as reported by the key store backend.
 func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
-	keyRef, publicKey, keyUsage, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -172,7 +172,7 @@ func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreat
 	if err != nil {
 		return nil, 0, err
 	}
-	return method, keyUsage, nil
+	return method, orm.DIDKeyFlags(keyRef.KeyUsage), nil
 }
 
 // Update updates a DID Document based on the DID.
@@ -254,13 +254,13 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  ******************************/
 
 func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
-	keyRef, publicKey, actualUsage, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
 	if err != nil {
 		return nil, err
 	}
 	// Only claim the verification relationships (e.g. KeyAgreement) the key store backend can actually
 	// back for this key; e.g. an Azure Key Vault EC key can't be used for KeyAgreement (decryption).
-	keyFlags := DefaultKeyFlags() & actualUsage
+	keyFlags := DefaultKeyFlags() & orm.DIDKeyFlags(keyRef.KeyUsage)
 
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {

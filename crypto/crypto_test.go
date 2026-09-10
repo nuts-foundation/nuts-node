@@ -21,6 +21,7 @@ package crypto
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
@@ -99,6 +100,24 @@ func TestCrypto_Migrate(t *testing.T) {
 		keys := client.List(context.Background())
 		require.Len(t, keys, 1)
 	})
+	t.Run("corrects existing KeyReferences for the Azure Key Vault backend", func(t *testing.T) {
+		backend := NewMemoryStorage()
+		db := orm.NewTestDatabase(t)
+		client := &Crypto{backend: backend, db: db, config: Config{Storage: azure.StorageType}}
+		allUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage())
+		signOnlyUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage())
+		// Simulates a KeyReference created before the Azure Key Vault backend reported per-key usage,
+		// i.e. one still holding the SQL migration's default of "everything".
+		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1", KeyUsage: allUsage}).Error
+		require.NoError(t, err)
+
+		err = client.Migrate()
+		require.NoError(t, err)
+
+		var keyRef orm.KeyReference
+		require.NoError(t, db.Where("kid = ?", "vm-id").First(&keyRef).Error)
+		assert.Equal(t, signOnlyUsage, keyRef.KeyUsage)
+	})
 }
 
 func TestCrypto_New(t *testing.T) {
@@ -109,15 +128,16 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
 
-		ref, pubKey, _, err := client.New(ctx, StringNamingFunc("kid"))
+		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, ref)
 		assert.NotNil(t, pubKey)
+		assert.Equal(t, orm.VerificationMethodKeyType(orm.AssertionKeyUsage()|orm.EncryptionKeyUsage()), ref.KeyUsage)
 		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
 	t.Run("error - invalid naming function", func(t *testing.T) {
-		_, _, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
+		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -125,11 +145,11 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error from backend", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", orm.DIDKeyFlags(0), assert.AnError)
+		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", spi.SigningOnly, assert.AnError)
 		client := createCrypto(t)
 		client.backend = storageMock
 
-		_, _, _, err := client.New(ctx, StringNamingFunc("kid"))
+		_, _, err := client.New(ctx, StringNamingFunc("kid"))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)

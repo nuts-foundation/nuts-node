@@ -190,6 +190,13 @@ func (client *Crypto) Migrate() error {
 	// else do nothing
 
 	outerContext := context.TODO()
+	// Azure Key Vault EC keys can't be used for decryption; every other backend hands back plain,
+	// exportable EC keys that support both signing and decryption.
+	capability := spi.SigningAndDecryption
+	if client.config.Storage == azure.StorageType {
+		capability = spi.SigningOnly
+	}
+	keyUsage := orm.VerificationMethodKeyType(keyUsageForCapability(capability))
 
 	// run everything in a single transaction
 	// we do not expect to have a lot of keys, so this should be fine
@@ -204,9 +211,10 @@ func (client *Crypto) Migrate() error {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					// create a new key reference
 					ref := &orm.KeyReference{
-						KID:     keyNameVersion.KeyName,
-						KeyName: keyNameVersion.KeyName,
-						Version: keyNameVersion.Version,
+						KID:      keyNameVersion.KeyName,
+						KeyName:  keyNameVersion.KeyName,
+						Version:  keyNameVersion.Version,
+						KeyUsage: keyUsage,
 					}
 					err := tx.Save(ref).Error
 					if err != nil {
@@ -217,6 +225,18 @@ func (client *Crypto) Migrate() error {
 				}
 			}
 		}
+		if capability == spi.SigningOnly {
+			// Correct KeyReferences created before this backend reported per-key usage (the SQL
+			// migration defaults key_usage to "everything"): on a node configured with the Azure Key
+			// Vault backend, every managed key was created by Azure Key Vault and can't decrypt.
+			// Switching crypto storage backends for an existing node isn't supported (KeyName/Version
+			// are backend-specific and become unreachable), so this is safe to assume unconditionally.
+			allUsage := orm.VerificationMethodKeyType(keyUsageForCapability(spi.SigningAndDecryption))
+			err := tx.Model(&orm.KeyReference{}).Where("key_usage = ?", allUsage).Update("key_usage", keyUsage).Error
+			if err != nil {
+				return fmt.Errorf("could not correct existing KeyReferences for the Azure Key Vault backend: %w", err)
+			}
+		}
 		return nil
 	})
 }
@@ -224,15 +244,15 @@ func (client *Crypto) Migrate() error {
 // New generates a new key pair.
 // Stores the private key, returns the public key and DB reference.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
+func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
 	var ref *orm.KeyReference
 	var publicKey crypto.PublicKey
-	var keyUsage orm.DIDKeyFlags
 	err := client.continueTransaction(ctx, func(tx *gorm.DB) error {
 		keyName := uuid.New().String()
 		var err error
 		var version string
-		publicKey, version, keyUsage, err = client.backend.NewPrivateKey(ctx, keyName)
+		var capability spi.KeyCapability
+		publicKey, version, capability, err = client.backend.NewPrivateKey(ctx, keyName)
 		if err != nil {
 			return err
 		}
@@ -242,14 +262,26 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.K
 			return err
 		}
 		ref = &orm.KeyReference{
-			KID:     kid,
-			KeyName: keyName,
-			Version: version,
+			KID:      kid,
+			KeyName:  keyName,
+			Version:  version,
+			KeyUsage: orm.VerificationMethodKeyType(keyUsageForCapability(capability)),
 		}
 		audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generated new key pair: %s", kid)
 		return tx.Save(ref).Error
 	})
-	return ref, publicKey, keyUsage, err
+	return ref, publicKey, err
+}
+
+// keyUsageForCapability derives the DIDKeyFlags a key with the given KeyCapability can back.
+// Every key can be used for signing (AssertionKeyUsage); only a key that also supports
+// decryption/ECDH (SigningAndDecryption) can additionally back KeyAgreement (EncryptionKeyUsage).
+func keyUsageForCapability(capability spi.KeyCapability) orm.DIDKeyFlags {
+	keyUsage := orm.AssertionKeyUsage()
+	if capability == spi.SigningAndDecryption {
+		keyUsage |= orm.EncryptionKeyUsage()
+	}
+	return keyUsage
 }
 
 // Delete removes the private key with the given KID from the KeyStore.
