@@ -102,8 +102,8 @@ func (a Keyvault) CheckHealth() map[string]core.Health {
 	return nil
 }
 
-// NewPrivateKey creates a new EC key in Azure Key Vault. It reports SigningOnly: Azure Key Vault EC
-// keys can only be used for signing, they can't be used for decryption/ECDH.
+// NewPrivateKey creates a new EC key in Azure Key Vault. It reports only spi.Signing: Azure Key
+// Vault EC keys can only be used for signing, they can't be used for decryption/ECDH.
 func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
 	var keyType azkeys.KeyType
 	if a.useHSM {
@@ -121,13 +121,13 @@ func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.Pub
 		},
 	}, nil)
 	if err != nil {
-		return nil, "", spi.SigningOnly, fmt.Errorf("unable to create key in Azure Key Vault (name=%s): %w", keyName, err)
+		return nil, "", 0, fmt.Errorf("unable to create key in Azure Key Vault (name=%s): %w", keyName, err)
 	}
 	publicKey, _, version, err := parseKey(response.Key)
 	if err != nil {
-		return nil, "", spi.SigningOnly, err
+		return nil, "", 0, err
 	}
-	return publicKey, version, spi.SigningOnly, nil
+	return publicKey, version, spi.Signing, nil
 }
 
 func (a Keyvault) GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error) {

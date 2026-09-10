@@ -42,17 +42,21 @@ var ErrKeyAlreadyExists = errors.New("key already exists")
 // KidPattern is the regexp for acceptable kids
 var KidPattern = regexp.MustCompile(`^(?:(?:[\da-zA-Z_\- :#.])|(?:%[0-9a-fA-F]{2}))+$`)
 
-// KeyCapability describes what a newly generated key can be used for.
+// KeyCapability is a bitmask describing what a newly generated key can be used for.
 type KeyCapability int
 
 const (
-	// SigningOnly means the key can only be used for signing, e.g. an Azure Key Vault EC key: Azure
-	// Key Vault doesn't support decryption/ECDH with it.
-	SigningOnly KeyCapability = iota
-	// SigningAndDecryption means the key can be used for both signing and decryption/ECDH key
-	// agreement, e.g. a plain, exportable EC key.
-	SigningAndDecryption
+	// Signing means the key can be used for signing. Every generated key can do this.
+	Signing KeyCapability = 1 << iota
+	// Decryption means the key can be used for decryption/ECDH key agreement. E.g. an Azure Key
+	// Vault EC key can't do this: Azure Key Vault doesn't support decryption/ECDH with it.
+	Decryption
 )
+
+// Is returns whether the specified KeyCapability is enabled.
+func (k KeyCapability) Is(other KeyCapability) bool {
+	return k&other > 0
+}
 
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
@@ -133,19 +137,19 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, KeyCapability, error) {
 	keyPair, err := GenerateKeyPair()
 	if err != nil {
-		return nil, "", SigningOnly, err
+		return nil, "", 0, err
 	}
 	exists, err := store.PrivateKeyExists(ctx, keyName, "1")
 	if err != nil {
-		return nil, "", SigningOnly, fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
+		return nil, "", 0, fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
 	}
 	if exists {
-		return nil, "", SigningOnly, errors.New("key with the given ID already exists")
+		return nil, "", 0, errors.New("key with the given ID already exists")
 	}
 	if err = store.SavePrivateKey(ctx, keyName, keyPair); err != nil {
-		return nil, "", SigningOnly, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+		return nil, "", 0, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
-	return keyPair.Public(), "1", SigningAndDecryption, nil
+	return keyPair.Public(), "1", Signing | Decryption, nil
 }
 
 // GenerateKeyPair generates a new key pair using the default key type.

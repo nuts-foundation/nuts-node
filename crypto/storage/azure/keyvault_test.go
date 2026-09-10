@@ -75,7 +75,7 @@ func Test_Keyvault_NewPrivateKey(t *testing.T) {
 		assert.True(t, *capturedParams.KeyAttributes.Enabled)
 		assert.False(t, *capturedParams.KeyAttributes.Exportable)
 		// Azure Key Vault EC keys can sign, but not decrypt, so they can't back KeyAgreement.
-		assert.Equal(t, spi.SigningOnly, capability)
+		assert.Equal(t, spi.Signing, capability)
 	})
 }
 

@@ -145,7 +145,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error from backend", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", spi.SigningOnly, assert.AnError)
+		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", spi.Signing, assert.AnError)
 		client := createCrypto(t)
 		client.backend = storageMock
 

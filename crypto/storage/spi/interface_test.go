@@ -75,7 +75,7 @@ func TestGenerateAndStore(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
 		assert.Equal(t, "1", version)
-		assert.Equal(t, SigningAndDecryption, capability)
+		assert.Equal(t, Signing|Decryption, capability)
 	})
 
 	t.Run("error - save public key returns an error", func(t *testing.T) {

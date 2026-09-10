@@ -367,7 +367,7 @@ type signOnlyStorage struct {
 
 func (s signOnlyStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
 	publicKey, version, _, err := s.Storage.NewPrivateKey(ctx, keyName)
-	return publicKey, version, spi.SigningOnly, err
+	return publicKey, version, spi.Signing, err
 }
 
 func TestManager_Commit(t *testing.T) {

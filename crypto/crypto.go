@@ -192,9 +192,9 @@ func (client *Crypto) Migrate() error {
 	outerContext := context.TODO()
 	// Azure Key Vault EC keys can't be used for decryption; every other backend hands back plain,
 	// exportable EC keys that support both signing and decryption.
-	capability := spi.SigningAndDecryption
+	capability := spi.Signing | spi.Decryption
 	if client.config.Storage == azure.StorageType {
-		capability = spi.SigningOnly
+		capability = spi.Signing
 	}
 	keyUsage := orm.VerificationMethodKeyType(keyUsageForCapability(capability))
 
@@ -225,13 +225,13 @@ func (client *Crypto) Migrate() error {
 				}
 			}
 		}
-		if capability == spi.SigningOnly {
+		if !capability.Is(spi.Decryption) {
 			// Correct KeyReferences created before this backend reported per-key usage (the SQL
 			// migration defaults key_usage to "everything"): on a node configured with the Azure Key
 			// Vault backend, every managed key was created by Azure Key Vault and can't decrypt.
 			// Switching crypto storage backends for an existing node isn't supported (KeyName/Version
 			// are backend-specific and become unreachable), so this is safe to assume unconditionally.
-			allUsage := orm.VerificationMethodKeyType(keyUsageForCapability(spi.SigningAndDecryption))
+			allUsage := orm.VerificationMethodKeyType(keyUsageForCapability(spi.Signing | spi.Decryption))
 			err := tx.Model(&orm.KeyReference{}).Where("key_usage = ?", allUsage).Update("key_usage", keyUsage).Error
 			if err != nil {
 				return fmt.Errorf("could not correct existing KeyReferences for the Azure Key Vault backend: %w", err)
@@ -275,10 +275,10 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.K
 
 // keyUsageForCapability derives the DIDKeyFlags a key with the given KeyCapability can back.
 // Every key can be used for signing (AssertionKeyUsage); only a key that also supports
-// decryption/ECDH (SigningAndDecryption) can additionally back KeyAgreement (EncryptionKeyUsage).
+// decryption/ECDH can additionally back KeyAgreement (EncryptionKeyUsage).
 func keyUsageForCapability(capability spi.KeyCapability) orm.DIDKeyFlags {
 	keyUsage := orm.AssertionKeyUsage()
-	if capability == spi.SigningAndDecryption {
+	if capability.Is(spi.Decryption) {
 		keyUsage |= orm.EncryptionKeyUsage()
 	}
 	return keyUsage
