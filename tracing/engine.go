@@ -287,7 +287,7 @@ func setupStandaloneTracing(cfg Config) (shutdown func(context.Context) error, e
 	if serviceName == "" {
 		serviceName = defaultServiceName
 	}
-	version := core.Version()
+	version := core.VersionOrBranch()
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(serviceName),

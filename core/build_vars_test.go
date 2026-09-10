@@ -34,11 +34,11 @@ func TestBuildInfo(t *testing.T) {
 }
 
 func TestUserAgent(t *testing.T) {
-	t.Run("GitVersion not set", func(t *testing.T) {
+	t.Run("Version not set", func(t *testing.T) {
 		assert.Equal(t, "nuts-node-refimpl/unknown", UserAgent())
 	})
-	t.Run("GitVersion set", func(t *testing.T) {
-		GitVersion = "abc"
+	t.Run("Version set", func(t *testing.T) {
+		Version = "abc"
 		assert.Equal(t, "nuts-node-refimpl/abc", UserAgent())
 	})
 }

@@ -57,7 +57,7 @@ func TestNewStatusEngine_Diagnostics(t *testing.T) {
 		// SoftwareVersion
 		idx++
 		assert.Equal(t, "software_version", ds[idx].Name())
-		assert.Equal(t, core.Version(), ds[idx].String())
+		assert.Equal(t, core.VersionOrBranch(), ds[idx].String())
 		// Commit
 		idx++
 		assert.Equal(t, "git_commit", ds[idx].Name())

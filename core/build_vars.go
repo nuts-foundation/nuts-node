@@ -28,16 +28,16 @@ import (
 // GitCommit holds the latest git commit hash for this build.
 var GitCommit = "0"
 
-// GitVersion holds the tagged version belonging to the git commit.
-var GitVersion string
+// Version holds the tagged version belonging to the git commit.
+var Version string
 
 // GitBranch holds the branch from where the binary is built.
 var GitBranch = "development"
 
-// Version gives the current version according to the git tag or the branch if there's no tag.
-func Version() string {
-	if GitVersion != "" && GitVersion != "undefined" {
-		return GitVersion
+// VersionOrBranch gives the current version according to the git tag or the branch if there's no tag.
+func VersionOrBranch() string {
+	if Version != "" && Version != "undefined" {
+		return Version
 	}
 	return GitBranch
 }
@@ -51,7 +51,7 @@ func OSArch() string {
 func BuildInfo() string {
 	b := strings.Builder{}
 	b.WriteString("Git version: ")
-	b.WriteString(Version())
+	b.WriteString(VersionOrBranch())
 	b.WriteString("\n")
 
 	b.WriteString("Git commit: ")
@@ -67,7 +67,7 @@ func BuildInfo() string {
 
 // UserAgent returns a string that can be used as HTTP user agent, containing the version of the node (e.g. nuts-node-refimpl/5.0.0)
 func UserAgent() string {
-	version := GitVersion
+	version := Version
 	if version == "" {
 		version = "unknown"
 	}

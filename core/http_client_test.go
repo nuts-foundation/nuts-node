@@ -92,7 +92,7 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestUserAgentRequestEditor(t *testing.T) {
-	GitVersion = ""
+	Version = ""
 	req := &stdHttp.Request{Header: map[string][]string{}}
 
 	err := UserAgentRequestEditor(context.TODO(), req)
