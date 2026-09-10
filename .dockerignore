@@ -1,5 +1,7 @@
-# Ignore everything that starts with a dot
-.*
+# Ignore everything that starts with a dot ('.?*' instead of '.*' so the
+# pattern does not match the build context root '.' itself, which trips
+# the CopyIgnoredFile check on 'COPY . .')
+.?*
 # Readme files and docs
 README.rst
 README_template.rst

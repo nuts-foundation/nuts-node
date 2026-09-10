@@ -36,5 +36,6 @@ func main() {
 	err := cmd.Execute(ctx, cmd.CreateSystem(cancelNotify))
 	if err != nil {
 		logrus.Error(err)
+		os.Exit(1)
 	}
 }

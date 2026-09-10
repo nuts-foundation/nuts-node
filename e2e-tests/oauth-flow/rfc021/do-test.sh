@@ -69,7 +69,8 @@ fi
 STATUS_LIST_CREDENTIAL=$(echo $VENDOR_B_CREDENTIAL | jq -r .credentialStatus.statusListCredential)
 echo "Status list credential: $STATUS_LIST_CREDENTIAL"
 # Get status list credential
-RESPONSE=$($db_dc exec nodeB-backend curl -s -k $STATUS_LIST_CREDENTIAL)
+# curl runs in a dedicated helper container on the compose network (the nuts-node image contains no curl)
+RESPONSE=$($db_dc run --rm curl -s -k $STATUS_LIST_CREDENTIAL)
 # Check response HTTP 200 OK
 if  echo $RESPONSE | grep -q "\"id\":\"$STATUS_LIST_CREDENTIAL\"" ; then
   echo "Status list credential retrieved"
