@@ -37,6 +37,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/hash"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/network"
 	"github.com/nuts-foundation/nuts-node/v6/network/dag"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
@@ -106,7 +107,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{}, nil)
@@ -135,7 +136,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("error - document is deactivated", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{Deactivated: true}, nil)
@@ -155,7 +156,7 @@ func TestManager_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
-		method, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc)
+		method, _, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc)
 		require.NoError(t, err)
 		document.AddCapabilityInvocation(method)
 
@@ -196,7 +197,7 @@ func TestManager_GenerateDocument(t *testing.T) {
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
 
-			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
+			verificationMethod, _, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
 
 			require.NoError(t, err)
 
@@ -317,7 +318,7 @@ func TestManager_NewDocument(t *testing.T) {
 		t.Run("additional verification method", func(t *testing.T) {
 			asDID := did.MustParseDID(doc.DID.ID)
 
-			verificationMethod, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
+			verificationMethod, _, err := manager.NewVerificationMethod(ctx, asDID, orm.AssertionKeyUsage())
 
 			require.NoError(t, err)
 
@@ -328,6 +329,45 @@ func TestManager_NewDocument(t *testing.T) {
 			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWKKeyID), verificationMethod.ID.String())
 		})
 	})
+
+	t.Run("key store backend can't back KeyAgreement", func(t *testing.T) {
+		// Mimics an Azure Key Vault backend: it can generate EC keys, but they can't be used for
+		// decryption/ECDH, so a key it generates can't back a KeyAgreement verification method.
+		backend := signOnlyStorage{nutsCrypto.NewMemoryStorage()}
+		signOnlyKeyStore := nutsCrypto.NewTestCryptoInstance(db, backend)
+		signOnlyManager := NewManager(signOnlyKeyStore, nil, nil, nil, db)
+
+		doc, err := signOnlyManager.NewDocument(ctx, orm.AssertionKeyUsage())
+
+		require.NoError(t, err)
+		require.Len(t, doc.VerificationMethods, 1)
+		assert.False(t, orm.DIDKeyFlags(doc.VerificationMethods[0].KeyTypes).Is(orm.KeyAgreementUsage),
+			"KeyAgreement must not be persisted when the key store backend can't back it")
+
+		generatedDoc, err := doc.ToDIDDocument()
+		require.NoError(t, err)
+		assert.Empty(t, generatedDoc.KeyAgreement)
+		assert.NotEmpty(t, generatedDoc.CapabilityInvocation)
+
+		asDID := did.MustParseDID(doc.DID.ID)
+		_, actualUsage, err := signOnlyManager.NewVerificationMethod(ctx, asDID, orm.EncryptionKeyUsage())
+
+		require.NoError(t, err)
+		assert.False(t, actualUsage.Is(orm.KeyAgreementUsage),
+			"requesting KeyAgreement for a new VerificationMethod must not be granted when the backend can't back it")
+	})
+}
+
+// signOnlyStorage wraps a spi.Storage but reports that its generated keys can only be used for
+// signing, mimicking an Azure Key Vault EC key: it can sign, but Azure Key Vault doesn't support
+// decryption/ECDH with it, so it can't back a KeyAgreement verification method.
+type signOnlyStorage struct {
+	spi.Storage
+}
+
+func (s signOnlyStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
+	publicKey, version, _, err := s.Storage.NewPrivateKey(ctx, keyName)
+	return publicKey, version, orm.AssertionKeyUsage(), err
 }
 
 func TestManager_Commit(t *testing.T) {

@@ -44,13 +44,14 @@ func (m *MockKeyCreator) EXPECT() *MockKeyCreatorMockRecorder {
 }
 
 // New mocks base method.
-func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
 	ret0, _ := ret[0].(*orm.KeyReference)
 	ret1, _ := ret[1].(crypto.PublicKey)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].(orm.DIDKeyFlags)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // New indicates an expected call of New.
@@ -255,13 +256,14 @@ func (mr *MockKeyStoreMockRecorder) List(ctx any) *gomock.Call {
 }
 
 // New mocks base method.
-func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
 	ret0, _ := ret[0].(*orm.KeyReference)
 	ret1, _ := ret[1].(crypto.PublicKey)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].(orm.DIDKeyFlags)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // New indicates an expected call of New.

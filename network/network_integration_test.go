@@ -201,7 +201,7 @@ func TestNetworkIntegration_Messages(t *testing.T) {
 		})
 
 		// set root
-		_, key, _ := bootstrap.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key1"))
+		_, key, _, _ := bootstrap.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc("key1"))
 		rootTx, err := bootstrap.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte("root_tx"), "key1").WithAttachKey(key))
 		require.NoError(t, err)
 		require.NoError(t, node1.network.state.Add(context.Background(), rootTx, []byte("root_tx")))
@@ -976,7 +976,7 @@ func resetIntegrationTest(t *testing.T) {
 		document := did.Document{ID: nodeDID}
 		kid := did.DIDURL{DID: nodeDID}
 		kid.Fragment = "key-1"
-		_, key, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
+		_, key, _, _ := keyStore.New(audit.TestContext(), func(_ crypto.PublicKey) (string, error) {
 			return kid.String(), nil
 		})
 		verificationMethod, _ := did.NewVerificationMethod(kid, ssi.JsonWebKey2020, nodeDID, key)
@@ -1024,7 +1024,7 @@ func addBootstrapDIDDocument(t *testing.T, n node, subject string) hash.SHA256Ha
 }
 
 func addTransactionAndWaitForItToArrive(t *testing.T, payload string, sender node, receivers ...string) bool {
-	keyRef, key, _ := sender.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(uuid.New().String()))
+	keyRef, key, _, _ := sender.network.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(uuid.New().String()))
 	expectedTransaction, err := sender.network.CreateTransaction(audit.TestContext(), TransactionTemplate(payloadType, []byte(payload), keyRef.KID).WithAttachKey(key))
 	if !assert.NoError(t, err) {
 		return false

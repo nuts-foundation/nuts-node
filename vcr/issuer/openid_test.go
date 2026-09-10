@@ -117,7 +117,7 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	keyStore := crypto.NewMemoryCryptoInstance(t)
 	ctx := audit.TestContext()
-	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
+	_, signerKey, _, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
 	ctrl := gomock.NewController(t)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey, nil)

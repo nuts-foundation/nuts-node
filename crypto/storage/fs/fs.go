@@ -32,6 +32,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 )
 
 type entryType string
@@ -92,7 +93,7 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	return fsc, nil
 }
 
-func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
 	return spi.GenerateAndStore(ctx, fsc, keyName)
 }
 

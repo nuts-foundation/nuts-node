@@ -224,14 +224,15 @@ func (client *Crypto) Migrate() error {
 // New generates a new key pair.
 // Stores the private key, returns the public key and DB reference.
 // It returns an error when a key with the resulting ID already exists.
-func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
 	var ref *orm.KeyReference
 	var publicKey crypto.PublicKey
+	var keyUsage orm.DIDKeyFlags
 	err := client.continueTransaction(ctx, func(tx *gorm.DB) error {
 		keyName := uuid.New().String()
 		var err error
 		var version string
-		publicKey, version, err = client.backend.NewPrivateKey(ctx, keyName)
+		publicKey, version, keyUsage, err = client.backend.NewPrivateKey(ctx, keyName)
 		if err != nil {
 			return err
 		}
@@ -248,7 +249,7 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.K
 		audit.Log(ctx, log.Logger(), audit.CryptoNewKeyEvent).Infof("Generated new key pair: %s", kid)
 		return tx.Save(ref).Error
 	})
-	return ref, publicKey, err
+	return ref, publicKey, keyUsage, err
 }
 
 // Delete removes the private key with the given KID from the KeyStore.

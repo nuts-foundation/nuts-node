@@ -109,7 +109,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
 
-		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
+		ref, pubKey, _, err := client.New(ctx, StringNamingFunc("kid"))
 
 		assert.NoError(t, err)
 		assert.NotNil(t, ref)
@@ -117,7 +117,7 @@ func TestCrypto_New(t *testing.T) {
 		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
 	t.Run("error - invalid naming function", func(t *testing.T) {
-		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
+		_, _, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -125,11 +125,11 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error from backend", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", assert.AnError)
+		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", orm.DIDKeyFlags(0), assert.AnError)
 		client := createCrypto(t)
 		client.backend = storageMock
 
-		_, _, err := client.New(ctx, StringNamingFunc("kid"))
+		_, _, _, err := client.New(ctx, StringNamingFunc("kid"))
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)

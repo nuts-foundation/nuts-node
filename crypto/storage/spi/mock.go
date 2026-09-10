@@ -15,6 +15,7 @@ import (
 	reflect "reflect"
 
 	core "github.com/nuts-foundation/nuts-node/v6/core"
+	orm "github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -114,13 +115,14 @@ func (mr *MockStorageMockRecorder) Name() *gomock.Call {
 }
 
 // NewPrivateKey mocks base method.
-func (m *MockStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+func (m *MockStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewPrivateKey", ctx, keyName)
 	ret0, _ := ret[0].(crypto.PublicKey)
 	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret2, _ := ret[2].(orm.DIDKeyFlags)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
 }
 
 // NewPrivateKey indicates an expected call of NewPrivateKey.

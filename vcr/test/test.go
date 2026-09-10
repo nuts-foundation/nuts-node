@@ -58,7 +58,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 		tokenVisitor(unsignedToken)
 	}
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
+	_, key, _, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
 	require.NoError(t, err)
 	claims, err = jwx.ClaimsAsMap(unsignedToken)
 	require.NoError(t, err)

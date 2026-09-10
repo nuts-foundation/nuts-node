@@ -473,10 +473,10 @@ func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DidD
 	return &orm.DidDocument{DID: orm.DID{ID: id}}, t.error
 }
 
-func (t testMethod) NewVerificationMethod(_ context.Context, controller did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (t testMethod) NewVerificationMethod(_ context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
 	return &did.VerificationMethod{
 		ID: did.MustParseDIDURL(fmt.Sprintf("%s#%s", controller.String(), uuid.New().String())),
-	}, t.error
+	}, keyFlags, t.error
 }
 
 func (t testMethod) Commit(_ context.Context, _ orm.DIDChangeLog) error {

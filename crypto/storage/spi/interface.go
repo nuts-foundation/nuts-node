@@ -31,6 +31,7 @@ import (
 
 	"github.com/lestrrat-go/jwx/v3/jwk"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 )
 
 // ErrNotFound indicates that the specified crypto storage entry couldn't be found.
@@ -48,7 +49,10 @@ type Storage interface {
 	// NewPrivateKey creates a new private key. The backend will create the version and publicKey.
 	// It should be preferred over generating a key in the application and saving it to the storage,
 	// as it allows for unexportable (safer) keys.
-	NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error)
+	// It also returns the DIDKeyFlags the generated key can actually be used for, e.g. an Azure Key Vault
+	// EC key can only be used for signing (not KeyAgreementUsage), since Azure Key Vault doesn't support
+	// decryption/ECDH with it.
+	NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error)
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the keyname/version is stored in the storage backend.
@@ -116,22 +120,24 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 }
 
 // GenerateAndStore generates a new key pair and stores it in the provided storage.
-func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, error) {
+// It always generates a plain, exportable EC key, so it supports every DIDKeyFlags usage, including
+// KeyAgreementUsage.
+func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
 	keyPair, err := GenerateKeyPair()
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 	exists, err := store.PrivateKeyExists(ctx, keyName, "1")
 	if err != nil {
-		return nil, "", fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
+		return nil, "", 0, fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
 	}
 	if exists {
-		return nil, "", errors.New("key with the given ID already exists")
+		return nil, "", 0, errors.New("key with the given ID already exists")
 	}
 	if err = store.SavePrivateKey(ctx, keyName, keyPair); err != nil {
-		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+		return nil, "", 0, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
-	return keyPair.Public(), "1", nil
+	return keyPair.Public(), "1", orm.AllKeyUsage(), nil
 }
 
 // GenerateKeyPair generates a new key pair using the default key type.

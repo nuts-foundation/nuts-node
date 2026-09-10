@@ -68,7 +68,7 @@ var _ spi.Storage = &memoryStorage{}
 
 type memoryStorage map[string]crypto.PrivateKey
 
-func (m memoryStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+func (m memoryStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
 	return spi.GenerateAndStore(ctx, m, keyName)
 }
 
@@ -143,7 +143,7 @@ func (t TestKey) Private() crypto.PrivateKey {
 // newKeyReference creates a new DID, DIDocument, VerificationMethod and KeyReference in the DB
 // It does not create valid DID Document data
 func newKeyReference(t *testing.T, client *Crypto, kid string) (*orm.KeyReference, crypto.PublicKey) {
-	ref, publicKey, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+	ref, publicKey, _, err := client.New(audit.TestContext(), StringNamingFunc(kid))
 	require.NoError(t, err)
 	DID := orm.DID{ID: "did:test:" + t.Name(), Subject: "subject"}
 	DIDDoc := orm.DidDocument{

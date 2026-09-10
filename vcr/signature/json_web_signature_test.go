@@ -121,7 +121,7 @@ func TestJsonWebSignature2020_Sign(t *testing.T) {
 		doc := []byte("foo")
 		cryptoInstance := crypto.NewMemoryCryptoInstance(t)
 		const keyID = "did:nuts:123#abc"
-		_, _, _ = cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(keyID))
+		_, _, _, _ = cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(keyID))
 		sig := JSONWebSignature2020{Signer: cryptoInstance}
 
 		result, err := sig.Sign(audit.TestContext(), doc, keyID)

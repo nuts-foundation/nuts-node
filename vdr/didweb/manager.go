@@ -62,14 +62,14 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	keyTypes := []orm.DIDKeyFlags{orm.AssertionKeyUsage(), orm.EncryptionKeyUsage()}
 	for _, keyType := range keyTypes {
 		if keyType.Is(keyFlags) {
-			verificationMethod, err := m.NewVerificationMethod(ctx, *newDID, keyType)
+			verificationMethod, actualUsage, err := m.NewVerificationMethod(ctx, *newDID, keyType)
 			if err != nil {
 				return nil, err
 			}
 			asJson, _ := json.Marshal(verificationMethod)
 			sqlVerificationMethods = append(sqlVerificationMethods, orm.VerificationMethod{
 				ID:       verificationMethod.ID.String(),
-				KeyTypes: orm.VerificationMethodKeyType(keyType),
+				KeyTypes: orm.VerificationMethodKeyType(actualUsage),
 				Data:     asJson,
 			})
 		}
@@ -90,7 +90,7 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      controller,
 		Fragment: uuid.New().String(),
@@ -98,25 +98,25 @@ func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, 
 	var publicKey crypto.PublicKey
 	var err error
 	if keyUsage.Is(orm.KeyAgreementUsage) {
-		return nil, errors.New("key agreement not supported for did:web")
+		return nil, 0, errors.New("key agreement not supported for did:web")
 		// todo requires update to nutsCrypto module
 		//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
 		//      return verificationMethodID.String(), nil
 		//})
 	} else {
-		_, publicKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+		_, publicKey, _, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
 			return verificationMethodID.String(), nil
 		})
 	}
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, publicKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return verificationMethod, nil
+	return verificationMethod, keyUsage, nil
 }
 
 // Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.

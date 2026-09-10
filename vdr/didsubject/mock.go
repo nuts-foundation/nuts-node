@@ -88,12 +88,13 @@ func (mr *MockMethodManagerMockRecorder) NewDocument(ctx, keyFlags any) *gomock.
 }
 
 // NewVerificationMethod mocks base method.
-func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+func (m *MockMethodManager) NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewVerificationMethod", ctx, controller, keyFlags)
 	ret0, _ := ret[0].(*did.VerificationMethod)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(orm.DIDKeyFlags)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // NewVerificationMethod indicates an expected call of NewVerificationMethod.

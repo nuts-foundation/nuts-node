@@ -52,9 +52,11 @@ type MethodManager interface {
 	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error)
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
-	// If keyUsage includes management.KeyAgreement, an RSA key is generated, otherwise an EC key.
-	// RSA keys are not yet fully supported, see https://github.com/nuts-foundation/nuts-node/issues/1948
-	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error)
+	// It also returns the DIDKeyFlags the VerificationMethod can actually be used for, which may be a
+	// subset of the requested keyFlags: the underlying key store backend might not support every
+	// requested usage for the generated key (e.g. an Azure Key Vault EC key can sign but can't back
+	// KeyAgreement, since Azure Key Vault doesn't support decryption/ECDH with it).
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.
 	Commit(ctx context.Context, event orm.DIDChangeLog) error

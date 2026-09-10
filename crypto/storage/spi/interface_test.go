@@ -70,7 +70,7 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(nil)
 		keyName := "123"
 
-		key, version, err := GenerateAndStore(ctx, store, keyName)
+		key, version, _, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, key)
@@ -84,7 +84,7 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().SavePrivateKey(ctx, gomock.Any(), gomock.Any()).Return(errors.New("foo"))
 		keyName := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, keyName)
+		_, _, _, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.ErrorContains(t, err, "could not create new keypair: could not save private key: foo")
 	})
@@ -95,7 +95,7 @@ func TestGenerateAndStore(t *testing.T) {
 		store.EXPECT().PrivateKeyExists(ctx, "123", "1").Return(true, nil)
 		keyName := "123"
 
-		_, _, err := GenerateAndStore(ctx, store, keyName)
+		_, _, _, err := GenerateAndStore(ctx, store, keyName)
 
 		assert.ErrorContains(t, err, "key with the given ID already exists")
 	})

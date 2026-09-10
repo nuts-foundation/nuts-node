@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"regexp"
 )
 
@@ -89,10 +90,10 @@ func (w wrapper) ListPrivateKeys(ctx context.Context) []KeyNameVersion {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }
 
-func (w wrapper) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
-	publicKey, version, err := w.wrappedBackend.NewPrivateKey(ctx, keyName)
+func (w wrapper) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
+	publicKey, version, keyUsage, err := w.wrappedBackend.NewPrivateKey(ctx, keyName)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
-	return publicKey, version, err
+	return publicKey, version, keyUsage, err
 }

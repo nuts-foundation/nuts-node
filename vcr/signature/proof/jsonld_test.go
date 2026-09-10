@@ -170,7 +170,7 @@ func TestLDProof_Sign(t *testing.T) {
 	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	cryptoInstance := crypto.NewMemoryCryptoInstance(t)
-	_, key, _ := cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(kid))
+	_, key, _, _ := cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(kid))
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
 		expires := now.Add(20 * time.Hour)

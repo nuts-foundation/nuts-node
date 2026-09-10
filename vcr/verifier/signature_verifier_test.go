@@ -119,7 +119,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 	t.Run("JWT", func(t *testing.T) {
 		// Create did:jwk for issuer, and sign credential
 		keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-		kid, key, err := keyStore.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
+		kid, key, _, err := keyStore.New(audit.TestContext(), func(key crypto.PublicKey) (string, error) {
 			keyAsJWK, _ := jwk.Import(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil

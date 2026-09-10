@@ -55,7 +55,7 @@ type mockKeyStore struct {
 }
 
 // New creates a new valid key with the correct KID
-func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, orm.DIDKeyFlags, error) {
 	if m.privateKey == nil {
 		m.privateKey, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
@@ -66,7 +66,7 @@ func (m *mockKeyStore) New(_ context.Context, nf nutsCrypto.KIDNamingFunc) (*orm
 			Version: uuid.NewString(),
 		}
 	}
-	return m.keyReference, m.privateKey.Public(), nil
+	return m.keyReference, m.privateKey.Public(), orm.AssertionKeyUsage() | orm.EncryptionKeyUsage(), nil
 }
 
 func (m *mockKeyStore) Link(_ context.Context, _ string, _ string, _ string) error {
@@ -434,7 +434,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey := newDidDoc(t)
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
+		newCapInv, _, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)
@@ -469,7 +469,7 @@ func TestAmbassador_handleUpdateDIDDocument(t *testing.T) {
 
 		currentDoc, signingKey := newDidDoc(t)
 		newDoc := did.Document{Context: []interface{}{did.DIDContextV1URI()}, ID: currentDoc.ID}
-		newCapInv, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
+		newCapInv, _, _ := CreateNewVerificationMethodForDID(audit.TestContext(), currentDoc.ID, &mockKeyStore{})
 		newDoc.AddCapabilityInvocation(newCapInv)
 
 		didDocPayload, _ := json.Marshal(newDoc)

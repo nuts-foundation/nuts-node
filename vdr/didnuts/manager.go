@@ -157,21 +157,22 @@ func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID
 }
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
-// with a freshly generated key for a given DID.
-func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+// with a freshly generated key for a given DID. It also returns the DIDKeyFlags the key can actually
+// be used for, as reported by the key store backend.
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
+	keyRef, publicKey, keyUsage, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, publicKey)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return method, nil
+	return method, keyUsage, nil
 }
 
 // Update updates a DID Document based on the DID.
@@ -253,11 +254,13 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  ******************************/
 
 func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
-	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+	keyRef, publicKey, actualUsage, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
 	if err != nil {
 		return nil, err
 	}
-	keyFlags := DefaultKeyFlags()
+	// Only claim the verification relationships (e.g. KeyAgreement) the key store backend can actually
+	// back for this key; e.g. an Azure Key Vault EC key can't be used for KeyAgreement (decryption).
+	keyFlags := DefaultKeyFlags() & actualUsage
 
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
@@ -290,9 +293,14 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {
-	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
-	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
+	// did:nuts uses EC keys for everything, so it doesn't select a key type based on the requested DIDKeyFlags.
+	method, actualUsage, err := CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
+	if err != nil {
+		return nil, 0, err
+	}
+	// Only grant what was requested AND what the key store backend can actually back.
+	return method, requestedFlags & actualUsage, nil
 }
 
 func (m Manager) Commit(ctx context.Context, change orm.DIDChangeLog) error {

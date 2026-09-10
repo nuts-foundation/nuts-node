@@ -30,6 +30,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/util"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -44,7 +45,7 @@ type APIClient struct {
 	httpClient *ClientWithResponses
 }
 
-func (c APIClient) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+func (c APIClient) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, orm.DIDKeyFlags, error) {
 	return spi.GenerateAndStore(ctx, c, keyName)
 }
 
