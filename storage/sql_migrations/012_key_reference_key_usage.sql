@@ -6,12 +6,11 @@
 -- 0x04 - CapabilityDelegation
 -- 0x08 - CapabilityInvocation
 -- 0x10 - KeyAgreement
--- Defaults to all flags (31): the common case, since fs/vault/external backends hand back plain,
--- exportable EC keys that support every usage. crypto.Migrate() corrects existing rows to 15
--- (everything except KeyAgreement) for nodes configured with the Azure Key Vault backend, whose EC
--- keys can only be used for signing.
+-- Defaults to 0 ("not yet determined") rather than assuming every existing key supports every
+-- usage: crypto.Migrate() sets it to the currently configured backend's usage for every row still
+-- at 0, on every startup.
 alter table key_reference
-    add column key_usage SMALLINT not null default 31;
+    add column key_usage SMALLINT not null default 0;
 
 -- +goose Down
 alter table key_reference
