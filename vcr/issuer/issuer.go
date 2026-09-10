@@ -176,10 +176,12 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 	if options.Publish {
 		// Try to issue over OpenID4VCI if it's enabled and if the credential is not public
 		// (public credentials are always published on the network).
+		var openid4VCIErr error
 		if i.openidHandlerFn != nil && !options.Public {
 			success, err := i.issueUsingOpenID4VCI(ctx, *createdVC)
 			if err != nil {
 				// An error occurred, but it's not because the wallet/issuer doesn't support OpenID4VCI.
+				openid4VCIErr = err
 				log.Logger().
 					WithField(core.LogFieldCredentialID, createdVC.ID.String()).
 					WithError(err).
@@ -196,7 +198,7 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 			}
 		}
 		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, options.Public); err != nil {
-			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
+			return nil, errors.Join(fmt.Errorf("unable to publish the issued credential: %w", err), openid4VCIErr)
 		}
 	}
 	return createdVC, nil
