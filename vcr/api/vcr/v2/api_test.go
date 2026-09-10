@@ -223,6 +223,37 @@ func TestWrapper_IssueVC(t *testing.T) {
 					assert.Equal(t, expectedResponse, response)
 				})
 
+				t.Run("err - OpenID4VCI and network publish both fail - error describes both failures", func(t *testing.T) {
+					testContext := newMockContext(t)
+
+					publishValue := true
+					visibilityValue := Private
+					request := IssueVCRequest{
+						Issuer:            expectedRequestedVC.Issuer.String(),
+						CredentialSubject: expectedRequestedVC.CredentialSubject,
+						Visibility:        &visibilityValue,
+						PublishToNetwork:  &publishValue,
+					}
+					_ = request.Type.FromIssueVCRequestType0(expectedRequestedVC.Type[0].String())
+					// Mirrors what issuer.Issue() returns when OpenID4VCI delivery fails and the
+					// gRPC network fallback also fails: both errors joined together.
+					openID4VCIErr := errors.New("unable to offer the credential over OpenID4VCI to (wallet: https://example.com/wallet): offer credential error: unexpected http response code: 500")
+					networkErr := fmt.Errorf("unable to publish the issued credential: %w", errors.New("failed to sign transaction: could not decrypt with EC key"))
+					testContext.mockIssuer.EXPECT().Issue(testContext.requestCtx, gomock.Any(), issuer.CredentialOptions{
+						Publish: true,
+						Public:  false,
+					}).Return(nil, errors.Join(networkErr, openID4VCIErr))
+
+					response, err := testContext.client.IssueVC(testContext.requestCtx, IssueVCRequestObject{Body: &request})
+
+					assert.Nil(t, response)
+					require.Error(t, err)
+					assert.ErrorContains(t, err, "unable to publish the issued credential")
+					assert.ErrorContains(t, err, "could not decrypt with EC key")
+					assert.ErrorContains(t, err, "unable to offer the credential over OpenID4VCI")
+					assert.ErrorContains(t, err, "unexpected http response code: 500")
+				})
+
 				t.Run("err - visibility not set", func(t *testing.T) {
 					testContext := newMockContext(t)
 
