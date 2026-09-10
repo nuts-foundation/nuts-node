@@ -1,5 +1,8 @@
 # golang alpine
-FROM golang:1.26.8-alpine AS builder
+# The builder runs on the build host platform and cross-compiles for
+# TARGETOS/TARGETARCH. Building arm64 under QEMU emulation instead took
+# about 20 minutes for go build alone.
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
