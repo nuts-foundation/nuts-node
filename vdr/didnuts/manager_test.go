@@ -331,15 +331,25 @@ func TestManager_NewDocument(t *testing.T) {
 
 	t.Run("key store backend can't back KeyAgreement", func(t *testing.T) {
 		// Mimics an Azure Key Vault backend: it can generate EC keys, but they can't be used for
-		// decryption/ECDH, so a key it generates can't back a KeyAgreement verification method. A
-		// did:nuts document always needs a key that backs every relationship, so document creation
-		// must fail outright rather than silently publish a document without KeyAgreement.
+		// decryption/ECDH, so a key it generates can't back a KeyAgreement verification method.
 		signOnlyKeyStore := nutsCrypto.NewAzureKeyVaultLikeCryptoInstance(db)
 		signOnlyManager := NewManager(signOnlyKeyStore, nil, nil, nil, db)
 
-		_, err := signOnlyManager.NewDocument(ctx, orm.AssertionKeyUsage())
+		t.Run("document creation without KeyAgreement still succeeds", func(t *testing.T) {
+			// With OpenID4VCI as an alternative to gRPC/DAG private-transaction delivery, a did:nuts
+			// document no longer strictly needs KeyAgreement, so this must not fail outright.
+			doc, err := signOnlyManager.NewDocument(ctx, orm.AssertionKeyUsage())
 
-		assert.ErrorIs(t, err, nutsCrypto.ErrKeyUsageNotSupported)
+			require.NoError(t, err)
+			require.Len(t, doc.VerificationMethods, 1)
+			assert.False(t, orm.DIDKeyFlags(doc.VerificationMethods[0].KeyTypes).Is(orm.KeyAgreementUsage))
+		})
+
+		t.Run("explicitly requesting KeyAgreement fails", func(t *testing.T) {
+			_, err := signOnlyManager.NewDocument(ctx, DefaultKeyFlags())
+
+			assert.ErrorIs(t, err, nutsCrypto.ErrKeyUsageNotSupported)
+		})
 
 		t.Run("explicit VerificationMethod request", func(t *testing.T) {
 			_, err := signOnlyManager.NewVerificationMethod(ctx, did.MustParseDID("did:nuts:test"), orm.EncryptionKeyUsage())

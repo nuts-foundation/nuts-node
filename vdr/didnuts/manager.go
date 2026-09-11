@@ -253,13 +253,12 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
-// NewDocument creates a new did:nuts document backed by a single key that must support every
-// relationship in DefaultKeyFlags: a did:nuts key backs all of a document's relationships, so a key
-// store backend that can't back all of them (e.g. Azure Key Vault, which can't back KeyAgreement)
-// can't back a did:nuts document at all. The requested keyFlags are ignored: did:nuts always requires
-// DefaultKeyFlags, regardless of what a subject-level creation request asked for.
-func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
-	keyFlags := DefaultKeyFlags()
+// NewDocument creates a new did:nuts document backed by a single key that backs every relationship
+// in keyFlags. If the key store backend can't back a requested relationship (e.g. Azure Key Vault
+// can't back KeyAgreement), no key is created and an error is returned: with OpenID4VCI as an
+// alternative to gRPC/DAG private-transaction delivery, a did:nuts document no longer strictly needs
+// KeyAgreement, so callers that don't need it shouldn't request it (see EncryptionKeyCreationOption).
+func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error) {
 	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc, keyFlags)
 	if err != nil {
 		return nil, err

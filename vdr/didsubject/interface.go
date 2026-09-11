@@ -49,6 +49,7 @@ var ErrSubjectNotFound = errors.New("subject not found")
 type MethodManager interface {
 	// NewDocument generates a new DID document for the given subject.
 	// This is done by the method manager since the DID might depend on method specific rules.
+	// keyFlags is a hard requirement, same as NewVerificationMethod's.
 	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error)
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
