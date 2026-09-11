@@ -24,9 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
+
 	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
-	"time"
 
 	"github.com/google/uuid"
 	ssi "github.com/nuts-foundation/go-did"
@@ -62,14 +63,14 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	keyTypes := []orm.DIDKeyFlags{orm.AssertionKeyUsage(), orm.EncryptionKeyUsage()}
 	for _, keyType := range keyTypes {
 		if keyType.Is(keyFlags) {
-			verificationMethod, actualUsage, err := m.NewVerificationMethod(ctx, *newDID, keyType)
+			verificationMethod, allowedKeyUsage, err := m.NewVerificationMethod(ctx, *newDID, keyType)
 			if err != nil {
 				return nil, err
 			}
 			asJson, _ := json.Marshal(verificationMethod)
 			sqlVerificationMethods = append(sqlVerificationMethods, orm.VerificationMethod{
 				ID:       verificationMethod.ID.String(),
-				KeyTypes: orm.VerificationMethodKeyType(actualUsage),
+				KeyTypes: orm.VerificationMethodKeyType(allowedKeyUsage),
 				Data:     asJson,
 			})
 		}

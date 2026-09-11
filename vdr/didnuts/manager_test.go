@@ -350,10 +350,10 @@ func TestManager_NewDocument(t *testing.T) {
 		assert.NotEmpty(t, generatedDoc.CapabilityInvocation)
 
 		asDID := did.MustParseDID(doc.DID.ID)
-		_, actualUsage, err := signOnlyManager.NewVerificationMethod(ctx, asDID, orm.EncryptionKeyUsage())
+		_, allowedKeyUsage, err := signOnlyManager.NewVerificationMethod(ctx, asDID, orm.EncryptionKeyUsage())
 
 		require.NoError(t, err)
-		assert.False(t, actualUsage.Is(orm.KeyAgreementUsage),
+		assert.False(t, allowedKeyUsage.Is(orm.KeyAgreementUsage),
 			"requesting KeyAgreement for a new VerificationMethod must not be granted when the backend can't back it")
 	})
 }
