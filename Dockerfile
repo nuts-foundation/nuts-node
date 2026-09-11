@@ -1,5 +1,8 @@
 # golang alpine
-FROM golang:1.26.8-alpine AS builder
+# The builder runs on the build host platform and cross-compiles for
+# TARGETOS/TARGETARCH. Building arm64 under QEMU emulation instead took
+# about 20 minutes for go build alone.
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -18,7 +21,7 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
 FROM alpine:3.23.5
