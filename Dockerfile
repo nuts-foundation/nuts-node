@@ -8,7 +8,7 @@ ARG GIT_COMMIT=0
 ARG GIT_BRANCH=master
 ARG GIT_VERSION=undefined
 
-LABEL maintainer="wout.slakhorst@nuts.nl"
+LABEL maintainer="info@nuts.nl"
 
 ENV GOPATH=/
 
