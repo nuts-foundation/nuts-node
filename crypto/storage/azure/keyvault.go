@@ -102,6 +102,8 @@ func (a Keyvault) CheckHealth() map[string]core.Health {
 	return nil
 }
 
+// NewPrivateKey creates a new EC key in Azure Key Vault. Azure Key Vault EC keys can only be used
+// for signing, they can't be used for decryption/ECDH.
 func (a Keyvault) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
 	var keyType azkeys.KeyType
 	if a.useHSM {

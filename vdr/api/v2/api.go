@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/http/cache"
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vdr"
@@ -64,6 +65,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		didsubject.ErrInvalidService:           http.StatusBadRequest,
 		didsubject.ErrUnsupportedDIDMethod:     http.StatusBadRequest,
 		didsubject.ErrKeyAgreementNotSupported: http.StatusBadRequest,
+		nutsCrypto.ErrKeyUsageNotSupported:     http.StatusBadRequest,
 		didsubject.ErrSubjectValidation:        http.StatusBadRequest,
 		resolver.ErrDeactivated:                http.StatusConflict,
 		did.ErrInvalidService:                  http.StatusBadRequest,

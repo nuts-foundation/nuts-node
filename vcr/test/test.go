@@ -29,6 +29,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/jwx"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/signature/proof"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -58,7 +59,7 @@ func CreateJWTPresentation(t *testing.T, subjectDID did.DID, tokenVisitor func(t
 		tokenVisitor(unsignedToken)
 	}
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid))
+	_, key, err := keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(kid), orm.AssertionKeyUsage())
 	require.NoError(t, err)
 	claims, err = jwx.ClaimsAsMap(unsignedToken)
 	require.NoError(t, err)

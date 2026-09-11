@@ -157,9 +157,10 @@ func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID
 }
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
-// with a freshly generated key for a given DID.
-func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, error) {
-	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+// with a freshly generated key for a given DID. requiredUsage is checked against the key store
+// backend's capability before any key is created; see nutsCrypto.KeyCreator.New.
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator, requiredUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id), requiredUsage)
 	if err != nil {
 		return nil, err
 	}
@@ -252,12 +253,16 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
-func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
-	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+// NewDocument creates a new did:nuts document backed by a single key that backs every relationship
+// in keyFlags. If the key store backend can't back a requested relationship (e.g. Azure Key Vault
+// can't back KeyAgreement), no key is created and an error is returned: with OpenID4VCI as an
+// alternative to gRPC/DAG private-transaction delivery, a did:nuts document no longer strictly needs
+// KeyAgreement, so callers that don't need it shouldn't request it (see EncryptionKeyCreationOption).
+func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error) {
+	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc, keyFlags)
 	if err != nil {
 		return nil, err
 	}
-	keyFlags := DefaultKeyFlags()
 
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
@@ -290,9 +295,8 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, _ orm.DIDKeyFlags) (*did.VerificationMethod, error) {
-	// did:nuts uses EC keys for everything, so it doesn't use the DIDKeyFlags
-	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore, requestedFlags)
 }
 
 func (m Manager) Commit(ctx context.Context, change orm.DIDChangeLog) error {

@@ -21,6 +21,7 @@ package crypto
 import (
 	"context"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/fs"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
@@ -109,7 +110,7 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
 
-		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
+		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"), orm.AssertionKeyUsage()|orm.EncryptionKeyUsage())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, ref)
@@ -117,7 +118,7 @@ func TestCrypto_New(t *testing.T) {
 		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
 	t.Run("error - invalid naming function", func(t *testing.T) {
-		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
+		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError), orm.AssertionKeyUsage())
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -129,10 +130,22 @@ func TestCrypto_New(t *testing.T) {
 		client := createCrypto(t)
 		client.backend = storageMock
 
-		_, _, err := client.New(ctx, StringNamingFunc("kid"))
+		_, _, err := client.New(ctx, StringNamingFunc("kid"), orm.AssertionKeyUsage())
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
+	})
+	t.Run("required usage not supported by backend: no key is created", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		storageMock := spi.NewMockStorage(ctrl)
+		// NewPrivateKey is deliberately not stubbed: it must not be called.
+		client := createCrypto(t)
+		client.backend = storageMock
+		client.config = Config{Storage: azure.StorageType}
+
+		_, _, err := client.New(ctx, StringNamingFunc("kid"), orm.EncryptionKeyUsage())
+
+		assert.ErrorIs(t, err, ErrKeyUsageNotSupported)
 	})
 }
 
