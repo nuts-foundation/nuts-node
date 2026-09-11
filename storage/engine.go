@@ -433,7 +433,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS,
 		goose.WithGoMigrations(
 			sql_migrations.Migration011CredentialPropValueType(dbType),
-			sql_migrations.Migration012KeyReferenceKeyUsage(dbType),
 		),
 	)
 	if err != nil {

@@ -42,30 +42,13 @@ var ErrKeyAlreadyExists = errors.New("key already exists")
 // KidPattern is the regexp for acceptable kids
 var KidPattern = regexp.MustCompile(`^(?:(?:[\da-zA-Z_\- :#.])|(?:%[0-9a-fA-F]{2}))+$`)
 
-// KeyCapability is a bitmask describing what a newly generated key can be used for.
-type KeyCapability int
-
-const (
-	// Signing means the key can be used for signing. Every generated key can do this.
-	Signing KeyCapability = 1 << iota
-	// Decryption means the key can be used for decryption/ECDH key agreement. E.g. an Azure Key
-	// Vault EC key can't do this: Azure Key Vault doesn't support decryption/ECDH with it.
-	Decryption
-)
-
-// Is returns whether the specified KeyCapability is enabled.
-func (k KeyCapability) Is(other KeyCapability) bool {
-	return k&other > 0
-}
-
 // Storage interface containing functions for storing and retrieving keys.
 type Storage interface {
 	core.HealthCheckable
 	// NewPrivateKey creates a new private key. The backend will create the version and publicKey.
 	// It should be preferred over generating a key in the application and saving it to the storage,
 	// as it allows for unexportable (safer) keys.
-	// It also reports the KeyCapability of the generated key.
-	NewPrivateKey(ctx context.Context, keyName string) (publicKey crypto.PublicKey, version string, capability KeyCapability, err error)
+	NewPrivateKey(ctx context.Context, keyName string) (publicKey crypto.PublicKey, version string, err error)
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the keyname/version is stored in the storage backend.
@@ -134,22 +117,22 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 
 // GenerateAndStore generates a new key pair and stores it in the provided storage.
 // It always generates a plain, exportable EC key, which can be used for both signing and decryption.
-func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, KeyCapability, error) {
+func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, error) {
 	keyPair, err := GenerateKeyPair()
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", err
 	}
 	exists, err := store.PrivateKeyExists(ctx, keyName, "1")
 	if err != nil {
-		return nil, "", 0, fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
+		return nil, "", fmt.Errorf("could not create new keypair: could not check if key already exists: %w", err)
 	}
 	if exists {
-		return nil, "", 0, errors.New("key with the given ID already exists")
+		return nil, "", errors.New("key with the given ID already exists")
 	}
 	if err = store.SavePrivateKey(ctx, keyName, keyPair); err != nil {
-		return nil, "", 0, fmt.Errorf("could not create new keypair: could not save private key: %w", err)
+		return nil, "", fmt.Errorf("could not create new keypair: could not save private key: %w", err)
 	}
-	return keyPair.Public(), "1", Signing | Decryption, nil
+	return keyPair.Public(), "1", nil
 }
 
 // GenerateKeyPair generates a new key pair using the default key type.

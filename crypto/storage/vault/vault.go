@@ -107,7 +107,7 @@ func NewVaultKVStorage(config Config) (spi.Storage, error) {
 	return vaultStorage, nil
 }
 
-func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (crypto.PublicKey, string, spi.KeyCapability, error) {
+func (v vaultKVStorage) NewPrivateKey(ctx context.Context, keyPath string) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, v, keyPath)
 }
 

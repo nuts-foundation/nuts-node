@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/vdr"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/didnuts"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/didsubject"
@@ -55,6 +56,7 @@ func (a *Wrapper) ResolveStatusCode(err error) int {
 		resolver.ErrNoActiveController:      http.StatusConflict,
 		resolver.ErrDuplicateService:        http.StatusBadRequest,
 		did.ErrInvalidDID:                   http.StatusBadRequest,
+		nutsCrypto.ErrKeyUsageNotSupported:  http.StatusBadRequest,
 	})
 }
 

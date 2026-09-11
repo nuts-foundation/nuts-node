@@ -89,10 +89,6 @@ func (w wrapper) ListPrivateKeys(ctx context.Context) []KeyNameVersion {
 	return w.wrappedBackend.ListPrivateKeys(ctx)
 }
 
-func (w wrapper) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, KeyCapability, error) {
-	publicKey, version, capability, err := w.wrappedBackend.NewPrivateKey(ctx, keyName)
-	if err != nil {
-		return nil, "", 0, err
-	}
-	return publicKey, version, capability, err
+func (w wrapper) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
+	return w.wrappedBackend.NewPrivateKey(ctx, keyName)
 }

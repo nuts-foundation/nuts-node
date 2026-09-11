@@ -92,7 +92,7 @@ func NewFileSystemBackend(fspath string) (spi.Storage, error) {
 	return fsc, nil
 }
 
-func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
+func (fsc fileSystemBackend) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, fsc, keyName)
 }
 

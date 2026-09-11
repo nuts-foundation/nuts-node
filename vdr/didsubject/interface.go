@@ -52,11 +52,11 @@ type MethodManager interface {
 	NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error)
 	// NewVerificationMethod generates a new VerificationMethod for the given subject.
 	// This is done by the method manager since the VM ID might depend on method specific rules.
-	// It also returns the DIDKeyFlags the VerificationMethod can actually be used for, which may be a
-	// subset of the requested keyFlags: the underlying key store backend might not support every
-	// requested usage for the generated key (e.g. an Azure Key Vault EC key can sign but can't back
-	// KeyAgreement, since Azure Key Vault doesn't support decryption/ECDH with it).
-	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error)
+	// keyFlags is a hard requirement: if the underlying key store backend can't back every requested
+	// usage for the generated key (e.g. an Azure Key Vault EC key can sign but can't back
+	// KeyAgreement, since Azure Key Vault doesn't support decryption/ECDH with it), no key is created
+	// and an error is returned.
+	NewVerificationMethod(ctx context.Context, controller did.DID, keyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error)
 	// Commit is called after changes are made to the primary db.
 	// On success, the caller will remove/update the DID changelog.
 	Commit(ctx context.Context, event orm.DIDChangeLog) error

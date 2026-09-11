@@ -23,6 +23,7 @@ import (
 	"crypto"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/stretchr/testify/require"
@@ -48,6 +49,15 @@ func NewTestCryptoInstance(db *gorm.DB, storage spi.Storage) *Crypto {
 	return newInstance
 }
 
+// NewAzureKeyVaultLikeCryptoInstance returns a Crypto test instance configured as if it were using
+// the Azure Key Vault backend, without needing a real Azure connection: it can back signing, but not
+// KeyAgreement (decryption/ECDH).
+func NewAzureKeyVaultLikeCryptoInstance(db *gorm.DB) *Crypto {
+	newInstance := NewTestCryptoInstance(db, NewMemoryStorage())
+	newInstance.config = Config{Storage: azure.StorageType}
+	return newInstance
+}
+
 func StringNamingFunc(name string) KIDNamingFunc {
 	return func(key crypto.PublicKey) (string, error) {
 		return name, nil
@@ -68,7 +78,7 @@ var _ spi.Storage = &memoryStorage{}
 
 type memoryStorage map[string]crypto.PrivateKey
 
-func (m memoryStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
+func (m memoryStorage) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, m, keyName)
 }
 
@@ -143,7 +153,7 @@ func (t TestKey) Private() crypto.PrivateKey {
 // newKeyReference creates a new DID, DIDocument, VerificationMethod and KeyReference in the DB
 // It does not create valid DID Document data
 func newKeyReference(t *testing.T, client *Crypto, kid string) (*orm.KeyReference, crypto.PublicKey) {
-	ref, publicKey, err := client.New(audit.TestContext(), StringNamingFunc(kid))
+	ref, publicKey, err := client.New(audit.TestContext(), StringNamingFunc(kid), orm.AssertionKeyUsage())
 	require.NoError(t, err)
 	DID := orm.DID{ID: "did:test:" + t.Name(), Subject: "subject"}
 	DIDDoc := orm.DidDocument{

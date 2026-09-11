@@ -62,14 +62,14 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	keyTypes := []orm.DIDKeyFlags{orm.AssertionKeyUsage(), orm.EncryptionKeyUsage()}
 	for _, keyType := range keyTypes {
 		if keyType.Is(keyFlags) {
-			verificationMethod, allowedKeyUsage, err := m.NewVerificationMethod(ctx, *newDID, keyType)
+			verificationMethod, err := m.NewVerificationMethod(ctx, *newDID, keyType)
 			if err != nil {
 				return nil, err
 			}
 			asJson, _ := json.Marshal(verificationMethod)
 			sqlVerificationMethods = append(sqlVerificationMethods, orm.VerificationMethod{
 				ID:       verificationMethod.ID.String(),
-				KeyTypes: orm.VerificationMethodKeyType(allowedKeyUsage),
+				KeyTypes: orm.VerificationMethodKeyType(keyType),
 				Data:     asJson,
 			})
 		}
@@ -90,23 +90,18 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, requestedKeyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
+func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, requestedKeyFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      controller,
 		Fragment: uuid.New().String(),
 	}
-	keyRef, publicKey, err := m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+	_, publicKey, err := m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
 		return verificationMethodID.String(), nil
-	})
+	}, requestedKeyFlags)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	verificationMethod, err := did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, publicKey)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return verificationMethod, orm.DIDKeyFlags(keyRef.KeyUsage) & requestedKeyFlags, nil
+	return did.NewVerificationMethod(verificationMethodID, ssi.JsonWebKey2020, controller, publicKey)
 }
 
 // Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.

@@ -44,7 +44,7 @@ type APIClient struct {
 	httpClient *ClientWithResponses
 }
 
-func (c APIClient) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, spi.KeyCapability, error) {
+func (c APIClient) NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error) {
 	return spi.GenerateAndStore(ctx, c, keyName)
 }
 

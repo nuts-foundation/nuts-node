@@ -402,7 +402,7 @@ func (r *SqlManager) AddVerificationMethod(ctx context.Context, subject string, 
 		}
 
 		transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
-		vm, actualKeyUsage, err := r.MethodManagers[id.Method].NewVerificationMethod(transactionContext, id, keyUsage)
+		vm, err := r.MethodManagers[id.Method].NewVerificationMethod(transactionContext, id, keyUsage)
 		if err != nil {
 			return nil, err
 		}
@@ -410,7 +410,7 @@ func (r *SqlManager) AddVerificationMethod(ctx context.Context, subject string, 
 		data, _ := json.Marshal(*vm)
 		sqlMethod := orm.VerificationMethod{
 			ID:       vm.ID.String(),
-			KeyTypes: orm.VerificationMethodKeyType(actualKeyUsage),
+			KeyTypes: orm.VerificationMethodKeyType(keyUsage),
 			Data:     data,
 		}
 		current.VerificationMethods = append(current.VerificationMethods, sqlMethod)

@@ -29,6 +29,11 @@ import (
 // ErrPrivateKeyNotFound is returned when the private key doesn't exist
 var ErrPrivateKeyNotFound = errors.New("private key not found")
 
+// ErrKeyUsageNotSupported is returned when the configured key store backend can't create a key that
+// backs the requested DIDKeyFlags, e.g. Azure Key Vault can't create keys usable for
+// decryption/KeyAgreement. No key is created when this is returned.
+var ErrKeyUsageNotSupported = errors.New("the key store can't create a key that supports the requested key usage")
+
 // ErrorInvalidNumberOfSignatures indicates that the number of signatures present in the JWT is invalid.
 var ErrorInvalidNumberOfSignatures = errors.New("invalid number of signatures")
 
@@ -40,10 +45,11 @@ type KeyCreator interface {
 	// New generates a keypair and returns a reference. The context is used to pass audit information.
 	// It generates a key at the backend and stores its reference in the SQL DB.
 	// A DB transaction may be passed through the context using `orm.TransactionKey`.
-	// The returned KeyReference's KeyUsage reports the DIDKeyFlags the generated key can actually be
-	// used for, as reported by the storage backend, so callers don't add a verification method (e.g.
-	// KeyAgreement) the key can't back.
-	New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error)
+	// requiredUsage is checked against what the configured key store backend can actually back (e.g.
+	// an Azure Key Vault EC key can't be used for KeyAgreement, since Azure Key Vault doesn't support
+	// decryption/ECDH with it) before any key is created. If the backend can't fully satisfy it, no
+	// key is created and ErrKeyUsageNotSupported is returned.
+	New(ctx context.Context, namingFunc KIDNamingFunc, requiredUsage orm.DIDKeyFlags) (*orm.KeyReference, crypto.PublicKey, error)
 }
 
 // KeyResolver is the interface for resolving keys.

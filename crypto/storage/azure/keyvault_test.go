@@ -66,7 +66,7 @@ func Test_Keyvault_NewPrivateKey(t *testing.T) {
 			})
 
 		store := Keyvault{client: vaultClient}
-		privateKey, version, capability, err := store.NewPrivateKey(context.Background(), "did-web-example-com-0")
+		privateKey, version, err := store.NewPrivateKey(context.Background(), "did-web-example-com-0")
 		require.NoError(t, err)
 		assert.NotNil(t, privateKey)
 		assert.Equal(t, "b86c2e6ad9054f4abf69cc185b99aa60", version)
@@ -74,8 +74,6 @@ func Test_Keyvault_NewPrivateKey(t *testing.T) {
 		assert.Equal(t, azkeys.CurveNameP256, *capturedParams.Curve)
 		assert.True(t, *capturedParams.KeyAttributes.Enabled)
 		assert.False(t, *capturedParams.KeyAttributes.Exportable)
-		// Azure Key Vault EC keys can sign, but not decrypt, so they can't back KeyAgreement.
-		assert.Equal(t, spi.Signing, capability)
 	})
 }
 
@@ -280,14 +278,14 @@ func TestIntegrationTest(t *testing.T) {
 
 	var keyName = uuid.NewString()
 	ctx := context.Background()
-	_, version, _, err := store.NewPrivateKey(ctx, keyName)
+	_, version, err := store.NewPrivateKey(ctx, keyName)
 	if !errors.Is(err, spi.ErrKeyAlreadyExists) {
 		assert.NoError(t, err)
 	}
 
 	t.Run("New", func(t *testing.T) {
 		t.Run("already exists", func(t *testing.T) {
-			_, _, _, err := store.NewPrivateKey(ctx, keyName)
+			_, _, err := store.NewPrivateKey(ctx, keyName)
 			assert.ErrorIs(t, err, spi.ErrKeyAlreadyExists)
 		})
 	})
@@ -330,7 +328,7 @@ func TestIntegrationTest(t *testing.T) {
 	t.Run("DeletePrivateKey", func(t *testing.T) {
 		t.Run("ok", func(t *testing.T) {
 			otherKeyName := uuid.NewString()
-			_, version, _, err := store.NewPrivateKey(ctx, otherKeyName)
+			_, version, err := store.NewPrivateKey(ctx, otherKeyName)
 			assert.NoError(t, err)
 
 			err = store.DeletePrivateKey(ctx, otherKeyName)

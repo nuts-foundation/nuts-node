@@ -157,22 +157,22 @@ func (m Manager) RemoveVerificationMethod(ctx context.Context, id did.DID, keyID
 }
 
 // CreateNewVerificationMethodForDID creates a new VerificationMethod of type JsonWebKey2020
-// with a freshly generated key for a given DID. It also returns the DIDKeyFlags the key can actually
-// be used for, as reported by the key store backend.
-func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
-	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id))
+// with a freshly generated key for a given DID. requiredUsage is checked against the key store
+// backend's capability before any key is created; see nutsCrypto.KeyCreator.New.
+func CreateNewVerificationMethodForDID(ctx context.Context, id did.DID, keyCreator nutsCrypto.KeyCreator, requiredUsage orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+	keyRef, publicKey, err := keyCreator.New(ctx, didSubKIDNamingFunc(id), requiredUsage)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	method, err := did.NewVerificationMethod(*keyID, ssi.JsonWebKey2020, id, publicKey)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return method, orm.DIDKeyFlags(keyRef.KeyUsage), nil
+	return method, nil
 }
 
 // Update updates a DID Document based on the DID.
@@ -253,14 +253,17 @@ func (m Manager) Update(ctx context.Context, id did.DID, next did.Document) erro
  * New style DID Method Manager
  ******************************/
 
+// NewDocument creates a new did:nuts document backed by a single key that must support every
+// relationship in DefaultKeyFlags: a did:nuts key backs all of a document's relationships, so a key
+// store backend that can't back all of them (e.g. Azure Key Vault, which can't back KeyAgreement)
+// can't back a did:nuts document at all. The requested keyFlags are ignored: did:nuts always requires
+// DefaultKeyFlags, regardless of what a subject-level creation request asked for.
 func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
-	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc)
+	keyFlags := DefaultKeyFlags()
+	keyRef, publicKey, err := m.keyStore.New(ctx, DIDKIDNamingFunc, keyFlags)
 	if err != nil {
 		return nil, err
 	}
-	// Only claim the verification relationships (e.g. KeyAgreement) the key store backend can actually
-	// back for this key; e.g. an Azure Key Vault EC key can't be used for KeyAgreement (decryption).
-	keyFlags := orm.DIDKeyFlags(keyRef.KeyUsage)
 
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
@@ -293,13 +296,8 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
-	method, actualKeyFlags, err := CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
-	if err != nil {
-		return nil, 0, err
-	}
-	// Only grant what was requested AND what the key store backend can actually back.
-	return method, requestedFlags & actualKeyFlags, nil
+func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, error) {
+	return CreateNewVerificationMethodForDID(ctx, id, m.keyStore, requestedFlags)
 }
 
 func (m Manager) Commit(ctx context.Context, change orm.DIDChangeLog) error {

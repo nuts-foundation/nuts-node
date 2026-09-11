@@ -100,59 +100,6 @@ func TestCrypto_Migrate(t *testing.T) {
 		keys := client.List(context.Background())
 		require.Len(t, keys, 1)
 	})
-	t.Run("sets key usage for existing KeyReferences not yet migrated", func(t *testing.T) {
-		backend := NewMemoryStorage()
-		db := orm.NewTestDatabase(t)
-		client := &Crypto{backend: backend, db: db}
-		allUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage())
-		// Simulates a KeyReference created before this backend reported per-key usage: the migration
-		// that added key_usage backfills existing rows to 0 ("not yet migrated").
-		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1"}).Error
-		require.NoError(t, err)
-
-		err = client.Migrate()
-		require.NoError(t, err)
-
-		var keyRef orm.KeyReference
-		require.NoError(t, db.Where("kid = ?", "vm-id").First(&keyRef).Error)
-		assert.Equal(t, allUsage, keyRef.KeyUsage)
-	})
-	t.Run("sets key usage to sign-only for existing KeyReferences on the Azure Key Vault backend", func(t *testing.T) {
-		backend := NewMemoryStorage()
-		db := orm.NewTestDatabase(t)
-		client := &Crypto{backend: backend, db: db, config: Config{Storage: azure.StorageType}}
-		signOnlyUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage())
-		// Simulates a KeyReference created before the Azure Key Vault backend reported per-key usage:
-		// the migration that added key_usage backfills existing rows to 0 ("not yet migrated").
-		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1"}).Error
-		require.NoError(t, err)
-
-		err = client.Migrate()
-		require.NoError(t, err)
-
-		var keyRef orm.KeyReference
-		require.NoError(t, db.Where("kid = ?", "vm-id").First(&keyRef).Error)
-		assert.Equal(t, signOnlyUsage, keyRef.KeyUsage)
-	})
-	t.Run("does not touch KeyReferences that already have a real usage", func(t *testing.T) {
-		backend := NewMemoryStorage()
-		db := orm.NewTestDatabase(t)
-		client := &Crypto{backend: backend, db: db, config: Config{Storage: azure.StorageType}}
-		allUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage())
-		// A KeyReference already correctly set to "everything" (e.g. created under a different
-		// backend before this node was reconfigured to use Azure Key Vault) must not be
-		// re-corrected: 0, not a real usage value like "everything", is what marks a row as needing
-		// correction.
-		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1", KeyUsage: allUsage}).Error
-		require.NoError(t, err)
-
-		err = client.Migrate()
-		require.NoError(t, err)
-
-		var keyRef orm.KeyReference
-		require.NoError(t, db.Where("kid = ?", "vm-id").First(&keyRef).Error)
-		assert.Equal(t, allUsage, keyRef.KeyUsage)
-	})
 }
 
 func TestCrypto_New(t *testing.T) {
@@ -163,16 +110,15 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		auditLogs := audit.CaptureAuditLogs(t)
 
-		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"))
+		ref, pubKey, err := client.New(ctx, StringNamingFunc("kid"), orm.AssertionKeyUsage()|orm.EncryptionKeyUsage())
 
 		assert.NoError(t, err)
 		assert.NotNil(t, ref)
 		assert.NotNil(t, pubKey)
-		assert.Equal(t, orm.VerificationMethodKeyType(orm.AssertionKeyUsage()|orm.EncryptionKeyUsage()), ref.KeyUsage)
 		auditLogs.AssertContains(t, ModuleName, "CreateNewKey", audit.TestActor, "Generated new key pair: "+ref.KID)
 	})
 	t.Run("error - invalid naming function", func(t *testing.T) {
-		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError))
+		_, _, err := client.New(ctx, ErrorNamingFunc(assert.AnError), orm.AssertionKeyUsage())
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
@@ -180,14 +126,26 @@ func TestCrypto_New(t *testing.T) {
 	t.Run("error from backend", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		storageMock := spi.NewMockStorage(ctrl)
-		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", spi.Signing, assert.AnError)
+		storageMock.EXPECT().NewPrivateKey(ctx, gomock.Any()).Return(nil, "", assert.AnError)
 		client := createCrypto(t)
 		client.backend = storageMock
 
-		_, _, err := client.New(ctx, StringNamingFunc("kid"))
+		_, _, err := client.New(ctx, StringNamingFunc("kid"), orm.AssertionKeyUsage())
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
+	})
+	t.Run("required usage not supported by backend: no key is created", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		storageMock := spi.NewMockStorage(ctrl)
+		// NewPrivateKey is deliberately not stubbed: it must not be called.
+		client := createCrypto(t)
+		client.backend = storageMock
+		client.config = Config{Storage: azure.StorageType}
+
+		_, _, err := client.New(ctx, StringNamingFunc("kid"), orm.EncryptionKeyUsage())
+
+		assert.ErrorIs(t, err, ErrKeyUsageNotSupported)
 	})
 }
 
