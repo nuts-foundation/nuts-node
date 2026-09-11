@@ -4,6 +4,9 @@
 # For more information see https://go.dev/blog/vuln and https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck
 name: 'govulncheck'
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
