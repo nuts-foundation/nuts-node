@@ -455,18 +455,23 @@ func TestNotifier_VariousFlows(t *testing.T) {
 
 		s.Notify(event)
 
+		// counter.N is incremented by the receiver callback, but notifyNow persists
+		// the updated event (Retries) only after the callback returns, and the next
+		// retry follows within tens of milliseconds. Wait for the persisted retry
+		// count instead of the in-memory counter, otherwise the read may observe
+		// the event before the second retry is written.
+		var e *Event
 		test.WaitFor(t, func() (bool, error) {
-			return counter.N.Load() == 2, nil
-		}, time.Second, "timeout while waiting for receiver")
+			err := kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
+				var err error
+				e, err = s.readEvent(reader, hash.EmptyHash())
+				return err
+			})
+			return err == nil && e != nil && e.Retries >= 2, nil
+		}, time.Second, "timeout while waiting for the retry to be persisted")
 
-		kvStore.ReadShelf(ctx, s.shelfName(), func(reader stoabs.Reader) error {
-			e, err := s.readEvent(reader, hash.EmptyHash())
-
-			assert.NoError(t, err)
-			assert.Equal(t, 2, e.Retries)
-
-			return nil
-		})
+		// every persisted retry was preceded by a receiver call
+		assert.GreaterOrEqual(t, counter.N.Load(), int64(e.Retries))
 	})
 
 	t.Run("notifier marks event as finished", func(t *testing.T) {
