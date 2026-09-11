@@ -196,7 +196,7 @@ func (i issuer) Issue(ctx context.Context, template vc.VerifiableCredential, opt
 			}
 		}
 		if err := i.networkPublisher.PublishCredential(ctx, *createdVC, options.Public); err != nil {
-			return nil, fmt.Errorf("unable to publish the issued credential: %w", err)
+			return nil, fmt.Errorf("unable to publish the issued credential over gRPC network: %w", err)
 		}
 	}
 	return createdVC, nil
