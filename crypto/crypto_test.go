@@ -100,31 +100,15 @@ func TestCrypto_Migrate(t *testing.T) {
 		keys := client.List(context.Background())
 		require.Len(t, keys, 1)
 	})
-	t.Run("sets key usage for existing KeyReferences still at the SQL migration's default of 0", func(t *testing.T) {
-		backend := NewMemoryStorage()
-		db := orm.NewTestDatabase(t)
-		client := &Crypto{backend: backend, db: db}
-		allUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage())
-		// Simulates a KeyReference created before the backend reported per-key usage, i.e. one still
-		// holding the SQL migration's default of 0 ("not yet determined").
-		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1"}).Error
-		require.NoError(t, err)
-
-		err = client.Migrate()
-		require.NoError(t, err)
-
-		var keyRef orm.KeyReference
-		require.NoError(t, db.Where("kid = ?", "vm-id").First(&keyRef).Error)
-		assert.Equal(t, allUsage, keyRef.KeyUsage)
-	})
-	t.Run("sets key usage to sign-only for existing KeyReferences on the Azure Key Vault backend", func(t *testing.T) {
+	t.Run("corrects existing KeyReferences for the Azure Key Vault backend", func(t *testing.T) {
 		backend := NewMemoryStorage()
 		db := orm.NewTestDatabase(t)
 		client := &Crypto{backend: backend, db: db, config: Config{Storage: azure.StorageType}}
+		allUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage() | orm.EncryptionKeyUsage())
 		signOnlyUsage := orm.VerificationMethodKeyType(orm.AssertionKeyUsage())
-		// Simulates a KeyReference created before the Azure Key Vault backend reported per-key usage,
-		// i.e. one still holding the SQL migration's default of 0 ("not yet determined").
-		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1"}).Error
+		// Simulates a KeyReference created before the Azure Key Vault backend reported per-key usage:
+		// the migration that added key_usage backfills existing rows to "everything".
+		err := db.Save(&orm.KeyReference{KID: "vm-id", KeyName: "some-uuid", Version: "1", KeyUsage: allUsage}).Error
 		require.NoError(t, err)
 
 		err = client.Migrate()
