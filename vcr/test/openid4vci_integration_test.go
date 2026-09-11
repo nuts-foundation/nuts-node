@@ -207,7 +207,7 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 		vcrService := system.FindEngineByName("vcr").(vcr.VCR)
 		_, err := vcrService.Issuer().Issue(audit.TestContext(), credential, true, false)
 
-		assert.ErrorContains(t, err, "unable to publish the issued credential")
+		assert.ErrorContains(t, err, "unable to publish the issued credential over gRPC network")
 	})
 }
 
