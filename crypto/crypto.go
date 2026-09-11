@@ -225,19 +225,15 @@ func (client *Crypto) Migrate() error {
 				}
 			}
 		}
-		if !capability.Is(spi.Decryption) {
-			// Correct KeyReferences created before this backend reported per-key usage: the migration
-			// that added key_usage backfilled existing rows to "everything" (what every key was
-			// assumed to support before that column existed), which is wrong for a backend, like
-			// Azure Key Vault, whose keys can't actually decrypt. Switching crypto storage backends
-			// for an existing node isn't supported (KeyName/Version are backend-specific and become
-			// unreachable), so every managed key under this backend is known to have been created by
-			// it, regardless of when the row was created.
-			allUsage := orm.VerificationMethodKeyType(keyUsageForCapability(spi.Signing | spi.Decryption))
-			err := tx.Model(&orm.KeyReference{}).Where("key_usage = ?", allUsage).Update("key_usage", keyUsage).Error
-			if err != nil {
-				return fmt.Errorf("could not correct existing KeyReferences for the Azure Key Vault backend: %w", err)
-			}
+		// Set the usage for KeyReferences created before this backend reported per-key usage: the
+		// migration that added key_usage backfills existing rows to 0, a value no real key usage can
+		// ever have (every key supports at least AssertionKeyUsage), so it unambiguously means "not
+		// yet set" rather than colliding with a real, already-corrected value. Switching crypto
+		// storage backends for an existing node isn't supported (KeyName/Version are backend-specific
+		// and become unreachable), so every managed key under this backend is known to have been
+		// created by it, regardless of when the row was created.
+		if err := tx.Model(&orm.KeyReference{}).Where("key_usage = ?", orm.VerificationMethodKeyType(0)).Update("key_usage", keyUsage).Error; err != nil {
+			return fmt.Errorf("could not set key usage for existing KeyReferences: %w", err)
 		}
 		return nil
 	})
