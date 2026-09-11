@@ -22,7 +22,6 @@ import (
 	"context"
 	"crypto"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -91,24 +90,14 @@ func (m Manager) NewDocument(ctx context.Context, keyFlags orm.DIDKeyFlags) (*or
 	return &sqlDoc, nil
 }
 
-func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, keyUsage orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
+func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, requestedKeyFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
 	verificationMethodID := did.DIDURL{
 		DID:      controller,
 		Fragment: uuid.New().String(),
 	}
-	var publicKey crypto.PublicKey
-	var err error
-	if keyUsage.Is(orm.KeyAgreementUsage) {
-		return nil, 0, errors.New("key agreement not supported for did:web")
-		// todo requires update to nutsCrypto module
-		//verificationMethodKey, err = m.keyStore.NewRSA(ctx, func(key crypt.PublicKey) (string, error) {
-		//      return verificationMethodID.String(), nil
-		//})
-	} else {
-		_, publicKey, err = m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
-			return verificationMethodID.String(), nil
-		})
-	}
+	keyRef, publicKey, err := m.keyStore.New(ctx, func(key crypto.PublicKey) (string, error) {
+		return verificationMethodID.String(), nil
+	})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -117,7 +106,7 @@ func (m Manager) NewVerificationMethod(ctx context.Context, controller did.DID, 
 		return nil, 0, err
 	}
 
-	return verificationMethod, keyUsage, nil
+	return verificationMethod, orm.DIDKeyFlags(keyRef.KeyUsage) & requestedKeyFlags, nil
 }
 
 // Commit does nothing for did:web. This is important since only the one of the method managers may have a failing commit.

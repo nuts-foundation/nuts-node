@@ -295,12 +295,12 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 
 func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
 	// did:nuts uses EC keys for everything, so it doesn't select a key type based on the requested DIDKeyFlags.
-	method, allowedKeyUsage, err := CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
+	method, actualKeyFlags, err := CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
 	if err != nil {
 		return nil, 0, err
 	}
 	// Only grant what was requested AND what the key store backend can actually back.
-	return method, requestedFlags & allowedKeyUsage, nil
+	return method, requestedFlags & actualKeyFlags, nil
 }
 
 func (m Manager) Commit(ctx context.Context, change orm.DIDChangeLog) error {
