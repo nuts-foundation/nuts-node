@@ -23,13 +23,14 @@ import (
 	"crypto"
 	"errors"
 	"fmt"
+	"path"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/azure"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"gorm.io/gorm"
-	"path"
-	"time"
 
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/core"
@@ -271,11 +272,14 @@ func (client *Crypto) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.K
 	return ref, publicKey, err
 }
 
-// keyUsageForCapability derives the DIDKeyFlags a key with the given KeyCapability can back.
-// Every key can be used for signing (AssertionKeyUsage); only a key that also supports
-// decryption/ECDH can additionally back KeyAgreement (EncryptionKeyUsage).
+// keyUsageForCapability derives the DIDKeyFlags a key with the given KeyCapability can back:
+// a key that can sign can back AssertionKeyUsage; a key that can decrypt/ECDH can back
+// KeyAgreement (EncryptionKeyUsage).
 func keyUsageForCapability(capability spi.KeyCapability) orm.DIDKeyFlags {
-	keyUsage := orm.AssertionKeyUsage()
+	var keyUsage orm.DIDKeyFlags
+	if capability.Is(spi.Signing) {
+		keyUsage |= orm.AssertionKeyUsage()
+	}
 	if capability.Is(spi.Decryption) {
 		keyUsage |= orm.EncryptionKeyUsage()
 	}
