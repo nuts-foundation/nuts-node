@@ -260,7 +260,7 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 	}
 	// Only claim the verification relationships (e.g. KeyAgreement) the key store backend can actually
 	// back for this key; e.g. an Azure Key Vault EC key can't be used for KeyAgreement (decryption).
-	keyFlags := DefaultKeyFlags() & orm.DIDKeyFlags(keyRef.KeyUsage)
+	keyFlags := orm.DIDKeyFlags(keyRef.KeyUsage)
 
 	keyID, err := did.ParseDIDURL(keyRef.KID)
 	if err != nil {
@@ -294,7 +294,6 @@ func (m Manager) NewDocument(ctx context.Context, _ orm.DIDKeyFlags) (*orm.DidDo
 }
 
 func (m Manager) NewVerificationMethod(ctx context.Context, id did.DID, requestedFlags orm.DIDKeyFlags) (*did.VerificationMethod, orm.DIDKeyFlags, error) {
-	// did:nuts uses EC keys for everything, so it doesn't select a key type based on the requested DIDKeyFlags.
 	method, actualKeyFlags, err := CreateNewVerificationMethodForDID(ctx, id, m.keyStore)
 	if err != nil {
 		return nil, 0, err
