@@ -30,7 +30,7 @@ require (
 	github.com/nats-io/nats-server/v2 v2.11.17
 	github.com/nats-io/nats.go v1.51.0
 	github.com/nuts-foundation/crypto-ecies v0.0.0-20211207143025-5b84f9efce2b
-	github.com/nuts-foundation/go-did v0.22.0
+	github.com/nuts-foundation/go-did v0.22.1
 	github.com/nuts-foundation/go-leia/v4 v4.2.0
 	github.com/nuts-foundation/go-stoabs v1.11.2
 	github.com/nuts-foundation/sqlite v1.0.0
@@ -46,7 +46,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/twmb/murmur3 v1.1.8
 	go.etcd.io/bbolt v1.4.3
 	go.uber.org/atomic v1.11.0
@@ -84,7 +84,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250724212937-08a3db8b4327 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -130,10 +129,10 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/labstack/gommon v0.5.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
-	github.com/lestrrat-go/dsig v1.2.1 // indirect
+	github.com/lestrrat-go/dsig v1.3.0 // indirect
 	github.com/lestrrat-go/dsig-secp256k1 v1.0.0 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc/v3 v3.0.5 // indirect
+	github.com/lestrrat-go/httprc/v3 v3.0.6 // indirect
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
@@ -158,7 +157,6 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/nightlyone/lockfile v1.0.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pquerna/cachecontrol v0.2.0
 	github.com/privacybydesign/gabi v0.0.0-20221212095008-68a086907750 // indirect
 	github.com/prometheus/common v0.67.4 // indirect
@@ -205,11 +203,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.40
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf
 	github.com/daangn/minimemcached v1.2.1
-	github.com/eko/gocache/lib/v4 v4.2.4
-	github.com/eko/gocache/store/go_cache/v4 v4.2.7
-	github.com/eko/gocache/store/memcache/v4 v4.2.7
-	github.com/eko/gocache/store/redis/v4 v4.2.9
-	github.com/lestrrat-go/jwx/v3 v3.1.1
+	github.com/eko/gocache/lib/v4 v4.4.0
+	github.com/eko/gocache/store/go_cache/v4 v4.2.10
+	github.com/eko/gocache/store/memcache/v4 v4.2.10
+	github.com/eko/gocache/store/redis/v4 v4.2.12
+	github.com/lestrrat-go/jwx/v3 v3.2.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
 	go.opentelemetry.io/contrib/bridges/otellogrus v0.17.0
@@ -256,7 +254,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	modernc.org/libc v1.70.0 // indirect
