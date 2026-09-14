@@ -11,20 +11,16 @@ on:
   # allow manually triggering workflow
   workflow_dispatch:
 
-# deny-all default; the job below grants only the scopes it needs
+# deny-all default; each job below grants only the scopes it needs
 permissions: {}
 
 jobs:
   govulncheck_job:
     runs-on: ubuntu-latest
     name: Run govulncheck
-    # master only gets a Slack alert (its own Dependabot config keeps it patched).
-    # V5.4/V6.2 don't get proactive Dependabot updates (see #4545), so a finding
-    # there also gets a fix PR opened directly - contents/pull-requests write is
-    # only exercised on that path, but permissions are job-wide, not per matrix leg.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read # to check for an already-open fix PR
 
     strategy:
       fail-fast: false
@@ -50,157 +46,6 @@ jobs:
           go-package: ./...
           repo-checkout: false # will auto-checkout the default branch if left on true
           output-format: 'text' # other values will always result in successful completion of the action, we need it fail on vulnerabilities
-
-      # V5.4/V6.2 don't get proactive Dependabot bumps (#4545), so a finding here
-      # needs a fix PR, not just an alert. The text-format run above only tells us
-      # *that* something is wrong; re-run in JSON to get which module/version to
-      # bump. JSON format never fails the step, so this only runs after the text
-      # run already failed.
-      - name: Get vulnerability details (JSON)
-        if: ${{ failure() && matrix.branches != 'master' }}
-        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
-        with:
-          go-version-input: ''
-          go-version-file: 'go.mod'
-          go-package: ./...
-          repo-checkout: false
-          output-format: 'json'
-          output-file: 'govulncheck.json'
-
-      # Every branch in this repo requires signed commits (org-wide ruleset), and
-      # the runner has no signing key for a bot identity. Commits made through the
-      # GitHub API (blob -> tree -> commit -> ref) are signed by GitHub itself, so
-      # the fix is built entirely via `gh api`/`git diff` - no local `git commit`
-      # or `git push` involved.
-      - name: Open fix PRs for reachable findings
-        id: fix
-        if: ${{ failure() && matrix.branches != 'master' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: ${{ matrix.branches }}
-          REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          set -uo pipefail
-
-          opened=()
-          skipped=()
-
-          # One finding per (osv, module): govulncheck can report the same
-          # vulnerability multiple times via different call traces.
-          findings=$(jq -c 'select(.finding != null) | .finding | select(.trace[0].module != null) | {osv, fixed_version, module: .trace[0].module}' govulncheck.json \
-            | jq -s 'unique_by(.osv, .module)' | jq -c '.[]')
-
-          while IFS= read -r finding; do
-            [ -z "$finding" ] && continue
-            osv=$(echo "$finding" | jq -r '.osv')
-            module=$(echo "$finding" | jq -r '.module')
-            fixed=$(echo "$finding" | jq -r '.fixed_version')
-
-            if [ -z "$fixed" ] || [ "$fixed" = "null" ]; then
-              echo "::warning::${osv} (${module}) on ${BRANCH}: no fixed version published yet, skipping"
-              skipped+=("${osv} (${module}): no fix published yet")
-              continue
-            fi
-            # stdlib/toolchain findings need a Go version bump, not `go get`.
-            if [ "$module" = "stdlib" ] || [ "$module" = "toolchain" ]; then
-              echo "::warning::${osv} on ${BRANCH}: affects the Go toolchain/stdlib, needs a manual Go version bump"
-              skipped+=("${osv}: affects the Go toolchain/stdlib, needs a manual Go version bump")
-              continue
-            fi
-
-            pr_title="${BRANCH}: fix ${osv} (${module})"
-            # keyed on (branch, advisory ID): the same CVE can affect both release
-            # branches (one PR each, not deduped against each other), and a module
-            # can have more than one open advisory at once.
-            existing=$(gh pr list --repo "$REPO" --base "$BRANCH" --state open --search "\"${osv}\" in:title" --json url --jq '.[0].url // empty')
-            if [ -n "$existing" ]; then
-              echo "PR already open for ${osv} on ${BRANCH}: ${existing}"
-              skipped+=("${osv} (${module}): already open at ${existing}")
-              continue
-            fi
-
-            if ! go get "${module}@${fixed}"; then
-              echo "::error::go get ${module}@${fixed} failed on ${BRANCH}"
-              skipped+=("${osv} (${module}): go get ${module}@${fixed} failed")
-              git checkout -- go.mod go.sum
-              continue
-            fi
-            if ! go mod tidy; then
-              echo "::error::go mod tidy failed on ${BRANCH} after bumping ${module}"
-              skipped+=("${osv} (${module}): go mod tidy failed after bumping")
-              git checkout -- go.mod go.sum
-              continue
-            fi
-
-            if git diff --quiet; then
-              echo "${osv} (${module}) on ${BRANCH}: go get changed nothing, already effectively fixed"
-              git checkout -- go.mod go.sum
-              continue
-            fi
-
-            new_branch="security/${BRANCH}-${osv}"
-            base_sha=$(gh api "repos/${REPO}/git/ref/heads/${BRANCH}" --jq .object.sha)
-            base_tree=$(gh api "repos/${REPO}/git/commits/${base_sha}" --jq .tree.sha)
-
-            tree_entries="[]"
-            for f in $(git diff --name-only); do
-              blob_sha=$(gh api "repos/${REPO}/git/blobs" -f content="$(base64 -w0 "$f")" -f encoding=base64 --jq .sha)
-              tree_entries=$(echo "$tree_entries" | jq --arg path "$f" --arg sha "$blob_sha" '. + [{path:$path, mode:"100644", type:"blob", sha:$sha}]')
-            done
-
-            new_tree=$(jq -n --argjson tree "$tree_entries" --arg base "$base_tree" '{base_tree:$base, tree:$tree}' \
-              | gh api "repos/${REPO}/git/trees" --input - --jq .sha)
-
-            commit_msg="fix(${module}): bump to ${fixed} (${osv})
-
-          govulncheck flagged this vulnerability on ${BRANCH}. See https://pkg.go.dev/vuln/${osv}"
-            new_commit=$(jq -n --arg msg "$commit_msg" --arg tree "$new_tree" --arg parent "$base_sha" \
-              '{message:$msg, tree:$tree, parents:[$parent]}' | gh api "repos/${REPO}/git/commits" --input - --jq .sha)
-
-            if ! gh api "repos/${REPO}/git/refs" -f ref="refs/heads/${new_branch}" -f sha="${new_commit}" >/dev/null; then
-              echo "::error::failed to create branch ${new_branch}"
-              skipped+=("${osv} (${module}): failed to create fix branch")
-              git checkout -- go.mod go.sum
-              continue
-            fi
-
-            pr_url=$(gh pr create --repo "$REPO" --base "$BRANCH" --head "$new_branch" \
-              --title "$pr_title" \
-              --body "govulncheck flagged \`${module}\` (${osv}) as vulnerable on \`${BRANCH}\`.
-
-          Bumps to \`${module}@${fixed}\`.
-
-          See https://pkg.go.dev/vuln/${osv}")
-
-            echo "opened ${pr_url} for ${osv} on ${BRANCH}"
-            opened+=("${pr_url}")
-
-            git checkout -- go.mod go.sum
-          done <<< "$findings"
-
-          summary=""
-          if [ "${#opened[@]}" -gt 0 ]; then
-            summary+=$(printf 'Opened:\n%s\n' "$(printf '- %s\n' "${opened[@]}")")
-          fi
-          if [ "${#skipped[@]}" -gt 0 ]; then
-            summary+=$(printf 'Skipped:\n%s\n' "$(printf '- %s\n' "${skipped[@]}")")
-          fi
-          if [ -z "$summary" ]; then
-            summary="No reachable, fixable findings - see the workflow run for govulncheck's full output."
-          fi
-
-          jq -n \
-            --arg branch "$BRANCH" \
-            --arg summary "$summary" \
-            --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{
-              text: "GitHub Action detected vulnerabilities",
-              blocks: [
-                {type: "section", text: {type: "mrkdwn", text: ("*Vulnerabilities detected on " + $branch + "* :rotating_light:\n" + $summary)}},
-                {type: "actions", elements: [{type: "button", text: {type: "plain_text", text: ":github: View workflow run"}, url: $run_url}]}
-              ]
-            }' > slack-payload.json
 
       - name: notify slack (master)
         # this uses our own 'Github notifications' app in slack
@@ -236,11 +81,233 @@ jobs:
               ]
             }
 
-      - name: notify slack (release branch)
-        # this uses our own 'Github notifications' app in slack
-        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+      # V5.4/V6.2 don't get proactive Dependabot bumps (#4545), so a finding here
+      # needs a fix PR, not just an alert. The text-format run above only tells us
+      # *that* something is wrong; re-run in JSON to get which module/version to
+      # bump. JSON format never fails the step, so this only runs after the text
+      # run already failed.
+      - name: Get vulnerability details (JSON)
         if: ${{ failure() && matrix.branches != 'master' }}
+        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
         with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
+          go-version-input: ''
+          go-version-file: 'go.mod'
+          go-package: ./...
+          repo-checkout: false
+          output-format: 'json'
+          output-file: 'govulncheck.json'
+
+      # Reduce the JSON report to the findings that actually need a fix PR: one
+      # per (osv, module) - govulncheck can report the same vulnerability via
+      # multiple call traces - skipping stdlib/toolchain findings (need a Go
+      # version bump, not `go get`), findings with no fixed version yet, and
+      # anything that already has an open PR. `open_fix_prs` (below) can't tell
+      # any of this apart from a "nothing to do" run, so it's filtered out here.
+      - name: Extract actionable findings
+        id: findings
+        if: ${{ failure() && matrix.branches != 'master' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ matrix.branches }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          actionable="[]"
+          findings=$(jq -c 'select(.finding != null) | .finding | select(.trace[0].module != null) | {osv, fixed_version, module: .trace[0].module}' govulncheck.json \
+            | jq -s 'unique_by(.osv, .module)' | jq -c '.[]')
+
+          while IFS= read -r finding; do
+            [ -z "$finding" ] && continue
+            osv=$(echo "$finding" | jq -r '.osv')
+            module=$(echo "$finding" | jq -r '.module')
+            fixed=$(echo "$finding" | jq -r '.fixed_version')
+
+            if [ -z "$fixed" ] || [ "$fixed" = "null" ]; then
+              echo "::warning::${osv} (${module}) on ${BRANCH}: no fixed version published yet, skipping"
+              continue
+            fi
+            # stdlib/toolchain findings need a Go version bump, not `go get`.
+            if [ "$module" = "stdlib" ] || [ "$module" = "toolchain" ]; then
+              echo "::warning::${osv} on ${BRANCH}: affects the Go toolchain/stdlib, needs a manual Go version bump"
+              continue
+            fi
+
+            # keyed on (branch, advisory ID): the same CVE can affect both release
+            # branches (one PR each, not deduped against each other), and a module
+            # can have more than one open advisory at once.
+            existing=$(gh pr list --repo "$REPO" --base "$BRANCH" --state open --search "\"${osv}\" in:title" --json url --jq '.[0].url // empty')
+            if [ -n "$existing" ]; then
+              echo "PR already open for ${osv} on ${BRANCH}: ${existing}"
+              continue
+            fi
+
+            actionable=$(echo "$actionable" | jq --arg branch "$BRANCH" --arg osv "$osv" --arg module "$module" --arg fixed "$fixed" \
+              '. + [{branch: $branch, osv: $osv, module: $module, fixed: $fixed}]')
+          done <<< "$findings"
+
+          count=$(echo "$actionable" | jq 'length')
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
+            echo "$actionable" | jq -c . > findings.json
+          fi
+
+      - name: Upload actionable findings
+        if: ${{ failure() && matrix.branches != 'master' && steps.findings.outputs.count > 0 }}
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: findings-${{ matrix.branches }}
+          path: findings.json
+          retention-days: 1
+
+      # Nothing left to open a fix PR for (already open, no fixed version yet, or
+      # a toolchain/stdlib finding) - still alert, since the branch is genuinely
+      # vulnerable and this run won't produce a PR for it.
+      - name: notify slack (release branch, no auto-fix)
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        if: ${{ failure() && matrix.branches != 'master' && steps.findings.outputs.count == 0 }}
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }}
           webhook-type: incoming-webhook
-          payload-file-path: 'slack-payload.json'
+          payload: |
+            {
+              "text": "GitHub Action failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Vulnerabilities detected on ${{ matrix.branches }}* :rotating_light:\n govulncheck found vulnerabilities but none could be auto-fixed (already an open PR, no fixed version yet, or a toolchain/stdlib finding). See workflow for more info."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": ":github: Failed workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+
+  # Findings are collected per-branch by the matrixed job above (one artifact
+  # each). A `uses:` action step can't be looped over a variable-length list
+  # within a single job, so the fix itself happens in a *dynamic* matrix
+  # (open_fix_prs, below) - this job's only purpose is merging the per-branch
+  # artifacts into the single JSON array that matrix needs.
+  prepare_fix_matrix:
+    runs-on: ubuntu-latest
+    name: Merge findings into a fix matrix
+    needs: govulncheck_job
+    if: ${{ needs.govulncheck_job.result == 'failure' }}
+    permissions: {}
+    outputs:
+      matrix: ${{ steps.merge.outputs.matrix }}
+      has_findings: ${{ steps.merge.outputs.has_findings }}
+    steps:
+      - name: Download findings
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          pattern: findings-*
+        continue-on-error: true # no artifacts at all if nothing was actionable
+
+      - name: Merge into one matrix
+        id: merge
+        shell: bash
+        run: |
+          set -uo pipefail
+          shopt -s nullglob
+          files=(findings-*/findings.json)
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          merged=$(jq -s 'add' "${files[@]}")
+          echo "matrix=$(echo "$merged" | jq -c .)" >> "$GITHUB_OUTPUT"
+          if [ "$(echo "$merged" | jq 'length')" -gt 0 ]; then
+            echo "has_findings=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Every branch in this repo requires signed commits (org-wide ruleset), and
+  # the runner has no signing key for a bot identity. create-pull-request's
+  # `sign-commits: true` (with the default GITHUB_TOKEN) signs the commit as
+  # github-actions[bot] via GitHub's API instead of a local `git commit` +
+  # `git push`, so no key management is needed.
+  open_fix_prs:
+    runs-on: ubuntu-latest
+    name: 'Fix ${{ matrix.finding.osv }} on ${{ matrix.finding.branch }}'
+    needs: prepare_fix_matrix
+    if: ${{ needs.prepare_fix_matrix.outputs.has_findings == 'true' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        finding: ${{ fromJson(needs.prepare_fix_matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ matrix.finding.branch }}
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Bump the vulnerable module
+        run: |
+          go get "${{ matrix.finding.module }}@${{ matrix.finding.fixed }}"
+          go mod tidy
+
+      - name: Open fix PR
+        id: cpr
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
+        with:
+          token: ${{ github.token }}
+          sign-commits: true
+          base: ${{ matrix.finding.branch }}
+          branch: security/${{ matrix.finding.branch }}-${{ matrix.finding.osv }}
+          commit-message: |
+            fix(${{ matrix.finding.module }}): bump to ${{ matrix.finding.fixed }} (${{ matrix.finding.osv }})
+
+            govulncheck flagged this vulnerability on ${{ matrix.finding.branch }}. See https://pkg.go.dev/vuln/${{ matrix.finding.osv }}
+          title: '${{ matrix.finding.branch }}: fix ${{ matrix.finding.osv }} (${{ matrix.finding.module }})'
+          body: |
+            govulncheck flagged `${{ matrix.finding.module }}` (${{ matrix.finding.osv }}) as vulnerable on `${{ matrix.finding.branch }}`.
+
+            Bumps to `${{ matrix.finding.module }}@${{ matrix.finding.fixed }}`.
+
+            See https://pkg.go.dev/vuln/${{ matrix.finding.osv }}
+
+      - name: notify slack (fix PR opened)
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d # v4.0.0
+        if: ${{ steps.cpr.outputs.pull-request-operation == 'created' }}
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "GitHub Action opened a security fix PR",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Fix PR opened for ${{ matrix.finding.branch }}* :rotating_light:\n${{ matrix.finding.osv }} (`${{ matrix.finding.module }}`) - <${{ steps.cpr.outputs.pull-request-url }}|review the PR>"
+                  }
+                }
+              ]
+            }
