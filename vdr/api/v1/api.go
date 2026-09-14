@@ -128,8 +128,12 @@ func (a *Wrapper) Routes(router core.EchoRouter) {
 
 // CreateDID creates a new DID Document and returns it.
 func (a *Wrapper) CreateDID(ctx context.Context, _ CreateDIDRequestObject) (CreateDIDResponseObject, error) {
-	// request body is ignored, defaults are used.
-	options := didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{})
+	// request body is ignored, defaults are used: selfControl, assertionMethod, keyAgreement and
+	// capabilityInvocation all default to true (see docs/_static/vdr/v1.yaml), so KeyAgreement must
+	// always be requested here.
+	options := didsubject.DefaultCreationOptions().
+		With(didsubject.NutsLegacyNamingOption{}).
+		With(didsubject.EncryptionKeyCreationOption{})
 
 	docs, _, err := a.SubjectManager.Create(ctx, options)
 	// if this operation leads to an error, it may return a 500

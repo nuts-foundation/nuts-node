@@ -50,7 +50,7 @@ func TestWrapper_CreateDID(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
 		request := DIDCreateRequest{SelfControl: to.Ptr(false)} // SelfControl value is overwritten with default
-		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{})).Return([]did.Document{*didDoc}, "subject", nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.NutsLegacyNamingOption{}).With(didsubject.EncryptionKeyCreationOption{})).Return([]did.Document{*didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateDID(nil, CreateDIDRequestObject{Body: &request})
 
