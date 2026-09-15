@@ -148,10 +148,13 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
 			methodKeyFlags := keyFlags
-			// did:web never supports KeyAgreement (RSA/SOGIS constraint, requires update to
-			// nutsCrypto module, see #1948), independent of the key store backend. Strip it here
-			// rather than failing creation of the whole subject over it: did:nuts (and any other
-			// method) should still get its key.
+			// did:web never supports KeyAgreement (RSA/SOGIS constraint, see #1948), independent of
+			// the key store backend. Strip it here rather than failing creation of the whole subject
+			// over it: did:nuts (and any other method) should still get its key.
+			// TEMPORARY: this hardcodes method == "web" instead of asking the manager what it
+			// supports. If #1948 is resolved (dropping the RSA/SOGIS requirement so did:web can back
+			// KeyAgreement with an EC key like every other method), this whole check can go away
+			// instead of being replaced with a per-method capability query.
 			if method == "web" {
 				methodKeyFlags &^= orm.KeyAgreementUsage
 			}
