@@ -59,3 +59,75 @@ updates:
       interval: "weekly"
     # Allow up to 0 open pull requests for pip dependencies
     open-pull-requests-limit: 0
+
+  # Release branches: Dependabot only reads this file from the default branch
+  # and only targets that branch unless told otherwise. Keep the base image
+  # and Go modules on the supported release lines patched as well.
+  # Only patch-level Go module updates are proposed there.
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "V6.2"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "V6.2"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "V5.4"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "V5.4"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "23:00"
+      timezone: "Europe/Amsterdam"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      go-modules:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"

@@ -1,5 +1,8 @@
 # golang alpine
-FROM golang:1.27.1-alpine AS builder
+# The builder runs on the build host platform and cross-compiles for
+# TARGETOS/TARGETARCH. Building arm64 under QEMU emulation instead took
+# about 20 minutes for go build alone.
+FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -18,11 +21,21 @@ COPY go.sum .
 RUN go mod download && go mod verify
 
 COPY . .
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X 'github.com/nuts-foundation/nuts-node/v6/core.GitCommit=${GIT_COMMIT}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitBranch=${GIT_BRANCH}' -X 'github.com/nuts-foundation/nuts-node/v6/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
+# git is needed so go build can stamp the module version from the checked-out tag
+# DL3018 (pin apk versions) is ignored: Alpine keeps only the current version
+# of a package in its repositories, so a pinned version breaks the build as soon
+# as the package is updated. The pinned base image tag anchors reproducibility.
+# hadolint ignore=DL3018
+RUN apk add --no-cache git
+RUN MODULE=$(go list -m) && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X '${MODULE}/core.GitCommit=${GIT_COMMIT}' -X '${MODULE}/core.GitBranch=${GIT_BRANCH}' -X '${MODULE}/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
 FROM alpine:3.24.1
-RUN apk update \
+# Upgrade all preinstalled packages so the image picks up security fixes
+# published after the base image was cut.
+# DL3018 ignored for the same reason as in the builder stage above.
+# hadolint ignore=DL3018
+RUN apk -U upgrade --no-cache \
   && apk add --no-cache \
              tzdata \
              curl
