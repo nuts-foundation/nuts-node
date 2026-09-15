@@ -111,8 +111,17 @@ func testDenylist(url, trustedSigner string) (Denylist, error) {
 	return NewDenylist(cfg)
 }
 
-// Do not use this value outside of denylist_test.go
-const bannedCertIssuer = `CN=www.example.com,O=Internet Widgits Pty Ltd,L=Amsterdam,ST=Noord-Holland,C=NL,1.2.840.113549.1.9.1=#0c136578616d706c65406578616d706c652e636f6d`
+// Do not use this value outside of denylist_test.go.
+// The issuer string is derived from the certificate at runtime, since its formatting depends on the Go version:
+// before Go 1.27, pkix.Name.String() hex-encoded the emailAddress attribute (1.2.840.113549.1.9.1) in the DN.
+var bannedCertIssuer = func() string {
+	block, _ := pem.Decode([]byte(bannedTestCertificate))
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		panic(err)
+	}
+	return cert.Issuer.String()
+}()
 
 // Do not use this value outside of denylist_test.go
 const bannedCertSerialNumber = `352232997782095055661451877220413401771436182288`

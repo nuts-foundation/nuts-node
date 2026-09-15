@@ -157,7 +157,8 @@ func TestPresenterIsCredentialSubject(t *testing.T) {
 			},
 		})
 		is, err := PresenterIsCredentialSubject(vp)
-		assert.EqualError(t, err, "invalid LD-proof for presentation: json: cannot unmarshal bool into Go value of type proof.LDProof")
+		assert.ErrorContains(t, err, "invalid LD-proof for presentation: json: cannot unmarshal bool into ")
+		assert.ErrorContains(t, err, " of type proof.LDProof")
 		assert.Nil(t, is)
 	})
 	t.Run("too many proofs", func(t *testing.T) {
