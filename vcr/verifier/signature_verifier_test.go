@@ -50,6 +50,7 @@ import (
 	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/crypto/storage/spi"
 	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/didjwk"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -123,7 +124,7 @@ func TestSignatureVerifier_VerifySignature(t *testing.T) {
 			keyAsJWK, _ := jwk.Import(key)
 			keyJSON, _ := json.Marshal(keyAsJWK)
 			return "did:jwk:" + base64.RawStdEncoding.EncodeToString(keyJSON) + "#0", nil
-		})
+		}, orm.AssertionKeyUsage())
 		require.NoError(t, err)
 
 		template := testCredential(t)

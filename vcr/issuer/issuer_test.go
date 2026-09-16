@@ -82,7 +82,7 @@ func Test_issuer_buildAndSignVC(t *testing.T) {
 		}},
 	}
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(kid))
+	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(kid), orm.AssertionKeyUsage())
 	require.NoError(t, err)
 
 	t.Run("JSON-LD", func(t *testing.T) {
@@ -289,7 +289,7 @@ func Test_issuer_Issue(t *testing.T) {
 	ctx := audit.TestContext()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	nutsCryptoInstance := nutsCrypto.NewMemoryCryptoInstance(t)
-	_, issuerKey, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(issuerKeyID))
+	_, issuerKey, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc(issuerKeyID), orm.AssertionKeyUsage())
 
 	t.Run("ok - unpublished", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
@@ -550,7 +550,7 @@ func Test_issuer_buildRevocation(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		nutsCryptoInstance := nutsCrypto.NewMemoryCryptoInstance(t)
-		kid, key, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:issuer#abc"))
+		kid, key, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:issuer#abc"), orm.AssertionKeyUsage())
 		keyResolverMock := resolver.NewMockKeyResolver(ctrl)
 		keyResolverMock.EXPECT().ResolveKey(issuerDID, nil, resolver.AssertionMethod).Return(kid.KID, key, nil)
 
@@ -771,7 +771,7 @@ func Test_issuer_revokeNetwork(t *testing.T) {
 	issuerURI := issuerDID.URI()
 	jsonldManager := jsonld.NewTestJSONLDManager(t)
 	nutsCryptoInstance := nutsCrypto.NewMemoryCryptoInstance(t)
-	kid, key, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:issuer#abc"))
+	kid, key, _ := nutsCryptoInstance.New(audit.TestContext(), nutsCrypto.StringNamingFunc("did:nuts:issuer#abc"), orm.AssertionKeyUsage())
 	ctx := audit.TestContext()
 
 	t.Run("for a known credential", func(t *testing.T) {
@@ -927,7 +927,7 @@ func TestIssuer_revokeStatusList(t *testing.T) {
 
 	ctx := audit.TestContext()
 	keyStore := nutsCrypto.NewMemoryCryptoInstance(t)
-	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(webIssuerDID.String()+"#abc"))
+	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(webIssuerDID.String()+"#abc"), orm.AssertionKeyUsage())
 	require.NoError(t, err)
 
 	t.Run("ok", func(t *testing.T) {
@@ -1052,7 +1052,7 @@ func TestIssuer_StatusList(t *testing.T) {
 	ctx := audit.TestContext()
 	db := orm.NewTestDatabase(t)
 	keyStore := nutsCrypto.NewDatabaseCryptoInstance(db)
-	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(webIssuerDID.String()+"#abc"))
+	_, signingKey, err := keyStore.New(ctx, nutsCrypto.StringNamingFunc(webIssuerDID.String()+"#abc"), orm.AssertionKeyUsage())
 	require.NoError(t, err)
 
 	jsonldManager := jsonld.NewTestJSONLDManager(t)

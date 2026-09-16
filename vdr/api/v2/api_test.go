@@ -50,7 +50,7 @@ var didDoc = did.Document{
 func TestWrapper_CreateSubject(t *testing.T) {
 	t.Run("ok - defaults", func(t *testing.T) {
 		ctx := newMockContext(t)
-		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return([]did.Document{didDoc}, "subject", nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.EncryptionKeyCreationOption{})).Return([]did.Document{didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{Body: &CreateSubjectJSONRequestBody{}})
 
@@ -61,7 +61,7 @@ func TestWrapper_CreateSubject(t *testing.T) {
 	t.Run("with Subject", func(t *testing.T) {
 		ctx := newMockContext(t)
 		subject := "subject"
-		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject})).Return([]did.Document{didDoc}, "subject", nil)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.SubjectCreationOption{Subject: subject}).With(didsubject.EncryptionKeyCreationOption{})).Return([]did.Document{didDoc}, "subject", nil)
 
 		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{
 			Body: &CreateSubjectJSONRequestBody{
@@ -72,6 +72,32 @@ func TestWrapper_CreateSubject(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, response.(CreateSubject200JSONResponse).Documents, 1)
 		assert.Equal(t, "subject", response.(CreateSubject200JSONResponse).Subject)
+	})
+	t.Run("ok - keys.encryptionKey explicitly true", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions().With(didsubject.EncryptionKeyCreationOption{})).Return([]did.Document{didDoc}, "subject", nil)
+
+		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{
+			Body: &CreateSubjectJSONRequestBody{
+				Keys: &KeyCreationOptions{EncryptionKey: true},
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Len(t, response.(CreateSubject200JSONResponse).Documents, 1)
+	})
+	t.Run("ok - keys.encryptionKey explicitly false opts out", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.subjectManager.EXPECT().Create(gomock.Any(), didsubject.DefaultCreationOptions()).Return([]did.Document{didDoc}, "subject", nil)
+
+		response, err := ctx.client.CreateSubject(nil, CreateSubjectRequestObject{
+			Body: &CreateSubjectJSONRequestBody{
+				Keys: &KeyCreationOptions{EncryptionKey: false},
+			},
+		})
+
+		require.NoError(t, err)
+		assert.Len(t, response.(CreateSubject200JSONResponse).Documents, 1)
 	})
 	t.Run("error - create fails", func(t *testing.T) {
 		ctx := newMockContext(t)

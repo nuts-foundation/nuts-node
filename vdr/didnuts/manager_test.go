@@ -106,7 +106,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()), orm.AssertionKeyUsage())
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{}, nil)
@@ -135,7 +135,7 @@ func TestManager_RemoveVerificationMethod(t *testing.T) {
 
 	t.Run("error - document is deactivated", func(t *testing.T) {
 		ctx := newTestContext(t)
-		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()))
+		_, pubKey, _ := ctx.keyStore.New(audit.TestContext(), nutsCrypto.StringNamingFunc(id123Method.String()), orm.AssertionKeyUsage())
 		doc1 := createDoc(pubKey)
 		doc2 := createDoc(pubKey)
 		ctx.didResolver.EXPECT().Resolve(*id123, &resolver.ResolveMetadata{AllowDeactivated: true}).Return(&doc1, &resolver.DocumentMetadata{Deactivated: true}, nil)
@@ -155,7 +155,7 @@ func TestManager_CreateNewAuthenticationMethodForDID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		// Prepare a document with an authenticationMethod:
 		document := &did.Document{ID: *id123}
-		method, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc)
+		method, err := CreateNewVerificationMethodForDID(audit.TestContext(), document.ID, kc, orm.AssertionKeyUsage())
 		require.NoError(t, err)
 		document.AddCapabilityInvocation(method)
 
@@ -326,6 +326,35 @@ func TestManager_NewDocument(t *testing.T) {
 			_ = jwk.AssignKeyID(asJWK, jwk.WithThumbprintHash(crypto.SHA256))
 			asJWKKeyID, _ := asJWK.KeyID()
 			assert.Equal(t, fmt.Sprintf("%s#%s", doc.DID.ID, asJWKKeyID), verificationMethod.ID.String())
+		})
+	})
+
+	t.Run("key store backend can't back KeyAgreement", func(t *testing.T) {
+		// Mimics an Azure Key Vault backend: it can generate EC keys, but they can't be used for
+		// decryption/ECDH, so a key it generates can't back a KeyAgreement verification method.
+		signOnlyKeyStore := nutsCrypto.NewAzureKeyVaultLikeCryptoInstance(db)
+		signOnlyManager := NewManager(signOnlyKeyStore, nil, nil, nil, db)
+
+		t.Run("document creation without KeyAgreement still succeeds", func(t *testing.T) {
+			// With OpenID4VCI as an alternative to gRPC/DAG private-transaction delivery, a did:nuts
+			// document no longer strictly needs KeyAgreement, so this must not fail outright.
+			doc, err := signOnlyManager.NewDocument(ctx, orm.AssertionKeyUsage())
+
+			require.NoError(t, err)
+			require.Len(t, doc.VerificationMethods, 1)
+			assert.False(t, orm.DIDKeyFlags(doc.VerificationMethods[0].KeyTypes).Is(orm.KeyAgreementUsage))
+		})
+
+		t.Run("explicitly requesting KeyAgreement fails", func(t *testing.T) {
+			_, err := signOnlyManager.NewDocument(ctx, DefaultKeyFlags())
+
+			assert.ErrorIs(t, err, nutsCrypto.ErrKeyUsageNotSupported)
+		})
+
+		t.Run("explicit VerificationMethod request", func(t *testing.T) {
+			_, err := signOnlyManager.NewVerificationMethod(ctx, did.MustParseDID("did:nuts:test"), orm.EncryptionKeyUsage())
+
+			assert.ErrorIs(t, err, nutsCrypto.ErrKeyUsageNotSupported)
 		})
 	})
 }

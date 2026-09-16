@@ -26,6 +26,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/jsonld"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -121,7 +122,7 @@ func TestJsonWebSignature2020_Sign(t *testing.T) {
 		doc := []byte("foo")
 		cryptoInstance := crypto.NewMemoryCryptoInstance(t)
 		const keyID = "did:nuts:123#abc"
-		_, _, _ = cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(keyID))
+		_, _, _ = cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(keyID), orm.AssertionKeyUsage())
 		sig := JSONWebSignature2020{Signer: cryptoInstance}
 
 		result, err := sig.Sign(audit.TestContext(), doc, keyID)
