@@ -109,7 +109,7 @@ func TestOpenID4VCIDisabled(t *testing.T) {
 			Public:  false,
 		})
 
-		assert.ErrorContains(t, err, "unable to publish the issued credential")
+		assert.ErrorContains(t, err, "unable to publish the issued credential over gRPC network")
 	})
 }
 

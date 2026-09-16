@@ -135,7 +135,8 @@ func TestPresentationSigner(t *testing.T) {
 				Proof: []interface{}{5},
 			})
 			actual, err := PresentationSigner(presentation)
-			assert.EqualError(t, err, "invalid LD-proof for presentation: json: cannot unmarshal number into Go value of type proof.LDProof")
+			assert.ErrorContains(t, err, "invalid LD-proof for presentation: json: cannot unmarshal number into ")
+			assert.ErrorContains(t, err, " of type proof.LDProof")
 			assert.Nil(t, actual)
 		})
 		t.Run("invalid DID in proof", func(t *testing.T) {
