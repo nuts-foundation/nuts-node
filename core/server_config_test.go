@@ -176,6 +176,24 @@ func TestNewNutsConfig_PrintConfig(t *testing.T) {
 		assert.Contains(t, bs, "redactedKey -> (redacted)")
 		assert.NotContains(t, bs, "redacted-value")
 	})
+	t.Run("redacts descendant keys (e.g. array entries)", func(t *testing.T) {
+		old := redactedConfigKeys
+		defer func() {
+			redactedConfigKeys = old
+		}()
+		redactedConfigKeys = []string{"auth.experimental.clients"}
+
+		fs2 := pflag.FlagSet{}
+		fs2.String("auth.experimental.clients.0.clientsecret", "super-secret", "description")
+		cmd2 := testCommand()
+		cmd2.Flags().AddFlagSet(&fs2)
+		cfg2 := NewServerConfig()
+		cfg2.Load(cmd2.Flags())
+
+		bs := cfg2.PrintConfig()
+		assert.Contains(t, bs, "auth.experimental.clients.0.clientsecret -> (redacted)")
+		assert.NotContains(t, bs, "super-secret")
+	})
 }
 
 func TestNewNutsConfig_InjectIntoEngine(t *testing.T) {
