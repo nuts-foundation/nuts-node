@@ -147,15 +147,21 @@ func (r *SqlManager) Create(ctx context.Context, options CreationOptions) ([]did
 
 		// call generate on all managers
 		for method, manager := range r.MethodManagers {
-			// known limitation, check is also done within the manager, but at this point we can return a known error for the API
-			// requires update to nutsCrypto module
-			if keyFlags.Is(orm.KeyAgreementUsage) && method == "web" {
-				return nil, ErrKeyAgreementNotSupported
+			methodKeyFlags := keyFlags
+			// did:web never supports KeyAgreement (RSA/SOGIS constraint, see #1948), independent of
+			// the key store backend. Strip it here rather than failing creation of the whole subject
+			// over it: did:nuts (and any other method) should still get its key.
+			// TEMPORARY: this hardcodes method == "web" instead of asking the manager what it
+			// supports. If #1948 is resolved (dropping the RSA/SOGIS requirement so did:web can back
+			// KeyAgreement with an EC key like every other method), this whole check can go away
+			// instead of being replaced with a per-method capability query.
+			if method == "web" {
+				methodKeyFlags &^= orm.KeyAgreementUsage
 			}
 
 			// save tx in context to pass all the way down to KeyStore
 			transactionContext := context.WithValue(ctx, storage.TransactionKey{}, tx)
-			sqlDoc, err := manager.NewDocument(transactionContext, keyFlags)
+			sqlDoc, err := manager.NewDocument(transactionContext, methodKeyFlags)
 			if err != nil {
 				return nil, fmt.Errorf("could not generate DID document (method %s): %w", method, err)
 			}

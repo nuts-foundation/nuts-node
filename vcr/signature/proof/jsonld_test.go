@@ -30,6 +30,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/v6/crypto"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/signature"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -170,7 +171,7 @@ func TestLDProof_Sign(t *testing.T) {
 	contextLoader := jsonld.NewTestJSONLDManager(t).DocumentLoader()
 
 	cryptoInstance := crypto.NewMemoryCryptoInstance(t)
-	_, key, _ := cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(kid))
+	_, key, _ := cryptoInstance.New(audit.TestContext(), crypto.StringNamingFunc(kid), orm.AssertionKeyUsage())
 	t.Run("sign and verify a document", func(t *testing.T) {
 		now := time.Now()
 		expires := now.Add(20 * time.Hour)

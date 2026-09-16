@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
+	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/openid4vci"
 	"github.com/nuts-foundation/nuts-node/v6/vdr/resolver"
 	"github.com/stretchr/testify/assert"
@@ -117,7 +118,7 @@ func Test_memoryIssuer_ProviderMetadata(t *testing.T) {
 func Test_memoryIssuer_HandleCredentialRequest(t *testing.T) {
 	keyStore := crypto.NewMemoryCryptoInstance(t)
 	ctx := audit.TestContext()
-	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID))
+	_, signerKey, _ := keyStore.New(ctx, crypto.StringNamingFunc(keyID), orm.AssertionKeyUsage())
 	ctrl := gomock.NewController(t)
 	keyResolver := resolver.NewMockKeyResolver(ctrl)
 	keyResolver.EXPECT().ResolveKeyByID(keyID, nil, resolver.NutsSigningKeyType).AnyTimes().Return(signerKey, nil)

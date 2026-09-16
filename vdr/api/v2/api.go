@@ -27,6 +27,7 @@ import (
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/nuts-node/v6/audit"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	nutsCrypto "github.com/nuts-foundation/nuts-node/v6/crypto"
 	"github.com/nuts-foundation/nuts-node/v6/http/cache"
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/nuts-foundation/nuts-node/v6/vdr"
@@ -64,6 +65,7 @@ func (w *Wrapper) ResolveStatusCode(err error) int {
 		didsubject.ErrInvalidService:           http.StatusBadRequest,
 		didsubject.ErrUnsupportedDIDMethod:     http.StatusBadRequest,
 		didsubject.ErrKeyAgreementNotSupported: http.StatusBadRequest,
+		nutsCrypto.ErrKeyUsageNotSupported:     http.StatusBadRequest,
 		didsubject.ErrSubjectValidation:        http.StatusBadRequest,
 		resolver.ErrDeactivated:                http.StatusConflict,
 		did.ErrInvalidService:                  http.StatusBadRequest,
@@ -119,10 +121,11 @@ func (w *Wrapper) CreateSubject(ctx context.Context, request CreateSubjectReques
 	if request.Body.Subject != nil {
 		options = options.With(didsubject.SubjectCreationOption{Subject: *request.Body.Subject})
 	}
-	if request.Body.Keys != nil {
-		if request.Body.Keys.EncryptionKey {
-			options = options.With(didsubject.EncryptionKeyCreationOption{})
-		}
+	// An encryption key is requested by default (keys omitted, or keys.encryptionKey explicitly
+	// true), matching the behavior every did:nuts document used to get before key usage started
+	// reflecting backend capability. Only an explicit keys.encryptionKey: false opts out.
+	if request.Body.Keys == nil || request.Body.Keys.EncryptionKey {
+		options = options.With(didsubject.EncryptionKeyCreationOption{})
 	}
 
 	docs, subject, err := w.SubjectManager.Create(ctx, options)

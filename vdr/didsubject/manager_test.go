@@ -138,6 +138,20 @@ func TestManager_Create(t *testing.T) {
 		assert.True(t, strings.HasPrefix(IDs[0], "did:test:"))
 		assert.True(t, strings.HasPrefix(IDs[1], "did:example:"))
 	})
+	t.Run("KeyAgreement requested: did:nuts gets it, did:web doesn't, subject creation still succeeds", func(t *testing.T) {
+		db := testDB(t)
+		var nutsKeyFlags, webKeyFlags orm.DIDKeyFlags
+		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{
+			"nuts": testMethod{method: "nuts", keyFlagsCapture: &nutsKeyFlags},
+			"web":  testMethod{method: "web", keyFlagsCapture: &webKeyFlags},
+		}}
+
+		_, _, err := m.Create(audit.TestContext(), DefaultCreationOptions().With(EncryptionKeyCreationOption{}))
+
+		require.NoError(t, err)
+		assert.True(t, nutsKeyFlags.Is(orm.KeyAgreementUsage), "did:nuts should get a KeyAgreement key")
+		assert.False(t, webKeyFlags.Is(orm.KeyAgreementUsage), "did:web should not be asked for a KeyAgreement key")
+	})
 	t.Run("with unknown option", func(t *testing.T) {
 		db := testDB(t)
 		m := SqlManager{DB: db, MethodManagers: map[string]MethodManager{"example": testMethod{}}}
@@ -455,13 +469,17 @@ func TestNewIDForService(t *testing.T) {
 }
 
 type testMethod struct {
-	committed bool
-	error     error
-	method    string
-	document  *orm.DidDocument
+	committed       bool
+	error           error
+	method          string
+	document        *orm.DidDocument
+	keyFlagsCapture *orm.DIDKeyFlags // if set, records the keyFlags NewDocument was called with
 }
 
-func (t testMethod) NewDocument(_ context.Context, _ orm.DIDKeyFlags) (*orm.DidDocument, error) {
+func (t testMethod) NewDocument(_ context.Context, keyFlags orm.DIDKeyFlags) (*orm.DidDocument, error) {
+	if t.keyFlagsCapture != nil {
+		*t.keyFlagsCapture = keyFlags
+	}
 	if t.document != nil {
 		return t.document, nil
 	}

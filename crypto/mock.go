@@ -44,9 +44,9 @@ func (m *MockKeyCreator) EXPECT() *MockKeyCreatorMockRecorder {
 }
 
 // New mocks base method.
-func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc, requiredUsage orm.DIDKeyFlags) (*orm.KeyReference, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
+	ret := m.ctrl.Call(m, "New", ctx, namingFunc, requiredUsage)
 	ret0, _ := ret[0].(*orm.KeyReference)
 	ret1, _ := ret[1].(crypto.PublicKey)
 	ret2, _ := ret[2].(error)
@@ -54,9 +54,9 @@ func (m *MockKeyCreator) New(ctx context.Context, namingFunc KIDNamingFunc) (*or
 }
 
 // New indicates an expected call of New.
-func (mr *MockKeyCreatorMockRecorder) New(ctx, namingFunc any) *gomock.Call {
+func (mr *MockKeyCreatorMockRecorder) New(ctx, namingFunc, requiredUsage any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyCreator)(nil).New), ctx, namingFunc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyCreator)(nil).New), ctx, namingFunc, requiredUsage)
 }
 
 // MockKeyResolver is a mock of KeyResolver interface.
@@ -255,9 +255,9 @@ func (mr *MockKeyStoreMockRecorder) List(ctx any) *gomock.Call {
 }
 
 // New mocks base method.
-func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.KeyReference, crypto.PublicKey, error) {
+func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc, requiredUsage orm.DIDKeyFlags) (*orm.KeyReference, crypto.PublicKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "New", ctx, namingFunc)
+	ret := m.ctrl.Call(m, "New", ctx, namingFunc, requiredUsage)
 	ret0, _ := ret[0].(*orm.KeyReference)
 	ret1, _ := ret[1].(crypto.PublicKey)
 	ret2, _ := ret[2].(error)
@@ -265,9 +265,9 @@ func (m *MockKeyStore) New(ctx context.Context, namingFunc KIDNamingFunc) (*orm.
 }
 
 // New indicates an expected call of New.
-func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc any) *gomock.Call {
+func (mr *MockKeyStoreMockRecorder) New(ctx, namingFunc, requiredUsage any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyStore)(nil).New), ctx, namingFunc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "New", reflect.TypeOf((*MockKeyStore)(nil).New), ctx, namingFunc, requiredUsage)
 }
 
 // Resolve mocks base method.
