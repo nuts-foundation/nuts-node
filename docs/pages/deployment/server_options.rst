@@ -36,6 +36,9 @@
     * - httpclient.timeout
       - 30s
       - Request time-out for HTTP clients, such as '10s'. Refer to Golang's 'time.Duration' syntax for a more elaborate description of the syntax.
+    * - httpclient.tls.extracertsdir
+      -
+      - Directory containing additional CA certificates (*.pem, *.crt) that HTTP clients trust, on top of the OS CA bundle. When set, the directory must exist.
     * - **Auth**
       -
       -
