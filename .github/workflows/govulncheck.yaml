@@ -10,6 +10,9 @@ on:
       - 'master'
       - 'V*'
 
+permissions:
+  contents: read
+
 jobs:
   # Docs-only changes (docs/, markdown, rst) can't affect Go code, so govulncheck has nothing new
   # to find. Detected once here so the job below can skip entirely on them.
