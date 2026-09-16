@@ -54,14 +54,23 @@ OpenID4VCI
 **********
 
 The Nuts node implements the OpenID for Verifiable Credential Issuance 1.0 wallet flow.
-On behalf of a user, the node requests a Verifiable Credential from a remote Credential Issuer over the Authorization Code Flow:
+On behalf of a user, the node requests a Verifiable Credential from a remote Credential Issuer over the Authorization Code Flow.
+The caller supplies a ``credential_type`` (a VC concept); the node resolves it to the issuer's
+``credential_configuration_id`` by matching it against the Credential Issuer Metadata's
+``credential_configurations_supported`` (§12.2), and picks the authorization-stage flow from the
+Authorization Server metadata, without any caller involvement:
 
-- Authorization Request with ``authorization_details`` of type ``openid_credential`` (RFC 9396 / OpenID4VCI §5.1.1).
+- Authorization Request: if the Authorization Server advertises ``authorization_details_types_supported``
+  containing ``openid_credential``, the request includes ``authorization_details`` of type ``openid_credential``
+  with the resolved ``credential_configuration_id`` (RFC 9396 / OpenID4VCI §5.1.1). Otherwise, ``authorization_details``
+  is omitted and the resolved ``credential_configuration_id`` is used only at the Credential Request.
 - PKCE for the authorization code, as in the OpenID4VP flow.
-- Token Response with ``credential_identifiers`` per the requested ``credential_configuration_id`` (§6.2 and §3.3.4).
+- Token Response with ``credential_identifiers`` per the requested ``credential_configuration_id`` (§6.2 and §3.3.4),
+  when the Authorization Details flow was used.
 - Nonce Endpoint to obtain a fresh ``c_nonce`` before requesting a Credential (§7).
 - Credential Request with a key proof JWT bound to the holder's DID (Appendix F.1).
 - On an ``invalid_nonce`` response, the wallet fetches a fresh ``c_nonce`` and retries the Credential Request once (§8.3.1.2 prescribes fetching a new ``c_nonce``; retrying once is local policy).
+- After the credential is issued, the node verifies its type matches the requested ``credential_type`` before storing it.
 
 The relevant API:
 
@@ -71,7 +80,7 @@ Not implemented:
 
 - Deferred issuance (HTTP 202 with ``transaction_id`` / ``interval``).
 - The Notification Endpoint (§11). ``notification_id`` returned by the issuer is ignored.
-- Multiple credentials per call: only a single ``authorization_details`` entry is accepted and only the first credential in the response is processed.
+- Multiple credentials per call: ``credential_type`` accepts a single value and only the first credential in the response is processed.
 
 Note: the unrelated internal flow in the ``vcr/openid4vci`` package is used by Nuts nodes to issue ``NutsAuthorizationCredential`` to each other over HTTP. That flow is based on a subset of OpenID4VCI draft-11 and is not a wallet implementation per §2.
 
