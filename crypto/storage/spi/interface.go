@@ -48,7 +48,7 @@ type Storage interface {
 	// NewPrivateKey creates a new private key. The backend will create the version and publicKey.
 	// It should be preferred over generating a key in the application and saving it to the storage,
 	// as it allows for unexportable (safer) keys.
-	NewPrivateKey(ctx context.Context, keyName string) (crypto.PublicKey, string, error)
+	NewPrivateKey(ctx context.Context, keyName string) (publicKey crypto.PublicKey, version string, err error)
 	// GetPrivateKey from the storage backend and return its handler as an implementation of crypto.Signer.
 	GetPrivateKey(ctx context.Context, keyName string, version string) (crypto.Signer, error)
 	// PrivateKeyExists checks if the private key indicated with the keyname/version is stored in the storage backend.
@@ -116,6 +116,7 @@ func (pke PublicKeyEntry) JWK() jwk.Key {
 }
 
 // GenerateAndStore generates a new key pair and stores it in the provided storage.
+// It always generates a plain, exportable EC key, which can be used for both signing and decryption.
 func GenerateAndStore(ctx context.Context, store Storage, keyName string) (crypto.PublicKey, string, error) {
 	keyPair, err := GenerateKeyPair()
 	if err != nil {

@@ -15,11 +15,13 @@ paths:
       description: |
         Starting with v6.0.0, the entire body will be ignored and default values will be used.
         The default values are: selfControl = true, assertionMethod = true, keyAgreement = true, capabilityInvocation = true, capabilityDelegation = true, authentication = true and controllers = [].
-        
+
         Only a single keypair will be generated. All enabled methods will reuse the same key pair.
 
+        keyAgreement = true can't be overridden through this endpoint. If the configured key store backend can't back a KeyAgreement key (e.g. Azure Key Vault, which doesn't support decryption/ECDH with its EC keys), this operation always fails with a 400. Use the V2 API instead (`POST /internal/vdr/v2/subject`), which lets a caller omit the encryption key request. Don't mix V1 and V2 for creating and managing DIDs/subjects on the same node: switch over to V2 entirely rather than using both.
+
         error returns:
-        * 400 - Invalid (combination of) options
+        * 400 - Invalid (combination of) options, or the key store backend can't back a requested key usage (e.g. KeyAgreement on Azure Key Vault)
         * 500 - An error occurred while processing the request
       operationId: "createDID"
       requestBody:

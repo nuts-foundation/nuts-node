@@ -475,7 +475,12 @@ components:
           description: If true, an EC keypair is generated and added to the DID Documents as a assertion, authentication, capability invocation and capability delegation method.
         encryptionKey:
           type: boolean
-          description: If true, an RSA keypair is generated and added to the DID Documents as a key agreement method.
+          description: |
+            If true, a keypair is generated and added to the DID Documents as a key agreement method.
+            Defaults to true when the keys object (or the whole request body) is omitted; only an
+            explicit false opts out. did:web never supports this and is skipped without an error,
+            regardless of this setting. If the key store backend can't support it either (e.g. Azure
+            Key Vault), creation fails, whether this was left at its default or set explicitly.
     CreateSubjectOptions:
       type: object
       description: Options for the subject creation.
