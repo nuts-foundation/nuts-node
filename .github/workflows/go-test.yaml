@@ -8,7 +8,37 @@ on:
   pull_request:
 
 jobs:
+  # Docs-only changes (docs/, markdown, rst) can't affect Go tests. Detected once here so the
+  # (required) test job below can skip entirely on them: that keeps the check fast and avoids
+  # spending CI minutes (and hitting flaky tests) on changes that can't have broken anything it
+  # tests. A job skipped via `if:` reports as a passing check, so this still satisfies the
+  # required status check, unlike skipping the workflow itself via a trigger-level path filter.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check for non-doc changes
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!**/*.md'
+              - '!**/*.rst'
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
