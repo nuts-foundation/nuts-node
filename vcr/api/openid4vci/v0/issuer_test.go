@@ -64,6 +64,28 @@ func TestWrapper_GetOpenID4VCIIssuerMetadata(t *testing.T) {
 
 		require.EqualError(t, err, "invalid_request - DID is not owned by this node")
 	})
+	t.Run("no identifier configured", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
+		vdr := vdr.NewMockVDR(ctrl)
+		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
+		service := vcr.NewMockVCR(ctrl)
+		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(nil, openid4vci.Error{
+			Err:        openid4vci.ErrIdentifierNotConfigured,
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		})
+		api := Wrapper{VCR: service, VDR: vdr}
+
+		_, err := api.GetOpenID4VCIIssuerMetadata(context.Background(), GetOpenID4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
+
+		// Must resolve to a 4xx protocol error, not a bare (unwrapped) error that gets turned into a 500 server_error.
+		var protocolError openid4vci.Error
+		require.ErrorAs(t, err, &protocolError)
+		assert.Equal(t, http.StatusNotFound, protocolError.StatusCode)
+		require.ErrorIs(t, err, openid4vci.ErrIdentifierNotConfigured)
+	})
 }
 
 func TestWrapper_GetOIDCProviderMetadata(t *testing.T) {
