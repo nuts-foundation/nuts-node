@@ -103,7 +103,7 @@ This section shows how to check a signature by hand, how to deploy a verified di
 
 .. note::
 
-    Images published before signing was added to the release pipeline are not signed.
+    Signing was introduced in 6.2.12 and 5.4.39; images of earlier releases are not signed.
     Security fixes are prepared in the private repository ``nuts-foundation/nuts-node-private`` and may be released before their source code is public.
     Images of such a release are signed with the identity of that repository's workflow; the verification commands below accept both identities.
     The source code of an embargoed release becomes available in the public repository at disclosure.
@@ -158,6 +158,10 @@ Use the printed reference in ``docker run`` or in ``docker-compose.yaml``:
 
 Enforcing verification in Kubernetes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The examples in this section and the Azure one below are meant to get you started, not to be pasted into production unchanged.
+They are written against the versions named with each example, and setups differ, so try them in your own cluster or pipeline first.
+If something turns out to be wrong or outdated, let us know or open a pull request.
 
 An admission controller can reject any pod whose image does not carry a valid signature.
 The example below uses `Kyverno <https://kyverno.io/>`_.
