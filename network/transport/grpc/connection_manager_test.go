@@ -853,9 +853,12 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		c.disconnect()
 		disconnectedWG.Wait()
 
-		// Assert peer gauge is decremented
-		_ = client.peersCounter.Write(metric)
-		assert.Equal(t, float64(0), *metric.Gauge.Value)
+		// Assert peer gauge is decremented. The disconnect observer is notified from the goroutine watching the
+		// client stream, before openOutboundStreams returns and decrements the gauge, so wait for it here.
+		test.WaitFor(t, func() (bool, error) {
+			_ = client.peersCounter.Write(metric)
+			return metric.Gauge.GetValue() == 0, nil
+		}, time.Second, "Waiting for peer counter to be decremented")
 
 		// Assert that the peer is passed correctly to the observer
 		assert.Equal(t, transport.Peer{ID: "server"}, capturedPeer.Load())
