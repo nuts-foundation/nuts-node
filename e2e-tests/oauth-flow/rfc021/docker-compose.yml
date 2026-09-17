@@ -20,6 +20,9 @@ services:
     image: nginx:1.25.1
     ports:
       - "10443:443"
+    depends_on:
+      nodeA-backend:
+        condition: service_healthy
     volumes:
       - "./node-A/nginx.conf:/etc/nginx/nginx.conf:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
@@ -48,6 +51,9 @@ services:
     image: nginx:1.25.1
     ports:
       - "20443:443"
+    depends_on:
+      nodeB-backend:
+        condition: service_healthy
     volumes:
       - "../../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
