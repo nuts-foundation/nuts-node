@@ -25,6 +25,9 @@ services:
     image: nginx:1.25.1
     ports:
       - "10443:443"
+    depends_on:
+      nodeA-backend:
+        condition: service_healthy
     volumes:
       - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"

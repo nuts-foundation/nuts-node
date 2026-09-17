@@ -33,6 +33,9 @@ services:
       interval: 1s # Make test run quicker by checking health status more often
   nodeA:
     image: nginx:1.25.1
+    depends_on:
+      nodeA-backend:
+        condition: service_healthy
     volumes:
       - "../../shared_config/nodeA-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
       - "../../tls-certs/nodeA-certificate.pem:/etc/nginx/ssl/server.pem:ro"
@@ -42,6 +45,9 @@ services:
       - "10443:443"
   nodeB:
     image: nginx:1.25.1
+    depends_on:
+      nodeB-backend:
+        condition: service_healthy
     volumes:
       - "../../shared_config/nodeB-http-nginx.conf:/etc/nginx/conf.d/nuts-http.conf:ro"
       - "../../tls-certs/nodeB-certificate.pem:/etc/nginx/ssl/server.pem:ro"
