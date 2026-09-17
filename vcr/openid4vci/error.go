@@ -73,3 +73,8 @@ func (e Error) Error() string {
 	}
 	return string(e.Code) + " - " + e.Err.Error()
 }
+
+// Unwrap returns the underlying error, allowing errors.Is/errors.As to match against it.
+func (e Error) Unwrap() error {
+	return e.Err
+}
