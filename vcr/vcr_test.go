@@ -336,6 +336,18 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, actual)
 	})
+	t.Run("found DID, owned, but no identifier configured", func(t *testing.T) {
+		ctx := newMockContext(t)
+		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
+		identifierResolver.EXPECT().Resolve(id).Return("", nil)
+		ctx.vcr.localWalletResolver = identifierResolver
+
+		actual, err := ctx.vcr.GetOpenIDIssuer(context.Background(), id)
+
+		require.ErrorIs(t, err, openid4vci.ErrIdentifierNotConfigured)
+		assert.Nil(t, actual)
+	})
 }
 
 func Test_vcr_GetOIDCWallet(t *testing.T) {
