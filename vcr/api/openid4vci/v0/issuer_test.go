@@ -66,17 +66,15 @@ func TestWrapper_GetOpenID4VCIIssuerMetadata(t *testing.T) {
 	})
 	t.Run("no identifier configured", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
-		documentOwner := didsubject.NewMockDocumentOwner(ctrl)
+		documentOwner := types.NewMockDocumentOwner(ctrl)
 		documentOwner.EXPECT().IsOwner(gomock.Any(), gomock.Any()).Return(true, nil)
-		vdr := vdr.NewMockVDR(ctrl)
-		vdr.EXPECT().DocumentOwner().Return(documentOwner).AnyTimes()
 		service := vcr.NewMockVCR(ctrl)
 		service.EXPECT().GetOpenIDIssuer(gomock.Any(), issuerDID).Return(nil, openid4vci.Error{
 			Err:        openid4vci.ErrIdentifierNotConfigured,
 			Code:       openid4vci.InvalidRequest,
 			StatusCode: http.StatusNotFound,
 		})
-		api := Wrapper{VCR: service, VDR: vdr}
+		api := Wrapper{VCR: service, DocumentOwner: documentOwner}
 
 		_, err := api.GetOpenID4VCIIssuerMetadata(context.Background(), GetOpenID4VCIIssuerMetadataRequestObject{Did: issuerDID.String()})
 

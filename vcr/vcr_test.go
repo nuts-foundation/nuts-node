@@ -323,13 +323,16 @@ func Test_vcr_GetOIDCIssuer(t *testing.T) {
 		assert.Nil(t, actual)
 	})
 	t.Run("found DID, owned, but no identifier configured", func(t *testing.T) {
-		ctx := newMockContext(t)
-		ctx.documentOwner.EXPECT().IsOwner(gomock.Any(), id).Return(true, nil)
-		identifierResolver := openid4vci.NewMockIdentifierResolver(ctx.ctrl)
+		ctrl := gomock.NewController(t)
+		documentOwner := types.NewMockDocumentOwner(ctrl)
+		documentOwner.EXPECT().IsOwner(ctx, id).Return(true, nil)
+		identifierResolver := openid4vci.NewMockIdentifierResolver(ctrl)
 		identifierResolver.EXPECT().Resolve(id).Return("", nil)
-		ctx.vcr.localWalletResolver = identifierResolver
+		instance := NewTestVCRInstance(t)
+		instance.documentOwner = documentOwner
+		instance.localWalletResolver = identifierResolver
 
-		actual, err := ctx.vcr.GetOpenIDIssuer(context.Background(), id)
+		actual, err := instance.GetOpenIDIssuer(ctx, id)
 
 		require.ErrorIs(t, err, openid4vci.ErrIdentifierNotConfigured)
 		assert.Nil(t, actual)
