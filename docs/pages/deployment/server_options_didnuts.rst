@@ -82,7 +82,7 @@
       - \:5555
       - Local address for gRPC to listen on. If empty the gRPC server won't be started and other nodes will not be able to connect to this node (outbound connections can still be made).
     * - network.maxbackoff
-      - 24h0m0s
+      - 1h0m0s
       - Maximum between outbound connections attempts to unresponsive nodes (in Golang duration format, e.g. '1h', '30m').
     * - network.nodedid
       -
