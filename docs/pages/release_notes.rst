@@ -7,6 +7,12 @@ Release notes
 Unreleased
 ****************
 
+## Minor fixes/changes
+
+- Network: a peer that rejects an outbound connection with ``already connected`` is now retried with exponential backoff instead of every 1 to 5 seconds. Previously such a peer was retried every 1 to 5 seconds indefinitely, and never connected. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4467
+- Network: the default of ``network.maxbackoff`` is lowered from ``24h`` to ``1h``. The backoff is persisted across restarts and only reset when a peer's NutsComm address changes, so a peer that was unreachable for a few days could previously go unattempted for up to a day after it came back.
+- Network: failed connection attempts are now logged at debug level instead of warning level. A warning is logged once, on the attempt that reaches ``network.maxbackoff``, so an unreachable peer no longer repeats the same warning on every retry.
+
 ## Security
 
 - Build with Go 1.26.8 to address `GO-2026-6218 <https://pkg.go.dev/vuln/GO-2026-6218>`_ (net/url), `GO-2026-6091 <https://pkg.go.dev/vuln/GO-2026-6091>`_ (html/template), `GO-2026-6090 <https://pkg.go.dev/vuln/GO-2026-6090>`_ (crypto/tls), `GO-2026-6089 <https://pkg.go.dev/vuln/GO-2026-6089>`_ and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (net/http), `GO-2026-6088 <https://pkg.go.dev/vuln/GO-2026-6088>`_ (encoding/xml) and `GO-2026-5972 <https://pkg.go.dev/vuln/GO-2026-5972>`_ (encoding/asn1) in the Go standard library.

@@ -59,6 +59,18 @@ var ErrUnexpectedNodeDID = fmt.Errorf("call answered by other node DID than expe
 // ErrAlreadyConnected indicates the node is already connected to the peer.
 var ErrAlreadyConnected = errors.New("already connected")
 
+// isPeerRejection returns true when the peer refused the connection, as opposed to the connection failing for
+// some other reason. A rejection must be backed off: reconnecting within seconds is refused again.
+// ErrAlreadyConnected arrives as codes.Unknown, because the peer's stream handler returns it as a plain error,
+// so it is matched on the message. Keep the sending side (handleInboundStream) and this check in sync; the test
+// Test_isPeerRejection pins the wire message.
+func isPeerRejection(st *status.Status) bool {
+	if st == nil {
+		return false
+	}
+	return st.Code() == codes.Unauthenticated || st.Message() == ErrAlreadyConnected.Error()
+}
+
 // MaxMessageSizeInBytes defines the maximum size of an in- or outbound gRPC/Protobuf message
 var MaxMessageSizeInBytes = defaultMaxMessageSizeInBytes
 
@@ -311,17 +323,15 @@ func (s *grpcConnectionManager) connect(contact *contact) {
 	defer cancel()
 	grpcClient, err := s.dialer(dialContext, contact.peer.Address, s.dialOptions...)
 	if err != nil { // failed to connect
-		log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("failed to open a grpc ClientConn")
 		errStatus, isStatusError := status.FromError(err)
 		if isStatusError && errStatus.Code() == codes.Canceled {
 			// Do not backoff when context is cancelled
 			// Backoff might try to persist after stores are closed
 			// https://github.com/nuts-foundation/nuts-node/issues/1864
+			log.Logger().WithError(err).WithFields(contact.peer.ToFields()).Debug("Aborted connecting to peer")
 			return
 		}
-		sErr := err.Error()
-		contact.error.Store(&sErr)
-		contact.backoff.Backoff() // backoff store
+		recordFailure(contact, err, "Failed to open a gRPC connection to peer")
 		return
 	}
 	defer grpcClient.Close()
@@ -332,17 +342,39 @@ func (s *grpcConnectionManager) connect(contact *contact) {
 	if err != nil {
 		// connection failed, increase backoff
 		// TODO: check if this works as intended for multiple streams/protocols on the same connection
-		contact.backoff.Backoff()
+		recordFailure(contact, err, "Error while setting up outbound gRPC streams, disconnecting")
 		if errors.Is(err, ErrUnexpectedNodeDID) {
 			// backoff expires after a day. DID is probably abandoned/replaced, but try again later in case the node was misconfigured.
 			contact.backoff.Reset(time.Hour * 24)
 		}
-		log.Logger().WithError(err).WithFields(connection.Peer().ToFields()).
-			Debug("Error while setting up outbound gRPC streams, disconnecting")
 	} else {
 		// Connection was OK, but now disconnected. Add a random wait to prevent simultaneous reconnecting.
+		contact.error.Store(nil)
 		contact.backoff.Reset(RandomBackoff(time.Second, 5*time.Second))
 	}
+}
+
+// recordFailure records a failed connection attempt on the contact: it stores the error, increases the backoff,
+// and logs.
+//
+// Every attempt is logged at debug level. A warning is logged only on the attempt that reaches the maximum backoff,
+// so a peer that stays unreachable does not repeat the same warning on every retry from then on. Until then the
+// contact's diagnostics carry the current error and the next attempt, see contact.stats.
+func recordFailure(contact *contact, err error, message string) {
+	errString := err.Error()
+	contact.error.Store(&errString)
+
+	// A backoff restored from the store reports its remaining time as Value(), so right after a restart this can
+	// log the warning once more for a peer that had already reached the maximum before the restart.
+	previous := contact.backoff.Value()
+	current := contact.backoff.Backoff()
+
+	logger := log.Logger().WithError(err).WithFields(contact.peer.ToFields()).WithField("backoff", current.String())
+	if current == contact.backoff.Max() && previous != current {
+		logger.Warn(message + ", backing off to the maximum interval")
+		return
+	}
+	logger.Debug(message)
 }
 
 func (s *grpcConnectionManager) hasActiveConnection(peer transport.Peer) bool {
@@ -462,8 +494,14 @@ func (s *grpcConnectionManager) openOutboundStreams(connection Connection, grpcC
 	// Function must block until streams are closed or disconnect() is called.
 	connection.waitUntilDisconnected()
 
-	if st := connection.closeError(); st != nil && st.Code() == codes.Unauthenticated {
-		// return error so entire connection will be tried anew. Otherwise, backoff isn't honored
+	// Close the gRPC connection so blocked receive loops return, then wait for them: only then is the close status
+	// (as sent by the peer) final. connect() closes grpcConn through a defer as well, which is both idempotent and
+	// too late for this.
+	_ = grpcConn.Close()
+	connection.waitForReceivers()
+
+	if st := connection.closeError(); isPeerRejection(st) {
+		// Peer rejected the connection: return the error so the backoff is honored instead of reconnecting within seconds.
 		return st.Err()
 	}
 
