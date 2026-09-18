@@ -111,9 +111,9 @@ type conn struct {
 	lastReceived atomic.Value
 	// handling counts the receive loops that are currently handling a message; the idle timeout does not apply while handling.
 	handling atomic.Int32
-	// receivers tracks the receive loops only, so callers can wait for the close status to be final.
-	// A receive loop is counted in activeGoroutines below as well. The two are not interchangeable: waiting on
-	// activeGoroutines would also wait for the send loops and the idle watcher, which do not end for the same reason.
+	// receivers tracks the receive loops only, so waitForReceivers can block until the close status is final.
+	// A WaitGroup is needed because only the receive loops write the close status, and a connection can have
+	// several of them, one per protocol stream.
 	receivers sync.WaitGroup
 	ctx       context.Context
 	cancelCtx func()
@@ -122,8 +122,15 @@ type conn struct {
 	streams   map[string]Stream
 	outboxes  map[string]chan interface{}
 	// activeGoroutines counts every goroutine started for this connection: the receive loops, the send loops and
-	// the idle watcher. It exists for the goroutine leak check in the tests; to wait for the receive loops
-	// specifically, use receivers above.
+	// the idle watcher. It exists for the goroutine leak check in the tests, which asserts on the number.
+	//
+	// It cannot replace receivers above and receivers cannot replace it: a WaitGroup can be waited on but its
+	// value cannot be read, an atomic counter can be read but cannot be waited on. Neither is a substitute for
+	// the other, which is why the connection keeps both. Waiting on all goroutines instead of the receive loops
+	// would also be wrong: startSending can block in SendMsg for as long as the gRPC transport takes to give up
+	// on a dead connection, which has nothing to do with the close status.
+	//
+	// Both are maintained by startGoroutine and startReceiveLoop, so no caller has to remember to do it.
 	activeGoroutines int32
 }
 
@@ -237,13 +244,34 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 	return true
 }
 
+// startGoroutine runs fn in a goroutine that is counted in activeGoroutines for as long as it runs.
+func (mc *conn) startGoroutine(fn func()) {
+	atomic.AddInt32(&mc.activeGoroutines, 1)
+	go func() {
+		defer atomic.AddInt32(&mc.activeGoroutines, -1)
+		fn()
+	}()
+}
+
+// startReceiveLoop runs a receive loop. On top of the counting done by startGoroutine it registers the loop with
+// receivers, so waitForReceivers blocks until it has exited. Receive loops must be started through this function
+// and not through startGoroutine, otherwise the close status can be read before it is written.
+func (mc *conn) startReceiveLoop(fn func()) {
+	mc.receivers.Add(1)
+	mc.startGoroutine(func() {
+		defer mc.receivers.Done()
+		fn()
+	})
+}
+
+// goroutineCount returns how many goroutines are currently running for this connection.
+func (mc *conn) goroutineCount() int32 {
+	return atomic.LoadInt32(&mc.activeGoroutines)
+}
+
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
-	atomic.AddInt32(&mc.activeGoroutines, 1)
-	mc.receivers.Add(1)
-	go func(activeGoroutines *int32) {
-		defer atomic.AddInt32(activeGoroutines, -1)
-		defer mc.receivers.Done()
+	mc.startReceiveLoop(func() {
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message) // blocking
@@ -301,7 +329,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 					Warn("Error handling message")
 			}
 		}
-	}(&mc.activeGoroutines)
+	})
 }
 
 // watchIdle disconnects the connection when no message has been received within idleTimeout.
@@ -309,9 +337,7 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 // (e.g. a half-open TCP connection or a proxy that kept the stream open after the other side went away).
 func (mc *conn) watchIdle() {
 	peer := mc.Peer() // copy Peer, because it will be reset by disconnect()
-	atomic.AddInt32(&mc.activeGoroutines, 1)
-	go func(activeGoroutines *int32) {
-		defer atomic.AddInt32(activeGoroutines, -1)
+	mc.startGoroutine(func() {
 		timer := time.NewTimer(mc.idleTimeout)
 		defer timer.Stop()
 		for {
@@ -338,15 +364,13 @@ func (mc *conn) watchIdle() {
 				return
 			}
 		}
-	}(&mc.activeGoroutines)
+	})
 }
 
 func (mc *conn) startSending(protocol Protocol, stream Stream) {
 	outbox := mc.outboxes[protocol.MethodName()]
 
-	atomic.AddInt32(&mc.activeGoroutines, 1)
-	go func(activeGoroutines *int32) {
-		defer atomic.AddInt32(activeGoroutines, -1)
+	mc.startGoroutine(func() {
 	loop:
 		for {
 			select {
@@ -387,7 +411,7 @@ func (mc *conn) startSending(protocol Protocol, stream Stream) {
 					Warn("Error while closing client for gRPC stream")
 			}
 		}
-	}(&mc.activeGoroutines)
+	})
 }
 
 func (mc *conn) IsConnected() bool {

@@ -115,7 +115,7 @@ func Test_conn_startSending(t *testing.T) {
 		p := &TestProtocol{}
 		_ = connection.registerStream(p, stream)
 
-		assert.Equal(t, int32(2), connection.activeGoroutines) // startSending and startReceiving
+		assert.Equal(t, int32(2), connection.goroutineCount()) // startSending and startReceiving
 
 		// Disconnect before cancelling the stream: this guarantees the connection context is
 		// cancelled before RecvMsg returns, so the receive loop drops the message instead of
@@ -124,7 +124,7 @@ func Test_conn_startSending(t *testing.T) {
 		stream.cancelFunc()
 
 		test.WaitFor(t, func() (bool, error) {
-			return atomic.LoadInt32(&connection.activeGoroutines) == 0, nil
+			return connection.goroutineCount() == 0, nil
 		}, 5*time.Second, "waiting for all goroutines to exit")
 
 		// A deliberate local disconnect must not record a close error. Default value is OK.
