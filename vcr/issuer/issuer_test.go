@@ -459,6 +459,75 @@ func Test_issuer_Issue(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotNil(t, result)
 		})
+		t.Run("error - publish over OpenID4VCI fails, then network publish also fails", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("network b00m!"))
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(gomock.Any()).Return(walletIdentifier, nil)
+			openidHandler := NewMockOpenIDHandler(ctrl)
+			openidHandler.EXPECT().OfferCredential(gomock.Any(), gomock.Any(), walletIdentifier).Return(errors.New("openid4vci b00m!"))
+			keyResolverMock := resolver.NewMockKeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveKey(issuerDID, nil, resolver.AssertionMethod).Return(issuerKeyID, issuerKey, nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:   keyResolverMock,
+				store:         store,
+				jsonldManager: jsonldManager,
+				trustConfig:   trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:      nutsCryptoInstance,
+				openidHandlerFn: func(_ context.Context, id did.DID) (OpenIDHandler, error) {
+					if id.Equals(issuerDID) {
+						return openidHandler, nil
+					}
+					return nil, nil
+				},
+				walletResolver:   walletResolver,
+				networkPublisher: publisher,
+			}
+
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
+
+			require.Error(t, err)
+			assert.Nil(t, result)
+			assert.ErrorContains(t, err, "network b00m!")
+			assert.ErrorContains(t, err, "openid4vci b00m!")
+		})
+		t.Run("ok - OpenID4VCI issuer identifier not (yet) configured - fallback to network", func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			walletResolver := openid4vci.NewMockIdentifierResolver(ctrl)
+			walletResolver.EXPECT().Resolve(holderDID).AnyTimes().Return(walletIdentifier, nil)
+			publisher := NewMockPublisher(ctrl)
+			publisher.EXPECT().PublishCredential(gomock.Any(), gomock.Any(), gomock.Any())
+			keyResolverMock := resolver.NewMockKeyResolver(ctrl)
+			keyResolverMock.EXPECT().ResolveKey(issuerDID, nil, resolver.AssertionMethod).Return(issuerKeyID, issuerKey, nil)
+			store := NewMockStore(ctrl)
+			store.EXPECT().StoreCredential(gomock.Any())
+			sut := issuer{
+				keyResolver:    keyResolverMock,
+				store:          store,
+				jsonldManager:  jsonldManager,
+				trustConfig:    trust.NewConfig(path.Join(io.TestDirectory(t), "trust.config")),
+				keyStore:       nutsCryptoInstance,
+				walletResolver: walletResolver,
+				openidHandlerFn: func(_ context.Context, _ did.DID) (OpenIDHandler, error) {
+					return nil, openid4vci.ErrIdentifierNotConfigured
+				},
+				networkPublisher: publisher,
+			}
+
+			result, err := sut.Issue(ctx, template, CredentialOptions{
+				Publish: true,
+				Public:  false,
+			})
+
+			require.NoError(t, err)
+			assert.NotNil(t, result)
+		})
 	})
 
 	t.Run("error - from used services", func(t *testing.T) {

@@ -141,6 +141,13 @@ func (c *vcr) resolveOpenID4VCIIdentifier(ctx context.Context, id did.DID) (stri
 			StatusCode: http.StatusNotFound,
 		}
 	}
+	if identifier == "" {
+		return "", openid4vci.Error{
+			Err:        openid4vci.ErrIdentifierNotConfigured,
+			Code:       openid4vci.InvalidRequest,
+			StatusCode: http.StatusNotFound,
+		}
+	}
 	return identifier, nil
 }
 
