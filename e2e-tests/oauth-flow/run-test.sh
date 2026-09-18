@@ -32,6 +32,10 @@ echo $VENDOR_A_DIDDOC > ./node-A/data/updated-did.json
 DIDDOC_HASH=$(docker compose exec nodeA-backend nuts vdr resolve $VENDOR_A_DID --metadata | jq -r .hash)
 docker compose exec nodeA-backend nuts vdr update "${VENDOR_A_DID}" "${DIDDOC_HASH}" /opt/nuts/data/updated-did.json
 
+# NodeB must have Vendor A's transactions before it creates a DID document of its own,
+# otherwise it creates a second root transaction and the DAGs can never be merged.
+waitForTXCount "NodeB" "http://localhost:21323/status/diagnostics" 2 10
+
 # Register Vendor B
 VENDOR_B_DIDDOC=$(docker compose exec nodeB nuts vdr create-did)
 VENDOR_B_DID=$(echo $VENDOR_B_DIDDOC | jq -r .id)
