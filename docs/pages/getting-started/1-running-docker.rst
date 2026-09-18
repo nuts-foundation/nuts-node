@@ -103,7 +103,7 @@ This section shows how to check a signature by hand, how to deploy a verified di
 
 .. note::
 
-    Images published before signing was added to the release pipeline are not signed.
+    Signing was introduced in 6.2.12 and 5.4.39; images of earlier releases are not signed.
     Security fixes are prepared in the private repository ``nuts-foundation/nuts-node-private`` and may be released before their source code is public.
     Images of such a release are signed with the identity of that repository's workflow; the verification commands below accept both identities.
     The source code of an embargoed release becomes available in the public repository at disclosure.
@@ -111,7 +111,12 @@ This section shows how to check a signature by hand, how to deploy a verified di
 Checking a signature with cosign
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Install `cosign <https://docs.sigstore.dev/cosign/system_config/installation/>`_ (version 2 or later) and verify a tag:
+The pipeline signs with cosign 3.
+That version stores a signature as a `Sigstore bundle <https://docs.sigstore.dev/about/bundle/>`_, attached to the image through the OCI referrers API, instead of the ``sha256-<digest>.sig`` tag that cosign 2 used.
+cosign 2 does not find such a signature and fails with ``no signatures found``, and so does any other verifier that only reads the tag.
+The Kubernetes and Azure sections below show which setting switches those verifiers to the bundle format.
+
+Install `cosign <https://docs.sigstore.dev/cosign/system_config/installation/>`_ (version 3.0 or later) and verify a tag:
 
 .. code-block:: shell
 
@@ -154,9 +159,13 @@ Use the printed reference in ``docker run`` or in ``docker-compose.yaml``:
 Enforcing verification in Kubernetes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+The examples in this section and the Azure one below are meant to get you started, not to be pasted into production unchanged.
+They are written against the versions named with each example, and setups differ, so try them in your own cluster or pipeline first.
+If something turns out to be wrong or outdated, let us know or open a pull request.
+
 An admission controller can reject any pod whose image does not carry a valid signature.
 The example below uses `Kyverno <https://kyverno.io/>`_.
-The Sigstore `policy-controller <https://docs.sigstore.dev/policy-controller/overview/>`_ offers the same enforcement through a ``ClusterImagePolicy``.
+The Sigstore `policy-controller <https://docs.sigstore.dev/policy-controller/overview/>`_ offers the same enforcement through a ``ClusterImagePolicy``; set ``signatureFormat: bundle`` on the authority there, for the same reason (policy-controller 0.14 or later).
 
 .. code-block:: yaml
 
@@ -165,7 +174,6 @@ The Sigstore `policy-controller <https://docs.sigstore.dev/policy-controller/ove
   metadata:
     name: verify-nuts-node-images
   spec:
-    validationFailureAction: Enforce
     webhookTimeoutSeconds: 30
     rules:
       - name: require-signed-nuts-node
@@ -177,24 +185,28 @@ The Sigstore `policy-controller <https://docs.sigstore.dev/policy-controller/ove
         verifyImages:
           - imageReferences:
               - "docker.io/nutsfoundation/nuts-node*"
+            type: SigstoreBundle
+            failureAction: Enforce
             attestors:
               - entries:
                   - keyless:
                       issuer: "https://token.actions.githubusercontent.com"
                       subjectRegExp: "^https://github.com/nuts-foundation/nuts-node(-private)?/\\.github/workflows/build-images\\.yaml@"
-                      rekor:
-                        url: "https://rekor.sigstore.dev"
+
+``type: SigstoreBundle`` is what makes Kyverno read the signature from the OCI referrers API.
+Without it Kyverno uses its default type ``Cosign``, which looks for the ``sha256-<digest>.sig`` tag and rejects every Nuts node image.
+Both ``type`` and the per-rule ``failureAction`` require Kyverno 1.13 or later.
 
 The policy matches only Nuts node images; other images in the cluster are unaffected.
 Kyverno replaces the tag with the verified digest on admission, so the pod runs exactly the image that was verified.
-The cluster needs outbound access to Docker Hub to fetch signatures.
+The cluster needs outbound access to Docker Hub for the signature, and to the Sigstore TUF repository (``tuf-repo-cdn.sigstore.dev``) for the trust root.
 
 Azure
 ^^^^^
 
-* **Azure Kubernetes Service (AKS)**: the Kyverno policy above works unchanged. Azure also offers a built-in image integrity feature based on Azure Policy and `Ratify <https://ratify.dev/>`_; see the `AKS image integrity documentation <https://learn.microsoft.com/en-us/azure/aks/image-integrity>`_ for the signature formats it currently supports.
+* **Azure Kubernetes Service (AKS)**: the Kyverno policy above works unchanged. Azure's own `Image Integrity <https://learn.microsoft.com/en-us/azure/aks/image-integrity>`_ feature (Azure Policy with `Ratify <https://ratify.dev/>`_) is not an alternative for these images: it is a preview feature that its documentation says not to use in production, Notation is its only supported verifier, and Audit is its only supported effect. It cannot check a cosign signature.
 * **Azure Container Apps and Container Instances**: these services have no admission control. Verify in the deployment pipeline and deploy by digest.
-* **Azure DevOps pipelines**: add a verification step before deployment. Pin the cosign version in real pipelines instead of downloading ``latest``.
+* **Azure DevOps pipelines**: add a verification step before deployment. The step needs cosign 3.0 or later; pin the version rather than downloading ``latest``.
 
 .. code-block:: yaml
 
@@ -205,7 +217,8 @@ Azure
         targetType: inline
         script: |
           set -euo pipefail
-          curl -sLo cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+          COSIGN_VERSION=v3.1.3
+          curl -sLo cosign "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64"
           chmod +x cosign
           DIGEST=$(./cosign verify "nutsfoundation/nuts-node:$(NUTS_VERSION)" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
