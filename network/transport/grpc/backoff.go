@@ -44,6 +44,8 @@ type Backoff interface {
 	Backoff() time.Duration
 	// Value returns the last backoff value returned by Backoff().
 	Value() time.Duration
+	// Max returns the upper bound of the values Backoff() can return.
+	Max() time.Duration
 	// Expired returns true if the backoff period has passed.
 	Expired() bool
 }
@@ -68,6 +70,10 @@ func (b *boundedRandomBackoff) Expired() bool {
 
 func (b *boundedRandomBackoff) Value() time.Duration {
 	return b.value
+}
+
+func (b *boundedRandomBackoff) Max() time.Duration {
+	return b.max
 }
 
 func (b *boundedRandomBackoff) Reset(value time.Duration) {
@@ -120,6 +126,10 @@ func (p *persistingBackoff) Value() time.Duration {
 		return result
 	}
 	return p.underlying.Value()
+}
+
+func (p *persistingBackoff) Max() time.Duration {
+	return p.underlying.Max()
 }
 
 // NewPersistedBackoff wraps another backoff and stores the last value returned by Backoff() in BBolt.
@@ -223,6 +233,12 @@ func (s *syncedBackoff) Value() time.Duration {
 	s.mux.RLock()
 	defer s.mux.RUnlock()
 	return s.underlying.Value()
+}
+
+func (s *syncedBackoff) Max() time.Duration {
+	s.mux.RLock()
+	defer s.mux.RUnlock()
+	return s.underlying.Max()
 }
 
 func (s *syncedBackoff) Expired() bool {
