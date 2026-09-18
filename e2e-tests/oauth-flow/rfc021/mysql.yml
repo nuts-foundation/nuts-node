@@ -21,4 +21,4 @@ services:
       test: mysqladmin ping -h 127.0.0.1 -u root --password=root
       interval: 1s
       timeout: 5s
-      retries: 20
+      retries: 40
