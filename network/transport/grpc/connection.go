@@ -92,10 +92,11 @@ type Connection interface {
 	waitForReceivers()
 }
 
-func createConnection(parentCtx context.Context, peer transport.Peer) Connection {
+func createConnection(parentCtx context.Context, peer transport.Peer, idleTimeout time.Duration) Connection {
 	result := &conn{
-		streams:  make(map[string]Stream),
-		outboxes: make(map[string]chan interface{}),
+		streams:     make(map[string]Stream),
+		outboxes:    make(map[string]chan interface{}),
+		idleTimeout: idleTimeout,
 	}
 	result.ctx, result.cancelCtx = context.WithCancel(parentCtx)
 	result.setPeer(peer)
@@ -104,8 +105,15 @@ func createConnection(parentCtx context.Context, peer transport.Peer) Connection
 
 type conn struct {
 	peer atomic.Value
-	// receivers tracks the receive loops, so callers can wait for the close status to be final.
-	// It deliberately covers less than activeGoroutines below, which also counts the send loops.
+	// idleTimeout is the period without any received message after which the connection is closed. Zero disables the check.
+	idleTimeout time.Duration
+	// lastReceived holds the time a message was last received on any of the connection's streams.
+	lastReceived atomic.Value
+	// handling counts the receive loops that are currently handling a message; the idle timeout does not apply while handling.
+	handling atomic.Int32
+	// receivers tracks the receive loops only, so callers can wait for the close status to be final.
+	// A receive loop is counted in activeGoroutines below as well. The two are not interchangeable: waiting on
+	// activeGoroutines would also wait for the send loops and the idle watcher, which do not end for the same reason.
 	receivers sync.WaitGroup
 	ctx       context.Context
 	cancelCtx func()
@@ -113,7 +121,9 @@ type conn struct {
 	mux       sync.RWMutex
 	streams   map[string]Stream
 	outboxes  map[string]chan interface{}
-	// activeGoroutines counts every goroutine started for this connection: the receive loops and the send loops.
+	// activeGoroutines counts every goroutine started for this connection: the receive loops, the send loops and
+	// the idle watcher. It exists for the goroutine leak check in the tests; to wait for the receive loops
+	// specifically, use receivers above.
 	activeGoroutines int32
 }
 
@@ -207,6 +217,11 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 		return false
 	}
 
+	if len(mc.streams) == 0 && mc.idleTimeout > 0 {
+		// first stream on this connection: start watching for idleness
+		mc.lastReceived.Store(time.Now())
+		mc.watchIdle()
+	}
 	mc.streams[methodName] = stream
 	mc.outboxes[methodName] = make(chan interface{}, OutboxHardLimit)
 
@@ -271,8 +286,12 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 				// connection has been closed: drop message and stop receiving
 				return
 			}
+			mc.lastReceived.Store(time.Now())
 
+			mc.handling.Add(1)
 			err = protocol.Handle(mc, message)
+			mc.handling.Add(-1)
+			mc.lastReceived.Store(time.Now()) // handling a message counts as activity as well
 			if err != nil {
 				log.Logger().
 					WithError(err).
@@ -280,6 +299,43 @@ func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 					WithFields(peer.ToFields()).
 					WithField(core.LogFieldMessageType, fmt.Sprintf("%T", protocol.UnwrapMessage(message))).
 					Warn("Error handling message")
+			}
+		}
+	}(&mc.activeGoroutines)
+}
+
+// watchIdle disconnects the connection when no message has been received within idleTimeout.
+// Peers send gossip and diagnostics messages at a fixed interval, so a silent stream is a dead one
+// (e.g. a half-open TCP connection or a proxy that kept the stream open after the other side went away).
+func (mc *conn) watchIdle() {
+	peer := mc.Peer() // copy Peer, because it will be reset by disconnect()
+	atomic.AddInt32(&mc.activeGoroutines, 1)
+	go func(activeGoroutines *int32) {
+		defer atomic.AddInt32(activeGoroutines, -1)
+		timer := time.NewTimer(mc.idleTimeout)
+		defer timer.Stop()
+		for {
+			select {
+			case <-mc.ctx.Done():
+				return
+			case <-timer.C:
+				if mc.handling.Load() > 0 {
+					// still busy handling a message (e.g. a large transaction list during sync), which is not idle
+					timer.Reset(mc.idleTimeout)
+					continue
+				}
+				lastReceived, _ := mc.lastReceived.Load().(time.Time)
+				idle := time.Since(lastReceived)
+				if idle < mc.idleTimeout {
+					timer.Reset(mc.idleTimeout - idle)
+					continue
+				}
+				log.Logger().
+					WithFields(peer.ToFields()).
+					WithField("idle", idle.Round(time.Second)).
+					Warn("No messages received from peer within idle timeout, disconnecting")
+				mc.disconnect()
+				return
 			}
 		}
 	}(&mc.activeGoroutines)

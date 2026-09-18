@@ -120,7 +120,7 @@ func NewGRPCConnectionManager(config Config, connectionStore stoabs.KVStore, nod
 		authenticator:     authenticator,
 		config:            config,
 		connectionTimeout: config.connectionTimeout,
-		connections:       &connectionList{},
+		connections:       &connectionList{idleTimeout: config.idleTimeout},
 		dialer:            config.dialer,
 		dialOptions: []grpc.DialOption{
 			grpc.WithBlock(),                 // Dial should block until connection succeeded (or time-out expired)
