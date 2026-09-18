@@ -12,6 +12,7 @@ Unreleased
 - Network: a peer that rejects an outbound connection with ``already connected`` is now retried with exponential backoff instead of every 1 to 5 seconds. Previously such a peer was retried every 1 to 5 seconds indefinitely, and never connected. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4467
 - Network: the default of ``network.maxbackoff`` is lowered from ``24h`` to ``1h``. The backoff is persisted across restarts and only reset when a peer's NutsComm address changes, so a peer that was unreachable for a few days could previously go unattempted for up to a day after it came back.
 - Network: failed connection attempts are now logged at debug level instead of warning level. A warning is logged once, on the attempt that reaches ``network.maxbackoff``, so an unreachable peer no longer repeats the same warning on every retry.
+- Network: connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4562
 
 ## Security
 
