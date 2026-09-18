@@ -13,16 +13,17 @@ echo "Starting Docker containers..."
 echo "------------------------------------"
 docker compose up --wait
 
-# Wait for Nuts Network nodes to build connections
-sleep 1
-
 echo "------------------------------------"
 echo "Creating root"
 echo "------------------------------------"
 
 curl -s -X POST http://localhost:18081/internal/vdr/v1/did >/dev/null
 
-sleep 2
+# Every other node must have the root transaction before it creates transactions of its own,
+# otherwise it creates a second root and the DAGs can never be merged.
+waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 1 10
+waitForTXCount "NodeC" "http://localhost:38081/status/diagnostics" 1 10
+waitForTXCount "NodeD" "http://localhost:48081/status/diagnostics" 1 10
 
 # create 20 new DID documents on each node
 echo "------------------------------------"
