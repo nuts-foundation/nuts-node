@@ -205,6 +205,7 @@ func newTestBackoff() Backoff { return BoundedBackoff(time.Second, time.Hour) }
 
 type trackingBackoff struct {
 	expired        bool
+	maxValue       time.Duration
 	resetCount     int
 	lastResetValue time.Duration
 	backoffCount   int
@@ -223,6 +224,10 @@ func (t *trackingBackoff) counts() (int, int) {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	return t.resetCount, t.backoffCount
+}
+
+func (t *trackingBackoff) Max() time.Duration {
+	return t.maxValue
 }
 
 func (t *trackingBackoff) Reset(value time.Duration) {

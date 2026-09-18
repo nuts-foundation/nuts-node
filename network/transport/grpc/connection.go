@@ -27,6 +27,7 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/v5/network/log"
 	"github.com/nuts-foundation/nuts-node/v5/network/transport"
@@ -86,6 +87,9 @@ type Connection interface {
 
 	// closeError returns the status when the connection closed with an error or nil otherwise
 	closeError() *status.Status
+	// waitForReceivers blocks until all receive loops have exited, which makes closeError() final.
+	// The underlying streams must be closed first, otherwise the receive loops keep blocking on RecvMsg.
+	waitForReceivers()
 }
 
 func createConnection(parentCtx context.Context, peer transport.Peer) Connection {
@@ -99,13 +103,17 @@ func createConnection(parentCtx context.Context, peer transport.Peer) Connection
 }
 
 type conn struct {
-	peer             atomic.Value
-	ctx              context.Context
-	cancelCtx        func()
-	status           atomic.Pointer[status.Status]
-	mux              sync.RWMutex
-	streams          map[string]Stream
-	outboxes         map[string]chan interface{}
+	peer atomic.Value
+	// receivers tracks the receive loops, so callers can wait for the close status to be final.
+	// It deliberately covers less than activeGoroutines below, which also counts the send loops.
+	receivers sync.WaitGroup
+	ctx       context.Context
+	cancelCtx func()
+	status    atomic.Pointer[status.Status]
+	mux       sync.RWMutex
+	streams   map[string]Stream
+	outboxes  map[string]chan interface{}
+	// activeGoroutines counts every goroutine started for this connection: the receive loops and the send loops.
 	activeGoroutines int32
 }
 
@@ -217,32 +225,51 @@ func (mc *conn) registerStream(protocol Protocol, stream Stream) bool {
 func (mc *conn) startReceiving(protocol Protocol, stream Stream) {
 	peer := mc.Peer() // copy Peer, because it will be nil when logging after disconnecting.
 	atomic.AddInt32(&mc.activeGoroutines, 1)
+	mc.receivers.Add(1)
 	go func(activeGoroutines *int32) {
 		defer atomic.AddInt32(activeGoroutines, -1)
+		defer mc.receivers.Done()
 		for {
 			message := protocol.CreateEnvelope()
 			err := stream.RecvMsg(message) // blocking
+			if err != nil {
+				errStatus, isStatusError := status.FromError(err)
+				closedWithError := !errors.Is(err, io.EOF) && !(isStatusError && errStatus.Code() == codes.Canceled)
+				if mc.ctx.Err() == nil {
+					// only log when the connection wasn't closed locally
+					switch {
+					case !closedWithError:
+						log.Logger().
+							WithField(core.LogFieldProtocolVersion, protocol.Version()).
+							WithFields(peer.ToFields()).
+							Debug("Peer closed connection")
+					case isPeerRejection(errStatus):
+						// The dialer reports a rejection once it knows how long it will back off,
+						// see grpcConnectionManager.recordFailure. Logging it here as well would repeat it on every retry.
+						log.Logger().
+							WithError(err).
+							WithField(core.LogFieldProtocolVersion, protocol.Version()).
+							WithFields(peer.ToFields()).
+							Debug("Peer rejected the connection")
+					default:
+						log.Logger().
+							WithError(err).
+							WithField(core.LogFieldProtocolVersion, protocol.Version()).
+							WithFields(peer.ToFields()).
+							Warn("Peer connection error")
+					}
+				}
+				if closedWithError {
+					// Record the peer's close status even if the connection was already cancelled (e.g. because the
+					// stream's context is done), so the caller can decide whether the peer rejected the connection.
+					mc.status.Store(errStatus)
+				}
+				mc.cancelCtx()
+				break
+			}
 			if mc.ctx.Err() != nil {
 				// connection has been closed: drop message and stop receiving
 				return
-			}
-			if err != nil {
-				errStatus, isStatusError := status.FromError(err)
-				if errors.Is(err, io.EOF) || (isStatusError && errStatus.Code() == codes.Canceled) {
-					log.Logger().
-						WithField(core.LogFieldProtocolVersion, protocol.Version()).
-						WithFields(peer.ToFields()).
-						Info("Peer closed connection")
-				} else {
-					log.Logger().
-						WithError(err).
-						WithField(core.LogFieldProtocolVersion, protocol.Version()).
-						WithFields(peer.ToFields()).
-						Warn("Peer connection error")
-				}
-				mc.status.Store(errStatus)
-				mc.cancelCtx()
-				break
 			}
 
 			err = protocol.Handle(mc, message)
@@ -320,4 +347,25 @@ func (mc *conn) IsAuthenticated() bool {
 
 func (mc *conn) closeError() *status.Status {
 	return mc.status.Load()
+}
+
+// receiverShutdownTimeout bounds the wait in waitForReceivers. The receive loops return as soon as the underlying
+// streams are closed, unless a message handler does not return, which should not happen but must not block the
+// disconnect either.
+const receiverShutdownTimeout = 5 * time.Second
+
+func (mc *conn) waitForReceivers() {
+	peer := mc.Peer() // copy Peer, because it is reset by disconnect()
+	done := make(chan struct{})
+	go func() {
+		mc.receivers.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(receiverShutdownTimeout):
+		log.Logger().
+			WithFields(peer.ToFields()).
+			Warn("Timeout waiting for the receive loops to exit, the peer's close status may be incomplete")
+	}
 }
