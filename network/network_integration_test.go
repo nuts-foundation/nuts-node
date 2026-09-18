@@ -61,6 +61,12 @@ import (
 )
 
 const defaultTimeout = 5 * time.Second
+
+// reconnectTimeout is the budget for a node to reconnect to a peer by itself, after a connection that was up was
+// closed cleanly. connect() then resets the backoff to a random value between 1 and 5 seconds, and the connect
+// loop only picks up expired backoffs once per second on top of that, so defaultTimeout does not cover the worst
+// case and the test fails intermittently under load.
+const reconnectTimeout = 15 * time.Second
 const payloadType = "test/transaction"
 
 var mutex = sync.Mutex{}
@@ -807,7 +813,7 @@ func TestNetworkIntegration_OutboundConnection11Reconnects(t *testing.T) {
 	node2 = startNode(t, "node2", testDirectory) // important to start a new instance, otherwise PeerID isn't regenerated
 	if !test.WaitFor(t, func() (bool, error) {
 		return len(node1.network.connectionManager.Peers()) == 1, nil
-	}, defaultTimeout, "time-out while waiting for node 1 to reconnect to node 2") {
+	}, reconnectTimeout, "time-out while waiting for node 1 to reconnect to node 2") {
 		return
 	}
 
