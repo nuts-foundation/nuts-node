@@ -262,6 +262,7 @@ func (n *Network) Configure(config core.ServerConfig) error {
 	if n.connectionManager == nil {
 		grpcOpts := []grpc.ConfigOption{
 			grpc.WithConnectionTimeout(time.Duration(n.config.ConnectionTimeout) * time.Millisecond),
+			grpc.WithIdleTimeout(n.config.IdleTimeout),
 			grpc.WithBackoff(func() grpc.Backoff {
 				return grpc.BoundedBackoff(time.Second, n.config.MaxBackoff)
 			}),
