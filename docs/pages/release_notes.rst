@@ -8,7 +8,9 @@ Peanut (v6.2.12)
 
 Release date: 2026-09-21
 
-## Network
+=======
+Network
+=======
 
 - **Back off when a peer rejects the connection.** A peer that rejects an outbound connection with ``already connected`` is now retried with exponential backoff. Previously it was retried every 1 to 5 seconds indefinitely, and never connected. (`#4563 <https://github.com/nuts-foundation/nuts-node/pull/4563>`__, backport of `#4467 <https://github.com/nuts-foundation/nuts-node/pull/4467>`__, by @stevenvegt)
 
@@ -17,7 +19,9 @@ Release date: 2026-09-21
 
 - **Close peer connections that go idle.** Connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection, or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. (`#4567 <https://github.com/nuts-foundation/nuts-node/pull/4567>`__, backport of `#4562 <https://github.com/nuts-foundation/nuts-node/pull/4562>`__, by @stevenvegt)
 
-## Security
+========
+Security
+========
 
 - **Strict-mode SSRF guard** (`#4420 <https://github.com/nuts-foundation/nuts-node/pull/4420>`__). In strict mode the HTTP client now:
 
@@ -55,7 +59,9 @@ Release date: 2026-09-21
 - **Docker image**: base image upgraded to alpine 3.23.5 and all preinstalled packages are upgraded at build time. This clears the curl and openssl findings reported on the published 6.2.11 image. (`#4507 <https://github.com/nuts-foundation/nuts-node/pull/4507>`__)
 - **Docker images are now signed** and carry build provenance. (`#4523 <https://github.com/nuts-foundation/nuts-node/pull/4523>`__, verification instructions in `#4556 <https://github.com/nuts-foundation/nuts-node/pull/4556>`__)
 
-## Other fixes and changes
+=======================
+Other fixes and changes
+=======================
 
 - fix(vdr): reflect key store backend capability in DID document key usage (`#4550 <https://github.com/nuts-foundation/nuts-node/pull/4550>`__, backport of `#4522 <https://github.com/nuts-foundation/nuts-node/pull/4522>`__)
 - fix(vcr): bound negative OpenID4VCI identifier caching, guard against empty offers (`#4558 <https://github.com/nuts-foundation/nuts-node/pull/4558>`__)
