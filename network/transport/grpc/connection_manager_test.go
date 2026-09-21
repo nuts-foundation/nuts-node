@@ -291,7 +291,7 @@ func Test_grpcConnectionManager_dial(t *testing.T) {
 		cont := newContact(peer, backoff)
 		cm, err := NewGRPCConnectionManager(Config{}, createKVStore(t), *nodeDID, dummyAuthenticator{}, &TestProtocol{})
 		require.NoError(t, err)
-		cm.connections.list = append(cm.connections.list, createConnection(cm.ctx, peer)) // add existing connection
+		cm.connections.list = append(cm.connections.list, createConnection(cm.ctx, peer, 0)) // add existing connection
 
 		cm.connect(cont)
 
@@ -818,7 +818,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, nil, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{}).(*conn)
+		c := createConnection(context.Background(), transport.Peer{}, 0).(*conn)
 		c.status.Store(status.New(codes.Unauthenticated, "unauthenticated"))
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
@@ -860,7 +860,7 @@ func Test_grpcConnectionManager_openOutboundStreams(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, nil, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{})
+		c := createConnection(context.Background(), transport.Peer{}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 		var capturedPeer atomic.Value
@@ -1005,7 +1005,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, nil, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{})
+		c := createConnection(context.Background(), transport.Peer{}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 		md, _ := client.constructMetadata(false)
@@ -1026,7 +1026,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, nil, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{})
+		c := createConnection(context.Background(), transport.Peer{}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 		md, _ := client.constructMetadata(false)
@@ -1054,7 +1054,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		clientCfg, _ := newBufconnConfig("client", withBufconnDialer(serverListener))
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, nil, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{})
+		c := createConnection(context.Background(), transport.Peer{}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 
@@ -1083,7 +1083,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		authenticator.EXPECT().Authenticate(*nodeDID, gomock.Any()).Return(transport.Peer{}, ErrNodeDIDAuthFailed)
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, authenticator, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{NodeDID: *nodeDID})
+		c := createConnection(context.Background(), transport.Peer{NodeDID: *nodeDID}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 
@@ -1106,7 +1106,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		authenticator := NewMockAuthenticator(ctrl)
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, authenticator, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{NodeDID: did.MustParseDID("did:nuts:remote")})
+		c := createConnection(context.Background(), transport.Peer{NodeDID: did.MustParseDID("did:nuts:remote")}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 
@@ -1129,7 +1129,7 @@ func Test_grpcConnectionManager_openOutboundStream(t *testing.T) {
 		authenticator := NewMockAuthenticator(ctrl) // is not called
 		client, err := NewGRPCConnectionManager(clientCfg, nil, did.DID{}, authenticator, &TestProtocol{})
 		require.NoError(t, err)
-		c := createConnection(context.Background(), transport.Peer{NodeDID: did.MustParseDID("did:nuts:remote")})
+		c := createConnection(context.Background(), transport.Peer{NodeDID: did.MustParseDID("did:nuts:remote")}, 0)
 		grpcConn, err := clientCfg.dialer(context.Background(), "server")
 		require.NoError(t, err)
 
