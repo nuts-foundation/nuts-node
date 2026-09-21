@@ -3,26 +3,68 @@ Release notes
 #############
 
 ****************
-Unreleased
+Peanut (v6.2.12)
 ****************
 
-## Minor fixes/changes
+Release date: 2026-09-21
 
-- Network: a peer that rejects an outbound connection with ``already connected`` is now retried with exponential backoff instead of every 1 to 5 seconds. Previously such a peer was retried every 1 to 5 seconds indefinitely, and never connected. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4467
-- Network: the default of ``network.maxbackoff`` is lowered from ``24h`` to ``1h``. The backoff is persisted across restarts and only reset when a peer's NutsComm address changes, so a peer that was unreachable for a few days could previously go unattempted for up to a day after it came back.
-- Network: failed connection attempts are now logged at debug level instead of warning level. A warning is logged once, on the attempt that reaches ``network.maxbackoff``, so an unreachable peer no longer repeats the same warning on every retry.
-- Network: connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4562
+## Network
+
+- **Back off when a peer rejects the connection.** A peer that rejects an outbound connection with ``already connected`` is now retried with exponential backoff. Previously it was retried every 1 to 5 seconds indefinitely, and never connected. (`#4563 <https://github.com/nuts-foundation/nuts-node/pull/4563>`__, backport of `#4467 <https://github.com/nuts-foundation/nuts-node/pull/4467>`__, by @stevenvegt)
+
+  - The default of ``network.maxbackoff`` is lowered from ``24h`` to ``1h``. The backoff is kept across restarts and only reset when a peer's NutsComm address changes, so a peer that was unreachable for a few days could go unattempted for up to a day after it came back.
+  - Failed connection attempts are now logged at debug level instead of warning level. One warning is logged on the attempt that reaches ``network.maxbackoff``, so an unreachable peer no longer repeats the same warning on every retry.
+
+- **Close peer connections that go idle.** Connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection, or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. (`#4567 <https://github.com/nuts-foundation/nuts-node/pull/4567>`__, backport of `#4562 <https://github.com/nuts-foundation/nuts-node/pull/4562>`__, by @stevenvegt)
 
 ## Security
 
-- Build with Go 1.26.8 to address `GO-2026-6218 <https://pkg.go.dev/vuln/GO-2026-6218>`_ (net/url), `GO-2026-6091 <https://pkg.go.dev/vuln/GO-2026-6091>`_ (html/template), `GO-2026-6090 <https://pkg.go.dev/vuln/GO-2026-6090>`_ (crypto/tls), `GO-2026-6089 <https://pkg.go.dev/vuln/GO-2026-6089>`_ and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`_ (net/http), `GO-2026-6088 <https://pkg.go.dev/vuln/GO-2026-6088>`_ (encoding/xml) and `GO-2026-5972 <https://pkg.go.dev/vuln/GO-2026-5972>`_ (encoding/asn1) in the Go standard library.
-- Upgrade golang.org/x/crypto to v0.55.0 (CVE-2026-56854), golang.org/x/net to v0.58.0 (CVE-2026-46600), google.golang.org/grpc to v1.83.2 (CVE-2026-84303, CVE-2026-84304, CVE-2026-84445), github.com/labstack/echo/v4 to v4.15.3 (CVE-2026-55677) and github.com/go-chi/chi/v5 to v5.2.4 (CVE-2025-69725) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
-- Docker image: base image upgraded to alpine 3.23.5 and all preinstalled packages are upgraded at build time, clearing the curl and openssl findings reported on the published 6.2.11 image.
-- Upgrade google.golang.org/grpc to v1.82.1 to address `GO-2026-6061 <https://pkg.go.dev/vuln/GO-2026-6061>`_ (vulnerabilities in the HTTP/2 transport server implementation and the xDS RBAC authorization engine).
-- #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
-- #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
-- Upgrade go.opentelemetry.io/otel to v1.44.0 to address `GO-2026-5158 <https://pkg.go.dev/vuln/GO-2026-5158>`_ (baggage header parsing did not cap raw header length, allowing denial-of-service through excessively large headers).
-- Upgrade golang.org/x/text to v0.39.0 to address `GO-2026-5970 <https://pkg.go.dev/vuln/GO-2026-5970>`_ (norm.Iter could enter an infinite loop on input containing invalid UTF-8 bytes).
+- **Strict-mode SSRF guard** (`#4420 <https://github.com/nuts-foundation/nuts-node/pull/4420>`__). In strict mode the HTTP client now:
+
+  - refuses to connect to non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified). The check is done on the resolved IP, so DNS rebinding cannot bypass it.
+  - refuses to follow a redirect that downgrades from HTTPS to HTTP.
+  - always blocks cloud provider metadata endpoints, following the OWASP SSRF prevention cheat sheet.
+
+  Deployments that need to reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can allow specific ranges with ``http.client.allowedinternalcidrs``. Publicly routable ranges that are internal-only can be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in `#4424 <https://github.com/nuts-foundation/nuts-node/pull/4424>`__.
+
+- **Go 1.26.8**, addressing these advisories in the Go standard library: `GO-2026-6218 <https://pkg.go.dev/vuln/GO-2026-6218>`__ (net/url), `GO-2026-6091 <https://pkg.go.dev/vuln/GO-2026-6091>`__ (html/template), `GO-2026-6090 <https://pkg.go.dev/vuln/GO-2026-6090>`__ (crypto/tls), `GO-2026-6089 <https://pkg.go.dev/vuln/GO-2026-6089>`__ and `GO-2026-5026 <https://pkg.go.dev/vuln/GO-2026-5026>`__ (net/http), `GO-2026-6088 <https://pkg.go.dev/vuln/GO-2026-6088>`__ (encoding/xml) and `GO-2026-5972 <https://pkg.go.dev/vuln/GO-2026-5972>`__ (encoding/asn1). (`#4510 <https://github.com/nuts-foundation/nuts-node/pull/4510>`__)
+- **Dependency upgrades** reported by image scanners. According to govulncheck, none of these code paths are reachable from the node. (`#4510 <https://github.com/nuts-foundation/nuts-node/pull/4510>`__)
+
+  .. list-table::
+    :header-rows: 1
+
+    * - Module
+      - Version
+      - Addresses
+    * - ``golang.org/x/crypto``
+      - v0.55.0
+      - CVE-2026-56854
+    * - ``golang.org/x/net``
+      - v0.58.0
+      - CVE-2026-46600
+    * - ``google.golang.org/grpc``
+      - v1.83.2
+      - CVE-2026-84303, CVE-2026-84304, CVE-2026-84445
+    * - ``github.com/labstack/echo/v4``
+      - v4.15.3
+      - CVE-2026-55677
+    * - ``github.com/go-chi/chi/v5``
+      - v5.2.4
+      - CVE-2025-69725
+
+- **Docker image**: base image upgraded to alpine 3.23.5 and all preinstalled packages are upgraded at build time. This clears the curl and openssl findings reported on the published 6.2.11 image. (`#4507 <https://github.com/nuts-foundation/nuts-node/pull/4507>`__)
+- **Docker images are now signed** and carry build provenance. (`#4523 <https://github.com/nuts-foundation/nuts-node/pull/4523>`__, verification instructions in `#4556 <https://github.com/nuts-foundation/nuts-node/pull/4556>`__)
+
+## Other fixes and changes
+
+- fix(vdr): reflect key store backend capability in DID document key usage (`#4550 <https://github.com/nuts-foundation/nuts-node/pull/4550>`__, backport of `#4522 <https://github.com/nuts-foundation/nuts-node/pull/4522>`__)
+- fix(vcr): bound negative OpenID4VCI identifier caching, guard against empty offers (`#4558 <https://github.com/nuts-foundation/nuts-node/pull/4558>`__)
+- fix(vcr): network-publish error message now names gRPC as the transport (`#4520 <https://github.com/nuts-foundation/nuts-node/pull/4520>`__)
+- build: add ``/v6`` major version suffix to the Go module path (`#4487 <https://github.com/nuts-foundation/nuts-node/pull/4487>`__)
+- build(docker): cross-compile instead of emulating arm64 in the builder (`#4526 <https://github.com/nuts-foundation/nuts-node/pull/4526>`__)
+- build(docker): update image maintainer label to info@nuts.nl (`#4538 <https://github.com/nuts-foundation/nuts-node/pull/4538>`__)
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.11...v6.2.12
 
 *****************
 Peanut (v6.2.11)
@@ -34,6 +76,9 @@ Release date: 2026-08-11
 - Reject undersized ECIES ciphertext before it reaches decryption.
 - Restrict private transaction payload serving to the authoring node.
 - Cap PAL entries at 2, closing the decrypt-amplification DoS.
+- #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
+- Upgrade go.opentelemetry.io/otel to v1.44.0 to address `GO-2026-5158 <https://pkg.go.dev/vuln/GO-2026-5158>`_ (baggage header parsing did not cap raw header length, allowing denial-of-service through excessively large headers).
+- Upgrade golang.org/x/text to v0.39.0 to address `GO-2026-5970 <https://pkg.go.dev/vuln/GO-2026-5970>`_ (norm.Iter could enter an infinite loop on input containing invalid UTF-8 bytes).
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.10...v6.2.11
 
