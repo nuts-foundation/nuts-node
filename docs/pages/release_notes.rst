@@ -4,6 +4,17 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.40)
+*************************
+
+Release date: 2026-09-21
+
+- Docker image: base image upgraded from alpine 3.22.5 to alpine 3.24.2, which ships curl 8.22.0. Alpine 3.22 does not provide a fixed curl package, so image scanners reported curl vulnerabilities (including CVE-2026-12064) on the published v5.4.39 image. The image only uses curl for the container health check.
+- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware) and github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.39...v5.4.40
+
+*************************
 Hazelnut update (v5.4.39)
 *************************
 
