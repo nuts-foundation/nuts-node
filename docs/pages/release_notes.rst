@@ -33,10 +33,33 @@ Unreleased
 Peanut (v6.2.13)
 ****************
 
-Release date: 2026-09-21
+Release date: 2026-09-22
 
-- Docker image: base image upgraded from alpine 3.23.5 to alpine 3.24.2, clearing the busybox (``ssl_client``) finding reported on the published 6.2.12 image.
-- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware), github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) and go.opentelemetry.io/otel to v1.45.0 (CVE-2026-81870) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
+========
+Security
+========
+
+- **Docker image**: base image upgraded from alpine 3.23.5 to alpine 3.24.2. This clears the busybox (``ssl_client``) finding reported on the published 6.2.12 image, and puts V6.2 on the same base as master and V5.4. (`#4581 <https://github.com/nuts-foundation/nuts-node/pull/4581>`__)
+- **Dependency upgrades** reported by image scanners. According to govulncheck, none of these code paths are reachable from the node. (`#4581 <https://github.com/nuts-foundation/nuts-node/pull/4581>`__)
+
+  .. list-table::
+    :header-rows: 1
+
+    * - Module
+      - Version
+      - Addresses
+    * - ``golang.org/x/crypto``
+      - v0.56.0
+      - `GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`__ / CVE-2026-56855, `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`__ / CVE-2026-78662: denial of service in ``x/crypto/ssh``
+    * - ``github.com/go-chi/chi/v5``
+      - v5.3.0
+      - `GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`__, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`__, `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`__: IP spoofing through ``X-Forwarded-For`` in the ``RealIP`` middleware
+    * - ``github.com/klauspost/compress``
+      - v1.18.7
+      - `GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`__: out-of-bounds read in the ``s2`` package
+    * - ``go.opentelemetry.io/otel``
+      - v1.45.0
+      - CVE-2026-81870
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.12...v6.2.13
 
@@ -637,11 +660,32 @@ The following features have been deprecated:
 Hazelnut update (v5.4.40)
 *************************
 
-Release date: 2026-09-21
+Release date: 2026-09-22
 
-- Docker image: base image upgraded from alpine 3.22.5 to alpine 3.24.2, which ships curl 8.22.0. Alpine 3.22 does not provide a fixed curl package, so image scanners reported curl vulnerabilities (including CVE-2026-12064) on the published v5.4.39 image. The image only uses curl for the container health check.
-- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware) and github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
-- Replace the API code generator ``github.com/deepmap/oapi-codegen`` with its successor ``github.com/oapi-codegen/oapi-codegen/v2``, and its runtime package with ``github.com/oapi-codegen/runtime``. The old runtime pulled in ``github.com/gomarkdown/markdown`` (through the iris web framework), on which image scanners report CVE-2023-42821 for every version. That finding was a false alarm (fixed upstream in 2023), but it could not be cleared by upgrading. The new runtime does not depend on ``github.com/gomarkdown/markdown``, so that module is no longer part of the node. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4582
+========
+Security
+========
+
+- **Docker image**: base image upgraded from alpine 3.22.5 to alpine 3.24.2, which ships curl 8.22.0. Alpine 3.22 has no fixed curl package, so image scanners reported 39 curl vulnerabilities (8 critical, including CVE-2026-12064) on the published v5.4.39 image. The image only uses curl for the container health check. (`#4580 <https://github.com/nuts-foundation/nuts-node/pull/4580>`__)
+- **Dependency upgrades** reported by image scanners. According to govulncheck, none of these code paths are reachable from the node. (`#4580 <https://github.com/nuts-foundation/nuts-node/pull/4580>`__)
+
+  .. list-table::
+    :header-rows: 1
+
+    * - Module
+      - Version
+      - Addresses
+    * - ``golang.org/x/crypto``
+      - v0.56.0
+      - `GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`__ / CVE-2026-56855, `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`__ / CVE-2026-78662: denial of service in ``x/crypto/ssh``
+    * - ``github.com/go-chi/chi/v5``
+      - v5.3.0
+      - `GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`__, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`__, `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`__: IP spoofing through ``X-Forwarded-For`` in the ``RealIP`` middleware
+    * - ``github.com/klauspost/compress``
+      - v1.18.7
+      - `GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`__: out-of-bounds read in the ``s2`` package
+
+- **API code generator replaced**: ``github.com/deepmap/oapi-codegen`` is replaced by its successor ``github.com/oapi-codegen/oapi-codegen/v2``, and its runtime package by ``github.com/oapi-codegen/runtime``. The old runtime pulled in ``github.com/gomarkdown/markdown`` (through the iris web framework), on which image scanners report CVE-2023-42821 for every version. That finding was a false alarm (fixed upstream in 2023), but it could not be cleared by upgrading. The new runtime does not depend on ``github.com/gomarkdown/markdown``, so that module is no longer part of the node. (`#4582 <https://github.com/nuts-foundation/nuts-node/pull/4582>`__)
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.39...v5.4.40
 
