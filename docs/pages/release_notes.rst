@@ -20,6 +20,7 @@ Unreleased
 * Network: connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4562
 
 ## Security
+* Docker image: base image upgraded to alpine 3.24.2. Upgrade github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware) as reported by image scanners. This code path is not reachable from the node according to govulncheck.
 * #4441: Inbound HTTP request bodies are now limited to 1MB on both the public and internal interfaces; larger requests are rejected with HTTP 413 (Request Entity Too Large). Previously no limit was enforced, contrary to what the deployment documentation stated. The heaviest legitimate requests (OAuth POSTs carrying Verifiable Presentations) stay well below this limit, and it matches the ``client_max_body_size 1M`` reverse proxy configuration the documentation recommends. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4441
 * #4439: Helm chart (version 0.0.9): default ``verbosity`` changed from ``debug`` to ``info``, matching the node's own default. Debug verbosity produces far more log output than production needs and increases the impact of any log-hygiene issue. Set ``nuts.config.verbosity: debug`` in your own values to restore the old behavior. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4439
 * #4440: In strictmode, ``http.log: metadata-and-body`` is no longer honored: the node resets it to ``metadata`` at startup and logs a warning. Full body logging wrote OAuth token endpoint request and response bodies (client assertions, VP tokens, authorization codes and issued access tokens) to the log at Info severity. Non-strictmode deployments are unaffected. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4440
@@ -27,6 +28,17 @@ Unreleased
 * #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
 * #4244: Centralize outbound URL validation (HTTPS-only, no RFC 2606 reserved hosts) in the shared strict-mode HTTP client instead of duplicating it in each caller (OpenID4VCI, IAM, OAuth relying-party). The same check now also runs on every redirect target, not just the first request. IP-address validation is left to the dial-time SSRF guard (#4420), which already honors ``http.client.allowedinternalcidrs``/``deniedcidrs``. By @JorisHeadease in https://github.com/nuts-foundation/nuts-node/pull/4246
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+
+****************
+Peanut (v6.2.13)
+****************
+
+Release date: 2026-09-21
+
+- Docker image: base image upgraded from alpine 3.23.5 to alpine 3.24.2, clearing the busybox (``ssl_client``) finding reported on the published 6.2.12 image.
+- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware), github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) and go.opentelemetry.io/otel to v1.45.0 (CVE-2026-81870) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.12...v6.2.13
 
 ****************
 Peanut (v6.2.12)
@@ -620,6 +632,18 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.40)
+*************************
+
+Release date: 2026-09-21
+
+- Docker image: base image upgraded from alpine 3.22.5 to alpine 3.24.2, which ships curl 8.22.0. Alpine 3.22 does not provide a fixed curl package, so image scanners reported curl vulnerabilities (including CVE-2026-12064) on the published v5.4.39 image. The image only uses curl for the container health check.
+- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware) and github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
+- Replace the API code generator ``github.com/deepmap/oapi-codegen`` with its successor ``github.com/oapi-codegen/oapi-codegen/v2``, and its runtime package with ``github.com/oapi-codegen/runtime``. The old runtime pulled in ``github.com/gomarkdown/markdown`` (through the iris web framework), on which image scanners report CVE-2023-42821 for every version. That finding was a false alarm (fixed upstream in 2023), but it could not be cleared by upgrading. The new runtime does not depend on ``github.com/gomarkdown/markdown``, so that module is no longer part of the node. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4582
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.39...v5.4.40
 
 *************************
 Hazelnut update (v5.4.39)

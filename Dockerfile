@@ -30,7 +30,7 @@ RUN apk add --no-cache git
 RUN MODULE=$(go list -m) && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X '${MODULE}/core.GitCommit=${GIT_COMMIT}' -X '${MODULE}/core.GitBranch=${GIT_BRANCH}' -X '${MODULE}/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.24.1
+FROM alpine:3.24.2
 # Upgrade all preinstalled packages so the image picks up security fixes
 # published after the base image was cut.
 # DL3018 ignored for the same reason as in the builder stage above.
