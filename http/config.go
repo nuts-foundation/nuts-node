@@ -22,6 +22,9 @@ package http
 func DefaultConfig() Config {
 	return Config{
 		Log: LogMetadataLevel,
+		Client: ClientConfig{
+			Log: LogNothingLevel,
+		},
 		Internal: InternalConfig{
 			Address: "127.0.0.1:8081",
 		},
@@ -37,9 +40,9 @@ func DefaultConfig() Config {
 type Config struct {
 	// Log specifies what should be logged of HTTP requests.
 	Log      LogLevel       `koanf:"log"`
+	Client   ClientConfig   `koanf:"client"`
 	Public   PublicConfig   `koanf:"public"`
 	Internal InternalConfig `koanf:"internal"`
-	Client   ClientConfig   `koanf:"client"`
 	// ResponseCacheSize is the maximum number of bytes cached by HTTP clients.
 	ResponseCacheSize  int    `koanf:"cache.maxbytes"`
 	ClientIPHeaderName string `koanf:"clientipheader"`
@@ -47,6 +50,8 @@ type Config struct {
 
 // ClientConfig contains the configuration for outbound HTTP clients.
 type ClientConfig struct {
+	// Log specifies what should be logged of outgoing HTTP requests.
+	Log LogLevel `koanf:"log"`
 	// AllowedInternalCIDRs lists IP ranges in CIDR notation (e.g. "10.0.0.0/8") exempted from the
 	// strict-mode SSRF guard, which otherwise blocks outbound requests to non-public networks. Use
 	// to permit internal flows that legitimately target a private address, such as an internal
