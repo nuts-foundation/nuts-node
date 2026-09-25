@@ -109,26 +109,44 @@ func CertsToChain(certs []*x509.Certificate) *cert.Chain {
 	return result
 }
 
+// ChainOptions controls the RSA key size and signature algorithm of the certificates built by BuildCertChainWithOptions.
+type ChainOptions struct {
+	KeyBits            int
+	SignatureAlgorithm x509.SignatureAlgorithm
+}
+
+// DefaultChainOptions are the options used by BuildCertChain: RSA 2048 keys, signed with SHA256-RSA (PKCS#1 v1.5).
+var DefaultChainOptions = ChainOptions{KeyBits: 2048, SignatureAlgorithm: x509.SHA256WithRSA}
+
+// G4ChainOptions mirror PKIoverheid G4 certificates (e.g. UZI server certificates issued from November 2026):
+// RSA 4096 keys, signed with RSASSA-PSS using SHA-512 (Go uses a salt length equal to the hash length, as PKIoverheid does).
+var G4ChainOptions = ChainOptions{KeyBits: 4096, SignatureAlgorithm: x509.SHA512WithRSAPSS}
+
 // BuildCertChain generates a certificate chain, including root, intermediate, and signing certificates.
 // signCertExtKeyUsage is variadic so existing callers (which want the default of serverAuth)
 // don't need updating; pass it to override the leaf's Extended Key Usage.
 func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKeyUsage *x509.KeyUsage, signCertExtKeyUsage ...x509.ExtKeyUsage) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
-	rootKey, rootCert, err := BuildRootCert()
+	return BuildCertChainWithOptions(DefaultChainOptions, identifiers, subjectSerialNumber, signCertKeyUsage, signCertExtKeyUsage...)
+}
+
+// BuildCertChainWithOptions does the same as BuildCertChain, but with the given key size and signature algorithm.
+func BuildCertChainWithOptions(opts ChainOptions, identifiers []string, subjectSerialNumber string, signCertKeyUsage *x509.KeyUsage, signCertExtKeyUsage ...x509.ExtKeyUsage) ([]*x509.Certificate, []*rsa.PrivateKey, error) {
+	rootKey, rootCert, err := buildRootCert(opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	intermediateL1Key, intermediateL1Cert, err := buildIntermediateCert(rootCert, rootKey, "Intermediate CA Level 1")
+	intermediateL1Key, intermediateL1Cert, err := buildIntermediateCert(opts, rootCert, rootKey, "Intermediate CA Level 1")
 	if err != nil {
 		return nil, nil, err
 	}
-	intermediateL2Key, intermediateL2Cert, err := buildIntermediateCert(intermediateL1Cert, intermediateL1Key, "Intermediate CA Level 2")
+	intermediateL2Key, intermediateL2Cert, err := buildIntermediateCert(opts, intermediateL1Cert, intermediateL1Key, "Intermediate CA Level 2")
 	if err != nil {
 		return nil, nil, err
 	}
 	if subjectSerialNumber == "" {
 		subjectSerialNumber = "32121323"
 	}
-	signingKey, signingCert, err := BuildSigningCert(identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber, signCertKeyUsage, signCertExtKeyUsage...)
+	signingKey, signingCert, err := buildSigningCert(opts, identifiers, intermediateL2Cert, intermediateL2Key, subjectSerialNumber, signCertKeyUsage, signCertExtKeyUsage...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,17 +167,21 @@ func BuildCertChain(identifiers []string, subjectSerialNumber string, signCertKe
 // extKeyUsage is variadic so existing callers keep the template default (serverAuth);
 // pass it to override the leaf's Extended Key Usage.
 func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string, keyUsage *x509.KeyUsage, extKeyUsage ...x509.ExtKeyUsage) (*rsa.PrivateKey, *x509.Certificate, error) {
+	return buildSigningCert(DefaultChainOptions, identifiers, intermediateL2Cert, intermediateL2Key, serialNumber, keyUsage, extKeyUsage...)
+}
+
+func buildSigningCert(opts ChainOptions, identifiers []string, intermediateL2Cert *x509.Certificate, intermediateL2Key *rsa.PrivateKey, serialNumber string, keyUsage *x509.KeyUsage, extKeyUsage ...x509.ExtKeyUsage) (*rsa.PrivateKey, *x509.Certificate, error) {
 	var ku x509.KeyUsage
 	if keyUsage != nil {
 		ku = *keyUsage
 	} else {
 		ku = x509.KeyUsageDigitalSignature | x509.KeyUsageKeyAgreement
 	}
-	signingKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	signingKey, err := rsa.GenerateKey(rand.Reader, opts.KeyBits)
 	if err != nil {
 		return nil, nil, err
 	}
-	signingTmpl, err := signingCertTemplate(nil, identifiers)
+	signingTmpl, err := signingCertTemplate(opts, nil, identifiers)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -175,12 +197,12 @@ func BuildSigningCert(identifiers []string, intermediateL2Cert *x509.Certificate
 	return signingKey, signingCert, err
 }
 
-func buildIntermediateCert(parentCert *x509.Certificate, parentKey *rsa.PrivateKey, subjectName string) (*rsa.PrivateKey, *x509.Certificate, error) {
-	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, 2048)
+func buildIntermediateCert(opts ChainOptions, parentCert *x509.Certificate, parentKey *rsa.PrivateKey, subjectName string) (*rsa.PrivateKey, *x509.Certificate, error) {
+	intermediateL1Key, err := rsa.GenerateKey(rand.Reader, opts.KeyBits)
 	if err != nil {
 		return nil, nil, err
 	}
-	intermediateL1Tmpl, err := certTemplate(subjectName)
+	intermediateL1Tmpl, err := certTemplate(opts, subjectName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -192,11 +214,15 @@ func buildIntermediateCert(parentCert *x509.Certificate, parentKey *rsa.PrivateK
 }
 
 func BuildRootCert() (*rsa.PrivateKey, *x509.Certificate, error) {
-	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	return buildRootCert(DefaultChainOptions)
+}
+
+func buildRootCert(opts ChainOptions) (*rsa.PrivateKey, *x509.Certificate, error) {
+	rootKey, err := rsa.GenerateKey(rand.Reader, opts.KeyBits)
 	if err != nil {
 		return nil, nil, err
 	}
-	rootCertTmpl, err := certTemplate("Root CA")
+	rootCertTmpl, err := certTemplate(opts, "Root CA")
 	// Set a fixed validity period for the root certificate, so expiration can be tested deterministically.
 	// Also, set expiration in the far future, so we don't have failing tests due to expiration of the root cert in 10 years or so.
 	rootCertTmpl.NotBefore = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -212,14 +238,14 @@ func BuildRootCert() (*rsa.PrivateKey, *x509.Certificate, error) {
 }
 
 // certTemplate generates a template for a x509 certificate with a given serial number. If no serial number is provided, a random one is generated.
-// The certificate is valid for one month and uses SHA256 with RSA for the signature algorithm.
-func certTemplate(subjectName string) (*x509.Certificate, error) {
+// The certificate is valid for one month and uses the signature algorithm from opts.
+func certTemplate(opts ChainOptions, subjectName string) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
 	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
 	tmpl := x509.Certificate{
 		SerialNumber:          serialNumber,
 		Subject:               pkix.Name{Organization: []string{subjectName}},
-		SignatureAlgorithm:    x509.SHA256WithRSA,
+		SignatureAlgorithm:    opts.SignatureAlgorithm,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(time.Hour * 24 * 30), // valid for a month
 		BasicConstraintsValid: true,
@@ -246,7 +272,7 @@ func createCert(template, parent *x509.Certificate, pub interface{}, parentPriv 
 }
 
 // signingCertTemplate creates a x509.Certificate template for a signing certificate with an optional serial number.
-func signingCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Certificate, error) {
+func signingCertTemplate(opts ChainOptions, serialNumber *big.Int, identifiers []string) (*x509.Certificate, error) {
 	// generate a random serial number (a real cert authority would have some logic behind this)
 	if serialNumber == nil {
 		serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 8)
@@ -254,7 +280,7 @@ func signingCertTemplate(serialNumber *big.Int, identifiers []string) (*x509.Cer
 	}
 
 	tmpl := x509.Certificate{
-		SignatureAlgorithm: x509.SHA256WithRSA,
+		SignatureAlgorithm: opts.SignatureAlgorithm,
 		SerialNumber:       serialNumber,
 		Subject: pkix.Name{
 			Organization:       []string{"NUTS Foundation"},

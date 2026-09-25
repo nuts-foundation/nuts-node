@@ -35,7 +35,7 @@
                 "purpose": "Whe can only accept credentials from a trusted issuer",
                 "filter": {
                   "type": "string",
-                  "pattern": "^did:x509:0:sha256:szqMaTpnD6GN0aRrT98eV4bhAoOgyItEZVyskYyL_Qc::.*$"
+                  "pattern": "^did:x509:0:sha256:KiR4I8iCKgmWkfwEPc4QDhrBhwM0gph_uMOUuV_EN0I::.*$"
                 }
               },
               {
