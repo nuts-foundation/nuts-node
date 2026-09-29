@@ -91,26 +91,47 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 // This of course heavily depends on the use case, but 1MB is a reasonable default.
 const DefaultMaxHttpResponseSize = 1024 * 1024
 
-// limitedReadAll reads the given reader until the DefaultMaxHttpResponseSize is reached.
-// It returns an error if more data is available than DefaultMaxHttpResponseSize.
-func limitedReadAll(reader io.Reader) ([]byte, error) {
-	result, err := io.ReadAll(io.LimitReader(reader, DefaultMaxHttpResponseSize+1))
-	if len(result) > DefaultMaxHttpResponseSize {
-		return nil, fmt.Errorf("data to read exceeds max. safety limit of %d bytes", DefaultMaxHttpResponseSize)
+// limitedReadAll reads the given reader until the given limit is reached.
+// It returns an error if more data is available than the limit.
+func limitedReadAll(reader io.Reader, limit int64) ([]byte, error) {
+	result, err := io.ReadAll(io.LimitReader(reader, limit+1))
+	if int64(len(result)) > limit {
+		return nil, fmt.Errorf("data to read exceeds max. safety limit of %d bytes", limit)
 	}
 	return result, err
 }
 
-// New creates a new HTTP client with the given timeout.
-func New(timeout time.Duration) *StrictHTTPClient {
-	transport := getTransport(SafeHttpTransport)
-	return &StrictHTTPClient{
-		client: &http.Client{
-			Transport:     transport,
-			Timeout:       timeout,
-			CheckRedirect: checkRedirect,
-		},
+// Option configures a StrictHTTPClient.
+type Option func(*StrictHTTPClient)
+
+// WithMaxResponseSize overrides the maximum HTTP response body size (in bytes) the client reads.
+// The default is DefaultMaxHttpResponseSize. Only raise it for endpoints that are operator-configured
+// and known to return large responses, since the response is buffered in memory.
+func WithMaxResponseSize(size int64) Option {
+	return func(client *StrictHTTPClient) {
+		client.maxResponseSize = size
 	}
+}
+
+// New creates a new HTTP client with the given timeout.
+func New(timeout time.Duration, options ...Option) *StrictHTTPClient {
+	transport := getTransport(SafeHttpTransport)
+	return newStrictHTTPClient(&http.Client{
+		Transport:     transport,
+		Timeout:       timeout,
+		CheckRedirect: checkRedirect,
+	}, options)
+}
+
+func newStrictHTTPClient(httpClient *http.Client, options []Option) *StrictHTTPClient {
+	result := &StrictHTTPClient{
+		client:          httpClient,
+		maxResponseSize: DefaultMaxHttpResponseSize,
+	}
+	for _, option := range options {
+		option(result)
+	}
+	return result
 }
 
 // getTransport wraps the given transport with OpenTelemetry instrumentation if tracing is enabled.
@@ -126,34 +147,31 @@ func getTransport(base http.RoundTripper) http.RoundTripper {
 
 // NewWithCache creates a new HTTP client with the given timeout.
 // It uses the DefaultCachingTransport as the underlying transport.
-func NewWithCache(timeout time.Duration) *StrictHTTPClient {
+func NewWithCache(timeout time.Duration, options ...Option) *StrictHTTPClient {
 	transport := getTransport(DefaultCachingTransport)
-	return &StrictHTTPClient{
-		client: &http.Client{
-			Transport:     transport,
-			Timeout:       timeout,
-			CheckRedirect: checkRedirect,
-		},
-	}
+	return newStrictHTTPClient(&http.Client{
+		Transport:     transport,
+		Timeout:       timeout,
+		CheckRedirect: checkRedirect,
+	}, options)
 }
 
 // NewWithTLSConfig creates a new HTTP client with the given timeout and TLS configuration.
 // It copies the http.DefaultTransport and sets the TLSClientConfig to the given tls.Config.
 // As such, it can't be used in conjunction with the CachingRoundTripper.
-func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config) *StrictHTTPClient {
+func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config, options ...Option) *StrictHTTPClient {
 	transport := SafeHttpTransport.Clone()
 	transport.TLSClientConfig = tlsConfig
-	return &StrictHTTPClient{
-		client: &http.Client{
-			Transport:     getTransport(transport),
-			Timeout:       timeout,
-			CheckRedirect: checkRedirect,
-		},
-	}
+	return newStrictHTTPClient(&http.Client{
+		Transport:     getTransport(transport),
+		Timeout:       timeout,
+		CheckRedirect: checkRedirect,
+	}, options)
 }
 
 type StrictHTTPClient struct {
-	client *http.Client
+	client          *http.Client
+	maxResponseSize int64
 }
 
 func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -168,7 +186,7 @@ func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if result.Body != nil {
-		body, err := limitedReadAll(result.Body)
+		body, err := limitedReadAll(result.Body, s.maxResponseSize)
 		if err != nil {
 			return nil, err
 		}
