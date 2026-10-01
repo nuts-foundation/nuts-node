@@ -310,6 +310,33 @@ func TestManager_Resolve(t *testing.T) {
 	})
 }
 
+// TestManager_Resolve_G4Chain resolves a did:x509 backed by a chain that mirrors PKIoverheid G4 (UZI server) certificates:
+// RSA 4096 keys, RSASSA-PSS/SHA-512 signatures, keyUsage digitalSignature+keyEncipherment, EKU serverAuth+clientAuth,
+// and the DID anchored on the issuing (TSP) CA instead of the root.
+func TestManager_Resolve_G4Chain(t *testing.T) {
+	didResolver := NewResolver()
+	otherNameValue := "2.16.528.1.1003.1.3.5.5.5-1-900012345-S-90000380-00.000-00000000"
+	keyUsage := x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment
+	certs, _, err := testpki.BuildCertChainWithOptions(testpki.G4ChainOptions, []string{otherNameValue}, "900012345", &keyUsage, x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth)
+	require.NoError(t, err)
+	for _, c := range certs {
+		require.Equal(t, x509.SHA512WithRSAPSS, c.SignatureAlgorithm)
+	}
+	metadata := resolver.ResolveMetadata{JwtProtectedHeaders: map[string]interface{}{X509CertChainHeader: testpki.CertsToChain(certs)}}
+	issuingCA := certs[1]
+	id := did.MustParseDID(fmt.Sprintf("did:x509:0:sha256:%s::san:otherName:%s::subject:O:NUTS%%20Foundation:serialNumber:900012345", sha256Sum(issuingCA.Raw), otherNameValue))
+
+	document, documentMetadata, err := didResolver.Resolve(id, &metadata)
+
+	require.NoError(t, err)
+	require.NotNil(t, documentMetadata)
+	didUrl, err := did.ParseDIDURL(id.String() + "#0")
+	require.NoError(t, err)
+	assert.NotNil(t, document.VerificationMethod.FindByID(*didUrl))
+	assert.Len(t, document.AssertionMethod, 1)
+	assert.Empty(t, document.KeyAgreement)
+}
+
 func TestManager_Resolve_San_Generic(t *testing.T) {
 	didResolver := NewResolver()
 	metadata := resolver.ResolveMetadata{}
