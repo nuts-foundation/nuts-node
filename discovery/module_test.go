@@ -128,7 +128,7 @@ func Test_Module_Register(t *testing.T) {
 
 			err := m.Register(ctx, testServiceID, largeVP)
 
-			assert.EqualError(t, err, "presentation is invalid for registration\npresentation exceeds maximum size of 131072 bytes")
+			assert.EqualError(t, err, "presentation is invalid for registration\npresentation exceeds maximum size of 65536 bytes")
 		})
 		t.Run("no expiration", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)

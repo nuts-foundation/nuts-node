@@ -64,10 +64,9 @@ var (
 const (
 	// maxPresentationSize is the maximum size (in bytes) of a Verifiable Presentation that can be registered on a Discovery Service.
 	// Legitimate registrations are a few KB; a VP carrying an X509Credential with a full PKIoverheid certificate chain
-	// measures about 16 KB, so the cap leaves room for a presentation carrying several such credentials.
-	// The cap bounds what a single participant can add to the service, so that a few
+	// measures about 16 KB. The cap bounds what a single participant can add to the service, so that a few
 	// registrations cannot push the service's responses over what clients are willing to read (maxResponseSize).
-	maxPresentationSize = 128 * 1024
+	maxPresentationSize = 64 * 1024
 	// maxResponseSize is the maximum size (in bytes) of a response from a remote Discovery Service that the client reads.
 	// It is larger than the default of the strict HTTP client, since the endpoint is operator-configured (through the
 	// service definition) and a service's full list of presentations can exceed 1 MB. It is bounded because the
