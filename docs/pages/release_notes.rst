@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.14)
+****************
+
+Release date: 2026-10-05
+
+- Upgrade go.opentelemetry.io/otel/sdk/log to v0.22.0 (`GO-2026-6615 <https://pkg.go.dev/vuln/GO-2026-6615>`_ / CVE-2026-81872: the log ``BatchProcessor`` can busy-spin and consume excessive CPU when its export buffer is full). The other OpenTelemetry modules (``otel``, ``sdk``, ``trace``, OTLP exporters, ``otellogrus``, ``otelecho``, ``otelhttp``) are upgraded in lockstep to the versions used on master.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.13...v6.2.14
+
+****************
 Peanut (v6.2.13)
 ****************
 
