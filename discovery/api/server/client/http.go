@@ -33,10 +33,10 @@ import (
 	"time"
 )
 
-// New creates a new DefaultHTTPClient.
-func New(timeout time.Duration) *DefaultHTTPClient {
+// New creates a new DefaultHTTPClient. Options are passed to the underlying strict HTTP client.
+func New(timeout time.Duration, options ...client.Option) *DefaultHTTPClient {
 	return &DefaultHTTPClient{
-		client: client.New(timeout),
+		client: client.New(timeout, options...),
 	}
 }
 
