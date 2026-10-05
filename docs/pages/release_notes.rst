@@ -3,6 +3,13 @@ Release notes
 #############
 
 ****************
+Unreleased
+****************
+
+## Security
+- #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
+
+****************
 Peanut (v6.2.14)
 ****************
 
