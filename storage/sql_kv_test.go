@@ -40,10 +40,16 @@ func TestEngine_KVBackendSQL(t *testing.T) {
 		_, ok := e.databases[0].(*sqlKVDatabase)
 		assert.True(t, ok)
 	})
-	t.Run("creates a table per shelf", func(t *testing.T) {
+	t.Run("creates a table per shelf and a seeded lock table per store", func(t *testing.T) {
 		e := NewTestStorageEngineSQLKV(t).(*engine)
 		for _, shelf := range sql_migrations.KVShelves {
 			assert.True(t, e.sqlDB.Migrator().HasTable(shelf.TableName()), shelf.TableName())
+		}
+		for _, lock := range sql_migrations.KVStores() {
+			require.True(t, e.sqlDB.Migrator().HasTable(lock.TableName()), lock.TableName())
+			var count int64
+			require.NoError(t, e.sqlDB.Table(lock.TableName()).Count(&count).Error)
+			assert.Equal(t, int64(1), count, lock.TableName())
 		}
 	})
 	t.Run("write and read through a provider", func(t *testing.T) {

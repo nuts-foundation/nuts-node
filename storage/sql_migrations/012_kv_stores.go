@@ -81,6 +81,31 @@ var KVShelves = []KVShelf{
 	{"vcr", "backup-revoked-credentials", "revocations"},
 }
 
+// KVStores returns the distinct (module, store) pairs in KVShelves, in order of first appearance.
+func KVStores() []KVShelf {
+	var result []KVShelf
+	seen := map[string]bool{}
+	for _, shelf := range KVShelves {
+		key := shelf.Module + "/" + shelf.Store
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		result = append(result, KVShelf{Module: shelf.Module, Store: shelf.Store, Shelf: stoabssql.LockShelf})
+	}
+	return result
+}
+
+// kvLockSeed012 inserts the single lock row (key 0x00, empty value) into a store's lock table if it is not there yet.
+// %s is the quoted table name. Binary literals and the FROM clause differ per database.
+var kvLockSeed012 = map[string]string{
+	"sqlite":    `INSERT INTO %[1]s ("key", "value") SELECT X'00', X'' WHERE NOT EXISTS (SELECT 1 FROM %[1]s)`,
+	"postgres":  `INSERT INTO %[1]s ("key", "value") SELECT '\x00'::bytea, ''::bytea WHERE NOT EXISTS (SELECT 1 FROM %[1]s)`,
+	"mysql":     "INSERT INTO %[1]s (`key`, `value`) SELECT X'00', X'' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM %[1]s)",
+	"sqlserver": `INSERT INTO %[1]s ([key], [value]) SELECT 0x00, 0x WHERE NOT EXISTS (SELECT 1 FROM %[1]s)`,
+	"azuresql":  `INSERT INTO %[1]s ([key], [value]) SELECT 0x00, 0x WHERE NOT EXISTS (SELECT 1 FROM %[1]s)`,
+}
+
 // kvColumnTypes012 holds the per-database column definitions for the shelf tables.
 // Keys are at most ~60 bytes (did:nuts DID + version); everything else is a 32-byte hash, a 4-byte clock or a
 // short fixed string. Values can be tens of KBs (credentials, IBLT pages), so the value type is unbounded.
@@ -104,8 +129,10 @@ func kvQuoteTable(dbType string, name string) string {
 }
 
 // Migration012KVStores returns the goose Go migration (version 12) that creates the tables for the key-value
-// shelves in KVShelves. The tables are created on every database, whether the node uses the SQL KV backend or not,
-// so that switching storage.kv.backend never requires out-of-order migrations.
+// shelves in KVShelves, plus one lock table per store with its single seeded row (the go-stoabs SQL backend locks
+// that row in every writable transaction, which serializes writers across node instances). The tables are created on
+// every database, whether the node uses the SQL KV backend or not, so that switching storage.kv.backend never
+// requires out-of-order migrations.
 //
 // It is a Go migration because the binary column types and identifier quoting differ per database, and it runs
 // via RunTx for the same reason as Migration011CredentialPropValueType (SQLite's single-connection pool).
@@ -116,7 +143,7 @@ func Migration012KVStores(dbType string) *goose.Migration {
 			if !ok {
 				return fmt.Errorf("unsupported database type for KV store tables: %s", dbType)
 			}
-			for _, shelf := range KVShelves {
+			for _, shelf := range append(KVStores(), KVShelves...) {
 				table := kvQuoteTable(dbType, shelf.TableName())
 				var stmt string
 				if dbType == "sqlserver" || dbType == "azuresql" {
@@ -128,10 +155,16 @@ func Migration012KVStores(dbType string) *goose.Migration {
 					return fmt.Errorf("create table %s: %w", shelf.TableName(), err)
 				}
 			}
+			for _, lock := range KVStores() {
+				stmt := fmt.Sprintf(kvLockSeed012[dbType], kvQuoteTable(dbType, lock.TableName()))
+				if _, err := tx.ExecContext(ctx, stmt); err != nil {
+					return fmt.Errorf("seed lock table %s: %w", lock.TableName(), err)
+				}
+			}
 			return nil
 		}},
 		&goose.GoFunc{RunTx: func(ctx context.Context, tx *sql.Tx) error {
-			for _, shelf := range KVShelves {
+			for _, shelf := range append(KVStores(), KVShelves...) {
 				if _, err := tx.ExecContext(ctx, "DROP TABLE "+kvQuoteTable(dbType, shelf.TableName())); err != nil {
 					return fmt.Errorf("drop table %s: %w", shelf.TableName(), err)
 				}
