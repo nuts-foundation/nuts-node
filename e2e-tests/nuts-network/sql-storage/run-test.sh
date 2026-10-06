@@ -77,17 +77,17 @@ function startDatabase() {
       export NODE_B_SQL="sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"
       ;;
     postgres)
-      docker compose --profile postgres up --wait postgres
+      docker compose --profile postgres up --wait postgres || exitWithDockerLogs 1
       export NODE_A_SQL="postgres://nuts:nuts@postgres:5432/nodea?sslmode=disable"
       export NODE_B_SQL="postgres://nuts:nuts@postgres:5432/nodeb?sslmode=disable"
       ;;
     mysql)
-      docker compose --profile mysql up --wait mysql
+      docker compose --profile mysql up --wait mysql || exitWithDockerLogs 1
       export NODE_A_SQL="mysql://root:nuts@tcp(mysql:3306)/nodea?charset=utf8mb4&parseTime=True&loc=Local"
       export NODE_B_SQL="mysql://root:nuts@tcp(mysql:3306)/nodeb?charset=utf8mb4&parseTime=True&loc=Local"
       ;;
     sqlserver)
-      docker compose --profile sqlserver up --wait sqlserver
+      docker compose --profile sqlserver up --wait sqlserver || exitWithDockerLogs 1
       # SQL Server has no init-script hook; create the databases through sqlcmd.
       docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Nuts!Passw0rd' \
         -Q "IF DB_ID('nodea') IS NULL CREATE DATABASE nodea; IF DB_ID('nodeb') IS NULL CREATE DATABASE nodeb;"
@@ -134,7 +134,7 @@ function runVariant() {
   echo "------------------------------------"
   echo "Starting nodes on bbolt..."
   echo "------------------------------------"
-  docker compose up --wait nodeA nodeB
+  docker compose up --wait nodeA nodeB || exitWithDockerLogs 1
 
   echo "------------------------------------"
   echo "Creating NodeDIDs..."
@@ -154,7 +154,7 @@ function runVariant() {
   export ENABLE_DISCOVERY=true
   export KV_BACKEND=sql
   docker compose stop nodeA nodeB
-  docker compose up --wait nodeA nodeB
+  docker compose up --wait nodeA nodeB || exitWithDockerLogs 1
   # The DAG must survive the switch: the bbolt files were imported into SQL
   waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 4 10
   waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 4 10
@@ -189,7 +189,7 @@ function runVariant() {
   echo "Restarting nodes, asserting state survived..."
   echo "------------------------------------"
   docker compose stop nodeA nodeB
-  docker compose up --wait nodeA nodeB
+  docker compose up --wait nodeA nodeB || exitWithDockerLogs 1
   waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 8 10
   waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 8 10
   waitForAuthCredentialCount "NodeA" "http://localhost:18081" 0 10

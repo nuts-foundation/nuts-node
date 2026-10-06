@@ -65,7 +65,9 @@ services:
     volumes:
       - "./db-init/mysql.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -uroot -pnuts --silent" ]
+      # Over TCP: during initialization mysql:8 runs a temporary server that only listens on the socket, which a
+      # socket ping would report as healthy before the real server is up.
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pnuts --silent" ]
       interval: 2s
       timeout: 5s
       retries: 45
