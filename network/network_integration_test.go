@@ -85,6 +85,36 @@ type bootstrapDIDDocumentTX struct {
 var bootstrapDIDDocumentTXs map[string]bootstrapDIDDocumentTX
 
 func TestNetworkIntegration_HappyFlow(t *testing.T) {
+	runHappyFlow(t)
+}
+
+// TestNetworkIntegration_HappyFlow_SQLKVBackend runs the happy flow with the KV stores on SQL (storage.kv.backend=sql)
+// instead of bbolt: the DAG, its sync trees and the notifier job shelves all live in SQLite tables.
+func TestNetworkIntegration_HappyFlow_SQLKVBackend(t *testing.T) {
+	previous := integrationStoreProvider
+	t.Cleanup(func() {
+		integrationStoreProvider = previous
+	})
+	integrationStoreProvider = func(t *testing.T, _ string) storage.Provider {
+		return storage.NewTestStorageEngineSQLKV(t).GetProvider(ModuleName)
+	}
+	runHappyFlow(t)
+}
+
+// TestNetworkIntegration_PrivateTransaction_SQLKVBackend runs the private transaction flows (payload retrieval over
+// authenticated connections, notifier retries) with the KV stores on SQL.
+func TestNetworkIntegration_PrivateTransaction_SQLKVBackend(t *testing.T) {
+	previous := integrationStoreProvider
+	t.Cleanup(func() {
+		integrationStoreProvider = previous
+	})
+	integrationStoreProvider = func(t *testing.T, _ string) storage.Provider {
+		return storage.NewTestStorageEngineSQLKV(t).GetProvider(ModuleName)
+	}
+	TestNetworkIntegration_PrivateTransaction(t)
+}
+
+func runHappyFlow(t *testing.T) {
 	testDirectory := io.TestDirectory(t)
 	resetIntegrationTest(t)
 	expectedDocLogSize := 0
@@ -1091,9 +1121,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		t.Fatal(err)
 	}
 
-	storeProvider := storage.StaticKVStoreProvider{
-		Store: storage.CreateTestBBoltStore(t, serverConfig.Datadir+"/test.db"),
-	}
+	storeProvider := integrationStoreProvider(t, serverConfig.Datadir)
 
 	// pkiValidator is not started, so it is not downloading CRLs
 	pkiValidator := pki.New()
@@ -1111,7 +1139,7 @@ func startNode(t *testing.T, name string, testDirectory string, opts ...func(ser
 		keyResolver:     resolver.DIDKeyResolver{Resolver: didStore},
 		serviceResolver: resolver.DIDServiceResolver{Resolver: didStore},
 		eventPublisher:  eventPublisher,
-		storeProvider:   &storeProvider,
+		storeProvider:   storeProvider,
 		pkiValidator:    pkiValidator,
 	}
 
@@ -1146,8 +1174,16 @@ type node struct {
 	eventPublisher events.Event
 }
 
+// integrationStoreProvider creates the KV store provider for an integration test node. Defaults to a single bbolt
+// file; TestNetworkIntegration_HappyFlow_SQLKVBackend swaps it for the SQL backend.
+var integrationStoreProvider = func(t *testing.T, datadir string) storage.Provider {
+	return &storage.StaticKVStoreProvider{
+		Store: storage.CreateTestBBoltStore(t, datadir+"/test.db"),
+	}
+}
+
 func (n node) shutdown() {
-	kvStore, _ := n.network.storeProvider.GetKVStore(ModuleName, storage.PersistentStorageClass)
+	kvStore, _ := n.network.storeProvider.GetKVStore("data", storage.PersistentStorageClass)
 	err := kvStore.Close(context.Background())
 	if err != nil {
 		panic(err)

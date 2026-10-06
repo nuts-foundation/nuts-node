@@ -144,6 +144,9 @@
     * - storage.debug
       - false
       - When true, enables extra logging of storage-layer problems (e.g. performance issues).
+    * - storage.kv.backend
+      - bbolt
+      - Backend for the key-value stores used by the did:nuts stack (network DAG, DID store, credential backups): 'bbolt' (files in the data directory, single instance) or 'sql' (the database configured in storage.sql.connection).
     * - storage.session.memcached.address
       - []
       - List of Memcached server addresses. These can be a simple 'host:port' or a Memcached connection URL with scheme, auth and other options.

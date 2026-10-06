@@ -135,6 +135,27 @@ func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 	}
 }
 
+// NewTestStorageEngineSQLKV creates a storage engine on a SQLite database in a temporary directory,
+// with the key-value stores on SQL (storage.kv.backend=sql) instead of bbolt.
+func NewTestStorageEngineSQLKV(t testing.TB) Engine {
+	dir := io.TestDirectory(t)
+	result := New().(*engine)
+	result.config = DefaultConfig()
+	result.sqlMigrationLogger = nilGooseLogger{}
+	result.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
+	result.config.KV.Backend = KVBackendSQL
+	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = dir + "/data"
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = result.Shutdown()
+	})
+	return result
+}
+
 type nilGooseLogger struct{}
 
 func (m nilGooseLogger) Printf(format string, v ...interface{}) {}

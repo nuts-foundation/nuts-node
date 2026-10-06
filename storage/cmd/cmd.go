@@ -32,6 +32,9 @@ func FlagSet() *pflag.FlagSet {
 	flagSet.String("storage.bbolt.backup.directory", defs.BBolt.Backup.Directory, "Target directory for BBolt database backups.")
 	flagSet.Duration("storage.bbolt.backup.interval", defs.BBolt.Backup.Interval, "Interval, formatted as Golang duration (e.g. 10m, 1h) at which BBolt database backups will be performed.")
 
+	// key-value stores (did:nuts stack)
+	flagSet.String("storage.kv.backend", defs.KV.Backend, "Backend for the key-value stores used by the did:nuts stack (network DAG, DID store, credential backups): 'bbolt' (files in the data directory, single instance) or 'sql' (the database configured in storage.sql.connection).")
+
 	// redis
 	flagSet.String("storage.redis.address", defs.Redis.Address, "Redis database server address. This can be a simple 'host:port' or a Redis connection URL with scheme, auth and other options.")
 	flagSet.String("storage.redis.username", defs.Redis.Username, "Redis database username. If set, it overrides the username in the connection URL.")

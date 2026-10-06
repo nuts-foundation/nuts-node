@@ -8,7 +8,8 @@ The Nuts node supports different backends for storage. This page describes the p
 .. note::
 
     This page does not describe how to configure storage when using ``did:nuts`` DIDs and the Nuts gRPC network,
-    which require specific storage configuration. If your use case require these features, refer to the v5 documentation for configuration storage.
+    which require specific storage configuration. If your use case require these features, refer to the v5 documentation for configuration storage,
+    and to :ref:`kv-storage` below for running the did:nuts stores on the SQL database.
 
 The Nuts node uses two types of storage:
 
@@ -79,6 +80,36 @@ When enabled, the node automatically refreshes IAM tokens and uses new tokens fo
 
 For generic AWS RDS IAM setup (enabling IAM DB auth on the instance, IAM policies, and DB user grants),
 refer to the AWS documentation: `IAM database authentication for MariaDB, MySQL, and PostgreSQL <https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.html>`_.
+
+.. _kv-storage:
+
+Key-value storage for did:nuts
+******************************
+
+Nodes that participate in the Nuts gRPC network (``did:nuts``) keep the network DAG, the did:nuts DID store,
+the notifier job queues and the credential backups in key-value stores. By default these are bbolt files in the
+data directory (``network/data.db``, ``vdr/didstore.db``, ...). bbolt allows a single process per file, so a node
+with these stores on bbolt can run only one instance, and should not place them on a network file system.
+
+Set ``storage.kv.backend`` to ``sql`` to keep the key-value stores in the SQL database configured through
+``storage.sql.connection`` instead:
+
+.. code-block:: yaml
+
+    storage:
+      sql:
+        connection: postgres://user:password@localhost:5432/nuts
+      kv:
+        backend: sql
+
+Every store shelf becomes a table named ``kv_<module>_<store>_<shelf>`` (for example ``kv_network_data_documents``),
+created by the node's schema migrations. Supported values: ``bbolt`` (default) and ``sql``. The SQL backend requires
+a database other than SQLite in strict mode, like the rest of the SQL storage. ``storage.bbolt.*`` only applies to
+the ``bbolt`` backend.
+
+Switching an existing node from ``bbolt`` to ``sql`` does not yet migrate the data in the bbolt files; this is
+planned (see `issue 4609 <https://github.com/nuts-foundation/nuts-node/issues/4609>`_). Until then, switch only on
+new nodes, or let the node resynchronize from the network.
 
 Session storage
 ***************

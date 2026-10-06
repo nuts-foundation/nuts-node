@@ -25,10 +25,25 @@ type Config struct {
 	BBolt   BBoltConfig   `koanf:"bbolt"`
 	Redis   RedisConfig   `koanf:"redis"`
 	SQL     SQLConfig     `koanf:"sql"`
+	KV      KVConfig      `koanf:"kv"`
 	Session SessionConfig `koanf:"session"`
 	// Debug specifies whether to enable debug logging for the storage engine, e.g. performance metrics and query logging.
 	Debug bool `koanf:"debug"`
 }
+
+// KVConfig specifies which backend holds the key-value stores used by the did:nuts stack
+// (network DAG, did:nuts DID store, credential backup shelves).
+type KVConfig struct {
+	// Backend is the key-value store backend: KVBackendBBolt (default) or KVBackendSQL.
+	Backend string `koanf:"backend"`
+}
+
+const (
+	// KVBackendBBolt stores the key-value stores in bbolt files in the data directory. Allows a single node instance.
+	KVBackendBBolt = "bbolt"
+	// KVBackendSQL stores the key-value stores in the SQL database configured through storage.sql.connection.
+	KVBackendSQL = "sql"
+)
 
 // DefaultConfig returns the default configuration for the module.
 func DefaultConfig() Config {
@@ -40,6 +55,9 @@ func DefaultConfig() Config {
 		},
 		BBolt: BBoltConfig{
 			LockTimeout: time.Second,
+		},
+		KV: KVConfig{
+			Backend: KVBackendBBolt,
 		},
 	}
 }

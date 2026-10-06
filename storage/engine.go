@@ -75,12 +75,16 @@ func New() Engine {
 }
 
 type engine struct {
-	datadir            string
-	storesMux          *sync.Mutex
-	stores             map[string]stoabs.Store
-	databases          []database
-	sessionDatabase    SessionDatabase
-	sqlDB              *gorm.DB
+	datadir         string
+	storesMux       *sync.Mutex
+	stores          map[string]stoabs.Store
+	databases       []database
+	sessionDatabase SessionDatabase
+	sqlDB           *gorm.DB
+	// sqlDBType is the database type derived from the SQL connection string (sqlite, postgres, mysql, sqlserver, azuresql).
+	sqlDBType string
+	// sqliteDSN is the SQLite connection string without the driver prefix; used to open a dedicated handle for the KV stores.
+	sqliteDSN          string
 	config             Config
 	sqlMigrationLogger goose.Logger
 	rdsIAMAuth         *rdsIAMAuthenticator
@@ -164,6 +168,9 @@ func (e *engine) Shutdown() error {
 	if failures {
 		return errors.New("one or more stores failed to close")
 	}
+	for _, db := range e.databases {
+		db.close()
+	}
 
 	// Close session database
 	e.sessionDatabase.Close()
@@ -185,30 +192,49 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		return err
 	}
 
+	// SQL storage (first: the KV stores may live in it)
+	if err := e.initSQLDatabase(config.Strictmode); err != nil {
+		return fmt.Errorf("failed to initialize SQL database: %w", err)
+	}
+
 	// KV-storage
-	if e.config.Redis.isConfigured() {
-		redisDB, err := createRedisDatabase(e.config.Redis)
-		if err != nil {
-			return fmt.Errorf("unable to configure Redis database: %w", err)
+	switch e.config.KV.Backend {
+	case KVBackendSQL:
+		if e.config.Redis.isConfigured() {
+			return errors.New("storage.redis can't be combined with storage.kv.backend=sql")
 		}
-		e.databases = append(e.databases, redisDB)
-		log.Logger().Info("Redis database support enabled.")
-		log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
-		redis.SetLogger(redisLogWriter{logger: log.Logger()})
+		sqlDB, err := e.sqlDB.DB()
+		if err != nil {
+			return err
+		}
+		kvDB, err := newSQLKVDatabase(e.sqlDBType, sqlDB, e.sqliteDSN)
+		if err != nil {
+			return fmt.Errorf("unable to configure SQL KV database: %w", err)
+		}
+		e.databases = append(e.databases, kvDB)
+		log.Logger().Info("Key-value stores are backed by the SQL database.")
+	case KVBackendBBolt, "":
+		if e.config.Redis.isConfigured() {
+			redisDB, err := createRedisDatabase(e.config.Redis)
+			if err != nil {
+				return fmt.Errorf("unable to configure Redis database: %w", err)
+			}
+			e.databases = append(e.databases, redisDB)
+			log.Logger().Info("Redis database support enabled.")
+			log.Logger().Warn("Redis database support is still experimental: do not use for production environments!")
+			redis.SetLogger(redisLogWriter{logger: log.Logger()})
+		}
+		bboltDB, err := createBBoltDatabase(config.Datadir, e.config.BBolt)
+		if err != nil {
+			return fmt.Errorf("unable to configure BBolt database: %w", err)
+		}
+		e.databases = append(e.databases, bboltDB)
+	default:
+		return fmt.Errorf("invalid storage.kv.backend: %q (valid values: %s, %s)", e.config.KV.Backend, KVBackendBBolt, KVBackendSQL)
 	}
-	bboltDB, err := createBBoltDatabase(config.Datadir, e.config.BBolt)
-	if err != nil {
-		return fmt.Errorf("unable to configure BBolt database: %w", err)
-	}
-	e.databases = append(e.databases, bboltDB)
 
 	NewDocumentStore = func(path string, documentLoader interface{}) (leia.Store, error) {
 		return createLeiaStore(path, documentLoader, e.config.Debug)
-	}
-
-	// SQL storage
-	if err := e.initSQLDatabase(config.Strictmode); err != nil {
-		return fmt.Errorf("failed to initialize SQL database: %w", err)
 	}
 
 	// session storage
@@ -316,9 +342,11 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	// Find right SQL adapter for ORM and migrations
 	dbType := strings.Split(connectionString, ":")[0]
 
+	e.sqlDBType = dbType
 	switch dbType {
 	case "sqlite":
 		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
+		e.sqliteDSN = connectionString
 	case "mysql", "azuresql":
 		// These drivers need their connection string without the driver:// prefix.
 		idx := strings.Index(connectionString, "://")
@@ -431,7 +459,10 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 		return err
 	}
 	gooseProvider, err := goose.NewProvider(dialect, db, sql_migrations.SQLMigrationsFS,
-		goose.WithGoMigrations(sql_migrations.Migration011CredentialPropValueType(dbType)),
+		goose.WithGoMigrations(
+			sql_migrations.Migration011CredentialPropValueType(dbType),
+			sql_migrations.Migration012KVStores(dbType),
+		),
 	)
 	if err != nil {
 		return err

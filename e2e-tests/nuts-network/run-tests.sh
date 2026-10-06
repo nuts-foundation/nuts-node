@@ -41,3 +41,10 @@ echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 pushd gossip-overflow
 ./run-test.sh
 popd
+
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+echo "!! Running test: SQL storage      !!"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+pushd sql-storage
+./run-test.sh
+popd
