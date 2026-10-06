@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 	"io/fs"
+	"net/http"
 	"net/url"
 )
 
@@ -185,7 +186,9 @@ func DefaultAllowList() []string {
 // NewContextLoader creates a new JSON-LD context loader with the embedded FS as first loader.
 // It loads the most used context from the embedded FS. This ensures the contents cannot be altered.
 // If allowExternalCalls is set to true, it also loads external context from the internet.
-func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) (ld.DocumentLoader, error) {
+// Remote contexts are fetched with the given HTTP client, which must have a timeout: a hanging context server
+// would otherwise block whatever processes the document, including the node's startup replay of network events.
+func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig, httpClient *http.Client) (ld.DocumentLoader, error) {
 	// Build the documentLoader chain:
 	// Start with rewriting all context urls to their mapped counterparts
 	loader := NewMappedDocumentLoader(contexts.LocalFileMapping,
@@ -195,7 +198,7 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 			NewEmbeddedFSDocumentLoader(assets.Assets,
 				// Last in the chain is the defaultLoader which can resolve
 				// local files and remote (via http) context documents
-				ld.NewDefaultDocumentLoader(nil))))
+				ld.NewDefaultDocumentLoader(httpClient))))
 
 	// If unlisted calls are not allowed, filter all calls to the defaultLoader
 	if !allowUnlistedExternalCalls {

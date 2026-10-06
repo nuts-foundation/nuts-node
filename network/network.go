@@ -27,7 +27,9 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -55,6 +57,8 @@ var _ core.HealthCheckable = (*Network)(nil)
 const (
 	// ModuleName specifies the name of this module.
 	ModuleName = "Network"
+	// vdrNotifierName is the name of the notifier that processes did:nuts DID documents (vdr/didnuts/ambassador.go).
+	vdrNotifierName = "vdr"
 	// softwareID contains the name of the vendor/implementation that's published in the node's diagnostic information.
 	softwareID        = "https://github.com/nuts-foundation/nuts-node"
 	errEventFailedMsg = "failed to emit event for published transaction: %w"
@@ -86,6 +90,9 @@ type Network struct {
 	keyStore          crypto.KeyStore
 	keyResolver       resolver.KeyResolver
 	startTime         atomic.Pointer[time.Time]
+	// replayCancel stops the background replay of persisted notifier events, replayWG waits for it to finish.
+	replayCancel      context.CancelFunc
+	replayWG          sync.WaitGroup
 	peerID            transport.PeerID
 	nodeDID           did.DID
 	didStore          didstore.Store
@@ -408,14 +415,63 @@ func (n *Network) Start() error {
 		return err
 	}
 
-	// Resume all notifiers. Notifiers may access other components of the network stack.
-	// To prevent nil derefs run the notifiers last. https://github.com/nuts-foundation/nuts-node/issues/3155
-	for _, notifier := range n.state.Notifiers() {
-		if err = notifier.Run(); err != nil {
-			return fmt.Errorf("failed to start notifiers: %w", err)
+	// Resume all notifiers (replay persisted events) in the background. Notifiers may access other components of
+	// the network stack, so this must happen after the connection manager is up (https://github.com/nuts-foundation/nuts-node/issues/3155).
+	// It runs in the background so the node binds its HTTP ports while the backlog is processed: replaying events is
+	// ordinary operation (the same code path as events arriving from peers or the Reprocess API), not a startup
+	// precondition. The notifiers are replayed one at a time, each notifier processes its events serially, to avoid
+	// many concurrent transactions contending on the storage (https://github.com/nuts-foundation/nuts-node/issues/2402).
+	replayCtx, cancel := context.WithCancel(context.Background())
+	n.replayCancel = cancel
+	n.replayWG.Add(1)
+	go func() {
+		defer n.replayWG.Done()
+		n.replayNotifiers(replayCtx, n.state.Notifiers())
+	}()
+	return nil
+}
+
+// notifierReplayRetryDelay is the initial delay before retrying a notifier whose replay could not start
+// (reading its persisted events failed). It doubles on every attempt, up to notifierReplayMaxRetryDelay.
+var notifierReplayRetryDelay = 5 * time.Second
+
+const notifierReplayMaxRetryDelay = 5 * time.Minute
+
+// replayNotifiers runs the notifiers one by one, in a fixed order: the did:nuts DID document notifier first, since
+// other notifiers (verifying credentials) depend on DID documents being present, then the others by name.
+// A notifier whose Run fails (a storage error while reading its events) is retried with backoff until it succeeds
+// or ctx is cancelled; its events are not lost, they are still in storage.
+func (n *Network) replayNotifiers(ctx context.Context, notifiers []dag.Notifier) {
+	sort.SliceStable(notifiers, func(i, j int) bool {
+		if notifiers[i].Name() == vdrNotifierName {
+			return notifiers[j].Name() != vdrNotifierName
+		}
+		if notifiers[j].Name() == vdrNotifierName {
+			return false
+		}
+		return notifiers[i].Name() < notifiers[j].Name()
+	})
+	for _, notifier := range notifiers {
+		delay := notifierReplayRetryDelay
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+			err := notifier.Run()
+			if err == nil {
+				break
+			}
+			log.Logger().WithError(err).
+				WithField(core.LogFieldEventSubscriber, notifier.Name()).
+				Errorf("Replaying persisted events failed, retrying in %s", delay)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
+			delay = min(delay*2, notifierReplayMaxRetryDelay)
 		}
 	}
-	return nil
 }
 
 func (n *Network) connectToKnownNodes(nodeDID did.DID) error {
@@ -790,6 +846,11 @@ func (n *Network) calculateLamportClock(ctx context.Context, prevs []hash.SHA256
 func (n *Network) Shutdown() error {
 	if n.disabled {
 		return nil
+	}
+	// Stop replaying persisted events before taking down the components the notifiers use
+	if n.replayCancel != nil {
+		n.replayCancel()
+		n.replayWG.Wait()
 	}
 	// Stop protocols and connection manager
 	for _, prot := range n.protocols {
