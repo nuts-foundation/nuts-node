@@ -107,9 +107,13 @@ created by the node's schema migrations. Supported values: ``bbolt`` (default) a
 a database other than SQLite in strict mode, like the rest of the SQL storage. ``storage.bbolt.*`` only applies to
 the ``bbolt`` backend.
 
-Switching an existing node from ``bbolt`` to ``sql`` does not yet migrate the data in the bbolt files; this is
-planned (see `issue 4609 <https://github.com/nuts-foundation/nuts-node/issues/4609>`_). Until then, switch only on
-new nodes, or let the node resynchronize from the network.
+Switching an existing node from ``bbolt`` to ``sql`` imports the bbolt files on the next start: every bbolt file of a
+did:nuts store (``network/data.db``, ``vdr/didstore.db``, ``vcr/backup-*.db``) is copied into the SQL tables and then
+renamed to ``<name>.db.migrated``. The import refuses to run when the SQL tables for a store already hold data while its
+bbolt file is still present, so the node never silently picks one of two data sets; remove or rename one of them.
+To switch back to ``bbolt``, rename the ``.db.migrated`` files back and set the backend to ``bbolt``; transactions
+received while on ``sql`` are then missing from bbolt and resynchronize from the network, but privately issued
+credentials written in between are lost, so only do this before new did:nuts writes.
 
 Session storage
 ***************

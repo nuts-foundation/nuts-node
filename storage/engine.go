@@ -211,6 +211,11 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return fmt.Errorf("unable to configure SQL KV database: %w", err)
 		}
+		// A node switched from bbolt to sql still has its bbolt files: import them first
+		if err := importBBoltStores(e.datadir, kvDB); err != nil {
+			kvDB.close()
+			return err
+		}
 		e.databases = append(e.databases, kvDB)
 		log.Logger().Info("Key-value stores are backed by the SQL database.")
 	case KVBackendBBolt, "":

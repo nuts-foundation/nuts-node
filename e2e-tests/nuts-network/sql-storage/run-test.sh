@@ -2,8 +2,9 @@
 
 # Runs the Nuts network with the key-value stores (DAG, DID store, notifier jobs, credential backups) on SQL
 # (storage.kv.backend=sql) instead of bbolt, once per supported database: SQLite, PostgreSQL, MySQL and SQL Server.
-# Each variant: two nodes with their own database, public DID transactions, private credentials (payload retrieval
-# over authenticated connections, notifier jobs), revocations, and node restarts to prove the data lives in SQL.
+# Each variant: two nodes with their own database that start on bbolt, create public DID transactions, are switched
+# to storage.kv.backend=sql (importing the bbolt data), then exchange private credentials (payload retrieval over
+# authenticated connections, notifier jobs) and revocations, and are restarted to prove the data lives in SQL.
 
 set -e
 
@@ -50,15 +51,21 @@ function waitForAuthCredentialCount() {
   exitWithDockerLogs 1
 }
 
-# assertNoBBoltFiles fails when a node has bbolt files for the did:nuts stores in its data directory.
+# assertBBoltMigrated fails when a node still has active bbolt files for the did:nuts stores, or lacks the renamed
+# ".db.migrated" files that the import leaves behind.
 # Args: compose service name
-function assertNoBBoltFiles() {
+function assertBBoltMigrated() {
   if docker compose exec "$1" sh -c 'ls /opt/nuts/data/network/*.db /opt/nuts/data/vdr/*.db 2>/dev/null' | grep -q .; then
-    echo "FAILED: $1 has bbolt files in its data directory while storage.kv.backend=sql"
+    echo "FAILED: $1 still has active bbolt files in its data directory while storage.kv.backend=sql"
     docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr'
     exitWithDockerLogs 1
   fi
-  echo "$1 has no bbolt files for the did:nuts stores"
+  if ! docker compose exec "$1" sh -c 'test -f /opt/nuts/data/network/data.db.migrated && test -f /opt/nuts/data/vdr/didstore.db.migrated'; then
+    echo "FAILED: $1 has no .db.migrated files; the bbolt import did not run"
+    docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr'
+    exitWithDockerLogs 1
+  fi
+  echo "$1: bbolt stores imported into SQL and files renamed"
 }
 
 # startDatabase starts the database service for the variant (if any) and makes sure both node databases exist.
@@ -112,6 +119,8 @@ function runVariant() {
   # node DID, which fails fatally and persists a 24h backoff for node B. The private-transactions test deletes the
   # bbolt file holding that backoff between phases; on SQL there is no file, so the attempt is avoided instead.
   export ENABLE_DISCOVERY=false
+  # Phase 1 runs on bbolt; the switch to sql (and the import of the bbolt data) happens at the first restart.
+  export KV_BACKEND=bbolt
   docker compose --profile '*' down -v --remove-orphans
   rm -rf ./node-*/data
   # 'data' dirs will be created with root owner by docker if they do not exist.
@@ -123,7 +132,7 @@ function runVariant() {
   startDatabase "$variant"
 
   echo "------------------------------------"
-  echo "Starting nodes..."
+  echo "Starting nodes on bbolt..."
   echo "------------------------------------"
   docker compose up --wait nodeA nodeB
 
@@ -137,20 +146,20 @@ function runVariant() {
   printf "NodeDID for node-b: %s\n" "$NODE_B_DID"
   waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 4 10
 
-  assertNoBBoltFiles nodeA
-  assertNoBBoltFiles nodeB
-
   echo "------------------------------------"
-  echo "Restarting with NodeDID set..."
+  echo "Restarting with NodeDID set and storage.kv.backend=sql..."
   echo "------------------------------------"
   # Start without bootstrap node but with discovery, to enforce authenticated, discovered connections (required for private transactions)
   export BOOTSTRAP_NODES=
   export ENABLE_DISCOVERY=true
+  export KV_BACKEND=sql
   docker compose stop nodeA nodeB
   docker compose up --wait nodeA nodeB
-  # The DAG must survive the restart: it lives in SQL now
+  # The DAG must survive the switch: the bbolt files were imported into SQL
   waitForTXCount "NodeA" "http://localhost:18081/status/diagnostics" 4 10
   waitForTXCount "NodeB" "http://localhost:28081/status/diagnostics" 4 10
+  assertBBoltMigrated nodeA
+  assertBBoltMigrated nodeB
 
   echo "------------------------------------"
   echo "Issuing private credentials..."

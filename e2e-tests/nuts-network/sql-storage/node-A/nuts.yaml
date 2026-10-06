@@ -29,7 +29,5 @@ network:
   maxbackoff: 2s
   v2:
     gossipinterval: 500
-storage:
-  kv:
-    backend: sql
-  # storage.sql.connection is set through NUTS_STORAGE_SQL_CONNECTION per database variant
+# storage.kv.backend (bbolt in phase 1, sql afterwards) and storage.sql.connection (per database variant) are set
+# through NUTS_STORAGE_KV_BACKEND and NUTS_STORAGE_SQL_CONNECTION.
