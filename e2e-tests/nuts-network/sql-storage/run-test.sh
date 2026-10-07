@@ -55,14 +55,16 @@ function waitForAuthCredentialCount() {
 # ".db.migrated" files that the import leaves behind.
 # Args: compose service name
 function assertBBoltMigrated() {
-  if docker compose exec "$1" sh -c 'ls /opt/nuts/data/network/*.db /opt/nuts/data/vdr/*.db 2>/dev/null' | grep -q .; then
-    echo "FAILED: $1 still has active bbolt files in its data directory while storage.kv.backend=sql"
-    docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr'
+  # Only the go-leia index files may remain as .db in vcr/ (credentials.db, issued-credentials.db, verifier-store.db);
+  # the backup-*.db KV stores must have been imported like network/ and vdr/.
+  if docker compose exec "$1" sh -c 'ls /opt/nuts/data/network/*.db /opt/nuts/data/vdr/*.db /opt/nuts/data/vcr/backup-*.db 2>/dev/null' | grep -q .; then
+    echo "FAILED: $1 still has active bbolt KV files in its data directory while storage.kv.backend=sql"
+    docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr /opt/nuts/data/vcr'
     exitWithDockerLogs 1
   fi
-  if ! docker compose exec "$1" sh -c 'test -f /opt/nuts/data/network/data.db.migrated && test -f /opt/nuts/data/vdr/didstore.db.migrated'; then
+  if ! docker compose exec "$1" sh -c 'test -f /opt/nuts/data/network/data.db.migrated && test -f /opt/nuts/data/vdr/didstore.db.migrated && test -f /opt/nuts/data/vcr/backup-credentials.db.migrated'; then
     echo "FAILED: $1 has no .db.migrated files; the bbolt import did not run"
-    docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr'
+    docker compose exec "$1" sh -c 'ls -la /opt/nuts/data/network /opt/nuts/data/vdr /opt/nuts/data/vcr'
     exitWithDockerLogs 1
   fi
   echo "$1: bbolt stores imported into SQL and files renamed"
