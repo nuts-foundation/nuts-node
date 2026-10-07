@@ -425,7 +425,8 @@ func (n *Network) Start() error {
 	// many concurrent transactions contending on the storage (https://github.com/nuts-foundation/nuts-node/issues/2402).
 	replayCtx, cancel := context.WithCancel(context.Background())
 	n.replayCancel = cancel
-	n.replayNotifierList = n.state.Notifiers()
+	// Sorted here, before the goroutine starts: Shutdown iterates the same list to close the notifiers.
+	n.replayNotifierList = sortNotifiersForReplay(n.state.Notifiers())
 	n.replayWG.Add(1)
 	go func() {
 		defer n.replayWG.Done()
@@ -434,17 +435,9 @@ func (n *Network) Start() error {
 	return nil
 }
 
-// notifierReplayRetryDelay is the initial delay before retrying a notifier whose replay could not start
-// (reading its persisted events failed). It doubles on every attempt, up to notifierReplayMaxRetryDelay.
-var notifierReplayRetryDelay = 5 * time.Second
-
-const notifierReplayMaxRetryDelay = 5 * time.Minute
-
-// replayNotifiers runs the notifiers one by one, in a fixed order: the did:nuts DID document notifier first, since
-// other notifiers (verifying credentials) depend on DID documents being present, then the others by name.
-// A notifier whose Run fails (a storage error while reading its events) is retried with backoff until it succeeds
-// or ctx is cancelled; its events are not lost, they are still in storage.
-func (n *Network) replayNotifiers(ctx context.Context, notifiers []dag.Notifier) {
+// sortNotifiersForReplay orders notifiers for replay: the did:nuts DID document notifier first, since other
+// notifiers (verifying credentials) depend on DID documents being present, then the others by name.
+func sortNotifiersForReplay(notifiers []dag.Notifier) []dag.Notifier {
 	sort.SliceStable(notifiers, func(i, j int) bool {
 		if notifiers[i].Name() == vdrNotifierName {
 			return notifiers[j].Name() != vdrNotifierName
@@ -454,6 +447,19 @@ func (n *Network) replayNotifiers(ctx context.Context, notifiers []dag.Notifier)
 		}
 		return notifiers[i].Name() < notifiers[j].Name()
 	})
+	return notifiers
+}
+
+// notifierReplayRetryDelay is the initial delay before retrying a notifier whose replay could not start
+// (reading its persisted events failed). It doubles on every attempt, up to notifierReplayMaxRetryDelay.
+var notifierReplayRetryDelay = 5 * time.Second
+
+const notifierReplayMaxRetryDelay = 5 * time.Minute
+
+// replayNotifiers runs the notifiers one by one, in the order of the given (already sorted) list.
+// A notifier whose Run fails (a storage error while reading its events) is retried with backoff until it succeeds
+// or ctx is cancelled; its events are not lost, they are still in storage.
+func (n *Network) replayNotifiers(ctx context.Context, notifiers []dag.Notifier) {
 	for _, notifier := range notifiers {
 		delay := notifierReplayRetryDelay
 		for {
