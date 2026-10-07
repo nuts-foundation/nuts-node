@@ -177,3 +177,15 @@ func TestNewSQLKVDatabase(t *testing.T) {
 		assert.Equal(t, Class(PersistentStorageClass), db.getClass())
 	}
 }
+
+func TestNewSQLKVDatabase_sqliteDSN(t *testing.T) {
+	// DSN without a query string must get a '?' before the pragmas, with a query string an '&'.
+	for _, dsn := range []string{"file:" + t.TempDir() + "/a.db", "file:" + t.TempDir() + "/b.db?_pragma=foreign_keys(1)"} {
+		db, err := newSQLKVDatabase("sqlite", nil, dsn)
+		require.NoError(t, err)
+		var mode string
+		require.NoError(t, db.db.QueryRow("PRAGMA journal_mode").Scan(&mode))
+		assert.Equal(t, "wal", mode, dsn)
+		db.close()
+	}
+}

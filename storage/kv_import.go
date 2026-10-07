@@ -103,7 +103,7 @@ func importBBoltStore(filePath string, moduleName string, storeName string, kvDB
 
 	source, err := bboltLib.Open(filePath, 0400, &bboltLib.Options{ReadOnly: true, Timeout: 10 * time.Second})
 	if err != nil {
-		return fmt.Errorf("unable to open bbolt file %s: %w", filePath, err)
+		return fmt.Errorf("unable to open bbolt file %s (is another node instance still using it?): %w", filePath, err)
 	}
 	defer func() { _ = source.Close() }()
 

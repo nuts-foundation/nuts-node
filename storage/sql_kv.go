@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuts-foundation/go-stoabs"
@@ -58,7 +59,14 @@ type sqlKVDatabase struct {
 func newSQLKVDatabase(dbType string, sharedDB *sql.DB, sqliteDSN string) (*sqlKVDatabase, error) {
 	switch dbType {
 	case "sqlite":
-		db, err := sql.Open("sqlite", sqliteDSN+"&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
+		// WAL lets readers run alongside the writer; busy_timeout makes a second writer wait instead of failing with
+		// "database is locked" (the go-stoabs SQL backend takes the write lock with an UPDATE).
+		pragmas := "_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+		separator := "?"
+		if strings.Contains(sqliteDSN, "?") {
+			separator = "&"
+		}
+		db, err := sql.Open("sqlite", sqliteDSN+separator+pragmas)
 		if err != nil {
 			return nil, err
 		}
