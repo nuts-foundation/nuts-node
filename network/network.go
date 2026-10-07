@@ -90,17 +90,19 @@ type Network struct {
 	keyStore          crypto.KeyStore
 	keyResolver       resolver.KeyResolver
 	startTime         atomic.Pointer[time.Time]
-	// replayCancel stops the background replay of persisted notifier events, replayWG waits for it to finish.
-	replayCancel      context.CancelFunc
-	replayWG          sync.WaitGroup
-	peerID            transport.PeerID
-	nodeDID           did.DID
-	didStore          didstore.Store
-	didDocumentFinder resolver.DocFinder
-	serviceResolver   resolver.ServiceResolver
-	eventPublisher    events.Event
-	storeProvider     storage.Provider
-	pkiValidator      pki.Validator
+	// replayCancel stops the background replay of persisted notifier events, replayWG waits for it to finish,
+	// replayNotifierList holds the notifiers being replayed so Shutdown can cancel their in-flight work.
+	replayCancel       context.CancelFunc
+	replayWG           sync.WaitGroup
+	replayNotifierList []dag.Notifier
+	peerID             transport.PeerID
+	nodeDID            did.DID
+	didStore           didstore.Store
+	didDocumentFinder  resolver.DocFinder
+	serviceResolver    resolver.ServiceResolver
+	eventPublisher     events.Event
+	storeProvider      storage.Provider
+	pkiValidator       pki.Validator
 	// assumeNewNode indicates the node hasn't initially sync'd with the network.
 	assumeNewNode  bool
 	selfTestDialer tls.Dialer
@@ -423,10 +425,11 @@ func (n *Network) Start() error {
 	// many concurrent transactions contending on the storage (https://github.com/nuts-foundation/nuts-node/issues/2402).
 	replayCtx, cancel := context.WithCancel(context.Background())
 	n.replayCancel = cancel
+	n.replayNotifierList = n.state.Notifiers()
 	n.replayWG.Add(1)
 	go func() {
 		defer n.replayWG.Done()
-		n.replayNotifiers(replayCtx, n.state.Notifiers())
+		n.replayNotifiers(replayCtx, n.replayNotifierList)
 	}()
 	return nil
 }
@@ -848,8 +851,15 @@ func (n *Network) Shutdown() error {
 		return nil
 	}
 	// Stop replaying persisted events before taking down the components the notifiers use
+	// Closing the notifiers cancels their context, which makes an in-progress Run() and any retry goroutines
+	// return quickly instead of working through the remaining backlog; the events stay in storage.
 	if n.replayCancel != nil {
 		n.replayCancel()
+		for _, notifier := range n.replayNotifierList {
+			if err := notifier.Close(); err != nil {
+				log.Logger().WithError(err).WithField(core.LogFieldEventSubscriber, notifier.Name()).Warn("Could not close notifier")
+			}
+		}
 		n.replayWG.Wait()
 	}
 	// Stop protocols and connection manager

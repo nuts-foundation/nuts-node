@@ -1452,6 +1452,7 @@ func (s stat) String() string {
 type fakeNotifier struct {
 	name     string
 	runs     atomic.Int32
+	closed   atomic.Bool
 	failures atomic.Int32  // number of Run calls that return an error before succeeding
 	block    chan struct{} // when set, Run blocks until it is closed
 	onRun    func(name string)
@@ -1462,7 +1463,7 @@ func (f *fakeNotifier) Save(_ stoabs.WriteTx, _ dag.Event) error { return nil }
 func (f *fakeNotifier) Notify(_ dag.Event)                       {}
 func (f *fakeNotifier) Finished(_ hash.SHA256Hash) error         { return nil }
 func (f *fakeNotifier) GetFailedEvents() ([]dag.Event, error)    { return nil, nil }
-func (f *fakeNotifier) Close() error                             { return nil }
+func (f *fakeNotifier) Close() error                             { f.closed.Store(true); return nil }
 func (f *fakeNotifier) Run() error {
 	f.runs.Add(1)
 	if f.onRun != nil {
@@ -1511,6 +1512,7 @@ func TestNetwork_notifierReplay(t *testing.T) {
 		}
 		close(blocked.block)
 		require.NoError(t, <-shutdownDone)
+		assert.True(t, blocked.closed.Load(), "Shutdown must close the notifiers so in-flight work is cancelled")
 	})
 	t.Run("notifiers run one at a time, DID documents first, then by name", func(t *testing.T) {
 		ctrl := gomock.NewController(t)
