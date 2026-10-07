@@ -198,9 +198,15 @@ func (h *Engine) Start() error {
 	return nil
 }
 
+// httpShutdownTimeout bounds how long the HTTP servers wait for in-flight requests on shutdown, so a slow or stuck
+// request cannot hold up the shutdown of the other engines.
+const httpShutdownTimeout = 5 * time.Second
+
 // Shutdown shuts down the HTTP engine.
 func (h *Engine) Shutdown() error {
-	return h.server.Shutdown(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
+	defer cancel()
+	return h.server.Shutdown(ctx)
 }
 
 // matchesPath checks whether the request URI path hierarchically matches the given path.

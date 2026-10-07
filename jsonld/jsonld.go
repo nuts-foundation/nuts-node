@@ -21,6 +21,8 @@ package jsonld
 import (
 	"bytes"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
+	"net/http"
 
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/jsonld/log"
@@ -47,7 +49,13 @@ func (j *jsonld) DocumentLoader() ld.DocumentLoader {
 
 func (j *jsonld) Configure(serverConfig core.ServerConfig) error {
 	log.Logger().Tracef("Config: %v", j.config)
-	loader, err := NewContextLoader(!serverConfig.Strictmode, j.config.Contexts)
+	// Remote contexts are only fetched when allowed (non-strict mode, or listed in the allow list). The client gets
+	// the node's HTTP client timeout and the shared transport with the strict-mode SSRF dial guard.
+	httpClient := &http.Client{
+		Transport: client.SafeHttpTransport,
+		Timeout:   serverConfig.HTTPClient.Timeout,
+	}
+	loader, err := NewContextLoader(!serverConfig.Strictmode, j.config.Contexts, httpClient)
 	if err != nil {
 		return err
 	}

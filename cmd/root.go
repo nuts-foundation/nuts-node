@@ -29,6 +29,7 @@ import (
 	"io"
 	"os"
 	"runtime/pprof"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/v6/auth"
 	authAPIv1 "github.com/nuts-foundation/nuts-node/v6/auth/api/auth/v1"
@@ -166,7 +167,7 @@ func startServer(ctx context.Context, system *core.System) error {
 	// Wait until instructed to shut down when instructed through context cancellation (e.g. SIGINT signal or Echo server error/exit)
 	<-ctx.Done()
 	logrus.Info("Shutting down...")
-	err := system.Shutdown()
+	err := shutdownWithTimeout(system, shutdownTimeout)
 	if err != nil {
 		logrus.Errorf("Error shutting down system: %v", err)
 	} else {
@@ -174,6 +175,27 @@ func startServer(ctx context.Context, system *core.System) error {
 	}
 
 	return err
+}
+
+// shutdownTimeout bounds how long the node waits for its engines to shut down. Container orchestrators kill the
+// process after their own grace period (30 seconds by default on Kubernetes); giving up before that and exiting
+// lets the process release its resources (file locks, database connections, the network lease) itself instead of
+// holding them until it is killed.
+const shutdownTimeout = 20 * time.Second
+
+// shutdownWithTimeout shuts the system down, returning an error when that takes longer than the given timeout.
+// The shutdown keeps running in the background in that case; the caller is expected to exit the process.
+func shutdownWithTimeout(system *core.System, timeout time.Duration) error {
+	done := make(chan error, 1)
+	go func() {
+		done <- system.Shutdown()
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("shutdown did not complete within %s, exiting with engines still shutting down", timeout)
+	}
 }
 
 // CreateCommand creates the command with all subcommands to run the system.
