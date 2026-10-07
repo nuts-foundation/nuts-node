@@ -51,6 +51,24 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # PostgreSQL for the tests of the SQL key-value backend (storage.kv.backend=sql), which needs a database server.
+    # Those tests skip when NUTS_TEST_KV_SQL_CONNECTION is unset, so a plain `go test ./...` still works locally.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nuts
+          POSTGRES_PASSWORD: nuts
+          POSTGRES_DB: nuts
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nuts"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NUTS_TEST_KV_SQL_CONNECTION: postgres://nuts:nuts@localhost:5432/nuts?sslmode=disable
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

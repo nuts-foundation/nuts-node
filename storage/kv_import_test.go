@@ -97,8 +97,13 @@ func TestImportBBoltStores(t *testing.T) {
 		assert.FileExists(t, bboltFilePath(dataDir, "vdr", "didstore")+kvMigratedSuffix)
 		require.NoError(t, e.Shutdown())
 
-		// second start on sql: nothing to import, data still there
-		e2 := NewTestStorageEngineSQLKVInDir(t, dir)
+		// second start on sql (same database schema): nothing to import, data still there
+		e2 := newTestStorageEngineSQLKVUnconfigured(t)
+		e2.config.SQL = e.(*engine).config.SQL
+		require.NoError(t, e2.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+			config.Datadir = dataDir
+		})))
+		t.Cleanup(func() { _ = e2.Shutdown() })
 		assert.Equal(t, rows, countShelf(t, e2, "Network", "data", "documents"))
 	})
 	t.Run("no bbolt files: nothing happens", func(t *testing.T) {
@@ -118,11 +123,8 @@ func TestImportBBoltStores(t *testing.T) {
 		// then a bbolt file appears (e.g. the operator ran on bbolt in between)
 		writeBBoltFixture(t, dir, "Network", "data", []string{"documents"}, 1)
 
-		again := New().(*engine)
-		again.config = DefaultConfig()
-		again.sqlMigrationLogger = nilGooseLogger{}
-		again.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
-		again.config.KV.Backend = KVBackendSQL
+		again := newTestStorageEngineSQLKVUnconfigured(t)
+		again.config.SQL = e.(*engine).config.SQL // same schema as the first run
 		err = again.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = dir + "/data"
 		}))
@@ -136,11 +138,7 @@ func TestImportBBoltStores(t *testing.T) {
 		dir := io.TestDirectory(t)
 		writeBBoltFixture(t, dir, "Network", "data", []string{"documents", "not-a-shelf"}, 5)
 
-		again := New().(*engine)
-		again.config = DefaultConfig()
-		again.sqlMigrationLogger = nilGooseLogger{}
-		again.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
-		again.config.KV.Backend = KVBackendSQL
+		again := newTestStorageEngineSQLKVUnconfigured(t)
 		err := again.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = dir + "/data"
 		}))
@@ -149,11 +147,8 @@ func TestImportBBoltStores(t *testing.T) {
 		assert.FileExists(t, bboltFilePath(dir+"/data", "network", "data"))
 		// "documents" was iterated before "not-a-shelf" (bucket order is bytewise: "_" < "d" < "n"),
 		// its rows must have been removed again
-		sqlOnly := New().(*engine)
-		sqlOnly.config = DefaultConfig()
-		sqlOnly.sqlMigrationLogger = nilGooseLogger{}
-		sqlOnly.config.SQL = SQLConfig{ConnectionString: sqliteConnectionString(dir)}
-		sqlOnly.config.KV.Backend = KVBackendSQL
+		sqlOnly := newTestStorageEngineSQLKVUnconfigured(t)
+		sqlOnly.config.SQL = again.config.SQL // same schema, to see what the failed import left behind
 		require.NoError(t, os.Rename(bboltFilePath(dir+"/data", "network", "data"), bboltFilePath(dir+"/data", "network", "data")+".aside"))
 		require.NoError(t, sqlOnly.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
 			config.Datadir = dir + "/data"

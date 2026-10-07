@@ -82,9 +82,7 @@ type engine struct {
 	sessionDatabase SessionDatabase
 	sqlDB           *gorm.DB
 	// sqlDBType is the database type derived from the SQL connection string (sqlite, postgres, mysql, sqlserver, azuresql).
-	sqlDBType string
-	// sqliteDSN is the SQLite connection string without the driver prefix; used to open a dedicated handle for the KV stores.
-	sqliteDSN          string
+	sqlDBType          string
 	config             Config
 	sqlMigrationLogger goose.Logger
 	rdsIAMAuth         *rdsIAMAuthenticator
@@ -207,7 +205,7 @@ func (e *engine) Configure(config core.ServerConfig) error {
 		if err != nil {
 			return err
 		}
-		kvDB, err := newSQLKVDatabase(e.sqlDBType, sqlDB, e.sqliteDSN)
+		kvDB, err := newSQLKVDatabase(e.sqlDBType, sqlDB)
 		if err != nil {
 			return fmt.Errorf("unable to configure SQL KV database: %w", err)
 		}
@@ -351,7 +349,6 @@ func (e *engine) initSQLDatabase(strictmode bool) error {
 	switch dbType {
 	case "sqlite":
 		connectionString = connectionString[strings.Index(connectionString, ":")+1:]
-		e.sqliteDSN = connectionString
 	case "mysql", "azuresql":
 		// These drivers need their connection string without the driver:// prefix.
 		idx := strings.Index(connectionString, "://")

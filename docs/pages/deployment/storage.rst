@@ -104,8 +104,9 @@ Set ``storage.kv.backend`` to ``sql`` to keep the key-value stores in the SQL da
 
 Every store shelf becomes a table named ``kv_<module>_<store>_<shelf>`` (for example ``kv_network_data_documents``),
 created by the node's schema migrations. Supported values: ``bbolt`` (default) and ``sql``. The SQL backend uses the
-same database as the rest of the SQL storage, so the same advice applies: SQLite is for development only.
-``storage.bbolt.*`` only applies to the ``bbolt`` backend. Every write to these stores first takes a lock in the
+same database as the rest of the SQL storage and requires a database server: PostgreSQL, MySQL/MariaDB, SQL Server or
+Azure SQL. SQLite is refused, because a SQLite file on disk has the same single-instance and network-volume
+limitations as bbolt; use ``bbolt`` for a single-file setup. ``storage.bbolt.*`` only applies to the ``bbolt`` backend. Every write to these stores first takes a lock in the
 database (one lock row per store), so two node instances on the same database cannot corrupt them; running more
 than one instance is still unsupported until the network engine supports a standby (see issue 4609).
 

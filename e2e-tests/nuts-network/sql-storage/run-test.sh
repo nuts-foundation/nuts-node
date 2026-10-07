@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Runs the Nuts network with the key-value stores (DAG, DID store, notifier jobs, credential backups) on SQL
-# (storage.kv.backend=sql) instead of bbolt, once per supported database: SQLite, PostgreSQL, MySQL and SQL Server.
+# (storage.kv.backend=sql) instead of bbolt, once per supported database: PostgreSQL, MySQL and SQL Server.
 # Each variant: two nodes with their own database that start on bbolt, create public DID transactions, are switched
 # to storage.kv.backend=sql (importing the bbolt data), then exchange private credentials (payload retrieval over
 # authenticated connections, notifier jobs) and revocations, and are restarted to prove the data lives in SQL.
@@ -71,13 +71,9 @@ function assertBBoltMigrated() {
 }
 
 # startDatabase starts the database service for the variant (if any) and makes sure both node databases exist.
-# Args: variant (sqlite|postgres|mysql|sqlserver)
+# Args: variant (postgres|mysql|sqlserver)
 function startDatabase() {
   case "$1" in
-    sqlite)
-      export NODE_A_SQL="sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"
-      export NODE_B_SQL="sqlite:file:/opt/nuts/data/sqlite.db?_pragma=foreign_keys(1)&journal_mode(WAL)"
-      ;;
     postgres)
       docker compose --profile postgres up --wait postgres || exitWithDockerLogs 1
       export NODE_A_SQL="postgres://nuts:nuts@postgres:5432/nodea?sslmode=disable"
@@ -203,8 +199,8 @@ function runVariant() {
   docker compose --profile '*' down -v --remove-orphans
 }
 
-# Allow running a subset locally, e.g. ./run-test.sh sqlite postgres
-VARIANTS=${*:-sqlite postgres mysql sqlserver}
+# Allow running a subset locally, e.g. ./run-test.sh postgres
+VARIANTS=${*:-postgres mysql sqlserver}
 for variant in $VARIANTS; do
   runVariant "$variant"
 done

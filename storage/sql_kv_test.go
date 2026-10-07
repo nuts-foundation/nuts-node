@@ -80,9 +80,9 @@ func TestEngine_KVBackendSQL(t *testing.T) {
 			return writer.Put(stoabs.BytesKey("peer"), []byte{1})
 		}))
 	})
-	t.Run("nested read transactions on different stores do not deadlock (SQLite)", func(t *testing.T) {
+	t.Run("nested read transactions on different stores", func(t *testing.T) {
 		// The DAG verifies a transaction by resolving its signing key from the DID store while its own read
-		// transaction is open. With SQLite's single-connection pool that would deadlock, hence the dedicated handle.
+		// transaction is open.
 		e := NewTestStorageEngineSQLKV(t)
 		dag, err := e.GetProvider("Network").GetKVStore("data", PersistentStorageClass)
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestEngine_KVBackendSQL(t *testing.T) {
 			t.Fatal("nested read transactions deadlocked")
 		}
 	})
-	t.Run("write on one store while a read is open on another (SQLite)", func(t *testing.T) {
+	t.Run("write on one store while a read is open on another", func(t *testing.T) {
 		e := NewTestStorageEngineSQLKV(t)
 		dag, err := e.GetProvider("Network").GetKVStore("data", PersistentStorageClass)
 		require.NoError(t, err)
@@ -158,34 +158,25 @@ func TestEngine_KVBackendSQL(t *testing.T) {
 		assert.True(t, ok)
 		assert.True(t, e.sqlDB.Migrator().HasTable(sql_migrations.KVShelves[0].TableName()))
 	})
-	t.Run("shutdown closes the dedicated SQLite handle", func(t *testing.T) {
-		e := NewTestStorageEngineSQLKV(t).(*engine)
-		kv := e.databases[0].(*sqlKVDatabase)
-		require.True(t, kv.ownsDB)
-		require.NoError(t, e.Shutdown())
-		assert.Error(t, kv.db.Ping())
-	})
 }
 
 func TestNewSQLKVDatabase(t *testing.T) {
-	_, err := newSQLKVDatabase("oracle", nil, "")
+	_, err := newSQLKVDatabase("oracle", nil)
 	assert.EqualError(t, err, "unsupported SQL database type for KV stores: oracle")
+	_, err = newSQLKVDatabase("sqlite", nil)
+	assert.EqualError(t, err, "storage.kv.backend=sql requires a database server (PostgreSQL, MySQL or SQL Server); SQLite is not supported, use the bbolt backend")
 	for _, dbType := range []string{"postgres", "mysql", "sqlserver", "azuresql"} {
-		db, err := newSQLKVDatabase(dbType, nil, "")
+		db, err := newSQLKVDatabase(dbType, nil)
 		require.NoError(t, err)
-		assert.False(t, db.ownsDB)
 		assert.Equal(t, Class(PersistentStorageClass), db.getClass())
 	}
 }
 
-func TestNewSQLKVDatabase_sqliteDSN(t *testing.T) {
-	// DSN without a query string must get a '?' before the pragmas, with a query string an '&'.
-	for _, dsn := range []string{"file:" + t.TempDir() + "/a.db", "file:" + t.TempDir() + "/b.db?_pragma=foreign_keys(1)"} {
-		db, err := newSQLKVDatabase("sqlite", nil, dsn)
-		require.NoError(t, err)
-		var mode string
-		require.NoError(t, db.db.QueryRow("PRAGMA journal_mode").Scan(&mode))
-		assert.Equal(t, "wal", mode, dsn)
-		db.close()
-	}
+func TestEngine_KVBackendSQL_sqliteRefused(t *testing.T) {
+	e := New().(*engine)
+	e.config = DefaultConfig()
+	e.sqlMigrationLogger = nilGooseLogger{}
+	e.config.KV.Backend = KVBackendSQL // SQL connection defaults to SQLite in non-strict mode
+	err := e.Configure(core.ServerConfig{Datadir: io.TestDirectory(t)})
+	assert.ErrorContains(t, err, "SQLite is not supported, use the bbolt backend")
 }
