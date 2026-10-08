@@ -24,11 +24,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 //go:embed test/*
@@ -271,5 +275,128 @@ func Test_filteredDocumentLoader(t *testing.T) {
 		_, err := sut.LoadDocument("not-allowed.com")
 		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist")
 		assert.False(t, mockLoader.Called)
+	})
+}
+
+func TestNewContextLoader_RemoteContexts(t *testing.T) {
+	t.Run("fails when the server does not answer within the timeout", func(t *testing.T) {
+		timeout := remoteContextTimeout
+		remoteContextTimeout = 100 * time.Millisecond
+		defer func() { remoteContextTimeout = timeout }()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// never answer, until the client gives up
+			<-r.Context().Done()
+		}))
+		defer srv.Close()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		start := time.Now()
+		_, err = loader.LoadDocument(srv.URL + "/context.jsonld")
+
+		var jsonLDError *ld.JsonLdError
+		require.ErrorAs(t, err, &jsonLDError)
+		assert.Equal(t, ld.LoadingDocumentFailed, jsonLDError.Code)
+		assert.Less(t, time.Since(start), 5*time.Second)
+	})
+	t.Run("does not fetch a context again after it failed", func(t *testing.T) {
+		var requests atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requests.Add(1)
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer srv.Close()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		_, err1 := loader.LoadDocument(srv.URL + "/context.jsonld")
+		_, err2 := loader.LoadDocument(srv.URL + "/context.jsonld")
+
+		require.Error(t, err1)
+		assert.Same(t, err1, err2)
+		assert.Equal(t, int32(1), requests.Load())
+	})
+	t.Run("identifies as the Nuts node", func(t *testing.T) {
+		var userAgent string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent = r.UserAgent()
+			w.Header().Set("Content-Type", "application/ld+json")
+			_, _ = w.Write([]byte(`{"@context":{}}`))
+		}))
+		defer srv.Close()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		_, err = loader.LoadDocument(srv.URL + "/context.jsonld")
+
+		require.NoError(t, err)
+		assert.Equal(t, core.UserAgent(), userAgent)
+	})
+}
+
+type countingLoader struct {
+	calls int
+	err   error
+}
+
+func (c *countingLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	c.calls++
+	if c.err != nil {
+		return nil, c.err
+	}
+	return &ld.RemoteDocument{DocumentURL: u}, nil
+}
+
+func Test_failureCachingLoader(t *testing.T) {
+	const contextURL = "https://example.com/context.jsonld"
+	t.Run("returns the remembered error without calling the next loader", func(t *testing.T) {
+		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
+		sut := newFailureCachingLoader(time.Minute, next)
+
+		_, err1 := sut.LoadDocument(contextURL)
+		_, err2 := sut.LoadDocument(contextURL)
+
+		assert.Same(t, err1, err2)
+		assert.Equal(t, 1, next.calls)
+	})
+	t.Run("calls the next loader again after the failure expired", func(t *testing.T) {
+		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
+		sut := newFailureCachingLoader(time.Minute, next)
+		_, _ = sut.LoadDocument(contextURL)
+		sut.failures[contextURL] = failedLoad{err: next.err, until: time.Now().Add(-time.Second)}
+
+		_, _ = sut.LoadDocument(contextURL)
+
+		assert.Equal(t, 2, next.calls)
+	})
+	t.Run("does not remember successful loads", func(t *testing.T) {
+		next := &countingLoader{}
+		sut := newFailureCachingLoader(time.Minute, next)
+
+		_, err1 := sut.LoadDocument(contextURL)
+		_, err2 := sut.LoadDocument(contextURL)
+
+		assert.NoError(t, err1)
+		assert.NoError(t, err2)
+		assert.Equal(t, 2, next.calls)
+	})
+	t.Run("remembers failures per URL", func(t *testing.T) {
+		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
+		sut := newFailureCachingLoader(time.Minute, next)
+
+		_, _ = sut.LoadDocument(contextURL)
+		_, _ = sut.LoadDocument("https://example.com/other.jsonld")
+
+		assert.Equal(t, 2, next.calls)
+	})
+	t.Run("prunes expired failures when recording a new one", func(t *testing.T) {
+		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
+		sut := newFailureCachingLoader(time.Minute, next)
+		sut.failures["https://example.com/expired.jsonld"] = failedLoad{err: next.err, until: time.Now().Add(-time.Second)}
+
+		_, _ = sut.LoadDocument(contextURL)
+
+		assert.Len(t, sut.failures, 1)
+		assert.Contains(t, sut.failures, contextURL)
 	})
 }
