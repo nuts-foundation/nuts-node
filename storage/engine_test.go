@@ -176,7 +176,7 @@ func Test_engine_sqlDatabase(t *testing.T) {
 		}
 		require.NoError(t, err)
 		// plus the Go migration registered in engine.go (see alterCredentialPropValueType)
-		const goMigrations = 1
+		const goMigrations = 2 // 011 credential_prop value type, 012 KV store tables
 
 		underlyingDB, err := e.GetSQLDatabase().DB()
 		require.NoError(t, err)

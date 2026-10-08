@@ -20,11 +20,15 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/nuts-foundation/go-stoabs"
 	"github.com/nuts-foundation/nuts-node/v6/test/io"
+	"os"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -134,6 +138,68 @@ func AddDIDtoSQLDB(t testing.TB, db *gorm.DB, dids ...did.DID) {
 		require.NoError(t, db.Exec("INSERT INTO did ( subject, id ) VALUES ( ?, ? )", id.String(), id.String(), id.String()).Error)
 	}
 }
+
+// TestKVSQLConnectionEnv names the environment variable with a PostgreSQL connection string (nuts format,
+// e.g. postgres://nuts:nuts@localhost:5432/nuts?sslmode=disable) used by tests of the SQL KV backend.
+// The backend needs a database server (SQLite is not supported), so these tests are skipped when it is unset.
+const TestKVSQLConnectionEnv = "NUTS_TEST_KV_SQL_CONNECTION"
+
+// NewTestStorageEngineSQLKV creates a storage engine with the key-value stores on SQL (storage.kv.backend=sql),
+// on a schema of its own in the PostgreSQL database named by TestKVSQLConnectionEnv. Skips the test when unset.
+func NewTestStorageEngineSQLKV(t testing.TB) Engine {
+	return NewTestStorageEngineSQLKVInDir(t, io.TestDirectory(t))
+}
+
+// NewTestStorageEngineSQLKVInDir is NewTestStorageEngineSQLKV on the given directory, which lets a test start a
+// bbolt-backed engine first and then switch the same data directory to the SQL KV backend.
+func NewTestStorageEngineSQLKVInDir(t testing.TB, dir string) Engine {
+	result := newTestStorageEngineSQLKVUnconfigured(t)
+	err := result.Configure(core.TestServerConfig(func(config *core.ServerConfig) {
+		config.Datadir = dir + "/data"
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = result.Shutdown()
+	})
+	return result
+}
+
+// newTestStorageEngineSQLKVUnconfigured returns an engine configured for the SQL KV backend on a fresh PostgreSQL
+// schema, without calling Configure, so tests can exercise Configure's failure paths.
+// Isolation per test: a schema is created and put first in search_path, and dropped on cleanup. The node's own tables
+// (including goose's version table) therefore land in the test's schema.
+func newTestStorageEngineSQLKVUnconfigured(t testing.TB) *engine {
+	dsn := os.Getenv(TestKVSQLConnectionEnv)
+	if dsn == "" {
+		t.Skipf("%s not set, skipping SQL KV backend test", TestKVSQLConnectionEnv)
+	}
+	if !strings.HasPrefix(dsn, "postgres://") {
+		t.Fatalf("%s must be a postgres:// connection string", TestKVSQLConnectionEnv)
+	}
+	schema := fmt.Sprintf("kvtest_%d_%d", os.Getpid(), testSchemaCounter.Add(1))
+	admin, err := sql.Open("pgx", dsn)
+	require.NoError(t, err)
+	_, err = admin.Exec("CREATE SCHEMA " + schema)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = admin.Exec("DROP SCHEMA " + schema + " CASCADE")
+		_ = admin.Close()
+	})
+	separator := "?"
+	if strings.Contains(dsn, "?") {
+		separator = "&"
+	}
+	result := New().(*engine)
+	result.config = DefaultConfig()
+	result.sqlMigrationLogger = nilGooseLogger{}
+	result.config.SQL = SQLConfig{ConnectionString: dsn + separator + "search_path=" + schema}
+	result.config.KV.Backend = KVBackendSQL
+	return result
+}
+
+var testSchemaCounter atomic.Int64
 
 type nilGooseLogger struct{}
 
