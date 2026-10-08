@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ matrix.branches }}
 
       - name: govulncheck
-        uses: golang/govulncheck-action@v1
+        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
         with:
           go-version-input: '' # remove default to suppress github warning
           go-version-file: 'go.mod' # test against go.mod since 'stable' is not valid for older branches
@@ -42,7 +42,7 @@ jobs:
 
       - name: notify slack
         # this uses our own 'Github notifications' app in slack
-        uses: slackapi/slack-github-action@v2.1.1
+        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
         if: ${{ failure() }} # only run this steps if one of the previous steps has failed
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL_NUTS_CORE_TEAM }} # webhook is linked to a specific slack channel
