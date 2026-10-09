@@ -165,7 +165,9 @@ func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if result.Body != nil {
-		body, err := limitedReadAll(result.Body)
+		originalBody := result.Body
+		defer originalBody.Close()
+		body, err := limitedReadAll(originalBody)
 		if err != nil {
 			return nil, err
 		}
