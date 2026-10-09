@@ -3,6 +3,14 @@ Release notes
 #############
 
 ****************
+Unreleased
+****************
+
+## Minor fixes/changes
+
+- #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
+
+****************
 Peanut (v6.2.14)
 ****************
 
