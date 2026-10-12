@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.41)
+*************************
+
+Release date: 2026-10-12
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.40...v5.4.41
+
+*************************
 Hazelnut update (v5.4.40)
 *************************
 
