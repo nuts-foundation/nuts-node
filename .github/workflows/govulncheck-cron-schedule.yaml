@@ -11,10 +11,15 @@ on:
   # allow manually triggering workflow
   workflow_dispatch:
 
+# deny-all default; the job below grants only the scopes it needs
+permissions: {}
+
 jobs:
   govulncheck_job:
     runs-on: ubuntu-latest
     name: Run govulncheck
+    permissions:
+      contents: read
 
     strategy:
       fail-fast: false
@@ -30,6 +35,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ matrix.branches }}
+          persist-credentials: false
 
       - name: govulncheck
         uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1
