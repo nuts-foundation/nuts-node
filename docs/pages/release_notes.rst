@@ -3,12 +3,15 @@ Release notes
 #############
 
 ****************
-Unreleased
+Peanut (v6.2.15)
 ****************
 
-## Minor fixes/changes
+Release date: 2026-10-12
 
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
 - #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.14...v6.2.15
 
 ****************
 Peanut (v6.2.14)
