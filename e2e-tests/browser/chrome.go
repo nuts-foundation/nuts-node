@@ -23,6 +23,7 @@ package browser
 import (
 	"context"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/remote"
 )
 
 func NewChrome(headless bool) (context.Context, context.CancelFunc) {
@@ -30,7 +31,7 @@ func NewChrome(headless bool) (context.Context, context.CancelFunc) {
 	var execCtxCancel context.CancelFunc
 	if headless {
 		// TODO: Fix acceptInsecureCerts for headless
-		execCtx, execCtxCancel = chromedp.NewRemoteAllocator(context.Background(), "http://localhost:9222")
+		execCtx, execCtxCancel = remote.NewAllocator(context.Background(), "http://localhost:9222")
 	} else {
 		options := append(chromedp.DefaultExecAllocatorOptions[:],
 			chromedp.Flag("headless", false),

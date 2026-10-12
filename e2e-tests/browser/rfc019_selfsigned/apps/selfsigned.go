@@ -58,23 +58,30 @@ func (s SelfSigned) Start(organizationDID string, employee EmployeeInfo) (*SelfS
 		return nil, err
 	}
 	result := SelfSignedSession{ID: sessionID}
-	err = chromedp.Run(s.Context,
-		chromedp.Navigate(webURL),
-		chromedp.Text("#contract", &result.Contract),
-		chromedp.Text("#employee-identifier", &result.EmployeeIdentifier),
-		chromedp.Text("#employee-name", &result.EmployeeName),
-		chromedp.Text("#employee-role", &result.EmployeeRole),
-	)
-	return &result, err
+	if err = chromedp.Do(s.Context, chromedp.Navigate(webURL)); err != nil {
+		return &result, err
+	}
+	for _, field := range []struct {
+		selector string
+		target   *string
+	}{
+		{"#contract", &result.Contract},
+		{"#employee-identifier", &result.EmployeeIdentifier},
+		{"#employee-name", &result.EmployeeName},
+		{"#employee-role", &result.EmployeeRole},
+	} {
+		if *field.target, err = chromedp.Run(s.Context, chromedp.Text(field.selector)); err != nil {
+			return &result, err
+		}
+	}
+	return &result, nil
 }
 
 func (s SelfSigned) Accept() (string, error) {
-	var text string
-	err := chromedp.Run(s.Context,
-		chromedp.Click("#accept-button"),
-		chromedp.Text("//main", &text),
-	)
-	return text, err
+	if err := chromedp.Do(s.Context, chromedp.Click("#accept-button")); err != nil {
+		return "", err
+	}
+	return chromedp.Run(s.Context, chromedp.Text("//main"))
 }
 
 func (s SelfSigned) GetSessionStatus(sessionID string) (string, *authAPI.VerifiablePresentation, error) {
