@@ -28,6 +28,7 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/discovery/api/server/client"
 	"github.com/nuts-foundation/nuts-node/v6/discovery/log"
+	httpclient "github.com/nuts-foundation/nuts-node/v6/http/client"
 	"github.com/nuts-foundation/nuts-node/v6/storage"
 	"github.com/nuts-foundation/nuts-node/v6/vcr"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/credential"
@@ -57,6 +58,20 @@ var (
 	errRetractionContainsCredentials           = errors.New("retraction presentation must not contain credentials")
 	errInvalidRetractionJTIClaim               = errors.New("invalid/missing 'retract_jti' claim for retraction presentation")
 	errCyclicForwardingDetected                = errors.New("cyclic forwarding detected")
+	errPresentationTooLarge                    = fmt.Errorf("presentation exceeds maximum size of %d bytes", maxPresentationSize)
+)
+
+const (
+	// maxPresentationSize is the maximum size (in bytes) of a Verifiable Presentation that can be registered on a Discovery Service.
+	// Legitimate registrations are a few KB; a VP carrying an X509Credential with a full PKIoverheid certificate chain
+	// measures about 16 KB. The cap bounds what a single participant can add to the service, so that a few
+	// registrations cannot push the service's responses over what clients are willing to read (maxResponseSize).
+	maxPresentationSize = 64 * 1024
+	// maxResponseSize is the maximum size (in bytes) of a response from a remote Discovery Service that the client reads.
+	// It is larger than the default of the strict HTTP client, since the endpoint is operator-configured (through the
+	// service definition) and a service's full list of presentations can exceed 1 MB. It is bounded because the
+	// response is buffered and parsed in memory.
+	maxResponseSize = 10 * 1024 * 1024
 )
 
 var _ core.Injectable = &Module{}
@@ -106,7 +121,7 @@ func (m *Module) Configure(serverConfig core.ServerConfig) error {
 		return err
 	}
 
-	m.httpClient = client.New(serverConfig.HTTPClient.Timeout)
+	m.httpClient = client.New(serverConfig.HTTPClient.Timeout, httpclient.WithMaxResponseSize(maxResponseSize))
 
 	return m.loadDefinitions()
 
@@ -229,6 +244,9 @@ func (m *Module) Register(context context.Context, serviceID string, presentatio
 
 func (m *Module) verifyRegistration(definition ServiceDefinition, presentation vc.VerifiablePresentation) error {
 	// First, simple sanity checks
+	if len(presentation.Raw()) > maxPresentationSize {
+		return errors.Join(ErrInvalidPresentation, errPresentationTooLarge)
+	}
 	if presentation.Format() != vc.JWTPresentationProofFormat {
 		return errors.Join(ErrInvalidPresentation, errUnsupportedPresentationFormat)
 	}

@@ -6,6 +6,9 @@ Release notes
 Unreleased
 ****************
 
+## Security
+- #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
+
 ## Minor fixes/changes
 
 - #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
