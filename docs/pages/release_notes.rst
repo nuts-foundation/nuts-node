@@ -9,7 +9,7 @@ Hazelnut update (v5.4.42)
 
 Release date: 2026-10-13
 
-- Upgrade ``golang.org/x/net`` to v0.60.0 to fix `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-97032: HTTP/2 server crash due to an HPACK encoder race). v5.4.41 fixed this in the Go standard library, but the node also uses the HTTP/2 implementation in ``golang.org/x/net`` through gRPC. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix HTTP/2 vulnerabilities that v5.4.41 fixed in the Go standard library, but which are also present in the HTTP/2 implementation in ``golang.org/x/net`` that the node uses through gRPC: `GO-2026-6603 <https://pkg.go.dev/vuln/GO-2026-6603>`_, `GO-2026-6610 <https://pkg.go.dev/vuln/GO-2026-6610>`_, `GO-2026-6611 <https://pkg.go.dev/vuln/GO-2026-6611>`_, `GO-2026-6612 <https://pkg.go.dev/vuln/GO-2026-6612>`_ and `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-78659, CVE-2026-78660, CVE-2026-78669, CVE-2026-78663, CVE-2026-97032). Most are denial of service issues; GO-2026-6617 can crash the HTTP/2 server. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.41...v5.4.42
 
