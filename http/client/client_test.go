@@ -165,17 +165,49 @@ func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
 func TestLimitedReadAll(t *testing.T) {
 	t.Run("less than limit", func(t *testing.T) {
 		data := strings.Repeat("a", 10)
-		result, err := limitedReadAll(strings.NewReader(data))
+		result, err := limitedReadAll(strings.NewReader(data), DefaultMaxHttpResponseSize)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []byte(data), result)
 	})
 	t.Run("more than limit", func(t *testing.T) {
 		data := strings.Repeat("a", DefaultMaxHttpResponseSize+1)
-		result, err := limitedReadAll(strings.NewReader(data))
+		result, err := limitedReadAll(strings.NewReader(data), DefaultMaxHttpResponseSize)
 
 		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
 		assert.Nil(t, result)
+	})
+}
+
+func TestWithMaxResponseSize(t *testing.T) {
+	body := strings.Repeat("a", DefaultMaxHttpResponseSize+1)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+
+	t.Run("default limit rejects response", func(t *testing.T) {
+		request, _ := http.NewRequest(http.MethodGet, server.URL, nil)
+
+		_, err := New(time.Second).Do(request)
+
+		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
+	})
+	t.Run("raised limit accepts response", func(t *testing.T) {
+		request, _ := http.NewRequest(http.MethodGet, server.URL, nil)
+
+		response, err := New(time.Second, WithMaxResponseSize(2*DefaultMaxHttpResponseSize)).Do(request)
+
+		require.NoError(t, err)
+		data, _ := io.ReadAll(response.Body)
+		assert.Len(t, data, len(body))
+	})
+	t.Run("applies to all constructors", func(t *testing.T) {
+		option := WithMaxResponseSize(123)
+		assert.Equal(t, int64(123), New(time.Second, option).maxResponseSize)
+		assert.Equal(t, int64(123), NewWithCache(time.Second, option).maxResponseSize)
+		assert.Equal(t, int64(123), NewWithTLSConfig(time.Second, &tls.Config{}, option).maxResponseSize)
+		assert.Equal(t, int64(DefaultMaxHttpResponseSize), New(time.Second).maxResponseSize)
 	})
 }
 
@@ -183,6 +215,7 @@ func TestStrictHTTPClient_ClosesResponseBody(t *testing.T) {
 	oldStrictMode := StrictMode
 	StrictMode = false
 	t.Cleanup(func() { StrictMode = oldStrictMode })
+	const limit = 10
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		size, _ := strconv.Atoi(request.URL.Query().Get("size"))
 		_, _ = writer.Write([]byte(strings.Repeat("a", size)))
@@ -191,24 +224,24 @@ func TestStrictHTTPClient_ClosesResponseBody(t *testing.T) {
 
 	t.Run("response exceeds limit", func(t *testing.T) {
 		transport := &closeRecordingTransport{base: SafeHttpTransport}
-		client := &StrictHTTPClient{client: &http.Client{Transport: transport}}
-		request, _ := http.NewRequest(http.MethodGet, server.URL+"?size="+strconv.Itoa(DefaultMaxHttpResponseSize+1), nil)
+		client := newStrictHTTPClient(&http.Client{Transport: transport}, []Option{WithMaxResponseSize(limit)})
+		request, _ := http.NewRequest(http.MethodGet, server.URL+"?size="+strconv.Itoa(limit+1), nil)
 
 		_, err := client.Do(request)
 
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
+		assert.EqualError(t, err, "data to read exceeds max. safety limit of 10 bytes")
 		assert.Equal(t, int32(1), transport.closed.Load())
 	})
 	t.Run("response within limit", func(t *testing.T) {
 		transport := &closeRecordingTransport{base: SafeHttpTransport}
-		client := &StrictHTTPClient{client: &http.Client{Transport: transport}}
-		request, _ := http.NewRequest(http.MethodGet, server.URL+"?size=10", nil)
+		client := newStrictHTTPClient(&http.Client{Transport: transport}, []Option{WithMaxResponseSize(limit)})
+		request, _ := http.NewRequest(http.MethodGet, server.URL+"?size="+strconv.Itoa(limit), nil)
 
 		response, err := client.Do(request)
 
 		require.NoError(t, err)
 		data, _ := io.ReadAll(response.Body)
-		assert.Len(t, data, 10)
+		assert.Len(t, data, limit)
 		assert.Equal(t, int32(1), transport.closed.Load())
 	})
 }
