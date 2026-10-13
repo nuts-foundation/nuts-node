@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.42)
+*************************
+
+Release date: 2026-10-13
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-97032: HTTP/2 server crash due to an HPACK encoder race). v5.4.41 fixed this in the Go standard library, but the node also uses the HTTP/2 implementation in ``golang.org/x/net`` through gRPC. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.41...v5.4.42
+
+*************************
 Hazelnut update (v5.4.41)
 *************************
 
