@@ -32,6 +32,16 @@ Unreleased
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 ****************
+Peanut (v6.2.16)
+****************
+
+Release date: 2026-10-13
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-97032: HTTP/2 server crash due to an HPACK encoder race). v6.2.15 fixed this in the Go standard library, but the node also uses the HTTP/2 implementation in ``golang.org/x/net`` through gRPC. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.15...v6.2.16
+
+****************
 Peanut (v6.2.15)
 ****************
 
@@ -688,6 +698,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.42)
+*************************
+
+Release date: 2026-10-13
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-97032: HTTP/2 server crash due to an HPACK encoder race). v5.4.41 fixed this in the Go standard library, but the node also uses the HTTP/2 implementation in ``golang.org/x/net`` through gRPC. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.41...v5.4.42
 
 *************************
 Hazelnut update (v5.4.41)
