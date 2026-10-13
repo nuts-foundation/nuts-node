@@ -32,6 +32,27 @@ Unreleased
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 ****************
+Peanut (v6.2.15)
+****************
+
+Release date: 2026-10-13
+
+========
+Security
+========
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+- #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
+
+===================
+Minor fixes/changes
+===================
+
+- #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.14...v6.2.15
+
+****************
 Peanut (v6.2.14)
 ****************
 
@@ -667,6 +688,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.41)
+*************************
+
+Release date: 2026-10-13
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.40...v5.4.41
 
 *************************
 Hazelnut update (v5.4.40)
