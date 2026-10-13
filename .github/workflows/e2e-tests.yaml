@@ -52,19 +52,6 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v6
-        if: ${{ github.actor != 'dependabot' }}
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64
-          push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
-          secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.PACKAGE_SECRET }}
-
-      - name: Build and push dependabot
-        uses: docker/build-push-action@v6
-        if: ${{ github.actor == 'dependabot' }}
         with:
           context: .
           file: Dockerfile
@@ -82,21 +69,8 @@ jobs:
       - name: package cleanup
         uses: dataaxiom/ghcr-cleanup-action@v1
         continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
           package: nuts-node-ci
-          # NOTE: using Personal Access Token
-          token: ${{ secrets.PACKAGE_SECRET }}
-          keep-n-tagged: 3
-
-      - name: package cleanup dependabot
-        uses: dataaxiom/ghcr-cleanup-action@v1
-        continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ github.actor == 'dependabot' }}
-        with:
-          owner: nuts-foundation
-          package: nuts-node-ci
-          # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
           keep-n-tagged: 3
