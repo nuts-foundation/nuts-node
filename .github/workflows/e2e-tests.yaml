@@ -76,21 +76,6 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@0a97817b6ade9f46837855d676c4cca3a2471fc9 # v4
-        if: ${{ github.actor != 'dependabot' }}
-        with:
-          context: .
-          file: Dockerfile
-          platforms: linux/amd64
-          push: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-          tags: ghcr.io/nuts-foundation/nuts-node-ci:${{ env.SHA }}
-          cache-from: type=gha,scope=e2e
-          cache-to: type=gha,scope=e2e,mode=max
-          secrets: |
-            GIT_AUTH_TOKEN=${{ secrets.PACKAGE_SECRET }}
-
-      - name: Build and push dependabot
-        uses: docker/build-push-action@0a97817b6ade9f46837855d676c4cca3a2471fc9 # v4
-        if: ${{ github.actor == 'dependabot' }}
         with:
           context: .
           file: Dockerfile
@@ -110,21 +95,8 @@ jobs:
       - name: package cleanup
         uses: bots-house/ghcr-delete-image-action@3827559c68cb4dcdf54d813ea9853be6d468d3a4 # v1.1.0
         continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ github.actor != 'dependabot' }}
         with:
           owner: nuts-foundation
           name: nuts-node-ci
-          # NOTE: using Personal Access Token
-          token: ${{ secrets.PACKAGE_SECRET }}
-          tag: ${{ env.SHA }}
-
-      - name: package cleanup dependabot
-        uses: bots-house/ghcr-delete-image-action@3827559c68cb4dcdf54d813ea9853be6d468d3a4 # v1.1.0
-        continue-on-error: true # action doesn't fail when this step fails
-        if: ${{ github.actor == 'dependabot' }}
-        with:
-          owner: nuts-foundation
-          name: nuts-node-ci
-          # NOTE: using Personal Access Token
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SHA }}
