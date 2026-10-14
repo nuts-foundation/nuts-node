@@ -184,4 +184,7 @@ A service definition consists of:
 - ``presentation_max_validity``: the maximum validity of the Verifiable Presentation in seconds
 - ``presentation_definition``: the presentation definition that specifies the required Verifiable Credentials (see `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_)
 
+Registered Verifiable Presentations may be at most 64 KiB. This is a fixed limit of the Nuts node, not configurable per service definition.
+Legitimate presentations are a few KB (about 16 KB when they carry an ``X509Credential`` with a full certificate chain), the limit keeps a single participant from inflating the service's responses.
+
 For details see `Nuts RFC022 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc022-discovery-service>`_.

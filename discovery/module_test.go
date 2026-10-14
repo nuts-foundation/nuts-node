@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"gorm.io/gorm"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -117,6 +118,17 @@ func Test_Module_Register(t *testing.T) {
 			err := m.Register(ctx, testServiceID, vpAlice)
 
 			assert.EqualError(t, err, "presentation is invalid for registration\npresentation is valid for too long (max 1s)")
+		})
+		t.Run("too large", func(t *testing.T) {
+			m, _ := setupModule(t, storageEngine)
+			// pad the VP with a claim to push it over the maximum size, a real one is a few KB
+			largeVP := createPresentationCustom(aliceDID, func(claims map[string]interface{}, _ *vc.VerifiablePresentation) {
+				claims["padding"] = strings.Repeat("a", maxPresentationSize)
+			}, vcAlice)
+
+			err := m.Register(ctx, testServiceID, largeVP)
+
+			assert.EqualError(t, err, "presentation is invalid for registration\npresentation exceeds maximum size of 65536 bytes")
 		})
 		t.Run("no expiration", func(t *testing.T) {
 			m, _ := setupModule(t, storageEngine)

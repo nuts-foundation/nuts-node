@@ -3,6 +3,37 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.16)
+****************
+
+Release date: 2026-10-14
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix HTTP/2 vulnerabilities that v6.2.15 fixed in the Go standard library, but which are also present in the HTTP/2 implementation in ``golang.org/x/net`` that the node uses through gRPC: `GO-2026-6603 <https://pkg.go.dev/vuln/GO-2026-6603>`_, `GO-2026-6610 <https://pkg.go.dev/vuln/GO-2026-6610>`_, `GO-2026-6611 <https://pkg.go.dev/vuln/GO-2026-6611>`_, `GO-2026-6612 <https://pkg.go.dev/vuln/GO-2026-6612>`_ and `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-78659, CVE-2026-78660, CVE-2026-78669, CVE-2026-78663, CVE-2026-97032). Most are denial of service issues; GO-2026-6617 can crash the HTTP/2 server. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.15...v6.2.16
+
+****************
+Peanut (v6.2.15)
+****************
+
+Release date: 2026-10-13
+
+========
+Security
+========
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+- #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
+
+===================
+Minor fixes/changes
+===================
+
+- #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.14...v6.2.15
+
+****************
 Peanut (v6.2.14)
 ****************
 
@@ -16,10 +47,33 @@ Release date: 2026-10-05
 Peanut (v6.2.13)
 ****************
 
-Release date: 2026-09-21
+Release date: 2026-09-22
 
-- Docker image: base image upgraded from alpine 3.23.5 to alpine 3.24.2, clearing the busybox (``ssl_client``) finding reported on the published 6.2.12 image.
-- Upgrade golang.org/x/crypto to v0.56.0 (`GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`_ / CVE-2026-56855 and `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`_ / CVE-2026-78662: denial of service in ``golang.org/x/crypto/ssh``), github.com/go-chi/chi/v5 to v5.3.0 (`GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`_, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`_ and `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`_: IP spoofing through the ``X-Forwarded-For`` header in the ``RealIP`` middleware), github.com/klauspost/compress to v1.18.7 (`GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`_: out-of-bounds read in the ``s2`` package) and go.opentelemetry.io/otel to v1.45.0 (CVE-2026-81870) as reported by image scanners. None of these code paths are reachable from the node according to govulncheck.
+========
+Security
+========
+
+- **Docker image**: base image upgraded from alpine 3.23.5 to alpine 3.24.2. This clears the busybox (``ssl_client``) finding reported on the published 6.2.12 image, and puts V6.2 on the same base as master and V5.4. (`#4581 <https://github.com/nuts-foundation/nuts-node/pull/4581>`__)
+- **Dependency upgrades** reported by image scanners. According to govulncheck, none of these code paths are reachable from the node. (`#4581 <https://github.com/nuts-foundation/nuts-node/pull/4581>`__)
+
+  .. list-table::
+    :header-rows: 1
+
+    * - Module
+      - Version
+      - Addresses
+    * - ``golang.org/x/crypto``
+      - v0.56.0
+      - `GO-2026-6355 <https://pkg.go.dev/vuln/GO-2026-6355>`__ / CVE-2026-56855, `GO-2026-6354 <https://pkg.go.dev/vuln/GO-2026-6354>`__ / CVE-2026-78662: denial of service in ``x/crypto/ssh``
+    * - ``github.com/go-chi/chi/v5``
+      - v5.3.0
+      - `GO-2026-5777 <https://pkg.go.dev/vuln/GO-2026-5777>`__, `GO-2026-5775 <https://pkg.go.dev/vuln/GO-2026-5775>`__, `GO-2026-5774 <https://pkg.go.dev/vuln/GO-2026-5774>`__: IP spoofing through ``X-Forwarded-For`` in the ``RealIP`` middleware
+    * - ``github.com/klauspost/compress``
+      - v1.18.7
+      - `GO-2026-5841 <https://pkg.go.dev/vuln/GO-2026-5841>`__: out-of-bounds read in the ``s2`` package
+    * - ``go.opentelemetry.io/otel``
+      - v1.45.0
+      - CVE-2026-81870
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.12...v6.2.13
 
