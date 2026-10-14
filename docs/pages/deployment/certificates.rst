@@ -23,6 +23,9 @@ With other DID Methods, certificates are only used to create an secure channel f
 In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
 This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
 
+Certificates and CRLs in the chain may be signed with RSA (PKCS #1 v1.5 or RSASSA-PSS, with SHA-256, SHA-384 or SHA-512), ECDSA or Ed25519.
+This includes the PKIoverheid G4 profile used for UZI server certificates issued from 12 November 2026: RSA 4096 keys with RSASSA-PSS/SHA-512 signatures.
+
 Trust in specific certificate CAs is configured per use-case in a :ref:`Discovery <discovery>` and :ref:`Policy <policy>` definition file.
 CRLs from trusted chains (per the above definition files) are consulted when evaluating ``did:x509`` Verifiable Credentials.
 For certificate chains used in ``did:x509`` the Nuts-node always uses a hard-fail strategy, i.e., the ``pki.softfail`` config value is ignored during certificate validation for ``did:x509``.
