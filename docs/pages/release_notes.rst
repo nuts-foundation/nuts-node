@@ -18,6 +18,7 @@ Unreleased
 * Network: the default of ``network.maxbackoff`` is lowered from ``24h`` to ``1h``. The backoff is persisted across restarts and only reset when a peer's NutsComm address changes, so a peer that was unreachable for a few days could previously go unattempted for up to a day after it came back. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4467
 * Network: failed connection attempts are now logged at debug level instead of warning level. A warning is logged once, on the attempt that reaches ``network.maxbackoff``, so an unreachable peer no longer repeats the same warning on every retry. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4467
 * Network: connections on which no message was received for ``network.idletimeout`` (default ``2m``) are now closed and re-established. Peers send gossip and diagnostics messages every few seconds, so a silent connection is a dead one: typically a half-open TCP connection or a reverse proxy that kept the stream open after the other side went away. Previously such connections lingered until the proxy or node was restarted, and the peer holding the stale connection rejected new connections with ``already connected``. Set ``network.idletimeout`` to ``0`` to disable. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4562
+* #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
 
 ## Security
 * #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
@@ -29,6 +30,37 @@ Unreleased
 * #4421: Stop reflecting fetched HTTP response bodies in API responses. The OAuth2 and OpenID4VCI callback handlers no longer place a remote endpoint's response body or error text into the returned ``error_description``, the did:web resolver no longer returns the fetched document body in its parse error, and the Discovery Service client no longer includes the remote server's error response in errors returned through the discovery APIs. Such content is now logged (truncated) for diagnostics instead. Static context such as the endpoint that failed is retained. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4421
 * #4244: Centralize outbound URL validation (HTTPS-only, no RFC 2606 reserved hosts) in the shared strict-mode HTTP client instead of duplicating it in each caller (OpenID4VCI, IAM, OAuth relying-party). The same check now also runs on every redirect target, not just the first request. IP-address validation is left to the dial-time SSRF guard (#4420), which already honors ``http.client.allowedinternalcidrs``/``deniedcidrs``. By @JorisHeadease in https://github.com/nuts-foundation/nuts-node/pull/4246
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
+
+****************
+Peanut (v6.2.16)
+****************
+
+Release date: 2026-10-14
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix HTTP/2 vulnerabilities that v6.2.15 fixed in the Go standard library, but which are also present in the HTTP/2 implementation in ``golang.org/x/net`` that the node uses through gRPC: `GO-2026-6603 <https://pkg.go.dev/vuln/GO-2026-6603>`_, `GO-2026-6610 <https://pkg.go.dev/vuln/GO-2026-6610>`_, `GO-2026-6611 <https://pkg.go.dev/vuln/GO-2026-6611>`_, `GO-2026-6612 <https://pkg.go.dev/vuln/GO-2026-6612>`_ and `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-78659, CVE-2026-78660, CVE-2026-78669, CVE-2026-78663, CVE-2026-97032). Most are denial of service issues; GO-2026-6617 can crash the HTTP/2 server. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.15...v6.2.16
+
+****************
+Peanut (v6.2.15)
+****************
+
+Release date: 2026-10-13
+
+========
+Security
+========
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+- #4596: Discovery Service: registered Verifiable Presentations are now limited to 64 KiB, and the Discovery Service client reads responses of up to 10 MiB from the (operator-configured) Discovery Server instead of the 1 MiB applied to other outbound HTTP calls. Previously a client could no longer synchronize a service whose response exceeded 1 MiB, which a few hundred registrations or a couple of deliberately padded ones could cause. By @reinkrul in https://github.com/nuts-foundation/nuts-node/pull/4597
+
+===================
+Minor fixes/changes
+===================
+
+- #4620: HTTP client: the response body is now closed when a response exceeds the maximum size, so an oversized response no longer holds a connection until the client timeout. By @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4621
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.14...v6.2.15
 
 ****************
 Peanut (v6.2.14)
@@ -666,6 +698,26 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.42)
+*************************
+
+Release date: 2026-10-14
+
+- Upgrade ``golang.org/x/net`` to v0.60.0 to fix HTTP/2 vulnerabilities that v5.4.41 fixed in the Go standard library, but which are also present in the HTTP/2 implementation in ``golang.org/x/net`` that the node uses through gRPC: `GO-2026-6603 <https://pkg.go.dev/vuln/GO-2026-6603>`_, `GO-2026-6610 <https://pkg.go.dev/vuln/GO-2026-6610>`_, `GO-2026-6611 <https://pkg.go.dev/vuln/GO-2026-6611>`_, `GO-2026-6612 <https://pkg.go.dev/vuln/GO-2026-6612>`_ and `GO-2026-6617 <https://pkg.go.dev/vuln/GO-2026-6617>`_ (CVE-2026-78659, CVE-2026-78660, CVE-2026-78669, CVE-2026-78663, CVE-2026-97032). Most are denial of service issues; GO-2026-6617 can crash the HTTP/2 server. The other ``golang.org/x`` modules (``crypto``, ``sync``, ``sys``, ``term``, ``text``) are upgraded with it, because the new ``x/net`` version requires them.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.41...v5.4.42
+
+*************************
+Hazelnut update (v5.4.41)
+*************************
+
+Release date: 2026-10-13
+
+- Upgrade Go to 1.26.9 to fix stdlib vulnerabilities reported by govulncheck and image scanners. The reachable ones are GO-2026-6599, GO-2026-6600 (``html/template``), GO-2026-6603, GO-2026-6605, GO-2026-6609, GO-2026-6610, GO-2026-6611, GO-2026-6612, GO-2026-6613, GO-2026-6617 (``net/http``), GO-2026-6607 (``crypto/tls``) and GO-2026-6608 (``net/textproto``, ``mime/multipart``). Most are denial of service issues in the HTTP/1 and HTTP/2 server and client, such as unbounded ``Range`` header parsing (CVE-2026-78667) and malformed ECH extensions in TLS (CVE-2026-97031).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.40...v5.4.41
 
 *************************
 Hazelnut update (v5.4.40)
