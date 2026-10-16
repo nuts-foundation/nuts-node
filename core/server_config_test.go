@@ -150,6 +150,18 @@ func TestNewNutsConfig_Load(t *testing.T) {
 
 		assert.Equal(t, "warn", cfg.Verbosity)
 	})
+
+	t.Run("ok - httpclient.tls.extracertsdir is parsed", func(t *testing.T) {
+		defer reset()
+		os.Args = []string{"command", "--httpclient.tls.extracertsdir", "/etc/nuts/http-trust.d"}
+		cfg := NewServerConfig()
+		cmd := testCommand()
+
+		err := cfg.Load(cmd.Flags())
+
+		require.NoError(t, err)
+		assert.Equal(t, "/etc/nuts/http-trust.d", cfg.HTTPClient.TLS.ExtraCertsDir)
+	})
 }
 
 func TestNewNutsConfig_PrintConfig(t *testing.T) {
