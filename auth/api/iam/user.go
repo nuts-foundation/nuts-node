@@ -40,7 +40,14 @@ import (
 const (
 	// oAuthFlowTimeout is the timeout for the oauth flow.
 	// The maximum time between the initial authorize request and the final token request.
+	// Used for back-end (service-to-service) flows, which complete quickly without user interaction.
+	// This is too short for interactive flows; use oauthFrontendFlowTimeout for those.
 	oAuthFlowTimeout = time.Minute
+	// oauthFrontendFlowTimeout is the timeout for interactive OAuth authorization-code flows that
+	// involve a user logging in at an external Authorization Server (e.g. OpenID4VCI auth-code,
+	// OpenID4VP user login). The TTL has to cover the entire interactive round-trip: redirect to the
+	// external IdP, the user authenticating (password, MFA, consent) and the redirect back to the callback.
+	oauthFrontendFlowTimeout = 5 * time.Minute
 	// userRedirectTimeout is the timeout for the user redirect session.
 	// This is the maximum time between the creation of the redirect for the user and the actual GET request to the user/wallet page.
 	userRedirectTimeout = time.Second * 5
@@ -118,7 +125,7 @@ func (r Wrapper) handleUserLanding(echoCtx echo.Context) error {
 		TokenEndpoint:               metadata.TokenEndpoint,
 	}
 	// store user session in session store under sessionID and clientState
-	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession)
+	err = r.oauthClientStateStore().Put(oauthSession.ClientState, oauthSession, storage.WithTTL(oauthFrontendFlowTimeout))
 	if err != nil {
 		return err
 	}
