@@ -152,11 +152,13 @@ paths:
                 - issuer
                 - authorization_details
                 - redirect_uri
-                - wallet_did
               properties:
                 wallet_did:
                   type: string
-                  description: The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+                  description: |
+                    The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
+                    If omitted, defaults to the subject's sole did:web DID. Omitting it fails with a 400 if the
+                    subject has zero or multiple did:web DIDs; in that case, wallet_did must be specified explicitly.
                   example: did:web:example.com
                 issuer:
                   type: string

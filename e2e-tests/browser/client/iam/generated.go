@@ -277,7 +277,9 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	RedirectUri string `json:"redirect_uri"`
 
 	// WalletDid The DID to which the Verifiable Credential must be issued. Must be owned by the given subject.
-	WalletDid string `json:"wallet_did"`
+	// If omitted, defaults to the subject's sole did:web DID. Omitting it fails with a 400 if the
+	// subject has zero or multiple did:web DIDs; in that case, wallet_did must be specified explicitly.
+	WalletDid *string `json:"wallet_did,omitempty"`
 }
 
 // RequestServiceAccessTokenParams defines parameters for RequestServiceAccessToken.
