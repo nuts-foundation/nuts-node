@@ -20,11 +20,6 @@ const (
 	JwtBearerAuthScopes = "jwtBearerAuth.Scopes"
 )
 
-// Defines values for AuthorizationDetailType.
-const (
-	OpenidCredential AuthorizationDetailType = "openid_credential"
-)
-
 // Defines values for ServiceAccessTokenRequestTokenType.
 const (
 	ServiceAccessTokenRequestTokenTypeBearer ServiceAccessTokenRequestTokenType = "Bearer"
@@ -36,26 +31,6 @@ const (
 	UserAccessTokenRequestTokenTypeBearer UserAccessTokenRequestTokenType = "Bearer"
 	UserAccessTokenRequestTokenTypeDPoP   UserAccessTokenRequestTokenType = "DPoP"
 )
-
-// AuthorizationDetail A single authorization_details entry per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
-// Only the fields used by the user/browser issuance flow are modeled.
-type AuthorizationDetail struct {
-	// CredentialConfigurationId References a credential configuration from the issuer's
-	// credential_configurations_supported metadata. REQUIRED for
-	// type=openid_credential per §5.1.1.
-	CredentialConfigurationId string `json:"credential_configuration_id"`
-
-	// Format Optional credential format hint (e.g. "vc+sd-jwt").
-	Format *string `json:"format,omitempty"`
-
-	// Type The authorization details type. For OpenID4VCI flows this MUST
-	// be "openid_credential" per §5.1.1.
-	Type AuthorizationDetailType `json:"type"`
-}
-
-// AuthorizationDetailType The authorization details type. For OpenID4VCI flows this MUST
-// be "openid_credential" per §5.1.1.
-type AuthorizationDetailType string
 
 // DPoPRequest defines model for DPoPRequest.
 type DPoPRequest struct {
@@ -250,11 +225,6 @@ type Cnf struct {
 
 // RequestOpenid4VCICredentialIssuanceJSONBody defines parameters for RequestOpenid4VCICredentialIssuance.
 type RequestOpenid4VCICredentialIssuanceJSONBody struct {
-	// AuthorizationDetails Authorization details per RFC 9396 / OpenID4VCI 1.0 §5.1.1.
-	// The current implementation processes a single credential
-	// issuance per call and only consumes the first entry.
-	AuthorizationDetails []AuthorizationDetail `json:"authorization_details"`
-
 	// AuthorizationRequestParams Optional key/value pairs added to the OpenID4VCI authorization request (the redirect to the
 	// Authorization Server's authorization_endpoint). These may only add parameters; they must not
 	// override the OpenID4VCI parameters set by the node (the request is rejected if they do).
@@ -268,6 +238,21 @@ type RequestOpenid4VCICredentialIssuanceJSONBody struct {
 	// issuers that diverge from the OpenID4VCI 1.0 Credential Request shape; the caller is
 	// responsible for the resulting wire shape (§8.2 mutual exclusivity, proof binding, etc.).
 	CredentialRequestParams *map[string]interface{} `json:"credential_request_params,omitempty"`
+
+	// CredentialType The type of Verifiable Credential to request, e.g. "HealthcareProviderRoleTypeCredential".
+	// The node takes care of the OpenID4VCI details:
+	//   1. It reads the issuer's Credential Issuer Metadata (`/.well-known/openid-credential-issuer`,
+	//      §12.2) and matches this type against each entry's `credential_definition.type` or
+	//      `vct` in `credential_configurations_supported`, to find the matching
+	//      `credential_configuration_id`.
+	//   2. It checks the Authorization Server's `authorization_details_types_supported`
+	//      metadata to decide whether to send that `credential_configuration_id` via an
+	//      `authorization_details` parameter (RFC 9396) on the authorization request, or via
+	//      `credential_configuration_id` on the Credential Request.
+	//   3. Once the credential is issued, it checks the returned credential's type matches
+	//      what was requested, before storing it.
+	// Only one credential can be requested per call.
+	CredentialType string `json:"credential_type"`
 
 	// Issuer The OAuth Authorization Server's identifier, that issues the Verifiable Credentials, as specified in RFC 8414 (section 2),
 	// used to locate the OAuth2 Authorization Server metadata.
