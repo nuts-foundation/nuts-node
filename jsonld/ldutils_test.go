@@ -22,9 +22,11 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/piprate/json-gold/ld"
@@ -103,13 +105,34 @@ func Test_embeddedFSDocumentLoader_LoadDocument(t *testing.T) {
 	})
 }
 
+var testHTTPClient = &http.Client{Timeout: 5 * time.Second}
+
 func TestNewContextLoader(t *testing.T) {
+	t.Run("remote context fetch is bounded by the HTTP client timeout", func(t *testing.T) {
+		released := make(chan struct{})
+		stubSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// hang until the test ends
+			<-released
+		}))
+		// Release the handler before closing the server: Close waits for in-flight requests.
+		defer stubSrv.Close()
+		defer close(released)
+		loader, err := NewContextLoader(true, DefaultContextConfig(), &http.Client{Timeout: 100 * time.Millisecond})
+		require.NoError(t, err)
+
+		start := time.Now()
+		_, err = loader.LoadDocument(stubSrv.URL)
+
+		require.Error(t, err)
+		assert.Less(t, time.Since(start), 2*time.Second, "loading a hanging context must fail at the client timeout")
+	})
+
 	t.Run("loads local file", func(t *testing.T) {
 		cfg := DefaultContextConfig()
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "./test/test.jsonld",
 		}
-		_, err := NewContextLoader(true, cfg)
+		_, err := NewContextLoader(true, cfg, testHTTPClient)
 		assert.NoError(t, err)
 	})
 
@@ -118,7 +141,7 @@ func TestNewContextLoader(t *testing.T) {
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "./test/test.jsonld",
 		}
-		_, err := NewContextLoader(false, cfg)
+		_, err := NewContextLoader(false, cfg, testHTTPClient)
 		assert.NoError(t, err)
 	})
 
@@ -127,12 +150,12 @@ func TestNewContextLoader(t *testing.T) {
 		cfg.LocalFileMapping = map[string]string{
 			"http://test-context.com": "test/non-existing.jsonld",
 		}
-		_, err := NewContextLoader(true, cfg)
+		_, err := NewContextLoader(true, cfg, testHTTPClient)
 		assert.EqualError(t, err, "preloading context http://test-context.com failed: loading document failed: open test/non-existing.jsonld: no such file or directory")
 	})
 
 	t.Run("it creates a new contextLoader", func(t *testing.T) {
-		loader, err := NewContextLoader(false, DefaultContextConfig())
+		loader, err := NewContextLoader(false, DefaultContextConfig(), testHTTPClient)
 		assert.NoError(t, err)
 		doc, err := loader.LoadDocument("https://schema.org")
 		assert.NoError(t, err)
@@ -140,14 +163,14 @@ func TestNewContextLoader(t *testing.T) {
 	})
 
 	t.Run("it fails requesting an external doc when allowingExternalCalls is false", func(t *testing.T) {
-		loader, err := NewContextLoader(false, DefaultContextConfig())
+		loader, err := NewContextLoader(false, DefaultContextConfig(), testHTTPClient)
 		assert.NoError(t, err)
 		_, err = loader.LoadDocument("http://example.org")
 		assert.EqualError(t, err, "loading document failed: context not on the remoteallowlist")
 	})
 
 	t.Run("it resolves an external doc when allowingExternalCalls is true", func(t *testing.T) {
-		loader, err := NewContextLoader(true, DefaultContextConfig())
+		loader, err := NewContextLoader(true, DefaultContextConfig(), testHTTPClient)
 		assert.NoError(t, err)
 
 		// Arrange the stubSrv; stubSrv logic is included inline,

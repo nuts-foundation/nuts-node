@@ -32,6 +32,12 @@ func main() {
 	// Listen for interrupt signals (CTRL/CMD+C, OS instructing the process to stop) to cancel context.
 	ctx, cancelNotify := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelNotify()
+	// The first signal starts a graceful shutdown. Stop capturing signals once that has begun, so a second signal
+	// terminates the process immediately (default signal behavior) instead of being swallowed while the shutdown hangs.
+	go func() {
+		<-ctx.Done()
+		cancelNotify()
+	}()
 
 	err := cmd.Execute(ctx, cmd.CreateSystem(cancelNotify))
 	if err != nil {
