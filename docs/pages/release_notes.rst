@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.43)
+*************************
+
+Release date: 2026-10-22
+
+- Upgrade Go to 1.26.10 to fix `GO-2026-6809 <https://pkg.go.dev/vuln/GO-2026-6809>`_ (CVE-2026-111943): ``crypto/x509`` certificate verification could accept chains through known intermediate certificates that are no longer trusted, on systems whose trust store was not updated. Go now rejects these intermediates.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.42...v5.4.43
+
+*************************
 Hazelnut update (v5.4.42)
 *************************
 
