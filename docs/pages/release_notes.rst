@@ -3,6 +3,16 @@ Release notes
 #############
 
 ****************
+Peanut (v6.2.17)
+****************
+
+Release date: 2026-10-22
+
+- Upgrade Go to 1.26.10 to fix `GO-2026-6809 <https://pkg.go.dev/vuln/GO-2026-6809>`_ (CVE-2026-111943): ``crypto/x509`` certificate verification could accept chains through known intermediate certificates that are no longer trusted, on systems whose trust store was not updated. Go now rejects these intermediates.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.16...v6.2.17
+
+****************
 Peanut (v6.2.16)
 ****************
 
