@@ -53,6 +53,8 @@ Fetching & Caching
 ^^^^^^^^^^^^^^^^^^
 
 During startup of the node, remote contexts are fetched and cached. If the contents of a remote context changes, the node must be restarted in order for these changes to have effect. Only remote context listed in the `remoteallowlist` are fetched.
+When strict mode is disabled, the node also fetches contexts that are not on the `remoteallowlist` from the internet, when a credential it processes refers to them. Use strict mode outside of development.
+A remote context fetch fails after 5 seconds. A context that failed to load is not fetched again for 5 minutes: credentials referring to it fail immediately during that time, and are retried later.
 Local mappings can be used to pin a version of a context, so no unseen changes can be made. Working with local mappings is also useful for developing purposes when the remote context is older or non-existent. When you work with local mappings, make sure all nodes involved in the use-case have the same custom context configured.
 
 Searching and indexing
