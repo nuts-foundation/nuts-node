@@ -911,10 +911,10 @@ func TestNetwork_Reprocess(t *testing.T) {
 	}
 
 	t.Run("hits", func(t *testing.T) {
+		setup, eventManager := newSetup(t)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return([]byte("payload"), nil)
 		var counter int
@@ -930,10 +930,10 @@ func TestNetwork_Reprocess(t *testing.T) {
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
+		setup, eventManager := newSetup(t)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		var counter int
 		wg := sync.WaitGroup{}
@@ -947,10 +947,10 @@ func TestNetwork_Reprocess(t *testing.T) {
 	})
 
 	t.Run("missing payload", func(t *testing.T) {
+		setup, eventManager := newSetup(t)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 
-		setup, eventManager := newSetup(t)
 		setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 		setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, dag.ErrPayloadNotFound)
 		var counter int
@@ -967,12 +967,12 @@ func TestNetwork_Reprocess(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		t.Run("query", func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-
 			testErr := errors.New("test error")
 
 			setup, eventManager := newSetup(t)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
 			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return(nil, testErr)
 			var counter int
 			wg := sync.WaitGroup{}
@@ -986,12 +986,12 @@ func TestNetwork_Reprocess(t *testing.T) {
 		})
 
 		t.Run("payload", func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-
 			testErr := errors.New("test error")
 
 			setup, eventManager := newSetup(t)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+
 			setup.state.EXPECT().FindBetweenLC(gomock.Any(), uint32(0), uint32(1000)).Return([]dag.Transaction{tx}, nil)
 			setup.state.EXPECT().ReadPayload(gomock.Any(), tx.PayloadHash()).Return(nil, testErr)
 			var counter int
