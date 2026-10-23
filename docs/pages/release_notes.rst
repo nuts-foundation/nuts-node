@@ -8,7 +8,7 @@ Peanut (v6.2.17)
 
 Release date: 2026-10-22
 
-- Upgrade Go to 1.26.10 to fix `GO-2026-6809 <https://pkg.go.dev/vuln/GO-2026-6809>`_ (CVE-2026-111943): ``crypto/x509`` certificate verification could accept chains through known intermediate certificates that are no longer trusted, on systems whose trust store was not updated. Go now rejects these intermediates.
+- Stop trusting TLS certificates signed by the compromised eMudhra intermediate CAs, whose private keys are public (they chain to the emSign ECC Root CA - G3). The Docker image now includes Alpine's updated ``ca-certificates`` package, which removes that root. Go is upgraded to 1.26.10 to fix `GO-2026-6809 <https://pkg.go.dev/vuln/GO-2026-6809>`_ (CVE-2026-111943): ``crypto/x509`` now rejects these intermediates even if the system trust store was not updated. See https://github.com/nuts-foundation/nuts-node/issues/4643
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.16...v6.2.17
 
