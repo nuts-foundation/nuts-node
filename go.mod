@@ -37,7 +37,7 @@ require (
 	github.com/knadh/koanf/providers/posflag v1.0.2
 	github.com/knadh/koanf/providers/structs v1.0.1
 	github.com/knadh/koanf/v2 v2.3.8
-	github.com/labstack/echo/v4 v4.16.0
+	github.com/labstack/echo/v4 v4.16.1
 	github.com/lestrrat-go/jwx/v3 v3.3.0
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/microsoft/go-mssqldb v1.11.2
