@@ -4,6 +4,17 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.44)
+*************************
+
+Release date: 2026-10-27
+
+- Upgrade ``github.com/labstack/echo/v4`` from v4.15.3 to v4.16.1 to fix `GHSA-cxf3-9h37-7rr8 <https://github.com/advisories/GHSA-cxf3-9h37-7rr8>`_ (critical: rejected WebSocket upgrades can bypass Echo route-level access controls), `GHSA-9969-6676-49h5 <https://github.com/advisories/GHSA-9969-6676-49h5>`_ (WebSocket proxy can retain connections after client disconnect), `GHSA-f48p-c9v4-h7xv <https://github.com/advisories/GHSA-f48p-c9v4-h7xv>`_ (BodyDump captures bodies without size limits) and `GHSA-h7wr-284f-5qvc <https://github.com/advisories/GHSA-h7wr-284f-5qvc>`_ (Decompress permits unbounded gzip expansion).
+- The Docker image now includes Alpine's updated ``curl`` package (8.23.0-r0), which fixes CVE-2026-92392 (HTTP/2 upload use-after-free).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.43...v5.4.44
+
+*************************
 Hazelnut update (v5.4.43)
 *************************
 

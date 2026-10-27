@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/knadh/koanf v1.5.0
 	github.com/labstack/echo-jwt/v4 v4.3.1
-	github.com/labstack/echo/v4 v4.15.3
+	github.com/labstack/echo/v4 v4.16.1
 	github.com/lestrrat-go/jwx v1.2.29
 	github.com/magiconair/properties v1.8.7
 	github.com/mdp/qrterminal/v3 v3.2.0
@@ -115,7 +115,7 @@ require (
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/microsoft/go-mssqldb v1.6.0 // indirect
