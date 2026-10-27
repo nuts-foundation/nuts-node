@@ -32,6 +32,16 @@ Unreleased
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 ****************
+Peanut (v6.2.18)
+****************
+
+Release date: 2026-10-27
+
+- Fix `GHSA-cxf3-9h37-7rr8 <https://github.com/advisories/GHSA-cxf3-9h37-7rr8>`_, `GHSA-9969-6676-49h5 <https://github.com/advisories/GHSA-9969-6676-49h5>`_, `GHSA-f48p-c9v4-h7xv <https://github.com/advisories/GHSA-f48p-c9v4-h7xv>`_, `GHSA-h7wr-284f-5qvc <https://github.com/advisories/GHSA-h7wr-284f-5qvc>`_ (Echo) and `CVE-2026-92392 <https://avd.aquasec.com/nvd/cve-2026-92392>`_ (curl). With default settings these cannot be exploited through the node.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.17...v6.2.18
+
+****************
 Peanut (v6.2.17)
 ****************
 
@@ -708,6 +718,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.44)
+*************************
+
+Release date: 2026-10-27
+
+- Fix `GHSA-cxf3-9h37-7rr8 <https://github.com/advisories/GHSA-cxf3-9h37-7rr8>`_, `GHSA-9969-6676-49h5 <https://github.com/advisories/GHSA-9969-6676-49h5>`_, `GHSA-f48p-c9v4-h7xv <https://github.com/advisories/GHSA-f48p-c9v4-h7xv>`_, `GHSA-h7wr-284f-5qvc <https://github.com/advisories/GHSA-h7wr-284f-5qvc>`_ (Echo) and `CVE-2026-92392 <https://avd.aquasec.com/nvd/cve-2026-92392>`_ (curl). With default settings these cannot be exploited through the node.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.43...v5.4.44
 
 *************************
 Hazelnut update (v5.4.43)
