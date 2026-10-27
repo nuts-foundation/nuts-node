@@ -4,6 +4,16 @@ Release notes
 #############
 
 *************************
+Hazelnut update (v5.4.44)
+*************************
+
+Release date: 2026-10-27
+
+- Fix `GHSA-cxf3-9h37-7rr8 <https://github.com/advisories/GHSA-cxf3-9h37-7rr8>`_, `GHSA-9969-6676-49h5 <https://github.com/advisories/GHSA-9969-6676-49h5>`_, `GHSA-f48p-c9v4-h7xv <https://github.com/advisories/GHSA-f48p-c9v4-h7xv>`_, `GHSA-h7wr-284f-5qvc <https://github.com/advisories/GHSA-h7wr-284f-5qvc>`_ (Echo) and `CVE-2026-92392 <https://avd.aquasec.com/nvd/cve-2026-92392>`_ (curl). With default settings these cannot be exploited through the node.
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.43...v5.4.44
+
+*************************
 Hazelnut update (v5.4.43)
 *************************
 
