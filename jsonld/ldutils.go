@@ -24,12 +24,24 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
 	"github.com/nuts-foundation/nuts-node/v6/jsonld/log"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/assets"
 	"github.com/piprate/json-gold/ld"
 	"io/fs"
+	"net/http"
 	"net/url"
+	"sync"
+	"time"
 )
+
+// remoteContextTimeout bounds a single fetch of a remote JSON-LD context document.
+// Contexts are fetched while processing network transactions, so a server that never answers must not block that processing.
+var remoteContextTimeout = 5 * time.Second
+
+// remoteContextFailureTTL is how long a failed remote context fetch is remembered.
+// During that time, loads of the same URL fail immediately with the original error instead of fetching again.
+var remoteContextFailureTTL = 5 * time.Minute
 
 // ContextsConfig contains config for json-ld document loader
 type ContextsConfig struct {
@@ -193,9 +205,11 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 		ld.NewCachingDocumentLoader(
 			// Handle all embedded file system files
 			NewEmbeddedFSDocumentLoader(assets.Assets,
-				// Last in the chain is the defaultLoader which can resolve
-				// local files and remote (via http) context documents
-				ld.NewDefaultDocumentLoader(nil))))
+				// Remember failed remote fetches, so a dead context server costs one timeout instead of one per document
+				newFailureCachingLoader(remoteContextFailureTTL,
+					// Last in the chain is the defaultLoader which can resolve
+					// local files and remote (via http) context documents
+					ld.NewDefaultDocumentLoader(newRemoteContextHTTPClient())))))
 
 	// If unlisted calls are not allowed, filter all calls to the defaultLoader
 	if !allowUnlistedExternalCalls {
@@ -217,6 +231,87 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 	}
 
 	return loader, nil
+}
+
+// newRemoteContextHTTPClient returns the HTTP client used to fetch remote JSON-LD contexts.
+// json-gold needs a *http.Client, so the node's strict HTTP client (timeout, SSRF guard, URL checks, response size limit)
+// is wrapped as its transport.
+func newRemoteContextHTTPClient() *http.Client {
+	return &http.Client{Transport: strictClientTransport{client: client.New(remoteContextTimeout)}}
+}
+
+// strictClientTransport adapts a client.StrictHTTPClient to http.RoundTripper.
+// The strict client follows redirects itself, so the outer http.Client receives the final response.
+type strictClientTransport struct {
+	client *client.StrictHTTPClient
+}
+
+func (s strictClientTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	// RoundTrip must not modify the request, but the strict client sets the User-Agent header.
+	return s.client.Do(request.Clone(request.Context()))
+}
+
+type failedLoad struct {
+	err   error
+	until time.Time
+}
+
+// failureCachingLoader remembers failed loads per URL for a fixed time, and returns the remembered error without
+// calling the next loader during that time. Successful loads are not cached here (see ld.NewCachingDocumentLoader).
+type failureCachingLoader struct {
+	ttl        time.Duration
+	nextLoader ld.DocumentLoader
+	mutex      sync.Mutex
+	failures   map[string]failedLoad
+}
+
+func newFailureCachingLoader(ttl time.Duration, nextLoader ld.DocumentLoader) *failureCachingLoader {
+	return &failureCachingLoader{
+		ttl:        ttl,
+		nextLoader: nextLoader,
+		failures:   map[string]failedLoad{},
+	}
+}
+
+// LoadDocument returns the remembered error if loading u failed less than ttl ago, otherwise it calls the next loader.
+func (f *failureCachingLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	if err := f.recentFailure(u); err != nil {
+		log.Logger().Debugf("Not fetching JSON-LD context, it failed recently (url=%s)", u)
+		return nil, err
+	}
+	document, err := f.nextLoader.LoadDocument(u)
+	if err != nil {
+		f.recordFailure(u, err)
+		log.Logger().WithError(err).Warnf("Failed to load JSON-LD context, not retrying for %s (url=%s)", f.ttl, u)
+	}
+	return document, err
+}
+
+func (f *failureCachingLoader) recentFailure(u string) error {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	failure, ok := f.failures[u]
+	if !ok {
+		return nil
+	}
+	if time.Now().After(failure.until) {
+		delete(f.failures, u)
+		return nil
+	}
+	return failure.err
+}
+
+func (f *failureCachingLoader) recordFailure(u string, err error) {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	now := time.Now()
+	// Prune expired entries, so the map stays bounded by the number of URLs that failed within the last ttl.
+	for failedURL, failure := range f.failures {
+		if now.After(failure.until) {
+			delete(f.failures, failedURL)
+		}
+	}
+	f.failures[u] = failedLoad{err: err, until: now.Add(f.ttl)}
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.
