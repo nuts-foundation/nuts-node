@@ -8,7 +8,7 @@ Peanut (v6.2.19)
 
 Release date: 2026-10-29
 
-- Fix `GHSA-mgcc-cww5-fp2q <https://github.com/advisories/GHSA-mgcc-cww5-fp2q>`_, `GHSA-4w3g-jfj2-cw2q <https://github.com/advisories/GHSA-4w3g-jfj2-cw2q>`_ and `GHSA-vvm8-gf78-28g4 <https://github.com/advisories/GHSA-vvm8-gf78-28g4>`_ (go-jose).
+- Fix `GHSA-mgcc-cww5-fp2q <https://github.com/advisories/GHSA-mgcc-cww5-fp2q>`_, `GHSA-4w3g-jfj2-cw2q <https://github.com/advisories/GHSA-4w3g-jfj2-cw2q>`_ and `GHSA-vvm8-gf78-28g4 <https://github.com/advisories/GHSA-vvm8-gf78-28g4>`_ (go-jose). These cannot be exploited through the node.
 
 **Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.18...v6.2.19
 
