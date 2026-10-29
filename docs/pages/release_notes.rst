@@ -32,6 +32,16 @@ Unreleased
 * #4420: Harden the strict-mode HTTP client against SSRF. In strict mode the client now refuses at connect time to reach non-public addresses (loopback, private/RFC1918, unique local, link-local and unspecified), checked against the resolved IP so DNS-rebinding cannot bypass it, and refuses to follow a redirect that downgrades from HTTPS to HTTP. Cloud provider metadata endpoints are always blocked, following the OWASP SSRF prevention cheat sheet. Deployments that legitimately reach a private address for an internal flow (such as an internal credential offering or OAuth user flow) can permit specific ranges with ``http.client.allowedinternalcidrs``; publicly routable ranges that are internal-only can additionally be blocked with ``http.client.deniedcidrs``, which takes precedence. See :ref:`Outbound HTTP and SSRF protection <ssrf-protection>` for deployment guidance. Reported by @raysabee, fixed by @stevenvegt in https://github.com/nuts-foundation/nuts-node/pull/4420
 
 ****************
+Peanut (v6.2.19)
+****************
+
+Release date: 2026-10-29
+
+- Fix `GHSA-mgcc-cww5-fp2q <https://github.com/advisories/GHSA-mgcc-cww5-fp2q>`_, `GHSA-4w3g-jfj2-cw2q <https://github.com/advisories/GHSA-4w3g-jfj2-cw2q>`_ and `GHSA-vvm8-gf78-28g4 <https://github.com/advisories/GHSA-vvm8-gf78-28g4>`_ (go-jose).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v6.2.18...v6.2.19
+
+****************
 Peanut (v6.2.18)
 ****************
 
@@ -718,6 +728,16 @@ The following features have been deprecated:
 - DIDMan v1 API, to be removed
 - Network v1 API, to be removed
 - VDR v1 API, replaced by VDR v2
+
+*************************
+Hazelnut update (v5.4.45)
+*************************
+
+Release date: 2026-10-29
+
+- Fix `GHSA-mgcc-cww5-fp2q <https://github.com/advisories/GHSA-mgcc-cww5-fp2q>`_, `GHSA-4w3g-jfj2-cw2q <https://github.com/advisories/GHSA-4w3g-jfj2-cw2q>`_ and `GHSA-vvm8-gf78-28g4 <https://github.com/advisories/GHSA-vvm8-gf78-28g4>`_ (go-jose).
+
+**Full Changelog**: https://github.com/nuts-foundation/nuts-node/compare/v5.4.44...v5.4.45
 
 *************************
 Hazelnut update (v5.4.44)
