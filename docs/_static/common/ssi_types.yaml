@@ -108,7 +108,7 @@ components:
           uniqueItems: true
           example: [
             "https://www.w3.org/2018/credentials/v1"
-          ]
+            ]
         id:
           type: string
           description: URI that is used to unambiguously refer to an object, such as a person, product, or organization.

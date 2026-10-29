@@ -515,7 +515,7 @@ components:
                 "identifier": "123456"
               }
             }
-          ]
+            ]
         credential_selection:
           type: object
           description: |
