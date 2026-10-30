@@ -185,4 +185,3 @@ epub_exclude_files = ['search.html']
 
 def setup(app):
     app.add_css_file('css/style.css')
-    app.add_css_file('css/swagger-ui.css')
