@@ -35,6 +35,8 @@ export async function loadNutsNodeApi() {
     const combined = {
         openapi: "3.0.0",
         info: {title: "Nuts Node API", version: ""}, // no version: each API has its own
+        // The servers of all specs; Scalar's API client only offers the servers of the document.
+        servers: [],
         paths: {},
         components: {schemas: {...sharedTypes.components.schemas}, responses: {ErrorResponse: errorResponse}},
         tags: [],
@@ -67,8 +69,12 @@ export async function loadNutsNodeApi() {
         }
         for (const [path, item] of Object.entries(spec.paths)) {
             if (path in combined.paths) throw new Error(`${path} is in more than one spec`);
-            if (spec.servers) item.servers ??= spec.servers;
             combined.paths[path] = item;
+        }
+        for (const server of spec.servers ?? []) {
+            const known = combined.servers.find((existing) => existing.url === server.url);
+            if (known) known.description ??= server.description;
+            else combined.servers.push(server);
         }
         const group = api.deprecated ? "Deprecated" : "APIs";
         groups[group].push(...names.map(tag));

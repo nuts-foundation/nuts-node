@@ -28,6 +28,9 @@ export async function renderNutsApiReference(selector) {
             // Scalar's hosted AI chat only appears on localhost; keep it off everywhere.
             agent: {disabled: true},
             showDeveloperTools: "never",
+            // The client button opens Scalar's hosted client with the URL of this page, which cannot load the
+            // document combined here. The Test Request buttons work.
+            hideClientButton: true,
         });
     } catch (error) {
         element.textContent = `The API reference could not be loaded: ${error.message}`;
