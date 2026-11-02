@@ -442,7 +442,7 @@ components:
                 "identifier": "123456"
               }
             }
-          ]
+            ]
         token_type:
           type: string
           description: "The type of access token that is preferred, default: DPoP"
