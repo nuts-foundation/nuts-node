@@ -2,49 +2,25 @@
 
 API Reference
 =============
-
-Below you can discover the Nuts Node APIs and download their OpenAPI specifications:
-
-- Common: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
-- `DID Manager <../../_static/didman/v1.yaml>`_
-- `Crypto <../../_static/crypto/v1.yaml>`_
-- `Verifiable Credential Registry (v2) <../../_static/vcr/vcr_v2.yaml>`_
-- `Verifiable Data Registry <../../_static/vdr/v1.yaml>`_
-- `Network <../../_static/network/v1.yaml>`_
-- `Auth <../../_static/auth/v1.yaml>`_
-- `Monitoring <../../_static/monitoring/v1.yaml>`_
+Common Schemas and Responses: `SSI types <../../_static/common/ssi_types.yaml>`_, `Default Error <../../_static/common/error_response.yaml>`_
 
 .. raw:: html
 
-    &nbsp;
+    <p style="text-align: right"><a id="scalar-full-screen" class="fa fa-external-link" href="../../_static/api-reference/scalar.html" target="_blank" title="Open full screen" aria-label="Open full screen"></a></p>
+    <style>
+        /* Use the full width; style.css limits pages to 1000px. */
+        .wy-nav-content { max-width: none !important; }
+        /* The theme hides .hidden with !important, which also hides Scalar's menu and search ("hidden lg:flex") on wide screens. */
+        @media (min-width: 1000px) { .scalar-app .hidden.lg\:flex { display: flex !important; visibility: visible; } }
+    </style>
+    <!-- Not id="api-reference": the Scalar script mounts an unconfigured reference into that element by itself. -->
+    <div id="scalar"></div>
 
-.. raw:: html
-
-    <div id="swagger-ui"></div>
-
-    <script src='../../_static/js/swagger-ui-bundle-3.52.3.js' type='text/javascript'></script>
-    <script src='../../_static/js/swagger-ui-standalone-preset-3.52.3.js' type='text/javascript'></script>
-    <script>
-        window.onload = function() {
-            const ui = SwaggerUIBundle({
-                "dom_id": "#swagger-ui",
-                urls: [
-                    {url: "../../_static/didman/v1.yaml", name: "DID Manager"},
-                    {url: "../../_static/crypto/v1.yaml", name: "Crypto"},
-                    {url: "../../_static/vcr/vcr_v2.yaml", name: "Verifiable Credential Registry (v2)"},
-                    {url: "../../_static/vdr/v1.yaml", name: "Verifiable Data Registry"},
-                    {url: "../../_static/network/v1.yaml", name: "Network"},
-                    {url: "../../_static/auth/v1.yaml", name: "Auth"},
-                    {url: "../../_static/monitoring/v1.yaml", name: "Monitoring"},
-                    ],
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                layout: "StandaloneLayout"
-            });
-
-            window.ui = ui
-        }
-
+    <script type="module">
+        import {renderNutsApiReference} from "../../_static/api-reference/scalar.js";
+        renderNutsApiReference("#scalar");
+        // Open the same operation in full screen.
+        document.getElementById("scalar-full-screen").addEventListener("click", (event) => {
+            event.currentTarget.href = event.currentTarget.href.split("#")[0] + location.hash;
+        });
     </script>
