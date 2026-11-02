@@ -434,7 +434,7 @@ components:
             type: string
           example: [ "irma-demo.MijnOverheid.ageLower.over12",
                      "irma-demo.MijnOverheid.fullName"
-          ]
+            ]
     ContractSigningRequest:
       required:
         - type
