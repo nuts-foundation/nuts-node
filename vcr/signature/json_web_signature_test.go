@@ -29,7 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/storage/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"net/http"
 	"testing"
+	"time"
 )
 
 func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
@@ -73,7 +75,7 @@ func TestJsonWebSignature2020_CanonicalizeDocument(t *testing.T) {
 	})
 
 	t.Run("fails with an uncached contextloader when loading is not allowed", func(t *testing.T) {
-		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig())
+		contextLoader, err := jsonld.NewContextLoader(false, jsonld.DefaultContextConfig(), &http.Client{Timeout: 5 * time.Second})
 		assert.NoError(t, err)
 
 		sig := JSONWebSignature2020{ContextLoader: contextLoader}

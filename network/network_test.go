@@ -27,12 +27,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"github.com/nuts-foundation/nuts-node/v6/test"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1444,4 +1446,135 @@ func (s stat) Name() string {
 
 func (s stat) String() string {
 	return "value"
+}
+
+// fakeNotifier is a dag.Notifier whose Run can be scripted: it records calls, can block, and can fail a number of times.
+type fakeNotifier struct {
+	name     string
+	runs     atomic.Int32
+	closed   atomic.Bool
+	failures atomic.Int32  // number of Run calls that return an error before succeeding
+	block    chan struct{} // when set, Run blocks until it is closed
+	onRun    func(name string)
+}
+
+func (f *fakeNotifier) Name() string                             { return f.name }
+func (f *fakeNotifier) Save(_ stoabs.WriteTx, _ dag.Event) error { return nil }
+func (f *fakeNotifier) Notify(_ dag.Event)                       {}
+func (f *fakeNotifier) Finished(_ hash.SHA256Hash) error         { return nil }
+func (f *fakeNotifier) GetFailedEvents() ([]dag.Event, error)    { return nil, nil }
+func (f *fakeNotifier) Close() error                             { f.closed.Store(true); return nil }
+func (f *fakeNotifier) Run() error {
+	f.runs.Add(1)
+	if f.onRun != nil {
+		f.onRun(f.name)
+	}
+	if f.block != nil {
+		<-f.block
+	}
+	if f.failures.Load() > 0 {
+		f.failures.Add(-1)
+		return errors.New("storage failed")
+	}
+	return nil
+}
+
+func TestNetwork_notifierReplay(t *testing.T) {
+	startWithNotifiers := func(t *testing.T, cxt *networkTestContext, notifiers ...dag.Notifier) {
+		cxt.connectionManager.EXPECT().Start()
+		cxt.protocol.EXPECT().Start()
+		cxt.state.EXPECT().Start()
+		cxt.state.EXPECT().Notifiers().Return(notifiers)
+		require.NoError(t, cxt.network.Start())
+	}
+	expectShutdown := func(cxt *networkTestContext) {
+		cxt.protocol.EXPECT().Stop()
+		cxt.connectionManager.EXPECT().Stop()
+		cxt.state.EXPECT().Shutdown()
+	}
+
+	t.Run("Start returns while the replay is still running, Shutdown waits for it", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		blocked := &fakeNotifier{name: "vcr_vcs", block: make(chan struct{})}
+		startWithNotifiers(t, cxt, blocked)
+
+		// Start returned; Run is in progress (or about to be)
+		test.WaitFor(t, func() (bool, error) { return blocked.runs.Load() == 1, nil }, time.Second, "replay did not start")
+
+		expectShutdown(cxt)
+		shutdownDone := make(chan error, 1)
+		go func() { shutdownDone <- cxt.network.Shutdown() }()
+		select {
+		case <-shutdownDone:
+			t.Fatal("Shutdown returned while a notifier replay was still running")
+		case <-time.After(100 * time.Millisecond):
+		}
+		close(blocked.block)
+		require.NoError(t, <-shutdownDone)
+		assert.True(t, blocked.closed.Load(), "Shutdown must close the notifiers so in-flight work is cancelled")
+	})
+	t.Run("notifiers run one at a time, DID documents first, then by name", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		var mu sync.Mutex
+		var order []string
+		record := func(name string) {
+			mu.Lock()
+			defer mu.Unlock()
+			order = append(order, name)
+		}
+		notifiers := []dag.Notifier{
+			&fakeNotifier{name: "vcr_vcs", onRun: record},
+			&fakeNotifier{name: "nats", onRun: record},
+			&fakeNotifier{name: vdrNotifierName, onRun: record},
+			&fakeNotifier{name: "private", onRun: record},
+		}
+		startWithNotifiers(t, cxt, notifiers...)
+		cxt.network.replayWG.Wait() // let the replay finish (Shutdown would cancel it)
+		expectShutdown(cxt)
+		require.NoError(t, cxt.network.Shutdown())
+
+		assert.Equal(t, []string{vdrNotifierName, "nats", "private", "vcr_vcs"}, order)
+	})
+	t.Run("a notifier that fails to run is retried", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		previous := notifierReplayRetryDelay
+		notifierReplayRetryDelay = 10 * time.Millisecond
+		t.Cleanup(func() { notifierReplayRetryDelay = previous })
+		failing := &fakeNotifier{name: "vcr_vcs"}
+		failing.failures.Store(2)
+		after := &fakeNotifier{name: "vdr_zz"} // sorts after vcr_vcs, must still run after the retries succeed
+		startWithNotifiers(t, cxt, failing, after)
+		cxt.network.replayWG.Wait() // let the retries finish (Shutdown would cancel them)
+		expectShutdown(cxt)
+		require.NoError(t, cxt.network.Shutdown())
+
+		assert.Equal(t, int32(3), failing.runs.Load())
+		assert.Equal(t, int32(1), after.runs.Load())
+	})
+	t.Run("Shutdown stops the retry loop", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		cxt := createNetwork(t, ctrl)
+		previous := notifierReplayRetryDelay
+		notifierReplayRetryDelay = time.Hour // retry would never come
+		t.Cleanup(func() { notifierReplayRetryDelay = previous })
+		failing := &fakeNotifier{name: "vcr_vcs"}
+		failing.failures.Store(1000)
+		never := &fakeNotifier{name: "zzz"}
+		startWithNotifiers(t, cxt, failing, never)
+		test.WaitFor(t, func() (bool, error) { return failing.runs.Load() == 1, nil }, time.Second, "replay did not start")
+
+		expectShutdown(cxt)
+		done := make(chan error, 1)
+		go func() { done <- cxt.network.Shutdown() }()
+		select {
+		case err := <-done:
+			require.NoError(t, err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("Shutdown did not stop the replay retry loop")
+		}
+		assert.Equal(t, int32(0), never.runs.Load())
+	})
 }

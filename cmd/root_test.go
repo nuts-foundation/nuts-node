@@ -27,6 +27,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/test/io"
@@ -215,5 +216,30 @@ func Test_ClientCommand_ErrorHandlers(t *testing.T) {
 
 		err := cmd.RunE(cmd, nil)
 		assert.Error(t, err)
+	})
+}
+
+// blockingEngine is a core.Runnable whose Shutdown blocks until released.
+type blockingEngine struct {
+	release chan struct{}
+}
+
+func (b *blockingEngine) Name() string    { return "blocking" }
+func (b *blockingEngine) Start() error    { return nil }
+func (b *blockingEngine) Shutdown() error { <-b.release; return nil }
+
+func Test_shutdownWithTimeout(t *testing.T) {
+	t.Run("completes within the timeout", func(t *testing.T) {
+		system := core.NewSystem()
+		system.RegisterEngine(&core.TestEngine{})
+		assert.NoError(t, shutdownWithTimeout(system, time.Second))
+	})
+	t.Run("gives up when an engine does not shut down in time", func(t *testing.T) {
+		engine := &blockingEngine{release: make(chan struct{})}
+		defer close(engine.release)
+		system := core.NewSystem()
+		system.RegisterEngine(engine)
+		err := shutdownWithTimeout(system, 50*time.Millisecond)
+		assert.EqualError(t, err, "shutdown did not complete within 50ms, exiting with engines still shutting down")
 	})
 }
