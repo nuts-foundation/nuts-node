@@ -17,9 +17,6 @@ paths:
       summary: Create a signing session for a supported means.
       description: |
         Create a signing session for a supported means.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format
       tags:
         - contract
       requestBody:
@@ -29,12 +26,22 @@ paths:
             schema:
               $ref: "#/components/schemas/SignSessionRequest"
       responses:
-        201:
+        '201':
           description: When the signing session was successfully created.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignSessionResponse"
+        '400':
+          description: one of the parameters has the wrong format
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: CreateSignSession failed
+                status: 400
+                detail: one of the parameters has the wrong format
         default:
           $ref: '../common/error_response.yaml'
 
@@ -44,10 +51,6 @@ paths:
       summary: Get the current status of a signing session
       description: |
         Get the current status of a signing session
-
-        error returns:
-        * 404 - session could not be found
-        * 500 - internal server error
       tags:
         - contract
       parameters:
@@ -57,12 +60,22 @@ paths:
           schema:
             type: string
       responses:
-        200:
+        '200':
           description: When the session is found. Contains the current session status.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignSessionStatusResponse"
+        '404':
+          description: session could not be found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: GetSignSessionStatus failed
+                status: 404
+                detail: session could not be found
         default:
           $ref: '../common/error_response.yaml'
 
@@ -72,10 +85,6 @@ paths:
       summary: Verify a signature in the form of a verifiable presentation
       description: |
         Verify a signature in the form of a verifiable presentation
-
-        error returns:
-        * 400 - one of the parameters has the wrong format
-        * 500 - internal server error
       tags:
         - contract
       requestBody:
@@ -85,12 +94,22 @@ paths:
             schema:
               $ref: "#/components/schemas/SignatureVerificationRequest"
       responses:
-        200:
+        '200':
           description: "When the verification could be performed. The response contains the verification result. Note: This status code does not indicate the validity of the signature."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SignatureVerificationResponse"
+        '400':
+          description: one of the parameters has the wrong format
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: VerifySignature failed
+                status: 400
+                detail: one of the parameters has the wrong format
         default:
           $ref: '../common/error_response.yaml'
 
@@ -100,9 +119,6 @@ paths:
       summary: Get a contract by type and version
       description: |
         Get contract by type and version
-
-        error returns:
-        * 404 - contract does not exists
       tags:
         - contract
       parameters:
@@ -130,6 +146,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contract"
+        '404':
+          description: contract does not exists
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: GetContractByType failed
+                status: 404
+                detail: contract does not exists
         default:
           $ref: '../common/error_response.yaml'
 
@@ -139,10 +165,6 @@ paths:
       summary: Draw up a contract using a specified contract template, language and version
       description: |
         Draw up a contract using a specified contract template, language and version
-
-        error returns:
-        * 400 - one of the parameters has the wrong format
-        * 404 - combination of template, language, and version not found
       tags:
         - contract
       requestBody:
@@ -152,12 +174,32 @@ paths:
             schema:
               $ref: "#/components/schemas/DrawUpContractRequest"
       responses:
-        200:
+        '200':
           description: When the contract was drawn up successfully.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContractResponse"
+        '400':
+          description: one of the parameters has the wrong format
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: DrawUpContract failed
+                status: 400
+                detail: one of the parameters has the wrong format
+        '404':
+          description: combination of template, language, and version not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: DrawUpContract failed
+                status: 404
+                detail: combination of template, language, and version not found
         default:
           $ref: '../common/error_response.yaml'
 
@@ -167,9 +209,6 @@ paths:
       summary: Create a JWT Grant
       description: |
         Create a JWT Grant which can be used in the createAccessToken request in the assertion field
-
-        error returns:
-        * 400 - one of the parameters has the wrong format
       tags:
         - auth
       requestBody:
@@ -185,6 +224,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/JwtGrantResponse"
+        '400':
+          description: one of the parameters has the wrong format
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: CreateJwtGrant failed
+                status: 400
+                detail: one of the parameters has the wrong format
         default:
           $ref: '../common/error_response.yaml'
 
@@ -194,10 +243,6 @@ paths:
       summary: Request an access token from the authorizer
       description: |
         Create a JWT Grant and use it as authorization grant to get an access token from the authorizer.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format
-        * 503 - the authorizer could not be reached or returned an error
       tags:
         - auth
       requestBody:
@@ -213,6 +258,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessTokenResponse"
+        '400':
+          description: one of the parameters has the wrong format
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RequestAccessToken failed
+                status: 400
+                detail: one of the parameters has the wrong format
+        '503':
+          description: the authorizer could not be reached or returned an error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RequestAccessToken failed
+                status: 503
+                detail: the authorizer could not be reached or returned an error
         default:
           $ref: '../common/error_response.yaml'
 
@@ -255,9 +320,6 @@ paths:
       summary: Verifies the provided access token
       description: |
         Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
-
-        error returns:
-        * 403 - Token cannot be verified. Note that the contents of the access token are not returned. The introspection API is for that.
       tags:
         - auth
       parameters:
@@ -270,7 +332,7 @@ paths:
         '200':
           description: The access token is valid. It has been signed by this server.
         '403':
-          description: The given access token is invalid or couldn't be verified.
+          description: The given access token is invalid or couldn't be verified. Note that the contents of the access token are not returned. The introspection API is for that.
 
   /internal/auth/v1/accesstoken/introspect:
     post:

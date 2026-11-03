@@ -24,10 +24,6 @@ paths:
       summary: "Resolves a verifiable credential"
       description: >
         Returns the resolved credential, regardless of its revocation/trust state.
-
-        error returns:
-        * 404 - Corresponding credential could not be found
-        * 500 - An error occurred while processing the request
       operationId: "resolveVC"
       tags:
         - credential
@@ -38,6 +34,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifiableCredential'
+        "404":
+          description: Corresponding credential could not be found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: ResolveVC failed
+                status: 404
+                detail: Corresponding credential could not be found
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/search:
@@ -46,10 +52,6 @@ paths:
       description: >
         The result contains a list of matching credentials. Only verified credentials are returned.
         The search parameters define how the raw results are filtered.
-
-        error returns:
-        * 400 - Incorrect search query
-        * 500 - An error occurred while processing the request
       operationId: "searchVCs"
       requestBody:
         required: true
@@ -105,6 +107,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchVCResults'
+        "400":
+          description: Incorrect search query
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SearchVCs failed
+                status: 400
+                detail: Incorrect search query
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc:
@@ -123,11 +135,6 @@ paths:
         - withStatusList2021Revocation MUST NOT be set
         - when publishToNetwork is set, visibility MUST be set as well
         - when publishToNetwork is set, the credential format MUST be ldp_vc (which is the default).
-        
-        error returns:
-        * 400 - One or more of the given parameters are invalid
-        * 412 - A private transaction is issued for a subject that does not have a NutsComm address (did:nuts DIDs only)
-        * 500 - An error occurred while processing the request
       operationId: "issueVC"
       tags:
         - credential
@@ -191,6 +198,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifiableCredential'
+        "400":
+          description: One or more of the given parameters are invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: IssueVC failed
+                status: 400
+                detail: One or more of the given parameters are invalid
+        "412":
+          description: A private transaction is issued for a subject that does not have a NutsComm address (did:nuts DIDs only)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: IssueVC failed
+                status: 412
+                detail: A private transaction is issued for a subject that does not have a NutsComm address (did:nuts DIDs only)
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/search:
@@ -199,10 +226,6 @@ paths:
       description: >
         The SearchVCResult contains a list of matching credentials regardless of the validity.
         The entry may contain a revocation if the credential has been revoked with a credential of type CredentialRevocation. 
-
-        error returns:
-        * 400 - Invalid search parameters
-        * 500 - An error occurred while processing the request
       operationId: "searchIssuedVCs"
       parameters:
         - name: credentialType
@@ -235,6 +258,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchVCResults'
+        "400":
+          description: Invalid search parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SearchIssuedVCs failed
+                status: 400
+                detail: Invalid search parameters
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/{id}:
@@ -252,12 +285,6 @@ paths:
         Revoke a credential.
         For a credential issued by did:nuts a revocation credential is published to the network
         For a credential issued by did:web the revocation bit is set on the status list referenced in VC.credentialStatus
-
-        error returns:
-        * 400 - Credential can't be revoked. Most likely due to a missing private key. Or credential contains no credentialStatus.
-        * 404 - Credential not found
-        * 409 - Credential has already been revoked
-        * 500 - An error occurred while processing the request
       operationId: "revokeVC"
       tags:
         - credential
@@ -270,6 +297,36 @@ paths:
                 $ref: '#/components/schemas/Revocation'
         "204":
           description: Revocation for did:web VC has been processed. It is accessible in the StatusList bitstring.
+        "400":
+          description: Credential can't be revoked. Most likely due to a missing private key. Or credential contains no credentialStatus.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RevokeVC failed
+                status: 400
+                detail: Credential can't be revoked. Most likely due to a missing private key. Or credential contains no credentialStatus.
+        "404":
+          description: Credential not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RevokeVC failed
+                status: 404
+                detail: Credential not found
+        "409":
+          description: Credential has already been revoked
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RevokeVC failed
+                status: 409
+                detail: Credential has already been revoked
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vc:
@@ -282,10 +339,6 @@ paths:
         * Revocation status
         * If the issuer is trusted
         * If the issuer was not deactivated at time of issuing
-        
-        error returns:
-        * 400 - One or more of the given parameters are invalid
-        * 500 - An error occurred while processing the request
       operationId: "verifyVC"
       tags:
         - credential
@@ -302,6 +355,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VCVerificationResult'
+        "400":
+          description: One or more of the given parameters are invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: VerifyVC failed
+                status: 400
+                detail: One or more of the given parameters are invalid
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vp:
@@ -317,10 +380,6 @@ paths:
 
         If the verification can be performed successfully (regardless whether checks failed), HTTP status 200 is returned.
         Callers MUST observe the "validity" field of the verification result to check whether the VP is valid.
-
-        error returns:
-        * 400 - A parameter or the format of the verifiable presentation is invalid
-        * 500 - An error occurred while processing the request
       operationId: "verifyVP"
       tags:
         - credential
@@ -337,6 +396,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VPVerificationResult'
+        "400":
+          description: A parameter or the format of the verifiable presentation is invalid
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: VerifyVP failed
+                status: 400
+                detail: A parameter or the format of the verifiable presentation is invalid
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/trust:
@@ -344,10 +413,6 @@ paths:
       summary: Mark all the VCs of given type and issuer as 'trusted'.
       description: |
         The added trust is persisted and may be removed with a delete operation.
-
-        error returns:
-        * 400 - Invalid parameters
-        * 500 - An error occurred while processing the request
       operationId: "trustIssuer"
       tags:
         - credential
@@ -361,16 +426,22 @@ paths:
       responses:
         "204":
           description: The change was accepted.
+        "400":
+          description: Invalid parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: TrustIssuer failed
+                status: 400
+                detail: Invalid parameters
         default:
           $ref: '../common/error_response.yaml'
     delete:
       summary: Remove trust in an issuer/credentialType combination
       description: |
         The removed trust is persisted.
-
-        error returns:
-        * 400 - Invalid parameters
-        * 500 - An error occurred while processing the request
       operationId: "untrustIssuer"
       tags:
         - credential
@@ -384,6 +455,16 @@ paths:
       responses:
         "204":
           description: The change was accepted.
+        "400":
+          description: Invalid parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: UntrustIssuer failed
+                status: 400
+                detail: Invalid parameters
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/{credentialType}/trusted:
@@ -391,10 +472,6 @@ paths:
       summary: "List all trusted issuers for a given credential type"
       description: |
         List all trusted issuers for a given credential type.
-
-        error returns:
-        * 400 - Malformed credential type
-        * 404 - Unknown credential type
       operationId: "listTrusted"
       tags:
         - credential
@@ -417,6 +494,16 @@ paths:
                   type: string
                   description: DID according to Nuts specification
                   example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+        "400":
+          description: Malformed credential type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: ListTrusted failed
+                status: 400
+                detail: Malformed credential type
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/{credentialType}/untrusted:
@@ -424,10 +511,6 @@ paths:
       summary: "List all untrusted issuers for a given credential type"
       description: |
         List all untrusted issuers for a given credential type.
-
-        error returns:
-        * 400 - Malformed credential type
-        * 404 - Unknown credential type
       operationId: "listUntrusted"
       tags:
         - credential
@@ -450,6 +533,16 @@ paths:
                   type: string
                   description: DID according to Nuts specification
                   example: "did:nuts:B8PUHs2AUHbFF1xLLK4eZjgErEcMXHxs68FteY7NDtCY"
+        "400":
+          description: Malformed credential type
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: ListUntrusted failed
+                status: 400
+                detail: Malformed credential type
         default:
           $ref: '../common/error_response.yaml'
 
@@ -458,10 +551,6 @@ paths:
       summary: Create a new Verifiable Presentation for a set of Verifiable Credentials.
       description: |
         Given a list of VCs, create a new presentation.
-
-        error returns:
-        * 400 - Invalid parameters
-        * 500 - An error occurred while processing the request
       operationId: createVP
       tags:
         - credential
@@ -478,6 +567,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VerifiablePresentation"
+        "400":
+          description: Invalid parameters
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: CreateVP failed
+                status: 400
+                detail: Invalid parameters
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/holder/{subjectID}/vc:
@@ -507,6 +606,16 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/VerifiableCredential"
+        "404":
+          description: Subject not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: GetCredentialsInWallet failed
+                status: 404
+                detail: Subject not found
         default:
           $ref: '../common/error_response.yaml'
     post:
@@ -515,10 +624,6 @@ paths:
         If a VerifiableCredential is not directly issued to the wallet through e.g. OpenID4VCI, this API allows to add it to a wallet.
         The subject identifier of the holder has to be provided in the path.
         The credentialSubject.id must equal to a DID of the holder, the signature must be valid and the credential must not be expired or revoked.
-
-        error returns:
-        * 400 - Invalid credential
-        * 500 - An error occurred while processing the request
       operationId: loadVC
       tags:
         - credential
@@ -531,6 +636,16 @@ paths:
       responses:
         "204":
           description: The credential will not be altered in any way, so no need to return it.
+        "400":
+          description: Invalid credential
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: LoadVC failed
+                status: 400
+                detail: Invalid credential
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/holder/{subjectID}/vc/{id}:
@@ -559,17 +674,32 @@ paths:
         Remove a VerifiableCredential from the holders wallet. After removal the holder can't present the credential any more.
         It does not revoke the credential or inform the credential issuer that the wallet removed the wallet.
 
-
-        error returns:
-        * 400 - Invalid credential
-        * 404 - Credential or subject not found
-        * 500 - An error occurred while processing the request
       operationId: removeCredentialFromWallet
       tags:
         - credential
       responses:
         "204":
           description: Credential has been removed from the wallet.
+        "400":
+          description: Invalid credential
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RemoveCredentialFromWallet failed
+                status: 400
+                detail: Invalid credential
+        "404":
+          description: Credential or subject not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: RemoveCredentialFromWallet failed
+                status: 404
+                detail: Credential or subject not found
         default:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/holder/{subjectID}/vc/search:
@@ -589,10 +719,6 @@ paths:
         The SearchVCResult contains a list of matching credentials in the wallet regardless of validity.
         This allows applications to build a listing of all credentials in wallets, regardless of its status (expired/revoked).
         The entry may contain a revocation if the credential has been revoked with a credential of type CredentialRevocation.
-
-        error returns:
-        * 404 - Subject not found
-        * 500 - An error occurred while processing the request
       operationId: "searchCredentialsInWallet"
       tags:
         - credential
@@ -603,6 +729,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SearchVCResults'
+        "404":
+          description: Subject not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SearchCredentialsInWallet failed
+                status: 404
+                detail: Subject not found
         default:
           $ref: '../common/error_response.yaml'
 components:

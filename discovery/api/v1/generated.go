@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -238,7 +239,7 @@ func (response GetServices200JSONResponse) VisitGetServicesResponse(w http.Respo
 
 type GetServicesdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -275,9 +276,18 @@ func (response SearchPresentations200JSONResponse) VisitSearchPresentationsRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchPresentations404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response SearchPresentations404ApplicationProblemPlusJSONResponse) VisitSearchPresentationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchPresentationsdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -325,9 +335,18 @@ func (response DeactivateServiceForSubject202JSONResponse) VisitDeactivateServic
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeactivateServiceForSubject404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateServiceForSubject404ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -377,9 +396,18 @@ func (response GetServiceActivation200JSONResponse) VisitGetServiceActivationRes
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetServiceActivation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetServiceActivation404ApplicationProblemPlusJSONResponse) VisitGetServiceActivationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetServiceActivationdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -416,9 +444,27 @@ func (response ActivateServiceForSubject200Response) VisitActivateServiceForSubj
 	return nil
 }
 
+type ActivateServiceForSubject404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ActivateServiceForSubject404ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ActivateServiceForSubject412ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ActivateServiceForSubject412ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode

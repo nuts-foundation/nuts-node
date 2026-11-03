@@ -14,9 +14,6 @@ paths:
       summary: "sign a JWT payload with the private key of the given kid"
       description: |
         Sign a JWT payload with the private key of the given kid
-
-        error returns:
-        * 400 - incorrect input
       operationId: signJwt
       tags:
         - crypto
@@ -34,6 +31,16 @@ paths:
               schema:
                 type: string
                 example: "aa==.bb==.cc=="
+        '400':
+          description: incorrect input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SignJwt failed
+                status: 400
+                detail: incorrect input
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/sign_jws:
@@ -41,9 +48,6 @@ paths:
       summary: "sign a payload and headers with the private key of the given kid into a JWS object"
       description: |
         Sign a payload and headers with the private key of the given kid into a JWS object
-
-        error returns:
-        * 400 - incorrect input
       operationId: signJws
       tags:
         - crypto
@@ -61,6 +65,16 @@ paths:
               schema:
                 type: string
                 example: "aa==.bb==.cc=="
+        '400':
+          description: incorrect input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SignJws failed
+                status: 400
+                detail: incorrect input
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/encrypt_jwe:
@@ -70,9 +84,6 @@ paths:
         Encrypt a payload and headers with the public key of the given DID into a JWE object
         
         Note: this feature is experimental and might be changed in a future minor release without prior notice.
-
-        error returns:
-        * 400 - incorrect input
       operationId: encryptJwe
       tags:
         - crypto
@@ -90,6 +101,16 @@ paths:
               schema:
                 type: string
                 example: "aa==.bb==.cc==.dd==.ee=="
+        '400':
+          description: incorrect input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: EncryptJwe failed
+                status: 400
+                detail: incorrect input
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/decrypt_jwe:
@@ -99,9 +120,6 @@ paths:
         Decrypt a payload with the private key related to the KeyID in the header
         
         Note: this feature is experimental and might be changed in a future minor release without prior notice.
-
-        error returns:
-        * 400 - incorrect input
       operationId: decryptJwe
       tags:
         - crypto
@@ -129,6 +147,16 @@ paths:
                   headers:
                     type: object
                     description: "The message headers."
+        '400':
+          description: incorrect input
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: DecryptJwe failed
+                status: 400
+                detail: incorrect input
         default:
           $ref: '../common/error_response.yaml'
 components:

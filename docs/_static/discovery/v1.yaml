@@ -72,9 +72,6 @@ paths:
         - `credentialSubject.organization.name=Hospital*`
         - `credentialSubject.organization.name=*clinic`
         - `issuer=did:web:example.com`
-        
-        error returns:
-        * 404 - unknown service.
       operationId: searchPresentations
       tags:
         - discovery
@@ -87,6 +84,16 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SearchResult"
+        "404":
+          description: unknown service.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: SearchPresentations failed
+                status: 404
+                detail: unknown service.
         default:
           $ref: "../common/error_response.yaml"
   /internal/discovery/v1/{serviceID}/{subjectID}:
@@ -116,9 +123,6 @@ paths:
         and the status of the activation. A refresh could have failed.
         It will return true after successfully calling the activateServiceForSubject API, and false after calling the deactivateServiceForSubject API.
         It also returns the active Verifiable Presentations, if any.
-        
-        error returns:
-        * 404 - unknown service or subject.
       operationId: getServiceActivation
       tags:
         - discovery
@@ -151,6 +155,16 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
+        "404":
+          description: unknown service or subject.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: GetServiceActivation failed
+                status: 404
+                detail: unknown service or subject.
         default:
           $ref: "../common/error_response.yaml"
     post:
@@ -163,10 +177,6 @@ paths:
         Applications only need to call this API once for every service/subject combination, until the registration is explicitly deleted through this API.
         
         Applications can force a retry by calling this API again.
-        
-        error returns:
-        * 404 - unknown service or subject
-        * 412 - precondition failed: subject doesn't have the required credentials
       operationId: activateServiceForSubject
       tags:
         - discovery
@@ -178,6 +188,26 @@ paths:
       responses:
         "200":
           description: Activation was successful.
+        "404":
+          description: unknown service or subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: ActivateServiceForSubject failed
+                status: 404
+                detail: unknown service or subject
+        "412":
+          description: "precondition failed: subject doesn't have the required credentials"
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: ActivateServiceForSubject failed
+                status: 412
+                detail: "precondition failed: subject doesn't have the required credentials"
         default:
           $ref: "../common/error_response.yaml"
     delete:
@@ -185,9 +215,6 @@ paths:
       description: |
         An API provided by the discovery client that will cancel the periodic registration of a subject on the specified Discovery Service.
         It will also try to delete all the existing registrations on the Discovery Service, if any.
-        
-        error returns:
-        * 404 - unknown service or subject
       operationId: deactivateServiceForSubject
       tags:
         - discovery
@@ -210,6 +237,16 @@ paths:
                   reason:
                     type: string
                     description: Description of why removal of the registration failed.
+        "404":
+          description: unknown service or subject
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example:
+                title: DeactivateServiceForSubject failed
+                status: 404
+                detail: unknown service or subject
         default:
           $ref: "../common/error_response.yaml"
 components:

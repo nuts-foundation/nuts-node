@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -617,9 +618,27 @@ func (response DrawUpContract200JSONResponse) VisitDrawUpContractResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DrawUpContract400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DrawUpContract400ApplicationProblemPlusJSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DrawUpContract404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DrawUpContract404ApplicationProblemPlusJSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DrawUpContractdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -655,9 +674,18 @@ func (response CreateJwtGrant200JSONResponse) VisitCreateJwtGrantResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateJwtGrant400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateJwtGrant400ApplicationProblemPlusJSONResponse) VisitCreateJwtGrantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateJwtGrantdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -693,9 +721,27 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessToken503ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestAccessToken503ApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -731,9 +777,18 @@ func (response CreateSignSession201JSONResponse) VisitCreateSignSessionResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateSignSession400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateSignSession400ApplicationProblemPlusJSONResponse) VisitCreateSignSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateSignSessiondefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -769,9 +824,18 @@ func (response GetSignSessionStatus200JSONResponse) VisitGetSignSessionStatusRes
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetSignSessionStatus404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetSignSessionStatus404ApplicationProblemPlusJSONResponse) VisitGetSignSessionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetSignSessionStatusdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -807,9 +871,18 @@ func (response VerifySignature200JSONResponse) VisitVerifySignatureResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type VerifySignature400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response VerifySignature400ApplicationProblemPlusJSONResponse) VisitVerifySignatureResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type VerifySignaturedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -872,9 +945,18 @@ func (response GetContractByType200JSONResponse) VisitGetContractByTypeResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetContractByType404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContractByType404ApplicationProblemPlusJSONResponse) VisitGetContractByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetContractByTypedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode

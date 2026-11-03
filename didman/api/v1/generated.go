@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -1018,8 +1019,10 @@ type GetCompoundServicesResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]CompoundService
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1050,8 +1053,11 @@ type AddCompoundServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *CompoundService
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1082,8 +1088,11 @@ type GetCompoundServiceEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *EndpointResponse
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON406     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1114,8 +1123,10 @@ type UpdateCompoundServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *CompoundService
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1146,8 +1157,11 @@ type GetContactInformationResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *ContactInformation
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1178,8 +1192,11 @@ type UpdateContactInformationResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *ContactInformation
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1210,8 +1227,11 @@ type AddEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *Endpoint
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1241,8 +1261,11 @@ func (r AddEndpointResponse) StatusCode() int {
 type DeleteEndpointsByTypeResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1273,8 +1296,10 @@ type UpdateEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *Endpoint
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1306,7 +1331,7 @@ type SearchOrganizationsResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *[]OrganizationSearchResult
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1336,8 +1361,11 @@ func (r SearchOrganizationsResponse) StatusCode() int {
 type DeleteServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -1524,9 +1552,23 @@ func ParseGetCompoundServicesResponse(rsp *http.Response) (*GetCompoundServicesR
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1566,9 +1608,30 @@ func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceRes
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1608,9 +1671,30 @@ func ParseGetCompoundServiceEndpointResponse(rsp *http.Response) (*GetCompoundSe
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 406:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON406 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1653,9 +1737,23 @@ func ParseUpdateCompoundServiceResponse(rsp *http.Response) (*UpdateCompoundServ
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1695,9 +1793,30 @@ func ParseGetContactInformationResponse(rsp *http.Response) (*GetContactInformat
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1737,9 +1856,30 @@ func ParseUpdateContactInformationResponse(rsp *http.Response) (*UpdateContactIn
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1779,9 +1919,30 @@ func ParseAddEndpointResponse(rsp *http.Response) (*AddEndpointResponse, error) 
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1814,9 +1975,30 @@ func ParseDeleteEndpointsByTypeResponse(rsp *http.Response) (*DeleteEndpointsByT
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1856,9 +2038,23 @@ func ParseUpdateEndpointResponse(rsp *http.Response) (*UpdateEndpointResponse, e
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1900,7 +2096,7 @@ func ParseSearchOrganizationsResponse(rsp *http.Response) (*SearchOrganizationsR
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1933,9 +2129,30 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -1957,10 +2174,6 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get a list of compound services for a DID document.
-	//
-	// error responses:
-	// * 400 - incorrect input
-	// * 404 - unknown DID
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx echo.Context, did string) error
 	// Add a compound service to a DID Document.
@@ -2332,9 +2545,27 @@ func (response GetCompoundServices200JSONResponse) VisitGetCompoundServicesRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetCompoundServices400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServices400ApplicationProblemPlusJSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServices404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServices404ApplicationProblemPlusJSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCompoundServicesdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2371,9 +2602,36 @@ func (response AddCompoundService200JSONResponse) VisitAddCompoundServiceRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type AddCompoundService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService400ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddCompoundService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService404ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddCompoundService409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService409ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type AddCompoundServicedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2422,9 +2680,36 @@ func (response GetCompoundServiceEndpoint200TextResponse) VisitGetCompoundServic
 	return err
 }
 
+type GetCompoundServiceEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint400ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServiceEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint404ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServiceEndpoint406ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint406ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(406)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCompoundServiceEndpointdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2462,9 +2747,27 @@ func (response UpdateCompoundService200JSONResponse) VisitUpdateCompoundServiceR
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateCompoundService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateCompoundService400ApplicationProblemPlusJSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCompoundService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateCompoundService404ApplicationProblemPlusJSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateCompoundServicedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2500,9 +2803,36 @@ func (response GetContactInformation200JSONResponse) VisitGetContactInformationR
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetContactInformation400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation400ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContactInformation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation404ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContactInformation409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation409ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetContactInformationdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2539,9 +2869,36 @@ func (response UpdateContactInformation200JSONResponse) VisitUpdateContactInform
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateContactInformation400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation400ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateContactInformation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation404ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateContactInformation409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation409ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateContactInformationdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2578,9 +2935,36 @@ func (response AddEndpoint200JSONResponse) VisitAddEndpointResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type AddEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint400ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint404ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddEndpoint409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint409ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type AddEndpointdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2616,9 +3000,36 @@ func (response DeleteEndpointsByType204Response) VisitDeleteEndpointsByTypeRespo
 	return nil
 }
 
+type DeleteEndpointsByType400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType400ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteEndpointsByType404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType404ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteEndpointsByType409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType409ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteEndpointsByTypedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2656,9 +3067,27 @@ func (response UpdateEndpoint200JSONResponse) VisitUpdateEndpointResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateEndpoint400ApplicationProblemPlusJSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateEndpoint404ApplicationProblemPlusJSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateEndpointdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2696,7 +3125,7 @@ func (response SearchOrganizations200JSONResponse) VisitSearchOrganizationsRespo
 
 type SearchOrganizationsdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2731,9 +3160,36 @@ func (response DeleteService204Response) VisitDeleteServiceResponse(w http.Respo
 	return nil
 }
 
+type DeleteService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService400ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService404ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteService409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService409ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteServicedefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -2755,10 +3211,6 @@ func (response DeleteServicedefaultApplicationProblemPlusJSONResponse) VisitDele
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get a list of compound services for a DID document.
-	//
-	// error responses:
-	// * 400 - incorrect input
-	// * 404 - unknown DID
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx context.Context, request GetCompoundServicesRequestObject) (GetCompoundServicesResponseObject, error)
 	// Add a compound service to a DID Document.

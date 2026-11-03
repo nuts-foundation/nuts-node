@@ -317,7 +317,7 @@ type GetPresentationsResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *PresentationsResponse
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -348,7 +348,7 @@ type RegisterPresentationResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
 	ApplicationproblemJSON400 *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -358,7 +358,7 @@ type RegisterPresentationResponse struct {
 		Title string `json:"title"`
 	}
 	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -434,7 +434,7 @@ func ParseGetPresentationsResponse(rsp *http.Response) (*GetPresentationsRespons
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -469,7 +469,7 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -485,7 +485,7 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
 		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
+			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 			Detail string `json:"detail"`
 
 			// Status HTTP statuscode
@@ -613,7 +613,7 @@ func (response GetPresentations200JSONResponse) VisitGetPresentationsResponse(w 
 
 type GetPresentationsdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode
@@ -650,7 +650,7 @@ func (response RegisterPresentation201Response) VisitRegisterPresentationRespons
 }
 
 type RegisterPresentation400ApplicationProblemPlusJSONResponse struct {
-	// Detail A human-readable explanation specific to this occurrence of the problem.
+	// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 	Detail string `json:"detail"`
 
 	// Status HTTP statuscode
@@ -669,7 +669,7 @@ func (response RegisterPresentation400ApplicationProblemPlusJSONResponse) VisitR
 
 type RegisterPresentationdefaultApplicationProblemPlusJSONResponse struct {
 	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
+		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 		Detail string `json:"detail"`
 
 		// Status HTTP statuscode

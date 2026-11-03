@@ -10,3 +10,5 @@ output-options:
   - OrganizationSearchResult
   - Endpoint
   - CompoundService
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v6/api
