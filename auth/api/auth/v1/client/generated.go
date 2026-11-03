@@ -1179,16 +1179,7 @@ type DrawUpContractResponse struct {
 	JSON200                       *ContractResponse
 	ApplicationproblemJSON400     *externalRef0.ProblemDetails
 	ApplicationproblemJSON404     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1212,16 +1203,7 @@ type CreateJwtGrantResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *JwtGrantResponse
 	ApplicationproblemJSON400     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1246,16 +1228,7 @@ type RequestAccessTokenResponse struct {
 	JSON200                       *AccessTokenResponse
 	ApplicationproblemJSON400     *externalRef0.ProblemDetails
 	ApplicationproblemJSON503     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1279,16 +1252,7 @@ type CreateSignSessionResponse struct {
 	HTTPResponse                  *http.Response
 	JSON201                       *SignSessionResponse
 	ApplicationproblemJSON400     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1312,16 +1276,7 @@ type GetSignSessionStatusResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *SignSessionStatusResponse
 	ApplicationproblemJSON404     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1345,16 +1300,7 @@ type VerifySignatureResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *SignatureVerificationResponse
 	ApplicationproblemJSON400     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1401,16 +1347,7 @@ type GetContractByTypeResponse struct {
 	HTTPResponse                  *http.Response
 	JSON200                       *Contract
 	ApplicationproblemJSON404     *externalRef0.ProblemDetails
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1653,16 +1590,7 @@ func ParseDrawUpContractResponse(rsp *http.Response) (*DrawUpContractResponse, e
 		response.ApplicationproblemJSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1702,16 +1630,7 @@ func ParseCreateJwtGrantResponse(rsp *http.Response) (*CreateJwtGrantResponse, e
 		response.ApplicationproblemJSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1758,16 +1677,7 @@ func ParseRequestAccessTokenResponse(rsp *http.Response) (*RequestAccessTokenRes
 		response.ApplicationproblemJSON503 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1807,16 +1717,7 @@ func ParseCreateSignSessionResponse(rsp *http.Response) (*CreateSignSessionRespo
 		response.ApplicationproblemJSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1856,16 +1757,7 @@ func ParseGetSignSessionStatusResponse(rsp *http.Response) (*GetSignSessionStatu
 		response.ApplicationproblemJSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1905,16 +1797,7 @@ func ParseVerifySignatureResponse(rsp *http.Response) (*VerifySignatureResponse,
 		response.ApplicationproblemJSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1987,16 +1870,7 @@ func ParseGetContractByTypeResponse(rsp *http.Response) (*GetContractByTypeRespo
 		response.ApplicationproblemJSON404 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

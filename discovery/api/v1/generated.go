@@ -238,16 +238,7 @@ func (response GetServices200JSONResponse) VisitGetServicesResponse(w http.Respo
 }
 
 type GetServicesdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -286,16 +277,7 @@ func (response SearchPresentations404ApplicationProblemPlusJSONResponse) VisitSe
 }
 
 type SearchPresentationsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -345,16 +327,7 @@ func (response DeactivateServiceForSubject404ApplicationProblemPlusJSONResponse)
 }
 
 type DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -406,16 +379,7 @@ func (response GetServiceActivation404ApplicationProblemPlusJSONResponse) VisitG
 }
 
 type GetServiceActivationdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -463,16 +427,7 @@ func (response ActivateServiceForSubject412ApplicationProblemPlusJSONResponse) V
 }
 
 type ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 

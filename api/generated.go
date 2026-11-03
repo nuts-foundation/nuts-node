@@ -174,7 +174,7 @@ type JWTCompactVerifiableCredential = string
 type JWTCompactVerifiablePresentation = string
 
 // ProblemDetails Problem Details for HTTP APIs as specified in RFC 9457.
-type ProblemDetails struct {
+type ProblemDetails = struct {
 	// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
 	Detail string `json:"detail"`
 

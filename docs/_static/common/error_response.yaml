@@ -2,23 +2,8 @@ description: |
   Any error that the operation doesn't list separately, such as 500 Internal Server Error. Errors are returned as Problem Details for HTTP APIs as specified in [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457). The example is only an illustration of a 500 Internal Server Error: in an actual response, the title names the operation that failed, such as "IssueVC failed", and the detail is the node's error message.
 content:
   application/problem+json:  # https://www.rfc-editor.org/rfc/rfc9457#section-6
-    # Same schema as ProblemDetails in ssi_types.yaml; tools don't follow a $ref from this file.
     schema:
-      type: object
-      required:
-        - title
-        - status
-        - detail
-      properties:
-        title:
-          type: string
-          description: A short, human-readable summary of the problem type.
-        status:
-          type: number
-          description: HTTP statuscode
-        detail:
-          type: string
-          description: A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
+      $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
     example:
       title: "<Operation> failed"
       status: 500

@@ -70,23 +70,8 @@ paths:
           description: incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
           content:
             application/problem+json:
-              # Same schema as in error_response.yaml, which is meant for the default response.
               schema:
-                type: object
-                required:
-                  - title
-                  - status
-                  - detail
-                properties:
-                  title:
-                    type: string
-                    description: A short, human-readable summary of the problem type.
-                  status:
-                    type: number
-                    description: HTTP statuscode
-                  detail:
-                    type: string
-                    description: A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
+                $ref: "../common/ssi_types.yaml#/components/schemas/ProblemDetails"
               example:
                 title: RegisterPresentation failed
                 status: 400
