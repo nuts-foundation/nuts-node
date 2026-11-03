@@ -21,7 +21,7 @@ paths:
               type: string
               example: "did:web:example.com:iam:123"
     get:
-      summary: "Resolves a DID document"
+      summary: "Resolve a DID document"
       description: |
         Resolves a DID document.
 
@@ -43,7 +43,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject:
     post:
-      summary: Creates new DID Documents for a subject.
+      summary: Create new DID documents for a subject
       description: |
         New DIDs and DID Documents are created. It will only create new DID Documents for enabled DID methods.
         Each method generates keys and identifiers according to their own specification.
@@ -71,7 +71,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     get:
-      summary: Lists all subjects and their DIDs.
+      summary: List all subjects and their DIDs
       description: |
         Lists all subjects.
 
@@ -108,7 +108,7 @@ paths:
               type: string
               example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     get:
-      summary: Lists all DIDs for a subject
+      summary: List all DIDs for a subject
       description: |
         Lists all DIDs for a subject.
 
@@ -132,7 +132,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     delete:
-      summary: Deactivate all DID Documents for a subject.
+      summary: Deactivate all DID documents for a subject
       description: |
 
         error returns:
@@ -160,7 +160,7 @@ paths:
               type: string
               example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     post:
-      summary: Adds a service to DID documents of a subject.
+      summary: Add a service to the DID documents of a subject
       description: |
         It adds the given service to the DID Documents of a subject after generating a Service ID.
         Duplicate services registrations (same type and serviceEndpoint) are ignored.
@@ -321,7 +321,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     post:
-      summary: Updates a service for the subject
+      summary: Update a service for the subject
       description: |
         It replaces the given service in all DID Documents of the subject by deleting the current service and adding the provided service with a newly generated ID.
         Make sure to only URL encode the pound (#) as %23 in the serviceId. Do not encode the colons (:).
@@ -364,7 +364,7 @@ paths:
               type: string
               example: "90BC1AE9-752B-432F-ADC3-DD9F9C61843C"
     post:
-      summary: Creates and adds one or more verificationMethods to each DID document in the subject.
+      summary: Create and add one or more verificationMethods to each DID document in the subject
       description: |
         Based on the keyCreationOptions, it will add an RSA key for encryption usage and an EC key for signing and authentication.
 
@@ -402,7 +402,7 @@ paths:
         schema:
           type: string
     get:
-      summary: Returns the did:web DID for the specified tenant.
+      summary: Get the did:web DID for the specified tenant
       description: |
         Returns the did:web DID for the specified tenant, if it is owned by this node.
       operationId: "getTenantWebDID"
@@ -419,7 +419,7 @@ paths:
           description: DID does not exist.
   /.well-known/did.json:
     get:
-      summary: Returns the root did:web DID of this domain.
+      summary: Get the root did:web DID of this domain
       description: |
         Returns the root did:web DID of this domain, if it is owned by this node.
       operationId: "getRootWebDID"

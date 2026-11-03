@@ -11,7 +11,7 @@ servers:
 paths:
   /internal/crypto/v1/sign_jwt:
     post:
-      summary: "sign a JWT payload with the private key of the given kid"
+      summary: "Sign a JWT payload with the private key of the given kid"
       description: |
         Sign a JWT payload with the private key of the given kid
 
@@ -38,7 +38,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/sign_jws:
     post:
-      summary: "sign a payload and headers with the private key of the given kid into a JWS object"
+      summary: "Sign a payload and headers with the private key of the given kid into a JWS object"
       description: |
         Sign a payload and headers with the private key of the given kid into a JWS object
 
