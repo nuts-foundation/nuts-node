@@ -492,7 +492,7 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     get:
-      summary: List all Verifiable Credentials in the holder's wallet
+      summary: List all Verifiable Credentials in a wallet
       description: It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
       operationId: getCredentialsInWallet
       tags:
@@ -509,7 +509,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     post:
-      summary: Load a Verifiable Credential into the holder's wallet
+      summary: Load a Verifiable Credential into a wallet
       description: |
         If a VerifiableCredential is not directly issued to the wallet through e.g. OpenID4VCI, this API allows to add it to a wallet.
         The subject identifier of the holder has to be provided in the path.
@@ -553,7 +553,7 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     delete:
-      summary: Remove a Verifiable Credential from the holder's wallet
+      summary: Remove a Verifiable Credential from a wallet
       description: |
         Remove a VerifiableCredential from the holders wallet. After removal the holder can't present the credential any more.
         It does not revoke the credential or inform the credential issuer that the wallet removed the wallet.
@@ -583,7 +583,7 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     get:
-      summary: "Search for Verifiable Credentials in the holder's wallet"
+      summary: "Search for Verifiable Credentials in a wallet"
       description: >
         The SearchVCResult contains a list of matching credentials in the wallet regardless of validity.
         This allows applications to build a listing of all credentials in wallets, regardless of its status (expired/revoked).
