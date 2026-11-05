@@ -2933,16 +2933,16 @@ type ServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// List all Verifiable Credentials in the holder's wallet
+	// List all Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
-	// Load a Verifiable Credential into the holder's wallet
+	// Load a Verifiable Credential into a wallet
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx echo.Context, subjectID string) error
-	// Search for Verifiable Credentials in the holder's wallet
+	// Search for Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
 	SearchCredentialsInWallet(ctx echo.Context, subjectID string) error
-	// Remove a Verifiable Credential from the holder's wallet
+	// Remove a Verifiable Credential from a wallet
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx echo.Context, subjectID string, id string) error
 	// Issue a new Verifiable Credential
@@ -3899,16 +3899,16 @@ type StrictServerInterface interface {
 	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// List all Verifiable Credentials in the holder's wallet
+	// List all Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
-	// Load a Verifiable Credential into the holder's wallet
+	// Load a Verifiable Credential into a wallet
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
-	// Search for Verifiable Credentials in the holder's wallet
+	// Search for Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
 	SearchCredentialsInWallet(ctx context.Context, request SearchCredentialsInWalletRequestObject) (SearchCredentialsInWalletResponseObject, error)
-	// Remove a Verifiable Credential from the holder's wallet
+	// Remove a Verifiable Credential from a wallet
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error)
 	// Issue a new Verifiable Credential

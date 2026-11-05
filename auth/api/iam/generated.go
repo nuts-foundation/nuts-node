@@ -621,25 +621,25 @@ type ServerInterface interface {
 	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Introspect an access token, including the presentations
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx echo.Context) error
-	// Get the requested user access token
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
-	// Validate a DPoP proof
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx echo.Context) error
-	// Create a DPoP proof for an access token
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx echo.Context, kid string) error
-	// EXPERIMENTAL Start the OpenID4VCI authorization flow
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
-	// Start the authorization flow for a service access token
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, subjectID string, params RequestServiceAccessTokenParams) error
-	// EXPERIMENTAL Start the authorization code flow for a user access token
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
 	// The OAuth2 callback endpoint of the client.
@@ -1827,25 +1827,25 @@ type StrictServerInterface interface {
 	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Introspect an access token, including the presentations
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error)
-	// Get the requested user access token
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
-	// Validate a DPoP proof
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
-	// Create a DPoP proof for an access token
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
-	// EXPERIMENTAL Start the OpenID4VCI authorization flow
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
-	// Start the authorization flow for a service access token
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
-	// EXPERIMENTAL Start the authorization code flow for a user access token
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// The OAuth2 callback endpoint of the client.
