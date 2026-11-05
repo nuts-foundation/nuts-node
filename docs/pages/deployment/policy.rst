@@ -8,7 +8,7 @@ that say which credentials a client must present to get an access token for that
 Policy definition files are defined by the use case.
 
 How to write a policy definition (file structure, claims in the token introspection response, the experimental service provider credentials)
-is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/books/designing-a-nuts-use-case/page/oauth2-scopes-and-presentation-definition-mapping>`_.
+is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/link/81>`_.
 
 Configuration
 *************
