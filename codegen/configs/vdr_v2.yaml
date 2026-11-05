@@ -12,3 +12,5 @@ output-options:
   - Service
   - ServiceRequest
   - VerificationMethod
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v6/api

@@ -9,3 +9,5 @@ output-options:
   exclude-schemas:
     - VerifiablePresentation
     - PresentationsResponse
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v6/api

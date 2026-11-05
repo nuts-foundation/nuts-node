@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -1148,16 +1149,7 @@ func (response OAuthAuthorizationServerMetadata200JSONResponse) VisitOAuthAuthor
 }
 
 type OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1274,17 +1266,17 @@ func (response RetrieveAccessToken200JSONResponse) VisitRetrieveAccessTokenRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RetrieveAccessToken404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RetrieveAccessToken404ApplicationProblemPlusJSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1313,16 +1305,7 @@ func (response ValidateDPoPProof200JSONResponse) VisitValidateDPoPProofResponse(
 }
 
 type ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1377,17 +1360,35 @@ func (response RequestOpenid4VCICredentialIssuance200JSONResponse) VisitRequestO
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestOpenid4VCICredentialIssuance400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance400ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOpenid4VCICredentialIssuance404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance404ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOpenid4VCICredentialIssuance424ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance424ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(424)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestOpenid4VCICredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1417,17 +1418,35 @@ func (response RequestServiceAccessToken200JSONResponse) VisitRequestServiceAcce
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestServiceAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestServiceAccessToken412ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken412ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestServiceAccessToken502ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken502ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestServiceAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1456,17 +1475,17 @@ func (response RequestUserAccessToken200JSONResponse) VisitRequestUserAccessToke
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestUserAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestUserAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1500,16 +1519,7 @@ func (response Callback302Response) VisitCallbackResponse(w http.ResponseWriter)
 }
 
 type CallbackdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1580,16 +1590,7 @@ func (response OAuthClientMetadata200JSONResponse) VisitOAuthClientMetadataRespo
 }
 
 type OAuthClientMetadatadefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1659,16 +1660,7 @@ func (response RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse) VisitReque
 }
 
 type RequestJWTByGetdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1709,16 +1701,7 @@ func (response RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse) VisitRequ
 }
 
 type RequestJWTByPostdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1796,16 +1779,7 @@ func (response StatusList200JSONResponse) VisitStatusListResponse(w http.Respons
 }
 
 type StatusListdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 

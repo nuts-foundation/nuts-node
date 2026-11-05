@@ -33,6 +33,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContactInformation'
+        "400":
+          description: &getContactInformation400 incorrect input
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: GetContactInformation failed, status: 400, detail: *getContactInformation400}
+        "404":
+          description: &getContactInformation404 unknown DID, or the DID document has no contact information
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetContactInformation failed, status: 404, detail: *getContactInformation404}
+        "409":
+          description: &getContactInformation409 the DID document is deactivated
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetContactInformation failed, status: 409, detail: *getContactInformation409}
         default:
           $ref: '../common/error_response.yaml'
     put:
@@ -58,6 +77,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContactInformation'
+        "400":
+          description: &updateContactInformation400 incorrect input, or the DID document is not managed by this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 400, detail: *updateContactInformation400}
+        "404":
+          description: &updateContactInformation404 unknown DID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 404, detail: *updateContactInformation404}
+        "409":
+          description: &updateContactInformation409 the DID document is deactivated
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 409, detail: *updateContactInformation409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint:
@@ -80,11 +117,6 @@ paths:
         This API will also check if an endpoint with the same type already exists. This API is not meant to add compound services.
 
         The URL can either be an Endpoint or a reference to another service.
-
-        error returns:
-        * 400 - incorrect input
-        * 404 - unknown DID
-        * 409 - a service with the same type already exists
       tags:
         - services
       requestBody:
@@ -100,6 +132,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Endpoint'
+        "400":
+          description: &addEndpoint400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 400, detail: *addEndpoint400}
+        "404":
+          description: &addEndpoint404 unknown DID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 404, detail: *addEndpoint404}
+        "409":
+          description: &addEndpoint409 a service with the same type already exists
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 409, detail: *addEndpoint409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint/{type}:
@@ -124,10 +174,6 @@ paths:
       description: |
         Update an endpoint's URL or reference in a DID document. The endpoint to be updated is selected by type.
         The URL can either be an Endpoint or a reference to another service. Updating the type is not supported.
-
-        error returns:
-        * 400 - incorrect input
-        * 404 - unknown DID or service with this type
       tags:
         - services
       requestBody:
@@ -143,6 +189,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Endpoint'
+        "400":
+          description: &updateEndpoint400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateEndpoint failed, status: 400, detail: *updateEndpoint400}
+        "404":
+          description: &updateEndpoint404 unknown DID or service with this type
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateEndpoint failed, status: 404, detail: *updateEndpoint404}
         default:
           $ref: '../common/error_response.yaml'
     delete:
@@ -150,17 +208,30 @@ paths:
       operationId: deleteEndpointsByType
       description: |
         Delete all endpoints with the provided type from the DID Document.
-
-        error returns:
-        * 400 - malformatted input, like the DID or the endpoint type.
-        * 404 - DID or service with this type not found.
-        * 409 - the service is referenced by other services
       tags:
         - services
       responses:
-        204:
+        "204":
           description: |
             All existing endpoints with with this type were succesfully deleted.
+        "400":
+          description: &deleteEndpointsByType400 malformatted input, like the DID or the endpoint type.
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 400, detail: *deleteEndpointsByType400}
+        "404":
+          description: &deleteEndpointsByType404 DID or service with this type not found.
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 404, detail: *deleteEndpointsByType404}
+        "409":
+          description: &deleteEndpointsByType409 the service is referenced by other services
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 409, detail: *deleteEndpointsByType409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -175,10 +246,6 @@ paths:
     get:
       operationId: getCompoundServices
       summary: Get a list of compound services for a DID document
-      description: |
-        error responses:
-        * 400 - incorrect input
-        * 404 - unknown DID
       tags:
         - services
       responses:
@@ -192,6 +259,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/CompoundService'
+        "400":
+          description: &getCompoundServices400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetCompoundServices failed, status: 400, detail: *getCompoundServices400}
+        "404":
+          description: &getCompoundServices404 unknown DID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetCompoundServices failed, status: 404, detail: *getCompoundServices404}
         default:
           $ref: '../common/error_response.yaml'
     post:
@@ -202,11 +281,6 @@ paths:
         The references must follow the format for service references as specified by Nuts RFC006.
 
         This API will also check if an endpoint with the same type already exists. This API is not meant to add endpoints.
-
-        error returns:
-        * 400 - incorrect input
-        * 404 - unknown DID
-        * 409 - a service with the same type already exists
       operationId: "addCompoundService"
       tags:
         - services
@@ -223,6 +297,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompoundService'
+        "400":
+          description: &addCompoundService400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 400, detail: *addCompoundService400}
+        "404":
+          description: &addCompoundService404 unknown DID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 404, detail: *addCompoundService404}
+        "409":
+          description: &addCompoundService409 a service with the same type already exists
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 409, detail: *addCompoundService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice/{type}:
@@ -246,10 +338,6 @@ paths:
       description: |
         Update a compound service in a DID Document. It follows the same requirements as when adding a compound service.
         It updates all endpoints of the compound service (no partial updates). Updating the type is not supported.
-
-        error returns:
-        * 400 - incorrect input
-        * 404 - unknown DID or service with this type
       operationId: "updateCompoundService"
       tags:
         - services
@@ -266,6 +354,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CompoundService'
+        "400":
+          description: &updateCompoundService400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateCompoundService failed, status: 400, detail: *updateCompoundService400}
+        "404":
+          description: &updateCompoundService404 unknown DID or service with this type
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateCompoundService failed, status: 404, detail: *updateCompoundService404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType}:
@@ -303,11 +403,6 @@ paths:
       description: |
         Retrieves the endpoint with the specified endpointType from the specified compound service.
         It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
-
-        error responses:
-        * 400 - incorrect input (e.g. the given service type isn't a compound service)
-        * 404 - unknown DID, compound service or endpoint
-        * 406 - service references are nested too deep or reference is invalid in other ways
       tags:
         - services
       parameters:
@@ -331,6 +426,24 @@ paths:
             text/plain:
               schema:
                 type: string
+        "400":
+          description: &getCompoundServiceEndpoint400 incorrect input (e.g. the given service type isn't a compound service)
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 400, detail: *getCompoundServiceEndpoint400}
+        "404":
+          description: &getCompoundServiceEndpoint404 unknown DID, compound service or endpoint
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 404, detail: *getCompoundServiceEndpoint404}
+        "406":
+          description: &getCompoundServiceEndpoint406 service references are nested too deep or reference is invalid in other ways
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 406, detail: *getCompoundServiceEndpoint406}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -346,17 +459,30 @@ paths:
       summary: Remove a service from a DID document
       description: |
         Remove a service from a DID Document.
-
-        error returns:
-        * 400 - incorrect input
-        * 404 - unknown DID
-        * 409 - the service is referenced by other services
       tags:
         - services
       operationId: "deleteService"
       responses:
         "204":
           description: The service has been removed
+        "400":
+          description: &deleteService400 incorrect input
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 400, detail: *deleteService400}
+        "404":
+          description: &deleteService404 unknown DID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 404, detail: *deleteService404}
+        "409":
+          description: &deleteService409 the service is referenced by other services
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 409, detail: *deleteService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/search/organizations:

@@ -24,11 +24,6 @@ paths:
       summary: "Resolve a DID document"
       description: |
         Resolves a DID document.
-
-        error returns:
-          * 400 - Returned in case of malformed DID
-          * 404 - Corresponding DID document could not be found
-          * 500 - An error occurred while processing the request
       operationId: "resolveDID"
       tags:
         - DID
@@ -39,6 +34,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DIDResolutionResult'
+        "400":
+          description: &resolveDID400 Returned in case of malformed DID
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: ResolveDID failed, status: 400, detail: *resolveDID400}
+        "404":
+          description: &resolveDID404 Corresponding DID document could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: ResolveDID failed, status: 404, detail: *resolveDID404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject:
@@ -47,10 +55,6 @@ paths:
       description: |
         New DIDs and DID Documents are created. It will only create new DID Documents for enabled DID methods.
         Each method generates keys and identifiers according to their own specification.
-
-        error returns:
-        * 400 - Returned in case of malformed DID in the request body
-        * 500 - An error occurred while processing the request
       operationId: "createSubject"
       tags:
         - Subject
@@ -68,15 +72,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubjectCreationResult'
+        "400":
+          description: &createSubject400 Returned in case of malformed DID in the request body
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: CreateSubject failed, status: 400, detail: *createSubject400}
         default:
           $ref: '../common/error_response.yaml'
     get:
       summary: List all subjects and their DIDs
       description: |
         Lists all subjects.
-
-        error returns:
-        * 500 - An error occurred while processing the request
       operationId: "listSubjects"
       tags:
         - Subject
@@ -111,9 +118,6 @@ paths:
       summary: List all DIDs for a subject
       description: |
         Lists all DIDs for a subject.
-
-        error returns:
-        * 500 - An error occurred while processing the request
       operationId: "subjectDIDs"
       tags:
         - Subject
@@ -133,19 +137,30 @@ paths:
           $ref: '../common/error_response.yaml'
     delete:
       summary: Deactivate all DID documents for a subject
-      description: |
-
-        error returns:
-          * 400 - the subject param was malformed
-          * 404 - Corresponding subject could not be found
-          * 409 - The subject is already deactivated
-          * 500 - An error occurred while processing the request
       operationId: "deactivate"
       tags:
         - Subject
       responses:
         "204":
           description: DID documents have been deactivated.
+        "400":
+          description: &deactivate400 the subject param was malformed
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 400, detail: *deactivate400}
+        "404":
+          description: &deactivate404 Corresponding subject could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 404, detail: *deactivate404}
+        "409":
+          description: &deactivate409 The subject is already deactivated
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 409, detail: *deactivate409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/service:
@@ -164,11 +179,6 @@ paths:
       description: |
         It adds the given service to the DID Documents of a subject after generating a Service ID.
         Duplicate services registrations (same type and serviceEndpoint) are ignored.
-
-        error returns:
-        * 400 - Returned in case of malformed DID or service
-        * 404 - Subject could not be found
-        * 500 - An error occurred while processing the request
       operationId: createService
       tags:
         - Subject
@@ -188,6 +198,18 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
+        "400":
+          description: &createService400 Returned in case of malformed DID or service
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: CreateService failed, status: 400, detail: *createService400}
+        "404":
+          description: &createService404 Subject could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: CreateService failed, status: 404, detail: *createService404}
         default:
           $ref: '../common/error_response.yaml'
     get:
@@ -222,11 +244,6 @@ paths:
       description: |
         Find services for a subject. All DID documents of the subject have the same services.
         It returns the services that match specified filter parameters.
-
-        error returns:
-        * 400 - Returned in case of malformed DID.
-        * 404 - Subject could not be found
-        * 500 - An error occurred while processing the request
       operationId: "findServices"
       tags:
         - Subject
@@ -273,6 +290,18 @@ paths:
                         "serviceEndpoint": ["https://example.com/api", "https://alt.example.com/api"]
                       }
                     ]
+        "400":
+          description: &findServices400 Returned in case of malformed DID.
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: FindServices failed, status: 400, detail: *findServices400}
+        "404":
+          description: &findServices404 Subject could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: FindServices failed, status: 404, detail: *findServices404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/service/{serviceId}:
@@ -307,17 +336,24 @@ paths:
         Removes the service from all DID Documents in the subject. Matching is done on the fragment of the id.
         No cascading will happen for references to the service.
         Make sure to only URL encode the pound (#) as %23 in the serviceId. Do not encode the colons (:). 
-
-        error returns:
-        * 400 - Returned in case of malformed subject or service ID
-        * 404 - Corresponding subject or service could not be found
-        * 500 - An error occurred while processing the request
       tags:
         - Subject
       operationId: deleteService
       responses:
         "204":
           description: The service was successfully deleted
+        "400":
+          description: &deleteService400 Returned in case of malformed subject or service ID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 400, detail: *deleteService400}
+        "404":
+          description: &deleteService404 Corresponding subject or service could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 404, detail: *deleteService404}
         default:
           $ref: '../common/error_response.yaml'
     post:
@@ -325,12 +361,6 @@ paths:
       description: |
         It replaces the given service in all DID Documents of the subject by deleting the current service and adding the provided service with a newly generated ID.
         Make sure to only URL encode the pound (#) as %23 in the serviceId. Do not encode the colons (:).
-
-        error returns:
-        * 400 - Returned in case of malformed subject or service ID
-        * 404 - Corresponding subject or service could not be found
-        * 409 - Duplicate service type
-        * 500 - An error occurred while processing the request
       tags:
         - Subject
       operationId: updateService
@@ -350,6 +380,24 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Service'
+        "400":
+          description: &updateService400 Returned in case of malformed subject or service ID
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 400, detail: *updateService400}
+        "404":
+          description: &updateService404 Corresponding subject or service could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 404, detail: *updateService404}
+        "409":
+          description: &updateService409 Duplicate service type
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 409, detail: *updateService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/verificationmethod:
@@ -367,10 +415,6 @@ paths:
       summary: Create and add one or more verificationMethods to each DID document in the subject
       description: |
         Based on the keyCreationOptions, it will add an RSA key for encryption usage and an EC key for signing and authentication.
-
-        error returns:
-        * 404 - Corresponding subject could not be found
-        * 500 - An error occurred while processing the request
       operationId: addVerificationMethod
       tags:
         - Subject
@@ -390,6 +434,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/VerificationMethod'
+        "404":
+          description: &addVerificationMethod404 Corresponding subject could not be found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: AddVerificationMethod failed, status: 404, detail: *addVerificationMethod404}
         default:
           $ref: '../common/error_response.yaml'
   /iam/{id}/did.json:
