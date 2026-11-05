@@ -11,9 +11,9 @@ A Discovery Service is hosted on a server (also a Nuts node) and defined by a se
 
 How to write a service definition, and how to register and search through the API, is described on the wiki:
 
-- `Service Discovery <https://wiki.nuts.nl/books/designing-a-nuts-use-case/page/service-discovery>`_ (designing a use case)
-- `Register on the Discovery Service <https://wiki.nuts.nl/books/implementing-a-nuts-v2-use-case/page/register-on-the-discovery-service>`_ and
-  `Find care organizations and their endpoints <https://wiki.nuts.nl/books/implementing-a-nuts-v2-use-case/page/find-care-organizations-and-their-endpoints>`_ (implementing a use case)
+- `Service Discovery <https://wiki.nuts.nl/link/87>`_ (designing a use case)
+- `Register on the Discovery Service <https://wiki.nuts.nl/link/146>`_ and
+  `Find care organizations and their endpoints <https://wiki.nuts.nl/link/152>`_ (implementing a use case)
 
 Service definitions
 *******************
