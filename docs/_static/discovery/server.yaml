@@ -67,15 +67,12 @@ paths:
         "201":
           description: Presentation was registered on the Discovery Service.
         "400":
-          description: incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
+          description: &registerPresentation400 incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
           content:
             application/problem+json:
               schema:
                 $ref: "../common/ssi_types.yaml#/components/schemas/ProblemDetails"
-              example:
-                title: RegisterPresentation failed
-                status: 400
-                detail: incorrect input; e.g. unsupported presentation or credential type, invalid signature, unresolvable credential subject, etc.
+              example: {title: RegisterPresentation failed, status: 400, detail: *registerPresentation400}
         default:
           $ref: "../common/error_response.yaml"
 components:

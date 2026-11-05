@@ -44,15 +44,12 @@ paths:
                 items:
                   type: string
         "400":
-          description: did:nuts support is not configured on this node
+          description: &listTransactions400 did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ListTransactions failed
-                status: 400
-                detail: did:nuts support is not configured on this node
+              example: {title: ListTransactions failed, status: 400, detail: *listTransactions400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}:
@@ -79,25 +76,17 @@ paths:
               schema:
                 type: string
         "400":
-          description: invalid transaction reference, or did:nuts support is not configured on this node
+          description: &getTransaction400 invalid transaction reference, or did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetTransaction failed
-                status: 400
-                detail: invalid transaction reference, or did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: GetTransaction failed, status: 400, detail: *getTransaction400}
         "404":
-          description: transaction not found
+          description: &getTransaction404 transaction not found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetTransaction failed
-                status: 404
-                detail: transaction not found
+              schema: *problemDetails
+              example: {title: GetTransaction failed, status: 404, detail: *getTransaction404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}/payload:
@@ -123,25 +112,17 @@ paths:
             application/octet-stream:
               example:
         "400":
-          description: invalid transaction reference, or did:nuts support is not configured on this node
+          description: &getTransactionPayload400 invalid transaction reference, or did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetTransactionPayload failed
-                status: 400
-                detail: invalid transaction reference, or did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: GetTransactionPayload failed, status: 400, detail: *getTransactionPayload400}
         "404":
-          description: transaction or payload not found
+          description: &getTransactionPayload404 transaction or payload not found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetTransactionPayload failed
-                status: 404
-                detail: transaction or payload not found
+              schema: *problemDetails
+              example: {title: GetTransactionPayload failed, status: 404, detail: *getTransactionPayload404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/peers:
@@ -160,15 +141,11 @@ paths:
                 additionalProperties:
                   $ref: '#/components/schemas/PeerDiagnostics'
         "400":
-          description: did:nuts support is not configured on this node
+          description: &getPeerDiagnostics400 did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetPeerDiagnostics failed
-                status: 400
-                detail: did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: GetPeerDiagnostics failed, status: 400, detail: *getPeerDiagnostics400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
@@ -205,15 +182,11 @@ paths:
               schema:
                 type: string
         "400":
-          description: invalid range, or did:nuts support is not configured on this node
+          description: &renderGraph400 invalid range, or did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: RenderGraph failed
-                status: 400
-                detail: invalid range, or did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: RenderGraph failed, status: 400, detail: *renderGraph400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/reprocess:
@@ -238,15 +211,11 @@ paths:
         "202":
           description: "The request was accepted, process was started"
         "400":
-          description: missing type, or did:nuts support is not configured on this node
+          description: &reprocess400 missing type, or did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: Reprocess failed
-                status: 400
-                detail: missing type, or did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: Reprocess failed, status: 400, detail: *reprocess400}
   /internal/network/v1/events:
     get:
       summary: "List the state of the internal events"
@@ -268,15 +237,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/EventSubscriber'
         "400":
-          description: did:nuts support is not configured on this node
+          description: &ListEvents400 did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ListEvents failed
-                status: 400
-                detail: did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: ListEvents failed, status: 400, detail: *ListEvents400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/addressbook:
@@ -295,15 +260,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/Contact'
         "400":
-          description: did:nuts support is not configured on this node
+          description: &getAddressBook400 did:nuts support is not configured on this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetAddressBook failed
-                status: 400
-                detail: did:nuts support is not configured on this node
+              schema: *problemDetails
+              example: {title: GetAddressBook failed, status: 400, detail: *getAddressBook400}
 components:
   schemas:
     Event:

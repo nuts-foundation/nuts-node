@@ -37,15 +37,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: Invalid (combination of) options, or the key store backend can't back a requested key usage (e.g. KeyAgreement on Azure Key Vault)
+          description: &createDID400 Invalid (combination of) options, or the key store backend can't back a requested key usage (e.g. KeyAgreement on Azure Key Vault)
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: CreateDID failed
-                status: 400
-                detail: Invalid (combination of) options, or the key store backend can't back a requested key usage (e.g. KeyAgreement on Azure Key Vault)
+              example: {title: CreateDID failed, status: 400, detail: *createDID400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}:
@@ -96,25 +93,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/DIDResolutionResult'
         "400":
-          description: Returned in case of malformed DID
+          description: &getDID400 Returned in case of malformed DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetDID failed
-                status: 400
-                detail: Returned in case of malformed DID
+              schema: *problemDetails
+              example: {title: GetDID failed, status: 400, detail: *getDID400}
         "404":
-          description: Corresponding DID document could not be found
+          description: &getDID404 Corresponding DID document could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetDID failed
-                status: 404
-                detail: Corresponding DID document could not be found
+              schema: *problemDetails
+              example: {title: GetDID failed, status: 404, detail: *getDID404}
         default:
           $ref: '../common/error_response.yaml'
     put:
@@ -138,45 +127,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/DIDDocument'
         "400":
-          description: DID document could not be updated because the DID param was malformed or the DID document is invalid
+          description: &updateDID400 DID document could not be updated because the DID param was malformed or the DID document is invalid
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateDID failed
-                status: 400
-                detail: DID document could not be updated because the DID param was malformed or the DID document is invalid
+              schema: *problemDetails
+              example: {title: UpdateDID failed, status: 400, detail: *updateDID400}
         "403":
-          description: DID document could not be updated because the DID is not managed by this node
+          description: &updateDID403 DID document could not be updated because the DID is not managed by this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateDID failed
-                status: 403
-                detail: DID document could not be updated because the DID is not managed by this node
+              schema: *problemDetails
+              example: {title: UpdateDID failed, status: 403, detail: *updateDID403}
         "404":
-          description: Corresponding DID document could not be found
+          description: &updateDID404 Corresponding DID document could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateDID failed
-                status: 404
-                detail: Corresponding DID document could not be found
+              schema: *problemDetails
+              example: {title: UpdateDID failed, status: 404, detail: *updateDID404}
         "409":
-          description: DID document could not be updated because the document is deactivated or its controllers are deactivated
+          description: &updateDID409 DID document could not be updated because the document is deactivated or its controllers are deactivated
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateDID failed
-                status: 409
-                detail: DID document could not be updated because the document is deactivated or its controllers are deactivated
+              schema: *problemDetails
+              example: {title: UpdateDID failed, status: 409, detail: *updateDID409}
         default:
           $ref: '../common/error_response.yaml'
     delete:
@@ -190,45 +163,29 @@ paths:
         "200":
           description: DID document has been deactivated.
         "400":
-          description: DID document could not be deleted because the DID param was malformed
+          description: &deactivateDID400 DID document could not be deleted because the DID param was malformed
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeactivateDID failed
-                status: 400
-                detail: DID document could not be deleted because the DID param was malformed
+              schema: *problemDetails
+              example: {title: DeactivateDID failed, status: 400, detail: *deactivateDID400}
         "403":
-          description: DID document could not be deleted because the DID is not managed by this node
+          description: &deactivateDID403 DID document could not be deleted because the DID is not managed by this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeactivateDID failed
-                status: 403
-                detail: DID document could not be deleted because the DID is not managed by this node
+              schema: *problemDetails
+              example: {title: DeactivateDID failed, status: 403, detail: *deactivateDID403}
         "404":
-          description: Corresponding DID document could not be found
+          description: &deactivateDID404 Corresponding DID document could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeactivateDID failed
-                status: 404
-                detail: Corresponding DID document could not be found
+              schema: *problemDetails
+              example: {title: DeactivateDID failed, status: 404, detail: *deactivateDID404}
         "409":
-          description: DID document could not be deactivated because the the document was already deactivated
+          description: &deactivateDID409 DID document could not be deactivated because the the document was already deactivated
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeactivateDID failed
-                status: 409
-                detail: DID document could not be deactivated because the the document was already deactivated
+              schema: *problemDetails
+              example: {title: DeactivateDID failed, status: 409, detail: *deactivateDID409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/conflicted:
@@ -282,25 +239,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/VerificationMethod'
         "403":
-          description: Verification method could not be added because the DID is not managed by this node
+          description: &addNewVerificationMethod403 Verification method could not be added because the DID is not managed by this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddNewVerificationMethod failed
-                status: 403
-                detail: Verification method could not be added because the DID is not managed by this node
+              schema: *problemDetails
+              example: {title: AddNewVerificationMethod failed, status: 403, detail: *addNewVerificationMethod403}
         "404":
-          description: Corresponding DID document could not be found
+          description: &addNewVerificationMethod404 Corresponding DID document could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddNewVerificationMethod failed
-                status: 404
-                detail: Corresponding DID document could not be found
+              schema: *problemDetails
+              example: {title: AddNewVerificationMethod failed, status: 404, detail: *addNewVerificationMethod404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v1/did/{did}/verificationmethod/{kid}:
@@ -332,25 +281,17 @@ paths:
         "204":
           description: Verification Method was successfully deleted
         "403":
-          description: Verification method could not be deleted because the DID is not managed by this node
+          description: &deleteVerificationMethod403 Verification method could not be deleted because the DID is not managed by this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteVerificationMethod failed
-                status: 403
-                detail: Verification method could not be deleted because the DID is not managed by this node
+              schema: *problemDetails
+              example: {title: DeleteVerificationMethod failed, status: 403, detail: *deleteVerificationMethod403}
         "404":
-          description: Corresponding DID document or verification method could not be found
+          description: &deleteVerificationMethod404 Corresponding DID document or verification method could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteVerificationMethod failed
-                status: 404
-                detail: Corresponding DID document or verification method could not be found
+              schema: *problemDetails
+              example: {title: DeleteVerificationMethod failed, status: 404, detail: *deleteVerificationMethod404}
         default:
           $ref: '../common/error_response.yaml'
 components:

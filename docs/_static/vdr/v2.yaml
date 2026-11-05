@@ -35,25 +35,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/DIDResolutionResult'
         "400":
-          description: Returned in case of malformed DID
+          description: &resolveDID400 Returned in case of malformed DID
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ResolveDID failed
-                status: 400
-                detail: Returned in case of malformed DID
+              example: {title: ResolveDID failed, status: 400, detail: *resolveDID400}
         "404":
-          description: Corresponding DID document could not be found
+          description: &resolveDID404 Corresponding DID document could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ResolveDID failed
-                status: 404
-                detail: Corresponding DID document could not be found
+              schema: *problemDetails
+              example: {title: ResolveDID failed, status: 404, detail: *resolveDID404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject:
@@ -80,15 +73,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/SubjectCreationResult'
         "400":
-          description: Returned in case of malformed DID in the request body
+          description: &createSubject400 Returned in case of malformed DID in the request body
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: CreateSubject failed
-                status: 400
-                detail: Returned in case of malformed DID in the request body
+              schema: *problemDetails
+              example: {title: CreateSubject failed, status: 400, detail: *createSubject400}
         default:
           $ref: '../common/error_response.yaml'
     get:
@@ -155,35 +144,23 @@ paths:
         "204":
           description: DID documents have been deactivated.
         "400":
-          description: the subject param was malformed
+          description: &deactivate400 the subject param was malformed
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: Deactivate failed
-                status: 400
-                detail: the subject param was malformed
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 400, detail: *deactivate400}
         "404":
-          description: Corresponding subject could not be found
+          description: &deactivate404 Corresponding subject could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: Deactivate failed
-                status: 404
-                detail: Corresponding subject could not be found
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 404, detail: *deactivate404}
         "409":
-          description: The subject is already deactivated
+          description: &deactivate409 The subject is already deactivated
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: Deactivate failed
-                status: 409
-                detail: The subject is already deactivated
+              schema: *problemDetails
+              example: {title: Deactivate failed, status: 409, detail: *deactivate409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/service:
@@ -222,25 +199,17 @@ paths:
                 items:
                   $ref: '#/components/schemas/Service'
         "400":
-          description: Returned in case of malformed DID or service
+          description: &createService400 Returned in case of malformed DID or service
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: CreateService failed
-                status: 400
-                detail: Returned in case of malformed DID or service
+              schema: *problemDetails
+              example: {title: CreateService failed, status: 400, detail: *createService400}
         "404":
-          description: Subject could not be found
+          description: &createService404 Subject could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: CreateService failed
-                status: 404
-                detail: Subject could not be found
+              schema: *problemDetails
+              example: {title: CreateService failed, status: 404, detail: *createService404}
         default:
           $ref: '../common/error_response.yaml'
     get:
@@ -322,25 +291,17 @@ paths:
                       }
                     ]
         "400":
-          description: Returned in case of malformed DID.
+          description: &findServices400 Returned in case of malformed DID.
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: FindServices failed
-                status: 400
-                detail: Returned in case of malformed DID.
+              schema: *problemDetails
+              example: {title: FindServices failed, status: 400, detail: *findServices400}
         "404":
-          description: Subject could not be found
+          description: &findServices404 Subject could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: FindServices failed
-                status: 404
-                detail: Subject could not be found
+              schema: *problemDetails
+              example: {title: FindServices failed, status: 404, detail: *findServices404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/service/{serviceId}:
@@ -382,25 +343,17 @@ paths:
         "204":
           description: The service was successfully deleted
         "400":
-          description: Returned in case of malformed subject or service ID
+          description: &deleteService400 Returned in case of malformed subject or service ID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteService failed
-                status: 400
-                detail: Returned in case of malformed subject or service ID
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 400, detail: *deleteService400}
         "404":
-          description: Corresponding subject or service could not be found
+          description: &deleteService404 Corresponding subject or service could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteService failed
-                status: 404
-                detail: Corresponding subject or service could not be found
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 404, detail: *deleteService404}
         default:
           $ref: '../common/error_response.yaml'
     post:
@@ -428,35 +381,23 @@ paths:
                 items:
                   $ref: '#/components/schemas/Service'
         "400":
-          description: Returned in case of malformed subject or service ID
+          description: &updateService400 Returned in case of malformed subject or service ID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateService failed
-                status: 400
-                detail: Returned in case of malformed subject or service ID
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 400, detail: *updateService400}
         "404":
-          description: Corresponding subject or service could not be found
+          description: &updateService404 Corresponding subject or service could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateService failed
-                status: 404
-                detail: Corresponding subject or service could not be found
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 404, detail: *updateService404}
         "409":
-          description: Duplicate service type
+          description: &updateService409 Duplicate service type
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateService failed
-                status: 409
-                detail: Duplicate service type
+              schema: *problemDetails
+              example: {title: UpdateService failed, status: 409, detail: *updateService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/vdr/v2/subject/{id}/verificationmethod:
@@ -494,15 +435,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/VerificationMethod'
         "404":
-          description: Corresponding subject could not be found
+          description: &addVerificationMethod404 Corresponding subject could not be found
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddVerificationMethod failed
-                status: 404
-                detail: Corresponding subject could not be found
+              schema: *problemDetails
+              example: {title: AddVerificationMethod failed, status: 404, detail: *addVerificationMethod404}
         default:
           $ref: '../common/error_response.yaml'
   /iam/{id}/did.json:

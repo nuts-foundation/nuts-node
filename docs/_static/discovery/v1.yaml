@@ -85,15 +85,12 @@ paths:
                 items:
                   $ref: "#/components/schemas/SearchResult"
         "404":
-          description: unknown service.
+          description: &searchPresentations404 unknown service.
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: SearchPresentations failed
-                status: 404
-                detail: unknown service.
+              example: {title: SearchPresentations failed, status: 404, detail: *searchPresentations404}
         default:
           $ref: "../common/error_response.yaml"
   /internal/discovery/v1/{serviceID}/{subjectID}:
@@ -156,15 +153,11 @@ paths:
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
         "404":
-          description: unknown service or subject.
+          description: &getServiceActivation404 unknown service or subject.
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetServiceActivation failed
-                status: 404
-                detail: unknown service or subject.
+              schema: *problemDetails
+              example: {title: GetServiceActivation failed, status: 404, detail: *getServiceActivation404}
         default:
           $ref: "../common/error_response.yaml"
     post:
@@ -189,25 +182,17 @@ paths:
         "200":
           description: Activation was successful.
         "404":
-          description: unknown service or subject
+          description: &activateServiceForSubject404 unknown service or subject
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ActivateServiceForSubject failed
-                status: 404
-                detail: unknown service or subject
+              schema: *problemDetails
+              example: {title: ActivateServiceForSubject failed, status: 404, detail: *activateServiceForSubject404}
         "412":
-          description: "precondition failed: subject doesn't have the required credentials"
+          description: &activateServiceForSubject412 "precondition failed: subject doesn't have the required credentials"
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: ActivateServiceForSubject failed
-                status: 412
-                detail: "precondition failed: subject doesn't have the required credentials"
+              schema: *problemDetails
+              example: {title: ActivateServiceForSubject failed, status: 412, detail: *activateServiceForSubject412}
         default:
           $ref: "../common/error_response.yaml"
     delete:
@@ -238,15 +223,11 @@ paths:
                     type: string
                     description: Description of why removal of the registration failed.
         "404":
-          description: unknown service or subject
+          description: &deactivateServiceForSubject404 unknown service or subject
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeactivateServiceForSubject failed
-                status: 404
-                detail: unknown service or subject
+              schema: *problemDetails
+              example: {title: DeactivateServiceForSubject failed, status: 404, detail: *deactivateServiceForSubject404}
         default:
           $ref: "../common/error_response.yaml"
 components:

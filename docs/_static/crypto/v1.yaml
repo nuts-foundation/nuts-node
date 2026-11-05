@@ -32,15 +32,12 @@ paths:
                 type: string
                 example: "aa==.bb==.cc=="
         '400':
-          description: incorrect input
+          description: &signJwt400 incorrect input
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: SignJwt failed
-                status: 400
-                detail: incorrect input
+              example: {title: SignJwt failed, status: 400, detail: *signJwt400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/sign_jws:
@@ -66,15 +63,11 @@ paths:
                 type: string
                 example: "aa==.bb==.cc=="
         '400':
-          description: incorrect input
+          description: &signJws400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: SignJws failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: SignJws failed, status: 400, detail: *signJws400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/encrypt_jwe:
@@ -102,15 +95,11 @@ paths:
                 type: string
                 example: "aa==.bb==.cc==.dd==.ee=="
         '400':
-          description: incorrect input
+          description: &encryptJwe400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: EncryptJwe failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: EncryptJwe failed, status: 400, detail: *encryptJwe400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/crypto/v1/decrypt_jwe:
@@ -148,15 +137,11 @@ paths:
                     type: object
                     description: "The message headers."
         '400':
-          description: incorrect input
+          description: &decryptJwe400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DecryptJwe failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: DecryptJwe failed, status: 400, detail: *decryptJwe400}
         default:
           $ref: '../common/error_response.yaml'
 components:

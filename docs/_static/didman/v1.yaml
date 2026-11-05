@@ -34,35 +34,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContactInformation'
         "400":
-          description: incorrect input
+          description: &getContactInformation400 incorrect input
           content:
             application/problem+json:
-              schema:
+              schema: &problemDetails
                 $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetContactInformation failed
-                status: 400
-                detail: incorrect input
+              example: {title: GetContactInformation failed, status: 400, detail: *getContactInformation400}
         "404":
-          description: unknown DID, or the DID document has no contact information
+          description: &getContactInformation404 unknown DID, or the DID document has no contact information
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetContactInformation failed
-                status: 404
-                detail: unknown DID, or the DID document has no contact information
+              schema: *problemDetails
+              example: {title: GetContactInformation failed, status: 404, detail: *getContactInformation404}
         "409":
-          description: the DID document is deactivated
+          description: &getContactInformation409 the DID document is deactivated
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetContactInformation failed
-                status: 409
-                detail: the DID document is deactivated
+              schema: *problemDetails
+              example: {title: GetContactInformation failed, status: 409, detail: *getContactInformation409}
         default:
           $ref: '../common/error_response.yaml'
     put:
@@ -89,35 +78,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContactInformation'
         "400":
-          description: incorrect input, or the DID document is not managed by this node
+          description: &updateContactInformation400 incorrect input, or the DID document is not managed by this node
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateContactInformation failed
-                status: 400
-                detail: incorrect input, or the DID document is not managed by this node
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 400, detail: *updateContactInformation400}
         "404":
-          description: unknown DID
+          description: &updateContactInformation404 unknown DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateContactInformation failed
-                status: 404
-                detail: unknown DID
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 404, detail: *updateContactInformation404}
         "409":
-          description: the DID document is deactivated
+          description: &updateContactInformation409 the DID document is deactivated
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateContactInformation failed
-                status: 409
-                detail: the DID document is deactivated
+              schema: *problemDetails
+              example: {title: UpdateContactInformation failed, status: 409, detail: *updateContactInformation409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint:
@@ -156,35 +133,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/Endpoint'
         "400":
-          description: incorrect input
+          description: &addEndpoint400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddEndpoint failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 400, detail: *addEndpoint400}
         "404":
-          description: unknown DID
+          description: &addEndpoint404 unknown DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddEndpoint failed
-                status: 404
-                detail: unknown DID
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 404, detail: *addEndpoint404}
         "409":
-          description: a service with the same type already exists
+          description: &addEndpoint409 a service with the same type already exists
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddEndpoint failed
-                status: 409
-                detail: a service with the same type already exists
+              schema: *problemDetails
+              example: {title: AddEndpoint failed, status: 409, detail: *addEndpoint409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/endpoint/{type}:
@@ -225,25 +190,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/Endpoint'
         "400":
-          description: incorrect input
+          description: &updateEndpoint400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateEndpoint failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: UpdateEndpoint failed, status: 400, detail: *updateEndpoint400}
         "404":
-          description: unknown DID or service with this type
+          description: &updateEndpoint404 unknown DID or service with this type
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateEndpoint failed
-                status: 404
-                detail: unknown DID or service with this type
+              schema: *problemDetails
+              example: {title: UpdateEndpoint failed, status: 404, detail: *updateEndpoint404}
         default:
           $ref: '../common/error_response.yaml'
     delete:
@@ -258,35 +215,23 @@ paths:
           description: |
             All existing endpoints with with this type were succesfully deleted.
         "400":
-          description: malformatted input, like the DID or the endpoint type.
+          description: &deleteEndpointsByType400 malformatted input, like the DID or the endpoint type.
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteEndpointsByType failed
-                status: 400
-                detail: malformatted input, like the DID or the endpoint type.
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 400, detail: *deleteEndpointsByType400}
         "404":
-          description: DID or service with this type not found.
+          description: &deleteEndpointsByType404 DID or service with this type not found.
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteEndpointsByType failed
-                status: 404
-                detail: DID or service with this type not found.
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 404, detail: *deleteEndpointsByType404}
         "409":
-          description: the service is referenced by other services
+          description: &deleteEndpointsByType409 the service is referenced by other services
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteEndpointsByType failed
-                status: 409
-                detail: the service is referenced by other services
+              schema: *problemDetails
+              example: {title: DeleteEndpointsByType failed, status: 409, detail: *deleteEndpointsByType409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice:
@@ -315,25 +260,17 @@ paths:
                 items:
                   $ref: '#/components/schemas/CompoundService'
         "400":
-          description: incorrect input
+          description: &getCompoundServices400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetCompoundServices failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: GetCompoundServices failed, status: 400, detail: *getCompoundServices400}
         "404":
-          description: unknown DID
+          description: &getCompoundServices404 unknown DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetCompoundServices failed
-                status: 404
-                detail: unknown DID
+              schema: *problemDetails
+              example: {title: GetCompoundServices failed, status: 404, detail: *getCompoundServices404}
         default:
           $ref: '../common/error_response.yaml'
     post:
@@ -361,35 +298,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompoundService'
         "400":
-          description: incorrect input
+          description: &addCompoundService400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddCompoundService failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 400, detail: *addCompoundService400}
         "404":
-          description: unknown DID
+          description: &addCompoundService404 unknown DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddCompoundService failed
-                status: 404
-                detail: unknown DID
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 404, detail: *addCompoundService404}
         "409":
-          description: a service with the same type already exists
+          description: &addCompoundService409 a service with the same type already exists
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: AddCompoundService failed
-                status: 409
-                detail: a service with the same type already exists
+              schema: *problemDetails
+              example: {title: AddCompoundService failed, status: 409, detail: *addCompoundService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice/{type}:
@@ -430,25 +355,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/CompoundService'
         "400":
-          description: incorrect input
+          description: &updateCompoundService400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateCompoundService failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: UpdateCompoundService failed, status: 400, detail: *updateCompoundService400}
         "404":
-          description: unknown DID or service with this type
+          description: &updateCompoundService404 unknown DID or service with this type
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: UpdateCompoundService failed
-                status: 404
-                detail: unknown DID or service with this type
+              schema: *problemDetails
+              example: {title: UpdateCompoundService failed, status: 404, detail: *updateCompoundService404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType}:
@@ -510,35 +427,23 @@ paths:
               schema:
                 type: string
         "400":
-          description: incorrect input (e.g. the given service type isn't a compound service)
+          description: &getCompoundServiceEndpoint400 incorrect input (e.g. the given service type isn't a compound service)
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetCompoundServiceEndpoint failed
-                status: 400
-                detail: incorrect input (e.g. the given service type isn't a compound service)
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 400, detail: *getCompoundServiceEndpoint400}
         "404":
-          description: unknown DID, compound service or endpoint
+          description: &getCompoundServiceEndpoint404 unknown DID, compound service or endpoint
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetCompoundServiceEndpoint failed
-                status: 404
-                detail: unknown DID, compound service or endpoint
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 404, detail: *getCompoundServiceEndpoint404}
         "406":
-          description: service references are nested too deep or reference is invalid in other ways
+          description: &getCompoundServiceEndpoint406 service references are nested too deep or reference is invalid in other ways
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: GetCompoundServiceEndpoint failed
-                status: 406
-                detail: service references are nested too deep or reference is invalid in other ways
+              schema: *problemDetails
+              example: {title: GetCompoundServiceEndpoint failed, status: 406, detail: *getCompoundServiceEndpoint406}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/service/{id}:
@@ -561,35 +466,23 @@ paths:
         "204":
           description: The service has been removed
         "400":
-          description: incorrect input
+          description: &deleteService400 incorrect input
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteService failed
-                status: 400
-                detail: incorrect input
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 400, detail: *deleteService400}
         "404":
-          description: unknown DID
+          description: &deleteService404 unknown DID
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteService failed
-                status: 404
-                detail: unknown DID
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 404, detail: *deleteService404}
         "409":
-          description: the service is referenced by other services
+          description: &deleteService409 the service is referenced by other services
           content:
             application/problem+json:
-              schema:
-                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
-              example:
-                title: DeleteService failed
-                status: 409
-                detail: the service is referenced by other services
+              schema: *problemDetails
+              example: {title: DeleteService failed, status: 409, detail: *deleteService409}
         default:
           $ref: '../common/error_response.yaml'
   /internal/didman/v1/search/organizations:
