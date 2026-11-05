@@ -618,31 +618,28 @@ type ServerInterface interface {
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
 	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
 	OpenIDConfiguration(ctx echo.Context, subjectID string) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns fields derived from the credentials that were used during authentication.
+	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
-	// Presentation Submissions and Verifiable Presentations added.
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx echo.Context) error
-	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
-	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx echo.Context) error
-	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx echo.Context, kid string) error
-	// EXPERIMENTAL Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
-	// Start the authorization flow to get an access token from a remote authorization server.
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, subjectID string, params RequestServiceAccessTokenParams) error
-	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
 	// The OAuth2 callback endpoint of the client.
@@ -1827,31 +1824,28 @@ type StrictServerInterface interface {
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
 	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
 	OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error)
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns fields derived from the credentials that were used during authentication.
+	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
-	// Presentation Submissions and Verifiable Presentations added.
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error)
-	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
-	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
-	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
-	// EXPERIMENTAL Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
-	// Start the authorization flow to get an access token from a remote authorization server.
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
-	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// The OAuth2 callback endpoint of the client.

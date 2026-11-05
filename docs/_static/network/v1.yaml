@@ -28,7 +28,7 @@ paths:
           type: integer
           minimum: 0
     get:
-      summary: "Lists transactions on the DAG"
+      summary: "List transactions on the DAG"
       description: >
         Lists transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there are many of them. A range (start,end) are recommended at all times to avoid overloading the endpoint.
 
@@ -58,7 +58,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Retrieves a transaction"
+      summary: "Retrieve a transaction"
       description: |
         Retrieves a transaction.
 
@@ -88,7 +88,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Gets the transaction payload"
+      summary: "Get the transaction payload"
       operationId: "getTransactionPayload"
       description: |
         Gets the transaction payload.
@@ -109,7 +109,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/peers:
     get:
-      summary: "Gets diagnostic information about the node's peers"
+      summary: "Get diagnostic information about the node's peers"
       operationId: "getPeerDiagnostics"
       tags:
         - diagnostics
@@ -143,7 +143,7 @@ paths:
           type: integer
           minimum: 1
     get:
-      summary: "Visualizes the DAG as a graph"
+      summary: "Visualize the DAG as a graph"
       description: >
         Renders the transactions in the requested range, or the entire graph if no range is specified.
         By default it renders in Graphviz format, which can be rendered to an image using `dot`. 
@@ -189,7 +189,7 @@ paths:
           description: "The request was accepted, process was started"
   /internal/network/v1/events:
     get:
-      summary: "Lists the state of the internal events"
+      summary: "List the state of the internal events"
       description: >
         Internal events are used to update network state, retrieve private transactions and update the VDR and VCR.
         New transactions will cause events to be omitted. In normal operation no events should remain.
@@ -214,7 +214,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/addressbook:
     get:
-      summary: "Get the address book, listing which nodes will be connected to."
+      summary: "Get the address book, listing which nodes will be connected to"
       operationId: "getAddressBook"
       tags:
         - diagnostics
