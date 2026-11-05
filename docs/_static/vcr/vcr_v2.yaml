@@ -20,7 +20,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Resolves a verifiable credential"
+      summary: "Resolve a Verifiable Credential"
       description: >
         Returns the resolved credential, regardless of its revocation/trust state.
 
@@ -41,7 +41,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/search:
     post:
-      summary: "Searches for verifiable credentials that could be used for different use-cases."
+      summary: "Search for Verifiable Credentials"
       description: >
         The result contains a list of matching credentials. Only verified credentials are returned.
         The search parameters define how the raw results are filtered.
@@ -108,7 +108,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc:
     post:
-      summary: Issues a new Verifiable Credential
+      summary: Issue a new Verifiable Credential
       description: |
         Issues a new Verifiable Credential for provided type in the context.
         
@@ -136,7 +136,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/search:
     get:
-      summary: "Searches for verifiable credentials issued by this node which matches the search params"
+      summary: "Search for Verifiable Credentials issued by this node"
       description: >
         The SearchVCResult contains a list of matching credentials regardless of the validity.
         The entry may contain a revocation which means the credential has been revoked.
@@ -210,7 +210,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vc:
     post:
-      summary: Verifies a Verifiable Credential
+      summary: Verify a Verifiable Credential
       description: |
         Verifies a Verifiable Credential. It checks: 
         * The signature
@@ -242,7 +242,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vp:
     post:
-      summary: Verifies a Verifiable Presentation
+      summary: Verify a Verifiable Presentation
       description: |
         Verifies a Verifiable Presentation. It checks:
         * Signature of the verifiable presentation and the verifiable credentials
@@ -277,7 +277,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/trust:
     post:
-      summary: Mark all the VCs of given type and issuer as 'trusted'.
+      summary: Mark all the VCs of given type and issuer as 'trusted'
       description: |
         The added trust is persisted and may be removed with a delete operation.
 
@@ -391,7 +391,7 @@ paths:
 
   /internal/vcr/v2/holder/vp:
     post:
-      summary: Create a new Verifiable Presentation for a set of Verifiable Credentials.
+      summary: Create a new Verifiable Presentation for a set of Verifiable Credentials
       description: |
         Given a list of VCs, create a new presentation.
 
