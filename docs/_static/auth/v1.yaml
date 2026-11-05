@@ -11,7 +11,7 @@ paths:
   /internal/auth/v1/signature/session:
     post:
       operationId: createSignSession
-      summary: Create a signing session for a supported means.
+      summary: Create a signing session for a supported means
       description: |
         Create a signing session for a supported means.
 
@@ -66,7 +66,7 @@ paths:
   /internal/auth/v1/signature/verify:
     put:
       operationId: verifySignature
-      summary: Verify a signature in the form of a verifiable presentation
+      summary: Verify a signature in the form of a Verifiable Presentation
       description: |
         Verify a signature in the form of a verifiable presentation
 
@@ -249,7 +249,7 @@ paths:
   /internal/auth/v1/accesstoken/verify:
     head:
       operationId: verifyAccessToken
-      summary: Verifies the provided access token
+      summary: Verify the provided access token
       description: |
         Verifies the access token given in the Authorization header (as bearer token). If it's a valid access token issued by this server, it'll return a 200 status code.
 
@@ -272,7 +272,8 @@ paths:
   /internal/auth/v1/accesstoken/introspect:
     post:
       operationId: introspectAccessToken
-      summary: Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+      summary: Introspect an access token
+      description: Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
       tags:
         - auth
       requestBody:

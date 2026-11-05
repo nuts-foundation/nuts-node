@@ -10,7 +10,7 @@ servers:
 paths:
   /internal/vdr/v1/did:
     post:
-      summary: Creates a new Nuts DID
+      summary: Create a new Nuts DID
       deprecated: true
       description: |
         Starting with v6.0.0, the entire body will be ignored and default values will be used.
@@ -75,7 +75,7 @@ paths:
           example: "2021-11-03T08:25:13Z"
           schema:
             type: string
-      summary: "Resolves a Nuts DID document"
+      summary: "Resolve a Nuts DID document"
       description: |
         Resolves a Nuts DID document. It also resolves deactivated documents.
 
@@ -96,7 +96,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     put:
-      summary: Updates a Nuts DID document.
+      summary: Update a Nuts DID document
       description: |
         Updates a Nuts DID document.
 
@@ -125,7 +125,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     delete:
-      summary: Deactivates a Nuts DID document according to the specification.
+      summary: Deactivate a Nuts DID document according to the specification
       description: |
         Updates a Nuts DID document.
 
@@ -175,7 +175,7 @@ paths:
         schema:
           type: string
     post:
-      summary: Creates and adds a new verificationMethod to the DID document.
+      summary: Create and add a new verificationMethod to the DID document
       description: |
         It creates a new private public keypair. The public key is wrapped in verificationMethod. This method is added to the DID Document.
         

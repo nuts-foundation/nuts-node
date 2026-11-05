@@ -847,10 +847,10 @@ type ServerInterface interface {
 	// Encrypt a payload and headers with the public key of the given DID into a JWE object
 	// (POST /internal/crypto/v1/encrypt_jwe)
 	EncryptJwe(ctx echo.Context) error
-	// sign a payload and headers with the private key of the given kid into a JWS object
+	// Sign a payload and headers with the private key of the given kid into a JWS object
 	// (POST /internal/crypto/v1/sign_jws)
 	SignJws(ctx echo.Context) error
-	// sign a JWT payload with the private key of the given kid
+	// Sign a JWT payload with the private key of the given kid
 	// (POST /internal/crypto/v1/sign_jwt)
 	SignJwt(ctx echo.Context) error
 }
@@ -1108,10 +1108,10 @@ type StrictServerInterface interface {
 	// Encrypt a payload and headers with the public key of the given DID into a JWE object
 	// (POST /internal/crypto/v1/encrypt_jwe)
 	EncryptJwe(ctx context.Context, request EncryptJweRequestObject) (EncryptJweResponseObject, error)
-	// sign a payload and headers with the private key of the given kid into a JWS object
+	// Sign a payload and headers with the private key of the given kid into a JWS object
 	// (POST /internal/crypto/v1/sign_jws)
 	SignJws(ctx context.Context, request SignJwsRequestObject) (SignJwsResponseObject, error)
-	// sign a JWT payload with the private key of the given kid
+	// Sign a JWT payload with the private key of the given kid
 	// (POST /internal/crypto/v1/sign_jwt)
 	SignJwt(ctx context.Context, request SignJwtRequestObject) (SignJwtResponseObject, error)
 }

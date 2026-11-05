@@ -53,7 +53,11 @@ type KeyCreationOptions struct {
 	// AssertionKey If true, an EC keypair is generated and added to the DID Documents as a assertion, authentication, capability invocation and capability delegation method.
 	AssertionKey bool `json:"assertionKey"`
 
-	// EncryptionKey If true, an RSA keypair is generated and added to the DID Documents as a key agreement method.
+	// EncryptionKey If true, a keypair is generated and added to the DID Documents as a key agreement method.
+	// Defaults to true when the keys object (or the whole request body) is omitted; only an
+	// explicit false opts out. did:web never supports this and is skipped without an error,
+	// regardless of this setting. If the key store backend can't support it either (e.g. Azure
+	// Key Vault), creation fails, whether this was left at its default or set explicitly.
 	EncryptionKey bool `json:"encryptionKey"`
 }
 
@@ -1917,40 +1921,40 @@ func ParseAddVerificationMethodResponse(rsp *http.Response) (*AddVerificationMet
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Returns the root did:web DID of this domain.
+	// Get the root did:web DID of this domain
 	// (GET /.well-known/did.json)
 	GetRootWebDID(ctx echo.Context) error
-	// Returns the did:web DID for the specified tenant.
+	// Get the did:web DID for the specified tenant
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx echo.Context, id string) error
-	// Resolves a DID document
+	// Resolve a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx echo.Context, did string) error
-	// Lists all subjects and their DIDs.
+	// List all subjects and their DIDs
 	// (GET /internal/vdr/v2/subject)
 	ListSubjects(ctx echo.Context) error
-	// Creates new DID Documents for a subject.
+	// Create new DID documents for a subject
 	// (POST /internal/vdr/v2/subject)
 	CreateSubject(ctx echo.Context) error
-	// Deactivate all DID Documents for a subject.
+	// Deactivate all DID documents for a subject
 	// (DELETE /internal/vdr/v2/subject/{id})
 	Deactivate(ctx echo.Context, id string) error
-	// Lists all DIDs for a subject
+	// List all DIDs for a subject
 	// (GET /internal/vdr/v2/subject/{id})
 	SubjectDIDs(ctx echo.Context, id string) error
 	// Find services of a subject
 	// (GET /internal/vdr/v2/subject/{id}/service)
 	FindServices(ctx echo.Context, id string, params FindServicesParams) error
-	// Adds a service to DID documents of a subject.
+	// Add a service to the DID documents of a subject
 	// (POST /internal/vdr/v2/subject/{id}/service)
 	CreateService(ctx echo.Context, id string) error
 	// Delete a specific service from the subject
 	// (DELETE /internal/vdr/v2/subject/{id}/service/{serviceId})
 	DeleteService(ctx echo.Context, id string, serviceId string) error
-	// Updates a service for the subject
+	// Update a service for the subject
 	// (POST /internal/vdr/v2/subject/{id}/service/{serviceId})
 	UpdateService(ctx echo.Context, id string, serviceId string) error
-	// Creates and adds one or more verificationMethods to each DID document in the subject.
+	// Create and add one or more verificationMethods to each DID document in the subject
 	// (POST /internal/vdr/v2/subject/{id}/verificationmethod)
 	AddVerificationMethod(ctx echo.Context, id string) error
 }
@@ -2634,40 +2638,40 @@ func (response AddVerificationMethoddefaultApplicationProblemPlusJSONResponse) V
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Returns the root did:web DID of this domain.
+	// Get the root did:web DID of this domain
 	// (GET /.well-known/did.json)
 	GetRootWebDID(ctx context.Context, request GetRootWebDIDRequestObject) (GetRootWebDIDResponseObject, error)
-	// Returns the did:web DID for the specified tenant.
+	// Get the did:web DID for the specified tenant
 	// (GET /iam/{id}/did.json)
 	GetTenantWebDID(ctx context.Context, request GetTenantWebDIDRequestObject) (GetTenantWebDIDResponseObject, error)
-	// Resolves a DID document
+	// Resolve a DID document
 	// (GET /internal/vdr/v2/did/{did})
 	ResolveDID(ctx context.Context, request ResolveDIDRequestObject) (ResolveDIDResponseObject, error)
-	// Lists all subjects and their DIDs.
+	// List all subjects and their DIDs
 	// (GET /internal/vdr/v2/subject)
 	ListSubjects(ctx context.Context, request ListSubjectsRequestObject) (ListSubjectsResponseObject, error)
-	// Creates new DID Documents for a subject.
+	// Create new DID documents for a subject
 	// (POST /internal/vdr/v2/subject)
 	CreateSubject(ctx context.Context, request CreateSubjectRequestObject) (CreateSubjectResponseObject, error)
-	// Deactivate all DID Documents for a subject.
+	// Deactivate all DID documents for a subject
 	// (DELETE /internal/vdr/v2/subject/{id})
 	Deactivate(ctx context.Context, request DeactivateRequestObject) (DeactivateResponseObject, error)
-	// Lists all DIDs for a subject
+	// List all DIDs for a subject
 	// (GET /internal/vdr/v2/subject/{id})
 	SubjectDIDs(ctx context.Context, request SubjectDIDsRequestObject) (SubjectDIDsResponseObject, error)
 	// Find services of a subject
 	// (GET /internal/vdr/v2/subject/{id}/service)
 	FindServices(ctx context.Context, request FindServicesRequestObject) (FindServicesResponseObject, error)
-	// Adds a service to DID documents of a subject.
+	// Add a service to the DID documents of a subject
 	// (POST /internal/vdr/v2/subject/{id}/service)
 	CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error)
 	// Delete a specific service from the subject
 	// (DELETE /internal/vdr/v2/subject/{id}/service/{serviceId})
 	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
-	// Updates a service for the subject
+	// Update a service for the subject
 	// (POST /internal/vdr/v2/subject/{id}/service/{serviceId})
 	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
-	// Creates and adds one or more verificationMethods to each DID document in the subject.
+	// Create and add one or more verificationMethods to each DID document in the subject
 	// (POST /internal/vdr/v2/subject/{id}/verificationmethod)
 	AddVerificationMethod(ctx context.Context, request AddVerificationMethodRequestObject) (AddVerificationMethodResponseObject, error)
 }

@@ -11,7 +11,7 @@ servers:
 paths:
   /internal/discovery/v1:
     get:
-      summary: Retrieves the list of Discovery Services.
+      summary: Retrieve the list of Discovery Services
       description: |
         An API provided by the Discovery Client that retrieves the list of configured Discovery Services.
       operationId: getServices
@@ -47,7 +47,7 @@ paths:
         style: form
         explode: true
     get:
-      summary: Searches for presentations registered on the Discovery Service.
+      summary: Search for presentations registered on the Discovery Service
       description: |
         An API of the discovery client that searches for presentations on the Discovery Service,
         whose credentials match the given query parameter.
@@ -107,7 +107,7 @@ paths:
               type: string
               example: "tenant-123"
     get:
-      summary: Retrieves the activation status of a subject on a Discovery Service.
+      summary: Retrieve the activation status of a subject on a Discovery Service
       description: |
         An API provided by the Discovery Client,
         used to check whether the client is managing the given subject on the specified Discovery Service (service has been activated for the subject)
@@ -152,7 +152,7 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Activate a Discovery Service for a subject.
+      summary: Activate a Discovery Service for a subject
       description: |
         An API provided by the discovery client that will cause all qualifying DIDs of a subject to be registered on the specified Discovery Service.
         A DID qualifies for registration if it meets the requirements defined the Presentation Definition of the Discovery Service.
@@ -179,7 +179,7 @@ paths:
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Remove a subject from the Discovery Service.
+      summary: Remove a subject from the Discovery Service
       description: |
         An API provided by the discovery client that will cancel the periodic registration of a subject on the specified Discovery Service.
         It will also try to delete all the existing registrations on the Discovery Service, if any.
