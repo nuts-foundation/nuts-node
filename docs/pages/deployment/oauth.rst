@@ -78,16 +78,13 @@ Note: the unrelated internal flow in the ``vcr/openid4vci`` package is used by N
 DPoP
 ****
 
-When the client wants to use DPoP, it must enable it in the access token request from client to Nuts node.
-If enabled the client will also need to call the Nuts node to create a new DPop Proof header for each request to the resources server.
-
-A resources server must check the type of access token used to request data. If a DPoP token is used, the resource server must verify the DPoP Proof using the hash of the public key from the introspection result.
-The Nuts node provides a convenience API to do this for you.
-Some of the calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
-More information can be found on the `API documentation <nuts-node-api>`_ page. The relevant API's are:
+The keys for DPoP proofs are taken from the DID Document of the subject, so creating and validating DPoP headers goes through the Nuts node API:
 
 - ``POST /internal/auth/v2/dpop/{kid}``
 - ``POST /internal/auth/v2/dpop/validate``
+
+How the client creates a DPoP header and how the resource server validates it is described on the wiki:
+`Make the FHIR call <https://wiki.nuts.nl/link/182>`_ and `Validate the access token <https://wiki.nuts.nl/link/110>`_.
 
 StatusList2021
 **************
