@@ -7,3 +7,5 @@ generate:
 output-options:
   exclude-schemas:
   - PeerDiagnostics
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v5/api

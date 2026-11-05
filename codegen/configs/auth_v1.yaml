@@ -10,3 +10,5 @@ output-options:
   - VerifiableCredential
   - VerifiablePresentation
   - AccessTokenResponse
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v5/api

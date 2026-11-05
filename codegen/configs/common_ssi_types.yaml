@@ -3,3 +3,9 @@ generate:
   models: true
 output-options:
   skip-prune: true
+  user-templates:
+    typedef.tmpl: |
+      {{range .Types}}
+      {{ if .Schema.Description }}{{ toGoComment .Schema.Description .TypeName  }}{{ else }}// {{.TypeName}} defines model for {{.JsonName}}.{{ end }}
+      type {{.TypeName}} {{if or .IsAlias (eq .TypeName "ProblemDetails") }}={{end}} {{.Schema.TypeDecl}}
+      {{end}}
