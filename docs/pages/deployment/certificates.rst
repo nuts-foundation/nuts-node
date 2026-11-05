@@ -17,11 +17,9 @@ The ``gRPC Nuts network`` and ``/n2n`` endpoints are deprecated and will be remo
 did:x509
 ********
 
-In ``did:x509`` a certificate is converted to a DID Document (that includes its entire certificate chain) so it can be used in the Verifiable Credentials ecosystem.
-This DID Method provides a temporary bridge between the 'old' world of CAs/Certificates and the 'new' Verifiable Credential world.
-With other DID Methods, certificates are only used to create an secure channel for communication and optionally for client authentication.
-In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
-This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
+In ``did:x509`` a certificate is converted to a DID Document (that includes its entire certificate chain).
+Why certificates are used this way and how use cases trust them is described on the wiki:
+`UZI certificates as a source of identity <https://wiki.nuts.nl/link/111>`_ and `X509Credential with UZI server certificates <https://wiki.nuts.nl/link/124>`_.
 
 Certificates and CRLs in the chain may be signed with RSA (PKCS #1 v1.5 or RSASSA-PSS, with SHA-256, SHA-384 or SHA-512), ECDSA or Ed25519.
 This includes the PKIoverheid G4 profile used for UZI server certificates issued from 12 November 2026: RSA 4096 keys with RSASSA-PSS/SHA-512 signatures.
