@@ -2193,34 +2193,34 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
+	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// Issues a new Verifiable Credential
+	// Issue a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
-	// Searches for verifiable credentials issued by this node which matches the search params
+	// Search for Verifiable Credentials issued by this node
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
-	// Searches for verifiable credentials that could be used for different use-cases.
+	// Search for Verifiable Credentials
 	// (POST /internal/vcr/v2/search)
 	SearchVCs(ctx echo.Context) error
-	// Resolves a verifiable credential
+	// Resolve a Verifiable Credential
 	// (GET /internal/vcr/v2/vc/{id})
 	ResolveVC(ctx echo.Context, id string) error
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx echo.Context) error
-	// Mark all the VCs of given type and issuer as 'trusted'.
+	// Mark all the VCs of given type and issuer as 'trusted'
 	// (POST /internal/vcr/v2/verifier/trust)
 	TrustIssuer(ctx echo.Context) error
-	// Verifies a Verifiable Credential
+	// Verify a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx echo.Context) error
-	// Verifies a Verifiable Presentation
+	// Verify a Verifiable Presentation
 	// (POST /internal/vcr/v2/verifier/vp)
 	VerifyVP(ctx echo.Context) error
 	// List all trusted issuers for a given credential type
@@ -2918,34 +2918,34 @@ func (response ListUntrusteddefaultApplicationProblemPlusJSONResponse) VisitList
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
+	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// Issues a new Verifiable Credential
+	// Issue a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error)
-	// Searches for verifiable credentials issued by this node which matches the search params
+	// Search for Verifiable Credentials issued by this node
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRequestObject) (SearchIssuedVCsResponseObject, error)
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx context.Context, request RevokeVCRequestObject) (RevokeVCResponseObject, error)
-	// Searches for verifiable credentials that could be used for different use-cases.
+	// Search for Verifiable Credentials
 	// (POST /internal/vcr/v2/search)
 	SearchVCs(ctx context.Context, request SearchVCsRequestObject) (SearchVCsResponseObject, error)
-	// Resolves a verifiable credential
+	// Resolve a Verifiable Credential
 	// (GET /internal/vcr/v2/vc/{id})
 	ResolveVC(ctx context.Context, request ResolveVCRequestObject) (ResolveVCResponseObject, error)
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx context.Context, request UntrustIssuerRequestObject) (UntrustIssuerResponseObject, error)
-	// Mark all the VCs of given type and issuer as 'trusted'.
+	// Mark all the VCs of given type and issuer as 'trusted'
 	// (POST /internal/vcr/v2/verifier/trust)
 	TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error)
-	// Verifies a Verifiable Credential
+	// Verify a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx context.Context, request VerifyVCRequestObject) (VerifyVCResponseObject, error)
-	// Verifies a Verifiable Presentation
+	// Verify a Verifiable Presentation
 	// (POST /internal/vcr/v2/verifier/vp)
 	VerifyVP(ctx context.Context, request VerifyVPRequestObject) (VerifyVPResponseObject, error)
 	// List all trusted issuers for a given credential type

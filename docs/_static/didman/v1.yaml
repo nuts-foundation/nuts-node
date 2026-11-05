@@ -18,6 +18,7 @@ paths:
         schema:
           type: string
     get:
+      summary: Get the contact information of a DID
       operationId: getContactInformation
       tags:
         - "contact info"
@@ -66,7 +67,7 @@ paths:
           type: string
     post:
       operationId: "addEndpoint"
-      summary: Add a service endpoint or a reference to a service.
+      summary: Add a service endpoint or a reference to a service
       description: |
         To distinguish from compound services, this type of service will be called an endpoint.
         In the Nuts specs this type of service is called a concrete service.
@@ -115,7 +116,7 @@ paths:
           type: string
     put:
       operationId: "updateEndpoint"
-      summary: Update a service endpoint or a reference to a service.
+      summary: Update a service endpoint or a reference to a service
       description: |
         Update an endpoint's URL or reference in a DID document. The endpoint to be updated is selected by type.
         The URL can either be an Endpoint or a reference to another service. Updating the type is not supported.
@@ -141,6 +142,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     delete:
+      summary: Delete all endpoints of a type from a DID document
       operationId: deleteEndpointsByType
       description: |
         Delete all endpoints with the provided type from the DID Document.
@@ -168,9 +170,8 @@ paths:
           type: string
     get:
       operationId: getCompoundServices
-      summary: |
-        Get a list of compound services for a DID document.
-
+      summary: Get a list of compound services for a DID document
+      description: |
         error responses:
         * 400 - incorrect input
         * 404 - unknown DID
@@ -190,7 +191,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     post:
-      summary: Add a compound service to a DID Document.
+      summary: Add a compound service to a DID document
       description: |
         Add a service to a DID Document that references one or more endpoints using a map. The keys of the map indicate the service name/type, the values contain the references to the endpoints.
         The endpoints may be in the same or in another DID Document, but they must be resolvable when the service is created.
@@ -237,7 +238,7 @@ paths:
         schema:
           type: string
     put:
-      summary: Update a compound service.
+      summary: Update a compound service
       description: |
         Update a compound service in a DID Document. It follows the same requirements as when adding a compound service.
         It updates all endpoints of the compound service (no partial updates). Updating the type is not supported.
@@ -294,7 +295,7 @@ paths:
           type: string
     get:
       operationId: getCompoundServiceEndpoint
-      summary: Retrieves the endpoint with the specified endpointType from the specified compound service.
+      summary: Retrieve the endpoint with the specified endpointType from the specified compound service
       description: |
         Retrieves the endpoint with the specified endpointType from the specified compound service.
         It returns the serviceEndpoint of the specified service (which must be an absolute URL endpoint).
@@ -338,7 +339,7 @@ paths:
         schema:
           type: string
     delete:
-      summary: Remove a service from a DID Document.
+      summary: Remove a service from a DID document
       description: |
         Remove a service from a DID Document.
 
@@ -374,6 +375,7 @@ paths:
         schema:
           type: string
     get:
+      summary: Search for organizations
       operationId: searchOrganizations
       tags:
         - search

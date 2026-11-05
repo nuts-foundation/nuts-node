@@ -346,10 +346,10 @@ type CreateAccessTokenFormdataRequestBody = CreateAccessTokenRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspect an access token
 	// (POST /internal/auth/v1/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Verifies the provided access token
+	// Verify the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
 	// Draw up a contract using a specified contract template, language and version
@@ -361,13 +361,13 @@ type ServerInterface interface {
 	// Request an access token from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx echo.Context) error
-	// Create a signing session for a supported means.
+	// Create a signing session for a supported means
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx echo.Context) error
 	// Get the current status of a signing session
 	// (GET /internal/auth/v1/signature/session/{sessionID})
 	GetSignSessionStatus(ctx echo.Context, sessionID string) error
-	// Verify a signature in the form of a verifiable presentation
+	// Verify a signature in the form of a Verifiable Presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
 	// Create an access token using a JWT as authorization grant
@@ -922,10 +922,10 @@ func (response GetContractByTypedefaultApplicationProblemPlusJSONResponse) Visit
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspect an access token
 	// (POST /internal/auth/v1/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Verifies the provided access token
+	// Verify the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx context.Context, request VerifyAccessTokenRequestObject) (VerifyAccessTokenResponseObject, error)
 	// Draw up a contract using a specified contract template, language and version
@@ -937,13 +937,13 @@ type StrictServerInterface interface {
 	// Request an access token from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
-	// Create a signing session for a supported means.
+	// Create a signing session for a supported means
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx context.Context, request CreateSignSessionRequestObject) (CreateSignSessionResponseObject, error)
 	// Get the current status of a signing session
 	// (GET /internal/auth/v1/signature/session/{sessionID})
 	GetSignSessionStatus(ctx context.Context, request GetSignSessionStatusRequestObject) (GetSignSessionStatusResponseObject, error)
-	// Verify a signature in the form of a verifiable presentation
+	// Verify a signature in the form of a Verifiable Presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx context.Context, request VerifySignatureRequestObject) (VerifySignatureResponseObject, error)
 	// Create an access token using a JWT as authorization grant
