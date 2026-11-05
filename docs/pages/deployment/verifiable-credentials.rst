@@ -58,7 +58,7 @@ Local mappings can be used to pin a version of a context, so no unseen changes c
 Searching and indexing
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Searching for custom credentials works just as Nuts provided credentials as described in :ref:`searching-vcs`. Note however that the extra fields in the `credentialSubject` added by the custom credential are not indexed by the credential store. Searching for these fields is notably slower (depending on the query and amount of custom credentials). If this becomes a problem, inform the Nuts development team so an appropriate solution can be found.
+Searching for custom credentials works just as Nuts provided credentials as described on the `wiki <https://wiki.nuts.nl/books/implementing-a-nuts-spec-v1-use-case/page/register-find-and-authorize-care-organizations>`_. Note however that the extra fields in the `credentialSubject` added by the custom credential are not indexed by the credential store. Searching for these fields is notably slower (depending on the query and amount of custom credentials). If this becomes a problem, inform the Nuts development team so an appropriate solution can be found.
 
 Resources
 ^^^^^^^^^
