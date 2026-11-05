@@ -17,7 +17,7 @@ The node will add sensible defaults for:
 You are required to provide the ``credentialSubject``, the ``issuer``, the ``type`` and an optional ``@context`` and ``expirationDate``.
 If you do not pass a `@context`, it'll be set: ``["https://www.w3.org/2018/credentials/v1", "https://nuts.nl/credentials/v1"]``.
 Note that this default does not include the latest version of the Nuts JSON-LD context.
-The Nuts JSON-LD contexts are listed on the `wiki <https://wiki.nuts.nl/books/technology/page/json-ld>`_.
+The Nuts JSON-LD contexts are listed on the `wiki <https://wiki.nuts.nl/link/196>`_.
 
 Calling `/internal/vcr/v2/issuer/vc` with
 
