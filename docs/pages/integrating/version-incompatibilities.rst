@@ -26,7 +26,7 @@ And ``did:nuts`` for example, requires the registration of a ``NutsComm`` endpoi
 Use-cases built on V5 should keep using the DIDMan API to manage and resolve Services on DID Documents.
 Any Service change made using the DIDMan API will only update ``did:nuts`` DID Documents.
 
-For use-cases built on V6, any endpoint needed for the use-case should be listed in the registration on the Discovery Service for that use-case, see :ref:`discovery` Registration.
+For use-cases built on V6, any endpoint needed for the use-case should be listed in the registration on the Discovery Service for that use-case, see `Register on the Discovery Service <https://wiki.nuts.nl/books/implementing-a-nuts-v2-use-case/page/register-on-the-discovery-service>`_ on the wiki.
 This means that ``did:web`` DID Documents (or non-did:nuts if we look further ahead) will contain very few Services, if any.
 If there is a need to add a Service for V6 use-cases, they should be added using the VDR v2 API, which will then add the Service to _all_ DIDs that are part of the Subject.
 Note that resolving Services using the VDR v2 API will return the Service from the document as is.

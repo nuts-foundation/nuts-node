@@ -5,81 +5,21 @@ Discovery
 
 Discovery allows parties to publish information about themselves as a Verifiable Presentation,
 so that other parties can discover them for further (data) exchange.
+A Discovery Service is hosted on a server (also a Nuts node) and defined by a service definition, agreed upon by the parties of a use case.
 
-A Discovery Service is hosted on a server (also a Nuts node), by an organization that is agreed upon by the parties to be the server for that particular use case.
-The parties implementing that use case then configure their Nuts nodes with the service definition that defines the server.
+How to write a service definition, and how to register and search through the API, is described on the wiki:
 
-The service definition is a JSON document agreed upon (and loaded) by all parties that specifies:
+- `Service Discovery <https://wiki.nuts.nl/books/designing-a-nuts-use-case/page/service-discovery>`_ (designing a use case)
+- `Register on the Discovery Service <https://wiki.nuts.nl/books/implementing-a-nuts-v2-use-case/page/register-on-the-discovery-service>`_ and
+  `Find care organizations and their endpoints <https://wiki.nuts.nl/books/implementing-a-nuts-v2-use-case/page/find-care-organizations-and-their-endpoints>`_ (implementing a use case)
 
-- which Verifiable Credentials are required for the service,
-- which DID methods are allowed (blank for all),
-- where the Discovery Service is hosted, and
-- how often the Verifiable Presentations must be updated.
+Service definitions
+*******************
 
 Service definitions are loaded from the ``discovery.definitions.directory`` directory by both client and server.
 It does not load subdirectories. If the directory contains JSON files that are not (valid) service definitions, the node will fail to start.
 
-Clients
-*******
-
-Clients will periodically query the Discovery Service for new registrations.
-Applications can then search for entries in the Discovery Service (in this case ``coffeecorner``), e.g.:
-
-.. code-block:: text
-
-    GET /internal/discovery/v1/discovery/coffeecorner/?credentialSubject.name=John%20Doe
-
-Any string property in the Verifiable Credential(s) can be queried, including nested properties.
-Arrays, numbers or booleans are not supported. Wildcards can be used to search for partial matches, e.g. ``Hospital*`` or ``*First``.
-If multiple query parameters are specified, all of them must match a single Verifiable Credential.
-
-Registration
-============
-
-To register a subject on a Discovery Service, the subject must be activated for the service.
-The Nuts node will then register a Verifiable Presentation for all subject DIDs on the service, and periodically refresh it.
-E.g., for service ``coffeecorner`` and subject ``example``:
-
-.. code-block:: text
-
-    POST /internal/discovery/v1/coffeecorner/example
-
-The wallet must contain the Verifiable Credential(s) that are required by the service definition,
-otherwise registration will fail immediately.
-
-Optionally, a POST body can be provided with registration parameters, e.g.:
-
-.. code-block:: json
-
-    {
-      "registrationParameters": {
-        "endpoint": "https://api.example.com",
-        "contact": "alice@example.com"
-      }
-    }
-
-This can be used to provide additional information. All registration parameters are returned by the search API.
-The ``authServerURL`` is added automatically by the Nuts node. It's constructed as ``https://<config.url>/oauth2/<subject_id>``.
-Registration parameters can only be used if a specific parameters and/or ``DiscoveryRegistrationCredential`` are required by the Presentation Definition.
-The registration parameters should match the ``credentialSubject`` definition for the ``DiscoveryRegistrationCredential`` in the Presentation Definition. So ``endpoint`` in the example above can be matched by the path ``$.credentialSubject.endpoint``.
-
-Once registered, future refreshes will be done automatically by the Nuts node. These refreshes could fail because of various reasons.
-You can check the status of the refreshes by querying the service, e.g.:
-
-.. code-block:: text
-
-    GET /internal/discovery/v1/coffeecorner/example
-
-The result contains a ``status`` field that indicates the status of the registration (``active`` or ``error``) . If the refresh fails, the ``error`` field contains the error message.
-
-.. code-block:: json
-
-    {
-      "activated": true,
-      "status": "error",
-      "error": "error message",
-      "vp": [...]
-    }
+Registered Verifiable Presentations may be at most 64 KiB. This is a fixed limit of the Nuts node, not configurable per service definition.
 
 Servers
 *******
@@ -103,88 +43,5 @@ The endpoint for a Discovery Service MUST be in the following form (unless mappe
     https://<host>/discovery/<service_id>
 
 Where ``<service_id>`` is the ID of the service, e.g.: ``/discovery/coffeecorner``.
-
-Service definitions
-*******************
-
-.. code-block:: json
-
-   {
-      "id": "coffeecorner",
-      "did_methods": ["web", "nuts"],
-      "endpoint": "https://example.com/discovery/coffeecorner",
-      "presentation_max_validity": 36000,
-      "presentation_definition": {
-        "id": "coffeecorner2024",
-        "format": {
-          "ldp_vc": {
-            "proof_type": [
-              "JsonWebSignature2020"
-            ]
-          },
-          "jwt_vp": {
-            "alg": ["ES256"]
-          }
-        },
-        "input_descriptors": [
-          {
-            "id": "NutsOrganizationCredential",
-            "constraints": {
-              "fields": [
-                {
-                  "path": [
-                    "$.type"
-                  ],
-                  "filter": {
-                    "type": "string",
-                    "const": "NutsOrganizationCredential"
-                  }
-                },
-                {
-                  "path": [
-                    "$.credentialSubject.organization.name"
-                  ],
-                  "filter": {
-                    "type": "string"
-                  }
-                },
-                {
-                  "path": [
-                    "$.credentialSubject.organization.city"
-                  ],
-                  "filter": {
-                    "type": "string"
-                  }
-                }
-              ]
-            }
-          }, {
-            "id": "DiscoveryRegistrationCredential",
-            "constraints": {
-              "fields": [
-                {
-                  "id":   "auth_server_url",
-                  "path": [
-                    "$.credentialSubject.authServerURL"
-                  ]
-                }
-              ]
-            }
-          }
-        ]
-      }
-    }
-
-
-A service definition consists of:
-
-- ``id``: the unique identifier of the service
-- ``did_methods``: the DID methods that are allowed (optional)
-- ``endpoint``: the URL of the service
-- ``presentation_max_validity``: the maximum validity of the Verifiable Presentation in seconds
-- ``presentation_definition``: the presentation definition that specifies the required Verifiable Credentials (see `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_)
-
-Registered Verifiable Presentations may be at most 64 KiB. This is a fixed limit of the Nuts node, not configurable per service definition.
-Legitimate presentations are a few KB (about 16 KB when they carry an ``X509Credential`` with a full certificate chain), the limit keeps a single participant from inflating the service's responses.
 
 For details see `Nuts RFC022 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc022-discovery-service>`_.
