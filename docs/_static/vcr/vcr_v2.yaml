@@ -21,7 +21,7 @@ paths:
         schema:
           type: string
     get:
-      summary: "Resolves a verifiable credential"
+      summary: "Resolve a Verifiable Credential"
       description: >
         Returns the resolved credential, regardless of its revocation/trust state.
       operationId: "resolveVC"
@@ -48,7 +48,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/search:
     post:
-      summary: "Searches for verifiable credentials that could be used for different use-cases."
+      summary: "Search for Verifiable Credentials"
       description: >
         The result contains a list of matching credentials. Only verified credentials are returned.
         The search parameters define how the raw results are filtered.
@@ -121,7 +121,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc:
     post:
-      summary: Issues a new Verifiable Credential
+      summary: Issue a new Verifiable Credential
       description: |
         Issues a new Verifiable Credential for provided type in the context.
         It can issue credentials from did:web and did:nuts issuer DIDs.
@@ -222,7 +222,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/issuer/vc/search:
     get:
-      summary: "Searches for verifiable credentials issued by this node which matches the search params"
+      summary: "Search for Verifiable Credentials issued by this node"
       description: >
         The SearchVCResult contains a list of matching credentials regardless of the validity.
         The entry may contain a revocation if the credential has been revoked with a credential of type CredentialRevocation. 
@@ -331,7 +331,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vc:
     post:
-      summary: Verifies a Verifiable Credential
+      summary: Verify a Verifiable Credential
       description: |
         Verifies a Verifiable Credential. It checks: 
         * The signature
@@ -369,7 +369,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/vp:
     post:
-      summary: Verifies a Verifiable Presentation
+      summary: Verify a Verifiable Presentation
       description: |
         Verifies a Verifiable Presentation. It checks:
         * Signature of the verifiable presentation and the verifiable credentials
@@ -410,7 +410,7 @@ paths:
           $ref: '../common/error_response.yaml'
   /internal/vcr/v2/verifier/trust:
     post:
-      summary: Mark all the VCs of given type and issuer as 'trusted'.
+      summary: Mark all the VCs of given type and issuer as 'trusted'
       description: |
         The added trust is persisted and may be removed with a delete operation.
       operationId: "trustIssuer"
@@ -548,7 +548,7 @@ paths:
 
   /internal/vcr/v2/holder/vp:
     post:
-      summary: Create a new Verifiable Presentation for a set of Verifiable Credentials.
+      summary: Create a new Verifiable Presentation for a set of Verifiable Credentials
       description: |
         Given a list of VCs, create a new presentation.
       operationId: createVP
@@ -591,9 +591,8 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     get:
-      summary: >
-        List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials.
-        If you want to list all credentials regardless of their validity, use the search API.
+      summary: List all Verifiable Credentials in a wallet
+      description: It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
       operationId: getCredentialsInWallet
       tags:
         - credential
@@ -619,7 +618,7 @@ paths:
         default:
           $ref: '../common/error_response.yaml'
     post:
-      summary: Load a VerifiableCredential into the holders wallet.
+      summary: Load a Verifiable Credential into a wallet
       description: |
         If a VerifiableCredential is not directly issued to the wallet through e.g. OpenID4VCI, this API allows to add it to a wallet.
         The subject identifier of the holder has to be provided in the path.
@@ -669,7 +668,7 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     delete:
-      summary: Remove a VerifiableCredential from the holders wallet.
+      summary: Remove a Verifiable Credential from a wallet
       description: |
         Remove a VerifiableCredential from the holders wallet. After removal the holder can't present the credential any more.
         It does not revoke the credential or inform the credential issuer that the wallet removed the wallet.
@@ -714,7 +713,7 @@ paths:
               type: string
               example: 90BC1AE9-752B-432F-ADC3-DD9F9C61843C
     get:
-      summary: "Searches for verifiable credentials in the holder's wallet"
+      summary: "Search for Verifiable Credentials in a wallet"
       description: >
         The SearchVCResult contains a list of matching credentials in the wallet regardless of validity.
         This allows applications to build a listing of all credentials in wallets, regardless of its status (expired/revoked).

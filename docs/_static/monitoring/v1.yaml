@@ -11,8 +11,8 @@ servers:
 paths:
   /health:
     get:
-      summary: "More elaborate health check to conform the node is (probably) functioning correctly"
-      description: "Returns the status in Spring Boot Health format."
+      summary: "Check the health of the node"
+      description: "More elaborate health check to confirm the node is (probably) functioning correctly. Returns the status in Spring Boot Health format."
       operationId: checkHealth
       tags:
         - status
@@ -25,7 +25,7 @@ paths:
                 $ref: "#/components/schemas/CheckHealthResponse"
   /status:
     get:
-      summary: "healthcheck to confirm node is up and running"
+      summary: "Check if the node is up and running"
       description: |
         Check if the node is up and running.
       operationId: getStatus
@@ -41,7 +41,7 @@ paths:
                 example: "OK"
   /status/diagnostics:
     get:
-      summary: "get node diagnostics"
+      summary: "Get node diagnostics"
       description: |
         Get basic information on the
         * connected peers
@@ -65,7 +65,7 @@ paths:
                 type: object
   /metrics:
     get:
-      summary: "collect metrics"
+      summary: "Collect metrics"
       description: |
         Collect metrics in prometheus format.
         

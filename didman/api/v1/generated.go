@@ -1975,37 +1975,37 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get a list of compound services for a DID document.
+	// Get a list of compound services for a DID document
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx echo.Context, did string) error
-	// Add a compound service to a DID Document.
+	// Add a compound service to a DID document
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx echo.Context, did string) error
-	// Retrieves the endpoint with the specified endpointType from the specified compound service.
+	// Retrieve the endpoint with the specified endpointType from the specified compound service
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx echo.Context, did string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error
-	// Update a compound service.
+	// Update a compound service
 	// (PUT /internal/didman/v1/did/{did}/compoundservice/{type})
 	UpdateCompoundService(ctx echo.Context, did string, pType string) error
-
+	// Get the contact information of a DID
 	// (GET /internal/didman/v1/did/{did}/contactinfo)
 	GetContactInformation(ctx echo.Context, did string) error
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx echo.Context, did string) error
-	// Add a service endpoint or a reference to a service.
+	// Add a service endpoint or a reference to a service
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
-
+	// Delete all endpoints of a type from a DID document
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx echo.Context, did string, pType string) error
-	// Update a service endpoint or a reference to a service.
+	// Update a service endpoint or a reference to a service
 	// (PUT /internal/didman/v1/did/{did}/endpoint/{type})
 	UpdateEndpoint(ctx echo.Context, did string, pType string) error
-
+	// Search for organizations
 	// (GET /internal/didman/v1/search/organizations)
 	SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error
-	// Remove a service from a DID Document.
+	// Remove a service from a DID document
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx echo.Context, id string) error
 }
@@ -2913,37 +2913,37 @@ func (response DeleteServicedefaultApplicationProblemPlusJSONResponse) VisitDele
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get a list of compound services for a DID document.
+	// Get a list of compound services for a DID document
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx context.Context, request GetCompoundServicesRequestObject) (GetCompoundServicesResponseObject, error)
-	// Add a compound service to a DID Document.
+	// Add a compound service to a DID document
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx context.Context, request AddCompoundServiceRequestObject) (AddCompoundServiceResponseObject, error)
-	// Retrieves the endpoint with the specified endpointType from the specified compound service.
+	// Retrieve the endpoint with the specified endpointType from the specified compound service
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx context.Context, request GetCompoundServiceEndpointRequestObject) (GetCompoundServiceEndpointResponseObject, error)
-	// Update a compound service.
+	// Update a compound service
 	// (PUT /internal/didman/v1/did/{did}/compoundservice/{type})
 	UpdateCompoundService(ctx context.Context, request UpdateCompoundServiceRequestObject) (UpdateCompoundServiceResponseObject, error)
-
+	// Get the contact information of a DID
 	// (GET /internal/didman/v1/did/{did}/contactinfo)
 	GetContactInformation(ctx context.Context, request GetContactInformationRequestObject) (GetContactInformationResponseObject, error)
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx context.Context, request UpdateContactInformationRequestObject) (UpdateContactInformationResponseObject, error)
-	// Add a service endpoint or a reference to a service.
+	// Add a service endpoint or a reference to a service
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error)
-
+	// Delete all endpoints of a type from a DID document
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx context.Context, request DeleteEndpointsByTypeRequestObject) (DeleteEndpointsByTypeResponseObject, error)
-	// Update a service endpoint or a reference to a service.
+	// Update a service endpoint or a reference to a service
 	// (PUT /internal/didman/v1/did/{did}/endpoint/{type})
 	UpdateEndpoint(ctx context.Context, request UpdateEndpointRequestObject) (UpdateEndpointResponseObject, error)
-
+	// Search for organizations
 	// (GET /internal/didman/v1/search/organizations)
 	SearchOrganizations(ctx context.Context, request SearchOrganizationsRequestObject) (SearchOrganizationsResponseObject, error)
-	// Remove a service from a DID Document.
+	// Remove a service from a DID document
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
 }

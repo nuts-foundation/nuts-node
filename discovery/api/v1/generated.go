@@ -56,19 +56,19 @@ type ActivateServiceForSubjectJSONRequestBody = ServiceActivationRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Retrieves the list of Discovery Services.
+	// Retrieve the list of Discovery Services
 	// (GET /internal/discovery/v1)
 	GetServices(ctx echo.Context) error
-	// Searches for presentations registered on the Discovery Service.
+	// Search for presentations registered on the Discovery Service
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Remove a subject from the Discovery Service.
+	// Remove a subject from the Discovery Service
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
-	// Retrieves the activation status of a subject on a Discovery Service.
+	// Retrieve the activation status of a subject on a Discovery Service
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx echo.Context, serviceID string, subjectID string) error
-	// Activate a Discovery Service for a subject.
+	// Activate a Discovery Service for a subject
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
 }
@@ -440,19 +440,19 @@ func (response ActivateServiceForSubjectdefaultApplicationProblemPlusJSONRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Retrieves the list of Discovery Services.
+	// Retrieve the list of Discovery Services
 	// (GET /internal/discovery/v1)
 	GetServices(ctx context.Context, request GetServicesRequestObject) (GetServicesResponseObject, error)
-	// Searches for presentations registered on the Discovery Service.
+	// Search for presentations registered on the Discovery Service
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Remove a subject from the Discovery Service.
+	// Remove a subject from the Discovery Service
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error)
-	// Retrieves the activation status of a subject on a Discovery Service.
+	// Retrieve the activation status of a subject on a Discovery Service
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error)
-	// Activate a Discovery Service for a subject.
+	// Activate a Discovery Service for a subject
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error)
 }

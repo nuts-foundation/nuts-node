@@ -1252,22 +1252,22 @@ func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificat
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Creates a new Nuts DID
+	// Create a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
 	// Retrieve the list of conflicted DID documents
 	// (GET /internal/vdr/v1/did/conflicted)
 	ConflictedDIDs(ctx echo.Context) error
-	// Deactivates a Nuts DID document according to the specification.
+	// Deactivate a Nuts DID document according to the specification
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx echo.Context, did string) error
-	// Resolves a Nuts DID document
+	// Resolve a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx echo.Context, did string, params GetDIDParams) error
-	// Updates a Nuts DID document.
+	// Update a Nuts DID document
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
-	// Creates and adds a new verificationMethod to the DID document.
+	// Create and add a new verificationMethod to the DID document
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx echo.Context, did string) error
 	// Delete a specific verification method
@@ -1795,22 +1795,22 @@ func (response DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Creates a new Nuts DID
+	// Create a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
 	// Retrieve the list of conflicted DID documents
 	// (GET /internal/vdr/v1/did/conflicted)
 	ConflictedDIDs(ctx context.Context, request ConflictedDIDsRequestObject) (ConflictedDIDsResponseObject, error)
-	// Deactivates a Nuts DID document according to the specification.
+	// Deactivate a Nuts DID document according to the specification
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx context.Context, request DeactivateDIDRequestObject) (DeactivateDIDResponseObject, error)
-	// Resolves a Nuts DID document
+	// Resolve a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx context.Context, request GetDIDRequestObject) (GetDIDResponseObject, error)
-	// Updates a Nuts DID document.
+	// Update a Nuts DID document
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx context.Context, request UpdateDIDRequestObject) (UpdateDIDResponseObject, error)
-	// Creates and adds a new verificationMethod to the DID document.
+	// Create and add a new verificationMethod to the DID document
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx context.Context, request AddNewVerificationMethodRequestObject) (AddNewVerificationMethodResponseObject, error)
 	// Delete a specific verification method

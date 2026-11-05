@@ -1241,28 +1241,28 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get the address book, listing which nodes will be connected to.
+	// Get the address book, listing which nodes will be connected to
 	// (GET /internal/network/v1/addressbook)
 	GetAddressBook(ctx echo.Context) error
-	// Visualizes the DAG as a graph
+	// Visualize the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx echo.Context, params RenderGraphParams) error
-	// Gets diagnostic information about the node's peers
+	// Get diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx echo.Context) error
-	// Lists the state of the internal events
+	// List the state of the internal events
 	// (GET /internal/network/v1/events)
 	ListEvents(ctx echo.Context) error
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx echo.Context, params ReprocessParams) error
-	// Lists transactions on the DAG
+	// List transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context, params ListTransactionsParams) error
-	// Retrieves a transaction
+	// Retrieve a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx echo.Context, ref string) error
-	// Gets the transaction payload
+	// Get the transaction payload
 	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx echo.Context, ref string) error
 }
@@ -1780,28 +1780,28 @@ func (response GetTransactionPayloaddefaultApplicationProblemPlusJSONResponse) V
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get the address book, listing which nodes will be connected to.
+	// Get the address book, listing which nodes will be connected to
 	// (GET /internal/network/v1/addressbook)
 	GetAddressBook(ctx context.Context, request GetAddressBookRequestObject) (GetAddressBookResponseObject, error)
-	// Visualizes the DAG as a graph
+	// Visualize the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error)
-	// Gets diagnostic information about the node's peers
+	// Get diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx context.Context, request GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error)
-	// Lists the state of the internal events
+	// List the state of the internal events
 	// (GET /internal/network/v1/events)
 	ListEvents(ctx context.Context, request ListEventsRequestObject) (ListEventsResponseObject, error)
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx context.Context, request ReprocessRequestObject) (ReprocessResponseObject, error)
-	// Lists transactions on the DAG
+	// List transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error)
-	// Retrieves a transaction
+	// Retrieve a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx context.Context, request GetTransactionRequestObject) (GetTransactionResponseObject, error)
-	// Gets the transaction payload
+	// Get the transaction payload
 	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx context.Context, request GetTransactionPayloadRequestObject) (GetTransactionPayloadResponseObject, error)
 }
