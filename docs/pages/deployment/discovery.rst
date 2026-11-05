@@ -3,6 +3,8 @@
 Discovery
 #########
 
+This implements `Nuts RFC022 Discovery Service <https://nuts-foundation.gitbook.io/drafts/rfc/rfc022-discovery-service>`_.
+
 Discovery allows parties to publish information about themselves as a Verifiable Presentation,
 so that other parties can discover them for further (data) exchange.
 A Discovery Service is hosted on a server (also a Nuts node) and defined by a service definition, agreed upon by the parties of a use case.
@@ -43,5 +45,3 @@ The endpoint for a Discovery Service MUST be in the following form (unless mappe
     https://<host>/discovery/<service_id>
 
 Where ``<service_id>`` is the ID of the service, e.g.: ``/discovery/coffeecorner``.
-
-For details see `Nuts RFC022 <https://nuts-foundation.gitbook.io/drafts/rfc/rfc022-discovery-service>`_.
