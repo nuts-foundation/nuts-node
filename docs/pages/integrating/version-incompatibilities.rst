@@ -20,14 +20,16 @@ Once you use the VDR V2 API, you cannot go back to the VDR V1 API. The VDR V1 AP
 Publishing Services for use-cases
 *********************************
 
-V5 use-cases define service endpoints or a collection of endpoints that should be registered in the Services on DID Documents.
-The concrete endpoints are usually on the DID Document of the vendor, and then referenced by all DID Documents managed by that vendor.
-And ``did:nuts`` for example, requires the registration of a ``NutsComm`` endpoint to authenticate the connection.
-Use-cases built on V5 should keep using the DIDMan API to manage and resolve Services on DID Documents.
-Any Service change made using the DIDMan API will only update ``did:nuts`` DID Documents.
+Use-cases built on Nuts spec v1 publish their endpoints as Services in ``did:nuts`` DID Documents.
+These are managed with the DIDMan API.
+After upgrading the Nuts node to V6, you can manage these Services with the VDR V2 API instead.
+The VDR V2 API adds a Service to all DIDs of the subject, and resolves Services as they are in the DID Document,
+without following references to a concrete endpoint (as DIDMan does).
 
-For use-cases built on V6, any endpoint needed for the use-case should be listed in the registration on the Discovery Service for that use-case, see `Register on the Discovery Service <https://wiki.nuts.nl/link/146>`_ on the wiki.
-This means that ``did:web`` DID Documents (or non-did:nuts if we look further ahead) will contain very few Services, if any.
-If there is a need to add a Service for V6 use-cases, they should be added using the VDR v2 API, which will then add the Service to _all_ DIDs that are part of the Subject.
-Note that resolving Services using the VDR v2 API will return the Service from the document as is.
-So, it resolves Services without following any references in the Service to a concrete endpoint as is done by DIDMan.
+.. warning::
+   Once you manage Services with the VDR V2 API, you MUST NOT use the DIDMan API or the VDR V1 API anymore.
+   VDR V2 keeps the DID Documents of a subject (e.g. its ``did:web`` and ``did:nuts`` DIDs) in sync;
+   changes made through DIDMan or VDR V1 only update the ``did:nuts`` DID Document, so the DID Documents get out of sync.
+
+Use-cases built on Nuts spec v2 list their endpoints in the registration on the Discovery Service, see :ref:`discovery`.
+How this works is described on the wiki: `Decentralized Identifiers <https://wiki.nuts.nl/link/195>`_.
