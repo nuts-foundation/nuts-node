@@ -4,3 +4,5 @@ generate:
   client: true
   models: true
   strict-server: true
+import-mapping:
+  ../common/ssi_types.yaml: github.com/nuts-foundation/nuts-node/v6/api

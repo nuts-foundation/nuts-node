@@ -46,8 +46,8 @@ func (o OpenID4VP) RequesterUserAccessToken(subject string, verifierSubject stri
 	if err != nil {
 		return nil, err
 	}
-	if response.ApplicationproblemJSONDefault != nil {
-		return nil, fmt.Errorf("application problem: %s", response.ApplicationproblemJSONDefault.Detail)
+	if response.JSON200 == nil {
+		return nil, fmt.Errorf("unexpected response %d: %s", response.StatusCode(), response.Body)
 	}
 	return response.JSON200, nil
 }
@@ -60,8 +60,8 @@ func (o OpenID4VP) RetrieveAccessToken(sessionID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if response.ApplicationproblemJSONDefault != nil {
-		return "", fmt.Errorf("application problem: %s", response.ApplicationproblemJSONDefault.Detail)
+	if response.JSON200 == nil {
+		return "", fmt.Errorf("unexpected response %d: %s", response.StatusCode(), response.Body)
 	}
 	return response.JSON200.AccessToken, nil
 }

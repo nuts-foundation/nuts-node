@@ -36,7 +36,7 @@ export async function loadNutsNodeApi() {
         openapi: "3.0.0",
         info: {title: "Nuts Node API", version: ""}, // no version: each API has its own
         paths: {},
-        components: {schemas: {...sharedTypes.components.schemas}, responses: {ErrorResponse: errorResponse}},
+        components: {schemas: {...sharedTypes.components.schemas}, responses: {ErrorResponse: paste(errorResponse, {}, "", url("common/error_response.yaml"))}},
         tags: [],
     };
     const groups = {APIs: [], Deprecated: []};

@@ -12,12 +12,6 @@ paths:
       description: |
         Initiates an OAuth2 flow to request an access token from a remote authorization server.
         It'll initiate a s2s (RFC021) flow.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
-        * 412 - the organization wallet does not contain the correct credentials or doesn't support the right DID methods
-        * 502 - the authorizer returned an error
-        * 503 - the authorizer could not be reached
       tags:
         - auth
       parameters:
@@ -57,6 +51,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: &requestServiceAccessToken400 one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: RequestServiceAccessToken failed, status: 400, detail: *requestServiceAccessToken400}
+        '412':
+          description: &requestServiceAccessToken412 the organization wallet does not contain the correct credentials or doesn't support the right DID methods
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestServiceAccessToken failed, status: 412, detail: *requestServiceAccessToken412}
+        '502':
+          description: &requestServiceAccessToken502 the authorizer returned an error
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestServiceAccessToken failed, status: 502, detail: *requestServiceAccessToken502}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{subjectID}/request-user-access-token:
@@ -68,11 +81,6 @@ paths:
         Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
         The user must be authorized by the calling system and provided in the preauthorized_user field.
         The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
-        
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
       tags:
         - auth
       parameters:
@@ -98,6 +106,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectResponseWithID'
+        '400':
+          description: &requestUserAccessToken400 one of the parameters has the wrong format or an OAuth error occurred
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestUserAccessToken failed, status: 400, detail: *requestUserAccessToken400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{subjectID}/request-credential:
@@ -107,11 +121,6 @@ paths:
       description: |
         This API is still EXPERIMENTAL.  
         Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
-        * 412 - the organization wallet does not contain the correct credentials
       tags:
         - auth
       parameters:
@@ -170,6 +179,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectResponse'
+        '400':
+          description: &requestOpenid4VCICredentialIssuance400 one of the parameters has the wrong format or an OAuth error occurred
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 400, detail: *requestOpenid4VCICredentialIssuance400}
+        '404':
+          description: &requestOpenid4VCICredentialIssuance404 the subject was not found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 404, detail: *requestOpenid4VCICredentialIssuance404}
+        '424':
+          description: &requestOpenid4VCICredentialIssuance424 the issuer does not fulfill the right requirements to issue the requested VC(s)
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 424, detail: *requestOpenid4VCICredentialIssuance424}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/{sessionID}:
@@ -201,6 +228,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
+        '404':
+          description: &retrieveAccessToken404 unknown session ID, or the access token was already retrieved
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RetrieveAccessToken failed, status: 404, detail: *retrieveAccessToken404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/introspect:

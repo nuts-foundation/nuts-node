@@ -30,9 +30,6 @@ paths:
       summary: "List transactions on the DAG"
       description: >
         Lists transactions on the DAG. Since this call returns all transactions on the DAG, care should be taken when there are many of them. A range (start,end) are recommended at all times to avoid overloading the endpoint.
-
-        error returns:
-        * 500 - internal server error
       operationId: "listTransactions"
       tags:
         - transactions
@@ -45,6 +42,13 @@ paths:
                 type: array
                 items:
                   type: string
+        "400":
+          description: &listTransactions400 did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: ListTransactions failed, status: 400, detail: *listTransactions400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}:
@@ -60,11 +64,6 @@ paths:
       summary: "Retrieve a transaction"
       description: |
         Retrieves a transaction.
-
-        error returns:
-        * 400 - invalid transaction reference
-        * 404 - transaction not found
-        * 500 - internal server error
       operationId: "getTransaction"
       tags:
         - transactions
@@ -75,6 +74,18 @@ paths:
             application/jose:
               schema:
                 type: string
+        "400":
+          description: &getTransaction400 invalid transaction reference, or did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetTransaction failed, status: 400, detail: *getTransaction400}
+        "404":
+          description: &getTransaction404 transaction not found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetTransaction failed, status: 404, detail: *getTransaction404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/transaction/{ref}/payload:
@@ -91,11 +102,6 @@ paths:
       operationId: "getTransactionPayload"
       description: |
         Gets the transaction payload.
-
-        error returns:
-        * 400 - invalid transaction reference
-        * 404 - transaction or payload not found
-        * 500 - internal server error
       tags:
         - transactions
       responses:
@@ -104,6 +110,18 @@ paths:
           content:
             application/octet-stream:
               example:
+        "400":
+          description: &getTransactionPayload400 invalid transaction reference, or did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetTransactionPayload failed, status: 400, detail: *getTransactionPayload400}
+        "404":
+          description: &getTransactionPayload404 transaction or payload not found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetTransactionPayload failed, status: 404, detail: *getTransactionPayload404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/peers:
@@ -121,6 +139,12 @@ paths:
                 type: object
                 additionalProperties:
                   $ref: '#/components/schemas/PeerDiagnostics'
+        "400":
+          description: &getPeerDiagnostics400 did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetPeerDiagnostics failed, status: 400, detail: *getPeerDiagnostics400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/diagnostics/graph:
@@ -146,10 +170,6 @@ paths:
       description: >
         Renders the transactions in the requested range, or the entire graph if no range is specified.
         By default it renders in Graphviz format, which can be rendered to an image using `dot`. 
-
-        error returns:
-        * 400 - invalid range
-        * 500 - internal server error
       operationId: "renderGraph"
       tags:
         - diagnostics
@@ -160,6 +180,12 @@ paths:
             text/vnd.graphviz:
               schema:
                 type: string
+        "400":
+          description: &renderGraph400 invalid range, or did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RenderGraph failed, status: 400, detail: *renderGraph400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/reprocess:
@@ -170,9 +196,6 @@ paths:
         The supported type values correspond with the transaction content-types.
         Transactions are not verified and added to an in-memory queue. For large sets of transactions, memory usage can become high.
         The API returns immediately.
-        
-        error returns:
-        * 400 - missing type
       parameters:
         - name: type
           in: query
@@ -186,6 +209,12 @@ paths:
       responses:
         "202":
           description: "The request was accepted, process was started"
+        "400":
+          description: &reprocess400 missing type, or did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: Reprocess failed, status: 400, detail: *reprocess400}
   /internal/network/v1/events:
     get:
       summary: "List the state of the internal events"
@@ -194,9 +223,6 @@ paths:
         New transactions will cause events to be omitted. In normal operation no events should remain.
         The diagnostics page displays the number of failed events. If there are any, this API can be used to get the cause.
         Events are listed by subscriber.
-        
-        error returns:
-        * 500 - internal server error
       operationId: "ListEvents"
       tags:
         - diagnostics
@@ -209,6 +235,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/EventSubscriber'
+        "400":
+          description: &ListEvents400 did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: ListEvents failed, status: 400, detail: *ListEvents400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/network/v1/addressbook:
@@ -226,6 +258,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Contact'
+        "400":
+          description: &getAddressBook400 did:nuts support is not configured on this node
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetAddressBook failed, status: 400, detail: *getAddressBook400}
 components:
   schemas:
     Event:
