@@ -3,17 +3,23 @@
 Access Token Policy
 ###################
 
-A policy definition file maps OAuth2 scopes to the `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_
-that say which credentials a client must present to get an access token for that scope.
-Policy definition files are defined by the use case.
+Presentation Definition mapping
+*******************************
 
-How to write a policy definition (file structure, claims in the token introspection response, the experimental service provider credentials)
-is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/link/81>`_.
+Wallet functionality uses `Presentation Definitions <https://identity.foundation/presentation-exchange/>`_ to determine the required credentials for a given presentation request.
+An OAuth2 authorization request uses scopes to determine the required permissions for a given request.
+The mapping between scopes and presentation definitions is defined in a policy definition file.
+
+How to design the policy for a use case is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/link/81>`_.
 
 Configuration
 *************
 
-To load policy definition files, configure the directory that contains them:
+The Nuts config supports the mapping between OAuth2 scopes and presentation definitions using a file-based configuration.
+The file-based configuration is a simple way to define the mapping between scopes and presentation definitions.
+It can be used for simple use cases where the mapping is static and does not change often.
+
+To use file-based configuration, you need to define the path to a directory that contains policy definition files:
 
 .. code-block:: yaml
 
@@ -22,12 +28,151 @@ To load policy definition files, configure the directory that contains them:
 
 All JSON files in the directory will be loaded and used to define the mapping between scopes and presentation definitions.
 
-Two-VP flow (experimental)
-**************************
+Policy Structure
+****************
+
+JSON documents used for policies must have the following structure:
+
+.. code-block:: json
+
+    {
+      "example_scope": {
+        "organization": {
+          "id": "example",
+          "format": {
+            "ldp_vc": {
+              "proof_type": ["JsonWebSignature2020"]
+            },
+            "ldp_vp": {
+              "proof_type": ["JsonWebSignature2020"]
+            }
+          },
+          "input_descriptors": [
+            {
+              "id": "1",
+              "constraints": {
+                "fields": [
+                  {
+                    "path": ["$.type"],
+                    "filter": {
+                      "type": "string",
+                      "const": "HumanCredential"
+                    }
+                  },
+                  {
+                    "id": "fullName",
+                    "path": ["$.credentialSubject.fullName"],
+                    "filter": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+
+A policy definition file is a JSON object. Each key is an OAuth2 scope (``example_scope`` above); its value is the credential profile for that scope:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - Field
+     - Required
+     - Description
+   * - ``organization``
+     - one of these three
+     - `Presentation Definition <https://identity.foundation/presentation-exchange/>`_ for the credentials of the organization's wallet.
+       Required when the node, as OAuth2 client, uses its own policy file instead of the authorization server's ``presentation_definition`` endpoint
+       (when the server doesn't advertise one, and always in the two-VP flow).
+   * - ``service_provider``
+     - one of these three
+     - Presentation Definition for the credentials a service provider acting on behalf of a healthcare provider
+       (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
+       It applies only to outbound RFC 7523 token requests initiated by the node (experimental, see below).
+   * - ``user``
+     - one of these three
+     - Presentation Definition for the credentials of the user's wallet.
+   * - ``scope_policy``
+     - no
+     - How scopes requested next to this scope are handled:
+
+       - ``profile-only`` (default): only this scope is allowed; a request with other scopes fails with ``invalid_scope``.
+       - ``passthrough``: the other scopes are granted without evaluation.
+       - ``dynamic``: all requested scopes are evaluated by an AuthZen policy decision point (``policy.authzen.endpoint``, required for this value).
+         The request is denied if this scope is denied; other scopes are granted only when allowed.
+
+Rules:
+
+- A profile must define at least one of ``organization``, ``service_provider`` and ``user``.
+- Each Presentation Definition is validated against the Presentation Exchange v2 JSON schema when the file is loaded.
+- A scope may be defined only once, across all loaded files.
+- An access token request may contain only one scope that has a credential profile.
+
+OAuth2 Token Introspection field mapping
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The input descriptor constraint fields that contain an ``id`` property (``input_descriptor.contraints.field.id``) are returned in the OAuth2 Token Introspection response.
+The value of the Verifiable Credential that the matched field is included in the response as claims.
+E.g., in the example above, a claim named ``fullName`` is added to the introspection response, containing the value of the ``credentialSubject.fullName`` property in the Verifiable Credential.
+The following is an example OAuth2 Token Introspection response containing the ``fullName`` claim from the Presentation Definition
+(some fields are omitted for brevity):
+
+.. code-block:: json
+
+  {
+    "iss": "did:web:example.com",
+    "active": true,
+    "scope": "example_scope",
+    "fullName": "John Doe"
+  }
+
+Writer of policies should take into consideration:
+- fields that are intended to be used for logging or authorization decisions should have a distinct identifier.
+- claims ideally map a registered claim name (e.g. `IANA JWT claims <https://www.iana.org/assignments/jwt/jwt.xhtml#claims>`_)
+- overwriting properties already defined in the token introspection endpoint response is forbidden. These are: ``iss``, ``sub``, ``exp``, ``iat``, ``active``, ``client_id``, ``scope``.
+
+Extracting substrings with regular expressions
+==============================================
+If you want introspection to return part of a string, you can use the ``pattern`` regular expression filter in the field definition with a capture group.
+Token introspection will return the value of the capture group in the regular expression, instead of the whole field value.
+For instance, if you want to extract the level from the string ``"Admin level 4"`` from the following credential:
+
+.. code-block:: json
+
+  {
+    "credentialSubject": {
+      "role": "Admin level 4"
+    }
+  }
+
+You can define the following field in the input descriptor constraint, to have the level returned in the introspection response as ``admin_level``:
+
+.. code-block:: json
+
+  {
+    "id": "admin_level",
+    "path": ["$.credentialSubject.role"],
+    "filter": {
+      "type": "string"
+      "pattern": "Admin level ([0-9])"
+    }
+  }
+
+Only 1 capture group is supported in regular expressions. If multiple capture groups are defined, an error will be returned.
+
+Two-VP flow and cross-VP binding (experimental)
+***********************************************
 
 .. warning::
    The two-VP flow is **experimental**, under active development, and gated behind ``auth.experimental.jwtbearerclient = true`` (default ``false``).
-   The ``service_provider`` PD block, the ``service_provider_subject_id`` API field, and the cross-VP binding mechanism are subject to change without notice while the underlying OAuth profile stabilises.
+   The ``service_provider`` PD block, the ``service_provider_subject_id`` API field, and the cross-VP binding mechanism described below are subject to change without notice while the underlying OAuth profile stabilises.
+
+When the two-VP flow runs
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default the node uses a single-VP token request (RFC 021 ``vp_token-bearer``). The two-VP RFC 7523 ``jwt-bearer`` flow runs only when **all** of the following hold:
 
@@ -37,6 +182,75 @@ By default the node uses a single-VP token request (RFC 021 ``vp_token-bearer``)
 4. The credential profile referenced by the request scope has a ``service_provider`` PD configured.
 
 If conditions (2)-(4) are not all met when ``service_provider_subject_id`` is supplied, the request fails with a clear error rather than silently falling back to the single-VP flow.
+
+How the two VPs are built
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- **VP1 (organization)** — built from the wallet of the path-param ``subjectID`` (the healthcare provider, HCP), using the credential profile's ``organization`` PD. Sent as the ``assertion`` form parameter (RFC 7521 §4.1, the authorization grant).
+- **VP2 (service_provider)** — built from the wallet of ``service_provider_subject_id`` (the OAuth client, the service provider acting on behalf of the HCP), using the credential profile's ``service_provider`` PD. Sent as the ``client_assertion`` form parameter (RFC 7521 §4.2, authenticating the client).
+
+Each VP is signed with the holder DID's keys from the respective wallet.
+
+Cross-VP binding via shared ``field.id``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Constraint fields with the same ``id`` across the two PDs implicitly bind a value captured from VP1 into the credential selection for VP2. This lets policy authors express delegation requirements (e.g. *"VP2's delegation credential must be issued by the DID that signed VP1"*) without writing custom matcher code; the binding is realised through standard Presentation Exchange constructs.
+
+Example: a profile that requires VP2 to include a ``ServiceProviderDelegationCredential`` issued by the same DID as VP1's ``HealthcareProviderCredential``:
+
+.. code-block:: json
+
+    {
+      "example_delegated_scope": {
+        "organization": {
+          "id": "org_pd",
+          "input_descriptors": [{
+            "id": "hcp_credential",
+            "constraints": {
+              "fields": [
+                { "path": ["$.type"], "filter": { "type": "string", "const": "HealthcareProviderCredential" } },
+                { "id": "delegating_hcp", "path": ["$.issuer"] }
+              ]
+            }
+          }]
+        },
+        "service_provider": {
+          "id": "sp_pd",
+          "input_descriptors": [{
+            "id": "delegation_credential",
+            "constraints": {
+              "fields": [
+                { "path": ["$.type"], "filter": { "type": "string", "const": "ServiceProviderDelegationCredential" } },
+                { "id": "delegating_hcp", "path": ["$.issuer"] }
+              ]
+            }
+          }]
+        }
+      }
+    }
+
+How it works at request time:
+
+1. VP1 is built. The matcher records the value at ``$.issuer`` of the credential that satisfied ``hcp_credential`` and labels it with the field id ``delegating_hcp``.
+2. Before VP2 is built, that captured value is additively merged into the ``credential_selection`` map (see below).
+3. When VP2 is selected against ``sp_pd``, the wallet only considers ``ServiceProviderDelegationCredential`` candidates whose ``$.issuer`` equals the captured value — i.e. credentials delegated by the exact HCP that signed VP1.
+
+If the SP wallet has no delegation credential issued by VP1's HCP, the request returns ``pe.ErrNoCredentials`` (HTTP 412 Precondition Failed) and the EHR can show a clear "no delegation on file" error to the user.
+
+The ``credential_selection`` map
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``credential_selection`` is a key-value map (string keys → string values) used to disambiguate between credentials when multiple satisfy a single input descriptor. Keys must match a constraint field ``id``; values are the literal string the field should equal for selection.
+
+There are two sources of entries:
+
+- **EHR-supplied** — the ``credential_selection`` field on the request body. EHRs typically use this for runtime context like a patient or encounter identifier (e.g. ``patient_id``).
+- **Server-captured (two-VP only)** — entries populated automatically from VP1's matched constraint fields, as described above. The capture is *additive*: any EHR-supplied key always wins, and only string-typed captured values are merged in.
+
+The same map is consulted by both single-VP and two-VP flows; the only difference is that the two-VP flow may add entries between VP1 and VP2.
+
+Required configuration
+^^^^^^^^^^^^^^^^^^^^^^
 
 To enable the two-VP flow on a node:
 
