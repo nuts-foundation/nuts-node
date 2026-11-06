@@ -20,7 +20,6 @@ How to design a use case, implement it and integrate the Nuts node with your EHR
 
     pages/integrating/api.rst
     pages/integrating/api-authentication.rst
-    pages/integrating/vc.rst
     pages/integrating/supported-protocols-formats.rst
     pages/integrating/version-incompatibilities.rst
     pages/release_notes.rst
