@@ -10,6 +10,8 @@ Wallet functionality uses `Presentation Definitions <https://identity.foundation
 An OAuth2 authorization request uses scopes to determine the required permissions for a given request.
 The mapping between scopes and presentation definitions is defined in a policy definition file.
 
+How to design the policy for a use case is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/link/81>`_.
+
 Configuration
 *************
 
@@ -72,13 +74,43 @@ JSON documents used for policies must have the following structure:
       }
     }
 
-Where ``example_scope`` is the scope that the presentation definition is associated with.
-The ``presentation_definition`` object contains the presentation definition that should be used for the given scope.
-The ``wallet_owner_type`` field is used to determine the audience type of the presentation definition, valid values are ``organization``, ``service_provider`` and ``user``.
+A policy definition file is a JSON object. Each key is an OAuth2 scope (``example_scope`` above); its value is the credential profile for that scope:
 
-The ``service_provider`` block describes the credentials that a service provider acting on behalf of a healthcare provider (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
-It applies only to outbound RFC 7523 token requests initiated by the node.
-A profile may define any combination of ``organization``, ``service_provider`` and ``user`` blocks; at least one is required.
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - Field
+     - Required
+     - Description
+   * - ``organization``
+     - one of these three
+     - `Presentation Definition <https://identity.foundation/presentation-exchange/>`_ for the credentials of the organization's wallet.
+       Required when the node, as OAuth2 client, uses its own policy file instead of the authorization server's ``presentation_definition`` endpoint
+       (when the server doesn't advertise one, and always in the two-VP flow).
+   * - ``service_provider``
+     - one of these three
+     - Presentation Definition for the credentials a service provider acting on behalf of a healthcare provider
+       (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
+       It applies only to outbound RFC 7523 token requests initiated by the node (experimental, see below).
+   * - ``user``
+     - one of these three
+     - Presentation Definition for the credentials of the user's wallet.
+   * - ``scope_policy``
+     - no
+     - How scopes requested next to this scope are handled:
+
+       - ``profile-only`` (default): only this scope is allowed; a request with other scopes fails with ``invalid_scope``.
+       - ``passthrough``: the other scopes are granted without evaluation.
+       - ``dynamic``: all requested scopes are evaluated by an AuthZen policy decision point (``policy.authzen.endpoint``, required for this value).
+         The request is denied if this scope is denied; other scopes are granted only when allowed.
+
+Rules:
+
+- A profile must define at least one of ``organization``, ``service_provider`` and ``user``.
+- Each Presentation Definition is validated against the Presentation Exchange v2 JSON schema when the file is loaded.
+- A scope may be defined only once, across all loaded files.
+- An access token request may contain only one scope that has a credential profile.
 
 OAuth2 Token Introspection field mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -136,7 +168,7 @@ Two-VP flow and cross-VP binding (experimental)
 ***********************************************
 
 .. warning::
-   The two-VP flow is **experimental** and gated behind ``auth.experimental.jwtbearerclient = true`` (default ``false``).
+   The two-VP flow is **experimental**, under active development, and gated behind ``auth.experimental.jwtbearerclient = true`` (default ``false``).
    The ``service_provider`` PD block, the ``service_provider_subject_id`` API field, and the cross-VP binding mechanism described below are subject to change without notice while the underlying OAuth profile stabilises.
 
 When the two-VP flow runs
