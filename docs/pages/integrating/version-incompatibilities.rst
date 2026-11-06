@@ -20,6 +20,14 @@ Once you use the VDR V2 API, you cannot go back to the VDR V1 API. The VDR V1 AP
 Publishing Services for use-cases
 *********************************
 
-Use-cases built on V5 (spec v1) publish their endpoints as Services in ``did:nuts`` DID Documents and manage them with the DIDMan API.
-Use-cases built on V6 (spec v2) list them in the registration on the Discovery Service.
+Use-cases built on Nuts spec v1 publish their endpoints as Services in ``did:nuts`` DID Documents.
+These are managed with the DIDMan API.
+After upgrading the Nuts node to V6, you can manage these Services with the VDR V2 API instead.
+The VDR V2 API adds a Service to all DIDs of the subject, and resolves Services as they are in the DID Document,
+without following references to a concrete endpoint (as DIDMan does).
+
+.. warning::
+   Once you manage Services with the VDR V2 API, you MUST NOT use the DIDMan API anymore.
+
+Use-cases built on Nuts spec v2 list their endpoints in the registration on the Discovery Service, see :ref:`discovery`.
 How this works is described on the wiki: `Decentralized Identifiers <https://wiki.nuts.nl/link/195>`_.
