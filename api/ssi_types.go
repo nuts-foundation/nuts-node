@@ -101,6 +101,18 @@ type EmbeddedProof struct {
 	VerificationMethod string `json:"verificationMethod"`
 }
 
+// ProblemDetails Problem Details for HTTP APIs as specified in RFC 9457.
+type ProblemDetails = struct {
+	// Detail A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
+	Detail string `json:"detail"`
+
+	// Status HTTP statuscode
+	Status float32 `json:"status"`
+
+	// Title A short, human-readable summary of the problem type.
+	Title string `json:"title"`
+}
+
 // Revocation Credential revocation record
 type Revocation struct {
 	// Date date is a rfc3339 formatted datetime.

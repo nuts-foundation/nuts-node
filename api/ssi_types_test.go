@@ -16,7 +16,7 @@
  *
  */
 
-package ssiTypes
+package ssiTypes_test
 
 import (
 	"encoding/json"
@@ -29,6 +29,7 @@ import (
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
+	ssiTypes "github.com/nuts-foundation/nuts-node/v5/api"
 	"github.com/nuts-foundation/nuts-node/v5/crypto/hash"
 	vcr "github.com/nuts-foundation/nuts-node/v5/vcr/api/vcr/v2"
 	vdrTypes "github.com/nuts-foundation/nuts-node/v5/vdr/types"
@@ -41,7 +42,7 @@ const (
 
 func Test_VerifiableCredential(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
-		remarshallTest(t, createVerifiableCredential(), VerifiableCredential{})
+		remarshallTest(t, createVerifiableCredential(), ssiTypes.VerifiableCredential{})
 	})
 
 	t.Run("all fields", func(t *testing.T) {
@@ -51,13 +52,13 @@ func Test_VerifiableCredential(t *testing.T) {
 		expirationDate := time.Now().Add(time.Hour)
 		vc.ExpirationDate = &expirationDate
 
-		remarshallTest(t, vc, VerifiableCredential{})
+		remarshallTest(t, vc, ssiTypes.VerifiableCredential{})
 	})
 }
 
 func Test_VerifiablePresentation(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
-		remarshallTest(t, createVerifiablePresentation(), VerifiableCredential{})
+		remarshallTest(t, createVerifiablePresentation(), ssiTypes.VerifiableCredential{})
 	})
 
 	t.Run("all fields", func(t *testing.T) {
@@ -70,13 +71,13 @@ func Test_VerifiablePresentation(t *testing.T) {
 		vp.VerifiableCredential = []vcr.VerifiableCredential{createVerifiableCredential()}
 		vp.Proof = []interface{}{"because"}
 
-		remarshallTest(t, vp, VerifiablePresentation{})
+		remarshallTest(t, vp, ssiTypes.VerifiablePresentation{})
 	})
 }
 
 func Test_Revocation(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
-		remarshallTest(t, createRevocation(), Revocation{})
+		remarshallTest(t, createRevocation(), ssiTypes.Revocation{})
 	})
 
 	t.Run("all fields", func(t *testing.T) {
@@ -94,19 +95,19 @@ func Test_Revocation(t *testing.T) {
 			Jws:   "signature",
 		}
 
-		remarshallTest(t, revocation, Revocation{})
+		remarshallTest(t, revocation, ssiTypes.Revocation{})
 	})
 }
 
 func Test_DIDDocument(t *testing.T) {
 	t.Run("all fields", func(t *testing.T) {
-		remarshallTest(t, createDidDocument(), DIDDocument{})
+		remarshallTest(t, createDidDocument(), ssiTypes.DIDDocument{})
 	})
 }
 
 func Test_DIDDocumentMetadata(t *testing.T) {
 	t.Run("required fields only", func(t *testing.T) {
-		remarshallTest(t, createDidDocumentMetadata(), DIDDocumentMetadata{})
+		remarshallTest(t, createDidDocumentMetadata(), ssiTypes.DIDDocumentMetadata{})
 	})
 
 	t.Run("all fields ", func(t *testing.T) {
@@ -117,7 +118,7 @@ func Test_DIDDocumentMetadata(t *testing.T) {
 		dm.PreviousHash = &previous
 		dm.SourceTransactions = []hash.SHA256Hash{previous}
 
-		remarshallTest(t, dm, DIDDocumentMetadata{})
+		remarshallTest(t, dm, ssiTypes.DIDDocumentMetadata{})
 	})
 }
 

@@ -294,3 +294,21 @@ components:
           type: string
         serviceEndpoint:
           description: Either a URI or a complex object.
+# Errors
+    ProblemDetails:
+      type: object
+      description: Problem Details for HTTP APIs as specified in RFC 9457.
+      required:
+        - title
+        - status
+        - detail
+      properties:
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+        status:
+          type: number
+          description: HTTP statuscode
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem. The node puts its error message here, so it differs per situation and from the examples.
