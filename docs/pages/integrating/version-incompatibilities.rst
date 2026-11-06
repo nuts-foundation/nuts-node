@@ -27,7 +27,9 @@ The VDR V2 API adds a Service to all DIDs of the subject, and resolves Services 
 without following references to a concrete endpoint (as DIDMan does).
 
 .. warning::
-   Once you manage Services with the VDR V2 API, you MUST NOT use the DIDMan API anymore.
+   Once you manage Services with the VDR V2 API, you MUST NOT use the DIDMan API or the VDR V1 API anymore.
+   VDR V2 keeps the DID Documents of a subject (e.g. its ``did:web`` and ``did:nuts`` DIDs) in sync;
+   changes made through DIDMan or VDR V1 only update the ``did:nuts`` DID Document, so the DID Documents get out of sync.
 
 Use-cases built on Nuts spec v2 list their endpoints in the registration on the Discovery Service, see :ref:`discovery`.
 How this works is described on the wiki: `Decentralized Identifiers <https://wiki.nuts.nl/link/195>`_.
