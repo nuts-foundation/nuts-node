@@ -92,10 +92,12 @@ A policy definition file is a JSON object. Each key is an OAuth2 scope (``exampl
      - one of these three
      - Presentation Definition for the credentials a service provider acting on behalf of a healthcare provider
        (the OAuth client in the RFC 7523 ``jwt-bearer`` flow) must present.
-       It applies only to outbound RFC 7523 token requests initiated by the node (experimental, see below).
+       It applies only to outbound RFC 7523 token requests initiated by the node.
+       Experimental: requires ``auth.experimental.jwtbearerclient`` (default ``false``), see below.
    * - ``user``
      - one of these three
      - Presentation Definition for the credentials of the user's wallet.
+       Experimental: only used in the OpenID4VP authorization code flow, which requires ``auth.authorizationendpoint.enabled`` (default ``false``).
    * - ``scope_policy``
      - no
      - How scopes requested next to this scope are handled:
