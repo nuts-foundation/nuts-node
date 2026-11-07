@@ -159,7 +159,7 @@ You can define the following field in the input descriptor constraint, to have t
     "id": "admin_level",
     "path": ["$.credentialSubject.role"],
     "filter": {
-      "type": "string"
+      "type": "string",
       "pattern": "Admin level ([0-9])"
     }
   }
