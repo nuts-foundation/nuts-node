@@ -108,6 +108,26 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.NotNil(t, p.cMan.startConversation(request, peer))
 	})
 
+	t.Run("ok - empty list for a TransactionRangeQuery ends the conversation", func(t *testing.T) {
+		// The peer sends an empty list when it has no transactions in the requested range.
+		p, _ := newTestProtocol(t, nil)
+		rangeQuery := &Envelope_TransactionRangeQuery{TransactionRangeQuery: &TransactionRangeQuery{Start: 1, End: 5}}
+		conversation := p.cMan.startConversation(rangeQuery, peer)
+		envelope := &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions:   []*Transaction{},
+				TotalMessages:  1,
+				MessageNumber:  1,
+			},
+		}}
+
+		err := p.handleTransactionList(context.Background(), connection, envelope)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, p.cMan.startConversation(request, peer))
+	})
+
 	t.Run("supports cancellations", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
