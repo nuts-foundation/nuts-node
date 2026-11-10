@@ -86,6 +86,26 @@ func TestProtocol_handleTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - empty list ends the conversation", func(t *testing.T) {
+		// The peer sends an empty list when it has none of the requested transactions.
+		p, _ := newTestProtocol(t, nil)
+		conversation := p.cMan.startConversation(request, peer)
+		envelope := &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversation.conversationID.slice(),
+				Transactions:   []*Transaction{},
+				TotalMessages:  1,
+				MessageNumber:  1,
+			},
+		}}
+
+		err := p.handleTransactionList(context.Background(), connection, envelope)
+
+		assert.NoError(t, err)
+		// so a new TransactionListQuery to this peer can be started
+		assert.NotNil(t, p.cMan.startConversation(request, peer))
+	})
+
 	t.Run("supports cancellations", func(t *testing.T) {
 		p, _ := newTestProtocol(t, nil)
 		conversation := p.cMan.startConversation(request, peer)
