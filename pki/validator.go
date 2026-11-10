@@ -47,8 +47,8 @@ const syncInterval = time.Hour
 const syncTimeout = 10 * time.Second
 
 // crlDownloadWait is how long a certificate check waits in total for CRLs that haven't been downloaded yet.
-// HTTP clients doing the check need a longer timeout, otherwise softfail can't apply.
-var crlDownloadWait = 5 * time.Second
+// It must be shorter than the HTTP client timeouts (e.g. 5s for did:web), otherwise softfail can't apply.
+var crlDownloadWait = 3 * time.Second
 
 type validator struct {
 	// httpClient downloads the CRLs
@@ -60,6 +60,9 @@ type validator struct {
 
 	// crls maps CRL endpoints to their x509.RevocationList
 	crls sync.Map
+
+	// downloads maps CRL endpoints to the *crlDownload in progress, so a CRL is downloaded once at a time
+	downloads sync.Map
 
 	// denylist implements blocking of certificates with tuples of issuer/serial number
 	denylist Denylist
@@ -162,6 +165,7 @@ func crlDownloadDeadline() time.Time {
 }
 
 func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline time.Time) error {
+	v.startCRLDownloads(chain)
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
@@ -172,6 +176,7 @@ func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline 
 			// if the issuer of a cert is unknown, add entire chain to the ca/crl lists and try again
 			if errors.Is(err, ErrUnknownIssuer) {
 				if err = v.addCAs(chain); err == nil {
+					v.startCRLDownloads(chain) // its CRL endpoints are known now
 					if err = v.validateCert(cert, deadline); err == nil {
 						continue
 					}
@@ -248,8 +253,15 @@ func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) err
 
 		// initial download if missing
 		if crl.lastUpdated.IsZero() {
-			// Pause validate to download CRL, but not past the deadline.
-			err := v.updateCRLWithin(endpoint, crl, time.Until(deadline))
+			// Wait for the download, but not past the deadline. The download continues in the background.
+			download := v.startCRLDownload(endpoint, crl)
+			var err error
+			select {
+			case <-download.done:
+				err = download.err
+			case <-time.After(time.Until(deadline)):
+				err = errors.New("CRL download didn't finish in time, continuing in the background")
+			}
 			if err != nil {
 				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
@@ -465,18 +477,34 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 	return nil
 }
 
-// updateCRLWithin does the same as updateCRL, but returns an error if the download takes longer than wait.
-// The download then continues in the background, until syncTimeout.
-func (v *validator) updateCRLWithin(endpoint string, current *revocationList, wait time.Duration) error {
-	done := make(chan error, 1) // buffered, so the goroutine doesn't block after a timeout
+// crlDownload is a CRL download in progress. err is set before done is closed.
+type crlDownload struct {
+	done chan struct{}
+	err  error
+}
+
+// startCRLDownload downloads the CRL in the background (until syncTimeout), unless it's already being downloaded.
+func (v *validator) startCRLDownload(endpoint string, current *revocationList) *crlDownload {
+	download := &crlDownload{done: make(chan struct{})}
+	if running, loaded := v.downloads.LoadOrStore(endpoint, download); loaded {
+		return running.(*crlDownload)
+	}
 	go func() {
-		done <- v.updateCRL(endpoint, current)
+		download.err = v.updateCRL(endpoint, current)
+		v.downloads.Delete(endpoint)
+		close(download.done)
 	}()
-	select {
-	case err := <-done:
-		return err
-	case <-time.After(wait):
-		return fmt.Errorf("CRL download didn't finish within %s, continuing in the background", wait)
+	return download
+}
+
+// startCRLDownloads starts downloading the chain's known CRLs that haven't been downloaded yet, so they download concurrently.
+func (v *validator) startCRLDownloads(chain []*x509.Certificate) {
+	for _, cert := range chain {
+		for _, endpoint := range cert.CRLDistributionPoints {
+			if crl, ok := v.getCRL(endpoint); ok && crl.lastUpdated.IsZero() {
+				v.startCRLDownload(endpoint, crl)
+			}
+		}
 	}
 }
 

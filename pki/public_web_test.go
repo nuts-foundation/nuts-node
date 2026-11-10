@@ -290,6 +290,21 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+		t.Run("2 slow CRL endpoints download concurrently, so both are checked in time", func(t *testing.T) {
+			setCRLDownloadWait(t)
+			delay := wait * 6 / 10 // one after another (2 * delay) would exceed the wait
+			root := newPublicWebCA(t)
+			root.publishCRL(t)
+			root.delay.Store(int64(delay))
+			intermediate := root.newIntermediateCA(t)
+			intermediate.publishCRL(t)
+			intermediate.delay.Store(int64(delay))
+			setup(t, root, false) // hardfail: a CRL that isn't there in time rejects the certificate
+
+			err := get(t, client.New(5*time.Second), intermediate.startServer(t, serialNumber))
+
+			assert.NoError(t, err)
+		})
 		t.Run("slow CRL endpoint, download continues in the background", func(t *testing.T) {
 			setCRLDownloadWait(t)
 			ca := newPublicWebCA(t)
