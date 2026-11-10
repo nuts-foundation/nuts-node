@@ -14,6 +14,14 @@ To prevent a CA with downtime on its CRL endpoint from bringing down the network
 This behavior can be changed to hard-fail (fail if certificate is invalid, expired, of revoked, or if any of the previous cannot be determined) using the ``pki.softfail`` config flag.
 The ``gRPC Nuts network`` and ``/n2n`` endpoints are deprecated and will be removed in the future.
 
+outbound HTTPS
+**************
+
+Certificates of public web servers the Nuts-node connects to (e.g. for ``did:web`` resolution, OAuth2, Discovery and status lists) are checked against the CRLs of their CAs and the denylist.
+The Nuts-node must be able to reach the CRL endpoints of these CAs, which usually use plain HTTP.
+The ``pki.softfail`` config flag decides what happens if a CRL or the denylist cannot be retrieved. Revoked and denied certificates are always rejected.
+If a CRL has not been downloaded yet, a connection waits at most 3 seconds for it. The download continues in the background, so later connections are checked against it.
+
 did:x509
 ********
 

@@ -36,6 +36,7 @@ import (
 // SafeHttpTransport is a http.Transport that can be used as a default transport for HTTP clients.
 // It carries the strict-mode SSRF dial guard (see denyNonPublicAddr), but only that: the HTTPS
 // requirement, the redirect-downgrade check and the response size limit live on StrictHTTPClient.
+// The PKI engine registers the CRL and denylist check on its TLSClientConfig when it is configured.
 // Do not build a raw http.Client on this transport for outbound requests; use the New* constructors
 // so all strict-mode protections apply.
 var SafeHttpTransport *http.Transport

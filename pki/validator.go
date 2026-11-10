@@ -46,6 +46,12 @@ const syncInterval = time.Hour
 // Must be short-ish since the update can happen during a validation request.
 const syncTimeout = 10 * time.Second
 
+// crlDownloadWait is how long a certificate check waits for a CRL that hasn't been downloaded yet.
+// It must be shorter than the timeouts of the HTTP clients doing the check (e.g. 5s for did:web resolution),
+// otherwise the request fails while waiting, regardless of softfail. The download continues in the background,
+// so later checks can use the CRL. It's a variable so tests can shorten it.
+var crlDownloadWait = 3 * time.Second
+
 type validator struct {
 	// httpClient downloads the CRLs
 	httpClient *http.Client
@@ -236,8 +242,8 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 
 		// initial download if missing
 		if crl.lastUpdated.IsZero() {
-			// Pause validate to download CRL. Client requests run in their own go routine, so we can afford to wait.
-			err := v.updateCRL(endpoint, crl)
+			// Pause validate to download CRL, but not longer than crlDownloadWait.
+			err := v.updateCRLWithin(endpoint, crl, crlDownloadWait)
 			if err != nil {
 				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
@@ -451,6 +457,21 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 	})
 
 	return nil
+}
+
+// updateCRLWithin does the same as updateCRL, but returns an error if the download takes longer than wait.
+// The download then continues in the background, until syncTimeout.
+func (v *validator) updateCRLWithin(endpoint string, current *revocationList, wait time.Duration) error {
+	done := make(chan error, 1) // buffered, so the download goroutine never blocks when nobody waits for it anymore
+	go func() {
+		done <- v.updateCRL(endpoint, current)
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(wait):
+		return fmt.Errorf("CRL download didn't finish within %s, continuing in the background", wait)
+	}
 }
 
 // downloadCRL downloads and parses the CRL
