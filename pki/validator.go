@@ -47,9 +47,7 @@ const syncInterval = time.Hour
 const syncTimeout = 10 * time.Second
 
 // crlDownloadWait is how long a certificate check waits for a CRL that hasn't been downloaded yet.
-// It must be shorter than the timeouts of the HTTP clients doing the check (e.g. 5s for did:web resolution),
-// otherwise the request fails while waiting, regardless of softfail. The download continues in the background,
-// so later checks can use the CRL. It's a variable so tests can shorten it.
+// It must be shorter than the HTTP client timeouts (e.g. 5s for did:web), otherwise softfail can't apply.
 var crlDownloadWait = 3 * time.Second
 
 type validator struct {
@@ -462,7 +460,7 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 // updateCRLWithin does the same as updateCRL, but returns an error if the download takes longer than wait.
 // The download then continues in the background, until syncTimeout.
 func (v *validator) updateCRLWithin(endpoint string, current *revocationList, wait time.Duration) error {
-	done := make(chan error, 1) // buffered, so the download goroutine never blocks when nobody waits for it anymore
+	done := make(chan error, 1) // buffered, so the goroutine doesn't block after a timeout
 	go func() {
 		done <- v.updateCRL(endpoint, current)
 	}()

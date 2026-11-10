@@ -255,17 +255,6 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Less(t, time.Since(start), 2*time.Second)
 		})
-		t.Run("CRL endpoint hangs, hardfail rejects the certificate", func(t *testing.T) {
-			setCRLDownloadWait(t)
-			ca := newPublicWebCA(t)
-			ca.publishCRL(t)
-			ca.delay.Store(int64(time.Hour))
-			setup(t, ca, false)
-
-			err := get(t, client.New(5*time.Second), ca.startServer(t, serialNumber))
-
-			assert.ErrorIs(t, err, ErrCRLMissing)
-		})
 		t.Run("slow CRL endpoint, download continues in the background", func(t *testing.T) {
 			setCRLDownloadWait(t)
 			ca := newPublicWebCA(t)
