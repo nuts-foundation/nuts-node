@@ -107,11 +107,14 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health, 1)
 	maxDelay := time.Duration(p.maxUpdateFailHours) * time.Hour
 
+	// The denylist and CRLs are downloaded from external endpoints. If they can't be updated, the status is UNKNOWN, not DOWN:
+	// DOWN makes /health return 503, which gets the node restarted, and a restart doesn't bring an external endpoint back.
+
 	// deny list
 	if p.denylist != nil && p.denylist.URL() != "" && isOutdated(p.denylist.LastUpdated(), maxDelay) {
 		// deny list is only added when it is outdated
 		results[healthDenylist] = core.Health{
-			Status: core.HealthStatusDown,
+			Status: core.HealthStatusUnknown,
 			Details: outdatedCRL{
 				Issuer:      "denylist",
 				Endpoint:    p.denylist.URL(),
@@ -122,9 +125,6 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 
 	// CRLs
 	var outdatedList []outdatedCRL
-	// downloadedCRLOutdated is true if a CRL that was downloaded before has not been updated within the configured interval.
-	// A CRL that has never been downloaded only makes the status UNKNOWN: a restart doesn't help to get it.
-	downloadedCRLOutdated := false
 	p.validator.crls.Range(func(endpointAny, crlAny any) bool {
 		// Convert the untyped variables
 		endpoint, isString := endpointAny.(string)
@@ -151,9 +151,6 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 				Endpoint:    endpoint,
 				LastUpdated: crl.lastUpdated,
 			})
-			if !crl.lastUpdated.IsZero() {
-				downloadedCRLOutdated = true
-			}
 		}
 		return true
 	})
@@ -164,12 +161,8 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 			Status: core.HealthStatusUp,
 		}
 	} else {
-		status := core.HealthStatusUnknown
-		if downloadedCRLOutdated {
-			status = core.HealthStatusDown
-		}
 		results[healthCRL] = core.Health{
-			Status:  status,
+			Status:  core.HealthStatusUnknown,
 			Details: outdatedList,
 		}
 	}
