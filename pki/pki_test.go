@@ -164,7 +164,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 		results := e.CheckHealth()
 		assert.Len(t, results, 2)
 
-		// validate healthCRL: never downloaded, so a restart wouldn't help
+		// validate healthCRL: UNKNOWN, since a restart wouldn't help
 		statusCRL := results[healthCRL]
 		require.NotNil(t, statusCRL)
 		require.Equal(t, core.HealthStatusUnknown, statusCRL.Status)
@@ -179,7 +179,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 		// validate healthDenylist
 		statusDenylist := results[healthDenylist]
 		require.NotNil(t, statusDenylist)
-		assert.Equal(t, core.HealthStatusDown, statusDenylist.Status)
+		assert.Equal(t, core.HealthStatusUnknown, statusDenylist.Status)
 		assert.Equal(t, outdatedCRL{
 			Issuer:      "denylist",
 			Endpoint:    testServer.URL,
@@ -204,7 +204,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 
 		statusCRL := results[healthCRL]
 		require.NotNil(t, statusCRL)
-		assert.Equal(t, core.HealthStatusDown, statusCRL.Status)
+		assert.Equal(t, core.HealthStatusUnknown, statusCRL.Status)
 		detailsCrl := statusCRL.Details.([]outdatedCRL)
 		require.Len(t, detailsCrl, 1)
 		assert.Equal(t, lastUpdated, detailsCrl[0].LastUpdated)
