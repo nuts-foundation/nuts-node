@@ -143,6 +143,9 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 
 	// CRLs
 	var outdatedList []outdatedCRL
+	// downloadedCRLOutdated is true if a CRL that was downloaded before has not been updated within the configured interval.
+	// A CRL that has never been downloaded only makes the status UNKNOWN: a restart doesn't help to get it.
+	downloadedCRLOutdated := false
 	p.validator.crls.Range(func(endpointAny, crlAny any) bool {
 		// Convert the untyped variables
 		endpoint, isString := endpointAny.(string)
@@ -169,6 +172,9 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 				Endpoint:    endpoint,
 				LastUpdated: crl.lastUpdated,
 			})
+			if !crl.lastUpdated.IsZero() {
+				downloadedCRLOutdated = true
+			}
 		}
 		return true
 	})
@@ -179,8 +185,12 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 			Status: core.HealthStatusUp,
 		}
 	} else {
+		status := core.HealthStatusUnknown
+		if downloadedCRLOutdated {
+			status = core.HealthStatusDown
+		}
 		results[healthCRL] = core.Health{
-			Status:  core.HealthStatusDown,
+			Status:  status,
 			Details: outdatedList,
 		}
 	}
