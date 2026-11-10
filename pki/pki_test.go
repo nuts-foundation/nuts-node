@@ -124,7 +124,7 @@ func TestPKI_CheckHealth(t *testing.T) {
 		assert.Nil(t, status.Details)
 	})
 
-	t.Run("crl + denylist outdated", func(t *testing.T) {
+	t.Run("crl never downloaded + denylist outdated", func(t *testing.T) {
 		nowFunc = func() time.Time {
 			return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 		}
@@ -134,10 +134,10 @@ func TestPKI_CheckHealth(t *testing.T) {
 		results := e.CheckHealth()
 		assert.Len(t, results, 2)
 
-		// validate healthCRL
+		// validate healthCRL: never downloaded, so a restart wouldn't help
 		statusCRL := results[healthCRL]
 		require.NotNil(t, statusCRL)
-		require.Equal(t, core.HealthStatusDown, statusCRL.Status)
+		require.Equal(t, core.HealthStatusUnknown, statusCRL.Status)
 		detailsCrl := statusCRL.Details.([]outdatedCRL)
 		assert.Len(t, detailsCrl, 1)
 		assert.Equal(t, outdatedCRL{
@@ -155,6 +155,29 @@ func TestPKI_CheckHealth(t *testing.T) {
 			Endpoint:    testServer.URL,
 			LastUpdated: time.Time{},
 		}, statusDenylist.Details)
+	})
+
+	t.Run("crl outdated after it was downloaded", func(t *testing.T) {
+		const endpoint = "http://certs.nuts.nl/RootCALatest.crl"
+		original, ok := e.getCRL(endpoint)
+		require.True(t, ok)
+		t.Cleanup(func() { e.crls.Store(endpoint, original) })
+		lastUpdated := time.Now().Add(-5 * time.Hour) // longer ago than maxupdatefailhours (4)
+		e.crls.Store(endpoint, &revocationList{
+			list:        original.list,
+			revoked:     original.revoked,
+			issuer:      original.issuer,
+			lastUpdated: lastUpdated,
+		})
+
+		results := e.CheckHealth()
+
+		statusCRL := results[healthCRL]
+		require.NotNil(t, statusCRL)
+		assert.Equal(t, core.HealthStatusDown, statusCRL.Status)
+		detailsCrl := statusCRL.Details.([]outdatedCRL)
+		require.Len(t, detailsCrl, 1)
+		assert.Equal(t, lastUpdated, detailsCrl[0].LastUpdated)
 	})
 }
 

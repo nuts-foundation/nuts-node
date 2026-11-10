@@ -21,6 +21,10 @@ Each component in the health check can have one of the statuses ``UP``, ``UNKNOW
 The overall status is determined by the lowest common denominator, so if one components is ``DOWN``, the overall system status is ``DOWN``.
 The overall system statuses ``UP`` and ``UNKNOWN`` map to HTTP status code ``200``, and status ``DOWN`` maps to status code ``503``.
 
+The ``pki.crl`` component lists CRLs that have not been updated within ``pki.maxupdatefailhours``.
+It is ``UNKNOWN`` if none of these CRLs could ever be downloaded (e.g. the CRL endpoint is down at startup), because restarting the node doesn't help in that case.
+It is ``DOWN`` if a CRL that was downloaded before can't be updated.
+
 Example response when all checks succeeded (formatted for readability):
 
 .. code-block:: json
