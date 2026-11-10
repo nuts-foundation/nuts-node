@@ -46,9 +46,9 @@ const syncInterval = time.Hour
 // Must be short-ish since the update can happen during a validation request.
 const syncTimeout = 10 * time.Second
 
-// crlDownloadWait is how long a certificate check waits for a CRL that hasn't been downloaded yet.
-// It must be shorter than the HTTP client timeouts (e.g. 5s for did:web), otherwise softfail can't apply.
-var crlDownloadWait = 3 * time.Second
+// crlDownloadWait is how long a certificate check waits in total for CRLs that haven't been downloaded yet.
+// HTTP clients doing the check need a longer timeout, otherwise softfail can't apply.
+var crlDownloadWait = 5 * time.Second
 
 type validator struct {
 	// httpClient downloads the CRLs
@@ -148,25 +148,31 @@ func (v *validator) syncLoop(ctx context.Context) {
 }
 
 func (v *validator) CheckCRL(chain []*x509.Certificate) error {
-	return v.checkCRL(chain, v.softfail)
+	return v.checkCRL(chain, v.softfail, crlDownloadDeadline())
 }
 
 func (v *validator) CheckCRLStrict(chain []*x509.Certificate) error {
-	return v.checkCRL(chain, false)
+	return v.checkCRL(chain, false, crlDownloadDeadline())
 }
 
-func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool) error {
+// crlDownloadDeadline returns until when a check may wait for CRL downloads.
+// It uses time.Now, not nowFunc: tests set nowFunc to the past.
+func crlDownloadDeadline() time.Time {
+	return time.Now().Add(crlDownloadWait)
+}
+
+func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline time.Time) error {
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
 		// check in reverse order to prevent CRL expiration errors due to revoked CAs no longer issuing CRLs
 		cert = chain[len(chain)-1-i]
-		err = v.validateCert(cert)
+		err = v.validateCert(cert, deadline)
 		if err != nil {
 			// if the issuer of a cert is unknown, add entire chain to the ca/crl lists and try again
 			if errors.Is(err, ErrUnknownIssuer) {
 				if err = v.addCAs(chain); err == nil {
-					if err = v.validateCert(cert); err == nil {
+					if err = v.validateCert(cert, deadline); err == nil {
 						continue
 					}
 				}
@@ -192,8 +198,10 @@ func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	config.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		// rawCerts contain all certificates provided by the peer, in our case only the leaf cert, while verifiedChains is guaranteed to include the CA's.
 		// rawCerts are ignored since we would only be checking revocation status on a cert whose issuer is not in the truststore. failure mode is then determined by v.softfail.
+		// One deadline for all chains, so the handshake doesn't wait longer than crlDownloadWait in total.
+		deadline := crlDownloadDeadline()
 		for _, chain := range verifiedChains {
-			if err := v.CheckCRL(chain); err != nil {
+			if err := v.checkCRL(chain, v.softfail, deadline); err != nil {
 				return &tls.CertificateVerificationError{
 					UnverifiedCertificates: chain,
 					Err:                    err,
@@ -205,7 +213,7 @@ func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 	return nil
 }
 
-func (v *validator) validateCert(cert *x509.Certificate) error {
+func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) error {
 	// Check if a denylist is in use
 	if v.denylist != nil {
 		// Validate the cert against the denylist
@@ -240,8 +248,8 @@ func (v *validator) validateCert(cert *x509.Certificate) error {
 
 		// initial download if missing
 		if crl.lastUpdated.IsZero() {
-			// Pause validate to download CRL, but not longer than crlDownloadWait.
-			err := v.updateCRLWithin(endpoint, crl, crlDownloadWait)
+			// Pause validate to download CRL, but not past the deadline.
+			err := v.updateCRLWithin(endpoint, crl, time.Until(deadline))
 			if err != nil {
 				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).

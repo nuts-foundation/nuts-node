@@ -46,6 +46,7 @@ import (
 type publicWebCA struct {
 	cert      *x509.Certificate
 	key       *ecdsa.PrivateKey
+	parent    *publicWebCA // nil for a root CA
 	crlServer *httptest.Server
 	// crl is the DER encoded CRL served by crlServer. If nil, the server responds with an error.
 	crl atomic.Pointer[[]byte]
@@ -56,6 +57,15 @@ type publicWebCA struct {
 }
 
 func newPublicWebCA(t *testing.T) *publicWebCA {
+	return newTestCA(t, nil)
+}
+
+// newIntermediateCA returns a CA issued by this CA, with this CA's CRL endpoint.
+func (ca *publicWebCA) newIntermediateCA(t *testing.T) *publicWebCA {
+	return newTestCA(t, ca)
+}
+
+func newTestCA(t *testing.T, parent *publicWebCA) *publicWebCA {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -68,12 +78,18 @@ func newPublicWebCA(t *testing.T) *publicWebCA {
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 	}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, key.Public(), key)
+	issuer, issuerKey := template, key
+	if parent != nil {
+		template.Subject.CommonName = "Public Web Test Intermediate CA"
+		template.CRLDistributionPoints = []string{parent.crlServer.URL + "/ca.crl"}
+		issuer, issuerKey = parent.cert, parent.key
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, issuer, key.Public(), issuerKey)
 	require.NoError(t, err)
 	cert, err := x509.ParseCertificate(der)
 	require.NoError(t, err)
 
-	ca := &publicWebCA{cert: cert, key: key, release: make(chan struct{})}
+	ca := &publicWebCA{cert: cert, key: key, parent: parent, release: make(chan struct{})}
 	ca.crlServer = httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		select {
 		case <-time.After(time.Duration(ca.delay.Load())):
@@ -131,7 +147,11 @@ func (ca *publicWebCA) startServer(t *testing.T, serialNumber *big.Int) *httptes
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusOK)
 	}))
-	server.TLS = &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
+	chain := [][]byte{der}
+	if ca.parent != nil {
+		chain = append(chain, ca.cert.Raw)
+	}
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{{Certificate: chain, PrivateKey: key}}}
 	// Some tests fail the handshake on purpose, keep that out of the test output.
 	server.Config.ErrorLog = log.New(io.Discard, "", 0)
 	server.StartTLS()
@@ -235,7 +255,7 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 		assert.ErrorIs(t, err, ErrCertRevoked)
 	})
 	t.Run("waiting for a CRL download", func(t *testing.T) {
-		const wait = 200 * time.Millisecond
+		const wait = 500 * time.Millisecond
 		setCRLDownloadWait := func(t *testing.T) {
 			old := crlDownloadWait
 			crlDownloadWait = wait
@@ -254,6 +274,21 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 
 			assert.NoError(t, err)
 			assert.Less(t, time.Since(start), 2*time.Second)
+		})
+		t.Run("2 CRL endpoints hang, the wait is shared, so softfail still applies within the client timeout", func(t *testing.T) {
+			setCRLDownloadWait(t)
+			root := newPublicWebCA(t)
+			root.publishCRL(t)
+			root.delay.Store(int64(time.Hour))
+			intermediate := root.newIntermediateCA(t)
+			intermediate.publishCRL(t)
+			intermediate.delay.Store(int64(time.Hour))
+			setup(t, root, true)
+
+			// A wait per CRL (2 * wait) would exceed the client timeout.
+			err := get(t, client.New(wait+300*time.Millisecond), intermediate.startServer(t, serialNumber))
+
+			assert.NoError(t, err)
 		})
 		t.Run("slow CRL endpoint, download continues in the background", func(t *testing.T) {
 			setCRLDownloadWait(t)
