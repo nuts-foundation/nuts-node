@@ -19,6 +19,7 @@
 package pki
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -227,7 +228,7 @@ func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) err
 	for _, endpoint := range cert.CRLDistributionPoints {
 		crl, ok := v.getCRL(endpoint)
 		if !ok {
-			// registerCRLEndpoints couldn't add it
+			// should not happen: checkCRL registers all endpoints first
 			return ErrCRLMissing
 		}
 
@@ -276,6 +277,12 @@ func (v *validator) addCAs(chain []*x509.Certificate) error {
 	var certificate *x509.Certificate
 	var err error
 	for _, certificate = range chain {
+		// Skip certificates that can't issue others (e.g. server certificates), using the same rule as Go's chain verification:
+		// intermediates must be marked as CA, roots may lack the marking (e.g. version 1 certificates) but are self-issued.
+		isCA := certificate.BasicConstraintsValid && certificate.IsCA
+		if !isCA && !bytes.Equal(certificate.RawSubject, certificate.RawIssuer) {
+			continue
+		}
 		v.cas.Store(certificate.Subject.String(), certificate)
 	}
 
@@ -477,25 +484,12 @@ func (v *validator) startCRLDownload(endpoint string, current *revocationList) *
 	return download
 }
 
-// registerCRLEndpoints registers the chain's unknown CRL endpoints.
-// If the issuer of such a certificate is unknown, it adds the entire chain to the CA and CRL lists,
-// which fails if the chain doesn't contain the issuer either.
+// registerCRLEndpoints adds the chain to the CA and CRL lists if any of its CRL endpoints is unknown.
 func (v *validator) registerCRLEndpoints(chain []*x509.Certificate) error {
 	for _, cert := range chain {
 		for _, endpoint := range cert.CRLDistributionPoints {
-			if _, ok := v.getCRL(endpoint); ok {
-				continue
-			}
-			issuer, ok := v.getCert(cert.Issuer.String())
-			if !ok {
+			if _, ok := v.getCRL(endpoint); !ok {
 				return v.addCAs(chain)
-			}
-			if err := v.addEndpoints(issuer, []string{endpoint}); err != nil {
-				// validateCert then reports the CRL as missing
-				logger().WithError(err).
-					WithField("Subject", cert.Subject.String()).
-					WithField("S/N", cert.SerialNumber.String()).
-					Warn("cert validation failed because CRL cannot be added")
 			}
 		}
 	}

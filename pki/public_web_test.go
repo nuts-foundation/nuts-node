@@ -197,11 +197,13 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 	t.Run("certificate not on the CRL is accepted", func(t *testing.T) {
 		ca := newPublicWebCA(t)
 		ca.publishCRL(t)
-		setup(t, ca, false)
+		engine := setup(t, ca, false)
 
 		err := get(t, client.New(5*time.Second), ca.startServer(t, serialNumber))
 
 		assert.NoError(t, err)
+		_, isCA := engine.cas.Load("CN=public-web.example.com")
+		assert.False(t, isCA, "server certificate must not be added to the CA list")
 	})
 	t.Run("revoked certificate is rejected, also with softfail", func(t *testing.T) {
 		ca := newPublicWebCA(t)
