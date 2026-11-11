@@ -62,7 +62,7 @@ type validator struct {
 	// crls maps CRL endpoints to their x509.RevocationList
 	crls sync.Map
 
-	// downloads maps CRL endpoints to the *crlDownload in progress, so a CRL is downloaded once at a time
+	// downloads maps CRL endpoints (and denylistDownloadKey) to the *download in progress, so each is downloaded once at a time
 	downloads sync.Map
 
 	// denylist implements blocking of certificates with tuples of issuer/serial number
@@ -171,6 +171,9 @@ func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline 
 		return err
 	}
 	v.startCRLDownloads(chain)
+	if v.denylistMissing() {
+		v.startDenylistDownload()
+	}
 	var cert *x509.Certificate
 	var err error
 	for i := range chain {
@@ -217,6 +220,16 @@ func (v *validator) SetVerifyPeerCertificateFunc(config *tls.Config) error {
 func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) error {
 	// Check if a denylist is in use
 	if v.denylist != nil {
+		// Wait for the denylist download, but not past the deadline. ValidateCert would otherwise download it without that limit.
+		if v.denylistMissing() {
+			if err := v.startDenylistDownload().wait(deadline); err != nil {
+				logger().WithError(err).
+					WithField("Subject", cert.Subject.String()).
+					WithField("S/N", cert.SerialNumber.String()).
+					Warn("certificate validation failed because the denylist cannot be downloaded")
+				return ErrDenylistMissing
+			}
+		}
 		// Validate the cert against the denylist
 		if err := v.denylist.ValidateCert(cert); err != nil {
 			// Return any denylist error, blocking the certificate
@@ -235,15 +248,7 @@ func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) err
 		// initial download if missing
 		if crl.lastUpdated.IsZero() {
 			// Wait for the download, but not past the deadline. The download continues in the background.
-			download := v.startCRLDownload(endpoint, crl)
-			var err error
-			select {
-			case <-download.done:
-				err = download.err
-			case <-time.After(time.Until(deadline)):
-				err = errors.New("CRL download didn't finish in time, continuing in the background")
-			}
-			if err != nil {
+			if err := v.startCRLDownload(endpoint, crl).wait(deadline); err != nil {
 				logger().WithError(err).
 					WithField("Subject", cert.Subject.String()).
 					WithField("S/N", cert.SerialNumber.String()).
@@ -464,24 +469,56 @@ func (v *validator) updateCRL(endpoint string, current *revocationList) error {
 	return nil
 }
 
-// crlDownload is a CRL download in progress. err is set before done is closed.
-type crlDownload struct {
+// download is a CRL or denylist download in progress. err is set before done is closed.
+type download struct {
 	done chan struct{}
 	err  error
 }
 
-// startCRLDownload downloads the CRL in the background (until syncTimeout), unless it's already being downloaded.
-func (v *validator) startCRLDownload(endpoint string, current *revocationList) *crlDownload {
-	download := &crlDownload{done: make(chan struct{})}
-	if running, loaded := v.downloads.LoadOrStore(endpoint, download); loaded {
-		return running.(*crlDownload)
+// wait returns the result of the download, or an error if it didn't finish before the deadline.
+func (d *download) wait(deadline time.Time) error {
+	select {
+	case <-d.done:
+		return d.err
+	case <-time.After(time.Until(deadline)):
+	}
+	// After the deadline both cases can be ready and select picks one at random, so prefer a finished download.
+	select {
+	case <-d.done:
+		return d.err
+	default:
+		return errors.New("download didn't finish in time, continuing in the background")
+	}
+}
+
+// denylistDownloadKey is the key of the denylist download in v.downloads; the other keys are CRL endpoints.
+const denylistDownloadKey = "denylist"
+
+// startDownload runs update in the background (until syncTimeout), unless a download with the same key is running.
+func (v *validator) startDownload(key string, update func() error) *download {
+	d := &download{done: make(chan struct{})}
+	if running, loaded := v.downloads.LoadOrStore(key, d); loaded {
+		return running.(*download)
 	}
 	go func() {
-		download.err = v.updateCRL(endpoint, current)
-		v.downloads.Delete(endpoint)
-		close(download.done)
+		d.err = update()
+		v.downloads.Delete(key)
+		close(d.done)
 	}()
-	return download
+	return d
+}
+
+func (v *validator) startCRLDownload(endpoint string, current *revocationList) *download {
+	return v.startDownload(endpoint, func() error { return v.updateCRL(endpoint, current) })
+}
+
+func (v *validator) startDenylistDownload() *download {
+	return v.startDownload(denylistDownloadKey, v.denylist.Update)
+}
+
+// denylistMissing returns true if a denylist is configured but hasn't been downloaded yet.
+func (v *validator) denylistMissing() bool {
+	return v.denylist != nil && v.denylist.URL() != "" && v.denylist.LastUpdated().IsZero()
 }
 
 // registerCRLEndpoints adds the chain to the CA and CRL lists if any of its CRL endpoints is unknown.

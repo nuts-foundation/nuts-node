@@ -307,6 +307,43 @@ func TestPKI_PublicWebTLS(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+		t.Run("denylist endpoint hangs", func(t *testing.T) {
+			// setupDenylist makes the engine use a denylist endpoint that never responds.
+			setupDenylist := func(t *testing.T, engine *PKI) {
+				release := make(chan struct{})
+				denylistServer := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+					<-release
+				}))
+				t.Cleanup(denylistServer.Close)
+				t.Cleanup(func() { close(release) })
+				denylist, err := NewDenylist(DenylistConfig{URL: denylistServer.URL, TrustedSigner: publicKeyDoNotUse})
+				require.NoError(t, err)
+				engine.denylist = denylist
+			}
+
+			t.Run("together with the CRL endpoint, softfail still applies within the client timeout", func(t *testing.T) {
+				setCRLDownloadWait(t)
+				ca := newPublicWebCA(t)
+				ca.publishCRL(t)
+				ca.delay.Store(int64(time.Hour))
+				setupDenylist(t, setup(t, ca, true))
+
+				// Without the wait, the denylist download takes up to 10s per certificate.
+				err := get(t, client.New(wait+300*time.Millisecond), ca.startServer(t, serialNumber))
+
+				assert.NoError(t, err)
+			})
+			t.Run("hardfail rejects the certificate within the client timeout", func(t *testing.T) {
+				setCRLDownloadWait(t)
+				ca := newPublicWebCA(t)
+				ca.publishCRL(t)
+				setupDenylist(t, setup(t, ca, false))
+
+				err := get(t, client.New(wait+300*time.Millisecond), ca.startServer(t, serialNumber))
+
+				assert.ErrorIs(t, err, ErrDenylistMissing)
+			})
+		})
 		t.Run("slow CRL endpoint, download continues in the background", func(t *testing.T) {
 			setCRLDownloadWait(t)
 			ca := newPublicWebCA(t)
