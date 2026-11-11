@@ -165,6 +165,10 @@ func crlDownloadDeadline() time.Time {
 }
 
 func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline time.Time) error {
+	// Register all CRL endpoints of the chain first, so its CRLs download concurrently.
+	if err := v.registerCRLEndpoints(chain); err != nil {
+		return err
+	}
 	v.startCRLDownloads(chain)
 	var cert *x509.Certificate
 	var err error
@@ -173,15 +177,6 @@ func (v *validator) checkCRL(chain []*x509.Certificate, softfail bool, deadline 
 		cert = chain[len(chain)-1-i]
 		err = v.validateCert(cert, deadline)
 		if err != nil {
-			// if the issuer of a cert is unknown, add entire chain to the ca/crl lists and try again
-			if errors.Is(err, ErrUnknownIssuer) {
-				if err = v.addCAs(chain); err == nil {
-					v.startCRLDownloads(chain) // its CRL endpoints are known now
-					if err = v.validateCert(cert, deadline); err == nil {
-						continue
-					}
-				}
-			}
 			// handle error
 			errOut := fmt.Errorf("%w: subject=%s, S/N=%s, issuer=%s", err, cert.Subject.String(), cert.SerialNumber.String(), cert.Issuer.String())
 			if softfail && (errors.Is(err, ErrCRLExpired) || errors.Is(err, ErrCRLMissing) || errors.Is(err, ErrDenylistMissing)) {
@@ -231,24 +226,9 @@ func (v *validator) validateCert(cert *x509.Certificate, deadline time.Time) err
 	// validate the cert against the CRLs
 	for _, endpoint := range cert.CRLDistributionPoints {
 		crl, ok := v.getCRL(endpoint)
-
-		// add distribution endpoint if unknown
 		if !ok {
-			var issuer *x509.Certificate
-			issuer, ok = v.getCert(cert.Issuer.String())
-			if !ok {
-				return ErrUnknownIssuer
-			}
-			err := v.addEndpoints(issuer, []string{endpoint})
-			if err != nil {
-				logger().WithError(err).
-					WithField("Subject", cert.Subject.String()).
-					WithField("S/N", cert.SerialNumber.String()).
-					Warn("cert validation failed because CRL cannot be added")
-				return ErrCRLMissing
-			}
-			// update loop params
-			crl, _ = v.getCRL(endpoint) // must be present now
+			// registerCRLEndpoints couldn't add it
+			return ErrCRLMissing
 		}
 
 		// initial download if missing
@@ -495,6 +475,31 @@ func (v *validator) startCRLDownload(endpoint string, current *revocationList) *
 		close(download.done)
 	}()
 	return download
+}
+
+// registerCRLEndpoints registers the chain's unknown CRL endpoints.
+// If the issuer of such a certificate is unknown, it adds the entire chain to the CA and CRL lists,
+// which fails if the chain doesn't contain the issuer either.
+func (v *validator) registerCRLEndpoints(chain []*x509.Certificate) error {
+	for _, cert := range chain {
+		for _, endpoint := range cert.CRLDistributionPoints {
+			if _, ok := v.getCRL(endpoint); ok {
+				continue
+			}
+			issuer, ok := v.getCert(cert.Issuer.String())
+			if !ok {
+				return v.addCAs(chain)
+			}
+			if err := v.addEndpoints(issuer, []string{endpoint}); err != nil {
+				// validateCert then reports the CRL as missing
+				logger().WithError(err).
+					WithField("Subject", cert.Subject.String()).
+					WithField("S/N", cert.SerialNumber.String()).
+					Warn("cert validation failed because CRL cannot be added")
+			}
+		}
+	}
+	return nil
 }
 
 // startCRLDownloads starts downloading the chain's known CRLs that haven't been downloaded yet, so they download concurrently.
