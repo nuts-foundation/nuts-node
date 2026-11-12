@@ -72,8 +72,8 @@ var StrictMode bool
 // Setting CheckRedirect replaces the standard library's default policy, so the
 // 10-redirect cap is reimplemented here. It also re-runs core.ParsePublicURLAllowIP on
 // every redirect target, so a disallowed redirect is refused before it is followed
-// (strictTransport checks every hop as well). IP-literal hosts are left to the dial guard (see denyNonPublicAddr), which
-// runs on every hop already and is aware of http.client.allowedinternalcidrs/deniedcidrs;
+// (strictTransport checks every hop as well). IP-literal hosts are left to the dial
+// guard (see denyNonPublicAddr), which runs on every hop already and is aware of http.client.allowedinternalcidrs/deniedcidrs;
 // rejecting them here too would make that allowlist unreachable.
 func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
@@ -182,7 +182,12 @@ type StrictHTTPClient struct {
 
 // Do sends the request. The strict checks are applied by the client's transport (see strictTransport).
 func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return s.client.Do(req)
+	result, err := s.client.Do(req)
+	if err != nil {
+		// http.Client also returns the last response when CheckRedirect fails; callers only get the error.
+		return nil, err
+	}
+	return result, nil
 }
 
 // strictTransport applies the strict checks to every request it sends, including redirects:

@@ -218,9 +218,10 @@ func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
 
 		client := NewWithTLSConfig(time.Second, tlsConfig)
 		req, _ := http.NewRequest("GET", redirector.URL, nil)
-		_, err := client.Do(req)
+		response, err := client.Do(req)
 
 		assert.Error(t, err, "strict mode must not follow a redirect from HTTPS to HTTP")
+		assert.Nil(t, response, "no response must be returned with the error")
 		assert.False(t, reached.Load(), "the plaintext endpoint must not be contacted")
 	})
 	t.Run("non-strict mode follows redirect to HTTP", func(t *testing.T) {
