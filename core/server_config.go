@@ -53,6 +53,9 @@ var redactedConfigKeys = []string{
 	"storage.session.redis.password",
 	"storage.session.redis.sentinel.password",
 	"storage.sql.connection",
+	// auth.experimental.clients holds OAuth client_secret values. The whole subtree is redacted because the slice
+	// is logged as a single value (YAML) or as indexed keys (env vars), so a leaf-only match would miss one form.
+	"auth.experimental.clients",
 }
 
 // ServerConfig has global server settings.
@@ -283,7 +286,8 @@ func FlagSet() *pflag.FlagSet {
 func (ngc *ServerConfig) PrintConfig() string {
 	redacted := func(k string) bool {
 		for _, key := range redactedConfigKeys {
-			if key == k {
+			// Match the key itself and any descendant (e.g. indexed array entries like "<key>.0.clientsecret").
+			if key == k || strings.HasPrefix(k, key+".") {
 				return true
 			}
 		}
