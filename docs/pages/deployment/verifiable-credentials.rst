@@ -28,6 +28,22 @@ Or it can fetch the context definition from disk, using a mapping from url to pa
 
 The default contexts can be accessed using the embedded file system `assets/contexts`. The contents of this directory can be found on Github: The default loaded contexts can be downloaded from the `Github repo <https://github.com/nuts-foundation/nuts-node/tree/master/vcr/assets/assets/contexts>`_.
 
+The node uses JSON-LD contexts to normalize a credential when it creates or verifies a JSON-LD proof (``ldp_vc``, ``ldp_vp``), and to search credentials (``POST /internal/vcr/v2/search``).
+So the node must know every context a credential uses; otherwise it can't verify or search it.
+Credentials in JWT format (``jwt_vc``) are verified without the contexts.
+Context URLs are identifiers: they don't have to resolve, as long as the node has a local mapping for them.
+
+Built-in contexts (mapped to local files by default, see ``jsonld.contexts.localmapping``):
+
+- ``https://www.w3.org/2018/credentials/v1``: W3C Verifiable Credentials
+- ``https://w3c-ccg.github.io/lds-jws2020/contexts/lds-jws2020-v1.json``: ``JsonWebSignature2020`` proofs
+- ``https://w3id.org/vc/status-list/2021/v1``: StatusList2021 revocation
+- ``https://schema.org``
+- ``https://nuts.nl/credentials/v1``: Nuts credentials such as ``NutsOrganizationCredential`` and ``NutsAuthorizationCredential``
+- ``https://nuts.nl/credentials/2024``: ``NutsUraCredential``
+
+Background on JSON-LD in Nuts is on the `wiki <https://wiki.nuts.nl/link/196>`_.
+
 Example configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
