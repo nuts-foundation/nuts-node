@@ -95,9 +95,9 @@ func (p *protocol) sendTransactionListQuery(connection grpc.Connection, refs []h
 func (p *protocol) sendTransactionList(connection grpc.Connection, conversationID conversationID, transactions []*Transaction) error {
 	chunks := chunkTransactionList(transactions)
 	if len(chunks) == 0 {
-		// None of the requested transactions are present. Still respond, so the peer ends the conversation.
-		// Otherwise it doesn't query this node again until the conversation expires.
-		chunks = [][]*Transaction{{}}
+		// None of the requested transactions are present. Still respond with one empty
+		// TransactionList, so the peer ends the conversation instead of waiting for it to expire.
+		chunks = append(chunks, []*Transaction{})
 	}
 	for chunkNumber, chunk := range chunks {
 		if err := connection.Send(p, &Envelope{Message: &Envelope_TransactionList{
