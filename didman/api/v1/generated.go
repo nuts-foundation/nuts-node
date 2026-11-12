@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -1018,16 +1019,9 @@ type GetCompoundServicesResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]CompoundService
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1050,16 +1044,10 @@ type AddCompoundServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *CompoundService
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1082,16 +1070,10 @@ type GetCompoundServiceEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *EndpointResponse
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON406     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1114,16 +1096,9 @@ type UpdateCompoundServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *CompoundService
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1146,16 +1121,10 @@ type GetContactInformationResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *ContactInformation
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1178,16 +1147,10 @@ type UpdateContactInformationResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *ContactInformation
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1210,16 +1173,10 @@ type AddEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *Endpoint
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1241,16 +1198,10 @@ func (r AddEndpointResponse) StatusCode() int {
 type DeleteEndpointsByTypeResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1273,16 +1224,9 @@ type UpdateEndpointResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *Endpoint
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1305,16 +1249,7 @@ type SearchOrganizationsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]OrganizationSearchResult
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1336,16 +1271,10 @@ func (r SearchOrganizationsResponse) StatusCode() int {
 type DeleteServiceResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1524,17 +1453,22 @@ func ParseGetCompoundServicesResponse(rsp *http.Response) (*GetCompoundServicesR
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1566,17 +1500,29 @@ func ParseAddCompoundServiceResponse(rsp *http.Response) (*AddCompoundServiceRes
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1608,17 +1554,29 @@ func ParseGetCompoundServiceEndpointResponse(rsp *http.Response) (*GetCompoundSe
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 406:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON406 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1653,17 +1611,22 @@ func ParseUpdateCompoundServiceResponse(rsp *http.Response) (*UpdateCompoundServ
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1695,17 +1658,29 @@ func ParseGetContactInformationResponse(rsp *http.Response) (*GetContactInformat
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1737,17 +1712,29 @@ func ParseUpdateContactInformationResponse(rsp *http.Response) (*UpdateContactIn
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1779,17 +1766,29 @@ func ParseAddEndpointResponse(rsp *http.Response) (*AddEndpointResponse, error) 
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1814,17 +1813,29 @@ func ParseDeleteEndpointsByTypeResponse(rsp *http.Response) (*DeleteEndpointsByT
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1856,17 +1867,22 @@ func ParseUpdateEndpointResponse(rsp *http.Response) (*UpdateEndpointResponse, e
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1899,16 +1915,7 @@ func ParseSearchOrganizationsResponse(rsp *http.Response) (*SearchOrganizationsR
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1933,17 +1940,29 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1956,41 +1975,37 @@ func ParseDeleteServiceResponse(rsp *http.Response) (*DeleteServiceResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get a list of compound services for a DID document.
-	//
-	// error responses:
-	// * 400 - incorrect input
-	// * 404 - unknown DID
+	// Get a list of compound services for a DID document
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx echo.Context, did string) error
-	// Add a compound service to a DID Document.
+	// Add a compound service to a DID document
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx echo.Context, did string) error
-	// Retrieves the endpoint with the specified endpointType from the specified compound service.
+	// Retrieve the endpoint with the specified endpointType from the specified compound service
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx echo.Context, did string, compoundServiceType string, endpointType string, params GetCompoundServiceEndpointParams) error
-	// Update a compound service.
+	// Update a compound service
 	// (PUT /internal/didman/v1/did/{did}/compoundservice/{type})
 	UpdateCompoundService(ctx echo.Context, did string, pType string) error
-
+	// Get the contact information of a DID
 	// (GET /internal/didman/v1/did/{did}/contactinfo)
 	GetContactInformation(ctx echo.Context, did string) error
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx echo.Context, did string) error
-	// Add a service endpoint or a reference to a service.
+	// Add a service endpoint or a reference to a service
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx echo.Context, did string) error
-
+	// Delete all endpoints of a type from a DID document
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx echo.Context, did string, pType string) error
-	// Update a service endpoint or a reference to a service.
+	// Update a service endpoint or a reference to a service
 	// (PUT /internal/didman/v1/did/{did}/endpoint/{type})
 	UpdateEndpoint(ctx echo.Context, did string, pType string) error
-
+	// Search for organizations
 	// (GET /internal/didman/v1/search/organizations)
 	SearchOrganizations(ctx echo.Context, params SearchOrganizationsParams) error
-	// Remove a service from a DID Document.
+	// Remove a service from a DID document
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx echo.Context, id string) error
 }
@@ -2332,17 +2347,26 @@ func (response GetCompoundServices200JSONResponse) VisitGetCompoundServicesRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetCompoundServices400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServices400ApplicationProblemPlusJSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServices404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServices404ApplicationProblemPlusJSONResponse) VisitGetCompoundServicesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCompoundServicesdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2371,17 +2395,35 @@ func (response AddCompoundService200JSONResponse) VisitAddCompoundServiceRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type AddCompoundService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService400ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddCompoundService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService404ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddCompoundService409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddCompoundService409ApplicationProblemPlusJSONResponse) VisitAddCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type AddCompoundServicedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2422,17 +2464,35 @@ func (response GetCompoundServiceEndpoint200TextResponse) VisitGetCompoundServic
 	return err
 }
 
+type GetCompoundServiceEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint400ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServiceEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint404ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCompoundServiceEndpoint406ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCompoundServiceEndpoint406ApplicationProblemPlusJSONResponse) VisitGetCompoundServiceEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(406)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCompoundServiceEndpointdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2462,17 +2522,26 @@ func (response UpdateCompoundService200JSONResponse) VisitUpdateCompoundServiceR
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateCompoundService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateCompoundService400ApplicationProblemPlusJSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateCompoundService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateCompoundService404ApplicationProblemPlusJSONResponse) VisitUpdateCompoundServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateCompoundServicedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2500,17 +2569,35 @@ func (response GetContactInformation200JSONResponse) VisitGetContactInformationR
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetContactInformation400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation400ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContactInformation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation404ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetContactInformation409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContactInformation409ApplicationProblemPlusJSONResponse) VisitGetContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetContactInformationdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2539,17 +2626,35 @@ func (response UpdateContactInformation200JSONResponse) VisitUpdateContactInform
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateContactInformation400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation400ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateContactInformation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation404ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateContactInformation409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateContactInformation409ApplicationProblemPlusJSONResponse) VisitUpdateContactInformationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateContactInformationdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2578,17 +2683,35 @@ func (response AddEndpoint200JSONResponse) VisitAddEndpointResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type AddEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint400ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint404ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddEndpoint409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddEndpoint409ApplicationProblemPlusJSONResponse) VisitAddEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type AddEndpointdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2616,17 +2739,35 @@ func (response DeleteEndpointsByType204Response) VisitDeleteEndpointsByTypeRespo
 	return nil
 }
 
+type DeleteEndpointsByType400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType400ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteEndpointsByType404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType404ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteEndpointsByType409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteEndpointsByType409ApplicationProblemPlusJSONResponse) VisitDeleteEndpointsByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteEndpointsByTypedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2656,17 +2797,26 @@ func (response UpdateEndpoint200JSONResponse) VisitUpdateEndpointResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateEndpoint400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateEndpoint400ApplicationProblemPlusJSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateEndpoint404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateEndpoint404ApplicationProblemPlusJSONResponse) VisitUpdateEndpointResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateEndpointdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2695,16 +2845,7 @@ func (response SearchOrganizations200JSONResponse) VisitSearchOrganizationsRespo
 }
 
 type SearchOrganizationsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2731,17 +2872,35 @@ func (response DeleteService204Response) VisitDeleteServiceResponse(w http.Respo
 	return nil
 }
 
+type DeleteService400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService400ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteService404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService404ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteService409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteService409ApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteServicedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -2754,41 +2913,37 @@ func (response DeleteServicedefaultApplicationProblemPlusJSONResponse) VisitDele
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get a list of compound services for a DID document.
-	//
-	// error responses:
-	// * 400 - incorrect input
-	// * 404 - unknown DID
+	// Get a list of compound services for a DID document
 	// (GET /internal/didman/v1/did/{did}/compoundservice)
 	GetCompoundServices(ctx context.Context, request GetCompoundServicesRequestObject) (GetCompoundServicesResponseObject, error)
-	// Add a compound service to a DID Document.
+	// Add a compound service to a DID document
 	// (POST /internal/didman/v1/did/{did}/compoundservice)
 	AddCompoundService(ctx context.Context, request AddCompoundServiceRequestObject) (AddCompoundServiceResponseObject, error)
-	// Retrieves the endpoint with the specified endpointType from the specified compound service.
+	// Retrieve the endpoint with the specified endpointType from the specified compound service
 	// (GET /internal/didman/v1/did/{did}/compoundservice/{compoundServiceType}/endpoint/{endpointType})
 	GetCompoundServiceEndpoint(ctx context.Context, request GetCompoundServiceEndpointRequestObject) (GetCompoundServiceEndpointResponseObject, error)
-	// Update a compound service.
+	// Update a compound service
 	// (PUT /internal/didman/v1/did/{did}/compoundservice/{type})
 	UpdateCompoundService(ctx context.Context, request UpdateCompoundServiceRequestObject) (UpdateCompoundServiceResponseObject, error)
-
+	// Get the contact information of a DID
 	// (GET /internal/didman/v1/did/{did}/contactinfo)
 	GetContactInformation(ctx context.Context, request GetContactInformationRequestObject) (GetContactInformationResponseObject, error)
 	// Add a predetermined DID Service with real life contact information
 	// (PUT /internal/didman/v1/did/{did}/contactinfo)
 	UpdateContactInformation(ctx context.Context, request UpdateContactInformationRequestObject) (UpdateContactInformationResponseObject, error)
-	// Add a service endpoint or a reference to a service.
+	// Add a service endpoint or a reference to a service
 	// (POST /internal/didman/v1/did/{did}/endpoint)
 	AddEndpoint(ctx context.Context, request AddEndpointRequestObject) (AddEndpointResponseObject, error)
-
+	// Delete all endpoints of a type from a DID document
 	// (DELETE /internal/didman/v1/did/{did}/endpoint/{type})
 	DeleteEndpointsByType(ctx context.Context, request DeleteEndpointsByTypeRequestObject) (DeleteEndpointsByTypeResponseObject, error)
-	// Update a service endpoint or a reference to a service.
+	// Update a service endpoint or a reference to a service
 	// (PUT /internal/didman/v1/did/{did}/endpoint/{type})
 	UpdateEndpoint(ctx context.Context, request UpdateEndpointRequestObject) (UpdateEndpointResponseObject, error)
-
+	// Search for organizations
 	// (GET /internal/didman/v1/search/organizations)
 	SearchOrganizations(ctx context.Context, request SearchOrganizationsRequestObject) (SearchOrganizationsResponseObject, error)
-	// Remove a service from a DID Document.
+	// Remove a service from a DID document
 	// (DELETE /internal/didman/v1/service/{id})
 	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
 }

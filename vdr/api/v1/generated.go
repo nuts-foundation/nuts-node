@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -670,16 +671,8 @@ type CreateDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *DIDDocument
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -702,16 +695,7 @@ type ConflictedDIDsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]DIDResolutionResult
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -733,16 +717,11 @@ func (r ConflictedDIDsResponse) StatusCode() int {
 type DeactivateDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON403     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -765,16 +744,9 @@ type GetDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *DIDResolutionResult
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -797,16 +769,11 @@ type UpdateDIDResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *DIDDocument
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON403     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -829,16 +796,9 @@ type AddNewVerificationMethodResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VerificationMethod
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON403     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -860,16 +820,9 @@ func (r AddNewVerificationMethodResponse) StatusCode() int {
 type DeleteVerificationMethodResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON403     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -996,17 +949,15 @@ func ParseCreateDIDResponse(rsp *http.Response) (*CreateDIDResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1039,16 +990,7 @@ func ParseConflictedDIDsResponse(rsp *http.Response) (*ConflictedDIDsResponse, e
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1073,17 +1015,36 @@ func ParseDeactivateDIDResponse(rsp *http.Response) (*DeactivateDIDResponse, err
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1115,17 +1076,22 @@ func ParseGetDIDResponse(rsp *http.Response) (*GetDIDResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1157,17 +1123,36 @@ func ParseUpdateDIDResponse(rsp *http.Response) (*UpdateDIDResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1199,17 +1184,22 @@ func ParseAddNewVerificationMethodResponse(rsp *http.Response) (*AddNewVerificat
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1234,17 +1224,22 @@ func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificat
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1257,22 +1252,22 @@ func ParseDeleteVerificationMethodResponse(rsp *http.Response) (*DeleteVerificat
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Creates a new Nuts DID
+	// Create a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx echo.Context) error
 	// Retrieve the list of conflicted DID documents
 	// (GET /internal/vdr/v1/did/conflicted)
 	ConflictedDIDs(ctx echo.Context) error
-	// Deactivates a Nuts DID document according to the specification.
+	// Deactivate a Nuts DID document according to the specification
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx echo.Context, did string) error
-	// Resolves a Nuts DID document
+	// Resolve a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx echo.Context, did string, params GetDIDParams) error
-	// Updates a Nuts DID document.
+	// Update a Nuts DID document
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx echo.Context, did string) error
-	// Creates and adds a new verificationMethod to the DID document.
+	// Create and add a new verificationMethod to the DID document
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx echo.Context, did string) error
 	// Delete a specific verification method
@@ -1476,17 +1471,17 @@ func (response CreateDID200JSONResponse) VisitCreateDIDResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateDID400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateDID400ApplicationProblemPlusJSONResponse) VisitCreateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateDIDdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1514,16 +1509,7 @@ func (response ConflictedDIDs200JSONResponse) VisitConflictedDIDsResponse(w http
 }
 
 type ConflictedDIDsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1550,17 +1536,44 @@ func (response DeactivateDID200Response) VisitDeactivateDIDResponse(w http.Respo
 	return nil
 }
 
+type DeactivateDID400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateDID400ApplicationProblemPlusJSONResponse) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeactivateDID403ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateDID403ApplicationProblemPlusJSONResponse) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeactivateDID404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateDID404ApplicationProblemPlusJSONResponse) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeactivateDID409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateDID409ApplicationProblemPlusJSONResponse) VisitDeactivateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeactivateDIDdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1589,17 +1602,26 @@ func (response GetDID200JSONResponse) VisitGetDIDResponse(w http.ResponseWriter)
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetDID400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetDID400ApplicationProblemPlusJSONResponse) VisitGetDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDID404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetDID404ApplicationProblemPlusJSONResponse) VisitGetDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetDIDdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1628,17 +1650,44 @@ func (response UpdateDID200JSONResponse) VisitUpdateDIDResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateDID400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateDID400ApplicationProblemPlusJSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDID403ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateDID403ApplicationProblemPlusJSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDID404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateDID404ApplicationProblemPlusJSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDID409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UpdateDID409ApplicationProblemPlusJSONResponse) VisitUpdateDIDResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UpdateDIDdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1667,17 +1716,26 @@ func (response AddNewVerificationMethod200JSONResponse) VisitAddNewVerificationM
 	return json.NewEncoder(w).Encode(response)
 }
 
+type AddNewVerificationMethod403ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddNewVerificationMethod403ApplicationProblemPlusJSONResponse) VisitAddNewVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddNewVerificationMethod404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response AddNewVerificationMethod404ApplicationProblemPlusJSONResponse) VisitAddNewVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type AddNewVerificationMethoddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1705,17 +1763,26 @@ func (response DeleteVerificationMethod204Response) VisitDeleteVerificationMetho
 	return nil
 }
 
+type DeleteVerificationMethod403ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteVerificationMethod403ApplicationProblemPlusJSONResponse) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteVerificationMethod404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeleteVerificationMethod404ApplicationProblemPlusJSONResponse) VisitDeleteVerificationMethodResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1728,22 +1795,22 @@ func (response DeleteVerificationMethoddefaultApplicationProblemPlusJSONResponse
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Creates a new Nuts DID
+	// Create a new Nuts DID
 	// (POST /internal/vdr/v1/did)
 	CreateDID(ctx context.Context, request CreateDIDRequestObject) (CreateDIDResponseObject, error)
 	// Retrieve the list of conflicted DID documents
 	// (GET /internal/vdr/v1/did/conflicted)
 	ConflictedDIDs(ctx context.Context, request ConflictedDIDsRequestObject) (ConflictedDIDsResponseObject, error)
-	// Deactivates a Nuts DID document according to the specification.
+	// Deactivate a Nuts DID document according to the specification
 	// (DELETE /internal/vdr/v1/did/{did})
 	DeactivateDID(ctx context.Context, request DeactivateDIDRequestObject) (DeactivateDIDResponseObject, error)
-	// Resolves a Nuts DID document
+	// Resolve a Nuts DID document
 	// (GET /internal/vdr/v1/did/{did})
 	GetDID(ctx context.Context, request GetDIDRequestObject) (GetDIDResponseObject, error)
-	// Updates a Nuts DID document.
+	// Update a Nuts DID document
 	// (PUT /internal/vdr/v1/did/{did})
 	UpdateDID(ctx context.Context, request UpdateDIDRequestObject) (UpdateDIDResponseObject, error)
-	// Creates and adds a new verificationMethod to the DID document.
+	// Create and add a new verificationMethod to the DID document
 	// (POST /internal/vdr/v1/did/{did}/verificationmethod)
 	AddNewVerificationMethod(ctx context.Context, request AddNewVerificationMethodRequestObject) (AddNewVerificationMethodResponseObject, error)
 	// Delete a specific verification method

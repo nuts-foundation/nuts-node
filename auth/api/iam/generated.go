@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -618,31 +619,28 @@ type ServerInterface interface {
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
 	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
 	OpenIDConfiguration(ctx echo.Context, subjectID string) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns fields derived from the credentials that were used during authentication.
+	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
-	// Presentation Submissions and Verifiable Presentations added.
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx echo.Context) error
-	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx echo.Context, sessionID string) error
-	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx echo.Context) error
-	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx echo.Context, kid string) error
-	// EXPERIMENTAL Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx echo.Context, subjectID string) error
-	// Start the authorization flow to get an access token from a remote authorization server.
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx echo.Context, subjectID string, params RequestServiceAccessTokenParams) error
-	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx echo.Context, subjectID string) error
 	// The OAuth2 callback endpoint of the client.
@@ -1151,16 +1149,7 @@ func (response OAuthAuthorizationServerMetadata200JSONResponse) VisitOAuthAuthor
 }
 
 type OAuthAuthorizationServerMetadatadefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1277,17 +1266,17 @@ func (response RetrieveAccessToken200JSONResponse) VisitRetrieveAccessTokenRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RetrieveAccessToken404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RetrieveAccessToken404ApplicationProblemPlusJSONResponse) VisitRetrieveAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RetrieveAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1316,16 +1305,7 @@ func (response ValidateDPoPProof200JSONResponse) VisitValidateDPoPProofResponse(
 }
 
 type ValidateDPoPProofdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1380,17 +1360,35 @@ func (response RequestOpenid4VCICredentialIssuance200JSONResponse) VisitRequestO
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestOpenid4VCICredentialIssuance400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance400ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOpenid4VCICredentialIssuance404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance404ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestOpenid4VCICredentialIssuance424ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestOpenid4VCICredentialIssuance424ApplicationProblemPlusJSONResponse) VisitRequestOpenid4VCICredentialIssuanceResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(424)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestOpenid4VCICredentialIssuancedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1420,17 +1418,35 @@ func (response RequestServiceAccessToken200JSONResponse) VisitRequestServiceAcce
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestServiceAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestServiceAccessToken412ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken412ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestServiceAccessToken502ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestServiceAccessToken502ApplicationProblemPlusJSONResponse) VisitRequestServiceAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(502)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestServiceAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1459,17 +1475,17 @@ func (response RequestUserAccessToken200JSONResponse) VisitRequestUserAccessToke
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestUserAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestUserAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestUserAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestUserAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1503,16 +1519,7 @@ func (response Callback302Response) VisitCallbackResponse(w http.ResponseWriter)
 }
 
 type CallbackdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1583,16 +1590,7 @@ func (response OAuthClientMetadata200JSONResponse) VisitOAuthClientMetadataRespo
 }
 
 type OAuthClientMetadatadefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1662,16 +1660,7 @@ func (response RequestJWTByGet200ApplicationoauthAuthzReqJwtResponse) VisitReque
 }
 
 type RequestJWTByGetdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1712,16 +1701,7 @@ func (response RequestJWTByPost200ApplicationoauthAuthzReqJwtResponse) VisitRequ
 }
 
 type RequestJWTByPostdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1799,16 +1779,7 @@ func (response StatusList200JSONResponse) VisitStatusListResponse(w http.Respons
 }
 
 type StatusListdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1827,31 +1798,28 @@ type StrictServerInterface interface {
 	// Get the OpenID entity configuration for the specified subject. Required for OpenID4VP.
 	// (GET /.well-known/openid-configuration/oauth2/{subjectID})
 	OpenIDConfiguration(ctx context.Context, request OpenIDConfigurationRequestObject) (OpenIDConfigurationResponseObject, error)
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns fields derived from the credentials that were used during authentication.
+	// Introspect an access token
 	// (POST /internal/auth/v2/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-	// It returns the same information as the non-extended API call, but with the Presentation Definitions,
-	// Presentation Submissions and Verifiable Presentations added.
+	// Introspect an access token (return extended response)
 	// (POST /internal/auth/v2/accesstoken/introspect_extended)
 	IntrospectAccessTokenExtended(ctx context.Context, request IntrospectAccessTokenExtendedRequestObject) (IntrospectAccessTokenExtendedResponseObject, error)
-	// Get the access token from the Nuts node that was requested through /request-user-access-token.
+	// Retrieve a requested access token with end-user identity
 	// (GET /internal/auth/v2/accesstoken/{sessionID})
 	RetrieveAccessToken(ctx context.Context, request RetrieveAccessTokenRequestObject) (RetrieveAccessTokenResponseObject, error)
-	// Handle some of the validation of a DPoP proof as specified by RFC9449.
+	// Validate a received DPoP proof
 	// (POST /internal/auth/v2/dpop/validate)
 	ValidateDPoPProof(ctx context.Context, request ValidateDPoPProofRequestObject) (ValidateDPoPProofResponseObject, error)
-	// Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+	// Create a DPoP proof for a data request
 	// (POST /internal/auth/v2/dpop/{kid})
 	CreateDPoPProof(ctx context.Context, request CreateDPoPProofRequestObject) (CreateDPoPProofResponseObject, error)
-	// EXPERIMENTAL Start the Oid4VCI authorization flow.
+	// EXPERIMENTAL Request a credential
 	// (POST /internal/auth/v2/{subjectID}/request-credential)
 	RequestOpenid4VCICredentialIssuance(ctx context.Context, request RequestOpenid4VCICredentialIssuanceRequestObject) (RequestOpenid4VCICredentialIssuanceResponseObject, error)
-	// Start the authorization flow to get an access token from a remote authorization server.
+	// Request an access token
 	// (POST /internal/auth/v2/{subjectID}/request-service-access-token)
 	RequestServiceAccessToken(ctx context.Context, request RequestServiceAccessTokenRequestObject) (RequestServiceAccessTokenResponseObject, error)
-	// EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+	// EXPERIMENTAL Request an access token with end-user identity
 	// (POST /internal/auth/v2/{subjectID}/request-user-access-token)
 	RequestUserAccessToken(ctx context.Context, request RequestUserAccessTokenRequestObject) (RequestUserAccessTokenResponseObject, error)
 	// The OAuth2 callback endpoint of the client.

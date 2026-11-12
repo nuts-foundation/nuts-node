@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -316,16 +317,7 @@ type GetPresentationsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *PresentationsResponse
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -345,28 +337,10 @@ func (r GetPresentationsResponse) StatusCode() int {
 }
 
 type RegisterPresentationResponse struct {
-	Body                      []byte
-	HTTPResponse              *http.Response
-	ApplicationproblemJSON400 *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -433,16 +407,7 @@ func ParseGetPresentationsResponse(rsp *http.Response) (*GetPresentationsRespons
 		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -468,32 +433,14 @@ func ParseRegisterPresentationResponse(rsp *http.Response) (*RegisterPresentatio
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
-		}
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -612,16 +559,7 @@ func (response GetPresentations200JSONResponse) VisitGetPresentationsResponse(w 
 }
 
 type GetPresentationsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -649,16 +587,7 @@ func (response RegisterPresentation201Response) VisitRegisterPresentationRespons
 	return nil
 }
 
-type RegisterPresentation400ApplicationProblemPlusJSONResponse struct {
-	// Detail A human-readable explanation specific to this occurrence of the problem.
-	Detail string `json:"detail"`
-
-	// Status HTTP statuscode
-	Status float32 `json:"status"`
-
-	// Title A short, human-readable summary of the problem type.
-	Title string `json:"title"`
-}
+type RegisterPresentation400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
 
 func (response RegisterPresentation400ApplicationProblemPlusJSONResponse) VisitRegisterPresentationResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
@@ -668,16 +597,7 @@ func (response RegisterPresentation400ApplicationProblemPlusJSONResponse) VisitR
 }
 
 type RegisterPresentationdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 

@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -1572,16 +1573,8 @@ type CreateVPResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VerifiablePresentation
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1604,16 +1597,8 @@ type GetCredentialsInWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]VerifiableCredential
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1635,16 +1620,8 @@ func (r GetCredentialsInWalletResponse) StatusCode() int {
 type LoadVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1667,16 +1644,8 @@ type SearchCredentialsInWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *SearchVCResults
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1698,16 +1667,9 @@ func (r SearchCredentialsInWalletResponse) StatusCode() int {
 type RemoveCredentialFromWalletResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1730,16 +1692,9 @@ type IssueVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VerifiableCredential
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON412     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1762,16 +1717,8 @@ type SearchIssuedVCsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *SearchVCResults
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1794,16 +1741,10 @@ type RevokeVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *Revocation
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSON409     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1826,16 +1767,8 @@ type SearchVCsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *SearchVCResults
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1858,16 +1791,8 @@ type ResolveVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VerifiableCredential
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1889,16 +1814,8 @@ func (r ResolveVCResponse) StatusCode() int {
 type UntrustIssuerResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1920,16 +1837,8 @@ func (r UntrustIssuerResponse) StatusCode() int {
 type TrustIssuerResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1952,16 +1861,8 @@ type VerifyVCResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VCVerificationResult
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1984,16 +1885,8 @@ type VerifyVPResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *VPVerificationResult
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -2016,16 +1909,8 @@ type ListTrustedResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]string
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -2048,16 +1933,8 @@ type ListUntrustedResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]string
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -2305,17 +2182,15 @@ func ParseCreateVPResponse(rsp *http.Response) (*CreateVPResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2347,17 +2222,15 @@ func ParseGetCredentialsInWalletResponse(rsp *http.Response) (*GetCredentialsInW
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2382,17 +2255,15 @@ func ParseLoadVCResponse(rsp *http.Response) (*LoadVCResponse, error) {
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2424,17 +2295,15 @@ func ParseSearchCredentialsInWalletResponse(rsp *http.Response) (*SearchCredenti
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2459,17 +2328,22 @@ func ParseRemoveCredentialFromWalletResponse(rsp *http.Response) (*RemoveCredent
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2501,17 +2375,22 @@ func ParseIssueVCResponse(rsp *http.Response) (*IssueVCResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 412:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON412 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2543,17 +2422,15 @@ func ParseSearchIssuedVCsResponse(rsp *http.Response) (*SearchIssuedVCsResponse,
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2585,17 +2462,29 @@ func ParseRevokeVCResponse(rsp *http.Response) (*RevokeVCResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON409 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2627,17 +2516,15 @@ func ParseSearchVCsResponse(rsp *http.Response) (*SearchVCsResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2669,17 +2556,15 @@ func ParseResolveVCResponse(rsp *http.Response) (*ResolveVCResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2704,17 +2589,15 @@ func ParseUntrustIssuerResponse(rsp *http.Response) (*UntrustIssuerResponse, err
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2739,17 +2622,15 @@ func ParseTrustIssuerResponse(rsp *http.Response) (*TrustIssuerResponse, error) 
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2781,17 +2662,15 @@ func ParseVerifyVCResponse(rsp *http.Response) (*VerifyVCResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2823,17 +2702,15 @@ func ParseVerifyVPResponse(rsp *http.Response) (*VerifyVPResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2865,17 +2742,15 @@ func ParseListTrustedResponse(rsp *http.Response) (*ListTrustedResponse, error) 
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2907,17 +2782,15 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -2930,46 +2803,46 @@ func ParseListUntrustedResponse(rsp *http.Response) (*ListUntrustedResponse, err
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
+	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx echo.Context) error
-	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
+	// List all Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx echo.Context, subjectID string) error
-	// Load a VerifiableCredential into the holders wallet.
+	// Load a Verifiable Credential into a wallet
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx echo.Context, subjectID string) error
-	// Searches for verifiable credentials in the holder's wallet
+	// Search for Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
 	SearchCredentialsInWallet(ctx echo.Context, subjectID string) error
-	// Remove a VerifiableCredential from the holders wallet.
+	// Remove a Verifiable Credential from a wallet
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx echo.Context, subjectID string, id string) error
-	// Issues a new Verifiable Credential
+	// Issue a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx echo.Context) error
-	// Searches for verifiable credentials issued by this node which matches the search params
+	// Search for Verifiable Credentials issued by this node
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	SearchIssuedVCs(ctx echo.Context, params SearchIssuedVCsParams) error
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx echo.Context, id string) error
-	// Searches for verifiable credentials that could be used for different use-cases.
+	// Search for Verifiable Credentials
 	// (POST /internal/vcr/v2/search)
 	SearchVCs(ctx echo.Context) error
-	// Resolves a verifiable credential
+	// Resolve a Verifiable Credential
 	// (GET /internal/vcr/v2/vc/{id})
 	ResolveVC(ctx echo.Context, id string) error
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx echo.Context) error
-	// Mark all the VCs of given type and issuer as 'trusted'.
+	// Mark all the VCs of given type and issuer as 'trusted'
 	// (POST /internal/vcr/v2/verifier/trust)
 	TrustIssuer(ctx echo.Context) error
-	// Verifies a Verifiable Credential
+	// Verify a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx echo.Context) error
-	// Verifies a Verifiable Presentation
+	// Verify a Verifiable Presentation
 	// (POST /internal/vcr/v2/verifier/vp)
 	VerifyVP(ctx echo.Context) error
 	// List all trusted issuers for a given credential type
@@ -3297,17 +3170,17 @@ func (response CreateVP200JSONResponse) VisitCreateVPResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateVP400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateVP400ApplicationProblemPlusJSONResponse) VisitCreateVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateVPdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3335,17 +3208,17 @@ func (response GetCredentialsInWallet200JSONResponse) VisitGetCredentialsInWalle
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetCredentialsInWallet404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetCredentialsInWallet404ApplicationProblemPlusJSONResponse) VisitGetCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetCredentialsInWalletdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3373,17 +3246,17 @@ func (response LoadVC204Response) VisitLoadVCResponse(w http.ResponseWriter) err
 	return nil
 }
 
+type LoadVC400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response LoadVC400ApplicationProblemPlusJSONResponse) VisitLoadVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type LoadVCdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3411,17 +3284,17 @@ func (response SearchCredentialsInWallet200JSONResponse) VisitSearchCredentialsI
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchCredentialsInWallet404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response SearchCredentialsInWallet404ApplicationProblemPlusJSONResponse) VisitSearchCredentialsInWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchCredentialsInWalletdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3449,17 +3322,26 @@ func (response RemoveCredentialFromWallet204Response) VisitRemoveCredentialFromW
 	return nil
 }
 
+type RemoveCredentialFromWallet400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RemoveCredentialFromWallet400ApplicationProblemPlusJSONResponse) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RemoveCredentialFromWallet404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RemoveCredentialFromWallet404ApplicationProblemPlusJSONResponse) VisitRemoveCredentialFromWalletResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RemoveCredentialFromWalletdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3487,17 +3369,26 @@ func (response IssueVC200JSONResponse) VisitIssueVCResponse(w http.ResponseWrite
 	return json.NewEncoder(w).Encode(response)
 }
 
+type IssueVC400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response IssueVC400ApplicationProblemPlusJSONResponse) VisitIssueVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IssueVC412ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response IssueVC412ApplicationProblemPlusJSONResponse) VisitIssueVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type IssueVCdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3525,17 +3416,17 @@ func (response SearchIssuedVCs200JSONResponse) VisitSearchIssuedVCsResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchIssuedVCs400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response SearchIssuedVCs400ApplicationProblemPlusJSONResponse) VisitSearchIssuedVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchIssuedVCsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3571,17 +3462,35 @@ func (response RevokeVC204Response) VisitRevokeVCResponse(w http.ResponseWriter)
 	return nil
 }
 
+type RevokeVC400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RevokeVC400ApplicationProblemPlusJSONResponse) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RevokeVC404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RevokeVC404ApplicationProblemPlusJSONResponse) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RevokeVC409ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RevokeVC409ApplicationProblemPlusJSONResponse) VisitRevokeVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RevokeVCdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3609,17 +3518,17 @@ func (response SearchVCs200JSONResponse) VisitSearchVCsResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchVCs400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response SearchVCs400ApplicationProblemPlusJSONResponse) VisitSearchVCsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchVCsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3647,17 +3556,17 @@ func (response ResolveVC200JSONResponse) VisitResolveVCResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ResolveVC404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ResolveVC404ApplicationProblemPlusJSONResponse) VisitResolveVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ResolveVCdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3684,17 +3593,17 @@ func (response UntrustIssuer204Response) VisitUntrustIssuerResponse(w http.Respo
 	return nil
 }
 
+type UntrustIssuer400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response UntrustIssuer400ApplicationProblemPlusJSONResponse) VisitUntrustIssuerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type UntrustIssuerdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3721,17 +3630,17 @@ func (response TrustIssuer204Response) VisitTrustIssuerResponse(w http.ResponseW
 	return nil
 }
 
+type TrustIssuer400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response TrustIssuer400ApplicationProblemPlusJSONResponse) VisitTrustIssuerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type TrustIssuerdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3759,17 +3668,17 @@ func (response VerifyVC200JSONResponse) VisitVerifyVCResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type VerifyVC400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response VerifyVC400ApplicationProblemPlusJSONResponse) VisitVerifyVCResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type VerifyVCdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3797,17 +3706,17 @@ func (response VerifyVP200JSONResponse) VisitVerifyVPResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type VerifyVP400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response VerifyVP400ApplicationProblemPlusJSONResponse) VisitVerifyVPResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type VerifyVPdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3835,17 +3744,17 @@ func (response ListTrusted200JSONResponse) VisitListTrustedResponse(w http.Respo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListTrusted400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ListTrusted400ApplicationProblemPlusJSONResponse) VisitListTrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListTrusteddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3873,17 +3782,17 @@ func (response ListUntrusted200JSONResponse) VisitListUntrustedResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListUntrusted400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ListUntrusted400ApplicationProblemPlusJSONResponse) VisitListUntrustedResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListUntrusteddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -3896,46 +3805,46 @@ func (response ListUntrusteddefaultApplicationProblemPlusJSONResponse) VisitList
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Create a new Verifiable Presentation for a set of Verifiable Credentials.
+	// Create a new Verifiable Presentation for a set of Verifiable Credentials
 	// (POST /internal/vcr/v2/holder/vp)
 	CreateVP(ctx context.Context, request CreateVPRequestObject) (CreateVPResponseObject, error)
-	// List all Verifiable Credentials in the holder's wallet. It will only return non-expired or non-revoked credentials. If you want to list all credentials regardless of their validity, use the search API.
+	// List all Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc)
 	GetCredentialsInWallet(ctx context.Context, request GetCredentialsInWalletRequestObject) (GetCredentialsInWalletResponseObject, error)
-	// Load a VerifiableCredential into the holders wallet.
+	// Load a Verifiable Credential into a wallet
 	// (POST /internal/vcr/v2/holder/{subjectID}/vc)
 	LoadVC(ctx context.Context, request LoadVCRequestObject) (LoadVCResponseObject, error)
-	// Searches for verifiable credentials in the holder's wallet
+	// Search for Verifiable Credentials in a wallet
 	// (GET /internal/vcr/v2/holder/{subjectID}/vc/search)
 	SearchCredentialsInWallet(ctx context.Context, request SearchCredentialsInWalletRequestObject) (SearchCredentialsInWalletResponseObject, error)
-	// Remove a VerifiableCredential from the holders wallet.
+	// Remove a Verifiable Credential from a wallet
 	// (DELETE /internal/vcr/v2/holder/{subjectID}/vc/{id})
 	RemoveCredentialFromWallet(ctx context.Context, request RemoveCredentialFromWalletRequestObject) (RemoveCredentialFromWalletResponseObject, error)
-	// Issues a new Verifiable Credential
+	// Issue a new Verifiable Credential
 	// (POST /internal/vcr/v2/issuer/vc)
 	IssueVC(ctx context.Context, request IssueVCRequestObject) (IssueVCResponseObject, error)
-	// Searches for verifiable credentials issued by this node which matches the search params
+	// Search for Verifiable Credentials issued by this node
 	// (GET /internal/vcr/v2/issuer/vc/search)
 	SearchIssuedVCs(ctx context.Context, request SearchIssuedVCsRequestObject) (SearchIssuedVCsResponseObject, error)
 	// Revoke an issued credential
 	// (DELETE /internal/vcr/v2/issuer/vc/{id})
 	RevokeVC(ctx context.Context, request RevokeVCRequestObject) (RevokeVCResponseObject, error)
-	// Searches for verifiable credentials that could be used for different use-cases.
+	// Search for Verifiable Credentials
 	// (POST /internal/vcr/v2/search)
 	SearchVCs(ctx context.Context, request SearchVCsRequestObject) (SearchVCsResponseObject, error)
-	// Resolves a verifiable credential
+	// Resolve a Verifiable Credential
 	// (GET /internal/vcr/v2/vc/{id})
 	ResolveVC(ctx context.Context, request ResolveVCRequestObject) (ResolveVCResponseObject, error)
 	// Remove trust in an issuer/credentialType combination
 	// (DELETE /internal/vcr/v2/verifier/trust)
 	UntrustIssuer(ctx context.Context, request UntrustIssuerRequestObject) (UntrustIssuerResponseObject, error)
-	// Mark all the VCs of given type and issuer as 'trusted'.
+	// Mark all the VCs of given type and issuer as 'trusted'
 	// (POST /internal/vcr/v2/verifier/trust)
 	TrustIssuer(ctx context.Context, request TrustIssuerRequestObject) (TrustIssuerResponseObject, error)
-	// Verifies a Verifiable Credential
+	// Verify a Verifiable Credential
 	// (POST /internal/vcr/v2/verifier/vc)
 	VerifyVC(ctx context.Context, request VerifyVCRequestObject) (VerifyVCResponseObject, error)
-	// Verifies a Verifiable Presentation
+	// Verify a Verifiable Presentation
 	// (POST /internal/vcr/v2/verifier/vp)
 	VerifyVP(ctx context.Context, request VerifyVPRequestObject) (VerifyVPResponseObject, error)
 	// List all trusted issuers for a given credential type

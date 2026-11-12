@@ -11,16 +11,10 @@ paths:
   /internal/auth/v2/{subjectID}/request-service-access-token:
     post:
       operationId: requestServiceAccessToken
-      summary: Start the authorization flow to get an access token from a remote authorization server.
+      summary: Request an access token
       description: |
         Initiates an OAuth2 flow to request an access token from a remote authorization server.
         It'll initiate a s2s (RFC021) flow.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
-        * 412 - the organization wallet does not contain the correct credentials or doesn't support the right DID methods
-        * 502 - the authorizer returned an error
-        * 503 - the authorizer could not be reached
       tags:
         - auth
       parameters:
@@ -78,22 +72,36 @@ paths:
                     scope: "eOverdracht-sender"
                     expires_in: 3600
                     expires_at: 1640995200
+        '400':
+          description: &requestServiceAccessToken400 one of the parameters has the wrong format, an OAuth error occurred, or the http client calling the authorizer returned an error due to incorrect input
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: RequestServiceAccessToken failed, status: 400, detail: *requestServiceAccessToken400}
+        '412':
+          description: &requestServiceAccessToken412 the organization wallet does not contain the correct credentials or doesn't support the right DID methods
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestServiceAccessToken failed, status: 412, detail: *requestServiceAccessToken412}
+        '502':
+          description: &requestServiceAccessToken502 the authorizer returned an error
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestServiceAccessToken failed, status: 502, detail: *requestServiceAccessToken502}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{subjectID}/request-user-access-token:
     post:
       operationId: requestUserAccessToken
-      summary: EXPERIMENTAL Start the authorization code flow to get an access token from a remote authorization server when user context is required.
+      summary: EXPERIMENTAL Request an access token with end-user identity
       description: |
         This API is still EXPERIMENTAL.  
         Initiates an OAuth2 flow to request an access token from a remote authorization server. This call will initiate an OpenID4VP flow.
         The user must be authorized by the calling system and provided in the preauthorized_user field.
         The user's ID must be stable across sessions, as it's used to select the right ID Wallet.
-        
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 412 - the organization wallet does not contain the correct credentials
-        * 503 - the authorizer could not be reached or returned an error
       tags:
         - auth
       parameters:
@@ -119,20 +127,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectResponseWithID'
+        '400':
+          description: &requestUserAccessToken400 one of the parameters has the wrong format or an OAuth error occurred
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestUserAccessToken failed, status: 400, detail: *requestUserAccessToken400}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/{subjectID}/request-credential:
     post:
       operationId: requestOpenid4VCICredentialIssuance
-      summary: EXPERIMENTAL Start the Oid4VCI authorization flow.
+      summary: EXPERIMENTAL Request a credential
       description: |
         This API is still EXPERIMENTAL.  
         Initiates an Oid4VCI flow to request an VC from a Credential Issuer.
-
-        error returns:
-        * 400 - one of the parameters has the wrong format or an OAuth error occurred
-        * 424 - the issuer does not fulfill the right requirements to issue the requested VC(s)
-        * 412 - the organization wallet does not contain the correct credentials
       tags:
         - auth
       parameters:
@@ -214,13 +223,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RedirectResponse'
+        '400':
+          description: &requestOpenid4VCICredentialIssuance400 one of the parameters has the wrong format or an OAuth error occurred
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 400, detail: *requestOpenid4VCICredentialIssuance400}
+        '404':
+          description: &requestOpenid4VCICredentialIssuance404 the subject was not found
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 404, detail: *requestOpenid4VCICredentialIssuance404}
+        '424':
+          description: &requestOpenid4VCICredentialIssuance424 the issuer does not fulfill the right requirements to issue the requested VC(s)
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RequestOpenid4VCICredentialIssuance failed, status: 424, detail: *requestOpenid4VCICredentialIssuance424}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/{sessionID}:
     get:
       operationId: retrieveAccessToken
-      summary: Get the access token from the Nuts node that was requested through /request-user-access-token.
+      summary: Retrieve a requested access token with end-user identity
       description: |
+        The access token is requested through /request-user-access-token.
         If the OAuth2 flow has completed, this call will return the access token. 
         After returning the access token, the token used to retrieve the access token is no longer valid.
         If the flow hasn't completed yet, the response will contain the 'pending' status value.
@@ -270,14 +298,19 @@ paths:
                     access_token: ""
                     token_type: ""
                     status: "pending"
+        '404':
+          description: &retrieveAccessToken404 unknown session ID, or the access token was already retrieved
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: RetrieveAccessToken failed, status: 404, detail: *retrieveAccessToken404}
         default:
           $ref: '../common/error_response.yaml'
   /internal/auth/v2/accesstoken/introspect:
     post:
       operationId: introspectAccessToken
-      summary: |
-        Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-        It returns fields derived from the credentials that were used during authentication.
+      summary: Introspect an access token
+      description: Introspection endpoint to retrieve information from an Access Token as described by RFC7662. It returns fields derived from the credentials that were used during authentication.
       tags:
         - auth
       requestBody:
@@ -302,10 +335,8 @@ paths:
   /internal/auth/v2/accesstoken/introspect_extended:
     post:
       operationId: introspectAccessTokenExtended
-      summary: |
-        Introspection endpoint to retrieve information from an Access Token as described by RFC7662.
-        It returns the same information as the non-extended API call, but with the Presentation Definitions,
-        Presentation Submissions and Verifiable Presentations added.
+      summary: Introspect an access token (return extended response)
+      description: Introspection endpoint to retrieve information from an Access Token as described by RFC7662. It returns the same information as the non-extended API call, but with the Presentation Definitions, Presentation Submissions and Verifiable Presentations added.
       tags:
         - auth
       requestBody:
@@ -330,7 +361,8 @@ paths:
   /internal/auth/v2/dpop/{kid}:
     post:
       operationId: createDPoPProof
-      summary: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
+      summary: Create a DPoP proof for a data request
+      description: Create a DPoP proof as specified by RFC9449 for a given access token. It is to be used as HTTP header when accessing resources.
       tags:
         - auth
       parameters:
@@ -362,7 +394,7 @@ paths:
   /internal/auth/v2/dpop/validate:
     post:
       operationId: validateDPoPProof
-      summary: Handle some of the validation of a DPoP proof as specified by RFC9449.
+      summary: Validate a received DPoP proof
       description: |
         Handle some of the validation of a DPoP proof as specified by RFC9449.
         Full validation as specified by RFC9449 is the responsibility of the resource server.
@@ -515,7 +547,7 @@ components:
                 "identifier": "123456"
               }
             }
-          ]
+            ]
         credential_selection:
           type: object
           description: |

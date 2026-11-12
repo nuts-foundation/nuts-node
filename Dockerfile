@@ -2,7 +2,7 @@
 # The builder runs on the build host platform and cross-compiles for
 # TARGETOS/TARGETARCH. Building arm64 under QEMU emulation instead took
 # about 20 minutes for go build alone.
-FROM --platform=$BUILDPLATFORM golang:1.27.1-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS builder
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -30,7 +30,7 @@ RUN apk add --no-cache git
 RUN MODULE=$(go list -m) && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-w -s -X '${MODULE}/core.GitCommit=${GIT_COMMIT}' -X '${MODULE}/core.GitBranch=${GIT_BRANCH}' -X '${MODULE}/core.GitVersion=${GIT_VERSION}'" -o /opt/nuts/nuts
 
 # alpine
-FROM alpine:3.24.2
+FROM alpine:3.24.3
 # Upgrade all preinstalled packages so the image picks up security fixes
 # published after the base image was cut.
 # DL3018 ignored for the same reason as in the builder stage above.

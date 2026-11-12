@@ -6,15 +6,6 @@ ul.current {
   margin-bottom: 2em;
 }
 
-#nuts-node-apis ul li {
-  list-style: disc;
-  margin-left: 24px;
-}
-
-#nuts-node-apis ul li p {
-  margin: 0px;
-}
-
 .wy-menu-vertical > p {
   margin: 24px 0 24px;
 }
@@ -34,13 +25,4 @@ ul.current {
 
 .green {
   color: green;
-}
-
-/* Fix SwaggerUI code blocks: override RTD theme <code> styling that interferes with SwaggerUI's own code element styling */
-#swagger-ui code {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-  color: inherit;
 }

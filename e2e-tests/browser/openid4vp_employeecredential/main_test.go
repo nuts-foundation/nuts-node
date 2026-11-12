@@ -61,7 +61,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 
 	subjectVerifier, _, openid4vpClientA := setupNode(t, ctx, nodeAClientConfig)
 	subjectRequester, didRequester, openid4vpClientB := setupNode(t, ctx, nodeBClientConfig)
-	err := chromedp.Run(ctx, chromedp.Navigate("about:blank"))
+	err := chromedp.Do(ctx, chromedp.Navigate("about:blank"))
 	require.NoError(t, err)
 	// Request an access token with user from verifying organization
 	userDetails := iamAPI.UserDetails{
@@ -72,7 +72,7 @@ func Test_UserAccessToken_EmployeeCredential(t *testing.T) {
 	redirectSession, err := openid4vpClientB.RequesterUserAccessToken(subjectRequester, subjectVerifier, userDetails, oauth2Scope)
 	require.NoError(t, err)
 	// Navigate browser to redirect URL, which performs the OAuth2 authorization code flow
-	err = chromedp.Run(ctx, chromedp.Navigate(redirectSession.RedirectUri))
+	err = chromedp.Do(ctx, chromedp.Navigate(redirectSession.RedirectUri))
 	require.NoError(t, err)
 	// The browser was now successfully redirected back to the redirect URI (actually the node's public / URL),
 	// indicating the flow was successful. We can now retrieve the access token.

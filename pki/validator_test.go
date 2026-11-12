@@ -25,6 +25,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"math/big"
@@ -32,6 +33,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/stretchr/testify/assert"
@@ -364,6 +366,41 @@ func Test_ValidatorVerifyCRL(t *testing.T) {
 		err = v.verifyCRL(rl, issuer)
 
 		assert.EqualError(t, err, "crl signed by unexpected issuer: expected=CN=Root CA,O=Nuts Foundation,C=NL, got=CN=Staat der Nederlanden EV Root CA,O=Staat der Nederlanden,C=NL")
+	})
+
+	t.Run("ok - RSASSA-PSS/SHA-512 signed CRL (PKIoverheid G4)", func(t *testing.T) {
+		// PKIoverheid G4 CAs (e.g. the UZI server CA) sign certificates and CRLs with RSASSA-PSS/SHA-512 using 4096-bit keys.
+		caKey, err := rsa.GenerateKey(rand.Reader, 4096)
+		require.NoError(t, err)
+		caTemplate := &x509.Certificate{
+			SerialNumber:          big.NewInt(1),
+			Subject:               pkix.Name{CommonName: "G4 CA"},
+			SignatureAlgorithm:    x509.SHA512WithRSAPSS,
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().Add(time.Hour),
+			IsCA:                  true,
+			BasicConstraintsValid: true,
+			KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		}
+		caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+		require.NoError(t, err)
+		caCert, err := x509.ParseCertificate(caDER)
+		require.NoError(t, err)
+		crlTemplate := &x509.RevocationList{
+			Number:             big.NewInt(1),
+			SignatureAlgorithm: x509.SHA512WithRSAPSS,
+			ThisUpdate:         time.Now(),
+			NextUpdate:         time.Now().Add(time.Hour),
+		}
+		crlDER, err := x509.CreateRevocationList(rand.Reader, crlTemplate, caCert, caKey)
+		require.NoError(t, err)
+		rl, err := x509.ParseRevocationList(crlDER)
+		require.NoError(t, err)
+		require.Equal(t, x509.SHA512WithRSAPSS, rl.SignatureAlgorithm)
+
+		err = v.verifyCRL(rl, caCert)
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("invalid signature", func(t *testing.T) {

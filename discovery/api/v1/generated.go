@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -55,19 +56,19 @@ type ActivateServiceForSubjectJSONRequestBody = ServiceActivationRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Retrieves the list of Discovery Services.
+	// Retrieve the list of Discovery Services
 	// (GET /internal/discovery/v1)
 	GetServices(ctx echo.Context) error
-	// Searches for presentations registered on the Discovery Service.
+	// Search for presentations registered on the Discovery Service
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx echo.Context, serviceID string, params SearchPresentationsParams) error
-	// Remove a subject from the Discovery Service.
+	// Remove a subject from the Discovery Service
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
-	// Retrieves the activation status of a subject on a Discovery Service.
+	// Retrieve the activation status of a subject on a Discovery Service
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx echo.Context, serviceID string, subjectID string) error
-	// Activate a Discovery Service for a subject.
+	// Activate a Discovery Service for a subject
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx echo.Context, serviceID string, subjectID string) error
 }
@@ -237,16 +238,7 @@ func (response GetServices200JSONResponse) VisitGetServicesResponse(w http.Respo
 }
 
 type GetServicesdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -275,17 +267,17 @@ func (response SearchPresentations200JSONResponse) VisitSearchPresentationsRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type SearchPresentations404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response SearchPresentations404ApplicationProblemPlusJSONResponse) VisitSearchPresentationsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type SearchPresentationsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -325,17 +317,17 @@ func (response DeactivateServiceForSubject202JSONResponse) VisitDeactivateServic
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DeactivateServiceForSubject404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DeactivateServiceForSubject404ApplicationProblemPlusJSONResponse) VisitDeactivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeactivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -377,17 +369,17 @@ func (response GetServiceActivation200JSONResponse) VisitGetServiceActivationRes
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetServiceActivation404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetServiceActivation404ApplicationProblemPlusJSONResponse) VisitGetServiceActivationResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetServiceActivationdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -416,17 +408,26 @@ func (response ActivateServiceForSubject200Response) VisitActivateServiceForSubj
 	return nil
 }
 
+type ActivateServiceForSubject404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ActivateServiceForSubject404ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ActivateServiceForSubject412ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ActivateServiceForSubject412ApplicationProblemPlusJSONResponse) VisitActivateServiceForSubjectResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(412)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ActivateServiceForSubjectdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -439,19 +440,19 @@ func (response ActivateServiceForSubjectdefaultApplicationProblemPlusJSONRespons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Retrieves the list of Discovery Services.
+	// Retrieve the list of Discovery Services
 	// (GET /internal/discovery/v1)
 	GetServices(ctx context.Context, request GetServicesRequestObject) (GetServicesResponseObject, error)
-	// Searches for presentations registered on the Discovery Service.
+	// Search for presentations registered on the Discovery Service
 	// (GET /internal/discovery/v1/{serviceID})
 	SearchPresentations(ctx context.Context, request SearchPresentationsRequestObject) (SearchPresentationsResponseObject, error)
-	// Remove a subject from the Discovery Service.
+	// Remove a subject from the Discovery Service
 	// (DELETE /internal/discovery/v1/{serviceID}/{subjectID})
 	DeactivateServiceForSubject(ctx context.Context, request DeactivateServiceForSubjectRequestObject) (DeactivateServiceForSubjectResponseObject, error)
-	// Retrieves the activation status of a subject on a Discovery Service.
+	// Retrieve the activation status of a subject on a Discovery Service
 	// (GET /internal/discovery/v1/{serviceID}/{subjectID})
 	GetServiceActivation(ctx context.Context, request GetServiceActivationRequestObject) (GetServiceActivationResponseObject, error)
-	// Activate a Discovery Service for a subject.
+	// Activate a Discovery Service for a subject
 	// (POST /internal/discovery/v1/{serviceID}/{subjectID})
 	ActivateServiceForSubject(ctx context.Context, request ActivateServiceForSubjectRequestObject) (ActivateServiceForSubjectResponseObject, error)
 }

@@ -30,7 +30,7 @@ CREDENTIAL=$(docker run \
   -v "$(pwd)/certs/nodeA-chain.pem:/cert-chain.pem:ro" \
   -v "$(pwd)/certs/nodeA.key:/cert-key.key:ro" \
   nutsfoundation/go-didx509-toolkit:main \
-  vc "/cert-chain.pem" "/cert-key.key" "CN=Fake UZI Root CA" "${VENDOR_A_DID}")
+  vc "/cert-chain.pem" "/cert-key.key" "CN=Fake UZI Server - G4 PKIo Priv G-TLS SYS,O=CIBG,C=NL" "${VENDOR_A_DID}")
 echo $CREDENTIAL
 
 RESPONSE=$(echo "\"${CREDENTIAL}\"" | curl -s -o /dev/null -w "%{http_code}" -X POST --data-binary @- http://localhost:18081/internal/vcr/v2/holder/vendorA/vc -H "Content-Type:application/json")

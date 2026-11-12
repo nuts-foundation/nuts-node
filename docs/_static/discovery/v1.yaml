@@ -12,7 +12,7 @@ servers:
 paths:
   /internal/discovery/v1:
     get:
-      summary: Retrieves the list of Discovery Services.
+      summary: Retrieve the list of Discovery Services
       description: |
         An API provided by the Discovery Client that retrieves the list of configured Discovery Services.
       operationId: getServices
@@ -49,7 +49,7 @@ paths:
         style: form
         explode: true
     get:
-      summary: Searches for presentations registered on the Discovery Service.
+      summary: Search for presentations registered on the Discovery Service
       description: |
         An API of the discovery client that searches for presentations on the Discovery Service,
         whose credentials match the given query parameter.
@@ -72,9 +72,6 @@ paths:
         - `credentialSubject.organization.name=Hospital*`
         - `credentialSubject.organization.name=*clinic`
         - `issuer=did:web:example.com`
-        
-        error returns:
-        * 404 - unknown service.
       operationId: searchPresentations
       tags:
         - discovery
@@ -87,6 +84,13 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SearchResult"
+        "404":
+          description: &searchPresentations404 unknown service.
+          content:
+            application/problem+json:
+              schema: &problemDetails
+                $ref: '../common/ssi_types.yaml#/components/schemas/ProblemDetails'
+              example: {title: SearchPresentations failed, status: 404, detail: *searchPresentations404}
         default:
           $ref: "../common/error_response.yaml"
   /internal/discovery/v1/{serviceID}/{subjectID}:
@@ -109,16 +113,13 @@ paths:
               type: string
               example: "tenant-123"
     get:
-      summary: Retrieves the activation status of a subject on a Discovery Service.
+      summary: Retrieve the activation status of a subject on a Discovery Service
       description: |
         An API provided by the Discovery Client,
         used to check whether the client is managing the given subject on the specified Discovery Service (service has been activated for the subject)
         and the status of the activation. A refresh could have failed.
         It will return true after successfully calling the activateServiceForSubject API, and false after calling the deactivateServiceForSubject API.
         It also returns the active Verifiable Presentations, if any.
-        
-        error returns:
-        * 404 - unknown service or subject.
       operationId: getServiceActivation
       tags:
         - discovery
@@ -151,10 +152,16 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/VerifiablePresentation"
+        "404":
+          description: &getServiceActivation404 unknown service or subject.
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: GetServiceActivation failed, status: 404, detail: *getServiceActivation404}
         default:
           $ref: "../common/error_response.yaml"
     post:
-      summary: Activate a Discovery Service for a subject.
+      summary: Activate a Discovery Service for a subject
       description: |
         An API provided by the discovery client that will cause all qualifying DIDs of a subject to be registered on the specified Discovery Service.
         A DID qualifies for registration if it meets the requirements defined the Presentation Definition of the Discovery Service.
@@ -163,10 +170,6 @@ paths:
         Applications only need to call this API once for every service/subject combination, until the registration is explicitly deleted through this API.
         
         Applications can force a retry by calling this API again.
-        
-        error returns:
-        * 404 - unknown service or subject
-        * 412 - precondition failed: subject doesn't have the required credentials
       operationId: activateServiceForSubject
       tags:
         - discovery
@@ -178,16 +181,25 @@ paths:
       responses:
         "200":
           description: Activation was successful.
+        "404":
+          description: &activateServiceForSubject404 unknown service or subject
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: ActivateServiceForSubject failed, status: 404, detail: *activateServiceForSubject404}
+        "412":
+          description: &activateServiceForSubject412 "precondition failed: subject doesn't have the required credentials"
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: ActivateServiceForSubject failed, status: 412, detail: *activateServiceForSubject412}
         default:
           $ref: "../common/error_response.yaml"
     delete:
-      summary: Remove a subject from the Discovery Service.
+      summary: Remove a subject from the Discovery Service
       description: |
         An API provided by the discovery client that will cancel the periodic registration of a subject on the specified Discovery Service.
         It will also try to delete all the existing registrations on the Discovery Service, if any.
-        
-        error returns:
-        * 404 - unknown service or subject
       operationId: deactivateServiceForSubject
       tags:
         - discovery
@@ -210,6 +222,12 @@ paths:
                   reason:
                     type: string
                     description: Description of why removal of the registration failed.
+        "404":
+          description: &deactivateServiceForSubject404 unknown service or subject
+          content:
+            application/problem+json:
+              schema: *problemDetails
+              example: {title: DeactivateServiceForSubject failed, status: 404, detail: *deactivateServiceForSubject404}
         default:
           $ref: "../common/error_response.yaml"
 components:

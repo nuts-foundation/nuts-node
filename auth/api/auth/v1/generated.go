@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -319,10 +320,10 @@ type CreateAccessTokenFormdataRequestBody = CreateAccessTokenRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspect an access token
 	// (POST /internal/auth/v1/accesstoken/introspect)
 	IntrospectAccessToken(ctx echo.Context) error
-	// Verifies the provided access token
+	// Verify the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx echo.Context, params VerifyAccessTokenParams) error
 	// Draw up a contract using a specified contract template, language and version
@@ -334,13 +335,13 @@ type ServerInterface interface {
 	// Request an access token from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx echo.Context) error
-	// Create a signing session for a supported means.
+	// Create a signing session for a supported means
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx echo.Context) error
 	// Get the current status of a signing session
 	// (GET /internal/auth/v1/signature/session/{sessionID})
 	GetSignSessionStatus(ctx echo.Context, sessionID string) error
-	// Verify a signature in the form of a verifiable presentation
+	// Verify a signature in the form of a Verifiable Presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx echo.Context) error
 	// Create an access token using a JWT as authorization grant
@@ -617,17 +618,26 @@ func (response DrawUpContract200JSONResponse) VisitDrawUpContractResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type DrawUpContract400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DrawUpContract400ApplicationProblemPlusJSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DrawUpContract404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response DrawUpContract404ApplicationProblemPlusJSONResponse) VisitDrawUpContractResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DrawUpContractdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -655,17 +665,17 @@ func (response CreateJwtGrant200JSONResponse) VisitCreateJwtGrantResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateJwtGrant400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateJwtGrant400ApplicationProblemPlusJSONResponse) VisitCreateJwtGrantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateJwtGrantdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -693,17 +703,26 @@ func (response RequestAccessToken200JSONResponse) VisitRequestAccessTokenRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RequestAccessToken400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestAccessToken400ApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RequestAccessToken503ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RequestAccessToken503ApplicationProblemPlusJSONResponse) VisitRequestAccessTokenResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(503)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RequestAccessTokendefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -731,17 +750,17 @@ func (response CreateSignSession201JSONResponse) VisitCreateSignSessionResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateSignSession400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response CreateSignSession400ApplicationProblemPlusJSONResponse) VisitCreateSignSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateSignSessiondefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -769,17 +788,17 @@ func (response GetSignSessionStatus200JSONResponse) VisitGetSignSessionStatusRes
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetSignSessionStatus404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetSignSessionStatus404ApplicationProblemPlusJSONResponse) VisitGetSignSessionStatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetSignSessionStatusdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -807,17 +826,17 @@ func (response VerifySignature200JSONResponse) VisitVerifySignatureResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type VerifySignature400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response VerifySignature400ApplicationProblemPlusJSONResponse) VisitVerifySignatureResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type VerifySignaturedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -872,17 +891,17 @@ func (response GetContractByType200JSONResponse) VisitGetContractByTypeResponse(
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetContractByType404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetContractByType404ApplicationProblemPlusJSONResponse) VisitGetContractByTypeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetContractByTypedefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -895,10 +914,10 @@ func (response GetContractByTypedefaultApplicationProblemPlusJSONResponse) Visit
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Introspection endpoint to retrieve information from an Access Token as described by RFC7662
+	// Introspect an access token
 	// (POST /internal/auth/v1/accesstoken/introspect)
 	IntrospectAccessToken(ctx context.Context, request IntrospectAccessTokenRequestObject) (IntrospectAccessTokenResponseObject, error)
-	// Verifies the provided access token
+	// Verify the provided access token
 	// (HEAD /internal/auth/v1/accesstoken/verify)
 	VerifyAccessToken(ctx context.Context, request VerifyAccessTokenRequestObject) (VerifyAccessTokenResponseObject, error)
 	// Draw up a contract using a specified contract template, language and version
@@ -910,13 +929,13 @@ type StrictServerInterface interface {
 	// Request an access token from the authorizer
 	// (POST /internal/auth/v1/request-access-token)
 	RequestAccessToken(ctx context.Context, request RequestAccessTokenRequestObject) (RequestAccessTokenResponseObject, error)
-	// Create a signing session for a supported means.
+	// Create a signing session for a supported means
 	// (POST /internal/auth/v1/signature/session)
 	CreateSignSession(ctx context.Context, request CreateSignSessionRequestObject) (CreateSignSessionResponseObject, error)
 	// Get the current status of a signing session
 	// (GET /internal/auth/v1/signature/session/{sessionID})
 	GetSignSessionStatus(ctx context.Context, request GetSignSessionStatusRequestObject) (GetSignSessionStatusResponseObject, error)
-	// Verify a signature in the form of a verifiable presentation
+	// Verify a signature in the form of a Verifiable Presentation
 	// (PUT /internal/auth/v1/signature/verify)
 	VerifySignature(ctx context.Context, request VerifySignatureRequestObject) (VerifySignatureResponseObject, error)
 	// Create an access token using a JWT as authorization grant

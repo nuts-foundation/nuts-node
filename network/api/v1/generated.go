@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	externalRef0 "github.com/nuts-foundation/nuts-node/v6/api"
 	"github.com/oapi-codegen/runtime"
 	strictecho "github.com/oapi-codegen/runtime/strictmiddleware/echo"
 )
@@ -687,9 +688,10 @@ type ClientWithResponsesInterface interface {
 }
 
 type GetAddressBookResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *[]Contact
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *[]Contact
+	ApplicationproblemJSON400 *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -711,16 +713,8 @@ func (r GetAddressBookResponse) StatusCode() int {
 type RenderGraphResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -743,16 +737,8 @@ type GetPeerDiagnosticsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *map[string]PeerDiagnostics
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -775,16 +761,8 @@ type ListEventsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]EventSubscriber
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -804,8 +782,9 @@ func (r ListEventsResponse) StatusCode() int {
 }
 
 type ReprocessResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
+	Body                      []byte
+	HTTPResponse              *http.Response
+	ApplicationproblemJSON400 *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -828,16 +807,8 @@ type ListTransactionsResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
 	JSON200                       *[]string
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -859,16 +830,9 @@ func (r ListTransactionsResponse) StatusCode() int {
 type GetTransactionResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -890,16 +854,9 @@ func (r GetTransactionResponse) StatusCode() int {
 type GetTransactionPayloadResponse struct {
 	Body                          []byte
 	HTTPResponse                  *http.Response
-	ApplicationproblemJSONDefault *struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	ApplicationproblemJSON400     *externalRef0.ProblemDetails
+	ApplicationproblemJSON404     *externalRef0.ProblemDetails
+	ApplicationproblemJSONDefault *externalRef0.ProblemDetails
 }
 
 // Status returns HTTPResponse.Status
@@ -1011,6 +968,13 @@ func ParseGetAddressBookResponse(rsp *http.Response) (*GetAddressBookResponse, e
 		}
 		response.JSON200 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
 	}
 
 	return response, nil
@@ -1030,17 +994,15 @@ func ParseRenderGraphResponse(rsp *http.Response) (*RenderGraphResponse, error) 
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1072,17 +1034,15 @@ func ParseGetPeerDiagnosticsResponse(rsp *http.Response) (*GetPeerDiagnosticsRes
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1114,17 +1074,15 @@ func ParseListEventsResponse(rsp *http.Response) (*ListEventsResponse, error) {
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1146,6 +1104,16 @@ func ParseReprocessResponse(rsp *http.Response) (*ReprocessResponse, error) {
 	response := &ReprocessResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
 	}
 
 	return response, nil
@@ -1172,17 +1140,15 @@ func ParseListTransactionsResponse(rsp *http.Response) (*ListTransactionsRespons
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1207,17 +1173,22 @@ func ParseGetTransactionResponse(rsp *http.Response) (*GetTransactionResponse, e
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1242,17 +1213,22 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 	}
 
 	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
-		var dest struct {
-			// Detail A human-readable explanation specific to this occurrence of the problem.
-			Detail string `json:"detail"`
-
-			// Status HTTP statuscode
-			Status float32 `json:"status"`
-
-			// Title A short, human-readable summary of the problem type.
-			Title string `json:"title"`
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
 		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest externalRef0.ProblemDetails
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest externalRef0.ProblemDetails
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -1265,28 +1241,28 @@ func ParseGetTransactionPayloadResponse(rsp *http.Response) (*GetTransactionPayl
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Get the address book, listing which nodes will be connected to.
+	// Get the address book, listing which nodes will be connected to
 	// (GET /internal/network/v1/addressbook)
 	GetAddressBook(ctx echo.Context) error
-	// Visualizes the DAG as a graph
+	// Visualize the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx echo.Context, params RenderGraphParams) error
-	// Gets diagnostic information about the node's peers
+	// Get diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx echo.Context) error
-	// Lists the state of the internal events
+	// List the state of the internal events
 	// (GET /internal/network/v1/events)
 	ListEvents(ctx echo.Context) error
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx echo.Context, params ReprocessParams) error
-	// Lists transactions on the DAG
+	// List transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx echo.Context, params ListTransactionsParams) error
-	// Retrieves a transaction
+	// Retrieve a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx echo.Context, ref string) error
-	// Gets the transaction payload
+	// Get the transaction payload
 	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx echo.Context, ref string) error
 }
@@ -1494,6 +1470,15 @@ func (response GetAddressBook200JSONResponse) VisitGetAddressBookResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetAddressBook400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetAddressBook400ApplicationProblemPlusJSONResponse) VisitGetAddressBookResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RenderGraphRequestObject struct {
 	Params RenderGraphParams
 }
@@ -1521,17 +1506,17 @@ func (response RenderGraph200TextvndGraphvizResponse) VisitRenderGraphResponse(w
 	return err
 }
 
+type RenderGraph400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response RenderGraph400ApplicationProblemPlusJSONResponse) VisitRenderGraphResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type RenderGraphdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1558,17 +1543,17 @@ func (response GetPeerDiagnostics200JSONResponse) VisitGetPeerDiagnosticsRespons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetPeerDiagnostics400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetPeerDiagnostics400ApplicationProblemPlusJSONResponse) VisitGetPeerDiagnosticsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetPeerDiagnosticsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1595,17 +1580,17 @@ func (response ListEvents200JSONResponse) VisitListEventsResponse(w http.Respons
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListEvents400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ListEvents400ApplicationProblemPlusJSONResponse) VisitListEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListEventsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1632,6 +1617,15 @@ func (response Reprocess202Response) VisitReprocessResponse(w http.ResponseWrite
 	return nil
 }
 
+type Reprocess400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response Reprocess400ApplicationProblemPlusJSONResponse) VisitReprocessResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListTransactionsRequestObject struct {
 	Params ListTransactionsParams
 }
@@ -1649,17 +1643,17 @@ func (response ListTransactions200JSONResponse) VisitListTransactionsResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListTransactions400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response ListTransactions400ApplicationProblemPlusJSONResponse) VisitListTransactionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListTransactionsdefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1697,17 +1691,26 @@ func (response GetTransaction200ApplicationjoseResponse) VisitGetTransactionResp
 	return err
 }
 
+type GetTransaction400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetTransaction400ApplicationProblemPlusJSONResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTransaction404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetTransaction404ApplicationProblemPlusJSONResponse) VisitGetTransactionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetTransactiondefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1745,17 +1748,26 @@ func (response GetTransactionPayload200ApplicationoctetStreamResponse) VisitGetT
 	return err
 }
 
+type GetTransactionPayload400ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetTransactionPayload400ApplicationProblemPlusJSONResponse) VisitGetTransactionPayloadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTransactionPayload404ApplicationProblemPlusJSONResponse externalRef0.ProblemDetails
+
+func (response GetTransactionPayload404ApplicationProblemPlusJSONResponse) VisitGetTransactionPayloadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetTransactionPayloaddefaultApplicationProblemPlusJSONResponse struct {
-	Body struct {
-		// Detail A human-readable explanation specific to this occurrence of the problem.
-		Detail string `json:"detail"`
-
-		// Status HTTP statuscode
-		Status float32 `json:"status"`
-
-		// Title A short, human-readable summary of the problem type.
-		Title string `json:"title"`
-	}
+	Body       externalRef0.ProblemDetails
 	StatusCode int
 }
 
@@ -1768,28 +1780,28 @@ func (response GetTransactionPayloaddefaultApplicationProblemPlusJSONResponse) V
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// Get the address book, listing which nodes will be connected to.
+	// Get the address book, listing which nodes will be connected to
 	// (GET /internal/network/v1/addressbook)
 	GetAddressBook(ctx context.Context, request GetAddressBookRequestObject) (GetAddressBookResponseObject, error)
-	// Visualizes the DAG as a graph
+	// Visualize the DAG as a graph
 	// (GET /internal/network/v1/diagnostics/graph)
 	RenderGraph(ctx context.Context, request RenderGraphRequestObject) (RenderGraphResponseObject, error)
-	// Gets diagnostic information about the node's peers
+	// Get diagnostic information about the node's peers
 	// (GET /internal/network/v1/diagnostics/peers)
 	GetPeerDiagnostics(ctx context.Context, request GetPeerDiagnosticsRequestObject) (GetPeerDiagnosticsResponseObject, error)
-	// Lists the state of the internal events
+	// List the state of the internal events
 	// (GET /internal/network/v1/events)
 	ListEvents(ctx context.Context, request ListEventsRequestObject) (ListEventsResponseObject, error)
 	// Reprocess all transactions of the given type, verify and process
 	// (POST /internal/network/v1/reprocess)
 	Reprocess(ctx context.Context, request ReprocessRequestObject) (ReprocessResponseObject, error)
-	// Lists transactions on the DAG
+	// List transactions on the DAG
 	// (GET /internal/network/v1/transaction)
 	ListTransactions(ctx context.Context, request ListTransactionsRequestObject) (ListTransactionsResponseObject, error)
-	// Retrieves a transaction
+	// Retrieve a transaction
 	// (GET /internal/network/v1/transaction/{ref})
 	GetTransaction(ctx context.Context, request GetTransactionRequestObject) (GetTransactionResponseObject, error)
-	// Gets the transaction payload
+	// Get the transaction payload
 	// (GET /internal/network/v1/transaction/{ref}/payload)
 	GetTransactionPayload(ctx context.Context, request GetTransactionPayloadRequestObject) (GetTransactionPayloadResponseObject, error)
 }
