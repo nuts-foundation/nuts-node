@@ -169,6 +169,47 @@ func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config, options ...O
 	}, options)
 }
 
+// NewHTTPClient creates an *http.Client with the same protections as New, for libraries that require an *http.Client.
+// The protections are applied by the transport, so they apply to every request, including redirects.
+func NewHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Transport: strictTransport{next: getTransport(SafeHttpTransport), maxResponseSize: DefaultMaxHttpResponseSize},
+		Timeout:   timeout,
+	}
+}
+
+// strictTransport applies the checks of StrictHTTPClient.Do to every request it sends:
+// the target URL check, the User-Agent header and the response size limit.
+type strictTransport struct {
+	next            http.RoundTripper
+	maxResponseSize int64
+}
+
+func (s strictTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// IP-literal hosts are left to the dial guard (see denyNonPublicAddr): it is aware of
+	// http.client.allowedinternalcidrs/deniedcidrs, this check is not.
+	if _, err := core.ParsePublicURLAllowIP(req.URL.String(), StrictMode); err != nil {
+		return nil, fmt.Errorf("invalid target URL: %w", err)
+	}
+	// RoundTrip must not modify the request, so set the User-Agent on a copy.
+	req = req.Clone(req.Context())
+	req.Header.Set("User-Agent", core.UserAgent())
+	result, err := s.next.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	if result.Body != nil {
+		originalBody := result.Body
+		defer originalBody.Close()
+		body, err := limitedReadAll(originalBody, s.maxResponseSize)
+		if err != nil {
+			return nil, err
+		}
+		result.Body = io.NopCloser(bytes.NewReader(body))
+	}
+	return result, nil
+}
+
 type StrictHTTPClient struct {
 	client          *http.Client
 	maxResponseSize int64

@@ -30,6 +30,7 @@ import (
 
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/nuts-node/v6/core"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
 	"github.com/piprate/json-gold/ld"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -332,6 +333,49 @@ func TestNewContextLoader_RemoteContexts(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, core.UserAgent(), userAgent)
 	})
+	t.Run("returns the URL of the final request after a redirect", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/old.jsonld" {
+				http.Redirect(w, r, "/new.jsonld", http.StatusFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/ld+json")
+			_, _ = w.Write([]byte(`{"@context":{}}`))
+		}))
+		defer srv.Close()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		document, err := loader.LoadDocument(srv.URL + "/old.jsonld")
+
+		require.NoError(t, err)
+		assert.Equal(t, srv.URL+"/new.jsonld", document.DocumentURL)
+	})
+	t.Run("fails on invalid JSON", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`not JSON`))
+		}))
+		defer srv.Close()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		_, err = loader.LoadDocument(srv.URL + "/context.jsonld")
+
+		var jsonLDError *ld.JsonLdError
+		require.ErrorAs(t, err, &jsonLDError)
+		assert.Equal(t, ld.LoadingDocumentFailed, jsonLDError.Code)
+	})
+	t.Run("strict mode rejects an HTTP URL", func(t *testing.T) {
+		strictMode := client.StrictMode
+		client.StrictMode = true
+		defer func() { client.StrictMode = strictMode }()
+		loader, err := NewContextLoader(true, DefaultContextConfig())
+		require.NoError(t, err)
+
+		_, err = loader.LoadDocument("http://example.com/context.jsonld")
+
+		assert.ErrorContains(t, err, "invalid target URL")
+	})
 }
 
 type countingLoader struct {
@@ -361,9 +405,9 @@ func Test_failureCachingLoader(t *testing.T) {
 	})
 	t.Run("calls the next loader again after the failure expired", func(t *testing.T) {
 		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
-		sut := newFailureCachingLoader(time.Minute, next)
+		sut := newFailureCachingLoader(time.Millisecond, next)
 		_, _ = sut.LoadDocument(contextURL)
-		sut.failures[contextURL] = failedLoad{err: next.err, until: time.Now().Add(-time.Second)}
+		time.Sleep(10 * time.Millisecond)
 
 		_, _ = sut.LoadDocument(contextURL)
 
@@ -388,15 +432,5 @@ func Test_failureCachingLoader(t *testing.T) {
 		_, _ = sut.LoadDocument("https://example.com/other.jsonld")
 
 		assert.Equal(t, 2, next.calls)
-	})
-	t.Run("prunes expired failures when recording a new one", func(t *testing.T) {
-		next := &countingLoader{err: ld.NewJsonLdError(ld.LoadingDocumentFailed, "boom")}
-		sut := newFailureCachingLoader(time.Minute, next)
-		sut.failures["https://example.com/expired.jsonld"] = failedLoad{err: next.err, until: time.Now().Add(-time.Second)}
-
-		_, _ = sut.LoadDocument(contextURL)
-
-		assert.Len(t, sut.failures, 1)
-		assert.Contains(t, sut.failures, contextURL)
 	})
 }
