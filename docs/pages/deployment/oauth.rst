@@ -78,16 +78,32 @@ Note: the unrelated internal flow in the ``vcr/openid4vci`` package is used by N
 DPoP
 ****
 
-When the client wants to use DPoP, it must enable it in the access token request from client to Nuts node.
-If enabled the client will also need to call the Nuts node to create a new DPop Proof header for each request to the resources server.
+DPoP (`RFC 9449 <https://tools.ietf.org/html/rfc9449>`_) binds an access token to a key of the client.
+With every request, the client sends a DPoP proof: a short-lived JWT, signed with that key, for the HTTP method and URL of that request.
+A stolen access token can't be used without the key.
 
-A resources server must check the type of access token used to request data. If a DPoP token is used, the resource server must verify the DPoP Proof using the hash of the public key from the introspection result.
-The Nuts node provides a convenience API to do this for you.
-Some of the calls to the Nuts node are required because it handles key material for the DPoP Proof. The keys used for the DPoP headers are taken from the DID Document of a tenant.
-More information can be found on the `API documentation <nuts-node-api>`_ page. The relevant API's are:
+How the Nuts node uses DPoP:
 
-- ``POST /internal/auth/v2/dpop/{kid}``
-- ``POST /internal/auth/v2/dpop/validate``
+- Access tokens are DPoP-bound by default. The client asks for a Bearer token by setting ``token_type`` to ``Bearer`` in the access token request
+  (``POST /internal/auth/v2/{subjectID}/request-service-access-token`` and ``request-user-access-token``).
+- The key is a key from the DID Document of the requesting subject, so it is held by the Nuts node, not by the client application.
+  The access token response contains it as ``dpop_kid``, next to ``token_type: DPoP``.
+- As authorization server, the Nuts node records the key's thumbprint with the access token.
+  Token introspection returns it as ``cnf.jkt``. It is absent for Bearer tokens.
+
+How to use it:
+
+1. **Client:** for each request to the resource server, call ``POST /internal/auth/v2/dpop/{kid}`` with the ``dpop_kid`` (URL-encoded),
+   the access token, and the HTTP method and URL of the request.
+   Send the returned proof in the ``DPoP`` HTTP header and the access token as ``Authorization: DPoP <access token>``.
+2. **Resource server:** introspect the access token. If the response has ``cnf.jkt``, require the ``DPoP`` scheme and a ``DPoP`` header,
+   and validate the proof with ``POST /internal/auth/v2/dpop/validate`` (proof, method, URL, access token, and ``cnf.jkt`` as ``thumbprint``).
+   This checks the signature, method, URL, thumbprint, access token hash (``ath``) and that the proof is used only once (``jti``).
+   Other checks required by RFC 9449 remain the resource server's responsibility.
+
+Request and response fields are in the `API documentation <nuts-node-api>`_.
+Step-by-step guides for a use case are on the wiki:
+`Make the FHIR call <https://wiki.nuts.nl/link/182>`_ and `Validate the access token <https://wiki.nuts.nl/link/110>`_.
 
 StatusList2021
 **************
