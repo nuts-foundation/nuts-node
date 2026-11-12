@@ -115,6 +115,23 @@ func TestProtocol_sendTransactionList(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("ok - no transactions, sends an empty list so the peer ends the conversation", func(t *testing.T) {
+		proto, mocks := newTestProtocol(t, nil)
+		mockConnection := grpc.NewMockConnection(mocks.Controller)
+		mockConnection.EXPECT().Send(proto, &Envelope{Message: &Envelope_TransactionList{
+			TransactionList: &TransactionList{
+				ConversationID: conversationID.slice(),
+				Transactions:   []*Transaction{},
+				MessageNumber:  1,
+				TotalMessages:  1,
+			},
+		}}, true)
+
+		err := proto.sendTransactionList(mockConnection, conversationID, nil)
+
+		assert.NoError(t, err)
+	})
+
 	performSendErrorTest(t, gomock.Eq(envelope), func(c grpc.Connection, p *protocol, _ protocolMocks) error {
 		return p.sendTransactionList(c, conversationID, networkTXs)
 	})
