@@ -22,7 +22,8 @@ Publishing Services for use-cases
 
 Use-cases built on Nuts spec v1 publish their endpoints as Services in ``did:nuts`` DID Documents.
 These are managed with the DIDMan API.
-After upgrading the Nuts node to V6, you can manage these Services with the VDR V2 API instead.
+You can keep using the DIDMan API as long as you use the VDR V1 API (option 1 above).
+Once you switch to the VDR V2 API (option 2 above), you must manage these Services with the VDR V2 API instead.
 The VDR V2 API adds a Service to all DIDs of the subject, and resolves Services as they are in the DID Document,
 without following references to a concrete endpoint (as DIDMan does).
 
