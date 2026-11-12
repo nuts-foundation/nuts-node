@@ -23,6 +23,11 @@ With other DID Methods, certificates are only used to create an secure channel f
 In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
 This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
 
+Specifications:
+
+- `did:x509 DID Method Specification <https://trustoverip.github.io/tswg-did-x509-method-specification/>`_
+- `Nuts RFC023 X509Credential <https://nuts-foundation.gitbook.io/drafts/rfc/rfc023-x509credential>`_
+
 The Nuts node resolves ``did:x509`` DIDs but doesn't create them.
 When resolving, the Nuts node:
 
