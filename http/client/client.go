@@ -175,6 +175,16 @@ func NewHTTPClient(timeout time.Duration) *http.Client {
 	return New(timeout).client
 }
 
+type StrictHTTPClient struct {
+	client          *http.Client
+	maxResponseSize int64
+}
+
+// Do sends the request. The strict checks are applied by the client's transport (see strictTransport).
+func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	return s.client.Do(req)
+}
+
 // strictTransport applies the strict checks to every request it sends, including redirects:
 // the target URL check, the User-Agent header and the response size limit.
 type strictTransport struct {
@@ -205,14 +215,4 @@ func (s strictTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		result.Body = io.NopCloser(bytes.NewReader(body))
 	}
 	return result, nil
-}
-
-type StrictHTTPClient struct {
-	client          *http.Client
-	maxResponseSize int64
-}
-
-// Do sends the request. The strict checks are applied by the client's transport (see strictTransport).
-func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	return s.client.Do(req)
 }
