@@ -86,7 +86,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
-			ts := client.client.Transport.(*http.Transport)
+			ts := client.client.Transport.(strictTransport).next.(*http.Transport)
 			assert.True(t, ts.TLSClientConfig.InsecureSkipVerify)
 		})
 	})
@@ -265,7 +265,7 @@ func TestWithMaxResponseSize(t *testing.T) {
 
 		_, err := New(time.Second).Do(request)
 
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
+		assert.ErrorContains(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
 	})
 	t.Run("raised limit accepts response", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, server.URL, nil)
@@ -303,7 +303,7 @@ func TestStrictHTTPClient_ClosesResponseBody(t *testing.T) {
 
 		_, err := client.Do(request)
 
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 10 bytes")
+		assert.ErrorContains(t, err, "data to read exceeds max. safety limit of 10 bytes")
 		assert.Equal(t, int32(1), transport.closed.Load())
 	})
 	t.Run("response within limit", func(t *testing.T) {
@@ -464,7 +464,7 @@ func TestNew(t *testing.T) {
 		client := New(time.Second)
 
 		// Transport should be wrapped (not equal to SafeHttpTransport)
-		assert.NotEqual(t, SafeHttpTransport, client.client.Transport)
+		assert.NotEqual(t, SafeHttpTransport, client.client.Transport.(strictTransport).next)
 	})
 
 	t.Run("uses SafeHttpTransport when tracing disabled", func(t *testing.T) {
@@ -474,7 +474,7 @@ func TestNew(t *testing.T) {
 
 		client := New(time.Second)
 
-		assert.Equal(t, SafeHttpTransport, client.client.Transport)
+		assert.Equal(t, SafeHttpTransport, client.client.Transport.(strictTransport).next)
 	})
 }
 
@@ -506,7 +506,7 @@ func TestNewHTTPClient(t *testing.T) {
 
 		_, err := newClient(rt, DefaultMaxHttpResponseSize).Do(request)
 
-		assert.ErrorContains(t, err, "invalid target URL")
+		assert.ErrorContains(t, err, "invalid redirect target")
 		assert.Equal(t, 1, rt.invocations)
 	})
 	t.Run("sets User-Agent without modifying the request", func(t *testing.T) {

@@ -71,9 +71,8 @@ var StrictMode bool
 // checkRedirect is the http.Client.CheckRedirect policy for the strict HTTP client.
 // Setting CheckRedirect replaces the standard library's default policy, so the
 // 10-redirect cap is reimplemented here. It also re-runs core.ParsePublicURLAllowIP on
-// every redirect target: the check in Do only guards the first hop, so without this a
-// valid remote host could redirect the client onto a plaintext or otherwise disallowed
-// endpoint. IP-literal hosts are left to the dial guard (see denyNonPublicAddr), which
+// every redirect target, so a disallowed redirect is refused before it is followed
+// (strictTransport checks every hop as well). IP-literal hosts are left to the dial guard (see denyNonPublicAddr), which
 // runs on every hop already and is aware of http.client.allowedinternalcidrs/deniedcidrs;
 // rejecting them here too would make that allowlist unreachable.
 func checkRedirect(req *http.Request, via []*http.Request) error {
@@ -131,6 +130,7 @@ func newStrictHTTPClient(httpClient *http.Client, options []Option) *StrictHTTPC
 	for _, option := range options {
 		option(result)
 	}
+	httpClient.Transport = strictTransport{next: httpClient.Transport, maxResponseSize: result.maxResponseSize}
 	return result
 }
 
@@ -172,13 +172,10 @@ func NewWithTLSConfig(timeout time.Duration, tlsConfig *tls.Config, options ...O
 // NewHTTPClient creates an *http.Client with the same protections as New, for libraries that require an *http.Client.
 // The protections are applied by the transport, so they apply to every request, including redirects.
 func NewHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Transport: strictTransport{next: getTransport(SafeHttpTransport), maxResponseSize: DefaultMaxHttpResponseSize},
-		Timeout:   timeout,
-	}
+	return New(timeout).client
 }
 
-// strictTransport applies the checks of StrictHTTPClient.Do to every request it sends:
+// strictTransport applies the strict checks to every request it sends, including redirects:
 // the target URL check, the User-Agent header and the response size limit.
 type strictTransport struct {
 	next            http.RoundTripper
@@ -215,25 +212,7 @@ type StrictHTTPClient struct {
 	maxResponseSize int64
 }
 
+// Do sends the request. The strict checks are applied by the client's transport (see strictTransport).
 func (s *StrictHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	// IP-literal hosts are left to the dial guard (see denyNonPublicAddr): it is aware of
-	// http.client.allowedinternalcidrs/deniedcidrs, this check is not.
-	if _, err := core.ParsePublicURLAllowIP(req.URL.String(), StrictMode); err != nil {
-		return nil, fmt.Errorf("invalid target URL: %w", err)
-	}
-	req.Header.Set("User-Agent", core.UserAgent())
-	result, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if result.Body != nil {
-		originalBody := result.Body
-		defer originalBody.Close()
-		body, err := limitedReadAll(originalBody, s.maxResponseSize)
-		if err != nil {
-			return nil, err
-		}
-		result.Body = io.NopCloser(bytes.NewReader(body))
-	}
-	return result, nil
+	return s.client.Do(req)
 }
