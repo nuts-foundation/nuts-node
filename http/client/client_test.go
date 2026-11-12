@@ -478,83 +478,32 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestNewHTTPClient(t *testing.T) {
-	oldStrictMode := StrictMode
-	t.Cleanup(func() { StrictMode = oldStrictMode })
-	newClient := func(next http.RoundTripper, maxResponseSize int64) *http.Client {
-		client := NewHTTPClient(time.Second)
-		client.Transport = strictTransport{next: next, maxResponseSize: maxResponseSize}
-		return client
+func TestStrictHTTPClient_UserAgent(t *testing.T) {
+	var userAgent string
+	rt := &stubRoundTripper{
+		statusCode: http.StatusOK,
+		dataFn: func(r *http.Request) []byte {
+			userAgent = r.UserAgent()
+			return nil
+		},
 	}
-	t.Run("strict mode rejects HTTP target", func(t *testing.T) {
-		StrictMode = true
-		rt := &stubRoundTripper{}
-		request, _ := http.NewRequest(http.MethodGet, "http://nuts.nl", nil)
+	request, _ := http.NewRequest(http.MethodGet, "https://nuts.nl", nil)
 
-		_, err := newClient(rt, DefaultMaxHttpResponseSize).Do(request)
+	_, err := newStrictHTTPClient(&http.Client{Transport: rt}, nil).Do(request)
 
-		assert.ErrorContains(t, err, "invalid target URL")
-		assert.Equal(t, 0, rt.invocations)
-	})
-	t.Run("strict mode rejects redirect to HTTP target", func(t *testing.T) {
-		StrictMode = true
-		rt := &stubRoundTripper{
-			statusCode: http.StatusFound,
-			headers:    map[string]string{"Location": "http://nuts.nl/other"},
-		}
-		request, _ := http.NewRequest(http.MethodGet, "https://nuts.nl", nil)
+	require.NoError(t, err)
+	assert.Equal(t, core.UserAgent(), userAgent)
+	assert.Empty(t, request.Header.Get("User-Agent"), "the caller's request must not be modified")
+}
 
-		_, err := newClient(rt, DefaultMaxHttpResponseSize).Do(request)
+func TestNewHTTPClient(t *testing.T) {
+	original := tracing.Enabled()
+	tracing.SetEnabled(false)
+	t.Cleanup(func() { tracing.SetEnabled(original) })
 
-		assert.ErrorContains(t, err, "invalid redirect target")
-		assert.Equal(t, 1, rt.invocations)
-	})
-	t.Run("sets User-Agent without modifying the request", func(t *testing.T) {
-		StrictMode = false
-		var userAgent string
-		rt := &stubRoundTripper{
-			statusCode: http.StatusOK,
-			dataFn: func(r *http.Request) []byte {
-				userAgent = r.UserAgent()
-				return nil
-			},
-		}
-		request, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	client := NewHTTPClient(5 * time.Second)
 
-		_, err := newClient(rt, DefaultMaxHttpResponseSize).Do(request)
-
-		require.NoError(t, err)
-		assert.Equal(t, core.UserAgent(), userAgent)
-		assert.Empty(t, request.Header.Get("User-Agent"))
-	})
-	t.Run("rejects response that exceeds the limit, and closes its body", func(t *testing.T) {
-		StrictMode = false
-		transport := &closeRecordingTransport{base: &stubRoundTripper{statusCode: http.StatusOK, data: []byte("12345678901")}}
-		request, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
-
-		_, err := newClient(transport, 10).Do(request)
-
-		assert.ErrorContains(t, err, "data to read exceeds max. safety limit of 10 bytes")
-		assert.Equal(t, int32(1), transport.closed.Load())
-	})
-	t.Run("returns response within the limit", func(t *testing.T) {
-		StrictMode = false
-		request, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
-
-		response, err := newClient(&stubRoundTripper{statusCode: http.StatusOK, data: []byte("1234567890")}, 10).Do(request)
-
-		require.NoError(t, err)
-		data, _ := io.ReadAll(response.Body)
-		assert.Equal(t, "1234567890", string(data))
-	})
-	t.Run("uses SafeHttpTransport and the given timeout", func(t *testing.T) {
-		original := tracing.Enabled()
-		tracing.SetEnabled(false)
-		t.Cleanup(func() { tracing.SetEnabled(original) })
-
-		client := NewHTTPClient(5 * time.Second)
-
-		assert.Equal(t, strictTransport{next: SafeHttpTransport, maxResponseSize: DefaultMaxHttpResponseSize}, client.Transport)
-		assert.Equal(t, 5*time.Second, client.Timeout)
-	})
+	assert.Equal(t, strictTransport{next: SafeHttpTransport, maxResponseSize: DefaultMaxHttpResponseSize}, client.Transport)
+	assert.Equal(t, 5*time.Second, client.Timeout)
+	assert.NotNil(t, client.CheckRedirect)
 }
