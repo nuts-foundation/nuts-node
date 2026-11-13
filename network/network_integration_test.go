@@ -862,7 +862,9 @@ func TestNetworkIntegration_AddedTransactionsAsEvents(t *testing.T) {
 	}, time.Second, "timeout waiting for message")
 
 	event := events.TransactionWithPayload{}
+	foundMutex.Lock()
 	_ = json.Unmarshal(found, &event)
+	foundMutex.Unlock()
 
 	assert.Equal(t, uint32(0), event.Transaction.Clock())
 	assert.Equal(t, "payload", string(event.Payload))
