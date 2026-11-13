@@ -112,8 +112,8 @@ func (hb HTTPClient) PresentationDefinition(ctx context.Context, presentationDef
 	if err != nil {
 		// any OAuth error should be passed
 		// any other error should result in a 502 Bad Gateway
-		if oauthErr, ok := err.(oauth.OAuth2Error); ok {
-			return nil, oauthErr
+		if errors.As(err, new(oauth.OAuth2Error)) {
+			return nil, err
 		}
 		return nil, errors.Join(ErrBadGateway, err)
 	}
@@ -191,19 +191,17 @@ func (hb HTTPClient) AccessToken(ctx context.Context, tokenEndpoint string, data
 		return token, fmt.Errorf("failed to call endpoint: %w", err)
 	}
 	if err = core.TestResponseCode(http.StatusOK, response); err != nil {
-		// check for oauth error
-		if innerErr := core.TestResponseCode(http.StatusBadRequest, response); innerErr != nil {
-			// a non oauth error, the response body could contain a lot of stuff. We'll log and return the entire error
-			log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
-			return token, err
+		httpErr, ok := errors.AsType[core.HttpError](err)
+		if ok && strings.Contains(response.Header.Get("Content-Type"), "application/json") {
+			// If the response is JSON and looks like an OAuth error, return it as such (regardless of status code).
+			oauthError := oauth.OAuth2Error{}
+			if jsonErr := json.Unmarshal(httpErr.ResponseBody, &oauthError); jsonErr == nil && oauthError.Code != "" {
+				return token, oauth.RemoteOAuthError{Cause: oauthError}
+			}
 		}
-		httpErr := err.(core.HttpError)
-		oauthError := oauth.OAuth2Error{}
-		if err := json.Unmarshal(httpErr.ResponseBody, &oauthError); err != nil {
-			return token, fmt.Errorf("unable to unmarshal OAuth error response: %w", err)
-		}
-
-		return token, oauthError
+		// Not an OAuth error, the response body could contain a lot of stuff. We'll log and return the entire error
+		log.Logger().Debugf("authorization server token endpoint returned non oauth error (statusCode=%d)", response.StatusCode)
+		return token, err
 	}
 
 	var responseData []byte
@@ -398,10 +396,10 @@ func (hb HTTPClient) doRequest(ctx context.Context, request *http.Request, targe
 	if httpErr := core.TestResponseCode(http.StatusOK, response); httpErr != nil {
 		rse := httpErr.(core.HttpError)
 		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidScope); ok {
-			return oauthErr
+			return oauth.RemoteOAuthError{Cause: oauthErr}
 		}
 		if ok, oauthErr := oauth.TestOAuthErrorCode(rse.ResponseBody, oauth.InvalidRequest); ok {
-			return oauthErr
+			return oauth.RemoteOAuthError{Cause: oauthErr}
 		}
 		return httpErr
 	}
