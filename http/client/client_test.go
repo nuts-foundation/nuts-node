@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nuts-foundation/nuts-node/v6/core"
 	"github.com/nuts-foundation/nuts-node/v6/tracing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -85,7 +86,7 @@ func TestStrictHTTPClient(t *testing.T) {
 			client := NewWithTLSConfig(time.Second, &tls.Config{
 				InsecureSkipVerify: true,
 			})
-			ts := client.client.Transport.(*http.Transport)
+			ts := client.client.Transport.(strictTransport).next.(*http.Transport)
 			assert.True(t, ts.TLSClientConfig.InsecureSkipVerify)
 		})
 	})
@@ -217,9 +218,10 @@ func TestStrictHTTPClient_RedirectScheme(t *testing.T) {
 
 		client := NewWithTLSConfig(time.Second, tlsConfig)
 		req, _ := http.NewRequest("GET", redirector.URL, nil)
-		_, err := client.Do(req)
+		response, err := client.Do(req)
 
 		assert.Error(t, err, "strict mode must not follow a redirect from HTTPS to HTTP")
+		assert.Nil(t, response, "no response must be returned with the error")
 		assert.False(t, reached.Load(), "the plaintext endpoint must not be contacted")
 	})
 	t.Run("non-strict mode follows redirect to HTTP", func(t *testing.T) {
@@ -264,7 +266,7 @@ func TestWithMaxResponseSize(t *testing.T) {
 
 		_, err := New(time.Second).Do(request)
 
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
+		assert.ErrorContains(t, err, "data to read exceeds max. safety limit of 1048576 bytes")
 	})
 	t.Run("raised limit accepts response", func(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, server.URL, nil)
@@ -302,7 +304,7 @@ func TestStrictHTTPClient_ClosesResponseBody(t *testing.T) {
 
 		_, err := client.Do(request)
 
-		assert.EqualError(t, err, "data to read exceeds max. safety limit of 10 bytes")
+		assert.ErrorContains(t, err, "data to read exceeds max. safety limit of 10 bytes")
 		assert.Equal(t, int32(1), transport.closed.Load())
 	})
 	t.Run("response within limit", func(t *testing.T) {
@@ -463,7 +465,7 @@ func TestNew(t *testing.T) {
 		client := New(time.Second)
 
 		// Transport should be wrapped (not equal to SafeHttpTransport)
-		assert.NotEqual(t, SafeHttpTransport, client.client.Transport)
+		assert.NotEqual(t, SafeHttpTransport, client.client.Transport.(strictTransport).next)
 	})
 
 	t.Run("uses SafeHttpTransport when tracing disabled", func(t *testing.T) {
@@ -473,6 +475,36 @@ func TestNew(t *testing.T) {
 
 		client := New(time.Second)
 
-		assert.Equal(t, SafeHttpTransport, client.client.Transport)
+		assert.Equal(t, SafeHttpTransport, client.client.Transport.(strictTransport).next)
 	})
+}
+
+func TestStrictHTTPClient_UserAgent(t *testing.T) {
+	var userAgent string
+	rt := &stubRoundTripper{
+		statusCode: http.StatusOK,
+		dataFn: func(r *http.Request) []byte {
+			userAgent = r.UserAgent()
+			return nil
+		},
+	}
+	request, _ := http.NewRequest(http.MethodGet, "https://nuts.nl", nil)
+
+	_, err := newStrictHTTPClient(&http.Client{Transport: rt}, nil).Do(request)
+
+	require.NoError(t, err)
+	assert.Equal(t, core.UserAgent(), userAgent)
+	assert.Empty(t, request.Header.Get("User-Agent"), "the caller's request must not be modified")
+}
+
+func TestNewHTTPClient(t *testing.T) {
+	original := tracing.Enabled()
+	tracing.SetEnabled(false)
+	t.Cleanup(func() { tracing.SetEnabled(original) })
+
+	client := NewHTTPClient(5 * time.Second)
+
+	assert.Equal(t, strictTransport{next: SafeHttpTransport, maxResponseSize: DefaultMaxHttpResponseSize}, client.Transport)
+	assert.Equal(t, 5*time.Second, client.Timeout)
+	assert.NotNil(t, client.CheckRedirect)
 }

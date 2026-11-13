@@ -24,12 +24,23 @@ import (
 	"errors"
 	"fmt"
 	ssi "github.com/nuts-foundation/go-did"
+	"github.com/nuts-foundation/nuts-node/v6/http/client"
 	"github.com/nuts-foundation/nuts-node/v6/jsonld/log"
 	"github.com/nuts-foundation/nuts-node/v6/vcr/assets"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/piprate/json-gold/ld"
 	"io/fs"
 	"net/url"
+	"time"
 )
+
+// remoteContextTimeout bounds a single fetch of a remote JSON-LD context document.
+// Contexts are fetched while processing network transactions, so a server that never answers must not block that processing.
+var remoteContextTimeout = 5 * time.Second
+
+// remoteContextFailureTTL is how long a failed remote context fetch is remembered.
+// During that time, loads of the same URL fail immediately with the original error instead of fetching again.
+var remoteContextFailureTTL = 5 * time.Minute
 
 // ContextsConfig contains config for json-ld document loader
 type ContextsConfig struct {
@@ -193,9 +204,11 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 		ld.NewCachingDocumentLoader(
 			// Handle all embedded file system files
 			NewEmbeddedFSDocumentLoader(assets.Assets,
-				// Last in the chain is the defaultLoader which can resolve
-				// local files and remote (via http) context documents
-				ld.NewDefaultDocumentLoader(nil))))
+				// Remember failed remote fetches, so a dead context server costs one timeout instead of one per document
+				newFailureCachingLoader(remoteContextFailureTTL,
+					// Last in the chain is the defaultLoader which can resolve
+					// local files and remote (via http) context documents
+					ld.NewDefaultDocumentLoader(client.NewHTTPClient(remoteContextTimeout))))))
 
 	// If unlisted calls are not allowed, filter all calls to the defaultLoader
 	if !allowUnlistedExternalCalls {
@@ -217,6 +230,36 @@ func NewContextLoader(allowUnlistedExternalCalls bool, contexts ContextsConfig) 
 	}
 
 	return loader, nil
+}
+
+// failureCachingLoader remembers failed loads per URL for a fixed time, and returns the remembered error without
+// calling the next loader during that time. Successful loads are not cached here (see ld.NewCachingDocumentLoader).
+type failureCachingLoader struct {
+	ttl        time.Duration
+	nextLoader ld.DocumentLoader
+	failures   *gocache.Cache
+}
+
+func newFailureCachingLoader(ttl time.Duration, nextLoader ld.DocumentLoader) *failureCachingLoader {
+	return &failureCachingLoader{
+		ttl:        ttl,
+		nextLoader: nextLoader,
+		failures:   gocache.New(ttl, ttl),
+	}
+}
+
+// LoadDocument returns the remembered error if loading u failed less than ttl ago, otherwise it calls the next loader.
+func (f *failureCachingLoader) LoadDocument(u string) (*ld.RemoteDocument, error) {
+	if failure, ok := f.failures.Get(u); ok {
+		log.Logger().Debugf("Not fetching JSON-LD context, it failed recently (url=%s)", u)
+		return nil, failure.(error)
+	}
+	document, err := f.nextLoader.LoadDocument(u)
+	if err != nil {
+		f.failures.SetDefault(u, err)
+		log.Logger().WithError(err).Warnf("Failed to load JSON-LD context, not retrying for %s (url=%s)", f.ttl, u)
+	}
+	return document, err
 }
 
 // LDUtil package a set of often used JSON-LD operations for re-usability.
