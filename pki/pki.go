@@ -107,11 +107,14 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 	results := make(map[string]core.Health, 1)
 	maxDelay := time.Duration(p.maxUpdateFailHours) * time.Hour
 
+	// The denylist and CRLs are downloaded from external endpoints. If they can't be updated, the status is UNKNOWN, not DOWN:
+	// DOWN makes /health return 503, which gets the node restarted, and a restart doesn't bring an external endpoint back.
+
 	// deny list
 	if p.denylist != nil && p.denylist.URL() != "" && isOutdated(p.denylist.LastUpdated(), maxDelay) {
 		// deny list is only added when it is outdated
 		results[healthDenylist] = core.Health{
-			Status: core.HealthStatusDown,
+			Status: core.HealthStatusUnknown,
 			Details: outdatedCRL{
 				Issuer:      "denylist",
 				Endpoint:    p.denylist.URL(),
@@ -159,7 +162,7 @@ func (p *PKI) CheckHealth() map[string]core.Health {
 		}
 	} else {
 		results[healthCRL] = core.Health{
-			Status:  core.HealthStatusDown,
+			Status:  core.HealthStatusUnknown,
 			Details: outdatedList,
 		}
 	}
