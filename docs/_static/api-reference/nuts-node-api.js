@@ -2,8 +2,8 @@
 // This runs in the browser, so building the docs needs no extra tools and no generated spec is committed.
 // It parses YAML with the global jsyaml, which scalar.js loads.
 
-// In menu order, under two headings: APIs and Deprecated. The names say DEPRECATED as well, for tools that
-// ignore the headings (x-tagGroups), like Postman.
+// In menu order. The deprecated APIs go under a Deprecated item at the end of the menu. Their names say DEPRECATED
+// as well, for tools that show the tags as a flat list.
 const apis = [
     {file: "auth/v2.yaml", name: "Auth (v2)", slug: "auth-v2"},
     {file: "crypto/v1.yaml", name: "Crypto", slug: "crypto"},
@@ -39,7 +39,6 @@ export async function loadNutsNodeApi() {
         components: {schemas: {...sharedTypes.components.schemas}, responses: {ErrorResponse: paste(errorResponse, {}, "", url("common/error_response.yaml"))}},
         tags: [],
     };
-    const groups = {APIs: [], Deprecated: []};
     const introductions = {APIs: [], Deprecated: []};
     const operationIds = new Set();
     for (const [index, api] of apis.entries()) {
@@ -47,8 +46,7 @@ export async function loadNutsNodeApi() {
         const spec = paste(specs[index], combined.components, suffix, url(api.file));
 
         // Tag names include the API name: that keeps them unique ("auth" is in two APIs) and readable in tools
-        // that ignore x-tagGroups, like Postman. The menu has one level of groups, so it shows an API as one tag,
-        // or as one tag per tag of the API.
+        // that show the tags as a flat list. The menu shows an API as one tag, or as one tag per tag of the API.
         const operations = Object.values(spec.paths).flatMap((item) => methods.map((method) => item[method]).filter(Boolean));
         // The menu only shows tagged operations; an operation without tags has to get one in its spec.
         const untagged = operations.find((operation) => !operation.tags?.length);
@@ -57,7 +55,8 @@ export async function loadNutsNodeApi() {
         const tag = (name) => names.length === 1 ? api.name : `${api.name}: ${name}`;
         for (const name of names) {
             const description = spec.tags?.find((declared) => declared.name === name)?.description;
-            combined.tags.push({name: tag(name), ...(description && {description})});
+            // parent comes from OpenAPI 3.2; Scalar nests by it in this 3.0 document too.
+            combined.tags.push({name: tag(name), ...(api.deprecated && {parent: "Deprecated"}), ...(description && {description})});
         }
         // Each operation gets the servers and security of its own spec. Scalar ignores servers on a path.
         for (const operation of operations) {
@@ -72,12 +71,12 @@ export async function loadNutsNodeApi() {
             combined.paths[path] = item;
         }
         const group = api.deprecated ? "Deprecated" : "APIs";
-        groups[group].push(...names.map(tag));
         const summary = spec.info.description?.trim().replace(/\s+/g, " ");
         introductions[group].push(`- **${api.name}** ([${api.file}](${url(api.file)}))` + (summary ? `: ${summary}` : ""));
         combined.info.license ??= spec.info.license;
     }
-    combined["x-tagGroups"] = Object.entries(groups).map(([name, tags]) => ({name, tags}));
+    // The parent of the deprecated APIs' tags. The menu follows the order of this list, so it comes last.
+    combined.tags.push({name: "Deprecated"});
     // Lists instead of headings, which renderers would add to the menu. They link each API's own spec.
     combined.info.description = Object.entries(introductions).map(([group, lines]) => `**${group}**\n\n${lines.join("\n")}`).join("\n\n");
     return combined;

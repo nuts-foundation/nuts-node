@@ -19,6 +19,25 @@ const scripts = [
     },
 ];
 
+// Uses Scalar's own class names and variables, so check the result when upgrading Scalar.
+const customCss = `
+/* Scalar draws nesting in schemas with a faint line only. A stronger line and a tint for each nested object and
+   expanded response show where it starts and ends. The tints add up, so deeper levels get a stronger tint.
+   A collapsed panel can stay in the page as hidden="until-found", for find in page; it gets no tint or padding. */
+.scalar-app { --schema-rail-base: var(--scalar-color-3); }
+.scalar-app .schema-rail { border-inline-start-width: 2px; }
+.scalar-app .schema-rail-panel.property-children:not([hidden]),
+.scalar-app .responses-list--tree .schema-rail-panel.parameter-item-container:not([hidden]) {
+    background: color-mix(in srgb, var(--scalar-background-2) 70%, transparent);
+    border-radius: 0 var(--scalar-radius-lg) var(--scalar-radius-lg) 0;
+    padding-block: 2px;
+    padding-inline-end: 12px;
+}
+/* Scalar shows this breadcrumb bar once a tag has a parent, like the deprecated APIs have. Outside those APIs it
+   shows the first nested tag of the document instead of the section in view. */
+.scalar-app .context-bar { display: none; }
+`;
+
 export async function renderNutsApiReference(selector) {
     const element = document.querySelector(selector);
     try {
@@ -31,6 +50,9 @@ export async function renderNutsApiReference(selector) {
             // The client button opens Scalar's hosted client with the URL of this page, which cannot load the
             // document combined here. The Test Request buttons work.
             hideClientButton: true,
+            // Keeps all APIs in view; Scalar opens the first menu item otherwise.
+            defaultOpenFirstTag: false,
+            customCss,
         });
     } catch (error) {
         element.textContent = `The API reference could not be loaded: ${error.message}`;
