@@ -40,6 +40,25 @@ func TestError_Error(t *testing.T) {
 	})
 }
 
+func TestRemoteOAuthError(t *testing.T) {
+	t.Run("Error() prefixes with remote authorization server", func(t *testing.T) {
+		err := RemoteOAuthError{Cause: OAuth2Error{Code: InvalidRequest, Description: "bad scope"}}
+		assert.EqualError(t, err, "remote authorization server: invalid_request - bad scope")
+	})
+	t.Run("StatusCode() delegates to underlying OAuth2Error", func(t *testing.T) {
+		err := RemoteOAuthError{Cause: OAuth2Error{Code: ServerError}}
+		assert.Equal(t, http.StatusInternalServerError, err.StatusCode())
+		err = RemoteOAuthError{Cause: OAuth2Error{Code: InvalidRequest}}
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode())
+	})
+	t.Run("errors.As finds underlying OAuth2Error", func(t *testing.T) {
+		wrapped := RemoteOAuthError{Cause: OAuth2Error{Code: InvalidRequest, Description: "bad scope"}}
+		var oauthErr OAuth2Error
+		assert.True(t, errors.As(wrapped, &oauthErr))
+		assert.Equal(t, InvalidRequest, oauthErr.Code)
+	})
+}
+
 func Test_oauth2ErrorWriter_Write(t *testing.T) {
 	t.Run("user-agent is browser with redirect URI", func(t *testing.T) {
 		server := echo.New()

@@ -50,6 +50,11 @@ func TruncateHTTPBody(body []byte) string {
 	return string(body[:HttpResponseBodyLogTruncateAt]) + "...(truncated)"
 }
 
+// HttpResponseBodyMaxSize is the maximum number of bytes read from an unexpected HTTP response body.
+// It prevents DoS attacks where a malicious server returns a very large response body.
+// Only applied to error responses, so 1 MB is more than enough.
+const HttpResponseBodyMaxSize = 1024 * 1024
+
 // HttpError describes an error returned when invoking a remote server.
 type HttpError struct {
 	error
@@ -67,7 +72,14 @@ func TestResponseCode(expectedStatusCode int, response *http.Response) error {
 // It logs using the given logger, unless nil is passed.
 func TestResponseCodeWithLog(expectedStatusCode int, response *http.Response, log *logrus.Entry) error {
 	if response.StatusCode != expectedStatusCode {
-		responseData, _ := io.ReadAll(response.Body)
+		// Read at most HttpResponseBodyMaxSize bytes to prevent DoS. Read one extra byte to detect truncation.
+		responseData, _ := io.ReadAll(io.LimitReader(response.Body, HttpResponseBodyMaxSize+1))
+		truncated := len(responseData) > HttpResponseBodyMaxSize
+		if truncated {
+			responseData = responseData[:HttpResponseBodyMaxSize]
+			logrus.WithField("http_request_path", response.Request.URL.Path).
+				Warnf("HTTP response body exceeds %d bytes, truncating", HttpResponseBodyMaxSize)
+		}
 		if log != nil {
 			log.WithField("http_request_path", response.Request.URL.Path).
 				Infof("Unexpected HTTP response (len=%d): %q", len(responseData), TruncateHTTPBody(responseData))
