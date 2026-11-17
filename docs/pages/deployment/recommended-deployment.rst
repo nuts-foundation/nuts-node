@@ -175,10 +175,8 @@ The Nuts node uses the client IP address for:
 It is not used to allow, deny or rate-limit requests.
 A wrong client IP address does not give a caller more access, but it does make the audit log unreliable.
 
-To make sure a caller can't choose the address that ends up in the logs:
-
-* The proxy must overwrite the header, not pass on the value sent by the caller.
-* The Nuts node must only be reachable through the proxy.
+To make sure a caller can't choose the address that ends up in the logs, the proxy must overwrite the header, not pass on the value sent by the caller.
+Callers that connect to the Nuts node directly (not through the proxy) can set the header themselves.
 
 How the Nuts node reads the header:
 
@@ -230,7 +228,7 @@ Below is a list of items that should be addressed when running a node in product
 
 - Reverse proxy
    - Use a proxy in front of the node which terminates TLS
-   - Make sure the reverse proxy overwrites the header configured in ``http.clientipheader`` (default ``X-Forwarded-For``) with the address of the caller, and that the node is only reachable through the proxy, to log correct IP addresses. See :ref:`client-ip-header`.
+   - Make sure the reverse proxy overwrites the header configured in ``http.clientipheader`` (default ``X-Forwarded-For``) with the address of the caller, to log correct IP addresses. See :ref:`client-ip-header`.
 - Backup Management
    - Make sure data is backed up (data stored in SQL and private keys)
    - Have a tested backup/restore procedure
