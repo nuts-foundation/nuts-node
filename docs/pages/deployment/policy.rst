@@ -10,6 +10,8 @@ Wallet functionality uses `Presentation Definitions <https://identity.foundation
 An OAuth2 authorization request uses scopes to determine the required permissions for a given request.
 The mapping between scopes and presentation definitions is defined in a policy definition file.
 
+How to design the policy for a use case is described on the wiki: `OAuth2 Scopes and Presentation Definition Mapping <https://wiki.nuts.nl/link/81>`_.
+
 Configuration
 *************
 
@@ -72,9 +74,28 @@ JSON documents used for policies must have the following structure:
       }
     }
 
-Where ``example_scope`` is the scope that the presentation definition is associated with.
-The ``presentation_definition`` object contains the presentation definition that should be used for the given scope.
-The ``wallet_owner_type`` field is used to determine the audience type of the presentation definition, valid values are ``organization`` and ``user``.
+A policy definition file is a JSON object. Each key is an OAuth2 scope (``example_scope`` above); its value is the credential profile for that scope:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - Field
+     - Required
+     - Description
+   * - ``organization``
+     - no
+     - `Presentation Definition <https://identity.foundation/presentation-exchange/>`_ for the credentials of the organization's wallet.
+   * - ``user``
+     - no
+     - Presentation Definition for the credentials of the user's wallet.
+       Experimental: only used in the OpenID4VP authorization code flow, which requires ``auth.authorizationendpoint.enabled`` (default ``false``).
+
+Rules:
+
+- Each Presentation Definition is validated against the Presentation Exchange v2 JSON schema when the file is loaded.
+- A scope may be defined only once, across all loaded files.
+- The scope of an access token request is looked up as-is: a request with multiple scopes only matches a key that contains exactly those scopes.
 
 OAuth2 Token Introspection field mapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -121,7 +142,7 @@ You can define the following field in the input descriptor constraint, to have t
     "id": "admin_level",
     "path": ["$.credentialSubject.role"],
     "filter": {
-      "type": "string"
+      "type": "string",
       "pattern": "Admin level ([0-9])"
     }
   }

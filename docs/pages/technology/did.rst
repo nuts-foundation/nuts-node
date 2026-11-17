@@ -3,29 +3,45 @@
 Decentralized identifiers
 #########################
 
-Nuts uses `W3C Decentralized Identifiers <https://www.w3.org/TR/did-core/>`_ as a base for tracking identities.
-From the W3C website:
+Nuts uses `W3C Decentralized Identifiers <https://www.w3.org/TR/did-core/>`_ (DIDs) to identify parties.
+A DID is backed by a *DID Document*: it lists the public keys of the party and optionally its services.
+What DIDs are and which DID method a use case uses is described on the wiki: `Decentralized Identifiers <https://wiki.nuts.nl/link/195>`_.
+The DID methods the Nuts node supports are listed in :ref:`supported_protocols_and_formats`.
 
-    Decentralized identifiers (DIDs) are a new type of identifier that enables verifiable, decentralized digital identity. A DID identifies any subject (e.g., a person, organization, thing, data model, abstract entity, etc.) that the controller of the DID decides that it identifies. In contrast to typical, federated identifiers, DIDs have been designed so that they may be decoupled from centralized registries, identity providers, and certificate authorities. Specifically, while other parties might be used to help enable the discovery of information related to a DID, the design enables the controller of a DID to prove control over it without requiring permission from any other party. DIDs are URIs that associate a DID subject with a DID document allowing trustable interactions associated with that subject.
+Subjects
+********
 
-Within Nuts, DIDs identify different parties. All DID methods require their own specification.
-The Nuts specification for the `nuts` DID method can be found on https://nuts-specification.readthedocs.io.
-Nuts DIDs are designed so they represent public/private key pairs. Any party can generate and claim a key pair.
-Only when information is added to the key pair, the key pair becomes important.
+The Nuts node groups the DIDs of one party under a *subject*.
+Creating a subject (``POST /internal/vdr/v2/subject``) creates a DID Document for each DID method in ``didmethods`` (default: ``web`` and ``nuts``).
+Changes through the VDR V2 API, such as adding a key or a service, are made to all DID Documents of the subject.
 
-DIDs can gather claims through Verifiable Credentials. This allows a DID to actually represent something known in real life.
-For example: adding an organization name credential connects the key pair to the name of the organization. It connects the digital world to the real world.
+DID Documents created by the Nuts node
+**************************************
 
-Nuts DID Documents
-******************
+.. list-table::
+   :header-rows: 1
 
-DIDs are backed by a *DID Document*. It defines the public keys, who can alter the document and any services related to the DID.
-Nuts DID documents are automatically propagated through the network when they are created.
-When DID documents are created, the DID **always** represents the public key fingerprint of the associated key.
-A DID document is always created with a new key. Signing keys are are added to the `authentication`, `assertionMethod`, `capabilityInvocation` and `capabilityDelegation` sections.
-Encryption keys are added to the `keyAgreement` section.
+   * -
+     - ``did:web``
+     - ``did:nuts``
+   * - DID
+     - ``did:web:<domain>:iam:<uuid>``, the domain is taken from ``url`` in the node configuration
+     - ``did:nuts:<id>``, where the id is derived from the first key: the base58-encoded SHA-256 JWK thumbprint of that key
+   * - Where the DID Document is published
+     - Served by the node at ``https://<domain>/iam/<uuid>/did.json``
+     - Sent to all nodes through the Nuts network when it is created
+   * - Signing key
+     - A new EC key, added to ``authentication``, ``assertionMethod``, ``capabilityInvocation`` and ``capabilityDelegation``
+     - A new EC key, added to ``authentication``, ``assertionMethod``, ``capabilityInvocation`` and ``capabilityDelegation``
+   * - Encryption key (``keyAgreement``)
+     - Never added
+     - The same key is added to ``keyAgreement``, unless the request sets ``keys.encryptionKey`` to ``false``
+
+Azure Key Vault can't do encryption: with that key store, set ``keys.encryptionKey`` to ``false``, otherwise creating the subject fails.
+New keys are added with ``POST /internal/vdr/v2/subject/{id}/verificationmethod``, see :ref:`key-rotation`.
 
 Services
-========
+********
 
-The **services** section is used to list service endpoints. Although still available, the preferred way is to register services via :ref:`discovery`.
+Use cases built on Nuts spec v2 list their endpoints in the registration on the Discovery Service, see :ref:`discovery`.
+Use cases built on Nuts spec v1 list them as services in the ``did:nuts`` DID Document, see :ref:`version-incompatibilities`.

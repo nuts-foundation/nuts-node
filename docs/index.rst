@@ -4,6 +4,9 @@
 Nuts documentation
 ##################
 
+This documentation is for deploying and operating the Nuts node.
+How to design a use case, implement it and integrate the Nuts node with your EHR (and background information) is on the `Nuts wiki <https://wiki.nuts.nl>`_.
+
 .. note::
 
     This version of the documentation is for Nuts v6.
@@ -17,7 +20,6 @@ Nuts documentation
 
     pages/integrating/api.rst
     pages/integrating/api-authentication.rst
-    pages/integrating/vc.rst
     pages/integrating/supported-protocols-formats.rst
     pages/integrating/version-incompatibilities.rst
     pages/release_notes.rst

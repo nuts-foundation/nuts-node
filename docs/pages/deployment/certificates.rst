@@ -23,7 +23,25 @@ With other DID Methods, certificates are only used to create an secure channel f
 In ``did:x509`` the certificates are also used in the cryptographic proofs to obtain access-tokens.
 This means the certificate chain now provides the root of trust and has stricter requirements than connection certificates.
 
-Trust in specific certificate CAs is configured per use-case in a :ref:`Discovery <discovery>` and :ref:`Policy <policy>` definition file.
+Specifications:
+
+- `did:x509 DID Method Specification <https://trustoverip.github.io/tswg-did-x509-method-specification/>`_
+- `Nuts RFC023 X509Credential <https://nuts-foundation.gitbook.io/drafts/rfc/rfc023-x509credential>`_
+
+The Nuts node resolves ``did:x509`` DIDs but doesn't create them.
+When resolving, the Nuts node:
+
+- takes the certificate chain from the ``x5c`` header of the credential's JWT and validates it using only the certificates in that chain;
+- checks that the CA fingerprint in the DID matches a CA certificate (root or intermediate) in that chain;
+- checks that the other fields in the DID (e.g. ``san`` or ``subject``) match the leaf certificate.
+
+It does not use the TLS trust store (``tls.truststorefile``) or the operating system's CA bundle for this.
+
+How use cases use certificates this way is described on the wiki:
+`UZI certificates as a source of identity <https://wiki.nuts.nl/link/111>`_ and `X509Credential with UZI server certificates <https://wiki.nuts.nl/link/124>`_.
+
+Trust in specific certificate CAs is configured per use-case in a :ref:`Discovery <discovery>` and :ref:`Policy <policy>` definition file:
+their presentation definitions only accept ``did:x509`` DIDs with a specific CA fingerprint.
 CRLs from trusted chains (per the above definition files) are consulted when evaluating ``did:x509`` Verifiable Credentials.
 For certificate chains used in ``did:x509`` the Nuts-node always uses a hard-fail strategy, i.e., the ``pki.softfail`` config value is ignored during certificate validation for ``did:x509``.
 This means that the Nuts-node will not be able to verify a ``did:x509`` DID or Verifiable Credential signed by this DID Method if the CRL cannot be downloaded and the CRL in the cache is older than ``pki.maxupdatefailhours``.
