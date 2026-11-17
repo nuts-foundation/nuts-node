@@ -4,6 +4,10 @@
 Nuts documentation
 ##################
 
+This documentation is for deploying and operating the Nuts node.
+How to implement a use case with Nuts v5 (Nuts spec v1, ``did:nuts``) and integrate the Nuts node with your EHR is on the wiki: `Implementing a Nuts spec v1 use case <https://wiki.nuts.nl/link/185>`_.
+Background information is on the `Nuts wiki <https://wiki.nuts.nl>`_.
+
 .. toctree::
     :maxdepth: 1
     :caption: Getting Started:
@@ -18,7 +22,6 @@ Nuts documentation
 
     pages/integrating/api.rst
     pages/integrating/api-authentication.rst
-    pages/integrating/vc.rst
     pages/integrating/faq-errors.rst
     pages/release_notes.rst
     pages/roadmap.rst
