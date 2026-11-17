@@ -35,7 +35,6 @@ export async function loadNutsNodeApi() {
         components: {schemas: {...sharedTypes.components.schemas}, responses: {ErrorResponse: paste(errorResponse, {}, "", url("common/error_response.yaml"))}},
         tags: [],
     };
-    const groups = {APIs: [], Deprecated: []};
     const introductions = {APIs: [], Deprecated: []};
     const operationIds = new Set();
     for (const [index, api] of apis.entries()) {
@@ -43,8 +42,7 @@ export async function loadNutsNodeApi() {
         const spec = paste(specs[index], combined.components, suffix, url(api.file));
 
         // Tag names include the API name: that keeps them unique when two APIs use the same tag, and readable in
-        // tools that ignore x-tagGroups, like Postman. The menu has one level of groups, so it shows an API as one
-        // tag, or as one tag per tag of the API.
+        // tools that show the tags as a flat list. The menu shows an API as one tag, or as one tag per tag of the API.
         const operations = Object.values(spec.paths).flatMap((item) => methods.map((method) => item[method]).filter(Boolean));
         // The menu only shows tagged operations; an operation without tags has to get one in its spec.
         const untagged = operations.find((operation) => !operation.tags?.length);
@@ -68,14 +66,12 @@ export async function loadNutsNodeApi() {
             combined.paths[path] = item;
         }
         const group = api.deprecated ? "Deprecated" : "APIs";
-        groups[group].push(...names.map(tag));
         const summary = spec.info.description?.trim().replace(/\s+/g, " ");
         introductions[group].push(`- **${api.name}** ([${api.file}](${url(api.file)}))` + (summary ? `: ${summary}` : ""));
         combined.info.license ??= spec.info.license;
     }
-    // A heading without APIs, like Deprecated in v5.4, is left out.
-    combined["x-tagGroups"] = Object.entries(groups).filter(([, tags]) => tags.length).map(([name, tags]) => ({name, tags}));
-    // Lists instead of headings, which renderers would add to the menu. They link each API's own spec.
+    // Lists instead of headings, which renderers would add to the menu. They link each API's own spec. A list without
+    // APIs, like Deprecated in v5.4, is left out.
     combined.info.description = Object.entries(introductions).filter(([, lines]) => lines.length).map(([group, lines]) => `**${group}**\n\n${lines.join("\n")}`).join("\n\n");
     return combined;
 }
