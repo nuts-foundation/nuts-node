@@ -3,51 +3,51 @@
 Decentralized identifiers
 #########################
 
-Nuts uses `W3C Decentralized Identifiers <https://www.w3.org/TR/did-core/>`_ as a base for tracking identities.
-From the W3C website:
+Nuts uses `W3C Decentralized Identifiers <https://www.w3.org/TR/did-core/>`_ (DIDs) to identify parties.
+A DID is backed by a *DID Document*: it lists the public keys of the party, who can change the document (its controllers) and its services.
+What DIDs are and which DID method a use case uses is described on the wiki: `Decentralized Identifiers <https://wiki.nuts.nl/link/195>`_.
+This version of the Nuts node supports the ``did:nuts`` method, see the `did:nuts specification (RFC006) <https://nuts-foundation.gitbook.io/drafts/rfc/rfc006-distributed-registry>`_.
 
-    Decentralized identifiers (DIDs) are a new type of identifier that enables verifiable, decentralized digital identity. A DID identifies any subject (e.g., a person, organization, thing, data model, abstract entity, etc.) that the controller of the DID decides that it identifies. In contrast to typical, federated identifiers, DIDs have been designed so that they may be decoupled from centralized registries, identity providers, and certificate authorities. Specifically, while other parties might be used to help enable the discovery of information related to a DID, the design enables the controller of a DID to prove control over it without requiring permission from any other party. DIDs are URIs that associate a DID subject with a DID document allowing trustable interactions associated with that subject.
+DID Documents created by the Nuts node
+**************************************
 
-Within Nuts, DIDs identify both care organizations and software vendors. All DID methods require their own specification.
-The Nuts specification for the `nuts` DID method can be found on https://nuts-specification.readthedocs.io.
-Nuts DIDs are designed so they represent public/private key pairs. Any party can generate and claim a key pair.
-Only when information is added to the key pair, the key pair becomes important.
+A DID Document is created with ``POST /internal/vdr/v1/did``:
 
-DIDs can gather claims through Verifiable Credentials. This allows a DID to actually represent something known in real life.
-For example: adding an organization name credential connects the key pair to the name of the organization. It connects the digital world to the real world.
+- The DID is ``did:nuts:<id>``, where the id is derived from a new key: the base58-encoded SHA-256 JWK thumbprint of that key.
+- The DID Document is sent to all nodes through the Nuts network.
+- Changes are only accepted when the network transaction is signed with a ``capabilityInvocation`` key of a controller.
 
-DID Documents
-*************
+The request sets which DID controls the document and how the key is used:
 
-DIDs are backed by a *DID Document*. It defines the public keys, who can alter the document and any services related to the DID.
-DID documents are automatically propagated through the network when they are created.
-When DID documents are created, the DID **always** represents the public key fingerprint of the associated key.
-A DID document is always created with a new key, the holder of the key can delegate the control to another DID.
+.. list-table::
+   :header-rows: 1
 
-Controller
-==========
+   * - Request field
+     - Default
+     - Effect
+   * - ``selfControl``
+     - ``true``
+     - ``true``: the DID controls its own document with the new key. ``false``: the key the DID is derived from isn't added to the document, a second new key is added instead. Only the ``controllers`` can change the document.
+   * - ``controllers``
+     - none
+     - Other DIDs that can change the document, e.g. the vendor DID for a care organization's DID.
+   * - ``assertionMethod``
+     - ``true``
+     - The key signs credentials and access token requests.
+   * - ``capabilityInvocation``
+     - ``true``
+     - The key can change the DID Document. Must be ``true`` when ``selfControl`` is ``true``.
+   * - ``keyAgreement``
+     - ``true``
+     - The key is used for encryption.
+   * - ``authentication``, ``capabilityDelegation``
+     - ``false``
+     -
 
-The controller of the DID document is the only one that can change the contents. It can assign other controllers, change keys, change services and revoke the DID.
-When created, the DID document only has a single controller: the DID itself and the key related to it. It can choose to change add new controllers and remove existing ones.
-Changes to DID documents are only accepted when the network transaction is signed with a controller's **authentication** key.
-
-Verification Method
-===================
-
-All public keys within a Nuts DID Document are listed under **verificationMethod**.
-
-Assertion Method
-================
-
-Keys referenced from the **assertionMethod** section are used to sign JWTs in the OAuth flow and for issuing *Verifiable Credentials*.
-
-Authentication Method
-=====================
-
-Keys referenced from the **authentication** section are used to change the DID document and sign network transactions.
+All keys are EC keys (``JsonWebKey2020``). New keys are added with ``POST /internal/vdr/v1/did/{did}/verificationmethod``, see :ref:`key-rotation`.
 
 Services
-========
+********
 
-The **services** section is used to list service endpoints. There are some endpoints that are shared amongst all services, like the **oauth** service.
-But most service endpoints will be coming from specific `Bolts <https://nuts-foundation.gitbook.io/bolts/>`_.
+Use cases built on Nuts spec v1 list their endpoints as services in the DID Document.
+How to register them is described on the wiki: `Set up DIDs and services <https://wiki.nuts.nl/link/199>`_.

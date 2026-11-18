@@ -184,18 +184,8 @@ It will tell you:
 
 You're now set up to exchange data with other nodes.
 
-Care Organizations
-******************
+Next steps
+**********
 
-The DID documents of your care organizations you (as a vendor) want to expose on the Nuts network need to be associated
-with your node DID document (a.k.a. vendor DID) through the ``NutsComm`` endpoint.
-Its recommended to register the actual ``NutsComm`` endpoint on your vendor DID document (as explained in the previous section),
-and register a reference to this endpoint on the DID documents of your vendor's care organizations:
-
-.. code-block:: text
-
-    POST <internal-node-address>/internal/didman/v1/did/<care-organization-did>/endpoint
-    {
-        "type": "NutsComm",
-        "endpoint": "<vendor-did>/serviceEndpoint?type=NutsComm"
-    }
+To set up DIDs for your care organizations and implement a use case, see `Implementing a Nuts spec v1 use case <https://wiki.nuts.nl/link/185>`_ on the wiki.
+DIDs are created with the `Create a new Nuts DID <../integrating/api.html#tag/verifiable-data-registry/POST/internal/vdr/v1/did>`_ operation of the :ref:`API reference <nuts-node-api>`.
