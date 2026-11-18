@@ -188,3 +188,4 @@ Next steps
 **********
 
 To set up DIDs for your care organizations and implement a use case, see `Implementing a Nuts spec v1 use case <https://wiki.nuts.nl/link/185>`_ on the wiki.
+DIDs are created with the `Create a new Nuts DID <../integrating/api.html#tag/verifiable-data-registry/POST/internal/vdr/v1/did>`_ operation of the :ref:`API reference <nuts-node-api>`.
