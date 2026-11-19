@@ -1,0 +1,67 @@
+{
+  "id": "urn:nuts.nl:usecase:conflictingFieldIDs",
+  "endpoint": "https://example.com/usecase/conflicting_field_ids",
+  "presentation_max_validity": 36000,
+  "presentation_definition": {
+    "id": "pd_conflicting_field_ids",
+    "format": {
+      "ldp_vc": {
+        "proof_type": [
+          "JsonWebSignature2020"
+        ]
+      }
+    },
+    "input_descriptors": [
+      {
+        "id": "id_nuts_care_organization_cred",
+        "constraints": {
+          "fields": [
+            {
+              "path": [
+                "$.type"
+              ],
+              "filter": {
+                "type": "string",
+                "const": "NutsOrganizationCredential"
+              }
+            },
+            {
+              "id": "organization_name",
+              "path": [
+                "$.credentialSubject.organization.name"
+              ],
+              "filter": {
+                "type": "string"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "id_other_cred",
+        "constraints": {
+          "fields": [
+            {
+              "path": [
+                "$.type"
+              ],
+              "filter": {
+                "type": "string",
+                "const": "OtherCredential"
+              }
+            },
+            {
+              "id": "organization_name",
+              "path": [
+                "$.credentialSubject.name"
+              ],
+              "filter": {
+                "type": "number"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
