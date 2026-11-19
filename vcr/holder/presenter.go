@@ -61,15 +61,8 @@ func (p presenter) buildSubmission(ctx context.Context, credentials map[did.DID]
 	for holderDID, creds := range credentials {
 		builder.AddWallet(holderDID, creds)
 	}
-	// If credential selection is provided, create a selector that narrows
-	// credential selection per input descriptor by field ID values.
-	if len(credentialSelection) > 0 {
-		selector, err := pe.NewFieldSelector(credentialSelection, presentationDefinition)
-		if err != nil {
-			return nil, nil, err
-		}
-		builder.SetCredentialSelector(selector)
-	}
+	// The credential selection pins field id values; keys the presentation definition does not declare are skipped.
+	builder.SetCredentialSelection(credentialSelection)
 
 	// Find supported VP format, matching support from:
 	// - what the local Nuts node supports

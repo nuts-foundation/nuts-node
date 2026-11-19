@@ -53,7 +53,7 @@ type PresentationSubmissionBuilder struct {
 	holders                []did.DID
 	presentationDefinition PresentationDefinition
 	wallets                [][]vc.VerifiableCredential
-	credentialSelector     CredentialSelector
+	credentialSelection    map[string]string
 }
 
 // PresentationSubmissionBuilder returns a new PresentationSubmissionBuilder.
@@ -64,10 +64,10 @@ func (presentationDefinition PresentationDefinition) PresentationSubmissionBuild
 	}
 }
 
-// SetCredentialSelector configures a custom CredentialSelector for picking credentials
-// when multiple match an input descriptor. If not set, FirstMatchSelector is used.
-func (b *PresentationSubmissionBuilder) SetCredentialSelector(selector CredentialSelector) *PresentationSubmissionBuilder {
-	b.credentialSelector = selector
+// SetCredentialSelection sets the credential selection (field id to value) every wallet is matched with,
+// see PresentationDefinition.MatchWithSelection. Without it, wallets are matched with Match.
+func (b *PresentationSubmissionBuilder) SetCredentialSelection(selection map[string]string) *PresentationSubmissionBuilder {
+	b.credentialSelection = selection
 	return b
 }
 
@@ -116,13 +116,9 @@ func (b *PresentationSubmissionBuilder) Build(format string) (PresentationSubmis
 	var inputDescriptorMappingObjects []InputDescriptorMappingObject
 	var selectedDID *did.DID
 
-	selector := b.credentialSelector
-	if selector == nil {
-		selector = FirstMatchSelector
-	}
-
 	for i, walletVCs := range b.wallets {
-		vcs, mappingObjects, err := b.presentationDefinition.MatchWithSelector(walletVCs, selector)
+		// Each wallet is matched on its own: values chosen while matching one wallet do not carry over to the next.
+		vcs, mappingObjects, err := b.presentationDefinition.MatchWithSelection(walletVCs, b.credentialSelection)
 		if err == nil {
 			selectedVCs = vcs
 			inputDescriptorMappingObjects = mappingObjects

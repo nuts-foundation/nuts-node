@@ -72,21 +72,26 @@ type PresentationContext struct {
 // - Submission Requirements Feature
 // ErrUnsupportedFilter is returned when a filter uses unsupported features.
 // Other errors can be returned for faulty JSON paths or regex patterns.
+// Input descriptors that declare a field with the same id get credentials that agree on its value (see selectCredentials).
 func (presentationDefinition PresentationDefinition) Match(vcs []vc.VerifiableCredential) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
-	return presentationDefinition.MatchWithSelector(vcs, FirstMatchSelector)
+	return presentationDefinition.MatchWithSelection(vcs, nil)
 }
 
-// MatchWithSelector matches the VCs against the presentation definition using the provided CredentialSelector.
-// The selector is called for each input descriptor with all matching VCs, and must pick one (or return nil).
-func (presentationDefinition PresentationDefinition) MatchWithSelector(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
+// MatchWithSelection is Match with a credential selection: a map of field id to the value (as text) the field must
+// have on the selected credentials (strings, numbers and booleans are compared as text, see ScalarAsText).
+// Keys the presentation definition does not declare are skipped. Within the presentation definition, the selected
+// values work like values chosen while matching, but are strict: an input descriptor declaring a key only accepts
+// credentials whose field resolves to that value. When the matching credentials of such an input descriptor still
+// differ in their field id values, ErrMultipleCredentials is returned; without a selection that never happens.
+func (presentationDefinition PresentationDefinition) MatchWithSelection(vcs []vc.VerifiableCredential, selection map[string]string) ([]vc.VerifiableCredential, []InputDescriptorMappingObject, error) {
 	var selectedVCs []vc.VerifiableCredential
 	var descriptorMaps []InputDescriptorMappingObject
 	var err error
 	if len(presentationDefinition.SubmissionRequirements) > 0 {
-		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selector); err != nil {
+		if descriptorMaps, selectedVCs, err = presentationDefinition.matchSubmissionRequirements(vcs, selection); err != nil {
 			return nil, nil, err
 		}
-	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs, selector); err != nil {
+	} else if descriptorMaps, selectedVCs, err = presentationDefinition.matchBasic(vcs, selection); err != nil {
 		return nil, nil, err
 	}
 
@@ -141,51 +146,9 @@ func (presentationDefinition PresentationDefinition) CredentialsRequired() bool 
 	return len(presentationDefinition.InputDescriptors) > 0
 }
 
-func (presentationDefinition PresentationDefinition) matchConstraints(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]Candidate, error) {
-	var candidates []Candidate
-
-	for _, inputDescriptor := range presentationDefinition.InputDescriptors {
-		// Collect all matching VCs for this input descriptor
-		var matchingVCs []vc.VerifiableCredential
-		for _, credential := range vcs {
-			isMatch, _, err := matchCredential(*inputDescriptor, credential)
-			if err != nil {
-				return nil, err
-			}
-			// InputDescriptor formats must be a subset of the PresentationDefinition formats, so it must satisfy both.
-			if isMatch && matchFormat(presentationDefinition.Format, credential) && matchFormat(inputDescriptor.Format, credential) {
-				matchingVCs = append(matchingVCs, credential)
-			}
-		}
-		// Use the selector to pick one credential from the candidates.
-		// (nil, nil) means the selector has no opinion — fall back to FirstMatchSelector.
-		selected, err := selector(*inputDescriptor, matchingVCs)
-		if err != nil {
-			if errors.Is(err, ErrNoCredentials) {
-				// Treat as "no match" — submission requirements may still accept this
-				// (e.g., pick rules with min: 0).
-				selected = nil
-			} else {
-				return nil, err
-			}
-		} else if selected == nil && len(matchingVCs) > 0 {
-			selected, err = FirstMatchSelector(*inputDescriptor, matchingVCs)
-			if err != nil {
-				return nil, err
-			}
-		}
-		candidates = append(candidates, Candidate{
-			InputDescriptor: *inputDescriptor,
-			VC:              selected,
-		})
-	}
-
-	return candidates, nil
-}
-
-func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.VerifiableCredential, selection map[string]string) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
 	// do the constraints check
-	candidates, err := presentationDefinition.matchConstraints(vcs, selector)
+	candidates, unfulfilledReasons, err := presentationDefinition.selectCredentials(vcs, selection)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -195,9 +158,13 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 
 	// select all candidates without a VC
 	descriptorsNotMatched := make([]string, 0)
-	for _, candidate := range candidates {
+	for i, candidate := range candidates {
 		if candidate.VC == nil {
-			descriptorsNotMatched = append(descriptorsNotMatched, fmt.Sprintf("no VC for InputDescriptor (%s)", candidate.InputDescriptor.Id))
+			notMatched := fmt.Sprintf("no VC for InputDescriptor (%s)", candidate.InputDescriptor.Id)
+			if reason := unfulfilledReasons[i]; reason != "" {
+				notMatched += ": " + reason
+			}
+			descriptorsNotMatched = append(descriptorsNotMatched, notMatched)
 		}
 	}
 	// a constraint is not matched, return early
@@ -222,9 +189,9 @@ func (presentationDefinition PresentationDefinition) matchBasic(vcs []vc.Verifia
 	return descriptors, matchingCredentials, nil
 }
 
-func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selector CredentialSelector) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
+func (presentationDefinition PresentationDefinition) matchSubmissionRequirements(vcs []vc.VerifiableCredential, selection map[string]string) ([]InputDescriptorMappingObject, []vc.VerifiableCredential, error) {
 	// first we use the constraint matching algorithm to get the matching credentials
-	candidates, err := presentationDefinition.matchConstraints(vcs, selector)
+	candidates, _, err := presentationDefinition.selectCredentials(vcs, selection)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -573,3 +573,232 @@ func TestPresentationDefinition_selectCredentials_IsDeterministic(t *testing.T) 
 		require.Equal(t, map[string]string{"A": "a1", "B": "b2", "C": "c2"}, selectedCredentialIDs(candidates))
 	}
 }
+
+func TestPresentationDefinition_MatchWithSelection(t *testing.T) {
+	vc1 := selectionCredential("1", map[string]any{"patientId": "123"})
+	vc2 := selectionCredential("2", map[string]any{"patientId": "456"})
+	vc3 := selectionCredential("3", map[string]any{"patientId": "456"})
+	patientPD := PresentationDefinition{
+		InputDescriptors: []*InputDescriptor{
+			{Id: "patient_credential", Constraints: &Constraints{Fields: []Field{idField("patient_id", "patientId")}}},
+		},
+	}
+	enrollmentPD := PresentationDefinition{
+		InputDescriptors: []*InputDescriptor{
+			{Id: "enrollment", Constraints: &Constraints{Fields: []Field{idField("patient_id", "patientId"), idField("org_city", "city")}}},
+		},
+	}
+	multiPD := PresentationDefinition{
+		InputDescriptors: []*InputDescriptor{
+			{Id: "org_credential", Constraints: &Constraints{Fields: []Field{idField("ura", "ura")}}},
+			{Id: "patient_enrollment", Constraints: &Constraints{Fields: []Field{idField("bsn", "bsn")}}},
+		},
+	}
+	uraA := selectionCredential("A", map[string]any{"ura": "URA-001"})
+	uraB := selectionCredential("B", map[string]any{"ura": "URA-002"})
+	bsnC := selectionCredential("C", map[string]any{"bsn": "BSN-111"})
+	bsnD := selectionCredential("D", map[string]any{"bsn": "BSN-222"})
+	testCases := []struct {
+		name      string
+		pd        PresentationDefinition
+		vcs       []vc.VerifiableCredential
+		selection map[string]string
+		// expected are the ids of the returned credentials, in order.
+		expected    []string
+		expectedErr error
+		errTexts    []string
+	}{
+		{
+			name:      "selection picks the right credential by field value",
+			pd:        patientPD,
+			vcs:       []vc.VerifiableCredential{vc1, vc2},
+			selection: map[string]string{"patient_id": "456"},
+			expected:  []string{"2"},
+		},
+		{
+			name:        "no credential has the selected value: ErrNoCredentials naming the descriptor and the id",
+			pd:          patientPD,
+			vcs:         []vc.VerifiableCredential{vc1, vc2},
+			selection:   map[string]string{"patient_id": "nonexistent"},
+			expectedErr: ErrNoCredentials,
+			errTexts:    []string{"patient_credential", "patient_id"},
+		},
+		{
+			// Before, any selection leaving more than one credential failed with ErrMultipleCredentials.
+			name:      "several credentials that agree on all declared ids: first is used",
+			pd:        patientPD,
+			vcs:       []vc.VerifiableCredential{vc2, vc3},
+			selection: map[string]string{"patient_id": "456"},
+			expected:  []string{"2"},
+		},
+		{
+			name: "credentials that differ on another declared id: ErrMultipleCredentials naming the descriptor and ids",
+			pd:   enrollmentPD,
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("A", map[string]any{"patientId": "123", "city": "Amsterdam"}),
+				selectionCredential("B", map[string]any{"patientId": "123", "city": "Rotterdam"}),
+			},
+			selection:   map[string]string{"patient_id": "123"},
+			expectedErr: ErrMultipleCredentials,
+			errTexts:    []string{"enrollment", "patient_id", "org_city"},
+		},
+		{
+			name: "matches numeric field values",
+			pd: PresentationDefinition{InputDescriptors: []*InputDescriptor{
+				{Id: "room_access", Constraints: &Constraints{Fields: []Field{idField("floor", "floor")}}},
+			}},
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("A", map[string]any{"floor": float64(1)}),
+				selectionCredential("B", map[string]any{"floor": float64(3)}),
+			},
+			selection: map[string]string{"floor": "3"},
+			expected:  []string{"B"},
+		},
+		{
+			name:      "selection key the PD does not declare is skipped",
+			pd:        patientPD,
+			vcs:       []vc.VerifiableCredential{vc1, vc2},
+			selection: map[string]string{"nonexistent_field": "value"},
+			expected:  []string{"1"},
+		},
+		{
+			name:      "undeclared selection key does not affect declared keys",
+			pd:        patientPD,
+			vcs:       []vc.VerifiableCredential{vc1, vc2},
+			selection: map[string]string{"patient_id": "456", "nonexistent_field": "value"},
+			expected:  []string{"2"},
+		},
+		{
+			name:      "descriptor without selection keys uses its first match",
+			pd:        multiPD,
+			vcs:       []vc.VerifiableCredential{uraA, uraB, bsnC, bsnD},
+			selection: map[string]string{"bsn": "BSN-222"},
+			expected:  []string{"A", "D"},
+		},
+		{
+			name: "multiple selection keys use AND semantics",
+			pd:   enrollmentPD,
+			vcs: []vc.VerifiableCredential{
+				selectionCredential("A", map[string]any{"patientId": "123", "city": "Amsterdam"}),
+				selectionCredential("B", map[string]any{"patientId": "123", "city": "Rotterdam"}),
+			},
+			selection: map[string]string{"patient_id": "123", "org_city": "Rotterdam"},
+			expected:  []string{"B"},
+		},
+		{
+			name:      "multiple descriptors with independent selection keys",
+			pd:        multiPD,
+			vcs:       []vc.VerifiableCredential{uraA, uraB, bsnC, bsnD},
+			selection: map[string]string{"ura": "URA-002", "bsn": "BSN-111"},
+			expected:  []string{"B", "C"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vcs, mappings, err := tc.pd.MatchWithSelection(tc.vcs, tc.selection)
+
+			if tc.expectedErr != nil {
+				require.ErrorIs(t, err, tc.expectedErr)
+				for _, text := range tc.errTexts {
+					assert.ErrorContains(t, err, text)
+				}
+				return
+			}
+			require.NoError(t, err)
+			var actual []string
+			for _, credential := range vcs {
+				actual = append(actual, credential.ID.String())
+			}
+			assert.Equal(t, tc.expected, actual)
+			assert.Len(t, mappings, len(tc.expected))
+		})
+	}
+}
+
+func TestPresentationDefinition_MatchWithSelection_SubmissionRequirementsAndSharedIDs(t *testing.T) {
+	// The provider is selected (Org A, ura 1), the wallet only has delegations for ura 2 and 3: the provider's
+	// ura filters the delegation descriptor, which is left without credential. The submission requirements decide
+	// whether that is acceptable.
+	wallet := []vc.VerifiableCredential{
+		selectionCredential("P1", map[string]any{"kind": "provider", "ura": "1", "name": "Org A"}),
+		selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2", "name": "Org B"}),
+		selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2"}),
+		selectionCredential("D3", map[string]any{"kind": "delegation", "ura": "3"}),
+	}
+	pdWithDelegationRule := func(rule SubmissionRequirement) PresentationDefinition {
+		provider := selectionDescriptor("provider", "provider", idField("ura", "ura"), idField("org_name", "name"))
+		provider.Group = []string{"provider"}
+		delegation := selectionDescriptor("delegation", "delegation", idField("ura", "ura"))
+		delegation.Group = []string{"delegation"}
+		rule.From = "delegation"
+		return PresentationDefinition{
+			InputDescriptors: []*InputDescriptor{provider, delegation},
+			SubmissionRequirements: []*SubmissionRequirement{
+				{Rule: "all", From: "provider"},
+				&rule,
+			},
+		}
+	}
+	selection := map[string]string{"org_name": "Org A"}
+
+	t.Run("pick rule with min 0 accepts the descriptor without credential", func(t *testing.T) {
+		zero := 0
+		pd := pdWithDelegationRule(SubmissionRequirement{Rule: "pick", Min: &zero})
+
+		vcs, mappings, err := pd.MatchWithSelection(wallet, selection)
+
+		require.NoError(t, err)
+		require.Len(t, vcs, 1)
+		assert.Equal(t, "P1", vcs[0].ID.String())
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "provider", mappings[0].Id)
+	})
+	t.Run("all rule fails with ErrNoCredentials", func(t *testing.T) {
+		pd := pdWithDelegationRule(SubmissionRequirement{Rule: "all"})
+
+		_, _, err := pd.MatchWithSelection(wallet, selection)
+
+		assert.ErrorIs(t, err, ErrNoCredentials)
+	})
+	t.Run("pick alternatives that share an id: the first in PD order is used", func(t *testing.T) {
+		// Two input descriptors ask for the same credential in two formats and declare the same id; a pick rule
+		// takes one. The wallet holds one credential of each, with differing values: only one is presented, so
+		// that must not fail.
+		asJSONLD := selectionDescriptor("as_jsonld", "jsonld", idField("organization_name", "name"))
+		asJSONLD.Group = []string{"g"}
+		asJWT := selectionDescriptor("as_jwt", "jwt", idField("organization_name", "name"))
+		asJWT.Group = []string{"g"}
+		one := 1
+		pd := PresentationDefinition{
+			InputDescriptors:       []*InputDescriptor{asJSONLD, asJWT},
+			SubmissionRequirements: []*SubmissionRequirement{{Rule: "pick", Count: &one, From: "g"}},
+		}
+		vcs := []vc.VerifiableCredential{
+			selectionCredential("A", map[string]any{"kind": "jsonld", "name": "Care B.V."}),
+			selectionCredential("B", map[string]any{"kind": "jwt", "name": "Care BV"}),
+		}
+
+		selected, mappings, err := pd.Match(vcs)
+
+		require.NoError(t, err)
+		require.Len(t, selected, 1)
+		assert.Equal(t, "A", selected[0].ID.String())
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "as_jsonld", mappings[0].Id)
+	})
+	t.Run("required descriptors that conflict: ErrNoCredentials naming the descriptor and the id", func(t *testing.T) {
+		pd := PresentationDefinition{InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("as_jsonld", "jsonld", idField("organization_name", "name")),
+			selectionDescriptor("as_jwt", "jwt", idField("organization_name", "name")),
+		}}
+		vcs := []vc.VerifiableCredential{
+			selectionCredential("A", map[string]any{"kind": "jsonld", "name": "Care B.V."}),
+			selectionCredential("B", map[string]any{"kind": "jwt", "name": "Care BV"}),
+		}
+
+		_, _, err := pd.Match(vcs)
+
+		require.ErrorIs(t, err, ErrNoCredentials)
+		assert.ErrorContains(t, err, "no VC for InputDescriptor (as_jwt): no matching credential has the selected value for field id(s) organization_name")
+	})
+}

@@ -23,8 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"errors"
-
 	ssi "github.com/nuts-foundation/go-did"
 	"github.com/nuts-foundation/go-did/did"
 	"github.com/nuts-foundation/go-did/vc"
@@ -197,86 +195,128 @@ func TestPresentationSubmissionBuilder_Build(t *testing.T) {
 	})
 }
 
-func TestPresentationSubmissionBuilder_SetCredentialSelector(t *testing.T) {
-	holder := did.MustParseDID("did:example:1")
-	id1 := ssi.MustParseURI("1")
-	id2 := ssi.MustParseURI("2")
-	// Both VCs have a "field" key — a broad PD will match both
-	vc1 := credentialToJSONLD(vc.VerifiableCredential{ID: &id1, CredentialSubject: []map[string]any{{"field": "a"}}})
-	vc2 := credentialToJSONLD(vc.VerifiableCredential{ID: &id2, CredentialSubject: []map[string]any{{"field": "b"}}})
+func TestPresentationSubmissionBuilder_SetCredentialSelection(t *testing.T) {
+	holder1 := did.MustParseDID("did:example:1")
+	holder2 := did.MustParseDID("did:example:2")
+	vcA := selectionCredential("A", map[string]any{"kind": "provider", "ura": "1", "name": "Org A"})
+	vcB := selectionCredential("B", map[string]any{"kind": "provider", "ura": "2", "name": "Org B"})
+	vcC := selectionCredential("C", map[string]any{"kind": "provider", "ura": "3", "name": "Org B"})
+	pd := PresentationDefinition{
+		Id: "test",
+		InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("provider", "provider", idField("ura", "ura"), idField("org_name", "name")),
+		},
+	}
 
-	// PD with a single input descriptor that matches any VC with a "field" key
-	var pd PresentationDefinition
-	require.NoError(t, json.Unmarshal([]byte(`{
-		"id": "test",
-		"input_descriptors": [{
-			"id": "match_field",
-			"constraints": {
-				"fields": [{
-					"path": ["$.credentialSubject.field"]
-				}]
-			}
-		}]
-	}`), &pd))
-
-	t.Run("custom selector picks second credential", func(t *testing.T) {
-		lastSelector := func(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-			if len(candidates) == 0 {
-				return nil, nil
-			}
-			return &candidates[len(candidates)-1], nil
-		}
-
+	t.Run("selection picks the second credential", func(t *testing.T) {
 		builder := pd.PresentationSubmissionBuilder()
-		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
-		builder.SetCredentialSelector(lastSelector)
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vcA, vcB})
+		builder.SetCredentialSelection(map[string]string{"org_name": "Org B"})
 
 		_, signInstruction, err := builder.Build("ldp_vp")
 
 		require.NoError(t, err)
 		require.Len(t, signInstruction.VerifiableCredentials, 1)
-		assert.Equal(t, &id2, signInstruction.VerifiableCredentials[0].ID)
+		assert.Equal(t, "B", signInstruction.VerifiableCredentials[0].ID.String())
 	})
-	t.Run("without selector uses first match (default)", func(t *testing.T) {
+	t.Run("without selection uses first match (default)", func(t *testing.T) {
 		builder := pd.PresentationSubmissionBuilder()
-		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vcA, vcB})
 
 		_, signInstruction, err := builder.Build("ldp_vp")
 
 		require.NoError(t, err)
 		require.Len(t, signInstruction.VerifiableCredentials, 1)
-		assert.Equal(t, &id1, signInstruction.VerifiableCredentials[0].ID)
+		assert.Equal(t, "A", signInstruction.VerifiableCredentials[0].ID.String())
 	})
-	t.Run("selector receives all matching candidates", func(t *testing.T) {
-		var receivedCandidates []vc.VerifiableCredential
-		spySelector := func(_ InputDescriptor, candidates []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-			receivedCandidates = candidates
-			return &candidates[0], nil
-		}
-
+	t.Run("ErrMultipleCredentials propagates", func(t *testing.T) {
 		builder := pd.PresentationSubmissionBuilder()
-		builder.AddWallet(holder, []vc.VerifiableCredential{vc1, vc2})
-		builder.SetCredentialSelector(spySelector)
-		builder.Build("ldp_vp")
-
-		require.Len(t, receivedCandidates, 2)
-		assert.Equal(t, &id1, receivedCandidates[0].ID)
-		assert.Equal(t, &id2, receivedCandidates[1].ID)
-	})
-	t.Run("selector error propagates", func(t *testing.T) {
-		selectorErr := errors.New("no matching credential for this input descriptor")
-		errorSelector := func(_ InputDescriptor, _ []vc.VerifiableCredential) (*vc.VerifiableCredential, error) {
-			return nil, selectorErr
-		}
-
-		builder := pd.PresentationSubmissionBuilder()
-		builder.AddWallet(holder, []vc.VerifiableCredential{vc1})
-		builder.SetCredentialSelector(errorSelector)
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vcA, vcB, vcC})
+		builder.SetCredentialSelection(map[string]string{"org_name": "Org B"})
 
 		_, _, err := builder.Build("ldp_vp")
 
-		assert.ErrorIs(t, err, selectorErr)
+		assert.ErrorIs(t, err, ErrMultipleCredentials)
+		assert.ErrorContains(t, err, "input descriptor 'provider'")
 	})
+	t.Run("values chosen for one wallet do not carry over to the next wallet", func(t *testing.T) {
+		// The first wallet has a provider credential (ura 1) but no delegation for it, so it fails. Had its ura
+		// carried over, the second wallet (ura 2) would fail too.
+		pd := PresentationDefinition{
+			Id: "test",
+			InputDescriptors: []*InputDescriptor{
+				selectionDescriptor("provider", "provider", idField("ura", "ura")),
+				selectionDescriptor("delegation", "delegation", idField("ura", "ura")),
+			},
+		}
+		builder := pd.PresentationSubmissionBuilder()
+		builder.AddWallet(holder1, []vc.VerifiableCredential{vcA})
+		builder.AddWallet(holder2, []vc.VerifiableCredential{
+			selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2"}),
+			selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2"}),
+		})
+
+		_, signInstruction, err := builder.Build("ldp_vp")
+
+		require.NoError(t, err)
+		assert.Equal(t, holder2, signInstruction.Holder)
+		require.Len(t, signInstruction.VerifiableCredentials, 2)
+		assert.Equal(t, "P2", signInstruction.VerifiableCredentials[0].ID.String())
+		assert.Equal(t, "D2", signInstruction.VerifiableCredentials[1].ID.String())
+	})
+}
+
+func TestPresentationSubmission_Validate_CredentialSelectionRoundTrip(t *testing.T) {
+	// The verifier validates a submission by matching the presentation definition again, without the holder's
+	// credential selection, against the credentials in the presentation. A presentation built with a selection
+	// that made the holder pick other credentials than its first matches must still validate.
+	holderDID := did.MustParseDID("did:example:holder")
+	pd := PresentationDefinition{
+		Id: "test",
+		InputDescriptors: []*InputDescriptor{
+			selectionDescriptor("provider", "provider", idField("ura", "ura"), idField("org_name", "name")),
+			selectionDescriptor("delegation", "delegation", idField("ura", "ura"), idField("employee", "employee")),
+		},
+	}
+	wallet := []vc.VerifiableCredential{
+		selectionCredential("P1", map[string]any{"kind": "provider", "ura": "1", "name": "Org A"}),
+		selectionCredential("P2", map[string]any{"kind": "provider", "ura": "2", "name": "Org B"}),
+		selectionCredential("D1", map[string]any{"kind": "delegation", "ura": "1", "employee": "e1"}),
+		selectionCredential("D2", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"}),
+		selectionCredential("D2copy", map[string]any{"kind": "delegation", "ura": "2", "employee": "e1"}),
+	}
+	testCases := []struct {
+		name      string
+		selection map[string]string
+		expected  map[string]string
+	}{
+		{name: "without selection", expected: map[string]string{"provider": "P1", "delegation": "D1"}},
+		{name: "selection picks credentials that are not the first matches", selection: map[string]string{"org_name": "Org B"}, expected: map[string]string{"provider": "P2", "delegation": "D2"}},
+		{name: "selection pins the shared id", selection: map[string]string{"ura": "2"}, expected: map[string]string{"provider": "P2", "delegation": "D2"}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := pd.PresentationSubmissionBuilder()
+			builder.AddWallet(holderDID, wallet)
+			builder.SetCredentialSelection(tc.selection)
+			submission, signInstruction, err := builder.Build("ldp_vp")
+			require.NoError(t, err)
+			verificationMethod := ssi.MustParseURI(holderDID.String() + "#1")
+			presentation := vc.VerifiablePresentation{
+				VerifiableCredential: signInstruction.VerifiableCredentials,
+				Proof:                []interface{}{proof.LDProof{VerificationMethod: verificationMethod}},
+			}
+
+			credentials, err := submission.Validate(toEnvelope(t, presentation), pd)
+
+			require.NoError(t, err)
+			actual := make(map[string]string)
+			for descriptorID, credential := range credentials {
+				actual[descriptorID] = credential.ID.String()
+			}
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
 }
 
 func TestNewEnvelopeFromVP(t *testing.T) {
