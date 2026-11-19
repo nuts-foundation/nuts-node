@@ -53,6 +53,8 @@ type Client interface {
 	// offered to both wallets; each PD selects what matches its input descriptors. Signed VCs flow through unchanged;
 	// unsigned self-attested credentials are auto-issued per holder DID by AutoCorrectSelfAttestedCredential.
 	// credentialSelection maps PD field IDs to expected values to disambiguate when multiple credentials match an input descriptor.
+	// A field ID names one value across the request: in the two-VP flow, the values of the organization VP are added to
+	// the selection for the service-provider VP, so its credentials agree with the organization VP.
 	// Every key must be declared as field ID by at least one PD of the request (in the two-VP flow: the organization or the
 	// service_provider PD); otherwise an oauth.OAuth2Error with code invalid_request is returned before any VP is built.
 	RequestServiceAccessToken(ctx context.Context, clientID string, subjectID string, authServerURL string, scopes string, useDPoP bool,
