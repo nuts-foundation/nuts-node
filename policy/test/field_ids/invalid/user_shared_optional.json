@@ -1,0 +1,57 @@
+{
+  "user-scope": {
+    "user": {
+      "id": "pd_user",
+      "input_descriptors": [
+        {
+          "id": "id_employee_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "EmployeeCredential"
+                }
+              },
+              {
+                "id": "employee_id",
+                "path": [
+                  "$.credentialSubject.identifier"
+                ],
+                "filter": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "id_role_cred",
+          "constraints": {
+            "fields": [
+              {
+                "path": [
+                  "$.type"
+                ],
+                "filter": {
+                  "type": "string",
+                  "const": "RoleCredential"
+                }
+              },
+              {
+                "id": "employee_id",
+                "path": [
+                  "$.credentialSubject.employee"
+                ],
+                "optional": true
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

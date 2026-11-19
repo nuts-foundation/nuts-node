@@ -21,6 +21,7 @@ package policy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/nuts-foundation/nuts-node/v6/core"
 	httpClient "github.com/nuts-foundation/nuts-node/v6/http/client"
@@ -28,7 +29,9 @@ import (
 	"github.com/nuts-foundation/nuts-node/v6/vcr/pe"
 	v2 "github.com/nuts-foundation/nuts-node/v6/vcr/pe/schema/v2"
 	"io"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -174,7 +177,9 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 	if b.mapping == nil {
 		b.mapping = make(map[string]credentialProfileConfig)
 	}
-	for scope, profile := range result {
+	// Iterate in sorted order, so that a file with several invalid profiles always reports the same one.
+	for _, scope := range slices.Sorted(maps.Keys(result)) {
+		profile := result[scope]
 		if _, exists := b.mapping[scope]; exists {
 			return fmt.Errorf("mapping for scope '%s' already exists (file=%s)", scope, filename)
 		}
@@ -187,6 +192,9 @@ func (b *LocalPDP) loadFromFile(filename string) error {
 		}
 		if !profile.ScopePolicy.valid() {
 			return fmt.Errorf("invalid scope_policy %q for scope %q (file=%s)", profile.ScopePolicy, scope, filename)
+		}
+		if err := profile.validateFieldIDs(); err != nil {
+			return fmt.Errorf("invalid field ids in credential profile for scope %q (file=%s): %w", scope, filename, err)
 		}
 		b.mapping[scope] = profile
 	}
@@ -213,6 +221,30 @@ func (c credentialProfileConfig) toWalletOwnerMapping() pe.WalletOwnerMapping {
 		m[pe.WalletOwnerUser] = pe.PresentationDefinition(*c.User)
 	}
 	return m
+}
+
+// validateFieldIDs checks that every field id in the profile's presentation definitions can be given one value
+// (see pe.ValidateFieldIDs). The organization and service_provider PDs are checked together, because they are
+// used in the same token request and values selected in the organization VP carry over to the service provider VP.
+// The user PD is used in a separate flow, so it is checked on its own.
+func (c credentialProfileConfig) validateFieldIDs() error {
+	var twoVP []pe.PresentationDefinition
+	if c.Organization != nil {
+		twoVP = append(twoVP, pe.PresentationDefinition(*c.Organization))
+	}
+	if c.ServiceProvider != nil {
+		twoVP = append(twoVP, pe.PresentationDefinition(*c.ServiceProvider))
+	}
+	var errs []error
+	if err := pe.ValidateFieldIDs(twoVP...); err != nil {
+		errs = append(errs, err)
+	}
+	if c.User != nil {
+		if err := pe.ValidateFieldIDs(pe.PresentationDefinition(*c.User)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // validatingPresentationDefinition validates the PresentationDefinition against the v2 JSON schema on unmarshal.
