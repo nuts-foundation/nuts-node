@@ -18,7 +18,39 @@
 
 package pe
 
-import "strconv"
+import (
+	"slices"
+	"strconv"
+)
+
+// UnknownSelectionKeys returns the keys of selection that no field id in any of the given presentation definitions
+// declares, sorted. A field id names one value across a whole token request, so a key only needs to be declared by
+// one of the PDs of the request; it is unknown when none of them declares it. Such a key cannot select anything,
+// which signals a mistake by the caller (e.g. a typo), so callers should reject it rather than ignore it.
+// Returns nil when every key is declared.
+func UnknownSelectionKeys(selection map[string]string, presentationDefinitions ...PresentationDefinition) []string {
+	declared := make(map[string]bool)
+	for _, pd := range presentationDefinitions {
+		for _, descriptor := range pd.InputDescriptors {
+			if descriptor == nil || descriptor.Constraints == nil {
+				continue
+			}
+			for _, field := range descriptor.Constraints.Fields {
+				if field.Id != nil {
+					declared[*field.Id] = true
+				}
+			}
+		}
+	}
+	var unknown []string
+	for key := range selection {
+		if !declared[key] {
+			unknown = append(unknown, key)
+		}
+	}
+	slices.Sort(unknown)
+	return unknown
+}
 
 // ScalarAsText returns the text form of a field value resolved from a credential, so it can be compared with a
 // value that was given as text (such as a credential_selection entry), or with another resolved value.

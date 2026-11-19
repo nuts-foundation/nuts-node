@@ -21,8 +21,82 @@ package pe
 import (
 	"testing"
 
+	"github.com/nuts-foundation/nuts-node/v6/core/to"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestUnknownSelectionKeys(t *testing.T) {
+	pdDeclaring := func(ids ...string) PresentationDefinition {
+		var fields []Field
+		for _, id := range ids {
+			fields = append(fields, Field{Id: to.Ptr(id), Path: []string{"$.credentialSubject." + id}})
+		}
+		return PresentationDefinition{InputDescriptors: []*InputDescriptor{{Id: "descriptor", Constraints: &Constraints{Fields: fields}}}}
+	}
+	organizationPD := pdDeclaring("ura", "patient_id")
+	serviceProviderPD := pdDeclaring("delegating_hcp")
+	pdWithoutIDs := PresentationDefinition{InputDescriptors: []*InputDescriptor{
+		{Id: "no_constraints"},
+		{Id: "field_without_id", Constraints: &Constraints{Fields: []Field{{Path: []string{"$.type"}}}}},
+	}}
+
+	testCases := []struct {
+		name      string
+		selection map[string]string
+		pds       []PresentationDefinition
+		expected  []string
+	}{
+		{
+			name:      "no selection",
+			selection: nil,
+			pds:       []PresentationDefinition{organizationPD},
+		},
+		{
+			name:      "every key declared by the PD",
+			selection: map[string]string{"ura": "1", "patient_id": "2"},
+			pds:       []PresentationDefinition{organizationPD},
+		},
+		{
+			name:      "key declared by a later descriptor",
+			selection: map[string]string{"delegating_hcp": "did:test:hcp"},
+			pds: []PresentationDefinition{{InputDescriptors: append(pdWithoutIDs.InputDescriptors,
+				serviceProviderPD.InputDescriptors...)}},
+		},
+		{
+			name:      "key declared by only one of several PDs is known",
+			selection: map[string]string{"ura": "1", "delegating_hcp": "did:test:hcp"},
+			pds:       []PresentationDefinition{organizationPD, serviceProviderPD},
+		},
+		{
+			name:      "key declared by no PD is unknown",
+			selection: map[string]string{"ura": "1", "typo": "x"},
+			pds:       []PresentationDefinition{organizationPD, serviceProviderPD},
+			expected:  []string{"typo"},
+		},
+		{
+			name:      "every unknown key is returned, sorted",
+			selection: map[string]string{"zeta": "1", "alpha": "2", "ura": "3", "mid": "4"},
+			pds:       []PresentationDefinition{organizationPD},
+			expected:  []string{"alpha", "mid", "zeta"},
+		},
+		{
+			name:      "fields without id and descriptors without constraints declare nothing",
+			selection: map[string]string{"ura": "1"},
+			pds:       []PresentationDefinition{pdWithoutIDs},
+			expected:  []string{"ura"},
+		},
+		{
+			name:      "no PDs: every key is unknown",
+			selection: map[string]string{"ura": "1"},
+			expected:  []string{"ura"},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, UnknownSelectionKeys(tc.selection, tc.pds...))
+		})
+	}
+}
 
 func TestScalarAsText(t *testing.T) {
 	testCases := []struct {
