@@ -124,12 +124,37 @@ func TestNewFieldSelector(t *testing.T) {
 		require.NotNil(t, result)
 		assert.Equal(t, &idB, result.ID)
 	})
-	t.Run("unknown selection key returns construction error", func(t *testing.T) {
-		_, err := NewFieldSelector(map[string]string{
+	t.Run("selection key the PD does not declare is skipped", func(t *testing.T) {
+		// The key may be meant for another PD of the same token request, so it must not fail selection
+		// for this PD. With no declared key left, the descriptor falls back to the default selector.
+		selector, err := NewFieldSelector(map[string]string{
 			"nonexistent_field": "value",
 		}, pd)
+		require.NoError(t, err)
 
-		assert.ErrorContains(t, err, "nonexistent_field")
+		result, err := selector(
+			*pd.InputDescriptors[0],
+			[]vc.VerifiableCredential{vc1, vc2},
+		)
+
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+	t.Run("undeclared selection key does not affect declared keys", func(t *testing.T) {
+		selector, err := NewFieldSelector(map[string]string{
+			"patient_id":        "456",
+			"nonexistent_field": "value",
+		}, pd)
+		require.NoError(t, err)
+
+		result, err := selector(
+			*pd.InputDescriptors[0],
+			[]vc.VerifiableCredential{vc1, vc2},
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, &id2, result.ID)
 	})
 	t.Run("no selection keys for descriptor returns nil nil", func(t *testing.T) {
 		// Selection targets patient_credential, but we call with a different descriptor.

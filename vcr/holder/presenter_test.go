@@ -457,6 +457,24 @@ func TestPresenter_buildSubmission(t *testing.T) {
 		require.Len(t, subjects, 1)
 		assert.Equal(t, "Second Org B.V.", subjects[0]["organization"].(map[string]interface{})["name"])
 	})
+	t.Run("ok - credential_selection key not declared by the PD is ignored", func(t *testing.T) {
+		// A selection key may target another PD of the same token request (e.g. the other VP in the
+		// jwt-bearer flow), so the wallet skips keys this PD does not declare instead of failing.
+		resetStore(t, storageEngine.GetSQLDatabase())
+		ctrl := gomock.NewController(t)
+		keyResolver := resolver.NewMockKeyResolver(ctrl)
+		keyResolver.EXPECT().ResolveKey(nutsWalletDID, nil, resolver.NutsSigningKeyType).Return(key.KID, key.PublicKey, nil)
+		w := presenter{documentLoader: jsonldManager.DocumentLoader(), signer: keyStore, keyResolver: keyResolver}
+
+		vp, submission, err := w.buildSubmission(ctx, credentials, presentationDefinition,
+			map[string]string{"not_in_this_pd": "value"},
+			BuildParams{Audience: verifierDID.String(), Expires: time.Now().Add(time.Second), Format: vpFormats, Nonce: ""})
+
+		require.NoError(t, err)
+		require.NotNil(t, vp)
+		require.NotNil(t, submission)
+		assert.Equal(t, nutsWalletDID.String(), vp.Holder.String())
+	})
 	t.Run("ok - empty presentation", func(t *testing.T) {
 		resetStore(t, storageEngine.GetSQLDatabase())
 		ctrl := gomock.NewController(t)

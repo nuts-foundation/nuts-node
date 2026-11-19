@@ -61,9 +61,13 @@ type fieldSelection struct {
 // already evaluated by matchConstraint before the selector runs.
 // Returns (nil, nil) for input descriptors without matching selection keys,
 // signalling the builder to apply its default selector.
+//
+// A selection key that no field id in this PD declares is skipped: a field id names one value across a whole
+// token request, which can span more than one PD (e.g. the two VPs of the jwt-bearer flow), so a key may be
+// meant for another PD of the same request. Rejecting keys that no PD of the request declares is up to the
+// caller, which knows every PD of the request. The returned error is currently always nil.
 func NewFieldSelector(selection map[string]string, pd PresentationDefinition) (CredentialSelector, error) {
 	descriptorSelections := make(map[string][]fieldSelection)
-	matchedKeys := make(map[string]bool)
 
 	for _, desc := range pd.InputDescriptors {
 		if desc.Constraints == nil {
@@ -78,15 +82,7 @@ func NewFieldSelector(selection map[string]string, pd PresentationDefinition) (C
 					fieldID:  *field.Id,
 					expected: expected,
 				})
-				matchedKeys[*field.Id] = true
 			}
-		}
-	}
-
-	// Validate all selection keys match at least one field ID in the PD.
-	for key := range selection {
-		if !matchedKeys[key] {
-			return nil, fmt.Errorf("credential_selection key '%s' does not match any field id in the presentation definition", key)
 		}
 	}
 
